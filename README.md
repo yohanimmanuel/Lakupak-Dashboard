@@ -18,11 +18,11 @@ Our goal is to digitize the traditional distributor-to-retailer supply chain whi
 - **Verified Network**: Both buyers and distributors undergo verification to maintain a trusted marketplace ecosystem.
 
 ## Why Laku-Laku is Different
-Unlike generic e-commerce platforms, Laku-Laku is purpose-built for bulk FMCG B2B trade:
-- Tailored workflows for carton- and box-level ordering, not single items
-- Streamlined replenishment cycles for warungs and shops
-- Vertical SaaS tools that distributors can run their entire operations on
-- Strong focus on data protection and role-based access to prevent competitive undercutting
+In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, and retailers get spammed with overlapping offers from different salesmen. Laku-Laku eliminates that chaos by giving both sides a shared, smart marketplace designed for wholesale buying:
+- One platform, zero overlap – Retailers see all offers from verified distributors in one place, without duplicated pitches.
+- Wholesale-first tools – Order by carton or box, schedule replenishments, and receive delivery updates instantly.
+- Run your business, not just your shop – From inventory tracking to analytics and marketing, distributors get an all-in-one SaaS to replace WhatsApp and paper ledgers.
+- Protected relationships – Role-based access keeps sensitive customer and price data safe from competitors.
 
 ## Core Features
 
