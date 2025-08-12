@@ -37,7 +37,7 @@ Unlike generic e-commerce platforms, Laku-Laku is purpose-built for bulk FMCG B2
 
 ### Buyer Interface
 - **Marketplace Search & Browse**
-- **Bulk Ordering** - By carton/box
+- **Bulk Ordering** - By carton/box (special to try out product tastes)
 - **Order Tracking**
 - **Repeat Purchase Shortcuts**
 
