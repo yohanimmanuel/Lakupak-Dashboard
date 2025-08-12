@@ -1,4 +1,4 @@
-# Laku-Laku
+# Laku-Laku 🤗🤗
 
 ## Overview
 Laku-Laku is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a secure, controlled marketplace for their buyers — small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
