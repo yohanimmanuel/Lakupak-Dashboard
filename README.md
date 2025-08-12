@@ -28,11 +28,12 @@ Unlike generic e-commerce platforms, Laku-Laku is purpose-built for bulk FMCG B2
 
 ### Distributor Dashboard
 - **Products Management** - Add/edit in bulk, set carton pricing
-- **Customer/Client Management** - CRM functionality
+- **Customer/Supplier Management** - CRM functionality
 - **Orders Management** - Track, fulfill, and invoice orders
 - **Analytics** - Sales trends, inventory turnover, customer behavior
-- **Supplier Leads** - Discover and add new product sources
-- **Discounts & Promotions** - Volume-based offers
+- **Supplier & Buyer Leads** - Discover and add new product sources and buyers
+- **Sales & Marketing** - Manage sales activities, manpower, and performance
+- **Programs & Incentives** - Offers discounts, promotions, and volume-based offers
 
 ### Buyer Interface
 - **Marketplace Search & Browse**
