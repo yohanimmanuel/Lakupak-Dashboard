@@ -42,7 +42,7 @@ Unlike generic e-commerce platforms, Laku-Laku is purpose-built for bulk FMCG B2
 
 ## Business Model
 - **SaaS Subscription** – Monthly fee for distributors to use the platform's management tools
-- **Marketplace Platform Fee** – 0.5%–1% fee on transactions
+- **Seller Commission Fee** – 0.5%–1% fee on transactions
 - **Optional Value-Added Services** – Logistics integration, financing, supplier leads
 
 ## Technical Architecture
