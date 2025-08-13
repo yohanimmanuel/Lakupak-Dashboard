@@ -1,15 +1,16 @@
 import Image from "next/image";
+import { XIcon, CheckIcon, ChartBarIcon, ShoppingCartIcon, FileIcon, PackageIcon, RocketIcon, UserIcon, ChartAreaIcon, InstagramIcon, MailIcon, FacebookIcon } from "lucide-react";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-100 z-50">
+             {/* Navigation Bar */}
+       <nav className="fixed top-0 w-full bg-white/20 backdrop-blur-md border-b border-white/30 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <div className="flex items-center -ml-13">
-              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={300} height={100} />
+            <div className="flex items-center -ml-15">
+              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={320} height={100} />
             </div>
 
             {/* Desktop Navigation */}
@@ -36,29 +37,29 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section id="home" className="pt-24 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
             {/* Left Content */}
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <h1 className="mt-10 text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  Where Distributors &{" "}
-                  <span className="text-[#0a61d7]">Retailers</span>{" "}
-                  Trade Smarter
-                </h1>
-                <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
-                  Instantly connect, order in bulk, and grow your margins — all in one platform.
-                </p>
-              </div>
+             <div className="space-y-8">
+               <div className="space-y-4">
+                 <h1 className="mt-10 text-5xl lg:text-6xl font-bold text-gray-900 leading-tight animate-fade-in-up">
+                   Where <span className="text-[#0a61d7]">Distributors</span> &{" "}
+                   <span className="text-orange-400">Retailers</span>{" "}
+                   Trade Smarter
+                 </h1>
+                 <p className="text-xl text-gray-600 leading-relaxed max-w-2xl animate-fade-in-up animate-delay-200">
+                   Instantly connect, order in bulk, and grow your margins — all in one platform.
+                 </p>
+               </div>
 
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                  Get Started Free
-                </button>
-                <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-[#0a61d7] hover:text-[#0a61d7] transition-all duration-200">
-                  Learn More →
-                </button>
-              </div>
+                             {/* CTA Buttons */}
+               <div className="flex flex-col sm:flex-row gap-4">
+                 <button className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 animate-fade-in-up">
+                   Get Started Free
+                 </button>
+                 <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-[#0a61d7] hover:text-[#0a61d7] transition-all duration-200 animate-fade-in-up animate-delay-500">
+                   Learn More →
+                 </button>
+               </div>
 
               {/* Social Proof */}
               <div className="flex items-center space-x-6 pt-4">
@@ -76,12 +77,11 @@ export default function LandingPage() {
             </div>
 
             {/* Right - Product Screenshot */}
-            <div className="flex justify-center lg:justify-end">
-              <div className="w-[500px] h-[350px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
+            <div className="flex justify-center lg:justify-end animate-fade-in-right animate-delay-300">
+              <div className="w-[600px] h-[400px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 hover-lift">
                 <div className="text-center">
                   <div className="text-6xl mb-4">📱</div>
                   <p className="text-gray-500 text-lg font-medium">Put Product Screenshot Here</p>
-                  <p className="text-gray-400 text-sm">500x350px</p>
                 </div>
               </div>
             </div>
@@ -93,20 +93,20 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
               Transform Your Distribution Business
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">
               See how Laku-Laku solves the biggest challenges in FMCG distribution
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-12">
             {/* Without Laku-Laku */}
-            <div className="bg-red-50 rounded-2xl p-8 border border-red-100">
+            <div className="bg-red-50 rounded-2xl p-8 border border-red-100 animate-fade-in-left hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-2xl">❌</span>
+                  <span className="text-2xl"> <XIcon className="text-red-500" size={35} /></span>
                 </div>
                 <h3 className="text-2xl font-bold text-red-800">Without Laku-Laku</h3>
               </div>
@@ -131,10 +131,10 @@ export default function LandingPage() {
             </div>
 
             {/* With Laku-Laku */}
-            <div className="bg-green-50 rounded-2xl p-8 border border-green-100">
+            <div className="bg-green-50 rounded-2xl p-8 border border-green-100 animate-fade-in-right hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-2xl">✅</span>
+                  <span className="text-2xl"> <CheckIcon className="text-green-500" size={35} /></span>
                 </div>
                 <h3 className="text-2xl font-bold text-green-800">With Laku-Laku</h3>
               </div>
@@ -165,20 +165,20 @@ export default function LandingPage() {
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
               Two Powerful Platforms, One Seamless Experience
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">
               Built specifically for FMCG distribution in Indonesia
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12">
-            {/* Distributor Dashboard */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                         {/* Distributor Dashboard */}
+             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-left hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mr-4">
-                  <span className="text-3xl">📊</span>
+                  <span className="text-3xl"> <ChartAreaIcon className="text-blue-500" size={35} /></span>
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Distributor Dashboard</h3>
@@ -210,11 +210,11 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Retailer Marketplace */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                         {/* Retailer Marketplace */}
+             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-right hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mr-4">
-                  <span className="text-3xl">🛒</span>
+                  <span className="text-3xl"> <ShoppingCartIcon className="text-orange-500" size={35} /></span>
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Retailer Marketplace</h3>
@@ -253,10 +253,10 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
               Trusted by Leading Distributors
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 animate-fade-in-up animate-delay-200">
               Join thousands of businesses already growing with Laku-Laku
             </p>
           </div>
@@ -273,12 +273,12 @@ export default function LandingPage() {
              </div>
            </div>
 
-          {/* Testimonials */}
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-gray-50 rounded-2xl p-8">
+                     {/* Testimonials */}
+           <div className="grid md:grid-cols-2 gap-8">
+             <div className="bg-gray-50 rounded-2xl p-8 animate-fade-in-left hover-lift">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-xl">👤</span>
+                  <span className="text-xl"> <UserIcon className="text-blue-500" size={25} /></span>
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">Ahmad Rahman</h4>
@@ -290,10 +290,10 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-8">
+                         <div className="bg-gray-50 rounded-2xl p-8 animate-fade-in-right hover-lift">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-xl">👤</span>
+                  <span className="text-xl"> <UserIcon className="text-orange-500" size={25} /></span>
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">Siti Nurhaliza</h4>
@@ -312,10 +312,10 @@ export default function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
               Get Started in 3 Simple Steps
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 animate-fade-in-up animate-delay-200">
               Join thousands of distributors and retailers already using Laku-Laku
             </p>
           </div>
@@ -324,65 +324,65 @@ export default function LandingPage() {
             {[
               {
                 step: "1",
-                icon: "📝",
+                icon: <FileIcon className="text-white" size={35} />,
                 title: "Sign up & verify",
                 description: "Create your account and complete business verification in minutes"
               },
               {
                 step: "2",
-                icon: "📦",
+                icon: <PackageIcon className="text-white" size={35} />,
                 title: "List or browse bulk products",
                 description: "Distributors list products, retailers browse and compare options"
               },
               {
                 step: "3",
-                icon: "🚀",
+                icon: <RocketIcon className="text-white" size={35} />,
                 title: "Order & track seamlessly",
                 description: "Place orders, track deliveries, and manage your business all in one place"
               }
-            ].map((item, index) => (
-              <div key={index} className="text-center">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-[#0a61d7] rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-3xl">{item.icon}</span>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white font-bold text-sm bg-[#0a61d7] rounded-full w-6 h-6 flex items-center justify-center">
-                    {item.step}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{item.description}</p>
-              </div>
-            ))}
+                         ].map((item, index) => (
+               <div key={index} className="text-center animate-fade-in-up" style={{ animationDelay: `${(index + 1) * 200}ms` }}>
+                 <div className="relative">
+                   <div className="w-20 h-20 bg-[#0a61d7] rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-in">
+                     <span className="text-3xl">{item.icon}</span>
+                   </div>
+                 </div>
+                 <div className="bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-4">
+                   <span className="text-white font-bold text-sm bg-[#0a61d7] rounded-full w-6 h-6 flex items-center justify-center">
+                     {item.step}
+                   </span>
+                 </div>
+                 <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                 <p className="text-gray-600 leading-relaxed">{item.description}</p>
+               </div>
+             ))}
           </div>
         </div>
       </section>
 
       {/* Final CTA Section */}
       <section className="py-20 bg-gradient-to-r from-[#0a61d7] to-[#084ba6]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Stop selling like it's 1990.
-            <br />
-            Start trading like it's 2030.
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join the digital revolution in FMCG distribution. Transform your business today.
-          </p>
-          <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1">
-            Get Started Free
-          </button>
-        </div>
+                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in-up">
+             Stop selling like it's 1990.
+             <br />
+             Start trading like it's 2030.
+           </h2>
+           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
+             Join the digital revolution in FMCG distribution. Transform your business today.
+           </p>
+           <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up animate-delay-400 animate-pulse-slow">
+             Get Started Free
+           </button>
+         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            {/* Company Info */}
-            <div className="col-span-2">
+             {/* Footer */}
+       <footer className="bg-gray-900 text-white py-16">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+           <div className="grid md:grid-cols-4 gap-8">
+             {/* Company Info */}
+             <div className="col-span-2 animate-fade-in-up">
               <div className="flex items-center mb-4">
                 <Image src="/LakuLakuwTextLogo.svg" alt="Laku-Laku Logo" width={200} height={10} />
               </div>
@@ -392,19 +392,19 @@ export default function LandingPage() {
               </p>
               <div className="flex space-x-4">
                 <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span>📱</span>
+                  <span><InstagramIcon size={20} className="text-white" /></span>
                 </div>
                 <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span>💬</span>
+                  <span><FacebookIcon size={20} className="text-white" /></span>
                 </div>
                 <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span>📧</span>
+                  <span><MailIcon size={20} className="text-white" /></span>
                 </div>
               </div>
             </div>
 
             {/* Quick Links */}
-            <div>
+            <div className="animate-fade-in-up animate-delay-200">
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
                 <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
@@ -415,7 +415,7 @@ export default function LandingPage() {
             </div>
 
             {/* Support */}
-            <div>
+            <div className="animate-fade-in-up animate-delay-400">
               <h3 className="text-lg font-semibold mb-4">Support</h3>
               <ul className="space-y-2">
                 <li><a href="#help" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
