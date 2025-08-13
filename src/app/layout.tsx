@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Laku-Laku",
   description: "Sell More. Restock Smarter.",
+  icons: {
+    icon: "/LakuLakuIcon.svg",
+  },
 };
 
 export default function RootLayout({

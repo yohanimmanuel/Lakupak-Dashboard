@@ -2,101 +2,436 @@ import Image from "next/image";
 
 export default function LandingPage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/landing/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-white">
+      {/* Navigation Bar */}
+      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-100 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            {/* Logo */}
+            <div className="flex items-center -ml-13">
+              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={300} height={100} />
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-10">
+              <a href="#home" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Home</a>
+              <a href="#features" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Features</a>
+              <a href="#pricing" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Pricing</a>
+              <a href="#solutions" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Solutions</a>
+              <a href="#about" className="text-gray-700 hover:text-[#0a61d7] transition-colors">About</a>
+              <a href="#contact" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Contact</a>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex items-center space-x-6">
+              <button className="text-gray-700 hover:text-[#0a61d7] transition-colors">Sign In</button>
+              <button className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-lg hover:bg-[#084ba6] transition-colors shadow-lg hover:shadow-xl">
+                Get Started
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </nav>
+
+      {/* Hero Section */}
+      <section id="home" className="pt-24 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h1 className="mt-10 text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                  Where Distributors &{" "}
+                  <span className="text-[#0a61d7]">Retailers</span>{" "}
+                  Trade Smarter
+                </h1>
+                <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
+                  Instantly connect, order in bulk, and grow your margins — all in one platform.
+                </p>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                  Get Started Free
+                </button>
+                <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-[#0a61d7] hover:text-[#0a61d7] transition-all duration-200">
+                  Learn More →
+                </button>
+              </div>
+
+              {/* Social Proof */}
+              <div className="flex items-center space-x-6 pt-4">
+                <div className="flex items-center space-x-2">
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-gray-600">4.9 stars • 2,000+ reviews</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right - Product Screenshot */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="w-[500px] h-[350px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">📱</div>
+                  <p className="text-gray-500 text-lg font-medium">Put Product Screenshot Here</p>
+                  <p className="text-gray-400 text-sm">500x350px</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pain Points vs Solution Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Transform Your Distribution Business
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              See how Laku-Laku solves the biggest challenges in FMCG distribution
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Without Laku-Laku */}
+            <div className="bg-red-50 rounded-2xl p-8 border border-red-100">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <span className="text-2xl">❌</span>
+                </div>
+                <h3 className="text-2xl font-bold text-red-800">Without Laku-Laku</h3>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-start">
+                  <span className="text-red-500 mr-3 mt-1">•</span>
+                  <span className="text-red-700">Manual order processing with spreadsheets and WhatsApp</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-500 mr-3 mt-1">•</span>
+                  <span className="text-red-700">No visibility into inventory levels and sales performance</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-500 mr-3 mt-1">•</span>
+                  <span className="text-red-700">Price wars and margin erosion from open competition</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-500 mr-3 mt-1">•</span>
+                  <span className="text-red-700">Lost sales from inefficient replenishment cycles</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* With Laku-Laku */}
+            <div className="bg-green-50 rounded-2xl p-8 border border-green-100">
+              <div className="flex items-center mb-6">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                  <span className="text-2xl">✅</span>
+                </div>
+                <h3 className="text-2xl font-bold text-green-800">With Laku-Laku</h3>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-3 mt-1">•</span>
+                  <span className="text-green-700">Automated digital ordering with real-time inventory sync</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-3 mt-1">•</span>
+                  <span className="text-green-700">Comprehensive analytics and performance insights</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-3 mt-1">•</span>
+                  <span className="text-green-700">Protected pricing and controlled marketplace access</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-3 mt-1">•</span>
+                  <span className="text-green-700">Smart replenishment with predictive ordering</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Two Powerful Platforms, One Seamless Experience
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Built specifically for FMCG distribution in Indonesia
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12">
+            {/* Distributor Dashboard */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mr-4">
+                  <span className="text-3xl">📊</span>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Distributor Dashboard</h3>
+                  <p className="text-blue-600 font-medium">Complete Business Management</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Digital Catalog & Pricing Controls</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Analytics & Sales Reports</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Marketing Campaigns Inside Platform</span>
+                </div>
+              </div>
+
+              <div className="w-full h-[200px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">🖥️</div>
+                  <p className="text-gray-500 font-medium">Dashboard Screenshot</p>
+                  <p className="text-gray-400 text-sm">300x200px</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Retailer Marketplace */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center mb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mr-4">
+                  <span className="text-3xl">🛒</span>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Retailer Marketplace</h3>
+                  <p className="text-orange-600 font-medium">Smart Shopping Experience</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Bulk Ordering in One Click</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Auto-Replenishment Suggestions</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                  <span className="text-gray-700">Real-Time Delivery Updates</span>
+                </div>
+              </div>
+
+              <div className="w-full h-[200px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">📱</div>
+                  <p className="text-gray-500 font-medium">Marketplace Screenshot</p>
+                  <p className="text-gray-400 text-sm">300x200px</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Trusted by Leading Distributors
+            </h2>
+            <p className="text-xl text-gray-600">
+              Join thousands of businesses already growing with Laku-Laku
+            </p>
+          </div>
+
+          {/* Distributor Logos */}
+           <div className="relative overflow-hidden mb-16">
+             <div className="flex animate-scroll">
+               {/* First set of logos */}
+               {[...Array(12)].map((_, i) => (
+                 <div key={i} className="flex-shrink-0 w-24 h-16 bg-gray-200 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 mx-8">
+                   <span className="text-gray-500 text-sm font-medium">Logo {i + 1}</span>
+                 </div>
+               ))}
+             </div>
+           </div>
+
+          {/* Testimonials */}
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-gray-50 rounded-2xl p-8">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                  <span className="text-xl">👤</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Ahmad Rahman</h4>
+                  <p className="text-gray-600">CEO, PT Sukses Makmur</p>
+                </div>
+              </div>
+              <p className="text-gray-700 italic">
+                "Laku-Laku transformed our distribution business. We now manage 3x more products with half the effort."
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-8">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mr-4">
+                  <span className="text-xl">👤</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Siti Nurhaliza</h4>
+                  <p className="text-gray-600">Owner, Warung Makmur</p>
+                </div>
+              </div>
+              <p className="text-gray-700 italic">
+                "Ordering is now so easy! I get better prices and faster delivery. My customers are happier too."
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Get Started in 3 Simple Steps
+            </h2>
+            <p className="text-xl text-gray-600">
+              Join thousands of distributors and retailers already using Laku-Laku
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: "1",
+                icon: "📝",
+                title: "Sign up & verify",
+                description: "Create your account and complete business verification in minutes"
+              },
+              {
+                step: "2",
+                icon: "📦",
+                title: "List or browse bulk products",
+                description: "Distributors list products, retailers browse and compare options"
+              },
+              {
+                step: "3",
+                icon: "🚀",
+                title: "Order & track seamlessly",
+                description: "Place orders, track deliveries, and manage your business all in one place"
+              }
+            ].map((item, index) => (
+              <div key={index} className="text-center">
+                <div className="relative">
+                  <div className="w-20 h-20 bg-[#0a61d7] rounded-full flex items-center justify-center mx-auto mb-6">
+                    <span className="text-3xl">{item.icon}</span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-white font-bold text-sm bg-[#0a61d7] rounded-full w-6 h-6 flex items-center justify-center">
+                    {item.step}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-[#0a61d7] to-[#084ba6]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Stop selling like it's 1990.
+            <br />
+            Start trading like it's 2030.
+          </h2>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Join the digital revolution in FMCG distribution. Transform your business today.
+          </p>
+          <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1">
+            Get Started Free
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Company Info */}
+            <div className="col-span-2">
+              <div className="flex items-center mb-4">
+                <Image src="/LakuLakuwTextLogo.svg" alt="Laku-Laku Logo" width={200} height={10} />
+              </div>
+              <p className="text-gray-400 mb-6 max-w-md">
+                The complete B2B platform for FMCG distributors and retailers in Indonesia. 
+                Streamline operations, protect pricing, and grow your business securely.
+              </p>
+              <div className="flex space-x-4">
+                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
+                  <span>📱</span>
+                </div>
+                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
+                  <span>💬</span>
+                </div>
+                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
+                  <span>📧</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+              <ul className="space-y-2">
+                <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
+                <li><a href="#solutions" className="text-gray-400 hover:text-white transition-colors">Solutions</a></li>
+                <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Support</h3>
+              <ul className="space-y-2">
+                <li><a href="#help" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
+                <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
+                <li><a href="#docs" className="text-gray-400 hover:text-white transition-colors">Documentation</a></li>
+                <li><a href="#status" className="text-gray-400 hover:text-white transition-colors">System Status</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
+            <p className="text-gray-400">
+              © 2024 Laku-Laku. All rights reserved. Made with ❤️ for Indonesia's FMCG industry.
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );
