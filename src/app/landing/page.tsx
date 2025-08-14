@@ -9,8 +9,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <div className="flex items-center -ml-15">
-              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={320} height={100} />
+            <div className="flex items-center">
+              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={200} height={100} />
             </div>
 
             {/* Desktop Navigation */}
@@ -371,7 +371,7 @@ export default function LandingPage() {
            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
              Join the digital revolution in FMCG distribution. Transform your business today.
            </p>
-           <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up animate-delay-400 animate-pulse-slow">
+           <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up">
              Get Started Free
            </button>
          </div>
