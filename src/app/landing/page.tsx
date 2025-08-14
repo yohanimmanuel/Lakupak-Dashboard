@@ -42,9 +42,9 @@ export default function LandingPage() {
              <div className="space-y-8">
                <div className="space-y-4">
                  <h1 className="mt-10 text-5xl lg:text-6xl font-bold text-gray-900 leading-tight animate-fade-in-up">
-                   Where <span className="text-[#0a61d7]">Distributors</span> &{" "}
+                   Where <span className="text-[#0a61d7]">Distributors</span> Trade &{" "}
                    <span className="text-orange-400">Retailers</span>{" "}
-                   Trade Smarter
+                   Shop Smarter
                  </h1>
                  <p className="text-xl text-gray-600 leading-relaxed max-w-2xl animate-fade-in-up animate-delay-200">
                    Instantly connect, order in bulk, and grow your margins — all in one platform.
@@ -275,7 +275,7 @@ export default function LandingPage() {
 
                      {/* Testimonials */}
            <div className="grid md:grid-cols-2 gap-8">
-             <div className="bg-gray-50 rounded-2xl p-8 animate-fade-in-left hover-lift">
+             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 animate-fade-in-left hover-lift">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
                   <span className="text-xl"> <UserIcon className="text-blue-500" size={25} /></span>
@@ -290,7 +290,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-                         <div className="bg-gray-50 rounded-2xl p-8 animate-fade-in-right hover-lift">
+                         <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 animate-fade-in-right hover-lift">
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mr-4">
                   <span className="text-xl"> <UserIcon className="text-orange-500" size={25} /></span>
@@ -377,7 +377,7 @@ export default function LandingPage() {
          </div>
       </section>
 
-             {/* Footer */}
+      {/* Footer */}
        <footer className="bg-gray-900 text-white py-16">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="grid md:grid-cols-4 gap-8">
