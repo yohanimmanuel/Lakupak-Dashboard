@@ -1,59 +1,38 @@
+"use client";
+
+import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { XIcon, CheckIcon, ChartBarIcon, ShoppingCartIcon, FileIcon, PackageIcon, RocketIcon, UserIcon, ChartAreaIcon, InstagramIcon, MailIcon, FacebookIcon } from "lucide-react";
 
 export default function LandingPage() {
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-white">
-             {/* Navigation Bar */}
-       <nav className="fixed top-0 w-full bg-white/20 backdrop-blur-md border-b border-white/30 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={200} height={100} />
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-10">
-              <a href="#home" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Home</a>
-              <a href="#features" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Features</a>
-              <a href="#pricing" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Pricing</a>
-              <a href="#solutions" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Solutions</a>
-              <a href="#about" className="text-gray-700 hover:text-[#0a61d7] transition-colors">About</a>
-              <a href="#contact" className="text-gray-700 hover:text-[#0a61d7] transition-colors">Contact</a>
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="flex items-center space-x-6">
-              <button className="text-gray-700 hover:text-[#0a61d7] transition-colors">Sign In</button>
-              <button className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-lg hover:bg-[#084ba6] transition-colors shadow-lg hover:shadow-xl">
-                Get Started
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero Section */}
-      <section id="home" className="pt-24 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
+      <section id="home" className="pt-10 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             {/* Left Content */}
              <div className="space-y-8">
                <div className="space-y-4">
-                 <h1 className="mt-10 text-5xl lg:text-6xl font-bold text-gray-900 leading-tight animate-fade-in-up">
+                 <h1 className="mt-10 text-6xl font-bold text-gray-900 leading-tight animate-fade-in-up">
                    Where <span className="text-[#0a61d7]">Distributors</span> Trade &{" "}
                    <span className="text-orange-400">Retailers</span>{" "}
                    Shop Smarter
                  </h1>
-                 <p className="text-xl text-gray-600 leading-relaxed max-w-2xl animate-fade-in-up animate-delay-200">
-                   Instantly connect, order in bulk, and grow your margins — all in one platform.
+                 <p className="text-lg text-gray-600 leading-relaxed max-w-2xl animate-fade-in-up animate-delay-200">
+                   Instantly connect, order in bulk, grow your margins, power up sales and analyze business performance — all in one platform.
                  </p>
                </div>
 
-                             {/* CTA Buttons */}
+              {/* CTA Buttons */}
                <div className="flex flex-col sm:flex-row gap-4">
-                 <button className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 animate-fade-in-up">
+                 <button
+                   onClick={() => router.push("/register")}
+                   className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 animate-fade-in-up"
+                 >
                    Get Started Free
                  </button>
                  <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-[#0a61d7] hover:text-[#0a61d7] transition-all duration-200 animate-fade-in-up animate-delay-500">
@@ -361,7 +340,7 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-[#0a61d7] to-[#084ba6]">
+      <section className="py-30 bg-gradient-to-r from-[#0a61d7] to-[#084ba6]">
                  <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in-up">
              Stop selling like it's 1990.
@@ -371,68 +350,15 @@ export default function LandingPage() {
            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
              Join the digital revolution in FMCG distribution. Transform your business today.
            </p>
-           <button className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up">
+           <button
+             onClick={() => router.push("/register")}
+             className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
+           >
              Get Started Free
            </button>
          </div>
       </section>
 
-      {/* Footer */}
-       <footer className="bg-gray-900 text-white py-16">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="grid md:grid-cols-4 gap-8">
-             {/* Company Info */}
-             <div className="col-span-2 animate-fade-in-up">
-              <div className="flex items-center mb-4">
-                <Image src="/LakuLakuwTextLogo.svg" alt="Laku-Laku Logo" width={200} height={10} />
-              </div>
-              <p className="text-gray-400 mb-6 max-w-md">
-                The complete B2B platform for FMCG distributors and retailers in Indonesia. 
-                Streamline operations, protect pricing, and grow your business securely.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span><InstagramIcon size={20} className="text-white" /></span>
-                </div>
-                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span><FacebookIcon size={20} className="text-white" /></span>
-                </div>
-                <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-[#0a61d7] transition-colors cursor-pointer">
-                  <span><MailIcon size={20} className="text-white" /></span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="animate-fade-in-up animate-delay-200">
-              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-              <ul className="space-y-2">
-                <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
-                <li><a href="#solutions" className="text-gray-400 hover:text-white transition-colors">Solutions</a></li>
-                <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div className="animate-fade-in-up animate-delay-400">
-              <h3 className="text-lg font-semibold mb-4">Support</h3>
-              <ul className="space-y-2">
-                <li><a href="#help" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#docs" className="text-gray-400 hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#status" className="text-gray-400 hover:text-white transition-colors">System Status</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400">
-              © 2024 Laku-Laku. All rights reserved. Made with ❤️ for Indonesia's FMCG industry.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
