@@ -67,10 +67,10 @@ export default function LandingLayout({
             <div className="animate-fade-in-up animate-delay-200">
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
-                <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
-                <li><a href="#solutions" className="text-gray-400 hover:text-white transition-colors">Solutions</a></li>
-                <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
+                <li><a href="/landing/pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="/landing/features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
+                <li><a href="/landing/solutions" className="text-gray-400 hover:text-white transition-colors">Solutions</a></li>
+                <li><a href="/landing/about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
               </ul>
             </div>
             {/* Support */}

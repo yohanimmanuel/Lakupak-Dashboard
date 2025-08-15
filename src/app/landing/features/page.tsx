@@ -141,7 +141,7 @@ function StickyFeatureSection({
           </div>
         </div>
         {/* Feature Descriptions */}
-        <div className="flex flex-col space-y-40 mt-20">
+        <div className="flex flex-col space-y-100 mt-20">
           {features.map((feature, idx) => (
             <div
               key={idx}
