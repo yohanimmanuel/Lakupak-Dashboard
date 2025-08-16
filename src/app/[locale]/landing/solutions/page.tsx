@@ -4,17 +4,19 @@ import React, { useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UserIcon, StarIcon, CheckCircleIcon, ShoppingCartIcon, BarChart2Icon, FileTextIcon, TrendingUpIcon, GiftIcon, TruckIcon, CreditCardIcon, ClockIcon, StoreIcon } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 export default function SolutionsPage() {
   const router = useRouter();
+  const t = useTranslations("solutions");
   // --- Testimonial auto-scroll logic ---
   const testimonials = [
-    { name: "Andi", role: "Distributor from Surabaya", color: "blue", review: "Laku-Laku helped us triple our reach without hiring more sales staff. Orders are processed in half the time." },
-    { name: "Rina", role: "Mini-Mart Owner in Jakarta", color: "orange", review: "I used to call 5 suppliers to check prices. Now I do it all in one app and save up to 20% every month." },
-    { name: "Ahmad Rahman", role: "CEO, PT Sukses Makmur", color: "blue", review: "Laku-Laku transformed our distribution business. We now manage 3x more products with half the effort." },
-    { name: "Siti Nurhaliza", role: "Owner, Warung Makmur", color: "orange", review: "Ordering is now so easy! I get better prices and faster delivery. My customers are happier too." },
-    { name: "Budi Santoso", role: "Retailer, Bandung", color: "blue", review: "The app is super easy to use and the support team is very responsive." },
-    { name: "Maya Dewi", role: "Distributor, Medan", color: "orange", review: "Bulk deals and analytics helped me grow my business faster than ever." },
+    { name: t("testimonials.1.name"), role: t("testimonials.1.role"), color: "blue", review: t("testimonials.1.text") },
+    { name: t("testimonials.2.name"), role: t("testimonials.2.role"), color: "orange", review: t("testimonials.2.text") },
+    { name: t("testimonials.3.name"), role: t("testimonials.3.role"), color: "blue", review: t("testimonials.3.text") },
+    { name: t("testimonials.4.name"), role: t("testimonials.4.role"), color: "orange", review: t("testimonials.4.text") },
+    { name: t("testimonials.5.name"), role: t("testimonials.5.role"), color: "blue", review: t("testimonials.5.text") },
+    { name: t("testimonials.6.name"), role: t("testimonials.6.role"), color: "orange", review: t("testimonials.6.text") },
   ];
   const scrollRef = useRef<HTMLDivElement>(null);
   const [repeatCount, setRepeatCount] = React.useState(2);
@@ -62,16 +64,16 @@ export default function SolutionsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-12">
             <h1 className="text-5xl font-bold text-gray-900 mb-4 animate-fade-in-up">
-              Solutions for Distributors & Retailers
+              {t("hero.title")}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
-              Laku-Laku connects wholesalers with small retailers nationwide, making bulk buying and selling seamless, efficient, and profitable for everyone.
+              {t("hero.subtitle")}
             </p>
             <button
               onClick={() => router.push("/register")}
               className="mt-8 bg-[#0a61d7] text-white px-10 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl animate-fade-in-up animate-delay-400"
             >
-              Get Started Today
+              {t("hero.cta")}
             </button>
           </div>
           {/* Image Showcase with Decorations - relative wrapper */}
@@ -81,10 +83,14 @@ export default function SolutionsPage() {
             <div className="absolute left-60 top-50 z-30 pointer-events-none" style={{transform: 'translate(-270px, -50%)'}}>
               <div className="flex flex-col items-start">
                 <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-[#0a61d7] border border-blue-100 mb-2 pointer-events-auto">
-                  Nationwide Retailer Access
+                  {t("badges.left.main")}
                 </div>
+                {/* Left Badge Subtext with colored number */}
                 <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-blue-100 mt-2 pointer-events-auto">
-                  Sell to <span className="font-bold text-green-600">10,000+</span> stores
+                  {(() => {
+                    const sub = t.raw("badges.left.sub");
+                    return <>{sub[0]}<span className="text-[#0a61d7] font-bold">{sub[1]}</span>{sub[2]}</>;
+                  })()}
                 </div>
               </div>
             </div>
@@ -92,10 +98,14 @@ export default function SolutionsPage() {
             <div className="absolute right-50 top-70 z-30 pointer-events-none" style={{transform: 'translate(270px, -50%)'}}>
               <div className="flex flex-col items-end">
                 <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-orange-600 border border-orange-100 mb-2 pointer-events-auto">
-                  Bulk Savings & Fast Delivery
+                  {t("badges.right.main")}
                 </div>
+                {/* Right Badge Subtext with colored number */}
                 <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-orange-100 mt-2 pointer-events-auto">
-                  Save up to <span className="font-bold text-green-600">30%</span> on every order
+                  {(() => {
+                    const sub = t.raw("badges.right.sub");
+                    return <>{sub[0]}<span className="text-green-500 font-bold">{sub[1]}</span>{sub[2]}</>;
+                  })()}
                 </div>
               </div>
             </div>
@@ -142,30 +152,38 @@ export default function SolutionsPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">Solutions for Every Business</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">Whether you’re a distributor or retailer, Laku-Laku empowers you to grow, save, and succeed in Indonesia’s wholesale market.</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
+              {t("twocol.title")}
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
+              {t("twocol.subtitle")}
+            </p>
           </div>
           <div className="grid md:grid-cols-2 gap-12">
             {/* Left Column - Distributors */}
             <div className="bg-blue-50 rounded-2xl p-10 border border-blue-100 shadow-md animate-fade-in-left hover-lift">
-              <h2 className="text-2xl font-bold text-blue-800 mb-6">Sell Smarter, Grow Faster <span className="block text-base text-blue-600 font-medium">(For Distributors)</span></h2>
+              <h2 className="text-2xl font-bold text-blue-800 mb-6">
+                {t("twocol.distributor.title")}
+              </h2>
               <ul className="space-y-5 text-lg">
-                <li className="flex items-start"><CheckCircleIcon className="text-green-400 mr-3 mt-1" size={28} /><span className="text-gray-800"><b>Access to Thousands of Retailers</b>: Your products in front of a verified nationwide retail network.</span></li>
-                <li className="flex items-start"><BarChart2Icon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Centralized Dashboard</b>: Manage stock, pricing, and orders in one place.</span></li>
-                <li className="flex items-start"><FileTextIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Automated Payments & Invoicing</b>: Get paid faster with less admin work.</span></li>
-                <li className="flex items-start"><TrendingUpIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Performance Analytics</b>: See which products perform best and optimize your offers.</span></li>
-                <li className="flex items-start"><GiftIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Promotions & Bulk Deals</b>: Run targeted campaigns to boost sales.</span></li>
+                <li className="flex items-start"><CheckCircleIcon className="text-green-400 mr-3 mt-1" size={28} /><span className="text-gray-800"><b>{t("twocol.distributor.1.label")}</b>: {t("twocol.distributor.1.desc")}</span></li>
+                <li className="flex items-start"><BarChart2Icon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.distributor.2.label")}</b>: {t("twocol.distributor.2.desc")}</span></li>
+                <li className="flex items-start"><FileTextIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.distributor.3.label")}</b>: {t("twocol.distributor.3.desc")}</span></li>
+                <li className="flex items-start"><TrendingUpIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.distributor.4.label")}</b>: {t("twocol.distributor.4.desc")}</span></li>
+                <li className="flex items-start"><GiftIcon className="text-green-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.distributor.5.label")}</b>: {t("twocol.distributor.5.desc")}</span></li>
               </ul>
             </div>
             {/* Right Column - Retailers */}
             <div className="bg-orange-50 rounded-2xl p-10 border border-orange-100 shadow-md animate-fade-in-right hover-lift">
-              <h2 className="text-2xl font-bold text-orange-800 mb-6">Buy Better, Save More <span className="block text-base text-orange-600 font-medium">(For Retailers)</span></h2>
+              <h2 className="text-2xl font-bold text-orange-800 mb-6">
+                {t("twocol.retailer.title")}
+              </h2>
               <ul className="space-y-5 text-lg">
-                <li className="flex items-start"><ShoppingCartIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>One-Stop Wholesale Shopping</b>: Multiple suppliers, one cart, one payment.</span></li>
-                <li className="flex items-start"><StoreIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Exclusive Wholesale Pricing</b>: Bulk deals and seasonal promos you can’t find elsewhere.</span></li>
-                <li className="flex items-start"><ClockIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Real-Time Stock Updates</b>: See exactly what’s available before ordering.</span></li>
-                <li className="flex items-start"><CreditCardIcon className="text-blue-400 mr-3 mt-1" size={19} /><span className="text-gray-800"><b>Flexible Payments</b>: Pay instantly or apply for trade credit.</span></li>
-                <li className="flex items-start"><TruckIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>Fast, Reliable Delivery</b>: Optimized routes and consolidated shipments save time and money.</span></li>
+                <li className="flex items-start"><ShoppingCartIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.retailer.1.label")}</b>: {t("twocol.retailer.1.desc")}</span></li>
+                <li className="flex items-start"><StoreIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.retailer.2.label")}</b>: {t("twocol.retailer.2.desc")}</span></li>
+                <li className="flex items-start"><ClockIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.retailer.3.label")}</b>: {t("twocol.retailer.3.desc")}</span></li>
+                <li className="flex items-start"><CreditCardIcon className="text-blue-400 mr-3 mt-1" size={20} /><span className="text-gray-800"><b>{t("twocol.retailer.4.label")}</b>: {t("twocol.retailer.4.desc")}</span></li>
+                <li className="flex items-start"><TruckIcon className="text-blue-400 mr-3 mt-1" size={24} /><span className="text-gray-800"><b>{t("twocol.retailer.5.label")}</b>: {t("twocol.retailer.5.desc")}</span></li>
               </ul>
             </div>
           </div>
@@ -176,7 +194,9 @@ export default function SolutionsPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">What Our Users Say</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
+              {t("testimonials.title")}
+            </h2>
             <div className="flex justify-center mb-2">
               {[...Array(5)].map((_, i) => (
                 <StarIcon key={i} className="text-yellow-400 w-7 h-7" fill="#facc15" />
@@ -219,29 +239,33 @@ export default function SolutionsPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">Get Started in 3 Simple Steps</h2>
-            <p className="text-xl text-gray-600 animate-fade-in-up animate-delay-200">Join thousands of distributors and retailers already using Laku-Laku</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
+              {t("steps.title")}
+            </h2>
+            <p className="text-xl text-gray-600 animate-fade-in-up animate-delay-200">
+              {t("steps.subtitle")}
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
                 step: "1",
                 icon: <FileTextIcon className="text-white" size={35} />,
-                title: "Sign up & verify",
-                description: "Create your account and complete business verification in minutes"
+                title: t("steps.1.title"),
+                description: t("steps.1.desc")
               },
               {
                 step: "2",
                 icon: <ShoppingCartIcon className="text-white" size={35} />,
-                title: "List or browse bulk products",
-                description: "Distributors list products, retailers browse and compare options"
+                title: t("steps.2.title"),
+                description: t("steps.2.desc")
               },
               {
                 step: "3",
                 icon: <TrendingUpIcon className="text-white" size={35} />,
-                title: "Order & track seamlessly",
-                description: "Place orders, track deliveries, and manage your business all in one place"
-              }
+                title: t("steps.3.title"),
+                description: t("steps.3.desc")
+              } 
             ].map((item, index) => (
               <div key={index} className="text-center animate-fade-in-up" style={{ animationDelay: `${(index + 1) * 200}ms` }}>
                 <div className="relative">
@@ -266,16 +290,16 @@ export default function SolutionsPage() {
       <section className="py-24 bg-gradient-to-r from-[#0a61d7] to-[#084ba6]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in-up">
-            Ready to Level Up Your Wholesale Business?
+            {t("cta.title")}
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
-            Join thousands of retailers and distributors growing with Laku-Laku.
+            {t("cta.subtitle")}
           </p>
           <button
             onClick={() => router.push("/register")}
             className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
           >
-            Get Started Today
+            {t("cta.button")}
           </button>
         </div>
       </section>

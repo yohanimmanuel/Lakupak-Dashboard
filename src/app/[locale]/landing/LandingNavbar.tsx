@@ -3,10 +3,12 @@ import React from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { GlobeIcon, LanguagesIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function LandingNavbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations("navbar");
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   // You may want to get the current locale from next-intl or the URL
   // For now, parse it from the pathname (assuming /en/... or /id/...)
@@ -46,16 +48,18 @@ export default function LandingNavbar() {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex items-center">
-            <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={200} height={100} />
+            <a href="/">
+              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={200} height={100} />
+            </a>
           </div>
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-10">
-            <button onClick={() => router.push("/landing")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">Home</button>
-            <button onClick={() => router.push("/landing/features")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">Features</button>
-            <button onClick={() => router.push("/landing/pricing")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">Pricing</button>
-            <button onClick={() => router.push("/landing/solutions")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">Solutions</button>
-            <button onClick={() => router.push("/landing/about")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">About</button>
-            <button onClick={() => router.push("/")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">Documentation</button>
+            <button onClick={() => router.push(`/${locale}/landing`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("home")}</button>
+            <button onClick={() => router.push(`/${locale}/landing/features`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("features")}</button>
+            <button onClick={() => router.push(`/${locale}/landing/pricing`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("pricing")}</button>
+            <button onClick={() => router.push(`/${locale}/landing/solutions`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("solutions")}</button>
+            <button onClick={() => router.push(`/${locale}/landing/about`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("about")}</button>
+            <button onClick={() => router.push("/")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("documentation")}</button>
           </div>
           {/* CTA Buttons + Language Dropdown */}
           <div className="flex items-center space-x-6">
@@ -86,9 +90,9 @@ export default function LandingNavbar() {
               )}
             </div>
             <button onClick={() => router.push("/login")}
-              className="text-gray-700 hover:text-[#0a61d7] transition-colors">Sign In</button>
+              className="text-gray-700 hover:text-[#0a61d7] transition-colors">{t("signin")}</button>
             <button onClick={() => router.push("/register")}
-              className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-lg hover:bg-[#084ba6] transition-colors shadow-lg hover:shadow-xl">Get Started</button>
+              className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-lg hover:bg-[#084ba6] transition-colors shadow-lg hover:shadow-xl">{t("getstarted")}</button>
           </div>
         </div>
       </div>

@@ -1,0 +1,554 @@
+{
+  "navbar": {
+    "home": "Beranda",
+    "features": "Fitur",
+    "pricing": "Harga",
+    "solutions": "Solusi",
+    "about": "Tentang",
+    "documentation": "Dokumentasi",
+    "signin": "Masuk",
+    "getstarted": "Daftar"
+  },
+  "landing": {
+    "hero": {
+      "titleParts": [
+        "Tempat Distributor ",
+        "Bertransaksi",
+        " & Retailer ",
+        "Belanja",
+        " ",
+        "10X Lebih Cerdas"
+      ],
+      "subtitle": "Terhubung instan, pesan grosir, tingkatkan margin, dorong penjualan, dan analisa performa bisnis — semua dalam satu platform.",
+      "cta": "Mulai Gratis",
+      "learnmore": "Jelajahi Pasar →",
+      "socialproof": "4.9 bintang • 2.000+ ulasan",
+      "screenshot": "Tempatkan Screenshot Produk di Sini"
+    },
+    "painpoints": {
+      "title": "Transformasi Bisnis Distribusi Anda",
+      "subtitle": "Lihat bagaimana Laku-Laku menyelesaikan tantangan terbesar di distribusi FMCG",
+      "without": {
+        "title": "Tanpa Laku-Laku",
+        "1": "Proses order manual dengan spreadsheet dan WhatsApp",
+        "2": "Tidak ada visibilitas stok & performa penjualan",
+        "3": "Perang harga & margin menipis karena persaingan terbuka",
+        "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
+      },
+      "with": {
+        "title": "Dengan Laku-Laku",
+        "1": "Order digital otomatis dengan sinkronisasi stok real-time",
+        "2": "Analitik & insight performa menyeluruh",
+        "3": "Harga terlindungi & akses marketplace terkontrol",
+        "4": "Restock cerdas dengan prediksi kebutuhan"
+      }
+    },
+    "features": {
+      "title": "Dua Platform Kuat, Satu Pengalaman Mulus",
+      "subtitle": "Dibangun khusus untuk distribusi FMCG di Indonesia",
+      "distributor": {
+        "title": "Dashboard Distributor",
+        "desc": "Manajemen Bisnis Lengkap",
+        "1": "Katalog Digital & Kontrol Harga",
+        "2": "Analitik & Laporan Penjualan",
+        "3": "Kampanye Marketing di Platform",
+        "screenshot": "Screenshot Dashboard"
+      },
+      "retailer": {
+        "title": "Marketplace Retailer",
+        "desc": "Pengalaman Belanja Cerdas",
+        "1": "Pesan Grosir Sekali Klik",
+        "2": "Saran Restock Otomatis",
+        "3": "Update Pengiriman Real-Time",
+        "screenshot": "Screenshot Marketplace"
+      }
+    },
+    "socialproof": {
+      "title": "Dipercaya Distributor Terkemuka",
+      "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah berkembang bersama Laku-Laku",
+      "logo": "Logo {number}"
+    },
+    "testimonials": {
+      "1": {
+        "name": "Ahmad Rahman",
+        "role": "CEO, PT Sukses Makmur",
+        "text": "Laku-Laku mengubah bisnis distribusi kami. Sekarang kami kelola 3x lebih banyak produk dengan setengah usaha."
+      },
+      "2": {
+        "name": "Siti Nurhaliza",
+        "role": "Pemilik, Warung Makmur",
+        "text": "Order sekarang sangat mudah! Saya dapat harga lebih baik dan pengiriman lebih cepat. Pelanggan saya juga lebih puas."
+      }
+    },
+    "howitworks": {
+      "title": "Mulai dalam 3 Langkah Mudah",
+      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku-Laku",
+      "1": {
+        "title": "Daftar & verifikasi",
+        "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
+      },
+      "2": {
+        "title": "List atau cari produk grosir",
+        "desc": "Distributor listing produk, retailer membandingkan & memilih"
+      },
+      "3": {
+        "title": "Order & pantau dengan mudah",
+        "desc": "Order, lacak pengiriman, dan kelola bisnis dalam satu platform"
+      }
+    },
+    "finalcta": {
+      "title1": "Berhenti jualan cara lama.",
+      "title2": "Mulai berdagang cara baru.",
+      "subtitle": "Gabung revolusi digital distribusi FMCG. Transformasi bisnismu hari ini.",
+      "cta": "Mulai Gratis"
+    }
+  },
+  "features": {
+    "header": {
+      "title": "Fitur Laku-Laku",
+      "subtitle": "Temukan alat yang memberdayakan distributor dan retailer untuk tumbuh, otomatisasi, dan berkembang di pasar FMCG Indonesia.",
+      "cta1": "Konsultasi Sekarang",
+      "cta2": "Daftar Sekarang",
+      "socialproof": "4.9 bintang • 2.000+ ulasan",
+      "video": "Video Produk Laku-Laku"
+    },
+    "painpoints": {
+      "title": "Transformasi Bisnis Distribusi Anda",
+      "subtitle": "Lihat bagaimana Laku-Laku menyelesaikan tantangan terbesar di distribusi FMCG",
+      "without": {
+        "title": "Tanpa Laku-Laku",
+        "1": "Proses order manual dengan spreadsheet dan WhatsApp",
+        "2": "Tidak ada visibilitas stok & performa penjualan",
+        "3": "Perang harga & margin menipis karena persaingan terbuka",
+        "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
+      },
+      "with": {
+        "title": "Dengan Laku-Laku",
+        "1": "Order digital otomatis dengan sinkronisasi stok real-time",
+        "2": "Analitik & insight performa menyeluruh",
+        "3": "Harga terlindungi & akses marketplace terkontrol",
+        "4": "Restock cerdas dengan prediksi kebutuhan"
+      }
+    },
+    "platforms": {
+      "title": "Dua Platform Kuat, Satu Pengalaman Mulus",
+      "subtitle": "Dibangun khusus untuk distribusi FMCG di Indonesia",
+      "distributor": {
+        "title": "Dashboard Distributor",
+        "desc": "Manajemen Bisnis Lengkap",
+        "1": "Katalog Digital & Kontrol Harga",
+        "2": "Analitik & Laporan Penjualan",
+        "3": "Kampanye Marketing di Platform",
+        "4": "Prediksi Penjualan & Manajemen AI",
+        "5": "Manajemen Produk Terpusat",
+        "screenshot": "Screenshot Dashboard"
+      },
+      "retailer": {
+        "title": "Marketplace Retailer",
+        "desc": "Pengalaman Belanja Cerdas",
+        "1": "Pesan Grosir Sekali Klik",
+        "2": "Saran Restock Otomatis",
+        "3": "Update Pengiriman Real-Time",
+        "4": "Pengalaman Mobile-First",
+        "5": "Pengalaman Belanja Cerdas",
+        "screenshot": "Screenshot Marketplace"
+      }
+    },
+    "sticky": {
+      "distributor": {
+        "title": "Untuk Distributor",
+        "subtitle": "Tingkatkan bisnismu dengan AI, otomatisasi, dan kontrol terpusat."
+      },
+      "retailer": {
+        "title": "Untuk Retailer",
+        "subtitle": "Belanja lebih cerdas, restock lebih cepat, dan kelola tokomu dari mana saja."
+      }
+    },
+    "cta": {
+      "title": "Siap tingkatkan distribusi Anda?",
+      "subtitle": "Gabung revolusi digital distribusi FMCG. Transformasi bisnismu hari ini.",
+      "button": "Mulai Gratis",
+      "dashboard": "[Screenshot Dashboard]",
+      "mobile": "[Screenshot Aplikasi Mobile]",
+      "marketplace": "[Screenshot Marketplace]"
+    },
+    "distributorFeatures": [
+      {
+        "badge": "AI Canggih",
+        "title": "Prediksi Penjualan AI",
+        "subtitle": "Optimalkan bisnismu dengan analitik prediktif.",
+        "points": [
+          "Dapatkan prediksi permintaan untuk setiap SKU.",
+          "Rencanakan produksi dan pengadaan dengan percaya diri.",
+          "Kurangi overstock dan kehilangan penjualan."
+        ]
+      },
+      {
+        "badge": "Keuangan",
+        "title": "Manajemen Pembayaran & Kredit",
+        "subtitle": "Pembayaran fleksibel, aman, dan terintegrasi.",
+        "points": [
+          "Tawarkan kredit ke retailer terpercaya.",
+          "Pantau invoice dan status pembayaran secara real time.",
+          "Terima pembayaran aman langsung di platform."
+        ]
+      },
+      {
+        "badge": "Dashboard",
+        "title": "Dashboard Produk Terpusat",
+        "subtitle": "Semua SKU, harga, dan stok di satu tempat.",
+        "points": [
+          "Upload & edit produk massal dalam hitungan detik.",
+          "Kelola harga dan stok dari satu interface.",
+          "Sinkronisasi perubahan ke semua retailer terhubung."
+        ]
+      }
+    ],
+    "retailerFeatures": [
+      {
+        "badge": "Order Cerdas",
+        "title": "Order Grosir Cerdas",
+        "subtitle": "Order lebih pintar, restock lebih cepat.",
+        "points": [
+          "Dapatkan harga terbaik dengan optimasi minimum order.",
+          "Order ulang satu klik untuk produk terlaris.",
+          "Lihat promo yang tersedia secara instan."
+        ]
+      },
+      {
+        "badge": "Realtime",
+        "title": "Update Pengiriman Real-Time",
+        "subtitle": "Pantau setiap pengiriman, setiap saat.",
+        "points": [
+          "Notifikasi instan untuk setiap order.",
+          "Lacak pengiriman dari gudang ke toko Anda.",
+          "Tidak pernah ketinggalan pengiriman lagi."
+        ]
+      },
+      {
+        "badge": "Mobile",
+        "title": "Pengalaman Mobile-First",
+        "subtitle": "Order & pantau di mana saja.",
+        "points": [
+          "Pengalaman mulus di semua perangkat.",
+          "Order & pantau pengiriman kapan saja, di mana saja.",
+          "Dapatkan dukungan & insight langsung dari ponsel."
+        ]
+      }
+    ]
+  },
+  "pricing": {
+    "hero": {
+      "title": "Harga Sederhana & Transparan",
+      "subtitle": "Tanpa kejutan. Pilih paket yang sesuai dengan kebutuhan bisnis Anda.",
+      "trial": "Uji coba gratis 14 hari. Tidak perlu kartu kredit."
+    },
+    "toggle": {
+      "monthly": "Bulanan",
+      "annual": "Tahunan",
+      "save": "Hemat hingga 20%"
+    },
+    "card": {
+      "free": "Gratis",
+      "starter": "Starter",
+      "business": "Bisnis",
+      "enterprise": "Enterprise",
+      "getstarted": "Mulai",
+      "mostpopular": "Paling Populer",
+      "savings": "Hemat {percent}%",
+      "commission": "Biaya komisi {percent}%"
+    },
+    "description": {
+      "free": "Cocok untuk pemula",
+      "starter": "Untuk penjual kecil yang ingin mencoba platform",
+      "business": "Untuk penjual berkembang dengan volume stabil",
+      "enterprise": "Untuk mitra utama, loyalitas terinspirasi"
+    },
+    "tiers": [
+      {
+        "name": "Gratis",
+        "description": "Cocok untuk pemula",
+        "features": [
+          "50 SKU Listing Marketplace",
+          "Analitik Transaksi Dasar",
+          "Dashboard Penjual Dasar",
+          "Input Order Manual",
+          "Dukungan Email",
+          "Kupon Marketing Dasar",
+          "Pencairan 7 hari",
+          "1 Gudang",
+          "1 Akun Staf"
+        ],
+        "commission": "Biaya komisi 3%"
+      },
+      {
+        "name": "Starter",
+        "description": "Untuk penjual kecil yang ingin mencoba platform",
+        "features": [
+          "200 SKU Listing Marketplace",
+          "Analitik Transaksi Standar",
+          "Dashboard Penjual Standar",
+          "Manajemen Order Upload Massal",
+          "Dukungan Email & Chat",
+          "Kupon + Diskon",
+          "Pencairan 5 hari",
+          "1 Gudang",
+          "5 Akun Staf"
+        ],
+        "commission": "Biaya komisi 2%"
+      },
+      {
+        "name": "Bisnis",
+        "description": "Untuk penjual berkembang dengan volume stabil",
+        "features": [
+          "1.000 SKU Listing Marketplace",
+          "Analitik Transaksi Lanjutan",
+          "Dashboard Penjual Premium",
+          "Upload Massal + Sinkronisasi Otomatis",
+          "Dukungan Chat Prioritas",
+          "Kampanye + Iklan Marketing",
+          "Pencairan 3 hari",
+          "3 Gudang",
+          "15 Akun Staf",
+          "Branding Kustom Tersedia"
+        ],
+        "commission": "Biaya komisi 1%"
+      },
+      {
+        "name": "Enterprise",
+        "description": "Untuk mitra utama, loyalitas terinspirasi",
+        "features": [
+          "Listing Marketplace Tak Terbatas",
+          "Laporan Lanjutan + Kustom",
+          "Dashboard Premium + Akses API",
+          "Integrasi API Penuh",
+          "Dukungan Manajer Khusus",
+          "Dukungan Kampanye Kustom",
+          "Pencairan Instan/Kustom",
+          "Gudang Tak Terbatas",
+          "Akun Staf Tak Terbatas",
+          "Pengalaman Full Branding"
+        ],
+        "commission": "Biaya komisi 0,5%"
+      }
+    ],
+    "comparison": {
+      "title": "Perbandingan Fitur",
+      "subtitle": "Perbandingan fitur antara semua paket",
+      "plan": {
+        "free": "Gratis",
+        "starter": "Starter",
+        "business": "Bisnis",
+        "enterprise": "Enterprise"
+      },
+      "features": [
+      { "feature": "Listing Marketplace", "free": "50 SKU", "starter": "200 SKU", "business": "1.000 SKU", "enterprise": "Tak Terbatas" },
+      { "feature": "Analitik Transaksi", "free": "Dasar", "starter": "Standar", "business": "Lanjutan", "enterprise": "Lanjutan + Laporan Kustom" },
+      { "feature": "Dashboard Penjual", "free": "Dasar", "starter": "Standar", "business": "Premium", "enterprise": "Premium + Akses API" },
+      { "feature": "Manajemen Order", "free": "Input Manual", "starter": "Upload Massal", "business": "Upload Massal + Sinkronisasi", "enterprise": "Integrasi API Penuh" },
+      { "feature": "Dukungan Pelanggan", "free": "Email", "starter": "Email & Chat", "business": "Chat Prioritas", "enterprise": "Manajer Khusus" },
+      { "feature": "Alat Marketing", "free": "Kupon Dasar", "starter": "Kupon + Diskon", "business": "Kampanye + Iklan", "enterprise": "Dukungan Kampanye Kustom" },
+      { "feature": "Pencairan Pembayaran", "free": "7 hari", "starter": "5 hari", "business": "3 hari", "enterprise": "Instan/Kustom" },
+      { "feature": "Dukungan Multi-Gudang", "free": "1 Gudang", "starter": "1 Gudang", "business": "3 Gudang", "enterprise": "Tak Terbatas" },
+      { "feature": "Akun Staf", "free": "1", "starter": "5", "business": "15", "enterprise": "Tak Terbatas" },
+      { "feature": "Branding Kustom", "free": "-", "starter": "-", "business": "Tersedia", "enterprise": "Full Branding" }
+    ]
+  },
+    "faq": {
+      "title": "Pertanyaan yang Sering Diajukan",
+      "subtitle": "Semua yang perlu Anda ketahui tentang harga kami",
+      "1": {
+        "q": "Apakah saya harus membayar biaya bulanan dan komisi?",
+        "a": "Ya, Laku-Laku menggunakan model monetisasi ganda. Biaya bulanan untuk fitur SaaS, dan komisi per transaksi untuk mendukung pertumbuhan marketplace."
+      },
+      "2": {
+        "q": "Apakah ada uji coba gratis?",
+        "a": "Ya, paket Starter dan Bisnis termasuk uji coba gratis 14 hari tanpa kartu kredit."
+      },
+      "3": {
+        "q": "Apa keuntungan pembayaran tahunan?",
+        "a": "Pembayaran tahunan menawarkan penghematan besar: 10% untuk Starter, 16% untuk Bisnis, dan 8% untuk Enterprise. Anda juga cukup membayar sekali setahun."
+      },
+      "4": {
+        "q": "Metode pembayaran apa saja yang diterima?",
+        "a": "Kami menerima transfer bank (BCA, Mandiri, BRI), virtual account, dan kartu kredit/debit."
+      },
+      "5": {
+        "q": "Bisakah saya upgrade/downgrade paket kapan saja?",
+        "a": "Ya, Anda bisa ganti paket di akhir siklus tagihan tanpa penalti."
+      },
+      "6": {
+        "q": "Bagaimana komisi dihitung?",
+        "a": "Komisi dihitung sebagai persentase dari nilai pesanan (tidak termasuk ongkir)."
+      },
+      "7": {
+        "q": "Apakah Enterprise termasuk integrasi ERP/WMS?",
+        "a": "Ya, penjual Enterprise mendapat akses API penuh dan dukungan onboarding integrasi sistem."
+      }
+    },
+    "cta": {
+      "title": "Siap mulai?",
+      "subtitle": "Bergabunglah dengan ribuan penjual yang mengembangkan bisnisnya bersama Laku-Laku",
+      "trial": "Coba Gratis",
+      "contact": "Hubungi Sales"
+    }
+  },
+  "solutions": {
+    "hero": {
+      "title": "Solusi untuk Distributor & Retailer",
+      "subtitle": "Laku-Laku menghubungkan grosir dengan retailer kecil di seluruh Indonesia, membuat belanja grosir jadi mudah, efisien, dan menguntungkan.",
+      "cta": "Mulai Sekarang"
+    },
+    "badges": {
+      "left": {
+        "main": "Akses Retailer Nasional",
+        "sub": ["Jual ke ", "10.000+", " toko"]
+      },
+      "right": {
+        "main": "Hemat Besar & Pengiriman Cepat",
+        "sub": ["Hemat hingga ", "30%", " di setiap order"]
+      }
+    },
+    "twocol": {
+      "title": "Solusi untuk Setiap Bisnis",
+      "subtitle": "Baik Anda distributor maupun retailer, Laku-Laku membantu Anda tumbuh, hemat, dan sukses di pasar grosir Indonesia.",
+      "distributor": {
+        "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)",
+        "1": { "label": "Akses ke Ribuan Retailer", "desc": "Produk Anda tampil di jaringan retail nasional terverifikasi." },
+        "2": { "label": "Dashboard Terpusat", "desc": "Kelola stok, harga, dan order di satu tempat." },
+        "3": { "label": "Pembayaran & Penagihan Otomatis", "desc": "Dibayar lebih cepat tanpa repot administrasi." },
+        "4": { "label": "Analitik Kinerja", "desc": "Lihat produk terlaris dan optimalkan penawaran." },
+        "5": { "label": "Promosi & Penawaran Grosir", "desc": "Jalankan kampanye untuk tingkatkan penjualan." }
+      },
+      "retailer": {
+        "title": "Belanja Lebih Baik, Hemat Lebih Banyak (Untuk Retailer)",
+        "1": { "label": "Belanja Grosir Satu Pintu", "desc": "Banyak supplier, satu keranjang, satu pembayaran." },
+        "2": { "label": "Harga Grosir Eksklusif", "desc": "Promo grosir & diskon musiman khusus." },
+        "3": { "label": "Update Stok Real-Time", "desc": "Lihat ketersediaan sebelum order." },
+        "4": { "label": "Pembayaran Fleksibel", "desc": "Bayar langsung atau ajukan kredit usaha." },
+        "5": { "label": "Pengiriman Cepat & Andal", "desc": "Rute optimal & pengiriman terjadwal." }
+      }
+    },
+    "testimonials": {
+      "title": "Apa Kata Pengguna Kami",
+      "1": {
+        "name": "Andi",
+        "role": "Distributor dari Surabaya",
+        "text": "Laku-Laku membantu kami 3x lipat jangkauan tanpa tambah staf sales. Order diproses setengah waktu."
+      },
+      "2": {
+        "name": "Rina",
+        "role": "Pemilik Mini-Mart di Jakarta",
+        "text": "Dulu harus hubungi 5 supplier untuk cek harga. Sekarang cukup satu aplikasi, hemat hingga 20% tiap bulan."
+      },
+      "3": {
+        "name": "Ahmad Rahman",
+        "role": "CEO, PT Sukses Makmur",
+        "text": "Laku-Laku mengubah bisnis distribusi kami. Sekarang kelola 3x produk dengan setengah usaha."
+      },
+      "4": {
+        "name": "Siti Nurhaliza",
+        "role": "Pemilik, Warung Makmur",
+        "text": "Order sekarang sangat mudah! Harga lebih baik, pengiriman lebih cepat, pelanggan lebih puas."
+      },
+      "5": {
+        "name": "Budi Santoso",
+        "role": "Retailer, Bandung",
+        "text": "Aplikasinya sangat mudah digunakan dan tim support sangat responsif."
+      },
+      "6": {
+        "name": "Maya Dewi",
+        "role": "Distributor, Medan",
+        "text": "Promo grosir & analitik bantu bisnis saya tumbuh lebih cepat."
+      }
+    },
+    "steps": {
+      "title": "Mulai dalam 3 Langkah Mudah",
+      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku-Laku",
+      "1": {
+        "title": "Daftar & verifikasi",
+        "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
+      },
+      "2": {
+        "title": "List atau cari produk grosir",
+        "desc": "Distributor listing produk, retailer membandingkan & memilih"
+      },
+      "3": {
+        "title": "Order & pantau dengan mudah",
+        "desc": "Order, lacak pengiriman, dan kelola bisnis dalam satu platform"
+      }
+    },
+    "cta": {
+      "title": "Siap Naik Level Bisnis Grosir Anda?",
+      "subtitle": "Bergabunglah dengan ribuan retailer & distributor yang berkembang bersama Laku-Laku.",
+      "button": "Mulai Sekarang"
+    }
+  },
+  "about": {
+    "hero": {
+      "title": "Kisah Kami: Mengapa Kami Membangun Laku-Laku",
+      "subtitle": "Memberdayakan distributor dan retailer Indonesia dengan teknologi yang benar-benar membantu mereka."
+    },
+    "story": {
+      "1": "Sejak dulu, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, ribuan distributor, warung, toko kecil, dan retailer independen berperan penting menjaga kebutuhan pokok tetap terjangkau. Namun di balik ekonomi yang hidup ini, ada kenyataan yang jarang terlihat — <b>tantangan mengelola penjualan, stok, dan order di dunia yang masih banyak manual dan terfragmentasi</b>.",
+      "2": "Saat saya mengamati distribusi dan retail, polanya selalu sama. Distributor harus mengelola spreadsheet produk, order via WhatsApp, telepon konfirmasi pembayaran, dan catatan stok manual. Penjadwalan pengiriman pun rumit — tidak ada satu sistem yang memberi kejelasan barang masuk, keluar, dan kapan. Pindah-pindah alat ini bikin bottleneck, buang waktu, dan rawan kesalahan mahal.",
+      "3": "Di sisi lain, retailer kecil — warung, kios, toko kelontong — juga punya tantangan berat. Banyak yang kesulitan dapat pasokan andal, tergantung distributor lokal atau makelar, akses produk terbatas, harga fluktuatif. Mereka tak tahu pasti kapan order sampai. Margin tipis, gangguan kecil saja bisa bikin rugi dan pelanggan kecewa.",
+      "4": "Tantangan lain yang saya lihat adalah proses penjualan di lapangan. Sales distributor harus keliling toko, antre dengan sales merek lain. Pemilik toko dibanjiri penawaran produk berturut-turut, jadi overload informasi dan lelah. Seringkali sales harus pergi sebelum sempat presentasi, karena pembeli sudah kewalahan atau kehabisan waktu. Akhirnya, banyak produk dan promo bagus terlewat.",
+      "5": "Saya sadar masalahnya bukan di orangnya, tapi di sistemnya. Penjualan, stok, logistik berjalan sendiri-sendiri. Tidak ada satu platform yang menyatukan. Akibatnya, pertumbuhan jadi lebih sulit. Distributor susah scale, retailer susah bersaing.",
+      "vision": "Dari situlah visi <b>Laku-Laku</b> lahir.",
+      "6": "Saya tidak ingin sekadar bikin marketplace B2B. Saya ingin membayangkan ulang distribusi dan retail jika teknologi benar-benar memberdayakan kedua sisi. Laku-Laku bukan sekadar tempat transaksi. Distributor bisa jual lebih cerdas, kelola stok real-time, jadwalkan & lacak pengiriman, analisa performa — semua di satu platform. Retailer pun lebih mudah cari produk, order, dan restock dengan percaya diri.",
+      "7": "Nama <b>Laku-Laku</b> sendiri mencerminkan semangat ini. Dalam bahasa Indonesia, “laku” berarti terjual dan bergerak. Perdagangan adalah pergerakan — barang, peluang, penghidupan. Platform kami hadir agar pergerakan ini lancar, transparan, dan penuh kepercayaan.",
+      "8": "Yang paling mendorong saya adalah keyakinan bahwa teknologi harus memudahkan hidup, bukan mempersulit. Laku-Laku membawa alat modern — otomatisasi, visibilitas real-time, data cerdas — ke ruang yang lama terabaikan. Distributor dapat waktu & kejelasan untuk fokus tumbuh. Retailer dapat akses & keandalan untuk layani pelanggan lebih baik.",
+      "9": "Setiap fitur Laku-Laku lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
+      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya — yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku-Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
+      "10": "Ini bukan sekadar software. Ini tentang membangun kepercayaan, efisiensi, dan peluang bagi jutaan bisnis yang menggerakkan ekonomi kita setiap hari.",
+      "end": "Dan ini baru permulaan."
+    },
+    "carousel": {
+      "1": {
+        "title": "Misi Kami",
+        "content": "Memberdayakan bisnis dari segala ukuran — dari distributor besar hingga warung dan kios kecil — dengan alat untuk berdagang lebih cerdas, cepat, dan menguntungkan."
+      },
+      "2": {
+        "title": "Visi Kami",
+        "content": "Masa depan di mana setiap retailer di Indonesia, sekecil apapun, punya akses setara ke produk, harga, dan peluang, serta setiap distributor bisa menjangkau pasar baru dengan mudah."
+      },
+      "3": {
+        "title": "Yang Kami Percaya",
+        "1": "Teknologi harus memberdayakan, bukan mempersulit.",
+        "2": "Bisnis kecil berhak mendapat peluang besar.",
+        "3": "Perdagangan yang adil membangun komunitas yang kuat."
+      },
+      "4": {
+        "title": "Kenapa 'Laku-Laku'?",
+        "content": "Dalam bahasa Indonesia, laku berarti 'terjual' atau 'bergerak.' Laku-Laku adalah tentang menciptakan momentum — membantu produk bergerak, bisnis berkembang, dan perdagangan tumbuh."
+      }
+    },
+    "cta": {
+      "title": "Bergabunglah membangun masa depan distribusi & retail.",
+      "subtitle": "Di Laku-Laku, kami bukan sekadar membuat software — kami membangun marketplace yang lebih cerdas & adil untuk semua.",
+      "button": "Lihat Solusi Kami"
+    }
+  },
+  "footer": {
+    "company": {
+      "description1": "Platform B2B lengkap untuk distributor dan retailer FMCG di Indonesia.",
+      "description2": "Permudah operasional, lindungi harga, dan kembangkan bisnismu dengan aman."
+    },
+    "quicklinks": {
+      "title": "Tautan Cepat",
+      "pricing": "Harga",
+      "features": "Fitur",
+      "solutions": "Solusi",
+      "about": "Tentang"
+    },
+    "support": {
+      "title": "Dukungan",
+      "help": "Pusat Bantuan",
+      "contact": "Hubungi Kami",
+      "docs": "Dokumentasi",
+      "status": "Status Sistem"
+    },
+    "copyright": "© 2024 Laku-Laku. Hak cipta dilindungi. Dibuat dengan ❤️ untuk distribusi & retail Indonesia."
+  }
+}

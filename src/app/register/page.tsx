@@ -11,7 +11,7 @@ function Stepper({ step }: { step: number }) {
           <div
             className={`rounded-full w-8 h-8 flex items-center justify-center font-bold text-white ${
               step === idx
-                ? "bg-blue-600"
+                ? "bg-[#0a61d7]"
                 : step > idx
                 ? "bg-green-500"
                 : "bg-gray-300"
@@ -78,6 +78,7 @@ export default function RegisterPage() {
     if (step > 0) {
       setStep(step - 1);
       setStepKey(prev => prev + 1);
+      setError(""); // Clear error when going back
     }
   }
 
@@ -85,6 +86,11 @@ export default function RegisterPage() {
     <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
       {/* Left: Registration Form */}
       <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
+        <div>
+          <a href="/">
+            <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10 mb-8" />
+          </a>
+        </div>
         <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>
         <p className="mb-8 text-gray-500">Register your distributor account in three easy steps.</p>
         <Stepper step={step} />
@@ -99,16 +105,6 @@ export default function RegisterPage() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
                     value={userInfo.name}
                     onChange={e => setUserInfo({ ...userInfo, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Date of Birth</label>
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={userInfo.dob}
-                    onChange={e => setUserInfo({ ...userInfo, dob: e.target.value })}
                     required
                   />
                 </div>
@@ -185,13 +181,18 @@ export default function RegisterPage() {
               )}
               <button
                 type="submit"
-                className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 ml-auto text-sm"
+                className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm"
               >
                 {step < 2 ? "Next" : "Register"}
               </button>
             </div>
           </div>
         </form>
+        {/* Login redirect prompt */}
+        <div className="flex items-center mt-6 text-sm">
+          <span className="text-gray-500">Already have an account?</span>
+          <a href="/login" className="ml-2 text-[#0a61d7] font-semibold hover:underline">Log in here</a>
+        </div>
       </div>
       {/* Right: Placeholder for Distribution/Retailing Image */}
       <div className="col-span-5 bg-blue-600 flex items-center justify-center animate-fade-in-right">

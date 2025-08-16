@@ -3,37 +3,39 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { BookOpenIcon, SparklesIcon, ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function AboutPage() {
   const router = useRouter();
+  const t = useTranslations("about");
   const [activeSlide, setActiveSlide] = React.useState(0);
   const slides = [
     {
-      title: "Our Mission",
+      title: t("carousel.1.title"),
       content: (
-        <p className="text-gray-800 text-lg">To <b>empower businesses of every size</b> — from large distributors to small warungs and kiosks — by giving them tools to trade smarter, faster, and more profitably.</p>
+        <p className="text-gray-800 text-lg">{t("carousel.1.content")}</p>
       ),
     },
     {
-      title: "Our Vision",
+      title: t("carousel.2.title"),
       content: (
-        <p className="text-gray-800 text-lg">A future where every retailer in Indonesia, no matter how small, has <b>equal access to products, prices, and opportunities</b>, and every distributor can <b>reach new markets effortlessly</b>.</p>
+        <p className="text-gray-800 text-lg">{t("carousel.2.content")}</p>
       ),
     },
     {
-      title: "What We Believe",
+      title: t("carousel.3.title"),
       content: (
         <div className="flex flex-col gap-2 text-gray-800 text-lg font-semibold">
-          <div>Technology should empower, not complicate.</div>
-          <div>Small businesses deserve big opportunities.</div>
-          <div>Fair trade grows stronger communities.</div>
+          <div>{t("carousel.3.1")}</div>
+          <div>{t("carousel.3.2")}</div>
+          <div>{t("carousel.3.3")}</div>
         </div>
       ),
     },
     {
-      title: "Why “Laku-Laku”?",
+      title: t("carousel.4.title"),
       content: (
-        <p className="text-gray-800 text-lg">In Indonesian, <i>laku</i> means “to sell” or “to move.”<br />Laku-Laku is about creating momentum — helping products move, helping businesses grow, and helping trade thrive.</p>
+        <p className="text-gray-800 text-lg">{t("carousel.4.content")}</p>
       ),
     },
   ];
@@ -47,10 +49,10 @@ export default function AboutPage() {
               <BookOpenIcon className="text-[#0a61d7] w-8 h-8" />
             </span>
             <h1 className="text-5xl font-bold text-gray-900 mb-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              Our Story: Why We Built Laku-Laku
+              {t("hero.title")}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
-              Empowering Indonesia’s distributors and retailers with technology that truly works for them.
+              {t("hero.subtitle")}
             </p>
           </div>
         </div>
@@ -66,32 +68,32 @@ export default function AboutPage() {
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-lg text-gray-800 space-y-8">
           {[
-            "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, thousands of distributors, warungs, small shops, and independent retailers play a vital role in keeping daily essentials accessible and affordable. Yet, behind this vibrant economy lies a reality that few outsiders see — <b>the struggle of managing sales, inventory, and orders in a world that is still largely offline, manual, and fragmented</b>.",
-            "As I observed how distribution and retail worked, I noticed the same patterns everywhere. Distributors had to juggle spreadsheets for their product listings, rely on countless WhatsApp messages for order-taking, make endless phone calls to confirm payments, and keep manual notes to track stock. Scheduling shipments was a puzzle in itself — no single system could give them clarity over what was coming in, what was going out, and when. This constant switching between disconnected tools created bottlenecks, wasted time, and left plenty of room for costly mistakes.",
-            "On the other side of the trade, small retailers — the warungs, kiosks, and mom-and-pop shops that form the backbone of our communities — faced equally daunting challenges. For many of them, securing reliable supply was not easy. They often depended on local distributors or middlemen, leaving them with limited access to product variety and fluctuating prices. They lacked visibility into shipments, and often didn’t know if their orders would arrive on time. For businesses running on tight margins, even the smallest disruption meant lost sales and disappointed customers.",
-            "Another challenge I saw was in the way sales happened on the ground. Distributors’ salespeople often had to physically visit retail shops, waiting their turn among a line of other salesmen from different brands or suppliers. This meant that shop owners and buyers were bombarded with product pitches in quick succession, leading to information overload and decision fatigue. Many times, salesmen would have to leave the shop before even getting a chance to present, simply because the buyer was overwhelmed or out of time. This not only wasted effort, but also meant that great products and deals could be missed entirely.",
-            "It became clear to me that the problem wasn’t with the people, but with the system. Sales, inventory, and logistics were happening in silos. There was no single platform to bring order to the chaos. And because of this gap, growth was harder than it needed to be. Distributors couldn’t scale efficiently, and retailers couldn’t compete fairly."
+            t.raw("story.1"),
+            t.raw("story.2"),
+            t.raw("story.3"),
+            t.raw("story.4"),
+            t.raw("story.5")
           ].map((text, idx) => (
             <p key={idx} className="animate-fade-in-up" style={{ animationDelay: `${0.1 + idx * 0.1}s` }} dangerouslySetInnerHTML={{ __html: text }} />
           ))}
           <blockquote className="border-l-4 border-blue-400 pl-4 italic text-gray-700 bg-blue-50 py-2 rounded animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-            That realization sparked the vision for <b>Laku-Laku</b>.
+            {t.raw("story.vision")}
           </blockquote>
           {[
-            "I didn’t set out to build just another B2B marketplace. Instead, I wanted to reimagine how distribution and retail could work if technology truly empowered both sides. Laku-Laku was designed as more than a place to transact. It is a platform where distributors can sell smarter, manage their stock in real-time, schedule and track shipments, and analyze performance — all in one place. At the same time, it gives retailers a simpler, more reliable way to discover products, place orders, and restock with confidence.",
-            "The name <b>Laku-Laku</b> itself reflects this spirit. In Indonesian, “laku” means both sale and movement. Trade is all about movement — of goods, of opportunities, of livelihoods. Our platform exists to ensure that this movement happens seamlessly, transparently, and with trust.",
-            "What drives me most is the belief that technology should make life easier, not more complicated. Laku-Laku is about bringing modern tools — automation, real-time visibility, and smart data — into a space that has long been underserved. It’s about giving distributors back the time and clarity they need to focus on growth. It’s about giving retailers the access and reliability they deserve to serve their customers better.",
-            "Every feature in Laku-Laku comes from this simple vision: to integrate what was once scattered, and to simplify what was once complicated."
+            t.raw("story.6"),
+            t.raw("story.7"),
+            t.raw("story.8"),
+            t.raw("story.9")
           ].map((text, idx) => (
             <p key={idx+4} className="animate-fade-in-up" style={{ animationDelay: `${0.6 + idx * 0.1}s` }} dangerouslySetInnerHTML={{ __html: text }} />
           ))}
           <blockquote className="border-l-4 border-orange-400 pl-4 italic text-gray-700 bg-orange-50 py-2 rounded animate-fade-in-up" style={{ animationDelay: '1.1s' }}>
-            We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges — one that empowers both sellers and buyers equally. With Laku-Laku, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.
+            {t.raw("story.mission")}
           </blockquote>
           <p className="animate-fade-in-up" style={{ animationDelay: '1.2s' }}>
-            This is not just about building software. It’s about building trust, efficiency, and opportunity for millions of businesses who keep our economy moving every day.
+            {t("story.10")}
           </p>
-          <p className="text-gray-500 text-base animate-fade-in-up" style={{ animationDelay: '1.3s' }}>And this is just the start.</p>
+          <p className="text-gray-500 text-base animate-fade-in-up" style={{ animationDelay: '1.3s' }}>{t("story.end")}</p>
         </div>
       </section>
 
@@ -158,17 +160,17 @@ export default function AboutPage() {
             <SparklesIcon className="text-orange-500 w-6 h-6" />
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            Join us in building the future of distribution and retail.
+            {t("cta.title")}
           </h2>
           <p className="text-lg text-blue-100 mb-8 max-w-xl mx-auto animate-fade-in-up animate-delay-200">
-            At Laku-Laku, we’re not just creating software — we’re shaping a smarter, fairer marketplace for everyone.
+            {t("cta.subtitle")}
           </p>
           <button
             onClick={() => router.push("/landing/solutions")}
             className="bg-orange-500 text-white px-10 py-4 rounded-lg text-lg font-bold hover:bg-orange-600 transition-all duration-200 shadow-xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
             style={{ animationDelay: '0.3s' }}
           >
-            See Our Solutions
+            {t("cta.button")}
           </button>
         </div>
       </section>
