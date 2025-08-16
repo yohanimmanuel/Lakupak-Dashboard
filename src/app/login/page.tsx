@@ -27,7 +27,7 @@ export default function LoginPage() {
               <input type="checkbox" className="mr-1 " />
               <span className="text-sm text-gray-500">Remember Me</span>
             </label>
-            <a href="#" className="text-sm text-[#0a61d7] hover:underline">Forgot Password?</a>
+            <a href="/forgotpassword" className="text-sm text-[#0a61d7] hover:underline">Forgot Password?</a>
           </div>
           <button type="submit" className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm">Log In</button>
         </form>

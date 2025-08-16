@@ -126,8 +126,9 @@ export default function FeaturesPage() {
           <h1 className="text-5xl font-bold text-gray-900 mb-2 animate-fade-in-up animation-delay-100">{t("header.title")}</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animation-delay-200 mb-2">{t("header.subtitle")}</p>
           <div className="flex items-center justify-center gap-6 mb-2 animate-fade-in-up animation-delay-300">
-            <button className="bg-[#0a61d7] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl animate-fade-in-up animation-delay-400">
-              {t("header.cta1")}
+            <button className="bg-[#0a61d7] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl animate-fade-in-up animation-delay-400 flex items-center gap-2">
+              <img src="/whatsapp.svg" alt="WhatsApp" className="w-6 h-6 mr-2" />
+              <span>{t("header.cta1")}</span>
             </button>
             <button 
               onClick={() => router.push("/register")}

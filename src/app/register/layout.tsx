@@ -1,5 +1,5 @@
 export const metadata = {
-    title: 'Laku-Laku - Registration'
+    title: 'Laku-Laku | Registration'
   }
   
   export default function RegisterLayout({

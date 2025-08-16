@@ -80,13 +80,13 @@ export default function SolutionsPage() {
           <div className="flex justify-center mb-16 relative">
             {/* Floating Badges OUTSIDE the image showcase */}
             {/* Left Badge Group */}
-            <div className="absolute left-60 top-50 z-30 pointer-events-none" style={{transform: 'translate(-270px, -50%)'}}>
+            <div className="absolute left-0 top-40 z-30 pointer-events-none animate-fade-in-up animate-delay-200">
               <div className="flex flex-col items-start">
-                <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-[#0a61d7] border border-blue-100 mb-2 pointer-events-auto">
+                <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-[#0a61d7] border border-blue-100 mb-2 pointer-events-auto animate-fade-in-up animate-delay-300">
                   {t("badges.left.main")}
                 </div>
                 {/* Left Badge Subtext with colored number */}
-                <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-blue-100 mt-2 pointer-events-auto">
+                <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-blue-100 mt-2 pointer-events-auto animate-fade-in-up animate-delay-400">
                   {(() => {
                     const sub = t.raw("badges.left.sub");
                     return <>{sub[0]}<span className="text-[#0a61d7] font-bold">{sub[1]}</span>{sub[2]}</>;
@@ -95,13 +95,13 @@ export default function SolutionsPage() {
               </div>
             </div>
             {/* Right Badge Group */}
-            <div className="absolute right-50 top-70 z-30 pointer-events-none" style={{transform: 'translate(270px, -50%)'}}>
+            <div className="absolute right-0 top-60 z-30 pointer-events-none animate-fade-in-up animate-delay-400">
               <div className="flex flex-col items-end">
-                <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-orange-600 border border-orange-100 mb-2 pointer-events-auto">
+                <div className="bg-white px-5 py-2 rounded-full shadow-lg text-sm font-semibold text-orange-600 border border-orange-100 mb-2 pointer-events-auto animate-fade-in-up animate-delay-500">
                   {t("badges.right.main")}
                 </div>
                 {/* Right Badge Subtext with colored number */}
-                <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-orange-100 mt-2 pointer-events-auto">
+                <div className="bg-white px-5 py-2 rounded-full shadow text-xs font-medium text-gray-700 border border-orange-100 mt-2 pointer-events-auto animate-fade-in-up animate-delay-600">
                   {(() => {
                     const sub = t.raw("badges.right.sub");
                     return <>{sub[0]}<span className="text-green-500 font-bold">{sub[1]}</span>{sub[2]}</>;
@@ -110,9 +110,9 @@ export default function SolutionsPage() {
               </div>
             </div>
             {/* Image Showcase */}
-            <div className="w-full max-w-5xl aspect-[2/1] bg-white rounded-2xl shadow-sm flex items-center justify-center relative overflow-hidden">
+            <div className="w-full max-w-5xl aspect-[2/1] bg-white rounded-2xl shadow-sm flex items-center justify-center relative overflow-hidden animate-fade-in-up animate-delay-100">
               {/* Left Image */}
-              <div className="relative w-1/2 h-full">
+              <div className="relative w-1/2 h-full animate-fade-in-up animate-delay-300">
                 <Image
                   src="/femaleworkerwarehouse.png"
                   alt="Female Worker Warehouse"
@@ -125,7 +125,7 @@ export default function SolutionsPage() {
                 />
               </div>
               {/* Right Image */}
-              <div className="relative w-1/2 h-full">
+              <div className="relative w-1/2 h-full animate-fade-in-up animate-delay-400">
                 <Image
                   src="/deliveryman.png"
                   alt="Ecommerce Delivery Man"

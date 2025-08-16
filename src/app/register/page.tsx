@@ -45,7 +45,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     if (step === 0) {
-      if (!userInfo.name || !userInfo.dob || !userInfo.email) {
+      if (!userInfo.name || !userInfo.email) {
         setError("Please fill all fields.");
         return;
       }

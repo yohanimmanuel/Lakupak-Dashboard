@@ -162,11 +162,10 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="w-full h-[200px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+              <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
                 <div className="text-center">
                   <div className="text-4xl mb-2">🖥️</div>
                   <p className="text-gray-500 font-medium">{t("features.distributor.screenshot")}</p>
-                  <p className="text-gray-400 text-sm">300x200px</p>
                 </div>
               </div>
             </div>
@@ -190,11 +189,10 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="w-full h-[200px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+              <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
                 <div className="text-center">
                   <div className="text-4xl mb-2">📱</div>
                   <p className="text-gray-500 font-medium">{t("features.retailer.screenshot")}</p>
-                  <p className="text-gray-400 text-sm">300x200px</p>
                 </div>
               </div>
             </div>
