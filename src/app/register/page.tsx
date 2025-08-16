@@ -88,7 +88,7 @@ export default function RegisterPage() {
       <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
         <div>
           <a href="/">
-            <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10 mb-8" />
+            <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-13 mb-4" />
           </a>
         </div>
         <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>
@@ -97,7 +97,7 @@ export default function RegisterPage() {
         <form onSubmit={handleNext}>
           <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block mb-1 text-sm text-gray-500">Full Name</label>
                   <input
@@ -121,7 +121,7 @@ export default function RegisterPage() {
               </div>
             )}
             {step === 1 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block mb-1 text-sm text-gray-500">Company Name</label>
                   <input
@@ -145,7 +145,7 @@ export default function RegisterPage() {
               </div>
             )}
             {step === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block mb-1 text-sm text-gray-500">Password</label>
                   <input
@@ -169,7 +169,7 @@ export default function RegisterPage() {
               </div>
             )}
             {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
-            <div className="flex justify-between mt-8">
+            <div className="flex justify-between mt-4">
               {step > 0 && (
                 <button
                   type="button"
@@ -189,7 +189,7 @@ export default function RegisterPage() {
           </div>
         </form>
         {/* Login redirect prompt */}
-        <div className="flex items-center mt-6 text-sm">
+        <div className="flex items-center mt-4 text-sm">
           <span className="text-gray-500">Already have an account?</span>
           <a href="/login" className="ml-2 text-[#0a61d7] font-semibold hover:underline">Log in here</a>
         </div>

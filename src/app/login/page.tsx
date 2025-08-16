@@ -6,14 +6,14 @@ export default function LoginPage() {
     <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
       {/* Left: Login Form */}
       <div className="col-span-4 justify-center flex flex-col p-16 bg-white animate-fade-in-left">
-        <div className="flex flex-col items-center justify-center text-center mb-8">
+        <div className="flex flex-col items-center justify-center text-center">
           <a href="/">
-            <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10 mb-8" />
+            <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-15 mb-4" />
           </a>
           <h2 className="text-3xl text-black font-bold mb-2">Welcome Back</h2>
           <p className="mb-8 text-gray-500">Enter your email and password to access your account.</p>
         </div>
-        <form className="space-y-6">
+        <form className="space-y-4">
           <div>
             <label className="block mb-1 text-sm text-gray-500">Email</label>
             <input type="email" className="w-full px-4 py-2 text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="you@email.com" required />
