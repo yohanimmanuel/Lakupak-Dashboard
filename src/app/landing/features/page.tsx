@@ -117,21 +117,21 @@ function StickyFeatureSection({
   const stickyOffset = 140; // px
 
   return (
-    <div ref={sectionRef} className="relative max-w-6xl mx-auto mb-32">
+    <div ref={sectionRef} className="relative max-w-6xl mx-auto mb-32 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {/* Sticky Block: Title, Subtitle, and Image together */}
         <div className="hidden md:flex flex-col justify-start">
           <div className="sticky" style={{ top: `${stickyOffset}px` }}>
-            <div className="bg-white/95 rounded-2xl p-2 flex flex-col shadow-none">
+            <div className="bg-white/95 rounded-2xl p-2 flex flex-col shadow-none animate-fade-in-up animation-delay-100">
               <h2 className={`text-4xl font-bold mb-2 ${color}`}>{stickyTitle}</h2>
-              <p className="text-md text-gray-500 mb-6">{stickySubtitle}</p>
+              <p className="text-md text-gray-500 mb-6 animate-fade-in-up animation-delay-200">{stickySubtitle}</p>
               <div className="relative w-[500px] h-[300px]">
                 {features.map((feature, idx) => (
                   <div
                     key={idx}
                     className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                   >
-                    <div className="w-full h-full bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-500 text-lg font-medium shadow-xl">
+                    <div className="w-full h-full bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-500 text-lg font-medium shadow-xl animate-fade-in-up animation-delay-300">
                       {feature.image}
                     </div>
                   </div>
@@ -148,15 +148,15 @@ function StickyFeatureSection({
               ref={(el: HTMLDivElement | null) => {
                 descRefs.current[idx] = el;
               }}
-              className={`transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100' : 'opacity-40'} flex flex-col justify-center min-h-[400px]`}
+              className={`transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100' : 'opacity-40'} flex flex-col justify-center min-h-[400px] animate-fade-in-up animation-delay-400`}
             >
               <span className={`inline-block mb-2 px-3 py-1 text-xs font-semibold rounded-full ${color === 'text-blue-700' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>{feature.badge}</span>
               <div className="flex items-center mb-2">
                 <span className="mr-3">{feature.icon}</span>
                 <h3 className="text-3xl font-bold text-gray-900">{feature.title}</h3>
               </div>
-              <p className="text-gray-600 mb-3 text-lg">{feature.subtitle}</p>
-              <ul className="list-disc pl-5 space-y-2 text-gray-700 text-base">
+              <p className="text-gray-600 mb-3 text-lg animate-fade-in-up animation-delay-500">{feature.subtitle}</p>
+              <ul className="list-disc pl-5 space-y-2 text-gray-700 text-base animate-fade-in-up animation-delay-600">
                 {feature.points.map((point, i) => (
                   <li key={i}>{point}</li>
                 ))}
@@ -172,36 +172,36 @@ function StickyFeatureSection({
 export default function FeaturesPage() {
   const router = useRouter();
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white animate-fade-in">
       <div className="w-full">
         {/* Combined Header Section */}
-        <div className="flex flex-col items-center justify-center text-center py-20 gap-6">
-          <h1 className="text-5xl font-bold text-gray-900 mb-2 animate-fade-in-up">Laku-Laku Features</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animate-delay-200 mb-2">
+        <div className="flex flex-col items-center justify-center text-center py-20 gap-6 animate-fade-in-up">
+          <h1 className="text-5xl font-bold text-gray-900 mb-2 animate-fade-in-up animation-delay-100">Laku-Laku Features</h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto animate-fade-in-up animation-delay-200 mb-2">
             Discover the tools that empower distributors and retailers to grow, automate, and thrive in Indonesia's FMCG market.
           </p>
-          <div className="flex items-center justify-center gap-6 mb-2">
-            <button className="bg-[#0a61d7] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl">
+          <div className="flex items-center justify-center gap-6 mb-2 animate-fade-in-up animation-delay-300">
+            <button className="bg-[#0a61d7] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl animate-fade-in-up animation-delay-400">
               Consult Us
             </button>
             <button 
               onClick={() => router.push("/register")}
-              className="bg-white text-[#0a61d7] border border-[#0a61d7] px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#e6f0fa] transition-all duration-200">
+              className="bg-white text-[#0a61d7] border border-[#0a61d7] px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#e6f0fa] transition-all duration-200 animate-fade-in-up animation-delay-500">
               Register Now
             </button>
           </div>
-          <div className="flex flex-col items-center mb-2 animate-fade-in-up animate-delay-300">
+          <div className="flex flex-col items-center mb-2 animate-fade-in-up animation-delay-600">
             <div className="flex items-center space-x-2 mb-2">
               {[...Array(5)].map((_, i) => (
-                <svg key={i} className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg key={i} className="w-6 h-6 text-yellow-400 animate-fade-in-up" style={{animationDelay: `${700 + i * 50}ms`}} fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-gray-600 text-lg mb-2">4.9 stars • 2,000+ reviews</span>
+            <span className="text-gray-600 text-lg mb-2 animate-fade-in-up animation-delay-800">4.9 stars • 2,000+ reviews</span>
           </div>
           {/* Video Placeholder */}
-          <div className="w-[1200px] h-[600px] bg-gray-200 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300 mb-2">
+          <div className="w-[1200px] h-[600px] bg-gray-200 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300 mb-2 animate-fade-in-up animation-delay-900">
             <svg className="w-16 h-16 text-gray-400 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <polygon points="9.5,7.5 16.5,12 9.5,16.5" fill="currentColor" />
               <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -214,12 +214,8 @@ export default function FeaturesPage() {
         <section className="py-20 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-                <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
-                Transform Your Distribution Business
-                </h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">
-                See how Laku-Laku solves the biggest challenges in FMCG distribution
-                </p>
+                <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">Transform Your Distribution Business</h2>
+                <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">See how Laku-Laku solves the biggest challenges in FMCG distribution</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-12">
@@ -287,17 +283,13 @@ export default function FeaturesPage() {
       <section className="py-20 bg-gray-50 mb-20">
         <div className="w-full flex flex-col items-center">
           <div className="text-center mb-16 w-full">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
-              Two Powerful Platforms, One Seamless Experience
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">
-              Built specifically for FMCG distribution in Indonesia
-            </p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">Two Powerful Platforms, One Seamless Experience</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-fade-in-up animate-delay-200">Built specifically for FMCG distribution in Indonesia</p>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8 justify-center">
                          {/* Distributor Dashboard */}
-             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-left hover-lift w-[600px]">
+             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-left hover-lift w-[600px]" style={{animationDelay: '100ms'}}>
               <div className="flex items-center mb-6">
                 <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mr-4">
                   <span className="text-3xl"> <ChartAreaIcon className="text-blue-500" size={35} /></span>
@@ -341,7 +333,7 @@ export default function FeaturesPage() {
             </div>
 
                          {/* Retailer Marketplace */}
-             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-right hover-lift w-[600px]">
+             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 animate-fade-in-right hover-lift w-[600px]" style={{animationDelay: '200ms'}}>
               <div className="flex items-center mb-6">
                 <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mr-4">
                   <span className="text-3xl"> <ShoppingCartIcon className="text-orange-500" size={35} /></span>
@@ -405,18 +397,16 @@ export default function FeaturesPage() {
         {/* CTA Section with Product Image Placeholder */}
         <section className="py-20 bg-gradient-to-r from-[#0a61d7] to-[#084ba6] mt-20 w-full">
           <div className="w-full flex flex-col items-center justify-center px-0 text-center">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in-up">
-              Ready to power up your distribution?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">
-              Join the digital revolution in FMCG distribution. Transform your business today.
-            </p>
-            <button
-              onClick={() => router.push("/register")}
-              className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
-            >
-              Get Started Free
-            </button>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 animate-fade-in-up">Ready to power up your distribution?</h2>
+            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">Join the digital revolution in FMCG distribution. Transform your business today.</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animate-delay-400">
+              <button
+                onClick={() => router.push("/register")}
+                className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105 animate-fade-in-up animate-delay-500"
+              >
+                Get Started Free
+              </button>
+            </div>
             <div className="flex justify-center gap-6 mt-15 w-full">
               <div className="flex flex-col items-center">
                 <div className="w-[690px] h-[450px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">

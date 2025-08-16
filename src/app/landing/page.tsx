@@ -35,8 +35,8 @@ export default function LandingPage() {
                  >
                    Get Started Free
                  </button>
-                 <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-[#0a61d7] hover:text-[#0a61d7] transition-all duration-200 animate-fade-in-up animate-delay-500">
-                   Learn More →
+                 <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-orange-500 hover:text-orange-500 transition-all duration-200 animate-fade-in-up animate-delay-500">
+                   Explore Markets →
                  </button>
                </div>
 

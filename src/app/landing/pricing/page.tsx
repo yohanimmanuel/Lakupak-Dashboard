@@ -151,54 +151,54 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 animate-fade-in">
       {/* Hero Section */}
       <div className="bg-white py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold text-gray-900 mb-4">
+                    <div className="text-center">
+            <h1 className="text-5xl font-bold text-gray-900 mb-4 animate-fade-in-up animation-delay-200">
               Simple & Predictable Pricing
             </h1>
-            <p className="text-xl text-gray-600 mb-12">
+            <p className="text-xl text-gray-600 mb-12 animate-fade-in-up animation-delay-400">
               No Surprises. Choose the plan that fits your business needs.
             </p>
-                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-12 inline-block">
-               <p className="text-blue-800 font-medium">
-                 14-day free trial. No credit card required.
-               </p>
-             </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-12 inline-block animate-fade-in-up animation-delay-600 hover:scale-105 transition-transform duration-300">
+              <p className="text-blue-800 font-medium">
+                14-day free trial. No credit card required.
+              </p>
+            </div>
 
              {/* Billing Toggle */}
-             <div className="flex items-center justify-center mb-8">
-               <span className={`text-lg font-medium ${!isAnnual ? 'text-gray-900' : 'text-gray-500'} mr-4`}>
+             <div className="flex items-center justify-center mb-8 animate-fade-in-up animation-delay-800">
+               <span className={`text-lg font-medium ${!isAnnual ? 'text-gray-900' : 'text-gray-500'} mr-4 transition-colors duration-300`}>
                  Monthly
                </span>
                <button
                  onClick={() => setIsAnnual(!isAnnual)}
-                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 hover:scale-110 ${
                    isAnnual ? 'bg-blue-600' : 'bg-gray-300'
                  }`}
                >
                  <span
-                   className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                   className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-300 ${
                      isAnnual ? 'translate-x-7' : 'translate-x-1'
                    }`}
                  />
                </button>
-               <span className={`text-lg font-medium ${isAnnual ? 'text-gray-900' : 'text-gray-500'} ml-4`}>
+               <span className={`text-lg font-medium ${isAnnual ? 'text-gray-900' : 'text-gray-500'} ml-4 transition-colors duration-300`}>
                  Annual
                </span>
                {isAnnual && (
-                 <span className="ml-3 bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">
+                 <span className="ml-3 bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full animate-bounce-in animate-pulse">
                    Save up to 20%
                  </span>
                )}
              </div>
            </div>
 
-          {/* Pricing Cards */}
+                    {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-16">
-                         {pricingTiers.map((tier, index) => {
+            {pricingTiers.map((tier, index) => {
                let borderColor = 'border-gray-200';
                if (tier.name === 'Starter') borderColor = 'border-blue-500';
                else if (tier.name === 'Business') borderColor = 'border-orange-500';
@@ -207,27 +207,28 @@ export default function PricingPage() {
                return (
                  <div
                    key={tier.name}
-                   className={`relative bg-white rounded-2xl shadow-lg border-2 ${borderColor} p-8 transition-all duration-300 hover:shadow-xl`}
+                   className={`relative bg-white rounded-2xl shadow-lg border-2 ${borderColor} p-8 transition-all duration-500 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 animate-fade-in-up`}
+                   style={{ animationDelay: `${(index + 1) * 200}ms` }}
                  >
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
+                                 {tier.popular && (
+                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                     <span className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-pulse">
+                       Most Popular
+                     </span>
+                   </div>
+                 )}
                 <div className="text-center">
                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{tier.name}</h3>
                    <div className="mb-4">
                      <div className="flex flex-col items-center">
                        <span className="text-2xl font-bold text-gray-900">
                          {isAnnual ? tier.annualPrice : tier.monthlyPrice}
-                       </span>
-                       <span className="text-gray-600 text-sm">
-                         {tier.monthlyPrice !== 'Custom' && tier.monthlyPrice !== 'Rp 0' ? (isAnnual ? '/year (billed annually)' : '/month') : ''}
+                         <span className="text-gray-600 font-medium text-sm ml-1">
+                           {tier.monthlyPrice !== 'Custom' && tier.monthlyPrice !== 'Rp 0' ? (isAnnual ? '/year' : '/month') : ''}
+                         </span>
                        </span>
                        {isAnnual && tier.savings > 0 && tier.monthlyPrice !== 'Custom' && tier.monthlyPrice !== 'Rp 0' && (
-                         <span className="text-green-600 text-sm font-medium bg-green-50 px-2 py-1 rounded-md mt-1">
+                         <span className="text-green-600 text-sm font-medium bg-green-50 px-2 py-1 rounded-md mt-1 animate-bounce-in">
                            Save {tier.savings}%
                          </span>
                        )}
@@ -246,15 +247,15 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <button
-                  className={`w-full py-3 px-6 rounded-lg font-medium transition-colors ${
-                    tier.buttonVariant === 'primary'
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-white-100 text-blue-600 hover:bg-blue-50 border border-blue-600'
-                  }`}
-                >
-                  {tier.buttonText}
-                                 </button>
+                                 <button
+                   className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
+                     tier.buttonVariant === 'primary'
+                       ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6] hover:shadow-blue-500/25'
+                       : 'bg-white-100 text-blue-600 hover:bg-blue-50 border border-blue-600 hover:shadow-blue-500/25'
+                   }`}
+                 >
+                   {tier.buttonText}
+                 </button>
                </div>
              );
            })}
@@ -265,7 +266,7 @@ export default function PricingPage() {
       {/* Feature Comparison Table */}
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 animate-fade-in-up">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Compare All Features
             </h2>
@@ -273,7 +274,7 @@ export default function PricingPage() {
               Detailed comparison of features across all plans
             </p>
           </div>
-          <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200">
+          <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200 animate-fade-in-up animation-delay-400">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -282,45 +283,35 @@ export default function PricingPage() {
                   </th>
                   <th className="px-6 py-4 text-center">
                     <div className="text-blue-600 text-lg font-medium mb-1">Pro</div>
-                    <div className="text-gray-900 text-xl font-bold mb-1">Rp 0</div>
-                    <div className="text-gray-600 text-sm mb-3">/month</div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                    <div className="text-gray-900 text-xl font-bold mb-1">Rp 0 <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span></div>
+                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
                       Get Started
                     </button>
                   </th>
                   <th className="px-6 py-4 text-center">
                     <div className="text-blue-600 text-lg font-medium mb-1">Business</div>
                     <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 1,705,000' : 'Rp 150,000'}
+                      {isAnnual ? 'Rp 1,705,000' : 'Rp 150,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
                     </div>
-                    <div className="text-gray-600 text-sm mb-3">
-                      {isAnnual ? '/year' : '/month'}
-                    </div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                    <button className="bg-[#0a61d7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#084ba6] transition-all duration-300 hover:scale-105 hover:shadow-lg">
                       Get Started
                     </button>
                   </th>
                   <th className="px-6 py-4 text-center">
                     <div className="text-orange-600 text-lg font-medium mb-1">Enterprise</div>
                     <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 5,040,000' : 'Rp 500,000'}
+                      {isAnnual ? 'Rp 5,040,000' : 'Rp 500,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
                     </div>
-                    <div className="text-gray-600 text-sm mb-3">
-                      {isAnnual ? '/year' : '/month'}
-                    </div>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
                       Get Started
                     </button>
                   </th>
                   <th className="px-6 py-4 text-center">
                     <div className="text-purple-600 text-lg font-medium mb-1">Unlimited+</div>
                     <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 10,100,000' : 'Rp 1,000,000'}
+                      {isAnnual ? 'Rp 10,100,000' : 'Rp 1,000,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
                     </div>
-                    <div className="text-gray-600 text-sm mb-3">
-                      {isAnnual ? '/year' : '/month'}
-                    </div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
                       Get Started
                     </button>
                   </th>
@@ -328,7 +319,7 @@ export default function PricingPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {comparisonFeatures.map((row, index) => (
-                  <tr key={index}>
+                  <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {row.feature}
                     </td>
@@ -367,7 +358,7 @@ export default function PricingPage() {
       {/* FAQ Section */}
       <div className="bg-gray-50 py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 animate-fade-in-up">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Frequently Asked Questions
             </h2>
@@ -380,23 +371,24 @@ export default function PricingPage() {
             {faqs.map((faq, index) => (
               <div
                 key={index}
-                className="bg-white rounded-lg shadow-md border border-gray-200"
+                className="bg-white rounded-lg shadow-md border border-gray-200 animate-fade-in-up hover:shadow-lg transition-all duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <button
-                  className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-lg transition-colors"
+                  className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-lg transition-all duration-300"
                   onClick={() => toggleFaq(index)}
                 >
                   <h3 className="text-lg font-bold text-gray-900 pr-4">
                     {faq.question}
                   </h3>
                   {openFaq === index ? (
-                    <ChevronUp className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <ChevronUp className="h-5 w-5 text-gray-500 flex-shrink-0 transition-transform duration-300 rotate-180" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0 transition-transform duration-300" />
                   )}
                 </button>
                 {openFaq === index && (
-                  <div className="px-6 pb-4">
+                  <div className="px-6 pb-4 mt-4 animate-fade-in-down">
                     <p className="text-gray-700 leading-relaxed">
                       {faq.answer}
                     </p>
@@ -411,19 +403,19 @@ export default function PricingPage() {
       {/* CTA Section */}
       <div className="bg-blue-600 py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-3xl font-bold text-white mb-4 animate-fade-in-up">
             Ready to get started?
           </h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-blue-100 mb-8 animate-fade-in-up animation-delay-200">
             Join thousands of sellers growing their business with Laku-Laku
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-400">
             <button 
               onClick={() => router.push('/register')}
-              className="bg-orange-500 text-white px-10 py-4 rounded-lg text-md font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up">
+              className="bg-orange-500 text-white px-10 py-4 rounded-lg text-md font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105">
               Start Free Trial
             </button>
-            <button className="bg-white text-blue-600 px-10 py-4 rounded-lg text-md font-medium hover:bg-gray-100 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up">
+            <button className="bg-white text-blue-600 px-10 py-4 rounded-lg text-md font-medium hover:bg-gray-100 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-2 hover:scale-105">
               Contact Sales
             </button>
           </div>
