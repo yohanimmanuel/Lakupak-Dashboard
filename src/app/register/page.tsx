@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const steps = ["User Info", "Company Info", "Set Password"];
 
@@ -36,14 +37,18 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [stepKey, setStepKey] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const router = useRouter();
 
   function validatePassword(pw: string) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(pw);
   }
 
-  function handleNext(e: React.FormEvent) {
+  async function handleNext(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccess("");
     if (step === 0) {
       if (!userInfo.name || !userInfo.email) {
         setError("Please fill all fields.");
@@ -67,11 +72,38 @@ export default function RegisterPage() {
         setError("Passwords do not match.");
         return;
       }
+      // Submit registration to backend
+      setLoading(true);
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: userInfo.name,
+            email: userInfo.email,
+            password,
+            company: companyInfo.company,
+            address: companyInfo.address,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "Registration failed");
+        } else {
+          setSuccess("Registration successful! Redirecting to login...");
+          setTimeout(() => router.push("/login"), 1500);
+        }
+      } catch (err) {
+        setError("Registration failed. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
     if (step < 2) {
       setStep(step + 1);
       setStepKey(prev => prev + 1);
-    } else alert("Registration complete!");
+    }
   }
 
   function handleBack() {
@@ -169,6 +201,7 @@ export default function RegisterPage() {
               </div>
             )}
             {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
+            {success && <p className="text-green-600 mt-4 text-sm">{success}</p>}
             <div className="flex justify-between mt-4">
               {step > 0 && (
                 <button
@@ -181,9 +214,10 @@ export default function RegisterPage() {
               )}
               <button
                 type="submit"
-                className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm"
+                className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm disabled:opacity-60"
+                disabled={loading}
               >
-                {step < 2 ? "Next" : "Register"}
+                {loading ? "Registering..." : step < 2 ? "Next" : "Register"}
               </button>
             </div>
           </div>

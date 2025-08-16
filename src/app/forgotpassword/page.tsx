@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 function validatePassword(pw: string) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(pw);
@@ -12,8 +13,10 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  function handleEmailSubmit(e: React.FormEvent) {
+  async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -21,11 +24,27 @@ export default function ForgotPasswordPage() {
       setError("Please enter your registered email.");
       return;
     }
-    // Here you would trigger the backend to send a reset code or verify email
-    setStep(1);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to process request");
+      } else {
+        setStep(1);
+      }
+    } catch (err) {
+      setError("Failed to process request. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handlePasswordSubmit(e: React.FormEvent) {
+  async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -39,8 +58,25 @@ export default function ForgotPasswordPage() {
       setError("Passwords do not match.");
       return;
     }
-    // Here you would trigger the backend to update the password
-    setSuccess("Password has been reset successfully.");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to reset password");
+      } else {
+        setSuccess("Password has been reset successfully! Redirecting to login...");
+        setTimeout(() => router.push("/login"), 1500);
+      }
+    } catch (err) {
+      setError("Failed to reset password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -72,9 +108,10 @@ export default function ForgotPasswordPage() {
             {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
             <button
               type="submit"
-              className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm"
+              className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-60"
+              disabled={loading}
             >
-              Send
+              {loading ? (step === 0 ? "Sending..." : "Resetting...") : (step === 0 ? "Send" : "Reset Password")}
             </button>
           </form>
         )}
@@ -113,9 +150,10 @@ export default function ForgotPasswordPage() {
             {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
             <button
               type="submit"
-              className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm"
+              className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-60"
+              disabled={loading}
             >
-              Reset Password
+              {loading ? (step === 0 ? "Sending..." : "Resetting...") : (step === 0 ? "Send" : "Reset Password")}
             </button>
           </form>
         )}
