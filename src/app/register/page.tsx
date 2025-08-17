@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUserStore } from '@/store/userStore';
 
 const steps = ["User Info", "Company Info", "Set Password"];
 
@@ -40,6 +41,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const router = useRouter();
+  const setUser = useUserStore(state => state.setUser);
 
   function validatePassword(pw: string) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(pw);
@@ -91,6 +93,13 @@ export default function RegisterPage() {
           setError(data.error || "Registration failed");
         } else {
           setSuccess("Registration successful! Redirecting to dashboard...");
+          setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            company: data.company,
+            address: data.address,
+          });
           router.push("/home");
         }
       } catch (err) {

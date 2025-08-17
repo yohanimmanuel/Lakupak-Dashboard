@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUserStore } from '@/store/userStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const setUser = useUserStore(state => state.setUser);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +28,13 @@ export default function LoginPage() {
         setError(data.error || "Login failed");
       } else {
         setSuccess("Login successful!");
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          company: data.company,
+          address: data.address,
+        });
         router.push("/home");
       }
     } catch (err) {

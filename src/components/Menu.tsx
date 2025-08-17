@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, PackageIcon, SettingsIcon, UsersIcon } from 'lucide-react';
+import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
 const mainMenuItems = [
   { label: 'Home', href: '/home', color: 'text-[#0a61d7]', icon: <HomeIcon className="w-5 h-5" /> },
@@ -17,6 +18,7 @@ const mainMenuItems = [
   },
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
+  { label: 'Analytics', href: '/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
   {
     label: 'Programs',
     icon: <GiftIcon className="w-5 h-5" />,
@@ -25,8 +27,6 @@ const mainMenuItems = [
       { label: 'Promotions', href: '/programs/promotions' },
     ],
   },
-  { label: 'Analytics', href: '/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
-  { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 
 const secondaryMenuItems = [
@@ -48,11 +48,17 @@ const secondaryMenuItems = [
       { label: 'Lead Management', href: '/sales/leadmanagement' },
     ],
   },
+  { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 
 const Menu = () => {
   const pathname = usePathname();
+  const { isCollapsed } = useMenuContext();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
+  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
+  const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const submenuTimeout = useRef<NodeJS.Timeout | null>(null);
+  const menuItemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const handleToggle = (label: string) => {
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
@@ -62,31 +68,97 @@ const Menu = () => {
     const isActive = pathname === item.href;
     if (item.submenu) {
       const isOpen = openMenus[item.label];
-      // Check if any submenu is active
       const isAnySubActive = item.submenu.some((sub: any) => pathname.startsWith(sub.href));
+      // Collapsed: floating submenu on hover
+      const handleMouseEnter = () => {
+        if (isCollapsed) {
+          if (submenuTimeout.current) clearTimeout(submenuTimeout.current);
+          setHoveredMenu(item.label);
+          const ref = menuItemRefs.current[item.label];
+          if (ref) {
+            const rect = ref.getBoundingClientRect();
+            setSubmenuPosition({ top: rect.top, left: rect.right });
+          }
+        }
+      };
+      const handleMouseLeave = () => {
+        if (isCollapsed) {
+          submenuTimeout.current = setTimeout(() => {
+            setHoveredMenu(null);
+          }, 150);
+        }
+      };
+      const handleSubmenuEnter = () => {
+        if (submenuTimeout.current) clearTimeout(submenuTimeout.current);
+      };
+      const handleSubmenuLeave = () => {
+        submenuTimeout.current = setTimeout(() => {
+          setHoveredMenu(null);
+        }, 150);
+      };
       return (
-        <div key={item.label}>
+        <div
+          key={item.label}
+          className="overflow-hidden relative"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          ref={el => { if (item.submenu) menuItemRefs.current[item.label] = el; }}
+        >
           <button
-            onClick={() => handleToggle(item.label)}
-            className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium w-full transition-colors duration-100 text-left ${
-              isAnySubActive ? 'bg-[#e6f0fd] text-[#0a61d7]' : 'text-gray-700 hover:bg-[#e6e6e6]'
+            onClick={() => !isCollapsed && handleToggle(item.label)}
+            className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 group relative ${
+              isAnySubActive ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
             }`}
+            title={isCollapsed ? item.label : undefined}
           >
-            <span className="text-xl">{item.icon}</span>
-            <span>{item.label}</span>
-            <span className="ml-auto">{isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}</span>
+            <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{item.icon}</span>
+            {!isCollapsed && <span className="menu-text whitespace-nowrap font-medium transition-all duration-100">{item.label}</span>}
+            {!isCollapsed && (
+              <span className="ml-auto">
+                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+            )}
           </button>
-          {isOpen && (
-            <div className="ml-8 flex flex-col gap-1 mt-1">
+          {/* Tooltip for collapsed state */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-100 whitespace-nowrap z-50 shadow-lg">
+              {item.label}
+              <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-0 h-0 border-r-4 border-r-gray-900 border-t-2 border-t-transparent border-b-2 border-b-transparent"></div>
+            </div>
+          )}
+          {/* Floating Submenu Panel (collapsed mode) */}
+          {isCollapsed && item.submenu && hoveredMenu === item.label && (
+            <div
+              className="fixed z-50 min-w-[180px] bg-white shadow-xl rounded-lg py-2 px-2 border border-gray-100"
+              style={{ top: submenuPosition.top, left: submenuPosition.left + 4 }}
+              onMouseEnter={handleSubmenuEnter}
+              onMouseLeave={handleSubmenuLeave}
+            >
               {item.submenu.map((sub: any) => (
                 <Link
                   key={sub.label}
                   href={sub.href}
-                  className={`flex items-center gap-2 px-6 py-1.5 rounded-lg font-medium transition-colors duration-100 text-sm ${
-                    pathname === sub.href ? 'bg-[#e6f0fd] text-[#0a61d7]' : 'text-gray-600 hover:bg-[#e6e6e6]'
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 hover:bg-blue-100 hover:text-[#007bff] transition-colors duration-100 whitespace-nowrap"
+                >
+                  <span className="font-medium">{sub.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+          {/* Submenu Items (expanded mode) */}
+          {item.submenu && !isCollapsed && isOpen && (
+            <div className="ml-2 mt-1 space-y-1 pl-1">
+              {item.submenu.map((sub: any) => (
+                <Link
+                  key={sub.label}
+                  href={sub.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-100 text-sm group relative mx-2 ${
+                    pathname === sub.href ? 'bg-blue-200 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
                   }`}
                 >
-                  <span>{sub.label}</span>
+                  <span className="whitespace-nowrap font-medium transition-all duration-100">
+                    {sub.label}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -98,36 +170,52 @@ const Menu = () => {
       <Link
         key={item.label}
         href={item.href}
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors duration-100 ${
-          isActive ? 'bg-[#e6f0fd] text-[#0a61d7]' : 'text-gray-700 hover:bg-[#e6e6e6]'
+        className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 ${
+          isActive ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
         } ${item.color || ''}`}
+        title={isCollapsed ? item.label : undefined}
       >
-        <span className="text-xl">{item.icon}</span>
-        <span>{item.label}</span>
+        <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{item.icon}</span>
+        {!isCollapsed && <span className="menu-text whitespace-nowrap font-medium transition-all duration-100">{item.label}</span>}
       </Link>
     );
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-white border-r border-gray-200 flex flex-col z-30 select-none">
-      <div className="flex items-center justify-center h-15 border-b border-gray-100">
-        <a href="/home"><img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" /></a>
+    <div className="text-sm h-full flex flex-col bg-white relative" data-menu>
+      {/* Logo Section */}
+      <div className={`${isCollapsed ? 'mb-2' : 'mb-2'}`}>
+        {!isCollapsed ? (
+          <div className="flex items-center justify-between px-4 mt-4">
+            <Link href="/home" className="flex items-center min-w-0 group">
+              <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
+                <div className="bg-white">
+                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+                </div>
+              </div>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-3 mt-4">
+            <Link href="/home" className="flex items-center justify-center group">
+              <div className="bg-white">
+                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-10 w-10" />
+              </div>
+            </Link>
+          </div>
+        )}
+        {/* Inset divider below logo/header */}
+        <div className="border-t border-gray-200 my-2 ml-4 mr-4" />
       </div>
-      <nav className="flex-1 flex flex-col gap-1 mt-4 px-2 text-sm">
-        {/* Main menu */}
-        {mainMenuItems.map(renderMenuItem)}
-        {/* Divider */}
-        <div className="border-t border-gray-200 my-3" />
-        {/* Secondary menu */}
-        {secondaryMenuItems.map(renderMenuItem)}
-      </nav>
-      <div className="p-4 mt-auto">
-        <div className="flex items-center gap-2 bg-[#e6e6e6] rounded-lg px-3 py-2">
-          <span className="w-2 h-2 rounded-full bg-[#3ea73b] inline-block"></span>
-          <span className="text-xs text-gray-700">All systems normal</span>
-        </div>
+      {/* Menu Items */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
+        <nav className="flex flex-col gap-1 mb-4 px-3.5 text-sm">
+          {mainMenuItems.map(renderMenuItem)}
+          <div className="border-t border-gray-200 my-2" />
+          {secondaryMenuItems.map(renderMenuItem)}
+        </nav>
       </div>
-    </aside>
+    </div>
   );
 };
 
