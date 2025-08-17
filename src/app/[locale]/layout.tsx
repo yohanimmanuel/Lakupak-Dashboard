@@ -5,8 +5,8 @@ export const metadata = {
 };
 
 export default async function LocaleLayout(props: { children: React.ReactNode; params: { locale: string } }) {
-  const { children, params } = props;
-  const locale = params.locale;
+  const { children } = props;
+  const { locale } = await props.params;
   let messages;
   try {
     messages = (await import(`../../messages/${locale}.json`)).default;
