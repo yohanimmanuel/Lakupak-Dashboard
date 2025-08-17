@@ -90,8 +90,8 @@ export default function RegisterPage() {
         if (!res.ok) {
           setError(data.error || "Registration failed");
         } else {
-          setSuccess("Registration successful! Redirecting to login...");
-          setTimeout(() => router.push("/login"), 1500);
+          setSuccess("Registration successful! Redirecting to dashboard...");
+          router.push("/home");
         }
       } catch (err) {
         setError("Registration failed. Please try again.");

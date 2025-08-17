@@ -26,6 +26,7 @@ export default function LoginPage() {
         setError(data.error || "Login failed");
       } else {
         setSuccess("Login successful!");
+        router.push("/home");
       }
     } catch (err) {
       setError("Login failed. Please try again.");
