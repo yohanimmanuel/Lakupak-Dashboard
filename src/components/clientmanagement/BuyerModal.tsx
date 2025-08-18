@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Trash } from 'lucide-react';
 
-const businessTypes = ["Retailer", "Wholesaler", "Distributor"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
 function generateBuyerId() {
@@ -22,7 +21,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     phone: initialData.phone || '',
     email: initialData.email || '',
     address: initialData.address || '',
-    businessType: initialData.businessType || businessTypes[0],
+    businessType: initialData.businessType || '',
     status: initialData.status || statusOptions[0],
     createdAt: initialData.createdAt || '',
     preferredDays: initialData.logistics?.preferredDays || '',
@@ -30,7 +29,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     shipmentSuccess: initialData.logistics?.shipmentSuccess || '',
     notes: initialData.notes ? initialData.notes.join(', ') : '',
   } : {
-    storeName: '', owner: '', phone: '', email: '', address: '', businessType: businessTypes[0], status: statusOptions[0], createdAt: '', preferredDays: '', lastShipment: '', shipmentSuccess: '', notes: '',
+    storeName: '', owner: '', phone: '', email: '', address: '', businessType: '', status: statusOptions[0], createdAt: '', preferredDays: '', lastShipment: '', shipmentSuccess: '', notes: '',
   });
   const [id, setId] = useState(() => initialData?.id || generateBuyerId());
   const [orderRows, setOrderRows] = useState<Array<{ orderNo: string; product: string; totalOrders: string | number; totalSpend: string; lastOrderDate: string; outstanding: string }>>(
@@ -83,9 +82,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Business Type</label>
-              <select className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))}>
-                {businessTypes.map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} required />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>

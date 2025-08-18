@@ -53,7 +53,7 @@ const secondaryMenuItems = [
 
 const Menu = () => {
   const pathname = usePathname();
-  const { isCollapsed } = useMenuContext();
+  const { isCollapsed, toggleMenu } = useMenuContext();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -244,7 +244,10 @@ const Menu = () => {
       {/* Promo Mini Overlay for Collapsed */}
       {showPromo && isCollapsed && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-20 flex flex-col items-center group">
-          <div className="w-12 h-12 bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-xl flex items-center justify-center shadow-xl cursor-pointer relative">
+          <div
+            className="w-12 h-12 bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-xl flex items-center justify-center shadow-xl cursor-pointer relative"
+            onClick={() => { if (isCollapsed) toggleMenu(); }}
+          >
             <span className="text-2xl">🤗</span>
             <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">Upgrade to Pro for more features!</span>
           </div>

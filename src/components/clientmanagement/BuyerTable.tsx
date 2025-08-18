@@ -51,7 +51,7 @@ const buyersMock = [
     lastOrderDate: "2025-06-01",
     outstanding: "Rp 1,000,000",
     status: "Blocked",
-    businessType: "Wholesaler",
+    businessType: "Distributor",
   },
 ];
 
@@ -62,7 +62,9 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-const filterOptions = ["All Types", "Retailer", "Wholesaler"];
+// Dynamic business type filter options
+const businessTypeSet = new Set(buyersMock.map(b => b.businessType).filter(Boolean));
+const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
 const periodOptions = ["This Month", "Last Month"];
 
 export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void }) {
