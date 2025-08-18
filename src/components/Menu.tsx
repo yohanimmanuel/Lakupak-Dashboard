@@ -66,7 +66,7 @@ const Menu = () => {
   };
 
   const renderMenuItem = (item: any) => {
-    const isActive = pathname === item.href;
+    const isActive = pathname === item.href || (item.href && pathname.startsWith(item.href));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
       const isAnySubActive = item.submenu.some((sub: any) => pathname.startsWith(sub.href));
@@ -130,7 +130,7 @@ const Menu = () => {
           {/* Floating Submenu Panel (collapsed mode) */}
           {isCollapsed && item.submenu && hoveredMenu === item.label && (
             <div
-              className="fixed z-50 min-w-[180px] bg-white shadow-xl rounded-lg py-2 px-2 border border-gray-100"
+              className="fixed z-50 min-w-[180px] bg-white shadow-xl rounded-lg py-2 px-2 border border-gray-100 flex flex-col gap-1"
               style={{ top: submenuPosition.top, left: submenuPosition.left + 4 }}
               onMouseEnter={handleSubmenuEnter}
               onMouseLeave={handleSubmenuLeave}
@@ -139,7 +139,11 @@ const Menu = () => {
                 <Link
                   key={sub.label}
                   href={sub.href}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 hover:bg-blue-100 hover:text-[#007bff] transition-colors duration-100 whitespace-nowrap"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${
+                    pathname === sub.href || pathname.startsWith(sub.href)
+                      ? 'bg-blue-200 text-[#007bff] shadow-sm'
+                      : 'text-gray-500 hover:bg-blue-100 hover:text-[#007bff]'
+                  }`}
                 >
                   <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
                   <span className="font-medium">{sub.label}</span>
@@ -155,7 +159,9 @@ const Menu = () => {
                   key={sub.label}
                   href={sub.href}
                   className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${
-                    pathname === sub.href ? 'bg-blue-200 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+                    pathname === sub.href || pathname.startsWith(sub.href)
+                      ? 'bg-blue-200 text-[#007bff] shadow-sm'
+                      : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
                   }`}
                 >
                   <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
@@ -193,7 +199,7 @@ const Menu = () => {
             <Link href="/home" className="flex items-center min-w-0 group">
               <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
                 <div className="bg-white">
-                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-9" />
+                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
                 </div>
               </div>
             </Link>
@@ -202,7 +208,7 @@ const Menu = () => {
           <div className="flex flex-col items-center space-y-3 mt-4 mb-2">
             <Link href="/home" className="flex items-center justify-center group">
               <div className="bg-white">
-                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-9 w-9" />
+                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-10 w-10" />
               </div>
             </Link>
           </div>
@@ -219,7 +225,7 @@ const Menu = () => {
         </nav>
       </div>
       {/* Promo Overlay */}
-      {showPromo && (
+      {showPromo && !isCollapsed && (
         <div className="absolute left-0 right-0 bottom-4 flex justify-center z-20">
           <div className="relative w-[90%] bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-2xl p-5 flex flex-col items-start shadow-xl">
             <button
@@ -232,6 +238,15 @@ const Menu = () => {
             <div className="text-white text-lg font-semibold mb-1 w-38">Loving Laku-Laku Free?</div>
             <div className="text-gray-200 text-xs mb-4">Go Pro to access priority support, real-time tracking, and full analytics.</div>
             <button className="bg-white text-[#0a61d7] font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition text-sm">Go Pro Today</button>
+          </div>
+        </div>
+      )}
+      {/* Promo Mini Overlay for Collapsed */}
+      {showPromo && isCollapsed && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-20 flex flex-col items-center group">
+          <div className="w-12 h-12 bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-xl flex items-center justify-center shadow-xl cursor-pointer relative">
+            <span className="text-2xl">🤗</span>
+            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">Upgrade to Pro for more features!</span>
           </div>
         </div>
       )}

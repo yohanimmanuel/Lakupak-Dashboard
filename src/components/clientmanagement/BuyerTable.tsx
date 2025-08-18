@@ -2,6 +2,7 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 const buyersMock = [
   {
@@ -11,7 +12,7 @@ const buyersMock = [
     phone: "0812-3456-7890",
     totalOrders: 12,
     totalSpend: "Rp 12,000,000",
-    lastOrderDate: "2024-01-15",
+    lastOrderDate: "2025-09-15",
     outstanding: "Rp 2,000,000",
     status: "Active",
     businessType: "Retailer",
@@ -23,7 +24,7 @@ const buyersMock = [
     phone: "0813-9876-5432",
     totalOrders: 8,
     totalSpend: "Rp 8,000,000",
-    lastOrderDate: "2024-02-20",
+    lastOrderDate: "2025-08-20",
     outstanding: "Rp 0",
     status: "Active",
     businessType: "Wholesaler",
@@ -35,7 +36,7 @@ const buyersMock = [
     phone: "0811-2233-4455",
     totalOrders: 20,
     totalSpend: "Rp 20,000,000",
-    lastOrderDate: "2024-03-10",
+    lastOrderDate: "2025-07-10",
     outstanding: "Rp 5,000,000",
     status: "Inactive",
     businessType: "Retailer",
@@ -47,7 +48,7 @@ const buyersMock = [
     phone: "0814-1234-5678",
     totalOrders: 10,
     totalSpend: "Rp 10,000,000",
-    lastOrderDate: "2024-04-01",
+    lastOrderDate: "2025-06-01",
     outstanding: "Rp 1,000,000",
     status: "Blocked",
     businessType: "Wholesaler",
@@ -64,7 +65,7 @@ const statusTabs = [
 const filterOptions = ["All Types", "Retailer", "Wholesaler"];
 const periodOptions = ["This Month", "Last Month"];
 
-export default function BuyerTable({ onSelectBuyer }: { onSelectBuyer?: (buyer: any) => void }) {
+export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
@@ -76,10 +77,17 @@ export default function BuyerTable({ onSelectBuyer }: { onSelectBuyer?: (buyer: 
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 10;
-  const totalRows = buyers.length;
+  const rowsPerPage = 7;
+  // Filtering logic
+  let filteredBuyers = buyersMock;
+  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter(b => b.status === selectedTab);
+  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter(b => b.businessType === filter);
+  if (search) filteredBuyers = filteredBuyers.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  // (Period filter is mock, not applied to data)
+
+  const totalRows = filteredBuyers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const pagedBuyers = buyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const pagedBuyers = filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
@@ -102,18 +110,31 @@ export default function BuyerTable({ onSelectBuyer }: { onSelectBuyer?: (buyer: 
 
   const tabIdx = statusTabs.findIndex(tab => tab.label === selectedTab);
 
-  // Filtering logic
-  let filteredBuyers = buyers.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
-  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter(b => b.status === selectedTab);
-  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter(b => b.businessType === filter);
-  // (Period filter is mock, not applied to data)
-
   // Status color helper
   const statusBadge = (status: string) => {
     if (status === "Active") return "bg-green-100 text-green-500";
     if (status === "Inactive") return "bg-gray-100 text-gray-500";
     if (status === "Blocked") return "bg-red-100 text-red-500";
     return "bg-gray-100 text-gray-500";
+  };
+
+  // Export XLSX function
+  const handleExportXLSX = () => {
+    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Last Order Date', 'Outstanding', 'Status'];
+    const rows = filteredBuyers.map(b => [
+      b.id,
+      b.name,
+      b.address,
+      b.businessType,
+      b.totalOrders,
+      b.lastOrderDate,
+      b.outstanding,
+      b.status
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Buyers');
+    if (onExportXLSX) onExportXLSX(wb, 'buyers.xlsx');
   };
 
   return (
@@ -233,7 +254,7 @@ export default function BuyerTable({ onSelectBuyer }: { onSelectBuyer?: (buyer: 
               <th className="py-3 px-4 font-medium uppercase">Name</th>
               <th className="py-3 px-4 font-medium uppercase">Address</th>
               <th className="py-3 px-4 font-medium uppercase">Business Type</th>
-              <th className="py-3 px-4 font-medium uppercase">Total Orders</th>
+              <th className="py-3 px-4 font-medium uppercase">Total Orders (Boxes)</th>
               <th className="py-3 px-4 font-medium uppercase">Last Order Date</th>
               <th className="py-3 px-4 font-medium uppercase">Outstanding</th>
               <th className="py-3 px-4 font-medium uppercase">Status</th>
@@ -329,6 +350,8 @@ export default function BuyerTable({ onSelectBuyer }: { onSelectBuyer?: (buyer: 
           </button>
         </div>
       </div>
+      {/* Hidden export trigger for parent */}
+      {onExportXLSX && <span style={{ display: 'none' }} id="buyer-table-export-xlsx-trigger" onClick={handleExportXLSX}></span>}
     </div>
   );
 }
