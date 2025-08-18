@@ -104,7 +104,7 @@ const Navbar = () => {
       </button>
       {/* SEARCH BAR */}
       <div className="flex-1 flex items-left justify-left">
-        <div className="relative w-[400px] max-w-full">
+        <div className="relative w-[300px] max-w-full">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={15} />
           </span>
@@ -144,7 +144,7 @@ const Navbar = () => {
         </div>
         {/* Message & Notification Group */}
         <div className="flex items-center gap-4 px-4 border-r border-gray-200">
-          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={msgRef}>
+          <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={msgRef}>
             <MessageCircle size={20} className="text-gray-500" onClick={() => { setShowMsgDropdown(v => !v); setShowNotifDropdown(false); setShowDropdown(false); }} />
           </div>
           <DropdownPortal anchorRef={msgRef} show={showMsgDropdown}>
@@ -158,7 +158,7 @@ const Navbar = () => {
               <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full text-xs shadow transition">View All Messages</button>
             </div>
           </DropdownPortal>
-          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={notifRef}>
+          <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={notifRef}>
             <Bell size={20} className="text-gray-500" onClick={() => { setShowNotifDropdown(v => !v); setShowMsgDropdown(false); setShowDropdown(false); }} />
             <div className="absolute -top-1 -right-1 w-2 h-2 flex items-center justify-center bg-green-500 text-white rounded-full text-xs"></div>
           </div>
@@ -174,7 +174,7 @@ const Navbar = () => {
         {/* User Group */}
         <div className="flex items-center gap-4 pl-4">
           <div className="flex flex-col text-black max-w-[60px] truncate text-xs text-right">
-            <span className="text-xs leading-3 font-medium truncate">{user?.name || 'User'}</span>
+            <span className="text-xs leading-3 font-medium truncate">{user?.firstName || 'User'}</span>
             <span className="text-[10px] text-gray-500 text-right truncate">{user?.email || ''}</span>
           </div>
           <div className="w-9 h-9 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={dropdownRef}>
@@ -188,7 +188,7 @@ const Navbar = () => {
             {showDropdown && (
               <div className="absolute right-0 top-[135%] min-w-[230px] max-w-[350px] w-max border border-gray-200 bg-white rounded-lg shadow-lg py-1 z-10 break-words">
                 <div className="px-4 py-2 border-b">
-                  <p className="text-xs font-medium text-gray-900 truncate" title={user?.name}>{user?.name || 'User'}</p>
+                  <p className="text-xs font-medium text-gray-900 truncate" title={user?.firstName}>{user?.firstName || 'User'}</p>
                   <p className="text-xs text-gray-500" title={user?.email}>{user?.email || ''}</p>
                 </div>
                 <a href="/settings" className="block px-4 py-2 text-xs text-gray-700 hover:bg-gray-100">

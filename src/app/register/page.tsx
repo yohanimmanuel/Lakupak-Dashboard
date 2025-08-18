@@ -32,7 +32,7 @@ function Stepper({ step }: { step: number }) {
 
 export default function RegisterPage() {
   const [step, setStep] = useState(0);
-  const [userInfo, setUserInfo] = useState({ name: "", dob: "", email: "" });
+  const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "" });
   const [companyInfo, setCompanyInfo] = useState({ company: "", address: "" });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -52,7 +52,7 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
     if (step === 0) {
-      if (!userInfo.name || !userInfo.email) {
+      if (!userInfo.firstName || !userInfo.lastName || !userInfo.email) {
         setError("Please fill all fields.");
         return;
       }
@@ -81,7 +81,8 @@ export default function RegisterPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: userInfo.name,
+            firstName: userInfo.firstName,
+            lastName: userInfo.lastName,
             email: userInfo.email,
             password,
             company: companyInfo.company,
@@ -95,7 +96,8 @@ export default function RegisterPage() {
           setSuccess("Registration successful! Redirecting to dashboard...");
           setUser({
             id: data.id,
-            name: data.name,
+            firstName: data.firstName,
+            lastName: data.lastName,
             email: data.email,
             company: data.company,
             address: data.address,
@@ -139,15 +141,27 @@ export default function RegisterPage() {
           <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
               <div className="space-y-4">
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Full Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={userInfo.name}
-                    onChange={e => setUserInfo({ ...userInfo, name: e.target.value })}
-                    required
-                  />
+                <div className="flex gap-4">
+                  <div className="w-1/2">
+                    <label className="block mb-1 text-sm text-gray-500">First Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
+                      value={userInfo.firstName}
+                      onChange={e => setUserInfo({ ...userInfo, firstName: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <label className="block mb-1 text-sm text-gray-500">Last Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
+                      value={userInfo.lastName}
+                      onChange={e => setUserInfo({ ...userInfo, lastName: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block mb-1 text-sm text-gray-500">Email</label>

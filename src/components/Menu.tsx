@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, PackageIcon, SettingsIcon, UsersIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
 const mainMenuItems = [
@@ -12,8 +12,8 @@ const mainMenuItems = [
     label: 'Clients',
     icon: <HandshakeIcon className="w-5 h-5" />,
     submenu: [
-      { label: 'Buyers', href: '/clients/buyers' },
-      { label: 'Suppliers', href: '/clients/suppliers' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Buyers', href: '/clients/buyers' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Suppliers', href: '/clients/suppliers' },
     ],
   },
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
@@ -23,29 +23,29 @@ const mainMenuItems = [
     label: 'Programs',
     icon: <GiftIcon className="w-5 h-5" />,
     submenu: [
-      { label: 'Discounts', href: '/programs/discounts' },
-      { label: 'Promotions', href: '/programs/promotions' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Discounts', href: '/programs/discounts' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Promotions', href: '/programs/promotions' },
     ],
   },
 ];
 
 const secondaryMenuItems = [
   {
-    label: 'Leads',
-    icon: <UsersIcon className="w-5 h-5" />,
-    submenu: [
-      { label: 'Buyer Leads', href: '/leads/buyerleads' },
-      { label: 'Supplier Leads', href: '/leads/supplierleads' },
-    ],
-  },
-  {
     label: 'Sales',
     icon: <BadgePercentIcon className="w-5 h-5" />,
     submenu: [
-      { label: 'Analytics', href: '/sales/analytics' },
-      { label: 'Campaigns', href: '/sales/campaigns' },
-      { label: 'Catalogs', href: '/sales/catalogs' },
-      { label: 'Lead Management', href: '/sales/leadmanagement' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Analytics', href: '/sales/analytics' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/sales/campaigns' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Catalogs', href: '/sales/catalogs' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Lead Management', href: '/sales/leadmanagement' },
+    ],
+  },
+  {
+    label: 'Leads',
+    icon: <UsersIcon className="w-5 h-5" />,
+    submenu: [
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Buyer Leads', href: '/leads/buyerleads' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Supplier Leads', href: '/leads/supplierleads' },
     ],
   },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
@@ -59,6 +59,7 @@ const Menu = () => {
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const submenuTimeout = useRef<NodeJS.Timeout | null>(null);
   const menuItemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const [showPromo, setShowPromo] = useState(true);
 
   const handleToggle = (label: string) => {
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
@@ -140,6 +141,7 @@ const Menu = () => {
                   href={sub.href}
                   className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 hover:bg-blue-100 hover:text-[#007bff] transition-colors duration-100 whitespace-nowrap"
                 >
+                  <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
                   <span className="font-medium">{sub.label}</span>
                 </Link>
               ))}
@@ -152,10 +154,11 @@ const Menu = () => {
                 <Link
                   key={sub.label}
                   href={sub.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-100 text-sm group relative mx-2 ${
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${
                     pathname === sub.href ? 'bg-blue-200 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
                   }`}
                 >
+                  <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
                   <span className="whitespace-nowrap font-medium transition-all duration-100">
                     {sub.label}
                   </span>
@@ -186,35 +189,52 @@ const Menu = () => {
       {/* Logo Section */}
       <div className={`${isCollapsed ? 'mb-2' : 'mb-2'}`}>
         {!isCollapsed ? (
-          <div className="flex items-center justify-between px-4 mt-4">
+          <div className="flex items-center justify-between px-4 mt-4 mb-2">
             <Link href="/home" className="flex items-center min-w-0 group">
               <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
                 <div className="bg-white">
-                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-9" />
                 </div>
               </div>
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col items-center space-y-3 mt-4">
+          <div className="flex flex-col items-center space-y-3 mt-4 mb-2">
             <Link href="/home" className="flex items-center justify-center group">
               <div className="bg-white">
-                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-10 w-10" />
+                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-9 w-9" />
               </div>
             </Link>
           </div>
         )}
         {/* Inset divider below logo/header */}
-        <div className="border-t border-gray-200 my-2 ml-4 mr-4" />
+        <div className="border-t border-gray-200 mt-1 ml-4 mr-4" />
       </div>
       {/* Menu Items */}
       <div className="flex-1 overflow-y-auto hide-scrollbar">
-        <nav className="flex flex-col gap-1 mb-4 px-3.5 text-sm">
+        <nav className="flex flex-col gap-1 mb-4 px-3.5 text-[14px]">
           {mainMenuItems.map(renderMenuItem)}
           <div className="border-t border-gray-200 my-2" />
           {secondaryMenuItems.map(renderMenuItem)}
         </nav>
       </div>
+      {/* Promo Overlay */}
+      {showPromo && (
+        <div className="absolute left-0 right-0 bottom-4 flex justify-center z-20">
+          <div className="relative w-[90%] bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-2xl p-5 flex flex-col items-start shadow-xl">
+            <button
+              className="absolute top-2 right-2 text-white hover:text-gray-300 p-1 rounded"
+              onClick={() => setShowPromo(false)}
+              aria-label="Close promo"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-white text-lg font-semibold mb-1 w-38">Loving Laku-Laku Free?</div>
+            <div className="text-gray-200 text-xs mb-4">Go Pro to access priority support, real-time tracking, and full analytics.</div>
+            <button className="bg-white text-[#0a61d7] font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition text-sm">Go Pro Today</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

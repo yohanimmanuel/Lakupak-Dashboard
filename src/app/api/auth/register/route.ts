@@ -5,8 +5,8 @@ import { hash } from 'bcryptjs';
 const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
-  const { name, email, password, company, address } = await req.json();
-  if (!name || !email || !password || !company || !address) {
+  const { firstName, lastName, email, password, company, address } = await req.json();
+  if (!firstName || !lastName || !email || !password || !company || !address) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   try {
@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
     }
     const hashed = await hash(password, 10);
     const user = await prisma.user.create({
-      data: { name, email, password: hashed, company, address },
+      data: { firstName, lastName, email, password: hashed, company, address },
     });
-    return NextResponse.json({ id: user.id, name: user.name, email: user.email }, { status: 201 });
+    return NextResponse.json({ id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
