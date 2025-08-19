@@ -93,9 +93,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       onSave(payload);
       if (isEdit) {
         await globalMutate(`/api/suppliers?id=${payload.supplierId}`);
-        setTimeout(() => {
-          router.push(`/clients/suppliers/details/${payload.supplierId}`);
-        }, 500);
+        router.push(`/clients/suppliers/details/${payload.supplierId}`);
       } else {
         onClose();
       }

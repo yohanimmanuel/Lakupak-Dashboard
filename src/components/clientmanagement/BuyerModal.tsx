@@ -122,9 +122,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       onSave(payload);
       if (isEdit) {
         await globalMutate(`/api/buyers?id=${payload.buyerId}`);
-        setTimeout(() => {
-          router.push(`/clients/buyers/details/${payload.buyerId}`);
-        }, 500);
+        router.push(`/clients/buyers/details/${payload.buyerId}`);
       } else {
         onClose();
       }
