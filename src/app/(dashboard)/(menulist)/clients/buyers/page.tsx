@@ -1,9 +1,9 @@
 'use client';
+import React, { useState, useEffect } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import BuyerModal from '@/components/clientmanagement/BuyerModal';
 import { Plus, Upload, Download } from 'lucide-react';
-import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 
@@ -18,9 +18,49 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
+function profileToTableRow(buyer: any) {
+  // Use the first orderDetails row for summary fields, or fallback to empty values
+  const firstOrder = Array.isArray(buyer.orderDetails) && buyer.orderDetails.length > 0 ? buyer.orderDetails[0] : {};
+  return {
+    id: buyer.id,
+    buyerId: buyer.buyerId, // Add this line
+    name: buyer.storeName,
+    address: buyer.address,
+    businessType: buyer.businessType,
+    totalOrders: firstOrder.totalOrders || '',
+    lastOrderDate: firstOrder.lastOrderDate || '',
+    outstanding: firstOrder.outstanding || '',
+    status: buyer.status,
+  };
+}
+
 export default function BuyersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [buyers, setBuyers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchBuyers = async () => {
+    setLoading(true);
+    const res = await fetch('/api/buyers');
+    const data = await res.json();
+    setBuyers(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchBuyers();
+  }, []);
+
+  const handleAddBuyer = async (data: any) => {
+    await fetch('/api/buyers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    setShowAddModal(false);
+    fetchBuyers();
+  };
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
@@ -51,22 +91,45 @@ export default function BuyersPage() {
         </div>
       </div>
       <Statcards type="buyer" />
-      <BuyerTable onExportXLSX={downloadXLSX} />
+      <BuyerTable buyers={buyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
       <BuyerModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSave={(data) => {
-          setShowAddModal(false);
-          // handle save logic here
-        }}
+        onSave={handleAddBuyer}
       />
       <ImportData
         open={showImportModal}
         onClose={() => setShowImportModal(false)}
-        onImport={(data) => {
+        onImport={async (data) => {
           setShowImportModal(false);
-          // TODO: handle import logic (e.g., update state or send to backend)
-          console.log('Imported buyers:', data);
+          // Bulk import buyers
+          for (const buyer of data) {
+            const buyerId = buyer["ID"] ? String(buyer["ID"]) : (buyer.buyerId ? String(buyer.buyerId) : "Unknown");
+            const payload = {
+              buyerId,
+              storeName: buyer["Store Name"] || buyer.storeName || "Unknown",
+              owner: buyer["Owner"] || buyer.owner || "Unknown",
+              email: buyer["Email"] || buyer.email || "Unknown",
+              phone: buyer["Phone"] || buyer.phone || "Unknown",
+              businessType: buyer["Business Type"] || buyer.businessType || "Unknown",
+              address: buyer["Address"] || buyer.address || "Unknown",
+              status: buyer["Status"] || buyer.status || "Unknown",
+              createdAt: buyer["Created At"] ? new Date(buyer["Created At"]).toISOString() : new Date().toISOString(),
+              logistics: {
+                preferredDays: buyer["Preferred Delivery Days"] || "Unknown",
+                lastShipment: buyer["Last Shipment"] || "Unknown",
+                shipmentSuccess: buyer["Shipment Success"] || "Unknown",
+              },
+              notes: buyer["Notes"] ? [buyer["Notes"]] : [],
+              orderDetails: buyer.orderDetails || [],
+            };
+            await fetch('/api/buyers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
+          fetchBuyers();
         }}
         type="Buyers"
       />

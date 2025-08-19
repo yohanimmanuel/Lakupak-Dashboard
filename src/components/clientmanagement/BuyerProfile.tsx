@@ -16,52 +16,10 @@ try {
   // fallback to import if available
 }
 
-const mockBuyer = {
-  avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-  id: "LKB-12345678",
-  owner: "Kate Prokopchuk",
-  email: "kate@example.com",
-  phone: "+62 812-3456-7890",
-  storeName: "Toko Sukses Jaya",
-  businessType: "Retailer",
-  address: "Jl. Merdeka No. 123, Jakarta",
-  status: "Active",
-  createdAt: "2024-06-01",
-  logistics: {
-    preferredDays: "Mon, Wed, Fri",
-    lastShipment: "2024-06-10",
-    shipmentSuccess: "98%",
-  },
-  notes: ["Good payer", "Often requests promo items"],
-  orderDetails: [
-    {
-      orderNo: "ORD-001",
-      product: "Instant Noodles",
-      totalOrders: 12,
-      totalSpend: "Rp 12,000,000",
-      lastOrderDate: "2025-06-01",
-      outstanding: "Rp 2,000,000",
-    },
-    {
-      orderNo: "ORD-002",
-      product: "Mineral Water",
-      totalOrders: 8,
-      totalSpend: "Rp 8,000,000",
-      lastOrderDate: "2025-05-15",
-      outstanding: "Rp 0",
-    },
-  ],
-  analytics: {
-    ordersPerMonth: [5, 7, 8, 10, 12, 9],
-    spendingPerMonth: [2, 3, 4, 5, 6, 4.5], // in millions
-    months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  },
-};
-
 function getBuyerAnalytics(orderDetails: any[]) {
   // Group by month (YYYY-MM)
   const map: { [month: string]: { orders: number; spending: number } } = {};
-  orderDetails.forEach((order) => {
+  orderDetails.forEach((order: any) => {
     if (!order.lastOrderDate) return;
     const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
     const monthKey = format(date, 'MMM yyyy');
@@ -85,9 +43,7 @@ function getBuyerAnalytics(orderDetails: any[]) {
   }));
 }
 
-const analyticsData = getBuyerAnalytics(mockBuyer.orderDetails || []);
-
-export default function BuyerProfile({ buyer = mockBuyer, onClose }: { buyer?: typeof mockBuyer; onClose?: () => void }) {
+export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const handleCopy = () => {
     let text = '';
@@ -110,6 +66,7 @@ export default function BuyerProfile({ buyer = mockBuyer, onClose }: { buyer?: t
     }
     navigator.clipboard.writeText(text);
   };
+  const analyticsData = getBuyerAnalytics(buyer?.orderDetails || []);
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
@@ -193,7 +150,7 @@ export default function BuyerProfile({ buyer = mockBuyer, onClose }: { buyer?: t
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
-              {buyer.notes.map((note, i) => (
+              {buyer.notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
             </div>
@@ -218,7 +175,7 @@ export default function BuyerProfile({ buyer = mockBuyer, onClose }: { buyer?: t
               </tr>
             </thead>
             <tbody>
-              {buyer.orderDetails.map(order => (
+              {buyer.orderDetails.map((order: any) => (
                 <tr key={order.orderNo} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{order.orderNo}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>

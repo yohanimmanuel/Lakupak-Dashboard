@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email }, { status: 201 });
   } catch (err) {
+    console.error('Registration error:', err); // Log the real error
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

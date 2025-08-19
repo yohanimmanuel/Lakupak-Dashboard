@@ -1,59 +1,11 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
 
-const buyersMock = [
-  {
-    id: "Buyer-001",
-    name: "Toko Sukses Jaya",
-    address: "Jl. Raya No. 123, Jakarta",
-    phone: "0812-3456-7890",
-    totalOrders: 12,
-    totalSpend: "Rp 12,000,000",
-    lastOrderDate: "2025-09-15",
-    outstanding: "Rp 2,000,000",
-    status: "Active",
-    businessType: "Retailer",
-  },
-  {
-    id: "Buyer-002",
-    name: "Warung Makmur",
-    address: "Jl. Raya No. 456, Jakarta",
-    phone: "0813-9876-5432",
-    totalOrders: 8,
-    totalSpend: "Rp 8,000,000",
-    lastOrderDate: "2025-08-20",
-    outstanding: "Rp 0",
-    status: "Active",
-    businessType: "Wholesaler",
-  },
-  {
-    id: "Buyer-003",
-    name: "MiniMart Sentosa",
-    address: "Jl. Raya No. 789, Jakarta",
-    phone: "0811-2233-4455",
-    totalOrders: 20,
-    totalSpend: "Rp 20,000,000",
-    lastOrderDate: "2025-07-10",
-    outstanding: "Rp 5,000,000",
-    status: "Inactive",
-    businessType: "Retailer",
-  },
-  {
-    id: "Buyer-004",
-    name: "Store Maju",
-    address: "Jl. Raya No. 101, Jakarta",
-    phone: "0814-1234-5678",
-    totalOrders: 10,
-    totalSpend: "Rp 10,000,000",
-    lastOrderDate: "2025-06-01",
-    outstanding: "Rp 1,000,000",
-    status: "Blocked",
-    businessType: "Distributor",
-  },
-];
+// Use buyers prop or state, not buyersMock
+// Add explicit types for all map/filter parameters
 
 const statusTabs = [
   { label: "All" },
@@ -62,36 +14,53 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-// Dynamic business type filter options
-const businessTypeSet = new Set(buyersMock.map(b => b.businessType).filter(Boolean));
-const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
-const periodOptions = ["This Month", "Last Month"];
-
-export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void }) {
+export default function BuyerTable({ buyers = [], onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: any[]; onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (buyer: any) => any }) {
+  const tableRows = buyers.map(profileToTableRow);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
+  const businessTypeSet = new Set(tableRows.map((b: any) => b.businessType).filter(Boolean));
+  const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
   const [filter, setFilter] = useState(filterOptions[0]);
+  const periodOptions = ["This Month", "Last Month"];
   const [period, setPeriod] = useState(periodOptions[0]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
-  const buyers = buyersMock.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  const buyersList = tableRows.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = 7;
-  // Filtering logic
-  let filteredBuyers = buyersMock;
-  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter(b => b.status === selectedTab);
-  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter(b => b.businessType === filter);
-  if (search) filteredBuyers = filteredBuyers.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
-  // (Period filter is mock, not applied to data)
-
+  let filteredBuyers = buyersList;
+  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: any) => b.status === selectedTab);
+  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: any) => b.businessType === filter);
+  if (search) filteredBuyers = filteredBuyers.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
   const totalRows = filteredBuyers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedBuyers = filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [buyerToDelete, setBuyerToDelete] = useState<any>(null);
+
+  const handleDeleteClick = (buyer: any) => {
+    setBuyerToDelete(buyer);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!buyerToDelete) return;
+    await fetch(`/api/buyers?id=${buyerToDelete.buyerId}`, { method: 'DELETE' });
+    setShowDeleteModal(false);
+    setBuyerToDelete(null);
+    window.location.reload(); // Or call fetchBuyers if available
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setBuyerToDelete(null);
+  };
 
 
   useLayoutEffect(() => {
@@ -106,8 +75,13 @@ export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBu
   }, [selectedTab]);
 
   const handleView = (buyer: any) => {
-    // In the future, pass buyer id as param
-    router.push('/clients/buyers/details');
+    router.push(`/clients/buyers/details/${buyer.buyerId}`);
+  };
+
+  const handleDelete = async (buyer: any) => {
+    if (!window.confirm('Are you sure you want to delete this buyer?')) return;
+    await fetch(`/api/buyers?id=${buyer.buyerId}`, { method: 'DELETE' });
+    window.location.reload(); // Or call fetchBuyers if available via props
   };
 
   const tabIdx = statusTabs.findIndex(tab => tab.label === selectedTab);
@@ -123,7 +97,7 @@ export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBu
   // Export XLSX function
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Last Order Date', 'Outstanding', 'Status'];
-    const rows = filteredBuyers.map(b => [
+    const rows = filteredBuyers.map((b: any) => [
       b.id,
       b.name,
       b.address,
@@ -264,26 +238,30 @@ export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBu
             </tr>
           </thead>
           <tbody className="bg-white">
-            {pagedBuyers.map(buyer => (
-              <tr key={buyer.id} className="border-b transition">
-                <td className="py-3 px-4 font-medium text-black">{buyer.id}</td>
-                <td className="py-3 px-4 font-medium text-black">{buyer.name}</td>
-                <td className="py-3 px-4 text-black">{buyer.address}</td>
-                <td className="py-3 px-4 text-black">{buyer.businessType}</td>
-                <td className="py-3 px-4 text-black">{buyer.totalOrders}</td>
-                <td className="py-3 px-4 text-black">{buyer.lastOrderDate}</td>
-                <td className="py-3 px-4 text-[#f65911] font-semibold">{buyer.outstanding}</td>
+            {pagedBuyers.map((buyer: any) => (
+              <tr key={String(buyer.id)} className="border-b transition">
+                <td className="py-3 px-4 font-medium text-black">{String(buyer.id)}</td>
+                <td className="py-3 px-4 font-medium text-black">{String(buyer.name)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.address)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.lastOrderDate)}</td>
+                <td className="py-3 px-4 text-[#f65911] font-semibold">{String(buyer.outstanding)}</td>
                 <td className="py-3 px-4">
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>
-                    {buyer.status}
-                  </span>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>{String(buyer.status)}</span>
                 </td>
                 <td className="py-3 px-4 text-center">
                   <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition mr-1"
                     onClick={() => handleView(buyer)}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition"
+                    onClick={() => handleDeleteClick(buyer)}
+                  >
+                    <Trash className="w-4 h-4 text-red-500" />
                   </button>
                 </td>
               </tr>
@@ -294,7 +272,7 @@ export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBu
       {/* Mobile Cards */}
       <div className="md:hidden flex flex-col gap-4">
         {pagedBuyers.map(buyer => (
-          <div key={buyer.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+          <div key={String(buyer.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
               <button
@@ -354,6 +332,28 @@ export default function BuyerTable({ onSelectBuyer, onExportXLSX }: { onSelectBu
       </div>
       {/* Hidden export trigger for parent */}
       {onExportXLSX && <span style={{ display: 'none' }} id="buyer-table-export-xlsx-trigger" onClick={handleExportXLSX}></span>}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">Delete Buyer</h2>
+            <p className="mb-4 text-gray-500">Are you sure you want to delete this buyer? This action cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                onClick={handleDeleteConfirm}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

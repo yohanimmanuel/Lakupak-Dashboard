@@ -2,15 +2,6 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const buyerHeaders = [
-  'ID', 'Store Name', 'Owner', 'Phone', 'Email', 'Address', 'Business Type', 'Status', 'Created At', 'Preferred Delivery Days', 'Last Shipment', 'Shipment Success', 'Notes',
-  'Order Details'
-];
-const supplierHeaders = [
-  'ID', 'Supplier Name', 'Contact', 'Phone', 'Email', 'Business Type', 'Address', 'Status', 'Created At', 'Preferred Delivery Days', 'Last Delivery', 'Delivery Success', 'Notes',
-  'Supplies'
-];
-
 type BuyerImportRow = {
   [key: string]: string | any;
   'ID': string;

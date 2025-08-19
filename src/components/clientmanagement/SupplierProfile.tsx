@@ -15,51 +15,10 @@ try {
   // fallback to import if available
 }
 
-const mockSupplier = {
-  id: "LKS-12345678",
-  name: "PT. Sumber Makmur",
-  contact: "Budi Santoso",
-  email: "budi@example.com",
-  phone: "+62 812-1234-5678",
-  businessType: "Manufacturer",
-  address: "Jl. Industri No. 10, Surabaya",
-  status: "Active",
-  createdAt: "2023-01-10",
-  logistics: {
-    preferredDays: "Tue, Thu",
-    lastDelivery: "2025-09-10",
-    deliverySuccess: "97%",
-  },
-  notes: ["Reliable partner", "Quick response"],
-  supplies: [
-    {
-      sku: "SKU-001",
-      product: "Instant Noodles",
-      totalSupplied: 1200,
-      totalValue: "Rp 60,000,000",
-      lastDelivery: "2025-09-10",
-      status: "Active",
-    },
-    {
-      sku: "SKU-002",
-      product: "Cup Noodles",
-      totalSupplied: 800,
-      totalValue: "Rp 40,000,000",
-      lastDelivery: "2025-08-20",
-      status: "Active",
-    },
-  ],
-  analytics: {
-    suppliedPerMonth: [200, 180, 220, 210, 230, 160],
-    valuePerMonth: [10, 12, 14, 13, 15, 11], // in millions
-    months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  },
-};
-
 function getSupplierAnalytics(supplies: any[]) {
   // Group by month (YYYY-MM)
   const map: { [month: string]: { supplied: number; value: number } } = {};
-  supplies.forEach((supply) => {
+  supplies.forEach(function(supply: any) {
     if (!supply.lastDelivery) return;
     const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
     const monthKey = format(date, 'MMM yyyy');
@@ -83,7 +42,7 @@ function getSupplierAnalytics(supplies: any[]) {
   }));
 }
 
-export default function SupplierProfile({ supplier = mockSupplier, onClose }: { supplier?: typeof mockSupplier; onClose?: () => void }) {
+export default function SupplierProfile({ supplier, onClose }: { supplier: any; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const handleCopy = () => {
     let text = '';
@@ -137,7 +96,7 @@ export default function SupplierProfile({ supplier = mockSupplier, onClose }: { 
           <div className="flex flex-col gap-3 mt-8">
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Store className="w-4 h-5" />
-              <span className="font-semibold text-black text-xs">{supplier.name}</span>
+              <span className="font-semibold text-black text-xs">{supplier.name} | {supplier.id}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Tag className="w-4 h-4" />
@@ -186,7 +145,7 @@ export default function SupplierProfile({ supplier = mockSupplier, onClose }: { 
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
-              {supplier.notes.map((note, i) => (
+              {supplier.notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
             </div>
@@ -211,15 +170,15 @@ export default function SupplierProfile({ supplier = mockSupplier, onClose }: { 
               </tr>
             </thead>
             <tbody>
-              {supplier.supplies.map(supply => (
-                <tr key={supply.sku} className="border-b last:border-b-0">
-                  <td className="py-2 px-4 font-medium text-black">{supply.sku}</td>
-                  <td className="py-2 px-4 text-black">{supply.product}</td>
-                  <td className="py-2 px-4 text-black">{supply.totalSupplied}</td>
-                  <td className="py-2 px-4 text-[#0a61d7] font-semibold">{supply.totalValue}</td>
-                  <td className="py-2 px-4 text-black">{supply.lastDelivery}</td>
+              {supplier.supplies.map((supply: any) => (
+                <tr key={String(supply.sku)} className="border-b last:border-b-0">
+                  <td className="py-2 px-4 font-medium text-black">{String(supply.sku)}</td>
+                  <td className="py-2 px-4 text-black">{String(supply.product)}</td>
+                  <td className="py-2 px-4 text-black">{String(supply.totalSupplied)}</td>
+                  <td className="py-2 px-4 text-[#0a61d7] font-semibold">{String(supply.totalValue)}</td>
+                  <td className="py-2 px-4 text-black">{String(supply.lastDelivery)}</td>
                   <td className="py-2 px-4">
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${supply.status === 'Active' ? 'bg-green-100 text-green-500' : supply.status === 'Inactive' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-500'}`}>{supply.status}</span>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${supply.status === 'Active' ? 'bg-green-100 text-green-500' : supply.status === 'Inactive' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-500'}`}>{String(supply.status)}</span>
                   </td>
                 </tr>
               ))}

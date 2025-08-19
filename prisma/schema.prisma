@@ -8,7 +8,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./prisma/prisma/dev.db"
 }
 
 model User {
@@ -21,4 +21,39 @@ model User {
   address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Buyer {
+  id              Int      @id @default(autoincrement())
+  buyerId         String   @unique // e.g. LKB-12345678
+  avatar          String?
+  owner           String
+  email           String
+  phone           String
+  storeName       String
+  businessType    String
+  address         String
+  status          String
+  createdAt       DateTime @default(now())
+  logistics       Json?    // { preferredDays, lastShipment, shipmentSuccess }
+  notes           Json?    // Array of notes/tags
+  orderDetails    Json?    // Array of order details
+  updatedAt       DateTime @updatedAt
+}
+
+model Supplier {
+  id              Int      @id @default(autoincrement())
+  supplierId      String   @unique // e.g. LKS-12345678
+  name            String
+  contact         String
+  email           String
+  phone           String
+  businessType    String
+  address         String
+  status          String
+  createdAt       DateTime @default(now())
+  logistics       Json?    // { preferredDays, lastDelivery, deliverySuccess }
+  notes           Json?    // Array of notes/tags
+  supplies        Json?    // Array of supplies
+  updatedAt       DateTime @updatedAt
 }

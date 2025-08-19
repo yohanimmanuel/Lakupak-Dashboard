@@ -48,14 +48,58 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   };
   const addSupplyRow = () => setSupplyRows((rows: Array<any>) => [...rows, { sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
   const deleteSupplyRow = (idx: number) => setSupplyRows((rows: Array<any>) => rows.filter((_: any, i: number) => i !== idx));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   if (!open) return null;
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    console.log('submit');
+    setSaving(true);
+    setError('');
+    try {
+      const isEdit = mode === 'edit';
+      const payload: any = {
+        ...form,
+        supplierId: id,
+        name: form.supplierName,
+        supplies: supplyRows,
+        notes: form.notes.split(',').map((n: string) => n.trim()),
+        createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString(),
+        logistics: {
+          preferredDays: form.preferredDays,
+          lastDelivery: form.lastDelivery ? new Date(form.lastDelivery).toISOString() : undefined,
+          deliverySuccess: form.deliverySuccess
+        }
+      };
+      if (isEdit && initialData && typeof initialData.id === 'number') {
+        payload.id = initialData.id;
+      }
+      delete payload.supplierName;
+      delete payload.preferredDays;
+      delete payload.lastDelivery;
+      delete payload.deliverySuccess;
+      const method = isEdit ? 'PUT' : 'POST';
+      const res = await fetch('/api/suppliers', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      onSave(payload);
+    } catch (err) {
+      setError('Failed to save supplier');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}</h2>
-        <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar" onSubmit={e => { e.preventDefault(); onSave({ ...form, id, supplies: supplyRows }); }}>
+        <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id} onChange={e => setId(e.target.value)} required disabled />
@@ -157,10 +201,13 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             <label className="block text-xs font-medium text-gray-700 mb-1">Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span></label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Reliable partner, Quick response" />
           </div>
+          {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
         </form>
         <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
-            <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={onClose}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6]">Save</button>
+            <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center" onClick={handleSubmit} disabled={saving}>
+              {saving ? <span className="loader mr-2"></span> : null}Save
+            </button>
         </div>
       </div>
     </div>
