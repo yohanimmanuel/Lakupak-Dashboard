@@ -109,7 +109,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             <span>{buyer.phone}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
-            <span className="font-medium text-gray-500">ID: {buyer.id}</span>
+            <span className="font-medium text-gray-500">ID: {buyer.buyerId}</span>
           </div>
         </div>
         {/* General Info */}

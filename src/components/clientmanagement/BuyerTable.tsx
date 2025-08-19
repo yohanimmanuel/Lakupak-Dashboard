@@ -240,7 +240,7 @@ export default function BuyerTable({ buyers = [], onSelectBuyer, onExportXLSX, p
           <tbody className="bg-white">
             {pagedBuyers.map((buyer: any) => (
               <tr key={String(buyer.id)} className="border-b transition">
-                <td className="py-3 px-4 font-medium text-black">{String(buyer.id)}</td>
+                <td className="py-3 px-4 font-medium text-black">{String(buyer.buyerId)}</td>
                 <td className="py-3 px-4 font-medium text-black">{String(buyer.name)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.address)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>

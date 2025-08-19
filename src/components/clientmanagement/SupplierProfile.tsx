@@ -104,7 +104,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
           <div className="flex flex-col gap-3 mt-8">
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Store className="w-4 h-5" />
-              <span className="font-semibold text-black text-xs">{supplier.name} | {supplier.id}</span>
+              <span className="font-semibold text-black text-xs">{supplier.name} | {supplier.supplierId}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Tag className="w-4 h-4" />

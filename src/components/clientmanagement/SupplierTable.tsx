@@ -224,7 +224,7 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
           <tbody className="bg-white">
             {pagedSuppliers.map((supplier: any) => (
               <tr key={String(supplier.id)} className="border-b transition">
-                <td className="py-3 px-4 font-medium text-black">{String(supplier.id)}</td>
+                <td className="py-3 px-4 font-medium text-black">{String(supplier.supplierId)}</td>
                 <td className="py-3 px-4 font-medium text-black">{String(supplier.name)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.contact)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.businessType)}</td>
