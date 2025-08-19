@@ -7,6 +7,15 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import BuyerModal from './BuyerModal';
 import { useState } from 'react';
 
+// Try require fallback for date-fns if import fails
+let parse: any, format: any;
+try {
+  // @ts-ignore
+  ({ parse, format } = require('date-fns'));
+} catch {
+  // fallback to import if available
+}
+
 const mockBuyer = {
   avatar: "https://randomuser.me/api/portraits/women/44.jpg",
   id: "LKB-12345678",
@@ -30,7 +39,7 @@ const mockBuyer = {
       product: "Instant Noodles",
       totalOrders: 12,
       totalSpend: "Rp 12,000,000",
-      lastOrderDate: "2024-06-01",
+      lastOrderDate: "2025-06-01",
       outstanding: "Rp 2,000,000",
     },
     {
@@ -38,7 +47,7 @@ const mockBuyer = {
       product: "Mineral Water",
       totalOrders: 8,
       totalSpend: "Rp 8,000,000",
-      lastOrderDate: "2024-05-15",
+      lastOrderDate: "2025-05-15",
       outstanding: "Rp 0",
     },
   ],
@@ -49,11 +58,34 @@ const mockBuyer = {
   },
 };
 
-const analyticsData = mockBuyer.analytics.months.map((month, i) => ({
-  month,
-  orders: mockBuyer.analytics.ordersPerMonth[i],
-  spending: mockBuyer.analytics.spendingPerMonth[i],
-}));
+function getBuyerAnalytics(orderDetails: any[]) {
+  // Group by month (YYYY-MM)
+  const map: { [month: string]: { orders: number; spending: number } } = {};
+  orderDetails.forEach((order) => {
+    if (!order.lastOrderDate) return;
+    const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
+    const monthKey = format(date, 'MMM yyyy');
+    const totalOrders = Number(order.totalOrders) || 0;
+    // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
+    const spending = Number((order.totalSpend || '').replace(/[^\d]/g, '')) / 1_000_000;
+    if (!map[monthKey]) map[monthKey] = { orders: 0, spending: 0 };
+    map[monthKey].orders += totalOrders;
+    map[monthKey].spending += spending;
+  });
+  // Sort months chronologically
+  const months = Object.keys(map).sort((a, b) => {
+    const dA = parse(a, 'MMM yyyy', new Date());
+    const dB = parse(b, 'MMM yyyy', new Date());
+    return dA.getTime() - dB.getTime();
+  });
+  return months.map((month) => ({
+    month,
+    orders: map[month].orders,
+    spending: map[month].spending,
+  }));
+}
+
+const analyticsData = getBuyerAnalytics(mockBuyer.orderDetails || []);
 
 export default function BuyerProfile({ buyer = mockBuyer, onClose }: { buyer?: typeof mockBuyer; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);

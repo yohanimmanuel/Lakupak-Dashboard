@@ -5,6 +5,7 @@ import BuyerModal from '@/components/clientmanagement/BuyerModal';
 import { Plus, Upload, Download } from 'lucide-react';
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
+import ImportData from '@/components/clientmanagement/ImportData';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -19,6 +20,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 
 export default function BuyersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
@@ -28,7 +30,10 @@ export default function BuyersPage() {
           <p className="text-sm text-gray-500 mb-2">Manage your buyers and their information.</p>
         </div>
         <div className="flex gap-2 items-center">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm">
+          <button
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            onClick={() => setShowImportModal(true)}
+          >
             <Upload className="w-4 h-4" /> Import Data
           </button>
           <button
@@ -54,6 +59,16 @@ export default function BuyersPage() {
           setShowAddModal(false);
           // handle save logic here
         }}
+      />
+      <ImportData
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={(data) => {
+          setShowImportModal(false);
+          // TODO: handle import logic (e.g., update state or send to backend)
+          console.log('Imported buyers:', data);
+        }}
+        type="Buyers"
       />
     </div>
   );

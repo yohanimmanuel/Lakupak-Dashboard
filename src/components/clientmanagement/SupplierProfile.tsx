@@ -6,6 +6,15 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import SupplierModal from './SupplierModal';
 import { useState } from 'react';
 
+// Try require fallback for date-fns if import fails
+let parse: any, format: any;
+try {
+  // @ts-ignore
+  ({ parse, format } = require('date-fns'));
+} catch {
+  // fallback to import if available
+}
+
 const mockSupplier = {
   id: "LKS-12345678",
   name: "PT. Sumber Makmur",
@@ -47,11 +56,32 @@ const mockSupplier = {
   },
 };
 
-const analyticsData = mockSupplier.analytics.months.map((month, i) => ({
-  month,
-  supplied: mockSupplier.analytics.suppliedPerMonth[i],
-  value: mockSupplier.analytics.valuePerMonth[i],
-}));
+function getSupplierAnalytics(supplies: any[]) {
+  // Group by month (YYYY-MM)
+  const map: { [month: string]: { supplied: number; value: number } } = {};
+  supplies.forEach((supply) => {
+    if (!supply.lastDelivery) return;
+    const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
+    const monthKey = format(date, 'MMM yyyy');
+    const totalSupplied = Number(supply.totalSupplied) || 0;
+    // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
+    const value = Number((supply.totalValue || '').replace(/[^\d]/g, '')) / 1_000_000;
+    if (!map[monthKey]) map[monthKey] = { supplied: 0, value: 0 };
+    map[monthKey].supplied += totalSupplied;
+    map[monthKey].value += value;
+  });
+  // Sort months chronologically
+  const months = Object.keys(map).sort((a, b) => {
+    const dA = parse(a, 'MMM yyyy', new Date());
+    const dB = parse(b, 'MMM yyyy', new Date());
+    return dA.getTime() - dB.getTime();
+  });
+  return months.map((month) => ({
+    month,
+    supplied: map[month].supplied,
+    value: map[month].value,
+  }));
+}
 
 export default function SupplierProfile({ supplier = mockSupplier, onClose }: { supplier?: typeof mockSupplier; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
@@ -76,6 +106,7 @@ export default function SupplierProfile({ supplier = mockSupplier, onClose }: { 
     }
     navigator.clipboard.writeText(text);
   };
+  const analyticsData = getSupplierAnalytics(supplier.supplies || []);
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       {/* Header */}
