@@ -30,7 +30,8 @@ export default function LoginPage() {
         setSuccess("Login successful!");
         setUser({
           id: data.id,
-          name: data.name,
+          firstName: data.firstName,
+          lastName: data.lastName,
           email: data.email,
           company: data.company,
           address: data.address,

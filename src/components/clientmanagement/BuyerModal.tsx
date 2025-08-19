@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
+import { useUserStore } from '@/store/userStore';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -18,6 +19,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   mode?: 'add' | 'edit';
 }) {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [form, setForm] = useState(() => initialData ? {
     storeName: initialData.storeName || '',
     owner: initialData.owner || '',
@@ -104,7 +106,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           preferredDays: form.preferredDays,
           lastShipment: form.lastShipment ? new Date(form.lastShipment).toISOString() : undefined,
           shipmentSuccess: form.shipmentSuccess
-        }
+        },
+        userId: user?.id,
       };
       if (isEdit && initialData && typeof initialData.id === 'number') {
         payload.id = initialData.id;
@@ -192,7 +195,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">Order No</th>
+                    <th className="py-2 px-3 font-medium uppercase">No.</th>
                     <th className="py-2 px-3 font-medium uppercase">Product</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Orders (Boxes)</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Spend</th>
@@ -204,7 +207,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 <tbody>
                   {orderRows.map((row: any, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.orderNo} onChange={e => handleOrderChange(idx, 'orderNo', e.target.value)} /></td>
+                      <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleOrderChange(idx, 'product', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalOrders} onChange={e => handleOrderChange(idx, 'totalOrders', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSpend} onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} /></td>

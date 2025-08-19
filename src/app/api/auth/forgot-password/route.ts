@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../../generated/prisma';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import path from 'path';
+import { ensureDbInitialized } from '../../../../database/initDb';
 
-const prisma = new PrismaClient();
+const dbPath = path.resolve(process.cwd(), '.data/lakulaku.db');
+async function getDb() {
+  return open({ filename: dbPath, driver: sqlite3.Database });
+}
 
 export async function POST(req: NextRequest) {
+  await ensureDbInitialized();
   const { email } = await req.json();
   if (!email) {
     return NextResponse.json({ error: 'Missing email' }, { status: 400 });
   }
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const db = await getDb();
+    const user = await db.get('SELECT * FROM User WHERE email = ?', email);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

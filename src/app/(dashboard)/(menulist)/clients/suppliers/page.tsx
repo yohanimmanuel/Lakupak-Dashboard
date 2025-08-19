@@ -6,6 +6,7 @@ import SupplierModal from '@/components/clientmanagement/SupplierModal';
 import { Plus, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
+import { useUserStore } from '@/store/userStore';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -26,13 +27,16 @@ function profileToTableRow(supplier: any) {
   if (Array.isArray(supplier.supplies) && supplier.supplies.length > 0) {
     supplier.supplies.forEach((s: any) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
-      const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
+      const match = (s.totalValue || '').toString().match(/^([^-\d]*)/);
       if (match && match[1] && !currency) currency = match[1];
-      totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
+      totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
     totalSupplied = supplier.supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
     lastDelivery = supplier.supplies[supplier.supplies.length - 1].lastDelivery || '';
   }
+  // Format number with thousands separator and currency, ensure space after Rp
+  const formattedCurrency = (currency || 'Rp').trim() + ' ';
+  const formattedTotalPurchases = formattedCurrency + totalPurchases.toLocaleString('id-ID');
   return {
     id: supplier.id,
     supplierId: supplier.supplierId,
@@ -40,11 +44,15 @@ function profileToTableRow(supplier: any) {
     contact: supplier.contact,
     businessType: supplier.businessType,
     address: supplier.address,
-    totalPurchases: currency + totalPurchases.toLocaleString(),
+    totalPurchases: formattedTotalPurchases,
     totalSupplied,
     lastDelivery,
     status: supplier.status,
   };
+}
+
+function generateSupplierId() {
+  return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
 export default function SuppliersPage() {
@@ -52,24 +60,27 @@ export default function SuppliersPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const user = useUserStore(state => state.user);
 
   const fetchSuppliers = async () => {
+    if (!user?.id) return;
     setLoading(true);
-    const res = await fetch('/api/suppliers');
+    const res = await fetch(`/api/suppliers?userId=${user.id}`);
     const data = await res.json();
-    setSuppliers(data);
+    setSuppliers(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [user?.id]);
 
   const handleAddSupplier = async (data: any) => {
+    if (!user?.id) return;
     await fetch('/api/suppliers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, userId: user.id }),
     });
     setShowAddModal(false);
     fetchSuppliers();
@@ -104,7 +115,7 @@ export default function SuppliersPage() {
         </div>
       </div>
       <Statcards type="supplier" />
-      <SupplierTable suppliers={suppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+      <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
       <SupplierModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -118,26 +129,26 @@ export default function SuppliersPage() {
         onClose={() => setShowImportModal(false)}
         onImport={async (data) => {
           setShowImportModal(false);
-          // Bulk import suppliers
+          if (!user?.id) return;
           for (const supplier of data) {
-            const supplierId = supplier["ID"] ? String(supplier["ID"]) : (supplier.supplierId ? String(supplier.supplierId) : "Unknown");
             const payload = {
-              supplierId,
-              name: supplier["Supplier Name"] || supplier.name || "Unknown",
-              contact: supplier["Contact"] || supplier.contact || "Unknown",
-              email: supplier["Email"] || supplier.email || "Unknown",
-              phone: supplier["Phone"] || supplier.phone || "Unknown",
-              businessType: supplier["Business Type"] || supplier.businessType || "Unknown",
-              address: supplier["Address"] || supplier.address || "Unknown",
-              status: supplier["Status"] || supplier.status || "Unknown",
-              createdAt: supplier["Created At"] ? new Date(supplier["Created At"]).toISOString() : new Date().toISOString(),
+              supplierId: supplier.ID,
+              name: supplier['Supplier Name'] || '-',
+              contact: supplier['Contact'] || '-',
+              email: supplier['Email'] || '-',
+              phone: supplier['Phone'] || '-',
+              businessType: supplier['Business Type'] || '-',
+              address: supplier['Address'] || '-',
+              status: supplier['Status'] || '-',
+              createdAt: supplier['Created At'] || new Date().toISOString(),
               logistics: {
-                preferredDays: supplier["Preferred Delivery Days"] || "Unknown",
-                lastDelivery: supplier["Last Delivery"] || "Unknown",
-                deliverySuccess: supplier["Delivery Success"] || "Unknown",
+                preferredDays: supplier['Preferred Delivery Days'] || '-',
+                lastDelivery: supplier['Last Delivery'] || '-',
+                deliverySuccess: supplier['Delivery Success'] || '-',
               },
-              notes: supplier["Notes"] ? [supplier["Notes"]] : [],
+              notes: supplier['Notes'] ? [supplier['Notes']] : [],
               supplies: supplier.supplies || [],
+              userId: user.id,
             };
             await fetch('/api/suppliers', {
               method: 'POST',

@@ -141,17 +141,17 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{buyer.logistics.preferredDays}</span>
+              <span className="font-semibold text-black">{buyer.logistics?.preferredDays || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Shipment:</span>
-              <span className="font-semibold text-black">{buyer.logistics.lastShipment}</span>
+              <span className="font-semibold text-black">{buyer.logistics?.lastShipment || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Shipment Success:</span>
-              <span className="font-semibold text-black">{buyer.logistics.shipmentSuccess}</span>
+              <span className="font-semibold text-black">{buyer.logistics?.shipmentSuccess || ''}</span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
@@ -188,8 +188,8 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                <th className="py-2 px-4 font-medium uppercase">Order No</th>
-                <th className="py-2 px-4 font-medium uppercase">Product</th>
+                <th className="py-2 px-4 font-medium uppercase">No.</th>
+                <th className="py-2 px-4 font-medium uppercase">Product Name</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Orders (Boxes)</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Spend (Rp)</th>
                 <th className="py-2 px-4 font-medium uppercase">Last Order Date</th>
@@ -197,9 +197,9 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               </tr>
             </thead>
             <tbody>
-              {buyer.orderDetails.map((order: any) => (
-                <tr key={order.orderNo} className="border-b last:border-b-0">
-                  <td className="py-4 px-4 font-medium text-black">{order.orderNo}</td>
+              {buyer.orderDetails.map((order: any, idx: number) => (
+                <tr key={idx} className="border-b last:border-b-0">
+                  <td className="py-4 px-4 font-medium text-black">{idx + 1}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>
                   <td className="py-4 px-4 text-black">{order.totalOrders}</td>
                   <td className="py-4 px-4 text-[#0a61d7] font-semibold">{order.totalSpend}</td>

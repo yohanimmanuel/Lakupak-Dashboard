@@ -135,6 +135,13 @@ const supplierSynonyms: { [key: string]: string[] } = {
   'Supplies': ['supplies', 'supply', 'supply json'],
 };
 
+function generateBuyerId() {
+  return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+function generateSupplierId() {
+  return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
 export default function ImportData({ open, onClose, onImport, type = 'Buyers' }: ImportDataProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
@@ -213,8 +220,10 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
         mapped[f.key] = col ? row[col] : '';
       });
       if (type === 'Buyers') {
+        mapped.ID = generateBuyerId();
         mapped.orderDetails = parseOrderDetails(mapped['Order Details']);
       } else {
+        mapped.ID = generateSupplierId();
         mapped.supplies = parseSupplies(mapped['Supplies']);
       }
       return mapped;

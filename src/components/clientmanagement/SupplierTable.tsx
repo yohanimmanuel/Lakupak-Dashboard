@@ -3,6 +3,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
+import { useUserStore } from '@/store/userStore';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -14,7 +15,8 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function SupplierTable({ suppliers = [], onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: any[]; onSelectSupplier?: (supplier: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (supplier: any) => any }) {
+export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: any[]; setSuppliers?: (fn: (prev: any[]) => any[]) => void; onSelectSupplier?: (supplier: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (supplier: any) => any }) {
+  const user = useUserStore(state => state.user);
   const tableRows = suppliers.map(profileToTableRow);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -69,11 +71,13 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
   };
 
   const handleDeleteConfirm = async () => {
-    if (!supplierToDelete) return;
-    await fetch(`/api/suppliers?id=${supplierToDelete.supplierId}`, { method: 'DELETE' });
+    if (!supplierToDelete || !user?.id) return;
+    const res = await fetch(`/api/suppliers?id=${supplierToDelete.id}&userId=${user.id}`, { method: 'DELETE' });
+    if (res.ok && setSuppliers) {
+      setSuppliers(prev => prev.filter(s => s.supplierId !== supplierToDelete.supplierId));
+    }
     setShowDeleteModal(false);
     setSupplierToDelete(null);
-    window.location.reload(); // Or call fetchSuppliers if available
   };
 
   const handleDeleteCancel = () => {

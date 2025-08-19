@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
+import { useUserStore } from '@/store/userStore';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -19,6 +20,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   mode?: 'add' | 'edit';
 }) {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [form, setForm] = useState(() => initialData ? {
     supplierName: initialData.name || initialData.supplierName || '',
     contact: initialData.contact || '',
@@ -74,7 +76,8 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           preferredDays: form.preferredDays,
           lastDelivery: form.lastDelivery ? new Date(form.lastDelivery).toISOString() : undefined,
           deliverySuccess: form.deliverySuccess
-        }
+        },
+        userId: user?.id,
       };
       if (isEdit && initialData && typeof initialData.id === 'number') {
         payload.id = initialData.id;
@@ -161,7 +164,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">Supplies No</th>
+                    <th className="py-2 px-3 font-medium uppercase">No.</th>
                     <th className="py-2 px-3 font-medium uppercase">SKU</th>
                     <th className="py-2 px-3 font-medium uppercase">Product</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Supplied (Boxes)</th>
@@ -173,7 +176,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 <tbody>
                   {supplyRows.map((row: any, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.suppliesno} onChange={e => handleSupplyChange(idx, 'suppliesno', e.target.value)} /></td>
+                      <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>

@@ -74,6 +74,9 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
     if (match && match[1] && !currency) currency = match[1];
     totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
   });
+  const preferredDays = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.preferredDays : '';
+  const lastDelivery = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.lastDelivery : '';
+  const deliverySuccess = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.deliverySuccess : '';
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       {/* Header */}
@@ -135,17 +138,17 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{supplier.logistics.preferredDays}</span>
+              <span className="font-semibold text-black">{preferredDays}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Delivery:</span>
-              <span className="font-semibold text-black">{supplier.logistics.lastDelivery}</span>
+              <span className="font-semibold text-black">{lastDelivery}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Delivery Success:</span>
-              <span className="font-semibold text-black">{supplier.logistics.deliverySuccess}</span>
+              <span className="font-semibold text-black">{deliverySuccess}</span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
@@ -181,18 +184,18 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                <th className="py-2 px-4 font-medium uppercase">Supplies No</th>
-                <th className="py-2 px-4 font-medium uppercase">SKU</th>
-                <th className="py-2 px-4 font-medium uppercase">Product</th>
+                <th className="py-2 px-4 font-medium uppercase">No.</th>
+                <th className="py-2 px-4 font-medium uppercase">SKU Number</th>
+                <th className="py-2 px-4 font-medium uppercase">Product Name</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Supplied</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Value</th>
                 <th className="py-2 px-4 font-medium uppercase">Last Delivery</th>
               </tr>
             </thead>
             <tbody>
-              {supplier.supplies.map((supply: any) => (
-                <tr key={String(supply.sku)} className="border-b last:border-b-0">
-                  <td className="py-2 px-4 font-medium text-black">{String(supply.suppliesno)}</td>
+              {supplier.supplies.map((supply: any, idx: number) => (
+                <tr key={idx} className="border-b last:border-b-0">
+                  <td className="py-2 px-4 font-medium text-black">{idx + 1}</td>
                   <td className="py-2 px-4 font-medium text-black">{String(supply.sku)}</td>
                   <td className="py-2 px-4 text-black">{String(supply.product)}</td>
                   <td className="py-2 px-4 text-black">{String(supply.totalSupplied)}</td>

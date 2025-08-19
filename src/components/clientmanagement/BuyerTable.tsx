@@ -3,6 +3,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
+import { useUserStore } from '@/store/userStore';
 
 // Use buyers prop or state, not buyersMock
 // Add explicit types for all map/filter parameters
@@ -14,7 +15,8 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function BuyerTable({ buyers = [], onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: any[]; onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (buyer: any) => any }) {
+export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: any[]; setBuyers?: (fn: (prev: any[]) => any[]) => void; onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (buyer: any) => any }) {
+  const user = useUserStore(state => state.user);
   const tableRows = buyers.map(profileToTableRow);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -50,11 +52,13 @@ export default function BuyerTable({ buyers = [], onSelectBuyer, onExportXLSX, p
   };
 
   const handleDeleteConfirm = async () => {
-    if (!buyerToDelete) return;
-    await fetch(`/api/buyers?id=${buyerToDelete.buyerId}`, { method: 'DELETE' });
+    if (!buyerToDelete || !user?.id) return;
+    const res = await fetch(`/api/buyers?id=${buyerToDelete.id}&userId=${user.id}`, { method: 'DELETE' });
+    if (res.ok && setBuyers) {
+      setBuyers(prev => prev.filter(b => b.buyerId !== buyerToDelete.buyerId));
+    }
     setShowDeleteModal(false);
     setBuyerToDelete(null);
-    window.location.reload(); // Or call fetchBuyers if available
   };
 
   const handleDeleteCancel = () => {
