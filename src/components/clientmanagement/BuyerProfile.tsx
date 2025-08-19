@@ -17,7 +17,7 @@ try {
 }
 
 function getBuyerAnalytics(orderDetails: any[]) {
-  // Group by month (YYYY-MM)
+  // Group by month (MMM yyyy)
   const map: { [month: string]: { orders: number; spending: number } } = {};
   orderDetails.forEach((order: any) => {
     if (!order.lastOrderDate) return;
@@ -25,7 +25,7 @@ function getBuyerAnalytics(orderDetails: any[]) {
     const monthKey = format(date, 'MMM yyyy');
     const totalOrders = Number(order.totalOrders) || 0;
     // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
-    const spending = Number((order.totalSpend || '').replace(/[^\d]/g, '')) / 1_000_000;
+    const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
     if (!map[monthKey]) map[monthKey] = { orders: 0, spending: 0 };
     map[monthKey].orders += totalOrders;
     map[monthKey].spending += spending;
@@ -67,6 +67,15 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
     navigator.clipboard.writeText(text);
   };
   const analyticsData = getBuyerAnalytics(buyer?.orderDetails || []);
+  const totalOrders = buyer.orderDetails?.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
+  let totalSpend = 0;
+  let currency = '';
+  buyer.orderDetails?.forEach((o: any) => {
+    const match = (o.totalSpend || '').toString().match(/^([^\d]*)/);
+    if (match && match[1] && !currency) currency = match[1];
+    totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
+  });
+  const totalOutstanding = buyer.orderDetails?.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
@@ -146,7 +155,15 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
-              <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">Active</span>
+              {buyer.status === 'Active' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">Active</span>
+              )}
+              {buyer.status === 'Inactive' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">Inactive</span>
+              )}
+              {buyer.status === 'Blocked' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">Blocked</span>
+              )}
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
@@ -161,6 +178,11 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Order & Product Details</div>
+        </div>
+        <div className="flex flex-wrap gap-4 mb-2">
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Orders: <span className="font-bold text-black">{totalOrders}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{currency}{totalSpend.toLocaleString()}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{currency}{totalOutstanding.toLocaleString()}</span></div>
         </div>
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">

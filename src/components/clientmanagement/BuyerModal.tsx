@@ -1,6 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import useSWR, { mutate as globalMutate } from 'swr';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -15,6 +17,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   initialData?: any;
   mode?: 'add' | 'edit';
 }) {
+  const router = useRouter();
   const [form, setForm] = useState(() => initialData ? {
     storeName: initialData.storeName || '',
     owner: initialData.owner || '',
@@ -49,12 +52,44 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const deleteOrderRow = (idx: number) => setOrderRows((rows: Array<any>) => rows.filter((_: any, i: number) => i !== idx));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
+
+  useEffect(() => {
+    if (open && mode === 'edit' && initialData) {
+      setForm({
+        storeName: initialData.storeName || '',
+        owner: initialData.owner || '',
+        phone: initialData.phone || '',
+        email: initialData.email || '',
+        address: initialData.address || '',
+        businessType: initialData.businessType || '',
+        status: initialData.status || statusOptions[0],
+        createdAt: initialData.createdAt || '',
+        preferredDays: initialData.logistics?.preferredDays || '',
+        lastShipment: initialData.logistics?.lastShipment || '',
+        shipmentSuccess: initialData.logistics?.shipmentSuccess || '',
+        notes: initialData.notes ? initialData.notes.join(', ') : '',
+      });
+      setId(initialData.id || generateBuyerId());
+      setOrderRows(
+        initialData?.orderDetails?.length
+          ? initialData.orderDetails.map((row: any) => ({
+              orderNo: row.orderNo || '',
+              product: row.product || '',
+              totalOrders: row.totalOrders || '',
+              totalSpend: row.totalSpend || '',
+              lastOrderDate: row.lastOrderDate || '',
+              outstanding: row.outstanding || '',
+            }))
+          : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+      );
+    }
+  }, [open, mode, initialData]);
 
   if (!open) return null;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    console.log('submit');
     setSaving(true);
     setError('');
     try {
@@ -85,6 +120,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       });
       if (!res.ok) throw new Error('Failed to save');
       onSave(payload);
+      if (isEdit) {
+        await globalMutate(`/api/buyers?id=${payload.buyerId}`);
+        setTimeout(() => {
+          router.push(`/clients/buyers/details/${payload.buyerId}`);
+        }, 500);
+      } else {
+        onClose();
+      }
     } catch (err) {
       setError('Failed to save buyer');
     } finally {
@@ -94,6 +137,13 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      {/* Loading overlay */}
+      {(saving || redirecting) && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
+          <span className="loader mr-2"></span>
+          <span className="text-black font-semibold text-lg">Saving...</span>
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Buyer' : 'Add Buyer'}</h2>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
@@ -146,7 +196,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
                     <th className="py-2 px-3 font-medium uppercase">Order No</th>
                     <th className="py-2 px-3 font-medium uppercase">Product</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Orders</th>
+                    <th className="py-2 px-3 font-medium uppercase">Total Orders (Boxes)</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Spend</th>
                     <th className="py-2 px-3 font-medium uppercase">Last Order Date</th>
                     <th className="py-2 px-3 font-medium uppercase">Outstanding</th>

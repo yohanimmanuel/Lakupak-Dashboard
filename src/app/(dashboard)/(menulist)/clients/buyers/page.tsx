@@ -19,17 +19,30 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 }
 
 function profileToTableRow(buyer: any) {
-  // Use the first orderDetails row for summary fields, or fallback to empty values
-  const firstOrder = Array.isArray(buyer.orderDetails) && buyer.orderDetails.length > 0 ? buyer.orderDetails[0] : {};
+  let totalSpend = 0;
+  let currency = '';
+  let outstanding = 0;
+  let lastOrderDate = '';
+  if (Array.isArray(buyer.orderDetails) && buyer.orderDetails.length > 0) {
+    buyer.orderDetails.forEach((o: any) => {
+      // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
+      const match = (o.totalSpend || '').toString().match(/^([^\d]*)/);
+      if (match && match[1] && !currency) currency = match[1];
+      totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
+    });
+    outstanding = buyer.orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.outstanding?.toString().replace(/[^\d]/g, '')) || 0), 0);
+    lastOrderDate = buyer.orderDetails[buyer.orderDetails.length - 1].lastOrderDate || '';
+  }
   return {
     id: buyer.id,
-    buyerId: buyer.buyerId, // Add this line
+    buyerId: buyer.buyerId,
     name: buyer.storeName,
     address: buyer.address,
     businessType: buyer.businessType,
-    totalOrders: firstOrder.totalOrders || '',
-    lastOrderDate: firstOrder.lastOrderDate || '',
-    outstanding: firstOrder.outstanding || '',
+    totalOrders: Array.isArray(buyer.orderDetails) ? buyer.orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) : 0,
+    lastOrderDate,
+    totalSpend: currency + totalSpend.toLocaleString(),
+    outstanding,
     status: buyer.status,
   };
 }
@@ -95,7 +108,10 @@ export default function BuyersPage() {
       <BuyerModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSave={handleAddBuyer}
+        onSave={async (data) => {
+          setShowAddModal(false);
+          await fetchBuyers();
+        }}
       />
       <ImportData
         open={showImportModal}

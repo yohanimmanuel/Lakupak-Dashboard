@@ -89,7 +89,6 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
       s.businessType,
       s.address,
       s.totalPurchases,
-      s.skuSupplied,
       s.lastDelivery,
       s.status
     ]);
@@ -217,7 +216,6 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
               <th className="py-3 px-4 font-medium uppercase">Business Type</th>
               <th className="py-3 px-4 font-medium uppercase">Location</th>
               <th className="py-3 px-4 font-medium uppercase">Total Purchases</th>
-              <th className="py-3 px-4 font-medium uppercase">No. SKU Supplied</th>
               <th className="py-3 px-4 font-medium uppercase">Last Delivery</th>
               <th className="py-3 px-4 font-medium uppercase">Status</th>
               <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
@@ -232,7 +230,6 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
                 <td className="py-3 px-4 text-black">{String(supplier.businessType)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.address)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(supplier.totalPurchases)}</td>
-                <td className="py-3 px-4 text-black">{String(supplier.skuSupplied)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.lastDelivery)}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
@@ -274,7 +271,6 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
             <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{supplier.businessType}</span></div>
             <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">{supplier.address}</span></div>
             <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{supplier.totalPurchases}</span></div>
-            <div className="text-xs text-gray-500">No. SKU Supplied: <span className="text-black font-medium">{supplier.skuSupplied}</span></div>
             <div className="text-xs text-gray-500">Last Delivery: <span className="text-black font-medium">{supplier.lastDelivery}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>

@@ -51,3 +51,19 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const data = await req.json();
+    const { id, supplierId, ...updateData } = data;
+    const where = id ? { id: Number(id) } : { supplierId: String(supplierId) };
+    const supplier = await prisma.supplier.update({
+      where,
+      data: updateData,
+    });
+    return NextResponse.json(supplier);
+  } catch (err) {
+    console.error('PUT /api/suppliers error:', err);
+    return NextResponse.json({ error: 'Failed to update supplier' }, { status: 500 });
+  }
+}

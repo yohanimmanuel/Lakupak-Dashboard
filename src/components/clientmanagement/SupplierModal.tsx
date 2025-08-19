@@ -1,6 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import { Trash } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import useSWR, { mutate as globalMutate } from 'swr';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -16,6 +18,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   initialData?: any;
   mode?: 'add' | 'edit';
 }) {
+  const router = useRouter();
   const [form, setForm] = useState(() => initialData ? {
     supplierName: initialData.name || initialData.supplierName || '',
     contact: initialData.contact || '',
@@ -35,27 +38,27 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   const [id, setId] = useState(() => initialData?.id || generateSupplierId());
   const [supplyRows, setSupplyRows] = useState<Array<{ sku: string; product: string; totalSupplied: string | number; totalValue: string; lastDelivery: string; status: string }>>(
     initialData?.supplies?.length ? initialData.supplies.map((row: any) => ({
+      suppliesno: row.suppliesno || '',
       sku: row.sku || '',
       product: row.product || '',
       totalSupplied: row.totalSupplied || '',
       totalValue: row.totalValue || '',
       lastDelivery: row.lastDelivery || '',
-      status: row.status || statusOptions[0],
-    })) : [{ sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
+    })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
   );
   const handleSupplyChange = (idx: number, field: string, value: string) => {
     setSupplyRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
   };
-  const addSupplyRow = () => setSupplyRows((rows: Array<any>) => [...rows, { sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
+  const addSupplyRow = () => setSupplyRows((rows: Array<any>) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
   const deleteSupplyRow = (idx: number) => setSupplyRows((rows: Array<any>) => rows.filter((_: any, i: number) => i !== idx));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
 
   if (!open) return null;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    console.log('submit');
     setSaving(true);
     setError('');
     try {
@@ -88,6 +91,14 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       });
       if (!res.ok) throw new Error('Failed to save');
       onSave(payload);
+      if (isEdit) {
+        await globalMutate(`/api/suppliers?id=${payload.supplierId}`);
+        setTimeout(() => {
+          router.push(`/clients/suppliers/details/${payload.supplierId}`);
+        }, 500);
+      } else {
+        onClose();
+      }
     } catch (err) {
       setError('Failed to save supplier');
     } finally {
@@ -97,6 +108,13 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      {/* Loading overlay */}
+      {(saving || redirecting) && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
+          <span className="loader mr-2"></span>
+          <span className="text-black font-semibold text-lg">Saving...</span>
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}</h2>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
@@ -145,28 +163,24 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="py-2 px-3 font-medium uppercase">Supplies No</th>
                     <th className="py-2 px-3 font-medium uppercase">SKU</th>
                     <th className="py-2 px-3 font-medium uppercase">Product</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Supplied</th>
+                    <th className="py-2 px-3 font-medium uppercase">Total Supplied (Boxes)</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Value</th>
                     <th className="py-2 px-3 font-medium uppercase">Last Delivery</th>
-                    <th className="py-2 px-3 font-medium uppercase">Status</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {supplyRows.map((row: any, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
+                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.suppliesno} onChange={e => handleSupplyChange(idx, 'suppliesno', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalValue} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastDelivery} onChange={e => handleSupplyChange(idx, 'lastDelivery', e.target.value)} /></td>
-                      <td className="py-2 px-3">
-                        <select className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.status} onChange={e => handleSupplyChange(idx, 'status', e.target.value)}>
-                          {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
-                        </select>
-                      </td>
                       <td className="py-2 px-3">
                         <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteSupplyRow(idx)} disabled={supplyRows.length === 1}><Trash className="w-4 h-4" /></button>
                       </td>

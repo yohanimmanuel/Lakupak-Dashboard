@@ -16,7 +16,7 @@ try {
 }
 
 function getSupplierAnalytics(supplies: any[]) {
-  // Group by month (YYYY-MM)
+  // Group by month (MMM yyyy)
   const map: { [month: string]: { supplied: number; value: number } } = {};
   supplies.forEach(function(supply: any) {
     if (!supply.lastDelivery) return;
@@ -24,7 +24,7 @@ function getSupplierAnalytics(supplies: any[]) {
     const monthKey = format(date, 'MMM yyyy');
     const totalSupplied = Number(supply.totalSupplied) || 0;
     // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
-    const value = Number((supply.totalValue || '').replace(/[^\d]/g, '')) / 1_000_000;
+    const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
     if (!map[monthKey]) map[monthKey] = { supplied: 0, value: 0 };
     map[monthKey].supplied += totalSupplied;
     map[monthKey].value += value;
@@ -61,11 +61,19 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
     text += `Notes: ${(supplier.notes || []).join(', ')}\n`;
     text += `\nSupplies & Product Data:\n`;
     for (const row of supplier.supplies) {
-      text += `- SKU: ${row.sku}, Product: ${row.product}, Total Supplied: ${row.totalSupplied}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
+      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Total Supplied: ${row.totalSupplied}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
     }
     navigator.clipboard.writeText(text);
   };
   const analyticsData = getSupplierAnalytics(supplier.supplies || []);
+  const totalSupplied = supplier.supplies?.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
+  let totalValue = 0;
+  let currency = '';
+  supplier.supplies?.forEach((s: any) => {
+    const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
+    if (match && match[1] && !currency) currency = match[1];
+    totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
+  });
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       {/* Header */}
@@ -108,7 +116,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Mail className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.email}</span>
+              <span className="font-medium text-black">{supplier.contact} | {supplier.email}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Phone className="w-4 h-4" />
@@ -141,7 +149,15 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
-              <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">{supplier.status}</span>
+              {supplier.status === 'Active' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">Active</span>
+              )}
+              {supplier.status === 'Inactive' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">Inactive</span>
+              )}
+              {supplier.status === 'Blocked' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">Blocked</span>
+              )}
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
@@ -157,29 +173,31 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Supplies & Product Data</div>
         </div>
+        <div className="flex flex-wrap gap-4 mb-2">
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Supplied: <span className="font-bold text-black">{totalSupplied}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Value: <span className="font-bold text-[#0a61d7]">{currency}{totalValue.toLocaleString()}</span></div>
+        </div>
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                <th className="py-2 px-4 font-medium uppercase">Supplies No</th>
                 <th className="py-2 px-4 font-medium uppercase">SKU</th>
                 <th className="py-2 px-4 font-medium uppercase">Product</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Supplied</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Value</th>
                 <th className="py-2 px-4 font-medium uppercase">Last Delivery</th>
-                <th className="py-2 px-4 font-medium uppercase">Status</th>
               </tr>
             </thead>
             <tbody>
               {supplier.supplies.map((supply: any) => (
                 <tr key={String(supply.sku)} className="border-b last:border-b-0">
+                  <td className="py-2 px-4 font-medium text-black">{String(supply.suppliesno)}</td>
                   <td className="py-2 px-4 font-medium text-black">{String(supply.sku)}</td>
                   <td className="py-2 px-4 text-black">{String(supply.product)}</td>
                   <td className="py-2 px-4 text-black">{String(supply.totalSupplied)}</td>
                   <td className="py-2 px-4 text-[#0a61d7] font-semibold">{String(supply.totalValue)}</td>
                   <td className="py-2 px-4 text-black">{String(supply.lastDelivery)}</td>
-                  <td className="py-2 px-4">
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${supply.status === 'Active' ? 'bg-green-100 text-green-500' : supply.status === 'Inactive' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-500'}`}>{String(supply.status)}</span>
-                  </td>
                 </tr>
               ))}
             </tbody>

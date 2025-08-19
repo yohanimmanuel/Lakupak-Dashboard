@@ -51,3 +51,19 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete buyer' }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const data = await req.json();
+    const { id, buyerId, ...updateData } = data;
+    const where = id ? { id: Number(id) } : { buyerId: String(buyerId) };
+    const buyer = await prisma.buyer.update({
+      where,
+      data: updateData,
+    });
+    return NextResponse.json(buyer);
+  } catch (err) {
+    console.error('PUT /api/buyers error:', err);
+    return NextResponse.json({ error: 'Failed to update buyer' }, { status: 500 });
+  }
+}

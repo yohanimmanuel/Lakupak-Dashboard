@@ -19,18 +19,30 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 }
 
 function profileToTableRow(supplier: any) {
-  // Use the first supplies row for summary fields, or fallback to empty values
-  const firstSupply = Array.isArray(supplier.supplies) && supplier.supplies.length > 0 ? supplier.supplies[0] : {};
+  let totalPurchases = 0;
+  let currency = '';
+  let totalSupplied = 0;
+  let lastDelivery = '';
+  if (Array.isArray(supplier.supplies) && supplier.supplies.length > 0) {
+    supplier.supplies.forEach((s: any) => {
+      // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
+      const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
+      if (match && match[1] && !currency) currency = match[1];
+      totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
+    });
+    totalSupplied = supplier.supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
+    lastDelivery = supplier.supplies[supplier.supplies.length - 1].lastDelivery || '';
+  }
   return {
     id: supplier.id,
-    supplierId: supplier.supplierId, // Add this line
+    supplierId: supplier.supplierId,
     name: supplier.name,
     contact: supplier.contact,
     businessType: supplier.businessType,
     address: supplier.address,
-    totalPurchases: firstSupply.totalValue || '',
-    skuSupplied: firstSupply.sku || '',
-    lastDelivery: firstSupply.lastDelivery || '',
+    totalPurchases: currency + totalPurchases.toLocaleString(),
+    totalSupplied,
+    lastDelivery,
     status: supplier.status,
   };
 }
@@ -96,7 +108,10 @@ export default function SuppliersPage() {
       <SupplierModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSave={handleAddSupplier}
+        onSave={async (data) => {
+          setShowAddModal(false);
+          await fetchSuppliers();
+        }}
       />
       <ImportData
         open={showImportModal}
