@@ -98,7 +98,7 @@ export default function BuyerTable({ buyers = [], onSelectBuyer, onExportXLSX, p
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Address', 'Business Type', 'Last Order Date', 'Total Spend', 'Outstanding', 'Status'];
     const rows = filteredBuyers.map((b: any) => [
-      b.id,
+      b.buyerId,
       b.name,
       b.address,
       b.businessType,

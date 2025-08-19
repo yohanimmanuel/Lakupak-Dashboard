@@ -83,7 +83,7 @@ export default function SupplierTable({ suppliers = [], onSelectSupplier, onExpo
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Last Delivery', 'Status'];
     const rows = filteredSuppliers.map((s: any) => [
-      s.id,
+      s.supplierId,
       s.name,
       s.contact,
       s.businessType,
