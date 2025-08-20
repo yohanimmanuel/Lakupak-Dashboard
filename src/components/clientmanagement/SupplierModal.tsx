@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
@@ -36,7 +36,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     if (!initialData) {
       return {
         supplierName: '', contact: '', phone: '', email: '', businessType: '', address: '', 
-        status: statusOptions[0], createdAt: '', preferredDays: '', lastDelivery: '', 
+        status: statusOptions[0], createdAt: new Date().toISOString().split('T')[0], preferredDays: '', lastDelivery: '', 
         deliverySuccess: '', notes: '',
       };
     }
@@ -53,7 +53,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       businessType: initialData.businessType || '',
       address: initialData.address || '',
       status: initialData.status || statusOptions[0],
-      createdAt: initialData.createdAt || '',
+      createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays || '',
       lastDelivery: parsedLogistics.lastDelivery || '',
       deliverySuccess: parsedLogistics.deliverySuccess || '',
@@ -80,6 +80,24 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       }
     })() : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
   );
+
+  // Function to get the latest delivery date
+  const getLatestDeliveryDate = (rows: any[]) => {
+    if (!rows || rows.length === 0) return '';
+    const dates = rows
+      .map(row => row.lastDelivery)
+      .filter(date => date && date.trim() !== '')
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    return dates.length > 0 ? dates[0] : '';
+  };
+
+  // Update lastDelivery when supplyRows change
+  useEffect(() => {
+    const latestDate = getLatestDeliveryDate(supplyRows);
+    if (latestDate && latestDate !== form.lastDelivery) {
+      setForm(prev => ({ ...prev, lastDelivery: latestDate }));
+    }
+  }, [supplyRows, form.lastDelivery]);
   const handleSupplyChange = (idx: number, field: string, value: string) => {
     setSupplyRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
   };
@@ -88,6 +106,55 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+
+  // Handle edit mode initialization
+  useEffect(() => {
+    if (open && mode === 'edit' && initialData) {
+      // Parse JSON strings from database
+      const parsedNotes = safeParseJSON(initialData.notes, []);
+      const parsedLogistics = safeParseJSON(initialData.logistics, {});
+      
+      // Get supplies first to calculate latest date
+      const supplies = initialData?.supplies ? (() => {
+        try {
+          const parsed = JSON.parse(initialData.supplies);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })() : [];
+      
+      const latestDeliveryDate = getLatestDeliveryDate(supplies);
+      
+      setForm({
+        supplierName: initialData.name || initialData.supplierName || '',
+        contact: initialData.contact || '',
+        phone: initialData.phone || '',
+        email: initialData.email || '',
+        businessType: initialData.businessType || '',
+        address: initialData.address || '',
+        status: initialData.status || statusOptions[0],
+        createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        preferredDays: parsedLogistics.preferredDays || '',
+        lastDelivery: latestDeliveryDate || parsedLogistics.lastDelivery || '',
+        deliverySuccess: parsedLogistics.deliverySuccess || '',
+        notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
+      });
+      
+      setId(initialData.supplierId || generateSupplierId());
+      setSupplyRows(
+        supplies.length > 0 ? supplies.map((row: any) => ({
+          suppliesno: row.suppliesno || '',
+          sku: row.sku || '',
+          product: row.product || '',
+          totalSupplied: row.totalSupplied || '',
+          totalValue: row.totalValue || '',
+          lastDelivery: row.lastDelivery || '',
+          status: row.status || statusOptions[0]
+        })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
+      );
+    }
+  }, [open, mode, initialData]);
 
   if (!open) return null;
 
@@ -103,7 +170,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         name: form.supplierName,
         supplies: JSON.stringify(supplyRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
-        createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString(),
+        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays,
           lastDelivery: form.lastDelivery ? new Date(form.lastDelivery).toISOString() : undefined,
@@ -229,8 +296,12 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Created At</label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Created At 
+                <span className="text-xs text-gray-400">(auto-generated)</span>
+                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
+              </label>
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
@@ -239,8 +310,12 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Last Delivery Date</label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.lastDelivery} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} />
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Last Delivery Date 
+                <span className="text-xs text-gray-400">(auto from supplies)</span>
+                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
+              </label>
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastDelivery} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Delivery Success Rate (%)</label>

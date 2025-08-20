@@ -35,7 +35,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     if (!initialData) {
       return {
         storeName: '', owner: '', phone: '', email: '', address: '', businessType: '', 
-        status: statusOptions[0], createdAt: '', preferredDays: '', lastShipment: '', 
+        status: statusOptions[0], createdAt: new Date().toISOString().split('T')[0], preferredDays: '', lastShipment: '', 
         shipmentSuccess: '', notes: '',
       };
     }
@@ -52,7 +52,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       address: initialData.address || '',
       businessType: initialData.businessType || '',
       status: initialData.status || statusOptions[0],
-      createdAt: initialData.createdAt || '',
+      createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays || '',
       lastShipment: parsedLogistics.lastShipment || '',
       shipmentSuccess: parsedLogistics.shipmentSuccess || '',
@@ -78,6 +78,24 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       }
     })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
   );
+
+  // Function to get the latest order date
+  const getLatestOrderDate = (rows: any[]) => {
+    if (!rows || rows.length === 0) return '';
+    const dates = rows
+      .map(row => row.lastOrderDate)
+      .filter(date => date && date.trim() !== '')
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    return dates.length > 0 ? dates[0] : '';
+  };
+
+  // Update lastShipment when orderRows change
+  React.useEffect(() => {
+    const latestDate = getLatestOrderDate(orderRows);
+    if (latestDate && latestDate !== form.lastShipment) {
+      setForm(prev => ({ ...prev, lastShipment: latestDate }));
+    }
+  }, [orderRows, form.lastShipment]);
   const handleOrderChange = (idx: number, field: string, value: string) => {
     setOrderRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
   };
@@ -95,6 +113,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       const parsedNotes = safeParseJSON(initialData.notes, []);
       const parsedLogistics = safeParseJSON(initialData.logistics, {});
       
+      // Get order details first to calculate latest date
+      const orderDetails = initialData?.orderDetails ? (() => {
+        try {
+          const parsed = JSON.parse(initialData.orderDetails);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })() : [];
+      
+      const latestOrderDate = getLatestOrderDate(orderDetails);
+      
       setForm({
         storeName: initialData.storeName || '',
         owner: initialData.owner || '',
@@ -103,29 +133,22 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         address: initialData.address || '',
         businessType: initialData.businessType || '',
         status: initialData.status || statusOptions[0],
-        createdAt: initialData.createdAt || '',
+        createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         preferredDays: parsedLogistics.preferredDays || '',
-        lastShipment: parsedLogistics.lastShipment || '',
+        lastShipment: latestOrderDate || parsedLogistics.lastShipment || '',
         shipmentSuccess: parsedLogistics.shipmentSuccess || '',
         notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
       });
       setId(initialData.buyerId || generateBuyerId());
       setOrderRows(
-        initialData?.orderDetails ? (() => {
-          try {
-            const parsed = JSON.parse(initialData.orderDetails);
-            return Array.isArray(parsed) ? parsed.map((row: any) => ({
-              orderNo: row.orderNo || '',
-              product: row.product || '',
-              totalOrders: row.totalOrders || '',
-              totalSpend: row.totalSpend || '',
-              lastOrderDate: row.lastOrderDate || '',
-              outstanding: row.outstanding || '',
-            })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
-          } catch {
-            return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
-          }
-        })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+        orderDetails.length > 0 ? orderDetails.map((row: any) => ({
+          orderNo: row.orderNo || '',
+          product: row.product || '',
+          totalOrders: row.totalOrders || '',
+          totalSpend: row.totalSpend || '',
+          lastOrderDate: row.lastOrderDate || '',
+          outstanding: row.outstanding || '',
+        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
       );
       setAvatar(initialData.avatar || '');
     }
@@ -145,7 +168,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         buyerId: id,
         orderDetails: JSON.stringify(orderRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
-        createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString(),
+        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays,
           lastShipment: form.lastShipment ? new Date(form.lastShipment).toISOString() : undefined,
@@ -310,8 +333,12 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Created At</label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Created At 
+                <span className="text-xs text-gray-400">(auto-generated)</span>
+                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
+              </label>
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
@@ -320,8 +347,12 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Last Shipment Date</label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.lastShipment} onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} />
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Last Shipment Date 
+                <span className="text-xs text-gray-400">(auto from orders)</span>
+                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
+              </label>
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastShipment} onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Shipment Success Rate (%)</label>
