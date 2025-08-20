@@ -10,10 +10,21 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function BuyerDetailsPage() {
   const params = useParams();
-  const id = params.id;
   const user = useUserStore(state => state.user);
-  const { data: buyer, error, isLoading, mutate } = useSWR(id && user?.id ? `/api/buyers?id=${id}&userId=${user.id}` : null, fetcher, { revalidateOnFocus: true });
+  const [id, setId] = useState<string | undefined>(undefined);
 
+  useEffect(() => {
+    if (params?.id) setId(params.id as string);
+  }, [params]);
+
+  // Always call useSWR
+  const { data: buyer, error, isLoading, mutate } = useSWR(
+    user?.id && id ? `/api/buyers?id=${id}&userId=${user.id}` : null,
+    fetcher,
+    { revalidateOnFocus: true }
+  );
+
+  if (!user?.id || !id) return null;
   if (isLoading) return <div className="p-4">Loading...</div>;
   if (error) return <div className="p-4 text-red-500">{error.message || 'Error loading buyer'}</div>;
   if (!buyer || buyer.error) return <div className="p-4">No buyer found.</div>;

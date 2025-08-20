@@ -23,7 +23,6 @@ function profileToTableRow(supplier: any) {
   let totalPurchases = 0;
   let currency = '';
   let totalSupplied = 0;
-  let lastDelivery = '';
   if (Array.isArray(supplier.supplies) && supplier.supplies.length > 0) {
     supplier.supplies.forEach((s: any) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
@@ -32,7 +31,6 @@ function profileToTableRow(supplier: any) {
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
     totalSupplied = supplier.supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
-    lastDelivery = supplier.supplies[supplier.supplies.length - 1].lastDelivery || '';
   }
   // Format number with thousands separator and currency, ensure space after Rp
   const formattedCurrency = (currency || 'Rp').trim() + ' ';
@@ -45,8 +43,8 @@ function profileToTableRow(supplier: any) {
     businessType: supplier.businessType,
     address: supplier.address,
     totalPurchases: formattedTotalPurchases,
-    totalSupplied,
-    lastDelivery,
+    totalSupplies: totalSupplied,
+    createdAt: supplier.createdAt,
     status: supplier.status,
   };
 }
@@ -114,7 +112,7 @@ export default function SuppliersPage() {
           </button>
         </div>
       </div>
-      <Statcards type="supplier" />
+      <Statcards type="supplier" data={suppliers} />
       <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
       <SupplierModal
         open={showAddModal}

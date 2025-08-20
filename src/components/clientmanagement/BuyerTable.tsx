@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
+import { format } from 'date-fns';
 
 // Use buyers prop or state, not buyersMock
 // Add explicit types for all map/filter parameters
@@ -24,8 +25,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const businessTypeSet = new Set(tableRows.map((b: any) => b.businessType).filter(Boolean));
   const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
   const [filter, setFilter] = useState(filterOptions[0]);
-  const periodOptions = ["This Month", "Last Month"];
-  const [period, setPeriod] = useState(periodOptions[0]);
+  const today = new Date();
+  const thisMonthKey = format(today, 'yyyy-MM');
+  const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthKey = format(lastMonthDate, 'yyyy-MM');
+  const periodOptions = ["All Months", "This Month", "Last Month"];
+  const [period, setPeriod] = useState(periodOptions[1]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const buyersList = tableRows.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
@@ -37,6 +42,13 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: any) => b.status === selectedTab);
   if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: any) => b.businessType === filter);
   if (search) filteredBuyers = filteredBuyers.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
+  if (period !== "All Months") {
+    const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
+    filteredBuyers = filteredBuyers.filter((b: any) => {
+      if (!b.createdAt) return false;
+      return b.createdAt.startsWith(periodKey);
+    });
+  }
   const totalRows = filteredBuyers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedBuyers = filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
@@ -100,15 +112,16 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 
   // Export XLSX function
   const handleExportXLSX = () => {
-    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Last Order Date', 'Total Spend', 'Outstanding', 'Status'];
+    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Created At', 'Status'];
     const rows = filteredBuyers.map((b: any) => [
       b.buyerId,
       b.name,
       b.address,
       b.businessType,
-      b.lastOrderDate,
+      b.totalOrders,
       b.totalSpend,
       b.outstanding,
+      b.createdAt,
       b.status
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -234,9 +247,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <th className="py-3 px-4 font-medium uppercase">Name</th>
               <th className="py-3 px-4 font-medium uppercase">Address</th>
               <th className="py-3 px-4 font-medium uppercase">Business Type</th>
-              <th className="py-3 px-4 font-medium uppercase">Last Order Date</th>
+              <th className="py-3 px-4 font-medium uppercase">Total Orders</th>
               <th className="py-3 px-4 font-medium uppercase">Total Spend</th>
               <th className="py-3 px-4 font-medium uppercase">Outstanding</th>
+              <th className="py-3 px-4 font-medium uppercase">Created At</th>
               <th className="py-3 px-4 font-medium uppercase">Status</th>
               <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
             </tr>
@@ -246,11 +260,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <tr key={String(buyer.id)} className="border-b transition">
                 <td className="py-3 px-4 font-medium text-black">{String(buyer.buyerId)}</td>
                 <td className="py-3 px-4 font-medium text-black">{String(buyer.name)}</td>
-                <td className="py-3 px-4 text-black">{String(buyer.address)}</td>
+                <td className="py-3 px-4 text-black w-20 truncate">{String(buyer.address)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>
-                <td className="py-3 px-4 text-black">{String(buyer.lastOrderDate)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(buyer.totalSpend)}</td>
                 <td className="py-3 px-4 text-[#f65911] font-semibold">{String(buyer.outstanding)}</td>
+                <td className="py-3 px-4 text-black">{String(buyer.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>{String(buyer.status)}</span>
                 </td>
@@ -277,20 +292,30 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
       <div className="md:hidden flex flex-col gap-4">
         {pagedBuyers.map(buyer => (
           <div key={String(buyer.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
+              <div className="flex items-center gap-2">
               <button
                 className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
                 onClick={() => handleView(buyer)}
               >
                 <Eye className="w-4 h-4 text-[#0a61d7]" />
               </button>
+              <button
+                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
+                onClick={() => handleDeleteClick(buyer)}
+              >
+                <Trash className="w-4 h-4 text-red-500" />
+              </button>
+              </div>
             </div>
-            <div className="text-xs text-gray-500">Address: <span className="text-black font-medium">{buyer.address}</span></div>
+            <div className="text-xs text-gray-500">Address: <span className="text-black font-medium w-30 truncate">{buyer.address}</span></div>
             <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{buyer.businessType}</span></div>
-            <div className="text-xs text-gray-500">Last Order Date: <span className="text-black font-medium">{buyer.lastOrderDate}</span></div>
+            <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
             <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
             <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>
+            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
             </div>

@@ -1,11 +1,13 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail } from "lucide-react";
+import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import BuyerModal from './BuyerModal';
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import ImportOrdersModal from './ImportOrdersModal';
 
 // Try require fallback for date-fns if import fails
 let parse: any, format: any;
@@ -76,6 +78,50 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
     totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
   });
   const totalOutstanding = buyer.orderDetails?.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
+  const [orderPage, setOrderPage] = useState(1);
+  const orderRowsPerPage = 5;
+  const totalOrderRows = buyer.orderDetails.length;
+  const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
+  const pagedOrderDetails = buyer.orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
+  const [showImportOrders, setShowImportOrders] = useState(false);
+
+  function handleExportOrders() {
+    const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
+    const rows = (buyer.orderDetails || []).map((o: any) => [
+      o.product,
+      o.totalOrders,
+      o.totalSpend,
+      o.lastOrderDate,
+      o.outstanding
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+    XLSX.writeFile(wb, `${buyer.storeName || 'buyer'}-orders.xlsx`);
+  }
+  async function handleImportOrders(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const [headers, ...body] = rows;
+    const orderDetails = body.map((row: any) => ({
+      product: row[0] || '',
+      totalOrders: row[1] || '',
+      totalSpend: row[2] || '',
+      lastOrderDate: row[3] || '',
+      outstanding: row[4] || ''
+    }));
+    // Save to backend (update buyer)
+    await fetch(`/api/buyers`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...buyer, orderDetails })
+    });
+    window.location.reload();
+  }
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
@@ -101,7 +147,13 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Avatar & Owner */}
         <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200 p-4 gap-3">
-          <img src={buyer.avatar} alt={buyer.owner} className="w-20 h-20 rounded-full object-cover border-4 border-white shadow" />
+          <div className="w-20 h-20 rounded-full object-cover border-4 border-white shadow bg-gray-100 flex items-center justify-center overflow-hidden">
+            {buyer.avatar ? (
+              <img src={buyer.avatar} alt={buyer.owner} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-10 h-10 text-gray-400" />
+            )}
+          </div>
           <div className="text-lg font-bold text-black mt-2">{buyer.owner}</div>
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <Mail className="w-4 h-4" />
@@ -175,15 +227,40 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
         </div>
       </div>
       {/* Second Row: Order/Product Details */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Order & Product Details</div>
+          <div className="flex gap-2">
+            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={() => setShowImportOrders(true)}>
+              <Upload className="w-4 h-4" /> Import Orders
+            </button>
+            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
+              <Download className="w-4 h-4" /> Export Orders
+            </button>
+          </div>
         </div>
+        {showImportOrders && (
+          <ImportOrdersModal
+            open={showImportOrders}
+            onClose={() => setShowImportOrders(false)}
+            onImport={async (newOrderDetails) => {
+              // Merge new orders with existing ones instead of replacing
+              const mergedOrderDetails = [...(buyer.orderDetails || []), ...newOrderDetails];
+              await fetch(`/api/buyers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...buyer, orderDetails: mergedOrderDetails })
+              });
+              window.location.reload();
+            }}
+          />
+        )}
         <div className="flex flex-wrap gap-4 mb-2">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Orders: <span className="font-bold text-black">{totalOrders}</span></div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{currency}{totalSpend.toLocaleString()}</span></div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{currency}{totalOutstanding.toLocaleString()}</span></div>
         </div>
+        {/* Above Order & Product Details table */}
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
@@ -197,9 +274,9 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               </tr>
             </thead>
             <tbody>
-              {buyer.orderDetails.map((order: any, idx: number) => (
-                <tr key={idx} className="border-b last:border-b-0">
-                  <td className="py-4 px-4 font-medium text-black">{idx + 1}</td>
+              {pagedOrderDetails.map((order: any, idx: number) => (
+                <tr key={idx + (orderPage - 1) * orderRowsPerPage} className="border-b last:border-b-0">
+                  <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>
                   <td className="py-4 px-4 text-black">{order.totalOrders}</td>
                   <td className="py-4 px-4 text-[#0a61d7] font-semibold">{order.totalSpend}</td>
@@ -209,6 +286,41 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               ))}
             </tbody>
           </table>
+          {/* Pagination Info and Controls */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
+            <div className="text-xs text-gray-500">
+              {`Showing ${(orderPage - 1) * orderRowsPerPage + (totalOrderRows === 0 ? 0 : 1)} to ${Math.min(orderPage * orderRowsPerPage, totalOrderRows)} of ${totalOrderRows}`}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                disabled={orderPage === 1}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                    p === orderPage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setOrderPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setOrderPage(p => Math.min(totalOrderPages, p + 1))}
+                disabled={orderPage === totalOrderPages}
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       {/* Third Row: Analytics */}

@@ -23,7 +23,6 @@ function profileToTableRow(buyer: any) {
   let totalSpend = 0;
   let currency = '';
   let outstanding = 0;
-  let lastOrderDate = '';
   if (Array.isArray(buyer.orderDetails) && buyer.orderDetails.length > 0) {
     buyer.orderDetails.forEach((o: any) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
@@ -32,7 +31,6 @@ function profileToTableRow(buyer: any) {
       totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^ - \d]/g, '')) || 0;
     });
     outstanding = buyer.orderDetails.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
-    lastOrderDate = buyer.orderDetails[buyer.orderDetails.length - 1].lastOrderDate || '';
   }
   // Format numbers with thousands separator and currency, ensure space after Rp
   const formattedCurrency = (currency || 'Rp').trim() + ' ';
@@ -45,7 +43,7 @@ function profileToTableRow(buyer: any) {
     address: buyer.address,
     businessType: buyer.businessType,
     totalOrders: Array.isArray(buyer.orderDetails) ? buyer.orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) : 0,
-    lastOrderDate,
+    createdAt: buyer.createdAt,
     totalSpend: formattedTotalSpend,
     outstanding: formattedOutstanding,
     status: buyer.status,
@@ -115,7 +113,7 @@ export default function BuyersPage() {
           </button>
         </div>
       </div>
-      <Statcards type="buyer" />
+      <Statcards type="buyer" data={buyers} />
       <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
       <BuyerModal
         open={showAddModal}

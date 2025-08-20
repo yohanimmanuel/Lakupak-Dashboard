@@ -1,106 +1,128 @@
 import React from "react";
 import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useMemo } from 'react';
 
 interface StatcardsProps {
-  type: "buyer" | "supplier";
+  type: 'buyer' | 'supplier';
+  data: any[];
 }
 
-const buyerStats = [
-  {
-    label: "Total Buyers",
-    value: 128,
-    icon: <Users className="w-6 h-6 text-[#0a61d7]" />,
-    color: "bg-[#f7faff]",
-    trend: {
-      percent: "+3.2%",
-      label: "from last month",
-      up: true,
-    },
-  },
-  {
-    label: "Active Buyers",
-    value: 42,
-    icon: <UserCheck className="w-6 h-6 text-green-500" />,
-    color: "bg-[#e6f7ec]",
-    trend: {
-      percent: "-1.4%",
-      label: "from last month",
-      up: false,
-    },
-  },
-  {
-    label: "Monthly Buyer Spend",
-    value: "Rp 120,000,000",
-    icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-    color: "bg-[#f7faff]",
-    trend: {
-      percent: "+2.1%",
-      label: "from last month",
-      up: true,
-    },
-  },
-  {
-    label: "Avg. Order Frequency",
-    value: "2.3/mo",
-    icon: <Repeat className="w-6 h-6 text-gray-500" />,
-    color: "bg-[#e6e6e6]",
-    trend: {
-      percent: "-0.8%",
-      label: "from last month",
-      up: false,
-    },
-  },
-];
+function getCurrentMonth() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
 
-const supplierStats = [
-  {
-    label: "Total Suppliers",
-    value: 24,
-    icon: <Truck className="w-6 h-6 text-[#0a61d7]" />,
-    color: "bg-[#f7faff]",
-    trend: {
-      percent: "+1.8%",
-      label: "from last month",
-      up: true,
-    },
-  },
-  {
-    label: "Active Suppliers",
-    value: 10,
-    icon: <CheckCircle className="w-6 h-6 text-green-500" />,
-    color: "bg-[#e6f7ec]",
-    trend: {
-      percent: "-2.5%",
-      label: "from last month",
-      up: false,
-    },
-  },
-  {
-    label: "Monthly Purchase Value",
-    value: "Rp 80,000,000",
-    icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-    color: "bg-[#f7faff]",
-    trend: {
-      percent: "+4.0%",
-      label: "from last month",
-      up: true,
-    },
-  },
-  {
-    label: "On-time Delivery Rate",
-    value: "96%",
-    icon: <Clock className="w-6 h-6 text-gray-500" />,
-    color: "bg-[#e6e6e6]",
-    trend: {
-      percent: "+0.5%",
-      label: "from last month",
-      up: true,
-    },
-  },
-];
+function parseCurrency(str: string) {
+  return parseInt((str || '').toString().replace(/[^\d]/g, '')) || 0;
+}
 
-export default function Statcards({ type }: StatcardsProps) {
-  const stats = type === "buyer" ? buyerStats : supplierStats;
+export default function Statcards({ type, data }: StatcardsProps) {
+  const stats = useMemo(() => {
+    if (type === 'buyer') {
+      const totalBuyers = data.length;
+      const activeBuyers = data.filter(b => b.status === 'Active').length;
+      const monthKey = getCurrentMonth();
+      // Average monthly spend per buyer
+      let totalMonthlySpend = 0;
+      let totalBoxes = 0;
+      data.forEach(buyer => {
+        let buyerMonthSpend = 0;
+        if (Array.isArray(buyer.orderDetails)) {
+          buyer.orderDetails.forEach((o: any) => {
+            if (o.lastOrderDate && o.lastOrderDate.startsWith(monthKey)) {
+              buyerMonthSpend += parseCurrency(o.totalSpend);
+              totalBoxes += parseInt(o.totalOrders) || 0;
+            }
+          });
+        }
+        totalMonthlySpend += buyerMonthSpend;
+      });
+      const avgMonthlySpend = totalBuyers > 0 ? totalMonthlySpend / totalBuyers : 0;
+      // Avg. order frequency: average boxes per buyer per month
+      const avgOrderFreq = totalBuyers > 0 ? (totalBoxes / totalBuyers).toFixed(1) : '0.0';
+      return [
+        {
+          label: 'Total Buyers',
+          value: totalBuyers,
+          icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'Active Buyers',
+          value: activeBuyers,
+          icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'Monthly Buyer Spend',
+          value: 'Rp ' + avgMonthlySpend.toLocaleString('id-ID'),
+          icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'Avg. Order Frequency',
+          value: avgOrderFreq + '/mo',
+          icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+        }
+      ];
+    } else {
+      // Supplier stats
+      const totalSuppliers = data.length;
+      const activeSuppliers = data.filter(s => s.status === 'Active').length;
+      const monthKey = getCurrentMonth();
+      // Average monthly purchase value per supplier
+      let totalMonthlyValue = 0;
+      data.forEach(supplier => {
+        let supplierMonthValue = 0;
+        if (Array.isArray(supplier.supplies)) {
+          supplier.supplies.forEach((s: any) => {
+            if (s.lastDelivery && s.lastDelivery.startsWith(monthKey)) {
+              supplierMonthValue += parseCurrency(s.totalValue);
+            }
+          });
+        }
+        totalMonthlyValue += supplierMonthValue;
+      });
+      const avgMonthlyValue = totalSuppliers > 0 ? totalMonthlyValue / totalSuppliers : 0;
+      // On-time delivery rate: average of all suppliers' deliverySuccess (from logistics or supplies)
+      let deliverySuccessSum = 0, deliverySuccessCount = 0;
+      data.forEach(supplier => {
+        // Prefer logistics.deliverySuccess if present, else average from supplies
+        if (supplier.logistics && supplier.logistics.deliverySuccess !== undefined && supplier.logistics.deliverySuccess !== '') {
+          deliverySuccessSum += parseFloat(supplier.logistics.deliverySuccess);
+          deliverySuccessCount++;
+        } else if (Array.isArray(supplier.supplies)) {
+          supplier.supplies.forEach((s: any) => {
+            if (s.deliverySuccess !== undefined && s.deliverySuccess !== '') {
+              deliverySuccessSum += parseFloat(s.deliverySuccess);
+              deliverySuccessCount++;
+            }
+          });
+        }
+      });
+      const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
+      return [
+        {
+          label: 'Total Suppliers',
+          value: totalSuppliers,
+          icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'Active Suppliers',
+          value: activeSuppliers,
+          icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'Monthly Purchase Value',
+          value: 'Rp ' + avgMonthlyValue.toLocaleString('id-ID'),
+          icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+        },
+        {
+          label: 'On-time Delivery Rate',
+          value: onTimeRate + '%',
+          icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+        }
+      ];
+    }
+  }, [type, data]);
+
   return (
     <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
       {stats.map((stat, idx) => (

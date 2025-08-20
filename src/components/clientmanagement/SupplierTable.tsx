@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
+import { format } from 'date-fns';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -26,8 +27,12 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     ...Array.from(new Set(tableRows.map((s: any) => s.businessType)))
   ];
   const [filter, setFilter] = useState(uniqueBusinessTypes[0]);
-  const periodOptions = ["This Month", "Last Month"];
-  const [period, setPeriod] = useState(periodOptions[0]);
+  const today = new Date();
+  const thisMonthKey = format(today, 'yyyy-MM');
+  const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthKey = format(lastMonthDate, 'yyyy-MM');
+  const periodOptions = ["All Months", "This Month", "Last Month"];
+  const [period, setPeriod] = useState(periodOptions[1]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const router = useRouter();
@@ -38,6 +43,13 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   if (selectedTab !== "All") filteredSuppliers = filteredSuppliers.filter((s: any) => s.status === selectedTab);
   if (filter !== "All Business Types") filteredSuppliers = filteredSuppliers.filter((s: any) => s.businessType === filter);
   if (search) filteredSuppliers = filteredSuppliers.filter((s: any) => String(s.name).toLowerCase().includes(search.toLowerCase()));
+  if (period !== "All Months") {
+    const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
+    filteredSuppliers = filteredSuppliers.filter((s: any) => {
+      if (!s.createdAt) return false;
+      return s.createdAt.startsWith(periodKey);
+    });
+  }
   const totalRows = filteredSuppliers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedSuppliers = filteredSuppliers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
@@ -85,15 +97,16 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     setSupplierToDelete(null);
   };
   const handleExportXLSX = () => {
-    const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Last Delivery', 'Status'];
+    const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Created At', 'Status'];
     const rows = filteredSuppliers.map((s: any) => [
       s.supplierId,
       s.name,
       s.contact,
       s.businessType,
       s.address,
+      s.totalSupplies,
       s.totalPurchases,
-      s.lastDelivery,
+      s.createdAt,
       s.status
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -219,8 +232,9 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               <th className="py-3 px-4 font-medium uppercase">Contact Person</th>
               <th className="py-3 px-4 font-medium uppercase">Business Type</th>
               <th className="py-3 px-4 font-medium uppercase">Location</th>
+              <th className="py-3 px-4 font-medium uppercase">Total Supplies</th>
               <th className="py-3 px-4 font-medium uppercase">Total Purchases</th>
-              <th className="py-3 px-4 font-medium uppercase">Last Delivery</th>
+              <th className="py-3 px-4 font-medium uppercase">Created At</th>
               <th className="py-3 px-4 font-medium uppercase">Status</th>
               <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
             </tr>
@@ -233,8 +247,9 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 <td className="py-3 px-4 text-black">{String(supplier.contact)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.businessType)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.address)}</td>
+                <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(supplier.totalPurchases)}</td>
-                <td className="py-3 px-4 text-black">{String(supplier.lastDelivery)}</td>
+                <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
                 </td>
@@ -261,21 +276,30 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       <div className="md:hidden flex flex-col gap-4">
         {pagedSuppliers.map(supplier => (
           <div key={String(supplier.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
-            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{supplier.id}</span></div>
+            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{supplier.supplierId}</span></div>
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#0a61d7]">{supplier.name}</span>
+              <div className="flex items-center gap-2">
               <button
                 className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
                 onClick={() => handleView(supplier)}
               >
                 <Eye className="w-4 h-4 text-[#0a61d7]" />
               </button>
+              <button
+                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
+                onClick={() => handleDeleteClick(supplier)}
+              >
+                  <Trash className="w-4 h-4 text-red-500" />
+                </button>
+              </div>
             </div>
             <div className="text-xs text-gray-500">Contact: <span className="text-black font-medium">{supplier.contact}</span></div>
             <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{supplier.businessType}</span></div>
             <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">{supplier.address}</span></div>
+            <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
             <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{supplier.totalPurchases}</span></div>
-            <div className="text-xs text-gray-500">Last Delivery: <span className="text-black font-medium">{supplier.lastDelivery}</span></div>
+            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>
             </div>

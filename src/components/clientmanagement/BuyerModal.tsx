@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Trash } from 'lucide-react';
+import { Trash, User, Upload, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
@@ -55,6 +55,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+  const [avatar, setAvatar] = useState(initialData?.avatar || '');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && mode === 'edit' && initialData) {
@@ -85,6 +87,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             }))
           : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
       );
+      setAvatar(initialData.avatar || '');
     }
   }, [open, mode, initialData]);
 
@@ -98,6 +101,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       const isEdit = mode === 'edit';
       const payload: any = {
         ...form,
+        avatar,
         buyerId: id,
         orderDetails: orderRows,
         notes: form.notes.split(',').map((n: string) => n.trim()),
@@ -146,8 +150,48 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         </div>
       )}
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
+        <button
+          type="button"
+          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200 text-gray-500"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Buyer' : 'Add Buyer'}</h2>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
+          <div className="flex flex-col items-left mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-18 h-18 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden mb-2">
+                {avatar ? (
+                  <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-10 h-10 text-gray-400" />
+                )}
+              </div>
+              <button
+                type="button"
+                className="ml-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] flex items-center gap-1"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4" /> Upload Photo
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = ev => setAvatar(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id} onChange={e => setId(e.target.value)} required disabled />

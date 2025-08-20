@@ -1,10 +1,12 @@
 'use client';
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail } from "lucide-react";
+import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import SupplierModal from './SupplierModal';
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import ImportSuppliesModal from './ImportSuppliesModal';
 
 // Try require fallback for date-fns if import fails
 let parse: any, format: any;
@@ -77,6 +79,50 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
   const preferredDays = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.preferredDays : '';
   const lastDelivery = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.lastDelivery : '';
   const deliverySuccess = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.deliverySuccess : '';
+  const [supplyPage, setSupplyPage] = useState(1);
+  const supplyRowsPerPage = 5;
+  const totalSupplyRows = supplier.supplies.length;
+  const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
+  const pagedSupplies = supplier.supplies.slice((supplyPage - 1) * supplyRowsPerPage, supplyPage * supplyRowsPerPage);
+  const [showImportSupplies, setShowImportSupplies] = useState(false);
+
+  function handleExportSupplies() {
+    const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Delivery'];
+    const rows = (supplier.supplies || []).map((s: any) => [
+      s.sku,
+      s.product,
+      s.totalSupplied,
+      s.totalValue,
+      s.lastDelivery
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Supplies');
+    XLSX.writeFile(wb, `${supplier.name || 'supplier'}-supplies.xlsx`);
+  }
+  async function handleImportSupplies(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    const [headers, ...body] = rows;
+    const supplies = body.map((row: any) => ({
+      sku: row[0] || '',
+      product: row[1] || '',
+      totalSupplied: row[2] || '',
+      totalValue: row[3] || '',
+      lastDelivery: row[4] || ''
+    }));
+    // Save to backend (update supplier)
+    await fetch(`/api/suppliers`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...supplier, supplies })
+    });
+    window.location.reload();
+  }
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       {/* Header */}
@@ -172,14 +218,34 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
         </div>
       </div>
       {/* Second Row: Supplies/Product Data */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Supplies & Product Data</div>
+          <div className="flex gap-2">
+            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={() => setShowImportSupplies(true)}>
+              <Upload className="w-4 h-4" /> Import Supplies
+            </button>
+            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportSupplies}>
+              <Download className="w-4 h-4" /> Export Supplies
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-4 mb-2">
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Supplied: <span className="font-bold text-black">{totalSupplied}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Value: <span className="font-bold text-[#0a61d7]">{currency}{totalValue.toLocaleString()}</span></div>
-        </div>
+        {showImportSupplies && (
+          <ImportSuppliesModal
+            open={showImportSupplies}
+            onClose={() => setShowImportSupplies(false)}
+            onImport={async (newSupplies) => {
+              // Merge new supplies with existing ones instead of replacing
+              const mergedSupplies = [...(supplier.supplies || []), ...newSupplies];
+              await fetch(`/api/suppliers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...supplier, supplies: mergedSupplies })
+              });
+              window.location.reload();
+            }}
+          />
+        )}
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
@@ -193,18 +259,53 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               </tr>
             </thead>
             <tbody>
-              {supplier.supplies.map((supply: any, idx: number) => (
-                <tr key={idx} className="border-b last:border-b-0">
-                  <td className="py-2 px-4 font-medium text-black">{idx + 1}</td>
-                  <td className="py-2 px-4 font-medium text-black">{String(supply.sku)}</td>
-                  <td className="py-2 px-4 text-black">{String(supply.product)}</td>
-                  <td className="py-2 px-4 text-black">{String(supply.totalSupplied)}</td>
-                  <td className="py-2 px-4 text-[#0a61d7] font-semibold">{String(supply.totalValue)}</td>
-                  <td className="py-2 px-4 text-black">{String(supply.lastDelivery)}</td>
+              {pagedSupplies.map((supply: any, idx: number) => (
+                <tr key={idx + (supplyPage - 1) * supplyRowsPerPage} className="border-b last:border-b-0">
+                  <td className="py-4 px-4 font-medium text-black">{(supplyPage - 1) * supplyRowsPerPage + idx + 1}</td>
+                  <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
+                  <td className="py-4 px-4 text-black">{String(supply.product)}</td>
+                  <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{String(supply.totalValue)}</td>
+                  <td className="py-4 px-4 text-black">{String(supply.lastDelivery)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {/* Pagination Info and Controls */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
+            <div className="text-xs text-gray-500">
+              {`Showing ${(supplyPage - 1) * supplyRowsPerPage + (totalSupplyRows === 0 ? 0 : 1)} to ${Math.min(supplyPage * supplyRowsPerPage, totalSupplyRows)} of ${totalSupplyRows}`}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setSupplyPage(p => Math.max(1, p - 1))}
+                disabled={supplyPage === 1}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {Array.from({ length: totalSupplyPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                    p === supplyPage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setSupplyPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setSupplyPage(p => Math.min(totalSupplyPages, p + 1))}
+                disabled={supplyPage === totalSupplyPages}
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       {/* Third Row: Analytics */}
