@@ -146,7 +146,13 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Missing id or supplierId' }, { status: 400 });
     }
     
-    return NextResponse.json(supplier);
+    // Ensure we always return the supplierId for proper routing
+    const responseData = {
+      ...supplier,
+      supplierId: supplier.supplierId || supplierId
+    };
+    
+    return NextResponse.json(responseData);
   } catch (err) {
     console.error('PUT /api/suppliers error:', err);
     return NextResponse.json({ error: 'Failed to update supplier' }, { status: 500 });

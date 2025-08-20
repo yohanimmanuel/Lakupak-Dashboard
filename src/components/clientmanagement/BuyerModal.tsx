@@ -109,7 +109,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         shipmentSuccess: parsedLogistics.shipmentSuccess || '',
         notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
       });
-      setId(initialData.id || generateBuyerId());
+      setId(initialData.buyerId || generateBuyerId());
       setOrderRows(
         initialData?.orderDetails ? (() => {
           try {
@@ -166,10 +166,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed to save');
-      onSave(payload);
+      
+      const savedBuyer = await res.json();
+      onSave(savedBuyer);
+      
       if (isEdit) {
-        await globalMutate(`/api/buyers?id=${payload.buyerId}`);
-        router.push(`/clients/buyers/details/${payload.buyerId}`);
+        const routeId = savedBuyer.buyerId || payload.buyerId;
+        // Close modal first
+        onClose();
+        // Redirect to profile page
+        router.push(`/clients/buyers/details/${routeId}`);
+        // Force page reload to show updated data
+        setTimeout(() => window.location.reload(), 100);
       } else {
         onClose();
       }
@@ -182,13 +190,6 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      {/* Loading overlay */}
-      {(saving || redirecting) && (
-        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
-          <span className="loader mr-2"></span>
-          <span className="text-black font-semibold text-lg">Saving...</span>
-        </div>
-      )}
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
         <button
           type="button"

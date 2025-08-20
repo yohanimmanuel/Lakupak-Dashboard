@@ -61,7 +61,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     };
   });
   
-  const [id, setId] = useState(() => initialData?.id || generateSupplierId());
+  const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
   const [supplyRows, setSupplyRows] = useState<Array<{ sku: string; product: string; totalSupplied: string | number; totalValue: string; lastDelivery: string; status: string }>>(
     initialData?.supplies ? (() => {
       try {
@@ -73,6 +73,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           totalSupplied: row.totalSupplied || '',
           totalValue: row.totalValue || '',
           lastDelivery: row.lastDelivery || '',
+          status: row.status || statusOptions[0]
         })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
       } catch {
         return [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
@@ -124,10 +125,20 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed to save');
-      onSave(payload);
+      
+      const savedSupplier = await res.json();
+      onSave(savedSupplier);
+      
       if (isEdit) {
-        await globalMutate(`/api/suppliers?id=${payload.supplierId}`);
-        router.push(`/clients/suppliers/details/${payload.supplierId}`);
+          // Always use the business ID (supplierId) for routing, not the database ID
+          // This prevents the URL from changing from LKS-12345678 to 5 after editing
+        const routeId = savedSupplier.supplierId || payload.supplierId;
+        // Close modal first
+        onClose();
+        // Redirect to profile page
+        router.push(`/clients/suppliers/details/${routeId}`);
+        // Force page reload to show updated data
+        setTimeout(() => window.location.reload(), 100);
       } else {
         onClose();
       }
@@ -140,13 +151,6 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      {/* Loading overlay */}
-      {(saving || redirecting) && (
-        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-50">
-          <span className="loader mr-2"></span>
-          <span className="text-black font-semibold text-lg">Saving...</span>
-        </div>
-      )}
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}</h2>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">

@@ -156,7 +156,13 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Missing id or buyerId' }, { status: 400 });
     }
     
-    return NextResponse.json(buyer);
+    // Ensure we always return the buyerId for proper routing
+    const responseData = {
+      ...buyer,
+      buyerId: buyer.buyerId || buyerId
+    };
+    
+    return NextResponse.json(responseData);
   } catch (err) {
     console.error('PUT /api/buyers error:', err);
     return NextResponse.json({ error: 'Failed to update buyer' }, { status: 500 });

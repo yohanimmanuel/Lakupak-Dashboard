@@ -137,6 +137,11 @@ function convertToTargetCurrency(value: number, sourceCurrency: string, targetCu
   return rate ? value * rate : value;
 }
 
+// Helper function to round to nearest hundred thousand
+function roundToHundredThousand(value: number): number {
+  return Math.round(value / 100000) * 100000;
+}
+
 export default function Statcards({ type, data }: StatcardsProps) {
   const stats = useMemo(() => {
     if (type === 'buyer') {
@@ -192,7 +197,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Buyer Spend',
-          value: dominantCurrency + ' ' + avgMonthlySpend.toLocaleString('id-ID'),
+          value: dominantCurrency + ' ' + roundToHundredThousand(avgMonthlySpend).toLocaleString('id-ID'),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {
@@ -267,7 +272,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Purchase Value',
-          value: dominantCurrency + ' ' + avgMonthlyValue.toLocaleString('id-ID'),
+          value: dominantCurrency + ' ' + roundToHundredThousand(avgMonthlyValue).toLocaleString('id-ID'),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {
