@@ -1,55 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import path from 'path';
-import { ensureDbInitialized } from '../../../database/initDb';
+import { PrismaClient } from '../../../generated/prisma';
 
-const dbPath = path.resolve(process.cwd(), '.data/lakulaku.db');
-
-function parseSupplierJsonFields(supplier: any) {
-  if (!supplier) return supplier;
-  ['supplies', 'notes', 'logistics'].forEach(field => {
-    if (supplier[field] && typeof supplier[field] === 'string') {
-      try { supplier[field] = JSON.parse(supplier[field]); } catch { supplier[field] = []; }
-    }
-  });
-  return supplier;
-}
-
-function stringifySupplierJsonFields(data: any) {
-  const result = { ...data };
-  ['supplies', 'notes', 'logistics'].forEach(field => {
-    if (result[field] && typeof result[field] !== 'string') {
-      result[field] = JSON.stringify(result[field]);
-    }
-  });
-  return result;
-}
-
-async function getDb() {
-  return open({ filename: dbPath, driver: sqlite3.Database });
-}
+const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
-  await ensureDbInitialized();
   try {
-    const db = await getDb();
     const userId = req.nextUrl.searchParams.get('userId');
     if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    
     const id = req.nextUrl.searchParams.get('id');
     if (id) {
       let supplier;
       if (/^\d+$/.test(id)) {
-        supplier = await db.get('SELECT * FROM Supplier WHERE id = ? AND userId = ?', Number(id), userId);
+        supplier = await prisma.supplier.findFirst({
+          where: { id: Number(id), userId: Number(userId) }
+        });
       } else {
-        supplier = await db.get('SELECT * FROM Supplier WHERE supplierId = ? AND userId = ?', id, userId);
+        supplier = await prisma.supplier.findFirst({
+          where: { supplierId: id, userId: Number(userId) }
+        });
       }
-      supplier = parseSupplierJsonFields(supplier);
+      
       if (!supplier) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
       return NextResponse.json(supplier);
     }
-    const suppliers = await db.all('SELECT * FROM Supplier WHERE userId = ?', userId);
-    return NextResponse.json(suppliers.map(parseSupplierJsonFields));
+    
+    const suppliers = await prisma.supplier.findMany({
+      where: { userId: Number(userId) }
+    });
+    return NextResponse.json(suppliers);
   } catch (err) {
     console.error('GET /api/suppliers error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -57,19 +36,30 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureDbInitialized();
   try {
-    const db = await getDb();
     let data = await req.json();
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-    data = stringifySupplierJsonFields(data);
-    const keys = Object.keys(data);
-    const values = keys.map(k => data[k]);
-    const placeholders = keys.map(() => '?').join(',');
-    const sql = `INSERT INTO Supplier (${keys.join(',')}) VALUES (${placeholders})`;
-    const result = await db.run(sql, values);
-    let supplier = await db.get('SELECT * FROM Supplier WHERE id = ?', result.lastID);
-    supplier = parseSupplierJsonFields(supplier);
+    
+    // Clean and validate the data to match Prisma schema
+    const supplierData = {
+      supplierId: String(data.supplierId),
+      name: String(data.name),
+      contact: String(data.contact),
+      email: String(data.email),
+      phone: String(data.phone),
+      businessType: String(data.businessType),
+      address: String(data.address),
+      status: String(data.status),
+      logistics: data.logistics ? String(data.logistics) : null,
+      notes: data.notes ? String(data.notes) : null,
+      supplies: data.supplies ? String(data.supplies) : null,
+      userId: Number(data.userId)
+    };
+    
+    const supplier = await prisma.supplier.create({
+      data: supplierData
+    });
+    
     return NextResponse.json(supplier, { status: 201 });
   } catch (err) {
     console.error('POST /api/suppliers error:', err);
@@ -78,27 +68,41 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureDbInitialized();
   try {
-    const db = await getDb();
     const userId = req.nextUrl.searchParams.get('userId');
     if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    
     const id = req.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    
     let deleted;
-    let result;
     if (/^\d+$/.test(id)) {
-      deleted = await db.get('SELECT * FROM Supplier WHERE id = ? AND userId = ?', Number(id), userId);
-      result = await db.run('DELETE FROM Supplier WHERE id = ? AND userId = ?', Number(id), userId);
+      deleted = await prisma.supplier.findFirst({
+        where: { id: Number(id), userId: Number(userId) }
+      });
+      
+      if (!deleted) {
+        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+      }
+      
+      await prisma.supplier.delete({
+        where: { id: Number(id) }
+      });
     } else {
-      deleted = await db.get('SELECT * FROM Supplier WHERE supplierId = ? AND userId = ?', id, userId);
-      result = await db.run('DELETE FROM Supplier WHERE supplierId = ? AND userId = ?', id, userId);
+      deleted = await prisma.supplier.findFirst({
+        where: { supplierId: id, userId: Number(userId) }
+      });
+      
+      if (!deleted) {
+        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+      }
+      
+      await prisma.supplier.delete({
+        where: { supplierId: id }
+      });
     }
-    console.log('DELETE Supplier', { id, userId, deleted, changes: result?.changes });
-    if (result?.changes === 0) {
-      return NextResponse.json({ error: 'No record deleted. Check id and userId.' }, { status: 404 });
-    }
-    deleted = parseSupplierJsonFields(deleted);
+    
+    console.log('DELETE Supplier', { id, userId, deleted });
     return NextResponse.json({ success: true, deleted });
   } catch (err) {
     console.error('DELETE /api/suppliers error:', err);
@@ -107,28 +111,41 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureDbInitialized();
   try {
-    const db = await getDb();
     let data = await req.json();
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-    const { id, supplierId, userId, ...updateData } = stringifySupplierJsonFields(data);
-    const keys = Object.keys(updateData);
-    const values = keys.map(k => updateData[k]);
-    let where, whereVal;
+    
+    const { id, supplierId, userId, ...updateData } = data;
+    const userIdNum = Number(userId);
+    
+    // Clean the update data to ensure proper types
+    const cleanUpdateData: any = {};
+    if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
+    if (updateData.contact !== undefined) cleanUpdateData.contact = String(updateData.contact);
+    if (updateData.email !== undefined) cleanUpdateData.email = String(updateData.email);
+    if (updateData.phone !== undefined) cleanUpdateData.phone = String(updateData.phone);
+    if (updateData.businessType !== undefined) cleanUpdateData.businessType = String(updateData.businessType);
+    if (updateData.address !== undefined) cleanUpdateData.address = String(updateData.address);
+    if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
+    if (updateData.logistics !== undefined) cleanUpdateData.logistics = updateData.logistics ? String(updateData.logistics) : null;
+    if (updateData.notes !== undefined) cleanUpdateData.notes = updateData.notes ? String(updateData.notes) : null;
+    if (updateData.supplies !== undefined) cleanUpdateData.supplies = updateData.supplies ? String(updateData.supplies) : null;
+    
+    let supplier;
     if (id) {
-      where = 'id = ? AND userId = ?';
-      whereVal = [Number(id), userId];
+      supplier = await prisma.supplier.update({
+        where: { id: Number(id) },
+        data: cleanUpdateData
+      });
     } else if (supplierId) {
-      where = 'supplierId = ? AND userId = ?';
-      whereVal = [String(supplierId), userId];
+      supplier = await prisma.supplier.update({
+        where: { supplierId: supplierId },
+        data: cleanUpdateData
+      });
     } else {
       return NextResponse.json({ error: 'Missing id or supplierId' }, { status: 400 });
     }
-    const setClause = keys.map(k => `${k} = ?`).join(', ');
-    await db.run(`UPDATE Supplier SET ${setClause} WHERE ${where}`, ...values, ...whereVal);
-    let supplier = await db.get(`SELECT * FROM Supplier WHERE ${where}`, ...whereVal);
-    supplier = parseSupplierJsonFields(supplier);
+    
     return NextResponse.json(supplier);
   } catch (err) {
     console.error('PUT /api/suppliers error:', err);

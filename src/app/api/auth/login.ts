@@ -21,7 +21,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    return res.status(200).json({ id: user.id, name: user.name, email: user.email });
+    return res.status(200).json({ 
+      id: user.id, 
+      firstName: user.firstName, 
+      lastName: user.lastName, 
+      email: user.email,
+      company: user.company 
+    });
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error' });
   }

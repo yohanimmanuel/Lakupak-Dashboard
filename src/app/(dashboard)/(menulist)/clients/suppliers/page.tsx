@@ -23,18 +23,30 @@ function profileToTableRow(supplier: any) {
   let totalPurchases = 0;
   let currency = '';
   let totalSupplied = 0;
-  if (Array.isArray(supplier.supplies) && supplier.supplies.length > 0) {
-    supplier.supplies.forEach((s: any) => {
+  
+  // Parse supplies from string to array
+  const supplies = supplier.supplies ? (() => {
+    try {
+      return JSON.parse(supplier.supplies);
+    } catch {
+      return [];
+    }
+  })() : [];
+  
+  if (Array.isArray(supplies) && supplies.length > 0) {
+    supplies.forEach((s: any) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
       const match = (s.totalValue || '').toString().match(/^([^-\d]*)/);
       if (match && match[1] && !currency) currency = match[1];
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
-    totalSupplied = supplier.supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
+    totalSupplied = supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
   }
+  
   // Format number with thousands separator and currency, ensure space after Rp
   const formattedCurrency = (currency || 'Rp').trim() + ' ';
   const formattedTotalPurchases = formattedCurrency + totalPurchases.toLocaleString('id-ID');
+  
   return {
     id: supplier.id,
     supplierId: supplier.supplierId,
@@ -60,12 +72,61 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(false);
   const user = useUserStore(state => state.user);
 
+  // Utility function to calculate monthly averages (same logic as SupplierProfile)
+  const calculateMonthlyAverages = (supplies: any[]) => {
+    if (!supplies || supplies.length === 0) {
+      return { avgMonthlyPurchaseValue: 0, avgMonthlySupplied: 0 };
+    }
+    
+    // Calculate total purchase value and supplied
+    let totalPurchaseValue = 0;
+    let totalSupplied = 0;
+    
+    supplies.forEach((supply: any) => {
+      totalPurchaseValue += parseInt((supply.totalValue || '0').toString().replace(/[^\d]/g, '')) || 0;
+      totalSupplied += parseInt(supply.totalSupplied) || 0;
+    });
+    
+    // Extract unique months from delivery dates
+    const uniqueMonths = new Set();
+    supplies.forEach((supply: any) => {
+      if (supply.lastDelivery) {
+        const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+        uniqueMonths.add(monthKey);
+      }
+    });
+    
+    const monthCount = uniqueMonths.size;
+    
+    // Calculate averages (same logic as SupplierProfile)
+    const avgMonthlyPurchaseValue = monthCount > 0 ? Math.round(totalPurchaseValue / monthCount) : 0;
+    const avgMonthlySupplied = monthCount > 0 ? Math.round(totalSupplied / monthCount) : 0;
+    
+    return { avgMonthlyPurchaseValue, avgMonthlySupplied };
+  };
+
   const fetchSuppliers = async () => {
     if (!user?.id) return;
     setLoading(true);
     const res = await fetch(`/api/suppliers?userId=${user.id}`);
     const data = await res.json();
-    setSuppliers(Array.isArray(data) ? data : []);
+    const suppliersData = Array.isArray(data) ? data : [];
+    
+    // Calculate monthly analytics for each supplier
+    const suppliersWithAnalytics = suppliersData.map(supplier => {
+      const supplies = supplier.supplies ? JSON.parse(supplier.supplies) : [];
+      
+      // Calculate monthly averages using the same logic as SupplierProfile
+      const { avgMonthlyPurchaseValue, avgMonthlySupplied } = calculateMonthlyAverages(supplies);
+      
+      return {
+        ...supplier,
+        avgMonthlyPurchaseValue,
+        avgMonthlySupplied
+      };
+    });
+    
+    setSuppliers(suppliersWithAnalytics);
     setLoading(false);
   };
 
@@ -89,7 +150,8 @@ export default function SuppliersPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">Suppliers List</h2>
-          <p className="text-sm text-gray-500 mb-2">Manage your suppliers and their information.</p>
+          <p className="text-sm text-gray-500 mb-4">Manage your suppliers and their information.</p>
+          <p className="text-xs text-gray-500 italic">Note: Currencies must be standardized for accurate statistics.</p>
         </div>
         <div className="flex gap-2 items-center">
           <button
@@ -139,13 +201,13 @@ export default function SuppliersPage() {
               address: supplier['Address'] || '-',
               status: supplier['Status'] || '-',
               createdAt: supplier['Created At'] || new Date().toISOString(),
-              logistics: {
+              logistics: JSON.stringify({
                 preferredDays: supplier['Preferred Delivery Days'] || '-',
                 lastDelivery: supplier['Last Delivery'] || '-',
                 deliverySuccess: supplier['Delivery Success'] || '-',
-              },
-              notes: supplier['Notes'] ? [supplier['Notes']] : [],
-              supplies: supplier.supplies || [],
+              }),
+              notes: JSON.stringify(supplier['Notes'] ? [supplier['Notes']] : []),
+              supplies: JSON.stringify(supplier.supplies || []),
               userId: user.id,
             };
             await fetch('/api/suppliers', {

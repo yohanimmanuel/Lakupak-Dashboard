@@ -18,35 +18,88 @@ try {
   // fallback to import if available
 }
 
-function getBuyerAnalytics(orderDetails: any[]) {
-  // Group by month (MMM yyyy)
-  const map: { [month: string]: { orders: number; spending: number } } = {};
-  orderDetails.forEach((order: any) => {
-    if (!order.lastOrderDate) return;
-    const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
-    const monthKey = format(date, 'MMM yyyy');
-    const totalOrders = Number(order.totalOrders) || 0;
-    // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
-    const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
-    if (!map[monthKey]) map[monthKey] = { orders: 0, spending: 0 };
-    map[monthKey].orders += totalOrders;
-    map[monthKey].spending += spending;
-  });
-  // Sort months chronologically
-  const months = Object.keys(map).sort((a, b) => {
-    const dA = parse(a, 'MMM yyyy', new Date());
-    const dB = parse(b, 'MMM yyyy', new Date());
-    return dA.getTime() - dB.getTime();
-  });
-  return months.map((month) => ({
-    month,
-    orders: map[month].orders,
-    spending: map[month].spending,
-  }));
+function getBuyerAnalytics(orderDetailsStr: string) {
+  if (!orderDetailsStr) return [];
+  
+  try {
+    const orderDetails = JSON.parse(orderDetailsStr);
+    if (!Array.isArray(orderDetails)) return [];
+    
+    // Group by month (MMM yyyy)
+    const map: { [month: string]: { orders: number; spending: number } } = {};
+    orderDetails.forEach((order: any) => {
+      if (!order.lastOrderDate) return;
+      const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
+      const monthKey = format(date, 'MMM yyyy');
+      const totalOrders = Number(order.totalOrders) || 0;
+      // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
+      const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
+      if (!map[monthKey]) map[monthKey] = { orders: 0, spending: 0 };
+      map[monthKey].orders += totalOrders;
+      map[monthKey].spending += spending;
+    });
+    // Sort months chronologically
+    const months = Object.keys(map).sort((a, b) => {
+      const dA = parse(a, 'MMM yyyy', new Date());
+      const dB = parse(b, 'MMM yyyy', new Date());
+      return dA.getTime() - dB.getTime();
+    });
+    return months.map((month) => ({
+      month,
+      orders: map[month].orders,
+      spending: map[month].spending,
+    }));
+  } catch (error) {
+    console.error('Error parsing orderDetails:', error);
+    return [];
+  }
 }
 
 export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportOrders, setShowImportOrders] = useState(false);
+  
+  console.log('BuyerProfile - Raw buyer data:', buyer);
+  
+  // Parse orderDetails and notes from strings to arrays
+  const orderDetails = buyer.orderDetails ? (() => {
+    try {
+      console.log('BuyerProfile - Parsing orderDetails:', buyer.orderDetails);
+      const parsed = JSON.parse(buyer.orderDetails);
+      console.log('BuyerProfile - Parsed orderDetails:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('BuyerProfile - Error parsing orderDetails:', error);
+      return [];
+    }
+  })() : [];
+  
+  const notes = buyer.notes ? (() => {
+    try {
+      console.log('BuyerProfile - Parsing notes:', buyer.notes);
+      const parsed = JSON.parse(buyer.notes);
+      console.log('BuyerProfile - Parsed notes:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('BuyerProfile - Error parsing notes:', error);
+      return [];
+    }
+  })() : [];
+  
+  const logistics = buyer.logistics ? (() => {
+    try {
+      console.log('BuyerProfile - Parsing logistics:', buyer.logistics);
+      const parsed = JSON.parse(buyer.logistics);
+      console.log('BuyerProfile - Parsed logistics:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('BuyerProfile - Error parsing logistics:', error);
+      return {};
+    }
+  })() : {};
+  
+  console.log('BuyerProfile - Final parsed data:', { orderDetails, notes, logistics });
+  
   const handleCopy = () => {
     let text = '';
     text += `ID: ${buyer.id}\n`;
@@ -58,36 +111,36 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
     text += `Address: ${buyer.address}\n`;
     text += `Status: ${buyer.status}\n`;
     text += `Created At: ${buyer.createdAt}\n`;
-    text += `Preferred Delivery Days: ${buyer.logistics?.preferredDays || ''}\n`;
-    text += `Last Shipment: ${buyer.logistics?.lastShipment || ''}\n`;
-    text += `Shipment Success: ${buyer.logistics?.shipmentSuccess || ''}\n`;
-    text += `Notes: ${(buyer.notes || []).join(', ')}\n`;
+    text += `Preferred Delivery Days: ${logistics?.preferredDays || ''}\n`;
+    text += `Last Shipment: ${logistics?.lastShipment || ''}\n`;
+    text += `Shipment Success: ${logistics?.shipmentSuccess || ''}\n`;
+    text += `Notes: ${notes.join(', ')}\n`;
     text += `\nOrder & Product Details:\n`;
-    for (const row of buyer.orderDetails) {
+    for (const row of orderDetails) {
       text += `- Order No: ${row.orderNo}, Product: ${row.product}, Total Orders: ${row.totalOrders}, Total Spend: ${row.totalSpend}, Last Order Date: ${row.lastOrderDate}, Outstanding: ${row.outstanding}\n`;
     }
     navigator.clipboard.writeText(text);
   };
-  const analyticsData = getBuyerAnalytics(buyer?.orderDetails || []);
-  const totalOrders = buyer.orderDetails?.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
+  
+  const analyticsData = getBuyerAnalytics(buyer?.orderDetails || '');
+  const totalOrders = orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
   let totalSpend = 0;
   let currency = '';
-  buyer.orderDetails?.forEach((o: any) => {
+  orderDetails.forEach((o: any) => {
     const match = (o.totalSpend || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
     totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
   });
-  const totalOutstanding = buyer.orderDetails?.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
+  const totalOutstanding = orderDetails.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
   const [orderPage, setOrderPage] = useState(1);
   const orderRowsPerPage = 5;
-  const totalOrderRows = buyer.orderDetails.length;
+  const totalOrderRows = orderDetails.length;
   const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
-  const pagedOrderDetails = buyer.orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
-  const [showImportOrders, setShowImportOrders] = useState(false);
+  const pagedOrderDetails = orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
 
   function handleExportOrders() {
     const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
-    const rows = (buyer.orderDetails || []).map((o: any) => [
+    const rows = orderDetails.map((o: any) => [
       o.product,
       o.totalOrders,
       o.totalSpend,
@@ -99,29 +152,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
     XLSX.utils.book_append_sheet(wb, ws, 'Orders');
     XLSX.writeFile(wb, `${buyer.storeName || 'buyer'}-orders.xlsx`);
   }
-  async function handleImportOrders(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-    const [headers, ...body] = rows;
-    const orderDetails = body.map((row: any) => ({
-      product: row[0] || '',
-      totalOrders: row[1] || '',
-      totalSpend: row[2] || '',
-      lastOrderDate: row[3] || '',
-      outstanding: row[4] || ''
-    }));
-    // Save to backend (update buyer)
-    await fetch(`/api/buyers`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...buyer, orderDetails })
-    });
-    window.location.reload();
-  }
+
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
@@ -193,17 +224,17 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{buyer.logistics?.preferredDays || ''}</span>
+              <span className="font-semibold text-black">{logistics?.preferredDays || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Shipment:</span>
-              <span className="font-semibold text-black">{buyer.logistics?.lastShipment || ''}</span>
+              <span className="font-semibold text-black">{logistics?.lastShipment || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Shipment Success:</span>
-              <span className="font-semibold text-black">{buyer.logistics?.shipmentSuccess || ''}</span>
+              <span className="font-semibold text-black">{logistics?.shipmentSuccess || ''}</span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
@@ -219,7 +250,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
-              {buyer.notes.map((note: string, i: number) => (
+              {notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
             </div>
@@ -245,12 +276,21 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
             onClose={() => setShowImportOrders(false)}
             onImport={async (newOrderDetails) => {
               // Merge new orders with existing ones instead of replacing
-              const mergedOrderDetails = [...(buyer.orderDetails || []), ...newOrderDetails];
+              const mergedOrderDetails = [...orderDetails, ...newOrderDetails];
+              
+              // Update the buyer with merged order details
               await fetch(`/api/buyers`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...buyer, orderDetails: mergedOrderDetails })
+                body: JSON.stringify({ 
+                  ...buyer, 
+                  orderDetails: JSON.stringify(mergedOrderDetails),
+                  userId: buyer.userId 
+                })
               });
+              
+              // Close modal and refresh the page to show updated data
+              setShowImportOrders(false);
               window.location.reload();
             }}
           />
@@ -326,6 +366,75 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
       {/* Third Row: Analytics */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="font-semibold text-black mb-2">Analytics</div>
+        
+        {/* Analytics Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          
+          {/* Monthly Orders Analytics */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Orders Analytics</div>
+            <div className="text-xs text-gray-600">
+              <div>Total Monthly Orders: <span className="font-medium">{totalOrders}</span></div>
+              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+                // Extract unique months from order dates
+                const uniqueMonths = new Set();
+                orderDetails.forEach((order: any) => {
+                  if (order.lastOrderDate) {
+                    const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                return uniqueMonths.size;
+              })()}</span></div>
+              <div className="pt-2">Average Monthly Orders: <span className="font-semibold text-blue-500">{(() => {
+                // Extract unique months from order dates
+                const uniqueMonths = new Set();
+                orderDetails.forEach((order: any) => {
+                  if (order.lastOrderDate) {
+                    const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                const monthCount = uniqueMonths.size;
+                return monthCount > 0 ? Math.round(totalOrders / monthCount) : 0;
+              })()}</span></div>
+            </div>
+          </div>
+
+          
+          {/* Monthly Spending Analytics */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Spending Analytics</div>
+            <div className="text-xs text-gray-600">
+              <div>Total Monthly Spending: <span className="font-medium">{currency}{totalSpend.toLocaleString()}</span></div>
+              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+                // Extract unique months from order dates
+                const uniqueMonths = new Set();
+                orderDetails.forEach((order: any) => {
+                  if (order.lastOrderDate) {
+                    const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                return uniqueMonths.size;
+              })()}</span></div>
+              <div className="pt-2">Average Monthly Spending: <span className="font-semibold text-green-500">{currency}{(() => {
+                // Extract unique months from order dates
+                const uniqueMonths = new Set();
+                orderDetails.forEach((order: any) => {
+                  if (order.lastOrderDate) {
+                    const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                const monthCount = uniqueMonths.size;
+                return monthCount > 0 ? Math.round(totalSpend / monthCount).toLocaleString() : 0;
+              })()}</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all orders details are added/completed.</p>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 border border-gray-200 rounded-lg p-4  ">
             <div className="text-sm text-gray-500 mb-2">Total Orders Per Month</div>

@@ -136,3 +136,5 @@ dist
 .pnp.*
 
 /src/generated/prisma
+
+/src/generated/prisma

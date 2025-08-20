@@ -17,35 +17,88 @@ try {
   // fallback to import if available
 }
 
-function getSupplierAnalytics(supplies: any[]) {
-  // Group by month (MMM yyyy)
-  const map: { [month: string]: { supplied: number; value: number } } = {};
-  supplies.forEach(function(supply: any) {
-    if (!supply.lastDelivery) return;
-    const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
-    const monthKey = format(date, 'MMM yyyy');
-    const totalSupplied = Number(supply.totalSupplied) || 0;
-    // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
-    const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
-    if (!map[monthKey]) map[monthKey] = { supplied: 0, value: 0 };
-    map[monthKey].supplied += totalSupplied;
-    map[monthKey].value += value;
-  });
-  // Sort months chronologically
-  const months = Object.keys(map).sort((a, b) => {
-    const dA = parse(a, 'MMM yyyy', new Date());
-    const dB = parse(b, 'MMM yyyy', new Date());
-    return dA.getTime() - dB.getTime();
-  });
-  return months.map((month) => ({
-    month,
-    supplied: map[month].supplied,
-    value: map[month].value,
-  }));
+function getSupplierAnalytics(suppliesStr: string) {
+  if (!suppliesStr) return [];
+  
+  try {
+    const supplies = JSON.parse(suppliesStr);
+    if (!Array.isArray(supplies)) return [];
+    
+    // Group by month (MMM yyyy)
+    const map: { [month: string]: { supplied: number; value: number } } = {};
+    supplies.forEach(function(supply: any) {
+      if (!supply.lastDelivery) return;
+      const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
+      const monthKey = format(date, 'MMM yyyy');
+      const totalSupplied = Number(supply.totalSupplied) || 0;
+      // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
+      const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
+      if (!map[monthKey]) map[monthKey] = { supplied: 0, value: 0 };
+      map[monthKey].supplied += totalSupplied;
+      map[monthKey].value += value;
+    });
+    // Sort months chronologically
+    const months = Object.keys(map).sort((a, b) => {
+      const dA = parse(a, 'MMM yyyy', new Date());
+      const dB = parse(b, 'MMM yyyy', new Date());
+      return dA.getTime() - dB.getTime();
+    });
+    return months.map((month) => ({
+      month,
+      supplied: map[month].supplied,
+      value: map[month].value,
+    }));
+  } catch (error) {
+    console.error('Error parsing supplies:', error);
+    return [];
+  }
 }
 
 export default function SupplierProfile({ supplier, onClose }: { supplier: any; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportSupplies, setShowImportSupplies] = useState(false);
+  
+  console.log('SupplierProfile - Raw supplier data:', supplier);
+  
+  // Parse supplies and notes from strings to arrays
+  const supplies = supplier.supplies ? (() => {
+    try {
+      console.log('SupplierProfile - Parsing supplies:', supplier.supplies);
+      const parsed = JSON.parse(supplier.supplies);
+      console.log('SupplierProfile - Parsed supplies:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('SupplierProfile - Error parsing supplies:', error);
+      return [];
+    }
+  })() : [];
+  
+  const notes = supplier.notes ? (() => {
+    try {
+      console.log('SupplierProfile - Parsing notes:', supplier.notes);
+      const parsed = JSON.parse(supplier.notes);
+      console.log('SupplierProfile - Parsed notes:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('SupplierProfile - Error parsing notes:', error);
+      return [];
+    }
+  })() : [];
+  
+  const logistics = supplier.logistics ? (() => {
+    try {
+      console.log('SupplierProfile - Parsing logistics:', supplier.logistics);
+      const parsed = JSON.parse(supplier.logistics);
+      console.log('SupplierProfile - Parsed logistics:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('SupplierProfile - Error parsing logistics:', error);
+      return {};
+    }
+  })() : {};
+  
+  console.log('SupplierProfile - Final parsed data:', { supplies, notes, logistics });
+  
   const handleCopy = () => {
     let text = '';
     text += `ID: ${supplier.id}\n`;
@@ -57,38 +110,36 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
     text += `Address: ${supplier.address}\n`;
     text += `Status: ${supplier.status}\n`;
     text += `Created At: ${supplier.createdAt}\n`;
-    text += `Preferred Delivery Days: ${supplier.logistics?.preferredDays || ''}\n`;
-    text += `Last Delivery: ${supplier.logistics?.lastDelivery || ''}\n`;
-    text += `Delivery Success: ${supplier.logistics?.deliverySuccess || ''}\n`;
-    text += `Notes: ${(supplier.notes || []).join(', ')}\n`;
+    text += `Preferred Delivery Days: ${logistics?.preferredDays || ''}\n`;
+    text += `Last Delivery: ${logistics?.lastDelivery || ''}\n`;
+    text += `Delivery Success: ${logistics?.deliverySuccess || ''}\n`;
+    text += `Notes: ${notes.join(', ')}\n`;
     text += `\nSupplies & Product Data:\n`;
-    for (const row of supplier.supplies) {
+    for (const row of supplies) {
       text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Total Supplied: ${row.totalSupplied}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
     }
     navigator.clipboard.writeText(text);
   };
-  const analyticsData = getSupplierAnalytics(supplier.supplies || []);
-  const totalSupplied = supplier.supplies?.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
+  
+  const analyticsData = getSupplierAnalytics(supplier.supplies || '');
+  const totalSupplied = supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
   let totalValue = 0;
   let currency = '';
-  supplier.supplies?.forEach((s: any) => {
+  supplies.forEach((s: any) => {
     const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
     totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
   });
-  const preferredDays = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.preferredDays : '';
-  const lastDelivery = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.lastDelivery : '';
-  const deliverySuccess = supplier.logistics && typeof supplier.logistics === 'object' ? supplier.logistics.deliverySuccess : '';
+  
   const [supplyPage, setSupplyPage] = useState(1);
   const supplyRowsPerPage = 5;
-  const totalSupplyRows = supplier.supplies.length;
+  const totalSupplyRows = supplies.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
-  const pagedSupplies = supplier.supplies.slice((supplyPage - 1) * supplyRowsPerPage, supplyPage * supplyRowsPerPage);
-  const [showImportSupplies, setShowImportSupplies] = useState(false);
+  const pagedSupplies = supplies.slice((supplyPage - 1) * supplyRowsPerPage, supplyPage * supplyRowsPerPage);
 
   function handleExportSupplies() {
     const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Delivery'];
-    const rows = (supplier.supplies || []).map((s: any) => [
+    const rows = supplies.map((s: any) => [
       s.sku,
       s.product,
       s.totalSupplied,
@@ -100,29 +151,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
     XLSX.utils.book_append_sheet(wb, ws, 'Supplies');
     XLSX.writeFile(wb, `${supplier.name || 'supplier'}-supplies.xlsx`);
   }
-  async function handleImportSupplies(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-    const [headers, ...body] = rows;
-    const supplies = body.map((row: any) => ({
-      sku: row[0] || '',
-      product: row[1] || '',
-      totalSupplied: row[2] || '',
-      totalValue: row[3] || '',
-      lastDelivery: row[4] || ''
-    }));
-    // Save to backend (update supplier)
-    await fetch(`/api/suppliers`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...supplier, supplies })
-    });
-    window.location.reload();
-  }
+
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
       {/* Header */}
@@ -184,17 +213,17 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{preferredDays}</span>
+              <span className="font-semibold text-black">{logistics?.preferredDays || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Delivery:</span>
-              <span className="font-semibold text-black">{lastDelivery}</span>
+              <span className="font-semibold text-black">{logistics?.lastDelivery || ''}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Delivery Success:</span>
-              <span className="font-semibold text-black">{deliverySuccess}</span>
+              <span className="font-semibold text-black">{logistics?.deliverySuccess || ''}</span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
@@ -210,7 +239,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             </div>
             <div className="text-xs gap-2 mt-2">
               <span className="text-gray-500 mr-2.5">Notes:</span>
-              {supplier.notes.map((note: string, i: number) => (
+              {notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
             </div>
@@ -236,16 +265,34 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             onClose={() => setShowImportSupplies(false)}
             onImport={async (newSupplies) => {
               // Merge new supplies with existing ones instead of replacing
-              const mergedSupplies = [...(supplier.supplies || []), ...newSupplies];
+              const mergedSupplies = [...supplies, ...newSupplies];
+              
+              // Update the supplier with merged supplies
               await fetch(`/api/suppliers`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...supplier, supplies: mergedSupplies })
+                body: JSON.stringify({ 
+                  ...supplier, 
+                  supplies: JSON.stringify(mergedSupplies),
+                  userId: supplier.userId 
+                })
               });
+              
+              // Close modal and refresh the page to show updated data
+              setShowImportSupplies(false);
               window.location.reload();
             }}
           />
         )}
+        {/* Summary Statistics */}
+        <div className="flex flex-wrap gap-4 mb-4">
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
+            Total Supplied: <span className="font-bold text-black">{totalSupplied}</span>
+          </div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
+            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{currency}{totalValue.toLocaleString()}</span>
+          </div>
+        </div>
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
@@ -311,6 +358,72 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
       {/* Third Row: Analytics */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="font-semibold text-black mb-2">Analytics</div>
+        
+        {/* Analytics Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Monthly Purchase Analytics */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Purchase Analytics</div>
+            <div className="text-xs text-gray-600">
+              <div>Total Monthly Purchase Value: <span className="font-medium">{currency}{totalValue.toLocaleString()}</span></div>
+              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+                // Extract unique months from delivery dates
+                const uniqueMonths = new Set();
+                supplies.forEach((supply: any) => {
+                  if (supply.lastDelivery) {
+                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                return uniqueMonths.size;
+              })()}</span></div>
+              <div className="pt-2">Average Monthly Purchase: <span className="font-semibold text-green-500">{currency}{(() => {
+                // Extract unique months from delivery dates
+                const uniqueMonths = new Set();
+                supplies.forEach((supply: any) => {
+                  if (supply.lastDelivery) {
+                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                const monthCount = uniqueMonths.size;
+                return monthCount > 0 ? Math.round(totalValue / monthCount).toLocaleString() : 0;
+              })()}</span></div>
+            </div>
+          </div>
+          
+          {/* Monthly Supplied Analytics */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Supplied Analytics</div>
+            <div className="text-xs text-gray-600">
+              <div>Total Monthly Supplied: <span className="font-medium">{totalSupplied}</span></div>
+              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+                // Extract unique months from delivery dates
+                const uniqueMonths = new Set();
+                supplies.forEach((supply: any) => {
+                  if (supply.lastDelivery) {
+                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                return uniqueMonths.size;
+              })()}</span></div>
+              <div className="pt-2">Average Monthly Supplied: <span className="font-semibold text-blue-500">{(() => {
+                // Extract unique months from delivery dates
+                const uniqueMonths = new Set();
+                supplies.forEach((supply: any) => {
+                  if (supply.lastDelivery) {
+                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                    uniqueMonths.add(monthKey);
+                  }
+                });
+                const monthCount = uniqueMonths.size;
+                return monthCount > 0 ? Math.round(totalSupplied / monthCount) : 0;
+              })()}</span></div>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all supplies details are added/completed.</p>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 border border-gray-200 rounded-lg p-4">
             <div className="text-sm text-gray-500 mb-2">Total Supplied Per Month</div>

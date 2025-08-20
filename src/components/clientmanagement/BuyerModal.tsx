@@ -16,36 +16,67 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   onClose: () => void;
   onSave: (data: any) => void;
   initialData?: any;
-  mode?: 'add' | 'edit';
+  mode?: 'edit';
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [form, setForm] = useState(() => initialData ? {
-    storeName: initialData.storeName || '',
-    owner: initialData.owner || '',
-    phone: initialData.phone || '',
-    email: initialData.email || '',
-    address: initialData.address || '',
-    businessType: initialData.businessType || '',
-    status: initialData.status || statusOptions[0],
-    createdAt: initialData.createdAt || '',
-    preferredDays: initialData.logistics?.preferredDays || '',
-    lastShipment: initialData.logistics?.lastShipment || '',
-    shipmentSuccess: initialData.logistics?.shipmentSuccess || '',
-    notes: initialData.notes ? initialData.notes.join(', ') : '',
-  } : {
-    storeName: '', owner: '', phone: '', email: '', address: '', businessType: '', status: statusOptions[0], createdAt: '', preferredDays: '', lastShipment: '', shipmentSuccess: '', notes: '',
+  
+  // Helper function to safely parse JSON strings
+  const safeParseJSON = (jsonStr: string, fallback: any) => {
+    if (!jsonStr) return fallback;
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return fallback;
+    }
+  };
+  
+  const [form, setForm] = useState(() => {
+    if (!initialData) {
+      return {
+        storeName: '', owner: '', phone: '', email: '', address: '', businessType: '', 
+        status: statusOptions[0], createdAt: '', preferredDays: '', lastShipment: '', 
+        shipmentSuccess: '', notes: '',
+      };
+    }
+    
+    // Parse JSON strings from database
+    const parsedNotes = safeParseJSON(initialData.notes, []);
+    const parsedLogistics = safeParseJSON(initialData.logistics, {});
+    
+    return {
+      storeName: initialData.storeName || '',
+      owner: initialData.owner || '',
+      phone: initialData.phone || '',
+      email: initialData.email || '',
+      address: initialData.address || '',
+      businessType: initialData.businessType || '',
+      status: initialData.status || statusOptions[0],
+      createdAt: initialData.createdAt || '',
+      preferredDays: parsedLogistics.preferredDays || '',
+      lastShipment: parsedLogistics.lastShipment || '',
+      shipmentSuccess: parsedLogistics.shipmentSuccess || '',
+      notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
+    };
   });
+  
   const [id, setId] = useState(() => initialData?.id || generateBuyerId());
   const [orderRows, setOrderRows] = useState<Array<{ orderNo: string; product: string; totalOrders: string | number; totalSpend: string; lastOrderDate: string; outstanding: string }>>(
-    initialData?.orderDetails?.length ? initialData.orderDetails.map((row: any) => ({
-      orderNo: row.orderNo || '',
-      product: row.product || '',
-      totalOrders: row.totalOrders || '',
-      totalSpend: row.totalSpend || '',
-      lastOrderDate: row.lastOrderDate || '',
-      outstanding: row.outstanding || '',
-    })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+    initialData?.orderDetails ? (() => {
+      try {
+        const parsed = JSON.parse(initialData.orderDetails);
+        return Array.isArray(parsed) ? parsed.map((row: any) => ({
+          orderNo: row.orderNo || '',
+          product: row.product || '',
+          totalOrders: row.totalOrders || '',
+          totalSpend: row.totalSpend || '',
+          lastOrderDate: row.lastOrderDate || '',
+          outstanding: row.outstanding || '',
+        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+      } catch {
+        return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+      }
+    })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
   );
   const handleOrderChange = (idx: number, field: string, value: string) => {
     setOrderRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
@@ -60,6 +91,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
 
   useEffect(() => {
     if (open && mode === 'edit' && initialData) {
+      // Parse JSON strings from database
+      const parsedNotes = safeParseJSON(initialData.notes, []);
+      const parsedLogistics = safeParseJSON(initialData.logistics, {});
+      
       setForm({
         storeName: initialData.storeName || '',
         owner: initialData.owner || '',
@@ -69,23 +104,28 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         businessType: initialData.businessType || '',
         status: initialData.status || statusOptions[0],
         createdAt: initialData.createdAt || '',
-        preferredDays: initialData.logistics?.preferredDays || '',
-        lastShipment: initialData.logistics?.lastShipment || '',
-        shipmentSuccess: initialData.logistics?.shipmentSuccess || '',
-        notes: initialData.notes ? initialData.notes.join(', ') : '',
+        preferredDays: parsedLogistics.preferredDays || '',
+        lastShipment: parsedLogistics.lastShipment || '',
+        shipmentSuccess: parsedLogistics.shipmentSuccess || '',
+        notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
       });
       setId(initialData.id || generateBuyerId());
       setOrderRows(
-        initialData?.orderDetails?.length
-          ? initialData.orderDetails.map((row: any) => ({
+        initialData?.orderDetails ? (() => {
+          try {
+            const parsed = JSON.parse(initialData.orderDetails);
+            return Array.isArray(parsed) ? parsed.map((row: any) => ({
               orderNo: row.orderNo || '',
               product: row.product || '',
               totalOrders: row.totalOrders || '',
               totalSpend: row.totalSpend || '',
               lastOrderDate: row.lastOrderDate || '',
               outstanding: row.outstanding || '',
-            }))
-          : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+            })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+          } catch {
+            return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+          }
+        })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
       );
       setAvatar(initialData.avatar || '');
     }
@@ -103,14 +143,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         ...form,
         avatar,
         buyerId: id,
-        orderDetails: orderRows,
-        notes: form.notes.split(',').map((n: string) => n.trim()),
+        orderDetails: JSON.stringify(orderRows),
+        notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString(),
-        logistics: {
+        logistics: JSON.stringify({
           preferredDays: form.preferredDays,
           lastShipment: form.lastShipment ? new Date(form.lastShipment).toISOString() : undefined,
           shipmentSuccess: form.shipmentSuccess
-        },
+        }),
         userId: user?.id,
       };
       if (isEdit && initialData && typeof initialData.id === 'number') {

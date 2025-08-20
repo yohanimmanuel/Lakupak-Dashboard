@@ -17,36 +17,67 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   onClose: () => void;
   onSave: (data: any) => void;
   initialData?: any;
-  mode?: 'add' | 'edit';
+  mode?: 'edit';
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [form, setForm] = useState(() => initialData ? {
-    supplierName: initialData.name || initialData.supplierName || '',
-    contact: initialData.contact || '',
-    phone: initialData.phone || '',
-    email: initialData.email || '',
-    businessType: initialData.businessType || '',
-    address: initialData.address || '',
-    status: initialData.status || statusOptions[0],
-    createdAt: initialData.createdAt || '',
-    preferredDays: initialData.logistics?.preferredDays || '',
-    lastDelivery: initialData.logistics?.lastDelivery || '',
-    deliverySuccess: initialData.logistics?.deliverySuccess || '',
-    notes: initialData.notes ? initialData.notes.join(', ') : '',
-  } : {
-    supplierName: '', contact: '', phone: '', email: '', businessType: '', address: '', status: statusOptions[0], createdAt: '', preferredDays: '', lastDelivery: '', deliverySuccess: '', notes: '',
+  
+  // Helper function to safely parse JSON strings
+  const safeParseJSON = (jsonStr: string, fallback: any) => {
+    if (!jsonStr) return fallback;
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return fallback;
+    }
+  };
+  
+  const [form, setForm] = useState(() => {
+    if (!initialData) {
+      return {
+        supplierName: '', contact: '', phone: '', email: '', businessType: '', address: '', 
+        status: statusOptions[0], createdAt: '', preferredDays: '', lastDelivery: '', 
+        deliverySuccess: '', notes: '',
+      };
+    }
+    
+    // Parse JSON strings from database
+    const parsedNotes = safeParseJSON(initialData.notes, []);
+    const parsedLogistics = safeParseJSON(initialData.logistics, {});
+    
+    return {
+      supplierName: initialData.name || initialData.supplierName || '',
+      contact: initialData.contact || '',
+      phone: initialData.phone || '',
+      email: initialData.email || '',
+      businessType: initialData.businessType || '',
+      address: initialData.address || '',
+      status: initialData.status || statusOptions[0],
+      createdAt: initialData.createdAt || '',
+      preferredDays: parsedLogistics.preferredDays || '',
+      lastDelivery: parsedLogistics.lastDelivery || '',
+      deliverySuccess: parsedLogistics.deliverySuccess || '',
+      notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
+    };
   });
+  
   const [id, setId] = useState(() => initialData?.id || generateSupplierId());
   const [supplyRows, setSupplyRows] = useState<Array<{ sku: string; product: string; totalSupplied: string | number; totalValue: string; lastDelivery: string; status: string }>>(
-    initialData?.supplies?.length ? initialData.supplies.map((row: any) => ({
-      suppliesno: row.suppliesno || '',
-      sku: row.sku || '',
-      product: row.product || '',
-      totalSupplied: row.totalSupplied || '',
-      totalValue: row.totalValue || '',
-      lastDelivery: row.lastDelivery || '',
-    })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
+    initialData?.supplies ? (() => {
+      try {
+        const parsed = JSON.parse(initialData.supplies);
+        return Array.isArray(parsed) ? parsed.map((row: any) => ({
+          suppliesno: row.suppliesno || '',
+          sku: row.sku || '',
+          product: row.product || '',
+          totalSupplied: row.totalSupplied || '',
+          totalValue: row.totalValue || '',
+          lastDelivery: row.lastDelivery || '',
+        })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
+      } catch {
+        return [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
+      }
+    })() : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
   );
   const handleSupplyChange = (idx: number, field: string, value: string) => {
     setSupplyRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
@@ -69,14 +100,14 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         ...form,
         supplierId: id,
         name: form.supplierName,
-        supplies: supplyRows,
-        notes: form.notes.split(',').map((n: string) => n.trim()),
+        supplies: JSON.stringify(supplyRows),
+        notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString(),
-        logistics: {
+        logistics: JSON.stringify({
           preferredDays: form.preferredDays,
           lastDelivery: form.lastDelivery ? new Date(form.lastDelivery).toISOString() : undefined,
           deliverySuccess: form.deliverySuccess
-        },
+        }),
         userId: user?.id,
       };
       if (isEdit && initialData && typeof initialData.id === 'number') {

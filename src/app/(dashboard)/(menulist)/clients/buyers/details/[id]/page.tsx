@@ -24,6 +24,8 @@ export default function BuyerDetailsPage() {
     { revalidateOnFocus: true }
   );
 
+  console.log('BuyerDetailsPage - SWR data:', { buyer, error, isLoading, id, userId: user?.id });
+
   if (!user?.id || !id) return null;
   if (isLoading) return <div className="p-4">Loading...</div>;
   if (error) return <div className="p-4 text-red-500">{error.message || 'Error loading buyer'}</div>;
