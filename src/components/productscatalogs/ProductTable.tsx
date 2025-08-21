@@ -98,6 +98,10 @@ export default function ProductTable() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   
+  // Modal state for delete confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteAction, setDeleteAction] = useState<'remove' | 'publish' | 'unpublish' | null>(null);
+  
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -183,27 +187,44 @@ export default function ProductTable() {
   };
 
   const handleBulkPublish = () => {
-    console.log('Bulk publishing products:', selectedProducts);
-    // In a real app, this would call an API to publish multiple products
-    // For now, just show a success message
-    alert(`Successfully published ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} to marketplace!`);
-    setSelectedProducts([]); // Clear selection after publishing
+    setDeleteAction('publish');
+    setShowDeleteModal(true);
   };
 
   const handleBulkUnpublish = () => {
-    console.log('Bulk unpublishing products:', selectedProducts);
-    // In a real app, this would call an API to unpublish multiple products
-    // For now, just show a success message
-    alert(`Successfully unpublished ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} from marketplace!`);
-    setSelectedProducts([]); // Clear selection after unpublishing
+    setDeleteAction('unpublish');
+    setShowDeleteModal(true);
   };
 
   const handleBulkRemove = () => {
-    console.log('Bulk removing products:', selectedProducts);
-    // In a real app, this would call an API to remove multiple products
-    // For now, just show a success message
-    alert(`Successfully removed ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} from the system!`);
-    setSelectedProducts([]); // Clear selection after removing
+    setDeleteAction('remove');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteAction) return;
+    
+    // In a real app, this would call an API to perform the action
+    switch (deleteAction) {
+      case 'publish':
+        alert(`Successfully published ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} to marketplace!`);
+        break;
+      case 'unpublish':
+        alert(`Successfully unpublished ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} from marketplace!`);
+        break;
+      case 'remove':
+        alert(`Successfully removed ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'} from the system!`);
+        break;
+    }
+    
+    setSelectedProducts([]); // Clear selection after action
+    setShowDeleteModal(false);
+    setDeleteAction(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteAction(null);
   };
 
   return (
@@ -867,6 +888,55 @@ export default function ProductTable() {
           </button>
         </div>
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {deleteAction === 'remove' ? 'Delete Products' : 
+               deleteAction === 'publish' ? 'Publish Products' : 'Unpublish Products'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {deleteAction === 'remove' 
+                ? `Are you sure you want to delete ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}? This action cannot be undone.`
+                : deleteAction === 'publish'
+                ? `Are you sure you want to publish ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}?`
+                : `Are you sure you want to unpublish ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}?`
+              }
+            </p>
+            {deleteAction === 'remove' && (
+              <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                <strong>Note:</strong> Deleting products will remove them from publication in the marketplace.
+              </p>
+            )}
+            {deleteAction === 'unpublish' && (
+              <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                <strong>Note:</strong> Unpublishing products will remove them from the marketplace but keep them in your system.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 ${
+                  deleteAction === 'remove' ? 'bg-red-600 hover:bg-red-700' :
+                  deleteAction === 'publish' ? 'bg-green-600 hover:bg-green-700' :
+                  'bg-orange-600 hover:bg-orange-700'
+                }`}
+                onClick={handleDeleteConfirm}
+              >
+                {deleteAction === 'remove' ? 'Delete' : 
+                 deleteAction === 'publish' ? 'Publish' : 'Unpublish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
