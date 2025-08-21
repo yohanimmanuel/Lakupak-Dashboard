@@ -37,7 +37,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 7;
+  const rowsPerPage = 8;
   let filteredBuyers = buyersList;
   if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: any) => b.status === selectedTab);
   if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: any) => b.businessType === filter);
@@ -271,7 +271,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 </td>
                 <td className="py-3 px-4 text-center">
                   <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition mr-1"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition mr-1"
                     onClick={() => handleView(buyer)}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
@@ -297,13 +297,13 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
               <div className="flex items-center gap-2">
               <button
-                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
+                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
                 onClick={() => handleView(buyer)}
               >
                 <Eye className="w-4 h-4 text-[#0a61d7]" />
               </button>
               <button
-                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-[#e6e6e6] transition"
+                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition"
                 onClick={() => handleDeleteClick(buyer)}
               >
                 <Trash className="w-4 h-4 text-red-500" />

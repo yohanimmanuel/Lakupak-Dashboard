@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { useMemo } from 'react';
 
 /**
@@ -302,9 +302,9 @@ export default function Statcards({ type, data }: StatcardsProps) {
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             {stat.trend.up ? (
-              <ArrowUpRight className="w-5 h-5 text-[#3ea73b]" />
+              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             ) : (
-              <ArrowDownRight className="w-5 h-5 text-[#f65911]" />
+              <TrendingDown className="w-5 h-5 text-[#f65911]" />
             )}
             <span className={stat.trend.up ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
               {stat.trend.percent}
