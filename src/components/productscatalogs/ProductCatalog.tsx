@@ -74,6 +74,8 @@ export default function ProductCatalog({
 
   const [selectedSizes, setSelectedSizes] = useState<string[]>(product?.sizes || []);
   const [selectedGender, setSelectedGender] = useState<string>(product?.gender || 'Men');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const categories = ['Foods', 'Beverages', 'Electronics', 'Machineries', 'Household', 'Beauty', 'Fashion', 'Jacket'];
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -99,6 +101,97 @@ export default function ProductCatalog({
   const handleGenderChange = (gender: string) => {
     setSelectedGender(gender);
     setFormData(prev => ({ ...prev, gender: gender as 'Men' | 'Woman' | 'Unisex' }));
+  };
+
+  const handleImageUpload = (files: FileList) => {
+    setUploadingImages(true);
+    
+    // Convert files to data URLs for preview
+    const newImages: string[] = [];
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    const maxImages = 5;
+    
+    // Validate total image count first
+    if (formData.images.length + files.length > maxImages) {
+      alert(`Maximum ${maxImages} images allowed. You currently have ${formData.images.length} images. Please remove some images first.`);
+      setUploadingImages(false);
+      return;
+    }
+    
+    Array.from(files).forEach((file) => {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert(`File "${file.name}" is not an image. Please select only image files.`);
+        return;
+      }
+      
+      // Validate file size
+      if (file.size > maxFileSize) {
+        alert(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          newImages.push(e.target.result as string);
+          if (newImages.length === files.length) {
+            setFormData(prev => ({
+              ...prev,
+              images: [...prev.images, ...newImages]
+            }));
+            setUploadingImages(false);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleImageUpload(files);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleImageUpload(files);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    if (index < 0 || index >= formData.images.length) return;
+    const newImages = formData.images.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, images: newImages }));
+  };
+
+  const reorderImages = (fromIndex: number, toIndex: number) => {
+    setFormData(prev => {
+      const newImages = [...prev.images];
+      const [movedImage] = newImages.splice(fromIndex, 1);
+      newImages.splice(toIndex, 0, movedImage);
+      return { ...prev, images: newImages };
+    });
+  };
+
+  const clearAllImages = () => {
+    setFormData(prev => ({ ...prev, images: [] }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -129,9 +222,9 @@ export default function ProductCatalog({
               <button
                 type="submit"
                 form="product-form"
-                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center gap-2 px-6 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-5 h-5" />
                 Add Product
               </button>
             </>
@@ -140,9 +233,8 @@ export default function ProductCatalog({
             <button
               type="submit"
               form="product-form"
-              className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
-              <Save className="w-4 h-4" />
               Update Product
             </button>
           )}
@@ -151,7 +243,7 @@ export default function ProductCatalog({
               onClick={() => onCancel?.()}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
               Close
             </button>
           )}
@@ -333,37 +425,135 @@ export default function ProductCatalog({
             </h2>
             
             <div className="space-y-4">
-              {/* Main Image */}
-              <div className="w-full h-110 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                {formData.images.length > 0 ? (
-                  <img 
-                    src={formData.images[0]} 
-                    alt="Main product" 
-                    className="w-full h-full object-cover rounded-lg"
-                  />
+              {/* Main Image Upload Area */}
+              <div 
+                className={`w-full h-110 bg-gray-100 rounded-lg border-2 border-dashed transition-colors ${
+                  isDragOver 
+                    ? 'border-[#0a61d7] bg-blue-50' 
+                    : 'border-gray-300'
+                } flex items-center justify-center relative overflow-hidden`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                  {formData.images.length > 0 ? (
+                  <div className="relative w-full h-full">
+                    <img 
+                      src={formData.images[0]} 
+                      alt="Main product" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    {!isViewMode && (
+                      <button
+                        type="button"
+                        onClick={() => removeImage(0)}
+                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">Click to upload main product image</p>
+                    <Upload className={`w-12 h-12 mx-auto mb-2 ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-400'}`} />
+                    <p className={`font-medium ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-500'}`}>
+                      {isDragOver ? 'Drop images here' : 'Drag & drop or click to upload'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Supports: JPG, PNG, GIF (Max 5MB)</p>
+                  </div>
+                )}
+                
+                {/* Hidden file input for click upload */}
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileInput}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={isViewMode}
+                />
+              </div>
+              
+              {/* Thumbnail Images */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {formData.images.slice(1).map((image, index) => (
+                  <div 
+                    key={index} 
+                    className="relative w-28 h-28 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden cursor-move hover:shadow-md transition-shadow"
+                    draggable={!isViewMode}
+                    onDragStart={(e) => {
+                      if (!isViewMode) {
+                        e.dataTransfer.setData('text/plain', String(index + 1));
+                      }
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      if (!isViewMode) {
+                        e.preventDefault();
+                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        const toIndex = index + 1;
+                        reorderImages(fromIndex, toIndex);
+                      }
+                    }}
+                  >
+                    <img src={image} alt={`Product ${index + 2}`} className="w-full h-full object-cover" />
+                    {!isViewMode && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index + 1)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 w-6 h-6 bg-gray-800 bg-opacity-70 text-white text-xs rounded-full flex items-center justify-center">
+                          {index + 2}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                
+                {/* Add more images button */}
+                {!isViewMode && formData.images.length < 5 && (
+                  <div className="relative">
+                    <div className="w-28 h-28 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-[#0a61d7] transition-colors">
+                      <Plus className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileInput}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
                   </div>
                 )}
               </div>
               
-              {/* Thumbnail Images */}
-              <div className="flex items-center gap-3">
-                {formData.images.slice(1).map((image, index) => (
-                  <div key={index} className="w-28 h-28 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden">
-                    <img src={image} alt={`Product ${index + 2}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-                {!isViewMode && (
-                  <button
-                    type="button"
-                    className="w-28 h-28 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-[#0a61d7] transition-colors"
-                  >
-                    <Plus className="w-6 h-6 text-gray-400" />
-                  </button>
-                )}
+              {/* Upload Progress */}
+              {uploadingImages && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-[#0a61d7] rounded-full animate-spin"></div>
+                  <span>Uploading images...</span>
+                </div>
+              )}
+              {/* Image Count Info and Actions */}
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  {formData.images.length}/5 images uploaded
+                </div>
+                <div className="flex items-center gap-2">
+                  {!isViewMode && formData.images.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearAllImages}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

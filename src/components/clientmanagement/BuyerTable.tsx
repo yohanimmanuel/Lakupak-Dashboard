@@ -57,25 +57,65 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [buyerToDelete, setBuyerToDelete] = useState<any>(null);
-
-  const handleDeleteClick = (buyer: any) => {
-    setBuyerToDelete(buyer);
-    setShowDeleteModal(true);
-  };
-
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
+  
   const handleDeleteConfirm = async () => {
-    if (!buyerToDelete || !user?.id) return;
-    const res = await fetch(`/api/buyers?id=${buyerToDelete.id}&userId=${user.id}`, { method: 'DELETE' });
-    if (res.ok && setBuyers) {
-      setBuyers(prev => prev.filter(b => b.buyerId !== buyerToDelete.buyerId));
+    if (!user?.id) return;
+    
+    if (isBulkDelete) {
+      // Bulk delete - delete all selected buyers
+      for (const buyerId of selectedBuyers) {
+        const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
+        if (buyer) {
+          const res = await fetch(`/api/buyers?id=${buyer.buyerId}&userId=${user.id}`, { method: 'DELETE' });
+          if (res.ok && setBuyers) {
+            setBuyers(prev => prev.filter(b => b.buyerId !== buyer.buyerId));
+          }
+        }
+      }
+      setSelectedBuyers([]); // Clear selection after deleting
+    } else {
+      // Single delete - delete one buyer
+      if (!buyerToDelete) return;
+      const res = await fetch(`/api/buyers?id=${buyerToDelete.buyerId}&userId=${user.id}`, { method: 'DELETE' });
+      if (res.ok && setBuyers) {
+        setBuyers(prev => prev.filter(b => b.buyerId !== buyerToDelete.buyerId));
+      }
+      setBuyerToDelete(null);
     }
+    
     setShowDeleteModal(false);
-    setBuyerToDelete(null);
+    setIsBulkDelete(false);
   };
 
   const handleDeleteCancel = () => {
     setShowDeleteModal(false);
     setBuyerToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+
+
+  const handleBuyerSelect = (buyerId: string) => {
+    setSelectedBuyers(prev => 
+      prev.includes(buyerId) 
+        ? prev.filter(id => id !== buyerId)
+        : [...prev, buyerId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedBuyers.length === pagedBuyers.length) {
+      setSelectedBuyers([]);
+    } else {
+      setSelectedBuyers(pagedBuyers.map(buyer => String(buyer.id)));
+    }
+  };
+
+  const handleBulkRemove = () => {
+    setIsBulkDelete(true);
+    setShowDeleteModal(true);
   };
 
 
@@ -239,10 +279,88 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Bar */}
+      {selectedBuyers.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+          {/* Mobile Layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center text-sm font-semibold text-white">
+                  {selectedBuyers.length}
+                </div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedBuyers.length === 1 ? 'buyer' : 'buyers'} selected
+                </span>
+              </div>
+            </div>
+            <div className="text-white text-xs font-semibold leading-relaxed">
+              {selectedBuyers.length === 1 
+                ? 'Select buyer to remove from the system.'
+                : 'Select buyers to remove from the system.'
+              }
+            </div>
+            <button
+              onClick={handleBulkRemove}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Trash className="w-4 h-4" />
+              {selectedBuyers.length === 1 ? 'Remove Buyer' : 'Remove Selected'}
+            </button>
+          </div>
+          
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div className="text-white flex items-center justify-center text-sm font-semibold">
+                  {selectedBuyers.length}
+                </div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedBuyers.length === 1 ? 'buyer' : 'buyers'} selected
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-white text-xs md:text-sm font-semibold">
+                {selectedBuyers.length === 1 
+                  ? 'Select buyer to remove from the system. '
+                  : 'Select buyers to remove from the system. '
+                }
+              </span>
+              <button
+                onClick={handleBulkRemove}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash className="w-4 h-4" />
+                {selectedBuyers.length === 1 ? 'Remove Buyer' : 'Remove Selected'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto hidden md:block rounded-lg">
         <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
           <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
             <tr>
+              <th className="py-3 px-4 font-medium uppercase">
+                <button
+                  onClick={handleSelectAll}
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
+                      ? 'bg-green-500 border-green-500'
+                      : 'bg-white border-gray-300 hover:border-green-400'
+                  }`}
+                >
+                  {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              </th>
               <th className="py-3 px-4 font-medium uppercase">ID</th>
               <th className="py-3 px-4 font-medium uppercase">Name</th>
               <th className="py-3 px-4 font-medium uppercase">Address</th>
@@ -258,9 +376,25 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           <tbody className="bg-white">
             {pagedBuyers.map((buyer: any) => (
               <tr key={String(buyer.id)} className="border-b transition">
+                <td className="py-3 px-4 text-xs">
+                  <button
+                    onClick={() => handleBuyerSelect(String(buyer.id))}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      selectedBuyers.includes(String(buyer.id))
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {selectedBuyers.includes(String(buyer.id)) && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </td>
                 <td className="py-3 px-4 font-medium text-black">{String(buyer.buyerId)}</td>
-                <td className="py-3 px-4 font-medium text-black">{String(buyer.name)}</td>
-                <td className="py-3 px-4 text-black w-20 truncate">{String(buyer.address)}</td>
+                <td className="max-w-40 py-3 px-4 font-medium text-black truncate">{String(buyer.name)}</td>
+                <td className="py-3 px-4 text-black max-w-50 truncate">{String(buyer.address)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(buyer.totalSpend)}</td>
@@ -271,16 +405,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 </td>
                 <td className="py-3 px-4 text-center">
                   <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition mr-1"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
                     onClick={() => handleView(buyer)}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
-                  </button>
-                  <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition"
-                    onClick={() => handleDeleteClick(buyer)}
-                  >
-                    <Trash className="w-4 h-4 text-red-500" />
                   </button>
                 </td>
               </tr>
@@ -289,9 +417,49 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </table>
       </div>
       {/* Mobile Cards */}
-      <div className="md:hidden flex flex-col gap-4">
+      <div className="md:hidden">
+        {/* Select All for Mobile View */}
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            onClick={handleSelectAll}
+            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+              selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
+                ? 'bg-green-500 border-green-500'
+                : 'bg-white border-gray-300 hover:border-green-400'
+            }`}
+          >
+            {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
+              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+          <span className="text-sm font-medium text-gray-700">
+            Select All ({pagedBuyers.length} buyers)
+          </span>
+        </div>
+        
+        <div className="flex flex-col gap-4">
         {pagedBuyers.map(buyer => (
-          <div key={String(buyer.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+          <div key={String(buyer.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 relative">
+            {/* Checkbox - Top Right Corner */}
+            <div className="absolute top-3 right-3 z-10">
+              <button
+                onClick={() => handleBuyerSelect(String(buyer.id))}
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  selectedBuyers.includes(String(buyer.id))
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
+              >
+                {selectedBuyers.includes(String(buyer.id)) && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            
             <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
@@ -301,12 +469,6 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 onClick={() => handleView(buyer)}
               >
                 <Eye className="w-4 h-4 text-[#0a61d7]" />
-              </button>
-              <button
-                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition"
-                onClick={() => handleDeleteClick(buyer)}
-              >
-                <Trash className="w-4 h-4 text-red-500" />
               </button>
               </div>
             </div>
@@ -321,6 +483,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </div>
           </div>
         ))}
+        </div>
       </div>
       {/* Pagination */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
@@ -364,8 +527,15 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
-            <h2 className="text-lg font-bold mb-2 text-red-500">Delete Buyer</h2>
-            <p className="mb-4 text-gray-500">Are you sure you want to delete this buyer? This action cannot be undone.</p>
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? 'Delete Buyers' : 'Delete Buyer'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {isBulkDelete 
+                ? `Are you sure you want to delete ${selectedBuyers.length} buyer${selectedBuyers.length === 1 ? '' : 's'}? This action cannot be undone.`
+                : 'Are you sure you want to delete this buyer? This action cannot be undone.'
+              }
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"

@@ -66,8 +66,8 @@ const mockProducts = [
 
 const statusTabs = [
   { label: "All" },
-  { label: "Published" },
   { label: "Draft" },
+  { label: "Published" },
 ];
 
 const stockFilters = [
@@ -355,11 +355,11 @@ export default function ProductTable() {
 
       {/* Bulk Action Bar */}
       {selectedProducts.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 border border-blue-200 rounded-lg p-3 md:p-4 mb-2">
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <div className="text-white flex items-center justify-center text-sm font-semibold">
                     {selectedProducts.length}
                 </div>
@@ -369,8 +369,8 @@ export default function ProductTable() {
               </div>
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
-              {selectedTab === "All" && "Select products to remove from the system. 😉"}
-              {selectedTab === "Published" && "Select products to unpublish or remove from the system. 😉"}
+              {selectedTab === "All" && "Select products to remove from the system."}
+              {selectedTab === "Published" && "Select products to unpublish or remove from the system."}
               {(selectedTab === "Draft" || selectedTab === "Inactive") && "Your product will be published in our B2B Marketplace Mobile app. 😉"}
             </div>
                           <div className="flex gap-2">
@@ -428,7 +428,7 @@ export default function ProductTable() {
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <div className="text-white flex items-center justify-center text-sm font-semibold">
                   {selectedProducts.length}
                 </div>
@@ -439,8 +439,8 @@ export default function ProductTable() {
             </div>
             <div className="flex items-center gap-4">
                              <span className="text-white text-xs md:text-sm font-semibold">
-                 {selectedTab === "All" && "Select products to remove from the system. 😉"}
-                 {selectedTab === "Published" && "Select products to unpublish or remove from the system. 😉"}
+                 {selectedTab === "All" && "Select products to remove from the system."}
+                 {selectedTab === "Published" && "Select products to unpublish or remove from the system."}
                  {(selectedTab === "Draft" || selectedTab === "Inactive") && "Your product will be published in our B2B Marketplace Mobile app. 😉"}
                </span>
                               <div className="flex gap-2">
@@ -529,7 +529,7 @@ export default function ProductTable() {
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Selling Price</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Last Updated</th>
-               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Actions</th>
+               <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -590,15 +590,14 @@ export default function ProductTable() {
                   </span>
                 </td>
                 <td className="py-3 px-4 text-xs text-gray-700">{format(new Date(product.lastUpdated), 'MMM dd, yyyy')}</td>
-                <td className="py-3 px-4 text-xs">
-                  <div className="flex items-center gap-2">
+                <td className="py-3 px-4 text-xs text-center">
+                  <div className="flex items-center justify-center">
                     <button
                       onClick={() => handleEdit(product)}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
                     >
                       <Eye className="w-4 h-4 text-[#0a61d7]" />
                     </button>
-                    
                   </div>
                 </td>
               </tr>

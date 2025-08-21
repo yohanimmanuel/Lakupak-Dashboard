@@ -152,7 +152,7 @@ export default function BuyersPage() {
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">Buyers List</h2>
           <p className="text-sm text-gray-500 mb-4">Manage your buyers and their information.</p>
-          <p className="text-xs text-gray-500 italic">Note: Currencies must be standardized for accurate statistics.</p>
+          <p className="text-xs text-gray-500 italic">Note: Please use the same currency for all buyers to ensure accurate statistics.</p>
         </div>
         <div className="flex gap-2 items-center">
           <button

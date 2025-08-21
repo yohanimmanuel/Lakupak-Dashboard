@@ -151,7 +151,7 @@ export default function SuppliersPage() {
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">Suppliers List</h2>
           <p className="text-sm text-gray-500 mb-4">Manage your suppliers and their information.</p>
-          <p className="text-xs text-gray-500 italic">Note: Currencies must be standardized for accurate statistics.</p>
+          <p className="text-xs text-gray-500 italic">Note: Please use the same currency for all suppliers to ensure accurate statistics.</p>
         </div>
         <div className="flex gap-2 items-center">
           <button
