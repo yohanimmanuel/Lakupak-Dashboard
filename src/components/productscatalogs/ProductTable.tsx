@@ -3,6 +3,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff } from "lucide-react";
 import { format } from 'date-fns';
+import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 
 // Mock data for demonstration
 const mockProducts = [
@@ -102,6 +103,10 @@ export default function ProductTable() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteAction, setDeleteAction] = useState<'remove' | 'publish' | 'unpublish' | null>(null);
   
+  // Modal state for product marketplace publication preview
+  const [showProductMarketplacePubs, setShowProductMarketplacePubs] = useState(false);
+  const [selectedProductForPub, setSelectedProductForPub] = useState<any>(null);
+
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -199,6 +204,27 @@ export default function ProductTable() {
     setShowDeleteModal(true);
   };
 
+  const handlePreviewProductMarketplace = (product: any) => {
+    setSelectedProductForPub(product);
+    setShowProductMarketplacePubs(true);
+  };
+
+  // Dynamically determine which buttons to show based on selected products' statuses
+  const getDynamicButtons = () => {
+    if (selectedProducts.length === 0) return { canPublish: false, canUnpublish: false, canRemove: true };
+    
+    const selectedProductData = pagedProducts.filter(product => selectedProducts.includes(product.id));
+    const hasDraft = selectedProductData.some(product => product.status === 'Draft');
+    const hasPublished = selectedProductData.some(product => product.status === 'Published');
+    const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
+    
+    return {
+      canPublish: hasDraft || hasInactive,
+      canUnpublish: hasPublished,
+      canRemove: true
+    };
+  };
+
   const handleBulkUnpublish = () => {
     setDeleteAction('unpublish');
     setShowDeleteModal(true);
@@ -256,7 +282,10 @@ export default function ProductTable() {
               <button
                 key={tab.label}
                 ref={el => { tabRefs.current[idx] = el; }}
-                onClick={() => setSelectedTab(tab.label)}
+                onClick={() => {
+                  setSelectedTab(tab.label);
+                  setSelectedProducts([]); // Reset selection when switching tabs
+                }}
                 className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label
                     ? 'text-white'
@@ -397,61 +426,66 @@ export default function ProductTable() {
                 </span>
               </div>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">
-              {selectedTab === "All" && "Select products to be removed."}
-              {selectedTab === "Published" && "Select products to be unpublished or removed."}
-              {(selectedTab === "Draft" || selectedTab === "Inactive") && "Your product will be published in our B2B Marketplace Mobile app. 😉"}
+                        <div className="text-white text-xs font-semibold leading-relaxed">
+              {(() => {
+                const buttons = getDynamicButtons();
+                if (buttons.canPublish && buttons.canUnpublish) {
+                  return "Mixed product statuses selected. Only removal is allowed for safety.";
+                } else if (buttons.canPublish) {
+                  return "Your product will be published in our B2B Marketplace Mobile app. 😉";
+                } else if (buttons.canUnpublish) {
+                  return "Select products to be unpublished or removed.";
+                } else {
+                  return "Select products to be removed.";
+                }
+              })()}
             </div>
-                          <div className="flex gap-2">
-                {/* Show different buttons based on selected filter */}
-                {selectedTab === "All" && (
-                  <button
-                    onClick={() => handleBulkRemove()}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Trash className="w-4 h-4 text-white" />
-                    Remove
-                  </button>
-                )}
+            <div className="flex gap-2">
+              {(() => {
+                const buttons = getDynamicButtons();
+                const buttonElements = [];
                 
-                {selectedTab === "Published" && (
-                  <>
+                if (buttons.canPublish && !buttons.canUnpublish) {
+                  // Only draft/inactive products - show publish and remove
+                  buttonElements.push(
                     <button
+                      key="publish"
+                      onClick={() => handlePreviewProductMarketplace(pagedProducts[0])}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                    >
+                      <Zap className="w-4 h-4 text-white" />
+                      Publish
+                    </button>
+                  );
+                } else if (buttons.canUnpublish && !buttons.canPublish) {
+                  // Only published products - show unpublish and remove
+                  buttonElements.push(
+                    <button
+                      key="unpublish"
                       onClick={() => handleBulkUnpublish()}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                     >
                       <EyeOff className="w-4 h-4 text-white" />
                       Unpublish
                     </button>
-                    <button
-                      onClick={() => handleBulkRemove()}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      <Trash className="w-4 h-4 text-white" />
-                      Remove
-                    </button>
-                  </>
-                )}
+                  );
+                }
                 
-                {(selectedTab === "Draft" || selectedTab === "Inactive") && (
-                  <>
-                    <button
-                      onClick={() => handleBulkPublish()}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-                    >
-                      <Zap className="w-4 h-4 text-white" />
-                      Publish
-                    </button>
-                    <button
-                      onClick={() => handleBulkRemove()}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      <Trash className="w-4 h-4 text-white" />
-                      Remove
-                    </button>
-                  </>
-                )}
-              </div>
+                // Always show remove button
+                buttonElements.push(
+                  <button
+                    key="remove"
+                    onClick={() => handleBulkRemove()}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash className="w-4 h-4 text-white" />
+                    Remove
+                  </button>
+                );
+                
+                return buttonElements;
+              })()}
+            </div>
           </div>
           
           {/* Desktop Layout */}
@@ -466,62 +500,67 @@ export default function ProductTable() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-                             <span className="text-white text-xs md:text-sm font-semibold">
-                 {selectedTab === "All" && "Select products to remove from the system."}
-                 {selectedTab === "Published" && "Select products to unpublish or remove from the system."}
-                 {(selectedTab === "Draft" || selectedTab === "Inactive") && "Your product will be published in our B2B Marketplace Mobile app. 😉"}
-               </span>
-                              <div className="flex gap-2">
-                  {/* Show different buttons based on selected filter */}
-                  {selectedTab === "All" && (
-                    <button
-                      onClick={() => handleBulkRemove()}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      <Trash className="w-4 h-4 text-white" />
-                      Remove
-                    </button>
-                  )}
+                        <div className="flex items-center gap-4">
+              <span className="text-white text-xs md:text-sm font-semibold">
+                {(() => {
+                  const buttons = getDynamicButtons();
+                  if (buttons.canPublish && buttons.canUnpublish) {
+                    return "Mixed product statuses selected. Only removal is allowed for safety.";
+                  } else if (buttons.canPublish) {
+                    return "Your product will be published in our B2B Marketplace Mobile app. 😉";
+                  } else if (buttons.canUnpublish) {
+                    return "Select products to unpublish or remove from the system.";
+                  } else {
+                    return "Select products to remove from the system.";
+                  }
+                })()}
+              </span>
+              <div className="flex gap-2">
+                {(() => {
+                  const buttons = getDynamicButtons();
+                  const buttonElements = [];
                   
-                  {selectedTab === "Published" && (
-                    <>
+                  if (buttons.canPublish && !buttons.canUnpublish) {
+                    // Only draft/inactive products - show publish and remove
+                    buttonElements.push(
                       <button
+                        key="publish"
+                        onClick={() => handlePreviewProductMarketplace(pagedProducts[0])}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        <Zap className="w-4 h-4 text-white" />
+                        Publish
+                      </button>
+                    );
+                  } else if (buttons.canUnpublish && !buttons.canPublish) {
+                    // Only published products - show unpublish and remove
+                    buttonElements.push(
+                      <button
+                        key="unpublish"
                         onClick={() => handleBulkUnpublish()}
                         className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                       >
                         <EyeOff className="w-4 h-4 text-white" />
                         Unpublish
                       </button>
-                      <button
-                        onClick={() => handleBulkRemove()}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <Trash className="w-4 h-4 text-white" />
-                        Remove
-                      </button>
-                    </>
-                  )}
+                    );
+                  }
                   
-                  {(selectedTab === "Draft" || selectedTab === "Inactive") && (
-                    <>
-                      <button
-                        onClick={() => handleBulkPublish()}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-                      >
-                        <Zap className="w-4 h-4 text-white" />
-                        Publish
-                      </button>
-                      <button
-                        onClick={() => handleBulkRemove()}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <Trash className="w-4 h-4 text-white" />
-                        Remove
-                      </button>
-                    </>
-                  )}
-                </div>
+                  // Always show remove button
+                  buttonElements.push(
+                    <button
+                      key="remove"
+                      onClick={() => handleBulkRemove()}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash className="w-4 h-4 text-white" />
+                      Remove
+                    </button>
+                  );
+                  
+                  return buttonElements;
+                })()}
+              </div>
             </div>
           </div>
         </div>
@@ -974,6 +1013,18 @@ export default function ProductTable() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Product Marketplace Publication Preview Modal */}
+      {showProductMarketplacePubs && selectedProductForPub && (
+        <ProductMarketplacePubs
+          product={selectedProductForPub}
+          isOpen={showProductMarketplacePubs}
+          onClose={() => {
+            setShowProductMarketplacePubs(false);
+            setSelectedProductForPub(null);
+          }}
+        />
       )}
     </div>
   );

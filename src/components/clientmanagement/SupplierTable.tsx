@@ -152,7 +152,6 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     const rows = filteredSuppliers.map((s: any) => [
       s.supplierId,
       s.name,
-      s.contact,
       s.businessType,
       s.address,
       s.totalSupplies,
@@ -186,7 +185,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               <button
                 key={tab.label}
                 ref={el => { tabRefs.current[idx] = el; }}
-                onClick={() => setSelectedTab(tab.label)}
+                onClick={() => {
+                  setSelectedTab(tab.label);
+                  setSelectedSuppliers([]); // Reset selection when switching tabs
+                }}
                 className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label
                     ? 'text-white'
@@ -358,7 +360,6 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </th>
               <th className="py-3 px-4 font-medium uppercase">ID</th>
               <th className="py-3 px-4 font-medium uppercase">Name</th>
-              <th className="py-3 px-4 font-medium uppercase">Contact Person</th>
               <th className="py-3 px-4 font-medium uppercase">Business Type</th>
               <th className="py-3 px-4 font-medium uppercase">Location</th>
               <th className="py-3 px-4 font-medium uppercase">Total Supplies</th>
@@ -398,11 +399,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     )}
                   </button>
                 </td>
-                <td className="py-3 px-4 font-medium text-black">{String(supplier.supplierId)}</td>
-                <td className="max-w-40 py-3 px-4 font-medium text-black truncate">{String(supplier.name)}</td>
-                <td className="py-3 px-4 text-black">{String(supplier.contact)}</td>
+                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(supplier.supplierId)}</td>
+                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(supplier.name)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.businessType)}</td>
-                <td className="py-3 px-4 text-black max-w-50 truncate">{String(supplier.address)}</td>
+                <td className="py-3 px-4 text-black max-w-40 truncate">{String(supplier.address)}</td>
                 <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(supplier.totalPurchases)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
@@ -488,7 +488,6 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </button>
               </div>
             </div>
-            <div className="text-xs text-gray-500">Contact: <span className="text-black font-medium">{supplier.contact}</span></div>
             <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{supplier.businessType}</span></div>
             <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">{supplier.address}</span></div>
             <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>

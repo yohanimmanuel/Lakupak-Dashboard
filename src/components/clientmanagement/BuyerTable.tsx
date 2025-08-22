@@ -199,7 +199,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <button
                 key={tab.label}
                 ref={el => { tabRefs.current[idx] = el; }}
-                onClick={() => setSelectedTab(tab.label)}
+                onClick={() => {
+                  setSelectedTab(tab.label);
+                  setSelectedBuyers([]); // Reset selection when switching tabs
+                }}
                 className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label
                     ? 'text-white'
@@ -408,9 +411,9 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     )}
                   </button>
                 </td>
-                <td className="py-3 px-4 font-medium text-black">{String(buyer.buyerId)}</td>
-                <td className="max-w-40 py-3 px-4 font-medium text-black truncate">{String(buyer.name)}</td>
-                <td className="py-3 px-4 text-black max-w-50 truncate">{String(buyer.address)}</td>
+                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(buyer.buyerId)}</td>
+                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(buyer.name)}</td>
+                <td className="py-3 px-4 text-black max-w-40 truncate">{String(buyer.address)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(buyer.totalSpend)}</td>
