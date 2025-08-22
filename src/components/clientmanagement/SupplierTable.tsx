@@ -127,6 +127,14 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     );
   };
 
+  const handleRowClick = (supplierId: string, event: React.MouseEvent) => {
+    // Don't trigger row selection if clicking on action buttons or checkbox
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleSupplierSelect(supplierId);
+  };
+
   const handleSelectAll = () => {
     if (selectedSuppliers.length === pagedSuppliers.length) {
       setSelectedSuppliers([]);
@@ -362,10 +370,21 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           </thead>
           <tbody className="bg-white">
             {pagedSuppliers.map((supplier: any) => (
-              <tr key={String(supplier.id)} className="border-b transition">
+              <tr 
+                key={String(supplier.id)} 
+                className={`border-b transition cursor-pointer ${
+                  selectedSuppliers.includes(String(supplier.id)) 
+                    ? 'bg-blue-50' 
+                    : 'hover:bg-gray-50'
+                }`} 
+                onClick={(e) => handleRowClick(String(supplier.id), e)}
+              >
                 <td className="py-3 px-4 text-xs">
                   <button
-                    onClick={() => handleSupplierSelect(String(supplier.id))}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSupplierSelect(String(supplier.id));
+                    }}
                     className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                       selectedSuppliers.includes(String(supplier.id))
                         ? 'bg-green-500 border-green-500'
@@ -428,17 +447,28 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         
         <div className="flex flex-col gap-4">
           {pagedSuppliers.map(supplier => (
-            <div key={String(supplier.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 relative">
+            <div 
+              key={String(supplier.id)} 
+              className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+                selectedSuppliers.includes(String(supplier.id)) 
+                  ? 'bg-blue-50' 
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+              onClick={() => handleSupplierSelect(String(supplier.id))}
+            >
               {/* Checkbox - Top Right Corner */}
               <div className="absolute top-3 right-3 z-10">
-                <button
-                  onClick={() => handleSupplierSelect(String(supplier.id))}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    selectedSuppliers.includes(String(supplier.id))
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
-                >
+                              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSupplierSelect(String(supplier.id));
+                }}
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  selectedSuppliers.includes(String(supplier.id))
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
+              >
                   {selectedSuppliers.includes(String(supplier.id)) && (
                     <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

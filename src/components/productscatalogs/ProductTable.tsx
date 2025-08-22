@@ -177,6 +177,14 @@ export default function ProductTable() {
     );
   };
 
+  const handleRowClick = (productId: string, event: React.MouseEvent) => {
+    // Don't trigger row selection if clicking on action buttons or checkbox
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleProductSelect(productId);
+  };
+
   const handleSelectAll = () => {
     // Select all products on current page based on filter
     if (selectedProducts.length === pagedProducts.length && pagedProducts.length > 0) {
@@ -555,7 +563,15 @@ export default function ProductTable() {
           </thead>
           <tbody>
             {pagedProducts.map((product) => (
-              <tr key={product.id} className="border-b border-gray-100">
+              <tr 
+                key={product.id} 
+                className={`border-b border-gray-100 transition cursor-pointer ${
+                  selectedProducts.includes(product.id) 
+                    ? 'bg-blue-50' 
+                    : 'hover:bg-gray-50'
+                }`}
+                onClick={(e) => handleRowClick(product.id, e)}
+              >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleProductSelect(product.id)}
@@ -654,11 +670,22 @@ export default function ProductTable() {
            
            <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
            {pagedProducts.map((product) => (
-             <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 relative">
+             <div 
+               key={product.id} 
+               className={`rounded-lg shadow-sm border border-gray-200 p-4 relative cursor-pointer transition ${
+                 selectedProducts.includes(product.id) 
+                   ? 'bg-blue-50' 
+                   : 'bg-white hover:bg-gray-50'
+               }`}
+               onClick={() => handleProductSelect(product.id)}
+             >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-3 right-3 z-10">
                  <button
-                   onClick={() => handleProductSelect(product.id)}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     handleProductSelect(product.id);
+                   }}
                    className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                      selectedProducts.includes(product.id)
                        ? 'bg-green-500 border-green-500'
@@ -755,11 +782,22 @@ export default function ProductTable() {
          
          <div className="grid grid-cols-2 gap-3">
            {pagedProducts.map((product) => (
-             <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 relative">
+             <div 
+               key={product.id} 
+               className={`rounded-lg shadow-sm border border-gray-200 p-3 relative cursor-pointer transition ${
+                 selectedProducts.includes(product.id) 
+                   ? 'bg-blue-50' 
+                   : 'bg-white hover:bg-gray-50'
+               }`}
+               onClick={() => handleProductSelect(product.id)}
+             >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-2 right-2 z-10">
                  <button
-                   onClick={() => handleProductSelect(product.id)}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     handleProductSelect(product.id);
+                   }}
                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                      selectedProducts.includes(product.id)
                        ? 'bg-green-500 border-green-500'

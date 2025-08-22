@@ -105,6 +105,14 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     );
   };
 
+  const handleRowClick = (buyerId: string, event: React.MouseEvent) => {
+    // Don't trigger row selection if clicking on action buttons or checkbox
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleBuyerSelect(buyerId);
+  };
+
   const handleSelectAll = () => {
     if (selectedBuyers.length === pagedBuyers.length) {
       setSelectedBuyers([]);
@@ -375,7 +383,15 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           </thead>
           <tbody className="bg-white">
             {pagedBuyers.map((buyer: any) => (
-              <tr key={String(buyer.id)} className="border-b transition">
+              <tr 
+                key={String(buyer.id)} 
+                className={`border-b transition cursor-pointer ${
+                  selectedBuyers.includes(String(buyer.id)) 
+                    ? 'bg-blue-50' 
+                    : 'hover:bg-gray-50'
+                }`} 
+                onClick={(e) => handleRowClick(String(buyer.id), e)}
+              >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleBuyerSelect(String(buyer.id))}
@@ -441,11 +457,22 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         
         <div className="flex flex-col gap-4">
         {pagedBuyers.map(buyer => (
-          <div key={String(buyer.id)} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 relative">
+          <div 
+            key={String(buyer.id)} 
+            className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+              selectedBuyers.includes(String(buyer.id)) 
+                ? 'bg-blue-50' 
+                : 'bg-white hover:bg-gray-50'
+            }`}
+            onClick={() => handleBuyerSelect(String(buyer.id))}
+          >
             {/* Checkbox - Top Right Corner */}
             <div className="absolute top-3 right-3 z-10">
               <button
-                onClick={() => handleBuyerSelect(String(buyer.id))}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBuyerSelect(String(buyer.id));
+                }}
                 className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                   selectedBuyers.includes(String(buyer.id))
                     ? 'bg-green-500 border-green-500'
