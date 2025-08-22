@@ -11,8 +11,10 @@ import {
   CheckCircle,
   Eye,
   Edit,
-  Info
+  Info,
+  ArrowLeft
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -50,6 +52,7 @@ export default function ProductCatalog({
   onSave, 
   onCancel 
 }: ProductCatalogProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState<ProductData>(product || {
     sku: '',
     name: '',
@@ -211,11 +214,20 @@ export default function ProductCatalog({
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {mode === 'add' && 'Add New Product'}
-          {mode === 'view' && 'Product Details'}
-          {mode === 'edit' && 'Edit Product'}
-        </h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push('/products')}
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Products
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {mode === 'add' && 'Add New Product'}
+            {mode === 'view' && 'Product Details'}
+            {mode === 'edit' && 'Edit Product'}
+          </h1>
+        </div>
         <div className="flex items-center gap-3">
           {mode === 'add' && (
             <>
@@ -248,6 +260,25 @@ export default function ProductCatalog({
             </button>
           )}
         </div>
+      </div>
+
+      {/* Mode Descriptions */}
+      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+        {mode === 'add' && (
+          <p className="text-sm text-gray-600">
+            Create a new product by filling out the form below. All fields marked with descriptions are required for proper product cataloging.
+          </p>
+        )}
+        {mode === 'view' && (
+          <p className="text-sm text-gray-600">
+            View detailed information about this product. You can see all product specifications, images, and current status.
+          </p>
+        )}
+        {mode === 'edit' && (
+          <p className="text-sm text-gray-600">
+            Modify existing product information. Update any fields as needed and save your changes to the product catalog.
+          </p>
+        )}
       </div>
 
       <form id="product-form" onSubmit={handleSubmit} className="p-4">
