@@ -390,8 +390,8 @@ export default function ProductTable() {
               </div>
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
-              {selectedTab === "All" && "Select products to remove from the system."}
-              {selectedTab === "Published" && "Select products to unpublish or remove from the system."}
+              {selectedTab === "All" && "Select products to be removed."}
+              {selectedTab === "Published" && "Select products to be unpublished or removed."}
               {(selectedTab === "Draft" || selectedTab === "Inactive") && "Your product will be published in our B2B Marketplace Mobile app. 😉"}
             </div>
                           <div className="flex gap-2">

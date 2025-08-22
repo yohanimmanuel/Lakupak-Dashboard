@@ -297,8 +297,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
               {selectedBuyers.length === 1 
-                ? 'Select buyer to remove from the system.'
-                : 'Select buyers to remove from the system.'
+                ? 'Select buyer to be removed.'
+                : 'Select buyers to be removed.'
               }
             </div>
             <button
@@ -325,8 +325,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
                 {selectedBuyers.length === 1 
-                  ? 'Select buyer to remove from the system. '
-                  : 'Select buyers to remove from the system. '
+                  ? 'Select buyer to be removed. '
+                  : 'Select buyers to be removed. '
                 }
               </span>
               <button

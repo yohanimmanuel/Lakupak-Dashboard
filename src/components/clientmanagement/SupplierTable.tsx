@@ -284,8 +284,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
               {selectedSuppliers.length === 1 
-                ? 'Select supplier to remove from the system.'
-                : 'Select suppliers to remove from the system.'
+                ? 'Select supplier to be removed.'
+                : 'Select suppliers to be removed.'
               }
             </div>
             <button
@@ -312,8 +312,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
                 {selectedSuppliers.length === 1 
-                  ? 'Select supplier to remove from the system.'
-                  : 'Select suppliers to remove from the system.'
+                  ? 'Select supplier to be removed.'
+                  : 'Select suppliers to be removed.'
                 }
               </span>
               <button

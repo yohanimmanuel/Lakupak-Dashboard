@@ -130,7 +130,7 @@ const Menu = () => {
           {/* Floating Submenu Panel (collapsed mode) */}
           {isCollapsed && item.submenu && hoveredMenu === item.label && (
             <div
-              className="fixed z-50 min-w-[180px] bg-white shadow-xl rounded-lg py-2 px-2 border border-gray-100 flex flex-col gap-1"
+              className="fixed z-50 min-w-[200px] bg-white shadow-xl rounded-lg py-2 border border-gray-100 flex flex-col gap-1"
               style={{ top: submenuPosition.top, left: submenuPosition.left + 4 }}
               onMouseEnter={handleSubmenuEnter}
               onMouseLeave={handleSubmenuLeave}
