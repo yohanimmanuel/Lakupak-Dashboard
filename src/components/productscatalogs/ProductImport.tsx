@@ -1,208 +1,329 @@
 'use client';
-import React, { useEffect, useState } from "react";
-import { Upload, Download, X, CheckCircle, AlertCircle } from "lucide-react";
+import React, { useRef, useState } from 'react';
+import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
-interface ProductImportProps {
-  onImport?: (data: any[]) => void;
-  onExport?: () => void;
-  isOpen: boolean;
+type ProductImportRow = {
+  [key: string]: string | any;
+  'Product ID': string;
+  'SKU': string;
+  'Product Name': string;
+  'Description': string;
+  'Category': string;
+  'Brand': string;
+  'Supplier': string;
+  'Stock Quantity': string;
+  'Low Stock Threshold': string;
+  'Stock Status': string;
+  'Purchase Price': string;
+  'Selling Price': string;
+  'Status': string;
+  'Catalog Type': string;
+  'Catalog Name': string;
+  'Sizes': string;
+  'Gender': string;
+  'Discount': string;
+  'Discount Type': string;
+};
+
+type ProductImportProps = {
+  open: boolean;
   onClose: () => void;
+  onImport: (data: ProductImportRow[]) => void;
+};
+
+const productFields = [
+  { key: 'Product ID', label: 'Product ID' },
+  { key: 'SKU', label: 'SKU' },
+  { key: 'Product Name', label: 'Product Name' },
+  { key: 'Description', label: 'Description' },
+  { key: 'Category', label: 'Category' },
+  { key: 'Brand', label: 'Brand' },
+  { key: 'Supplier', label: 'Supplier' },
+  { key: 'Stock Quantity', label: 'Stock Quantity' },
+  { key: 'Low Stock Threshold', label: 'Low Stock Threshold' },
+  { key: 'Stock Status', label: 'Stock Status' },
+  { key: 'Purchase Price', label: 'Purchase Price' },
+  { key: 'Selling Price', label: 'Selling Price' },
+  { key: 'Status', label: 'Status' },
+  { key: 'Catalog Type', label: 'Catalog Type' },
+  { key: 'Catalog Name', label: 'Catalog Name' },
+  { key: 'Sizes', label: 'Sizes' },
+  { key: 'Gender', label: 'Gender' },
+  { key: 'Discount', label: 'Discount' },
+  { key: 'Discount Type', label: 'Discount Type' },
+];
+
+// Synonyms for automapping
+const productSynonyms: { [key: string]: string[] } = {
+  'Product ID': ['id', 'product id', 'kode', 'kode produk', 'product code'],
+  'SKU': ['sku', 'stock keeping unit', 'kode barang'],
+  'Product Name': ['name', 'product name', 'nama produk', 'nama barang', 'title'],
+  'Description': ['description', 'desc', 'deskripsi', 'detail', 'product description'],
+  'Category': ['category', 'kategori', 'jenis', 'type', 'product type'],
+  'Brand': ['brand', 'merek', 'brand name'],
+  'Supplier': ['supplier', 'vendor', 'pemasok', 'supplier name'],
+  'Stock Quantity': ['stock', 'quantity', 'stock quantity', 'inventory', 'stok', 'jumlah'],
+  'Low Stock Threshold': ['low stock threshold', 'low stock', 'threshold', 'minimum stock', 'batas stok rendah'],
+  'Stock Status': ['stock status', 'stock state', 'inventory status', 'status stok'],
+  'Purchase Price': ['purchase price', 'buy price', 'cost', 'harga beli', 'harga modal'],
+  'Selling Price': ['selling price', 'sell price', 'price', 'harga jual', 'harga'],
+  'Status': ['status', 'product status', 'state'],
+  'Catalog Type': ['catalog type', 'catalog', 'type', 'jenis katalog'],
+  'Catalog Name': ['catalog name', 'catalog', 'nama katalog'],
+  'Sizes': ['sizes', 'size', 'ukuran', 'dimensi'],
+  'Gender': ['gender', 'jenis kelamin', 'target audience'],
+  'Discount': ['discount', 'diskon', 'potongan'],
+  'Discount Type': ['discount type', 'discount category', 'jenis diskon'],
+};
+
+function generateProductId() {
+  return 'PRD-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-export default function ProductImport({ onImport, onExport, isOpen, onClose }: ProductImportProps) {
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [importProgress, setImportProgress] = useState(0);
-  const [importStatus, setImportStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+export default function ProductImport({ open, onClose, onImport }: ProductImportProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
+  const [rows, setRows] = useState<ProductImportRow[]>([]);
+  const [error, setError] = useState<string>('');
+  const [filename, setFilename] = useState<string>('');
+  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<{ [key: string]: string }>({});
 
-  useEffect(() => {
-    setIsImportModalOpen(isOpen);
-  }, [isOpen]);
+  const headers = productFields.map(f => f.key);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-          file.type === 'application/vnd.ms-excel' ||
-          file.name.endsWith('.xlsx') || 
-          file.name.endsWith('.xls') ||
-          file.name.endsWith('.csv')) {
-        setSelectedFile(file);
-        setErrorMessage('');
+  // Automap columns to fields using synonyms
+  function getAutomap(fileHeaders: string[]) {
+    const mapping: { [key: string]: string } = {};
+    productFields.forEach(f => {
+      const syns = [f.key, ...(productSynonyms[f.key] || [])];
+      const found = fileHeaders.find(h => syns.some(s => s.toLowerCase() === h.trim().toLowerCase()));
+      if (found) mapping[f.key] = found;
+    });
+    return mapping;
+  }
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setFilename(file.name);
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const reader = new FileReader();
+    reader.onload = (evt: ProgressEvent<FileReader>) => {
+      if (!evt.target || !evt.target.result) {
+        setError('File read error.');
+        return;
+      }
+      let workbook: XLSX.WorkBook;
+      if (ext === 'csv') {
+        const text = evt.target.result as string;
+        workbook = XLSX.read(text, { type: 'string' });
       } else {
-        setErrorMessage('Please select a valid Excel (.xlsx, .xls) or CSV file.');
-        setSelectedFile(null);
+        const data = new Uint8Array(evt.target.result as ArrayBuffer);
+        workbook = XLSX.read(data, { type: 'array' });
       }
-    }
-  };
-
-  const handleImport = async () => {
-    if (!selectedFile) return;
-
-    setImportStatus('processing');
-    setImportProgress(0);
-
-    try {
-      // Simulate import process
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        setImportProgress(i);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+      if (!json.length) {
+        setError('File is empty or invalid.');
+        return;
       }
-
-      // Mock successful import
-      setImportStatus('success');
-      
-      // Call the onImport callback if provided
-      if (onImport) {
-        // Mock data - in real implementation, this would parse the file
-        const mockImportedData = [
-          { name: 'Product 1', category: 'Foods', brand: 'Brand A', price: '1000' },
-          { name: 'Product 2', category: 'Beverages', brand: 'Brand B', price: '2000' },
-        ];
-        onImport(mockImportedData);
-      }
-
-      // Close modal after success
-      setTimeout(() => {
-        setIsImportModalOpen(false);
-        setImportStatus('idle');
-        setSelectedFile(null);
-        setImportProgress(0);
-      }, 2000);
-
-    } catch (error) {
-      setImportStatus('error');
-      setErrorMessage('Import failed. Please try again.');
-    }
-  };
-
-  const handleExport = () => {
-    if (onExport) {
-      onExport();
+      const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
+      setFileHeaders(fileHeadersRow);
+      setRows(json.slice(1).map((row: any[]): ProductImportRow => {
+        const obj: any = {};
+        fileHeadersRow.forEach((h, i) => {
+          obj[h] = row[i] ?? '';
+        });
+        return obj;
+      }));
+      setMapping(getAutomap(fileHeadersRow));
+      setStep(1); // mapping step
+    };
+    if (ext === 'csv') {
+      reader.readAsText(file);
     } else {
-      // Default export behavior
-      console.log('Exporting products...');
+      reader.readAsArrayBuffer(file);
     }
   };
 
-  const closeModal = () => {
-    setIsImportModalOpen(false);
-    setImportStatus('idle');
-    setSelectedFile(null);
-    setImportProgress(0);
-    setErrorMessage('');
+  // Map rows to required fields using mapping
+  const getMappedRows = () => {
+    return rows.map((row: ProductImportRow) => {
+      const mapped: any = {};
+      productFields.forEach(f => {
+        const col = mapping[f.key];
+        mapped[f.key] = col ? row[col] : '';
+      });
+      // Generate Product ID if not provided
+      if (!mapped['Product ID']) {
+        mapped['Product ID'] = generateProductId();
+      }
+      // Set default values for required fields
+      if (!mapped['Status']) {
+        mapped['Status'] = 'Draft';
+      }
+      if (!mapped['Stock Status']) {
+        mapped['Stock Status'] = 'In Stock';
+      }
+      if (!mapped['Catalog Type']) {
+        mapped['Catalog Type'] = 'Internal';
+      }
+      if (!mapped['Gender']) {
+        mapped['Gender'] = 'Unisex';
+      }
+      if (!mapped['Low Stock Threshold']) {
+        mapped['Low Stock Threshold'] = '30';
+      }
+      if (!mapped['Discount']) {
+        mapped['Discount'] = '0';
+      }
+      return mapped;
+    });
   };
+
+  const handleImport = () => {
+    const mappedRows = getMappedRows();
+    if (onImport) {
+      onImport(mappedRows);
+    }
+    setRows([]);
+    setStep(0);
+    setFilename('');
+    setFileHeaders([]);
+    setMapping({});
+    onClose();
+  };
+
+  if (!open) return null;
 
   return (
-    <>
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Import Products</h3>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative">
+        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}>
+          <X className="w-5 h-5 text-black" />
+        </button>
+        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-[#0a61d7]" /> Import Products Data
+        </h2>
+        
+        {step === 0 && (
+          <div className="flex flex-col items-center justify-center gap-4 py-8">
+            <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
+            <button 
+              type="button" 
+              className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition" 
+              onClick={() => inputRef.current && inputRef.current.click()}
+            >
+              <Upload className="w-8 h-8 text-[#0a61d7]" />
+              <span className="text-[#0a61d7] font-semibold">Click to upload .xlsx or .csv file</span>
+              {filename && <span className="text-xs text-gray-500">{filename}</span>}
+            </button>
+            {error && <div className="flex items-center gap-2 text-red-500 text-sm">
+              <AlertTriangle className="w-4 h-4" /> {error}
+            </div>}
+          </div>
+        )}
+        
+        {step === 1 && (
+          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+            <div className="mb-2 font-semibold text-black">Map your columns to the required fields:</div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
+              <table className="min-w-full text-xs font-medium text-left">
+                <thead>
+                  <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="py-2 px-3 font-medium uppercase">Field</th>
+                    <th className="py-2 px-3 font-medium uppercase">Map to Column</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productFields.map(f => (
+                    <tr key={f.key} className="whitespace-nowrap">
+                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
+                      <td className="py-1 px-3">
+                        <select
+                          className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
+                          value={mapping[f.key] || ''}
+                          onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
+                        >
+                          <option value="">-- Not Mapped --</option>
+                          {fileHeaders.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {/* File Upload Area */}
-            <div className="mb-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#0a61d7] transition-colors">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
-                    {selectedFile ? selectedFile.name : 'Click to select file or drag and drop'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supports .xlsx, .xls, and .csv files
-                  </p>
-                </label>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-600">{errorMessage}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Import Progress */}
-            {importStatus === 'processing' && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                  <span>Importing products...</span>
-                  <span>{importProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-[#0a61d7] h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${importProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Success Message */}
-            {importStatus === 'success' && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-green-600">Products imported successfully!</span>
-                </div>
-              </div>
-            )}
-
-            {/* Modal Actions */}
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" 
+                onClick={() => { 
+                  setStep(0); 
+                  setRows([]); 
+                  setFilename(''); 
+                  setFileHeaders([]); 
+                  setMapping({}); 
+                }}
               >
-                Cancel
+                Back
               </button>
-              <button
-                onClick={handleImport}
-                disabled={!selectedFile || importStatus === 'processing'}
-                className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" 
+                onClick={() => setStep(2)} 
+                disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}
               >
-                {importStatus === 'processing' ? 'Importing...' : 'Import'}
+                Preview
               </button>
-            </div>
-
-            {/* Import Instructions */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Import Format:</h4>
-              <ul className="text-xs text-gray-600 space-y-1">
-                <li>• Product Name (required)</li>
-                <li>• Category (required)</li>
-                <li>• Brand (optional)</li>
-                <li>• SKU (optional)</li>
-                <li>• Purchase Price (optional)</li>
-                <li>• Selling Price (optional)</li>
-                <li>• Stock Quantity (optional)</li>
-              </ul>
             </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+        
+        {step === 2 && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 mb-2 text-black">
+              <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} products to import
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full text-xs font-medium text-left bg-white">
+                <thead>
+                  <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    {productFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{f.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {getMappedRows().map((row, idx) => (
+                    <tr key={idx} className="whitespace-nowrap text-black">
+                      {productFields.map(f => <td key={f.key} className="py-2 px-3">{typeof row[f.key] === 'string' ? row[f.key] : JSON.stringify(row[f.key])}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" 
+                onClick={() => setStep(1)}
+              >
+                Back
+              </button>
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" 
+                onClick={handleImport}
+              >
+                <CheckCircle2 className="w-4 h-4" /> Import
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

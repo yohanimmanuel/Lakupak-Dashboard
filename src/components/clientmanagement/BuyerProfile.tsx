@@ -177,7 +177,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
       {/* Top Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Avatar & Owner */}
-        <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200 p-4 gap-3">
+        <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200 p-4 gap-2">
           <div className="w-20 h-20 rounded-full object-cover border-4 border-white shadow bg-gray-100 flex items-center justify-center overflow-hidden">
             {buyer.avatar ? (
               <img src={buyer.avatar} alt={buyer.owner} className="w-full h-full object-cover" />
@@ -188,7 +188,10 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
           <div className="text-lg font-bold text-black mt-2">{buyer.owner}</div>
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <Mail className="w-4 h-4" />
-            <span>{buyer.email}</span> | <Phone className="w-4 h-4" />
+            <span>{buyer.email}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500 text-xs">
+            <Phone className="w-3 h-3" />
             <span>{buyer.phone}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
