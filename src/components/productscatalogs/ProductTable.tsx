@@ -51,6 +51,10 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [productToPublish, setProductToPublish] = useState<any>(null);
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
+  const [isBulkUnpublish, setIsBulkUnpublish] = useState(false);
   
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -114,6 +118,116 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     setIsBulkDelete(false);
   };
 
+  const handleUnpublishCancel = () => {
+    setShowUnpublishModal(false);
+    setIsBulkUnpublish(false);
+  };
+
+  const handlePublishProduct = async () => {
+    if (!user?.id) return;
+    
+    try {
+      // If we have a specific product to publish (from modal), publish just that one
+      if (productToPublish) {
+        const response = await fetch('/api/products', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...productToPublish,
+            status: 'Published',
+            userId: user.id
+          }),
+        });
+        
+        if (response.ok) {
+          // Update local state
+          if (setProducts) {
+            setProducts(prev => prev.map(p => 
+              p.productId === productToPublish.productId 
+                ? { ...p, status: 'Published' }
+                : p
+            ));
+          }
+          // Clear selection and close modal
+          setSelectedProducts([]);
+          setShowPublishModal(false);
+          setProductToPublish(null);
+        } else {
+          console.error('Failed to publish product');
+        }
+      } else if (selectedProducts.length > 0) {
+        // Bulk publish all selected draft/inactive products
+        for (const productId of selectedProducts) {
+          const product = pagedProducts.find(p => String(p.id) === productId);
+          if (product && (product.status === 'Draft' || product.status === 'Inactive' || product.status === 'Active')) {
+            const response = await fetch('/api/products', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...product,
+                status: 'Published',
+                userId: user.id
+              }),
+            });
+            
+            if (response.ok && setProducts) {
+              setProducts(prev => prev.map(p => 
+                p.productId === product.productId 
+                  ? { ...p, status: 'Published' }
+                  : p
+              ));
+            }
+          }
+        }
+        
+        // Clear selection after bulk publishing
+        setShowPublishModal(false);
+        setSelectedProducts([]);
+      }
+    } catch (error) {
+      console.error('Error publishing products:', error);
+    }
+  };
+
+  const handleUnpublishProducts = async () => {
+    if (!user?.id || selectedProducts.length === 0) return;
+    
+    try {
+      // Update all selected published products to Draft status
+      for (const productId of selectedProducts) {
+        const product = pagedProducts.find(p => String(p.id) === productId);
+        if (product && product.status === 'Published') {
+          const response = await fetch('/api/products', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...product,
+              status: 'Draft',
+              userId: user.id
+            }),
+          });
+          
+          if (response.ok && setProducts) {
+            setProducts(prev => prev.map(p => 
+              p.productId === product.productId 
+                ? { ...p, status: 'Draft' }
+                : p
+            ));
+          }
+        }
+      }
+      
+      // Clear selection after unpublishing
+      setSelectedProducts([]);
+      
+      // Close the unpublish modal
+      setShowUnpublishModal(false);
+      setIsBulkUnpublish(false);
+    } catch (error) {
+      console.error('Error unpublishing products:', error);
+    }
+  };
+
   const handleProductSelect = (productId: string) => {
     setSelectedProducts(prev => 
       prev.includes(productId) 
@@ -141,6 +255,16 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const handleBulkRemove = () => {
     setIsBulkDelete(true);
     setShowDeleteModal(true);
+  };
+
+  const handleBulkUnpublish = () => {
+    setIsBulkUnpublish(true);
+    setShowUnpublishModal(true);
+  };
+
+  const handleOpenPublishModal = (product: any) => {
+    setProductToPublish(product);
+    setShowPublishModal(true);
   };
 
   useLayoutEffect(() => {
@@ -171,9 +295,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
 
   // Status color helper
   const statusBadge = (status: string) => {
-    if (status === "Published" || status === "Active") return "bg-green-100 text-green-500";
-    if (status === "Draft" || status === "Inactive") return "bg-gray-100 text-gray-500";
-    return "bg-gray-100 text-gray-500";
+    if (status === "Published" || status === "Active") return "bg-green-100 text-green-500 font-semibold";
+    if (status === "Draft" || status === "Inactive") return "bg-gray-100 text-gray-500 font-semibold";
+    return "bg-gray-100 text-gray-500 font-semibold";
   };
 
   // Stock status helper
@@ -388,9 +512,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                   return "Mixed product statuses selected. Only removal is allowed for safety.";
                 } else if (buttons.canPublish) {
                   return "Your product will be published in our B2B Marketplace Mobile app. 😉";
-                } else if (buttons.canUnpublish) {
-                  return "Select products to be unpublished or removed.";
-                } else {
+                                  } else if (buttons.canUnpublish) {
+                    return "Select products to unpublish from the marketplace.";
+                  } else {
                   return "Select products to be removed.";
                 }
               })()}
@@ -417,9 +541,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     <button
                       key="publish"
                       onClick={() => {
-                        const productToPublish = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
-                        if (productToPublish) {
-                          onSelectProduct?.(productToPublish);
+                        if (selectedProducts.length === 1) {
+                          // Single product - show preview modal
+                          const product = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
+                          if (product) {
+                            handleOpenPublishModal(product);
+                          }
+                        } else {
+                          // Multiple products - show bulk publish modal
+                          setShowPublishModal(true);
                         }
                       }}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
@@ -433,7 +563,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                   buttonElements.push(
                     <button
                       key="unpublish"
-                      onClick={() => handleBulkRemove()}
+                      onClick={handleBulkUnpublish}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                     >
                       <EyeOff className="w-4 h-4 text-white" />
@@ -491,7 +621,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                   } else if (buttons.canPublish) {
                     return "Your product will be published in our B2B Marketplace Mobile app. 😉";
                   } else if (buttons.canUnpublish) {
-                    return "Select products to unpublish or remove from the system.";
+                    return "Select products to unpublish (change to Draft status).";
                   } else {
                     return "Select products to remove from the system.";
                   }
@@ -519,9 +649,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                       <button
                         key="publish"
                         onClick={() => {
-                          const productToPublish = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
-                          if (productToPublish) {
-                            onSelectProduct?.(productToPublish);
+                          if (selectedProducts.length === 1) {
+                            // Single product - show preview modal
+                            const product = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
+                            if (product) {
+                              handleOpenPublishModal(product);
+                            }
+                          } else {
+                            // Multiple products - show bulk publish modal
+                            setShowPublishModal(true);
                           }
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
@@ -535,7 +671,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     buttonElements.push(
                       <button
                         key="unpublish"
-                        onClick={() => handleBulkRemove()}
+                        onClick={handleBulkUnpublish}
                         className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                       >
                         <EyeOff className="w-4 h-4 text-white" />
@@ -1002,19 +1138,56 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         </div>
       )}
 
+      {/* Unpublish Confirmation Modal */}
+      {showUnpublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-orange-500">
+              {isBulkUnpublish ? 'Unpublish Products' : 'Unpublish Product'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {isBulkUnpublish 
+                ? `Are you sure you want to unpublish ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}? This will change their status to Draft.`
+                : `Are you sure you want to unpublish this product? This will change its status to Draft.`
+              }
+            </p>
+            {isBulkUnpublish && (
+              <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                <strong>Note:</strong> Unpublishing products will remove them from the marketplace but keep them in your catalog as Draft.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={handleUnpublishCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700"
+                onClick={handleUnpublishProducts}
+              >
+                {isBulkUnpublish ? 'Unpublish' : 'Unpublish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Product Marketplace Publication Preview Modal */}
-      {/* This modal is no longer needed as the publish functionality is integrated into the main table */}
-      {/* Keeping it for now, but it might be removed if not used */}
-      {/* {showProductMarketplacePubs && selectedProductForPub && (
+      {showPublishModal && (
         <ProductMarketplacePubs
-          product={selectedProductForPub}
-          isOpen={showProductMarketplacePubs}
+          product={productToPublish}
+          isOpen={showPublishModal}
           onClose={() => {
-            setShowProductMarketplacePubs(false);
-            setSelectedProductForPub(null);
+            setShowPublishModal(false);
+            setProductToPublish(null);
           }}
+          onPublish={handlePublishProduct}
+          isBulkPublish={!productToPublish || selectedProducts.length > 1}
+          selectedCount={productToPublish ? 1 : selectedProducts.length}
         />
-      )} */}
+      )}
     </div>
   );
 }

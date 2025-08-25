@@ -100,16 +100,56 @@ export default function ProductCatalog({
     }
   }, [mode, formData.productId]);
 
+  // Initialize stock status based on stock quantity and threshold
+  useEffect(() => {
+    if (formData.stockQuantity !== undefined && formData.lowStockThreshold !== undefined) {
+      let newStockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+      
+      if (formData.stockQuantity === 0) {
+        newStockStatus = 'Out of Stock';
+      } else if (formData.stockQuantity <= formData.lowStockThreshold) {
+        newStockStatus = 'Low Stock';
+      } else {
+        newStockStatus = 'In Stock';
+      }
+      
+      if (newStockStatus !== formData.stockStatus) {
+        setFormData(prev => ({
+          ...prev,
+          stockStatus: newStockStatus
+        }));
+      }
+    }
+  }, [formData.stockQuantity, formData.lowStockThreshold, formData.stockStatus]);
+
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
   const genders = ['Men', 'Woman', 'Unisex'];
   const statusOptions = ['Active', 'Inactive', 'Draft'];
   const catalogTypes = ['Internal', 'External'];
 
   const handleInputChange = (field: keyof ProductData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Automatically update stock status based on stock quantity and threshold
+      if (field === 'stockQuantity' || field === 'lowStockThreshold') {
+        const stockQty = field === 'stockQuantity' ? value : newFormData.stockQuantity;
+        const threshold = field === 'lowStockThreshold' ? value : newFormData.lowStockThreshold;
+        
+        if (stockQty === 0) {
+          newFormData.stockStatus = 'Out of Stock';
+        } else if (stockQty <= threshold) {
+          newFormData.stockStatus = 'Low Stock';
+        } else {
+          newFormData.stockStatus = 'In Stock';
+        }
+      }
+      
+      return newFormData;
+    });
   };
 
   const handleSizeToggle = (size: string) => {
@@ -516,22 +556,19 @@ export default function ProductCatalog({
                    />
                    <p className="text-xs text-gray-500 mt-1">Optional, default 30-40</p>
                  </div>
-                                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Stock Status
-                    </label>
-                    <select
-                      value={formData.stockStatus || 'In Stock'}
-                      onChange={(e) => handleInputChange('stockStatus', e.target.value)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    >
-                      <option value="In Stock">In Stock</option>
-                      <option value="Low Stock">Low Stock</option>
-                      <option value="Out of Stock">Out of Stock</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Select stock status</p>
-                  </div>
+               <div>
+                     <label className="block text-xs font-medium text-gray-700 mb-2">
+                       Stock Status
+                     </label>
+                     <input
+                       type="text"
+                       value={formData.stockStatus || 'In Stock'}
+                       disabled={true}
+                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                       readOnly
+                     />
+                     <p className="text-xs text-gray-500 mt-1">Automatically calculated based on stock quantity and threshold</p>
+                   </div>
                </div>
 
             </div>
@@ -794,38 +831,6 @@ export default function ProductCatalog({
                       step="0.01"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.stockQuantity}
-                    onChange={(e) => handleInputChange('stockQuantity', parseInt(e.target.value) || 0)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  >
-                    {statusOptions.map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
 

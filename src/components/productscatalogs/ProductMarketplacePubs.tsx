@@ -6,9 +6,12 @@ interface ProductMarketplacePubsProps {
   product: any;
   isOpen: boolean;
   onClose: () => void;
+  onPublish?: () => void;
+  isBulkPublish?: boolean;
+  selectedCount?: number;
 }
 
-export default function ProductMarketplacePubs({ product, isOpen, onClose }: ProductMarketplacePubsProps) {
+export default function ProductMarketplacePubs({ product, isOpen, onClose, onPublish, isBulkPublish = false, selectedCount = 0 }: ProductMarketplacePubsProps) {
   if (!isOpen) return null;
 
   return (
@@ -23,7 +26,9 @@ export default function ProductMarketplacePubs({ product, isOpen, onClose }: Pro
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
-            <h2 className="text-lg font-semibold text-gray-900">Marketplace Preview</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {isBulkPublish ? `Bulk Publish (${selectedCount} products)` : 'Marketplace Preview'}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -35,7 +40,25 @@ export default function ProductMarketplacePubs({ product, isOpen, onClose }: Pro
 
         {/* Mobile App Preview */}
         <div className="overflow-y-auto max-h-[calc(90vh-150px)] hide-scrollbar">
-                     <div className="text-center mb-4 p-4">
+          {/* Bulk Publish Information */}
+          {isBulkPublish && (
+            <div className="mx-4 mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                  <span className="text-green-600 text-xs">📢</span>
+                </div>
+                <div>
+                  <p className="text-sm text-green-800 font-medium">Bulk Publishing {selectedCount} Products</p>
+                  <p className="text-xs text-green-700 mt-1">
+                    You are about to publish {selectedCount} product{selectedCount === 1 ? '' : 's'} to the marketplace. 
+                    All selected products will be visible to customers and available for purchase.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center mb-4 p-4">
              <p className="text-sm text-gray-600 mb-2">This is how your products will appear to customers:</p>
              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                📱 Laku-Laku Marketplace App
@@ -337,10 +360,15 @@ export default function ProductMarketplacePubs({ product, isOpen, onClose }: Pro
       {/* Sticky Action Buttons */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
         <div className="flex gap-3">
-          <button className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+          <button 
+            onClick={onClose} 
+            className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors">
             Cancel
           </button>
-          <button className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+          <button 
+            onClick={onPublish}
+            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+          >
             <Zap className="w-4 h-4" />
             Publish
           </button>

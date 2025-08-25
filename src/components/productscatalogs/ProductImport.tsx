@@ -160,9 +160,19 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       mapped['Product ID'] = generateProductId();
       // Set default values for required fields
       mapped['Status'] = 'Draft'; // Always set status to Draft for imported products
-      if (!mapped['Stock Status']) {
+      
+      // Calculate stock status dynamically based on stock quantity and threshold
+      const stockQuantity = parseInt(mapped['Stock Quantity']) || 0;
+      const lowStockThreshold = parseInt(mapped['Low Stock Threshold']) || 30;
+      
+      if (stockQuantity === 0) {
+        mapped['Stock Status'] = 'Out of Stock';
+      } else if (stockQuantity <= lowStockThreshold) {
+        mapped['Stock Status'] = 'Low Stock';
+      } else {
         mapped['Stock Status'] = 'In Stock';
       }
+      
       if (!mapped['Catalog Type']) {
         mapped['Catalog Type'] = 'Internal';
       }

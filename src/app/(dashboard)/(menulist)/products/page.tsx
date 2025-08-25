@@ -85,6 +85,19 @@ export default function ProductsPage() {
       // Process imported data and save to database
       for (const product of data) {
         // Always generate new LKP Product ID for imported products (Laku-Laku standard)
+        // Calculate stock status dynamically
+        const stockQuantity = parseInt(product['Stock Quantity']) || 0;
+        const lowStockThreshold = parseInt(product['Low Stock Threshold']) || 30;
+        let stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+        
+        if (stockQuantity === 0) {
+          stockStatus = 'Out of Stock';
+        } else if (stockQuantity <= lowStockThreshold) {
+          stockStatus = 'Low Stock';
+        } else {
+          stockStatus = 'In Stock';
+        }
+
         const payload = {
           productId: generateLKPProductId(),
           sku: product['SKU'] || '',
@@ -93,9 +106,9 @@ export default function ProductsPage() {
           category: product['Category'] || '',
           brand: product['Brand'] || '',
           supplier: product['Supplier'] || '',
-          stockQuantity: parseInt(product['Stock Quantity']) || 0,
-          lowStockThreshold: parseInt(product['Low Stock Threshold']) || 30,
-          stockStatus: product['Stock Status'] || 'In Stock',
+          stockQuantity: stockQuantity,
+          lowStockThreshold: lowStockThreshold,
+          stockStatus: stockStatus,
           purchasePrice: parseFloat(product['Purchase Price']) || 0,
           sellingPrice: parseFloat(product['Selling Price']) || 0,
           status: 'Draft', // Always overwrite status to Draft for imported products
