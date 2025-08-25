@@ -1,10 +1,11 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProductCards from "@/components/productscatalogs/ProductCards";
 import ProductTable from "@/components/productscatalogs/ProductTable";
 import ProductImport from "@/components/productscatalogs/ProductImport";
 import { Upload, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
@@ -20,118 +21,126 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 
 export default function ProductsPage() {
   const router = useRouter();
-  // Mock products data for demonstration
-  const [products] = useState([
-    {
-      id: "PRD001",
-      sku: "SKU001",
-      name: "Indomie Goreng",
-      category: "Foods",
-      brand: "Indofood",
-      supplier: "PT Indofood Sukses Makmur",
-      stockQuantity: 150,
-      purchasePrice: "Rp 2,500",
-      sellingPrice: "Rp 3,500",
-      status: "Published",
-      lastUpdated: "2024-01-15"
-    },
-    {
-      id: "PRD002",
-      sku: "SKU002",
-      name: "Aqua Mineral Water",
-      category: "Beverages",
-      brand: "Aqua",
-      supplier: "PT Aqua Golden Mississippi",
-      stockQuantity: 45,
-      purchasePrice: "Rp 1,200",
-      sellingPrice: "Rp 1,800",
-      status: "Draft",
-      lastUpdated: "2024-01-14"
-    },
-    {
-      id: "PRD003",
-      sku: "SKU003",
-      name: "Samsung LED TV 32\"",
-      category: "Electronics",
-      brand: "Samsung",
-      supplier: "PT Samsung Electronics Indonesia",
-      stockQuantity: 0,
-      purchasePrice: "Rp 2,500,000",
-      sellingPrice: "Rp 3,200,000",
-      status: "Draft",
-      lastUpdated: "2024-01-13"
-    },
-    {
-      id: "PRD004",
-      sku: "SKU004",
-      name: "Honda Generator 2000W",
-      category: "Machineries",
-      brand: "Honda",
-      supplier: "PT Honda Power Products Indonesia",
-      stockQuantity: 8,
-      purchasePrice: "Rp 8,500,000",
-      sellingPrice: "Rp 12,000,000",
-      status: "Draft",
-      lastUpdated: "2024-01-12"
-    }
-  ]);
-
+  const user = useUserStore(state => state.user);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  const handleImport = async (data: any[]) => {
-    console.log('Imported products:', data);
-    // In real implementation, this would:
-    // 1. Parse the imported data
-    // 2. Validate the data
-    // 3. Save to database via API
-    // 4. Update the products list
-    // 5. Show success/error messages
+  // Fetch products from API
+  const fetchProducts = async () => {
+    if (!user?.id) return;
     
-    // Example of how the data would be processed:
-    for (const product of data) {
-      const payload = {
-        id: product['Product ID'],
-        sku: product['SKU'] || '',
-        name: product['Product Name'] || '',
-        description: product['Description'] || '',
-        category: product['Category'] || '',
-        brand: product['Brand'] || '',
-        supplier: product['Supplier'] || '',
-        stockQuantity: parseInt(product['Stock Quantity']) || 0,
-        lowStockThreshold: parseInt(product['Low Stock Threshold']) || 30,
-        stockStatus: product['Stock Status'] || 'In Stock',
-        purchasePrice: parseFloat(product['Purchase Price']) || 0,
-        sellingPrice: parseFloat(product['Selling Price']) || 0,
-        status: product['Status'] || 'Draft',
-        catalogType: product['Catalog Type'] || 'Internal',
-        catalogName: product['Catalog Name'] || '',
-        sizes: product['Sizes'] ? product['Sizes'].split(',').map((s: string) => s.trim()) : [],
-        gender: product['Gender'] || 'Unisex',
-        discount: parseFloat(product['Discount']) || 0,
-        discountType: product['Discount Type'] || '',
-        images: [], // Images are not imported via Excel
-      };
-      
-      // In real implementation, you would make an API call here:
-      // await fetch('/api/products', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload),
-      // });
-      
-      console.log('Processing product:', payload);
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/products?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      } else {
+        console.error('Failed to fetch products');
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [user?.id]);
+
+  // Convert product data to table row format
+  const profileToTableRow = (product: any) => ({
+    id: product.id,
+    productId: product.productId,
+    sku: product.sku,
+    name: product.name,
+    category: product.category,
+    brand: product.brand,
+    supplier: product.supplier,
+    stockQuantity: product.stockQuantity,
+    purchasePrice: product.purchasePrice,
+    sellingPrice: product.sellingPrice,
+    status: product.status,
+    createdAt: product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '',
+    lastUpdated: product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '',
+    userId: product.userId
+  });
+
+  // Generate LKP product ID format: LKP-8 random numbers
+  const generateLKPProductId = () => {
+    const randomNumbers = Math.floor(Math.random() * 90000000) + 10000000; // 8 digits
+    return `LKP-${randomNumbers}`;
+  };
+
+  const handleImport = async (data: any[]) => {
+    if (!user?.id) return;
     
-    // Close modal and refresh data
-    setIsImportModalOpen(false);
-    // fetchProducts(); // In real implementation, refresh the products list
+    console.log('Imported products:', data);
+    
+    try {
+      // Process imported data and save to database
+      for (const product of data) {
+        // Always generate new LKP Product ID for imported products (Laku-Laku standard)
+        const payload = {
+          productId: generateLKPProductId(),
+          sku: product['SKU'] || '',
+          name: product['Product Name'] || '',
+          description: product['Description'] || '',
+          category: product['Category'] || '',
+          brand: product['Brand'] || '',
+          supplier: product['Supplier'] || '',
+          stockQuantity: parseInt(product['Stock Quantity']) || 0,
+          lowStockThreshold: parseInt(product['Low Stock Threshold']) || 30,
+          stockStatus: product['Stock Status'] || 'In Stock',
+          purchasePrice: parseFloat(product['Purchase Price']) || 0,
+          sellingPrice: parseFloat(product['Selling Price']) || 0,
+          status: product['Status'] || 'Draft',
+          catalogType: product['Catalog Type'] || 'Internal',
+          catalogName: product['Catalog Name'] || '',
+          sizes: product['Sizes'] ? product['Sizes'].split(',').map((s: string) => s.trim()) : [],
+          gender: product['Gender'] || 'Unisex',
+          discount: parseFloat(product['Discount']) || 0,
+          discountType: product['Discount Type'] || '',
+          images: [], // Images are not imported via Excel
+          userId: user.id
+        };
+        
+        // Always create new product with new LKP ID
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to save product:', payload.name);
+        }
+      }
+      
+      // Refresh products list
+      await fetchProducts();
+      
+      // Close modal
+      setIsImportModalOpen(false);
+      
+      // Show success message
+      alert(`Successfully imported ${data.length} products with new LKP IDs!`);
+      
+    } catch (error) {
+      console.error('Error importing products:', error);
+      alert('Error importing products. Please check the console for details.');
+    }
   };
 
   const handleExport = () => {
     // Export products data to XLSX
     const headers = ['Product ID', 'SKU', 'Product Name', 'Category', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
     const rows = products.map(product => [
-      product.id,
+      product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
       product.sku,
       product.name,
       product.category,
@@ -141,7 +150,7 @@ export default function ProductsPage() {
       product.purchasePrice,
       product.sellingPrice,
       product.status,
-      product.lastUpdated
+      product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : ''
     ]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -154,6 +163,17 @@ export default function ProductsPage() {
     
     downloadXLSX(wb, filename);
   };
+
+  if (loading) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen">
@@ -203,7 +223,12 @@ export default function ProductsPage() {
           onClose={() => setIsImportModalOpen(false)}
           onImport={handleImport}
         />
-        <ProductTable />
+        <ProductTable 
+          products={products}
+          setProducts={setProducts}
+          profileToTableRow={profileToTableRow}
+          onExportXLSX={downloadXLSX}
+        />
       </div>
     </div>
   );

@@ -78,7 +78,7 @@ const productSynonyms: { [key: string]: string[] } = {
 };
 
 function generateProductId() {
-  return 'PRD-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+  return 'LKP-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
 export default function ProductImport({ open, onClose, onImport }: ProductImportProps) {
@@ -156,10 +156,8 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
         const col = mapping[f.key];
         mapped[f.key] = col ? row[col] : '';
       });
-      // Generate Product ID if not provided
-      if (!mapped['Product ID']) {
-        mapped['Product ID'] = generateProductId();
-      }
+      // Always overwrite Product ID with LKP format (Laku-Laku standard)
+      mapped['Product ID'] = generateProductId();
       // Set default values for required fields
       if (!mapped['Status']) {
         mapped['Status'] = 'Draft';
@@ -229,6 +227,12 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
             <div className="mb-2 font-semibold text-black">Map your columns to the required fields:</div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Product IDs will always be automatically generated in LKP format (e.g., LKP-12345678) 
+                regardless of what's in your import file. This ensures consistency with Laku-Laku standards.
+              </p>
+            </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
@@ -238,23 +242,37 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
                   </tr>
                 </thead>
                 <tbody>
-                  {productFields.map(f => (
-                    <tr key={f.key} className="whitespace-nowrap">
-                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
-                      <td className="py-1 px-3">
-                        <select
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
-                          value={mapping[f.key] || ''}
-                          onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
-                        >
-                          <option value="">-- Not Mapped --</option>
-                          {fileHeaders.map(h => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                                     {productFields.map(f => {
+                     const isProductId = f.key === 'Product ID';
+                     return (
+                       <tr key={f.key} className="whitespace-nowrap">
+                         <td className="py-1 px-3 font-semibold text-black">
+                           {f.label}
+                           {isProductId && (
+                             <span className="text-xs text-blue-600 ml-2 font-normal">
+                               (Auto-generated LKP format)
+                             </span>
+                           )}
+                         </td>
+                         <td className="py-1 px-3">
+                           {isProductId ? (
+                             <span className="text-xs text-gray-500 italic">Auto-generated</span>
+                           ) : (
+                             <select
+                               className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
+                               value={mapping[f.key] || ''}
+                               onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
+                             >
+                               <option value="">-- Not Mapped --</option>
+                               {fileHeaders.map(h => (
+                                 <option key={h} value={h}>{h}</option>
+                               ))}
+                             </select>
+                           )}
+                         </td>
+                       </tr>
+                     );
+                   })}
                 </tbody>
               </table>
             </div>
@@ -288,6 +306,12 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 mb-2 text-black">
               <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} products to import
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-800">
+                <strong>Ready to Import:</strong> All products will receive new LKP format IDs (e.g., LKP-12345678). 
+                The Product ID column in your file will be ignored to maintain Laku-Laku standards.
+              </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">

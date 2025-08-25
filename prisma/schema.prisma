@@ -20,6 +20,7 @@ model User {
   updatedAt DateTime   @updatedAt
   buyers    Buyer[]
   suppliers Supplier[]
+  products  Product[]
 }
 
 model Buyer {
@@ -59,4 +60,32 @@ model Supplier {
   updatedAt    DateTime @updatedAt
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id                 Int      @id @default(autoincrement())
+  productId          String   @unique
+  sku                String
+  name               String
+  description        String
+  category           String
+  brand              String
+  supplier           String
+  stockQuantity      Int
+  lowStockThreshold  Int?
+  stockStatus        String?
+  purchasePrice      Float
+  sellingPrice       Float
+  status             String
+  catalogType        String
+  catalogName        String
+  images             String[]
+  sizes              String[]
+  gender             String
+  discount           Float?
+  discountType       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  userId             Int?
+  user               User?    @relation(fields: [userId], references: [id])
 }

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Package, 
   DollarSign, 
@@ -15,6 +15,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUserStore } from "@/store/userStore";
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -25,6 +26,7 @@ interface ProductCatalogProps {
 
 interface ProductData {
   id?: string;
+  productId?: string;
   sku: string;
   name: string;
   description: string;
@@ -53,6 +55,7 @@ export default function ProductCatalog({
   onCancel 
 }: ProductCatalogProps) {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [formData, setFormData] = useState<ProductData>(product || {
     sku: '',
     name: '',
@@ -79,6 +82,23 @@ export default function ProductCatalog({
   const [selectedGender, setSelectedGender] = useState<string>(product?.gender || 'Men');
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Generate LKP product ID format: LKP-8 random numbers
+  const generateLKPProductId = () => {
+    const randomNumbers = Math.floor(Math.random() * 90000000) + 10000000; // 8 digits
+    return `LKP-${randomNumbers}`;
+  };
+
+  // Set generated product ID on component mount for add mode
+  useEffect(() => {
+    if (mode === 'add' && !formData.productId) {
+      setFormData(prev => ({
+        ...prev,
+        productId: generateLKPProductId()
+      }));
+    }
+  }, [mode, formData.productId]);
 
   const categories = ['Foods', 'Beverages', 'Electronics', 'Machineries', 'Household', 'Beauty', 'Fashion', 'Jacket'];
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -197,14 +217,68 @@ export default function ProductCatalog({
     setFormData(prev => ({ ...prev, images: [] }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalData: ProductData = {
-      ...formData,
-      sizes: selectedSizes,
-      gender: selectedGender as 'Men' | 'Woman' | 'Unisex'
-    };
-    onSave?.(finalData);
+    if (!user?.id) {
+      alert('User not authenticated');
+      return;
+    }
+
+    setSaving(true);
+    
+    try {
+      const finalData: ProductData = {
+        ...formData,
+        sizes: selectedSizes,
+        gender: selectedGender as 'Men' | 'Woman' | 'Unisex'
+      };
+
+      // Generate product ID in LKP format if not exists
+      if (!finalData.productId && mode === 'add') {
+        finalData.productId = generateLKPProductId();
+      }
+
+      // Add user ID
+      const payload = {
+        ...finalData,
+        userId: user.id
+      };
+
+      let response;
+      if (mode === 'add') {
+        response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else if (mode === 'edit' && finalData.productId) {
+        response = await fetch('/api/products', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (response?.ok) {
+        const savedProduct = await response.json();
+        alert(mode === 'add' ? 'Product created successfully!' : 'Product updated successfully!');
+        
+        if (onSave) {
+          onSave(savedProduct);
+        } else {
+          // Navigate back to products page
+          router.push('/products');
+        }
+      } else {
+        const errorData = await response?.json();
+        alert(`Error: ${errorData?.error || 'Failed to save product'}`);
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Error saving product. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isViewMode = mode === 'view';
@@ -234,10 +308,20 @@ export default function ProductCatalog({
               <button
                 type="submit"
                 form="product-form"
-                className="flex items-center gap-2 px-6 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle className="w-5 h-5" />
-                Add Product
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Add Product
+                  </>
+                )}
               </button>
             </>
           )}
@@ -245,9 +329,17 @@ export default function ProductCatalog({
             <button
               type="submit"
               form="product-form"
-              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Update Product
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Updating...
+                </>
+              ) : (
+                'Update Product'
+              )}
             </button>
           )}
           {mode === 'view' && (
@@ -299,12 +391,15 @@ export default function ProductCatalog({
                 </label>
                                  <input
                    type="text"
-                   value={formData.id || ''}
-                   onChange={(e) => handleInputChange('id', e.target.value)}
-                   disabled={isViewMode}
+                   value={formData.productId || ''}
+                   onChange={(e) => handleInputChange('productId', e.target.value)}
+                   disabled={mode === 'add' || isViewMode}
                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Enter product ID"
+                   placeholder="Auto-generated Product ID"
                  />
+                 {mode === 'add' && (
+                   <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
+                 )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">

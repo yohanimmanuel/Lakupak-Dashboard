@@ -1,78 +1,44 @@
 'use client';
-import { useParams, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useUserStore } from "@/store/userStore";
 import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 
-export default function ProductCatalogPage() {
+export default function ViewProductPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
-  const productId = params.id as string;
+  const user = useUserStore(state => state.user);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  // Determine mode from URL params or product status
-  const getMode = (productStatus: string, urlMode?: string) => {
-    // If URL has explicit mode, use it
-    if (urlMode) return urlMode;
-    
-    // Otherwise, determine mode based on product status
-    if (productStatus === "Published") {
-      return "view";
-    } else {
-      return "edit";
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate fetching product data
     const fetchProduct = async () => {
-      setLoading(true);
+      if (!user?.id || !params.id) return;
       
-      // Mock API call - in real app, replace with actual API call
-      setTimeout(() => {
-        // Mock product data - in real app, fetch from API using productId
-        // For testing: use different statuses based on product ID
-        let mockStatus: 'Published' | 'Draft' | 'Inactive' = 'Draft';
-        if (productId.includes('PRD001') || productId.includes('published')) {
-          mockStatus = 'Published';
-        } else if (productId.includes('PRD002') || productId.includes('draft')) {
-          mockStatus = 'Draft';
-        } else if (productId.includes('PRD003') || productId.includes('inactive')) {
-          mockStatus = 'Inactive';
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/products?id=${params.id}&userId=${user.id}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setProduct(data);
+        } else {
+          setError('Product not found');
         }
-        
-        const mockProduct = {
-          id: productId,
-          sku: `SKU${productId}`,
-          name: "Sample Product",
-          description: "This is a sample product description.",
-          category: "Foods",
-          brand: "Sample Brand",
-          supplier: "Sample Supplier",
-          stockQuantity: 100,
-          purchasePrice: 1000,
-          sellingPrice: 1500,
-          status: mockStatus,
-          catalogType: "Internal" as const,
-          catalogName: "Sample Catalog",
-          images: [],
-          sizes: ["S", "M", "L"],
-          gender: "Unisex" as const,
-          discount: 0,
-          discountType: ""
-        };
-        
-        setProduct(mockProduct);
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        setError('Failed to load product');
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     };
 
     fetchProduct();
-  }, [productId]);
+  }, [user?.id, params.id]);
 
   if (loading) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading product...</p>
@@ -81,37 +47,25 @@ export default function ProductCatalogPage() {
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">Product not found</p>
+          <p className="text-red-600 mb-4">{error || 'Product not found'}</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );
   }
 
-  const mode = getMode(product.status, searchParams.get('mode') as string);
-  
-  // Debug logging
-  console.log('Product status:', product.status);
-  console.log('URL mode param:', searchParams.get('mode'));
-  console.log('Determined mode:', mode);
-
   return (
-    <div className="p-4 w-full min-h-screen flex items-start justify-center bg-gradient-to-b from-gray-50 to-white">
-      <ProductCatalog 
-        mode={mode as 'add' | 'view' | 'edit'}
-        product={product}
-        onSave={(data) => {
-          console.log('Product saved:', data);
-          // In a real app, this would save to your backend
-        }}
-        onCancel={() => {
-          // Navigate back to products list
-          window.history.back();
-        }}
-      />
+    <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen">
+      <ProductCatalog mode="view" product={product} />
     </div>
   );
 }
