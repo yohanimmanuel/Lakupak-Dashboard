@@ -227,7 +227,7 @@ const Menu = () => {
       {/* Promo Overlay */}
       {showPromo && !isCollapsed && (
         <div className="absolute left-0 right-0 bottom-4 flex justify-center z-20">
-          <div className="relative w-[90%] bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-2xl p-5 flex flex-col items-start shadow-xl">
+          <div className="relative w-[90%] bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-2xl p-4 flex flex-col items-start shadow-xl">
             <button
               className="absolute top-2 right-2 text-white hover:text-gray-300 p-1 rounded"
               onClick={() => setShowPromo(false)}
@@ -235,9 +235,9 @@ const Menu = () => {
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="text-white text-lg font-semibold mb-1 w-38">Loving Laku-Laku Free?</div>
-            <div className="text-gray-200 text-xs mb-4">Go Pro to access priority support, real-time tracking, and full analytics.</div>
-            <button className="bg-white text-[#0a61d7] font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition text-sm">Go Pro Today</button>
+            <div className="text-white text-md font-semibold mb-1 w-38">Loving Laku-Laku Free?</div>
+            <div className="text-gray-200 text-xs mb-4">Go <span className="text-teal-300">Premium</span> to access priority support, real-time tracking, and full analytics.</div>
+            <button className="w-full bg-white text-[#0a61d7] font-bold p-2 rounded-lg shadow hover:bg-gray-200 transition text-sm">Go Premium Today</button>
           </div>
         </div>
       )}
@@ -249,7 +249,7 @@ const Menu = () => {
             onClick={() => { if (isCollapsed) toggleMenu(); }}
           >
             <span className="text-2xl">🤗</span>
-            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">Upgrade to Pro for more features!</span>
+            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">Upgrade to <span className="text-teal-300">Premium</span> for more features!</span>
           </div>
         </div>
       )}
