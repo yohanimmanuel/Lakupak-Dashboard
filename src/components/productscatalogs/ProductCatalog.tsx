@@ -100,7 +100,6 @@ export default function ProductCatalog({
     }
   }, [mode, formData.productId]);
 
-  const categories = ['Foods', 'Beverages', 'Electronics', 'Machineries', 'Household', 'Beauty', 'Fashion', 'Jacket'];
   const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
   const genders = ['Men', 'Woman', 'Unisex'];
   const statusOptions = ['Active', 'Inactive', 'Draft'];
@@ -259,24 +258,22 @@ export default function ProductCatalog({
         });
       }
 
-      if (response?.ok) {
-        const savedProduct = await response.json();
-        alert(mode === 'add' ? 'Product created successfully!' : 'Product updated successfully!');
-        
-        if (onSave) {
-          onSave(savedProduct);
-        } else {
-          // Navigate back to products page
-          router.push('/products');
-        }
-      } else {
-        const errorData = await response?.json();
-        alert(`Error: ${errorData?.error || 'Failed to save product'}`);
-      }
-    } catch (error) {
-      console.error('Error saving product:', error);
-      alert('Error saving product. Please try again.');
-    } finally {
+             if (response?.ok) {
+         const savedProduct = await response.json();
+         
+         if (onSave) {
+           onSave(savedProduct);
+         } else {
+           // Navigate back to products page
+           router.push('/products');
+         }
+       } else {
+         const errorData = await response?.json();
+         console.error(`Error: ${errorData?.error || 'Failed to save product'}`);
+       }
+         } catch (error) {
+       console.error('Error saving product:', error);
+     } finally {
       setSaving(false);
     }
   };
@@ -443,22 +440,19 @@ export default function ProductCatalog({
                      placeholder="Enter brand"
                    />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
+                                 <div>
+                   <label className="block text-xs font-medium text-gray-700 mb-2">
+                     Category
+                   </label>
+                   <input
+                     type="text"
+                     value={formData.category}
+                     onChange={(e) => handleInputChange('category', e.target.value)}
+                     disabled={isViewMode}
+                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                     placeholder="Enter category"
+                   />
+                 </div>
               </div>
               <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -712,22 +706,19 @@ export default function ProductCatalog({
              </div>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product Category
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  disabled={isViewMode}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
+                             <div>
+                 <label className="block text-xs font-medium text-gray-700 mb-2">
+                   Product Category
+                 </label>
+                 <input
+                   type="text"
+                   value={formData.category}
+                   onChange={(e) => handleInputChange('category', e.target.value)}
+                   disabled={isViewMode}
+                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                   placeholder="Enter product category"
+                 />
+               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">

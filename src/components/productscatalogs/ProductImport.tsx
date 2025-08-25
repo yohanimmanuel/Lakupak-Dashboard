@@ -159,9 +159,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       // Always overwrite Product ID with LKP format (Laku-Laku standard)
       mapped['Product ID'] = generateProductId();
       // Set default values for required fields
-      if (!mapped['Status']) {
-        mapped['Status'] = 'Draft';
-      }
+      mapped['Status'] = 'Draft'; // Always set status to Draft for imported products
       if (!mapped['Stock Status']) {
         mapped['Stock Status'] = 'In Stock';
       }
@@ -230,7 +228,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-800">
                 <strong>Note:</strong> Product IDs will always be automatically generated in LKP format (e.g., LKP-12345678) 
-                regardless of what's in your import file. This ensures consistency with Laku-Laku standards.
+                and Status will always be set to "Draft" regardless of what's in your import file. This ensures consistency and clarity on product catalogs and inventory.
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -244,6 +242,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
                 <tbody>
                                      {productFields.map(f => {
                      const isProductId = f.key === 'Product ID';
+                     const isStatus = f.key === 'Status';
                      return (
                        <tr key={f.key} className="whitespace-nowrap">
                          <td className="py-1 px-3 font-semibold text-black">
@@ -253,10 +252,17 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
                                (Auto-generated LKP format)
                              </span>
                            )}
+                           {isStatus && (
+                             <span className="text-xs text-blue-600 ml-2 font-normal">
+                               (Always Draft)
+                             </span>
+                           )}
                          </td>
                          <td className="py-1 px-3">
                            {isProductId ? (
                              <span className="text-xs text-gray-500 italic">Auto-generated</span>
+                           ) : isStatus ? (
+                             <span className="text-xs text-gray-500 italic">Auto-set to Draft</span>
                            ) : (
                              <select
                                className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
@@ -309,8 +315,8 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-800">
-                <strong>Ready to Import:</strong> All products will receive new LKP format IDs (e.g., LKP-12345678). 
-                The Product ID column in your file will be ignored to maintain Laku-Laku standards.
+                <strong>Ready to Import:</strong> All products will receive new LKP format IDs (e.g., LKP-12345678) 
+                and Status will always be set to "Draft". The Product ID and Status columns in your file will be ignored to maintain Laku-Laku standards.
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200">

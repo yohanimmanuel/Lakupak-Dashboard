@@ -98,7 +98,7 @@ export default function ProductsPage() {
           stockStatus: product['Stock Status'] || 'In Stock',
           purchasePrice: parseFloat(product['Purchase Price']) || 0,
           sellingPrice: parseFloat(product['Selling Price']) || 0,
-          status: product['Status'] || 'Draft',
+          status: 'Draft', // Always overwrite status to Draft for imported products
           catalogType: product['Catalog Type'] || 'Internal',
           catalogName: product['Catalog Name'] || '',
           sizes: product['Sizes'] ? product['Sizes'].split(',').map((s: string) => s.trim()) : [],
@@ -127,13 +127,11 @@ export default function ProductsPage() {
       // Close modal
       setIsImportModalOpen(false);
       
-      // Show success message
-      alert(`Successfully imported ${data.length} products with new LKP IDs!`);
-      
-    } catch (error) {
-      console.error('Error importing products:', error);
-      alert('Error importing products. Please check the console for details.');
-    }
+             // Import completed successfully
+       
+     } catch (error) {
+       console.error('Error importing products:', error);
+     }
   };
 
   const handleExport = () => {

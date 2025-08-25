@@ -11,8 +11,6 @@ const statusTabs = [
   { label: "All" },
   { label: "Draft" },
   { label: "Published" },
-  { label: "Active" },
-  { label: "Inactive" },
 ];
 
 const stockFilters = [
