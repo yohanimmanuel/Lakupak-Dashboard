@@ -20,8 +20,7 @@ type ProductImportRow = {
   'Status': string;
   'Catalog Type': string;
   'Catalog Name': string;
-  'Sizes': string;
-  'Gender': string;
+
   'Discount': string;
   'Discount Type': string;
 };
@@ -48,8 +47,7 @@ const productFields = [
   { key: 'Status', label: 'Status' },
   { key: 'Catalog Type', label: 'Catalog Type' },
   { key: 'Catalog Name', label: 'Catalog Name' },
-  { key: 'Sizes', label: 'Sizes' },
-  { key: 'Gender', label: 'Gender' },
+  
   { key: 'Discount', label: 'Discount' },
   { key: 'Discount Type', label: 'Discount Type' },
 ];
@@ -71,8 +69,8 @@ const productSynonyms: { [key: string]: string[] } = {
   'Status': ['status', 'product status', 'state'],
   'Catalog Type': ['catalog type', 'catalog', 'type', 'jenis katalog'],
   'Catalog Name': ['catalog name', 'catalog', 'nama katalog'],
-  'Sizes': ['sizes', 'size', 'ukuran', 'dimensi'],
-  'Gender': ['gender', 'jenis kelamin', 'target audience'],
+  
+  
   'Discount': ['discount', 'diskon', 'potongan'],
   'Discount Type': ['discount type', 'discount category', 'jenis diskon'],
 };
@@ -176,9 +174,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       if (!mapped['Catalog Type']) {
         mapped['Catalog Type'] = 'Internal';
       }
-      if (!mapped['Gender']) {
-        mapped['Gender'] = 'Unisex';
-      }
+      
       if (!mapped['Low Stock Threshold']) {
         mapped['Low Stock Threshold'] = '30';
       }

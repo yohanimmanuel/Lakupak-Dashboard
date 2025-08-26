@@ -763,7 +763,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 </td>
                 <td className="py-3 px-4 text-xs text-gray-900 max-w-25 truncate">
                   <div>
-                    <div className="font-medium">{product.sku}</div>
+                    <div className="font-medium truncate">{product.sku}</div>
                     <div className="text-gray-500 text-xs truncate">{product.productId}</div>
                   </div>
                 </td>
@@ -785,11 +785,6 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                          Low Stock
                        </span>
                      )}
-                     {product.stockQuantity > 50 && product.stockQuantity <= 100 && (
-                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600">
-                         Medium Stock
-                       </span>
-                     )}
                    </div>
                  </td>
                 <td className="py-3 px-4 text-xs text-gray-700">{product.purchasePrice}</td>
@@ -801,12 +796,17 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 </td>
                 <td className="py-3 px-4 text-xs text-gray-700">{format(new Date(product.lastUpdated), 'MMM dd, yyyy')}</td>
                 <td className="py-3 px-4 text-xs text-center">
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-2">
                     <button
-                      onClick={() => handleEdit(product)}
+                      onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
+                      title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
                     >
-                      <Eye className="w-4 h-4 text-[#0a61d7]" />
+                      {product.status === 'Published' ? (
+                        <Eye className="w-4 h-4 text-[#0a61d7]" />
+                      ) : (
+                        <Eye className="w-4 h-4 text-[#0a61d7]" />
+                      )}
                     </button>
                   </div>
                 </td>
@@ -897,11 +897,6 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                        Low Stock
                      </span>
                    )}
-                   {product.stockQuantity > 50 && product.stockQuantity <= 100 && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600">
-                       Medium Stock
-                     </span>
-                   )}
                  </div>
                  
                  {/* Price */}
@@ -916,10 +911,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
                      <button
-                       onClick={() => handleEdit(product)}
+                       onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                        className="p-1.5 rounded-lg hover:bg-blue-100 transition"
+                       title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
                      >
-                       <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       {product.status === 'Published' ? (
+                         <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       ) : (
+                         <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       )}
                      </button>
                    </div>
                  </div>
@@ -1009,11 +1009,6 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                        Low Stock
                      </span>
                    )}
-                   {product.stockQuantity > 50 && product.stockQuantity <= 100 && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600">
-                       Medium Stock
-                     </span>
-                   )}
                  </div>
                  
                  {/* Price */}
@@ -1028,10 +1023,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
                      <button
-                       onClick={() => handleEdit(product)}
+                       onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                        className="p-1.5 rounded-lg hover:bg-blue-100 transition"
+                       title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
                      >
-                       <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       {product.status === 'Published' ? (
+                         <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       ) : (
+                         <Eye className="w-4 h-4 text-[#0a61d7]" />
+                       )}
                      </button>
                      
                    </div>

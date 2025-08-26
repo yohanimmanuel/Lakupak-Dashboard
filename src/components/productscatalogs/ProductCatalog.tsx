@@ -42,8 +42,6 @@ interface ProductData {
   catalogType: 'Internal' | 'External';
   catalogName: string;
   images: string[];
-  sizes: string[];
-  gender: 'Men' | 'Woman' | 'Unisex';
   discount?: number;
   discountType?: string;
 }
@@ -72,14 +70,11 @@ export default function ProductCatalog({
     catalogType: 'Internal',
     catalogName: '',
     images: [],
-    sizes: [],
-    gender: 'Men',
     discount: 0,
     discountType: ''
   });
 
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(product?.sizes || []);
-  const [selectedGender, setSelectedGender] = useState<string>(product?.gender || 'Men');
+
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,8 +117,7 @@ export default function ProductCatalog({
     }
   }, [formData.stockQuantity, formData.lowStockThreshold, formData.stockStatus]);
 
-  const availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-  const genders = ['Men', 'Woman', 'Unisex'];
+
   const statusOptions = ['Active', 'Inactive', 'Draft'];
   const catalogTypes = ['Internal', 'External'];
 
@@ -152,18 +146,7 @@ export default function ProductCatalog({
     });
   };
 
-  const handleSizeToggle = (size: string) => {
-    setSelectedSizes(prev => 
-      prev.includes(size) 
-        ? prev.filter(s => s !== size)
-        : [...prev, size]
-    );
-  };
 
-  const handleGenderChange = (gender: string) => {
-    setSelectedGender(gender);
-    setFormData(prev => ({ ...prev, gender: gender as 'Men' | 'Woman' | 'Unisex' }));
-  };
 
   const handleImageUpload = (files: FileList) => {
     setUploadingImages(true);
@@ -267,9 +250,7 @@ export default function ProductCatalog({
     
     try {
       const finalData: ProductData = {
-        ...formData,
-        sizes: selectedSizes,
-        gender: selectedGender as 'Men' | 'Woman' | 'Unisex'
+        ...formData
       };
 
       // Generate product ID in LKP format if not exists
@@ -379,15 +360,6 @@ export default function ProductCatalog({
               )}
             </button>
           )}
-          {mode === 'view' && (
-            <button
-              onClick={() => onCancel?.()}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <X className="w-5 h-5" />
-              Close
-            </button>
-          )}
         </div>
       </div>
 
@@ -426,14 +398,14 @@ export default function ProductCatalog({
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Product ID
                 </label>
-                                 <input
-                   type="text"
-                   value={formData.productId || ''}
-                   onChange={(e) => handleInputChange('productId', e.target.value)}
-                   disabled={mode === 'add' || isViewMode}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Auto-generated Product ID"
-                 />
+                                                 <input
+                  type="text"
+                  value={formData.productId || ''}
+                  onChange={(e) => handleInputChange('productId', e.target.value)}
+                  disabled={mode === 'add' || isViewMode || mode === 'edit'}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  placeholder="Auto-generated Product ID"
+                />
                  {mode === 'add' && (
                    <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
                  )}
@@ -722,24 +694,12 @@ export default function ProductCatalog({
                  <Tag className="w-5 h-5 text-gray-500" />
                  Catalog Settings
                </h2>
-                               {!isViewMode && (
+                 
                   <div className="flex items-center gap-2">
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-gray-400 cursor-help" />
-                      <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                        Add category as a new category filter
-                        <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                      </div>
-                    </div>
-                    
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors font-medium"
-                    >
-                      Add Category
-                    </button>
+                     <p className="text-xs text-gray-500 italic">
+                       All Categories input will be added as a new category filter.
+                     </p>
                   </div>
-                )}
              </div>
             
             <div className="space-y-4">

@@ -114,8 +114,7 @@ export default function ProductsPage() {
           status: 'Draft', // Always overwrite status to Draft for imported products
           catalogType: product['Catalog Type'] || 'Internal',
           catalogName: product['Catalog Name'] || '',
-          sizes: product['Sizes'] ? product['Sizes'].split(',').map((s: string) => s.trim()) : [],
-          gender: product['Gender'] || 'Unisex',
+
           discount: parseFloat(product['Discount']) || 0,
           discountType: product['Discount Type'] || '',
           images: [], // Images are not imported via Excel

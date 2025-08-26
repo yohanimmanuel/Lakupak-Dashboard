@@ -80,8 +80,6 @@ model Product {
   catalogType        String
   catalogName        String
   images             String[]
-  sizes              String[]
-  gender             String
   discount           Float?
   discountType       String?
   createdAt          DateTime @default(now())
