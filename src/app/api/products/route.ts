@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
       stockQuantity: Number(data.stockQuantity),
       lowStockThreshold: data.lowStockThreshold ? Number(data.lowStockThreshold) : null,
       stockStatus: data.stockStatus ? String(data.stockStatus) : null,
-      purchasePrice: Number(data.purchasePrice),
-      sellingPrice: Number(data.sellingPrice),
+      purchasePrice: String(data.purchasePrice),
+      sellingPrice: String(data.sellingPrice),
       status: String(data.status),
       catalogType: String(data.catalogType),
       catalogName: String(data.catalogName),
@@ -142,8 +142,8 @@ export async function PUT(req: NextRequest) {
     if (updateData.stockQuantity !== undefined) cleanUpdateData.stockQuantity = Number(updateData.stockQuantity);
     if (updateData.lowStockThreshold !== undefined) cleanUpdateData.lowStockThreshold = updateData.lowStockThreshold ? Number(updateData.lowStockThreshold) : null;
     if (updateData.stockStatus !== undefined) cleanUpdateData.stockStatus = updateData.stockStatus ? String(updateData.stockStatus) : null;
-    if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = Number(updateData.purchasePrice);
-    if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = Number(updateData.sellingPrice);
+         if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(updateData.purchasePrice);
+     if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(updateData.sellingPrice);
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
     if (updateData.catalogType !== undefined) cleanUpdateData.catalogType = String(updateData.catalogType);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);

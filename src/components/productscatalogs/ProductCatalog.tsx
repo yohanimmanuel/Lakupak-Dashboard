@@ -36,9 +36,9 @@ interface ProductData {
   stockQuantity: number;
   lowStockThreshold?: number;
   stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  purchasePrice: number;
-  sellingPrice: number;
-  status: 'Active' | 'Inactive' | 'Draft';
+  purchasePrice: string;
+  sellingPrice: string;
+  status: 'Draft' | 'Published';
   catalogType: 'Internal' | 'External';
   catalogName: string;
   images: string[];
@@ -62,10 +62,10 @@ export default function ProductCatalog({
     brand: '',
     supplier: '',
     stockQuantity: 0,
-    lowStockThreshold: 30,
+    lowStockThreshold: 0,
     stockStatus: 'In Stock',
-    purchasePrice: 0,
-    sellingPrice: 0,
+    purchasePrice: 'Rp 0',
+    sellingPrice: 'Rp 0',
     status: 'Draft',
     catalogType: 'Internal',
     catalogName: '',
@@ -102,6 +102,9 @@ export default function ProductCatalog({
       
       if (formData.stockQuantity === 0) {
         newStockStatus = 'Out of Stock';
+      } else if (formData.lowStockThreshold === 0) {
+        // If threshold is 0, only "Out of Stock" when quantity is 0, otherwise "In Stock"
+        newStockStatus = 'In Stock';
       } else if (formData.stockQuantity <= formData.lowStockThreshold) {
         newStockStatus = 'Low Stock';
       } else {
@@ -118,7 +121,7 @@ export default function ProductCatalog({
   }, [formData.stockQuantity, formData.lowStockThreshold, formData.stockStatus]);
 
 
-  const statusOptions = ['Active', 'Inactive', 'Draft'];
+  const statusOptions = ['Draft', 'Published'];
   const catalogTypes = ['Internal', 'External'];
 
   const handleInputChange = (field: keyof ProductData, value: any) => {
@@ -128,19 +131,22 @@ export default function ProductCatalog({
         [field]: value
       };
       
-      // Automatically update stock status based on stock quantity and threshold
-      if (field === 'stockQuantity' || field === 'lowStockThreshold') {
-        const stockQty = field === 'stockQuantity' ? value : newFormData.stockQuantity;
-        const threshold = field === 'lowStockThreshold' ? value : newFormData.lowStockThreshold;
-        
-        if (stockQty === 0) {
-          newFormData.stockStatus = 'Out of Stock';
-        } else if (stockQty <= threshold) {
-          newFormData.stockStatus = 'Low Stock';
-        } else {
-          newFormData.stockStatus = 'In Stock';
-        }
-      }
+             // Automatically update stock status based on stock quantity and threshold
+       if (field === 'stockQuantity' || field === 'lowStockThreshold') {
+         const stockQty = field === 'stockQuantity' ? value : newFormData.stockQuantity;
+         const threshold = field === 'lowStockThreshold' ? value : newFormData.lowStockThreshold;
+         
+         if (stockQty === 0) {
+           newFormData.stockStatus = 'Out of Stock';
+         } else if (threshold === 0) {
+           // If threshold is 0, only "Out of Stock" when quantity is 0, otherwise "In Stock"
+           newFormData.stockStatus = 'In Stock';
+         } else if (stockQty <= threshold) {
+           newFormData.stockStatus = 'Low Stock';
+         } else {
+           newFormData.stockStatus = 'In Stock';
+         }
+       }
       
       return newFormData;
     });
@@ -239,6 +245,8 @@ export default function ProductCatalog({
     setFormData(prev => ({ ...prev, images: [] }));
   };
 
+    
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
@@ -258,11 +266,15 @@ export default function ProductCatalog({
         finalData.productId = generateLKPProductId();
       }
 
-      // Add user ID
-      const payload = {
-        ...finalData,
-        userId: user.id
-      };
+             // Submit the full text values including currency symbols
+       const payload = {
+         ...finalData,
+         purchasePrice: formData.purchasePrice,
+         sellingPrice: formData.sellingPrice,
+         userId: user.id
+       };
+
+      console.log('Submitting payload:', payload);
 
       let response;
       if (mode === 'add') {
@@ -279,22 +291,24 @@ export default function ProductCatalog({
         });
       }
 
-             if (response?.ok) {
-         const savedProduct = await response.json();
-         
-         if (onSave) {
-           onSave(savedProduct);
-         } else {
-           // Navigate back to products page
-           router.push('/products');
-         }
-       } else {
-         const errorData = await response?.json();
-         console.error(`Error: ${errorData?.error || 'Failed to save product'}`);
-       }
-         } catch (error) {
-       console.error('Error saving product:', error);
-     } finally {
+      if (response?.ok) {
+        const savedProduct = await response.json();
+        
+        if (onSave) {
+          onSave(savedProduct);
+        } else {
+          // Navigate back to products page
+          router.push('/products');
+        }
+      } else {
+        const errorData = await response?.json();
+        console.error(`Error: ${errorData?.error || 'Failed to save product'}`);
+        alert(`Error: ${errorData?.error || 'Failed to save product'}`);
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Error saving product. Please try again.');
+    } finally {
       setSaving(false);
     }
   };
@@ -306,20 +320,37 @@ export default function ProductCatalog({
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push('/products')}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Products
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {mode === 'add' && 'Add New Product'}
-            {mode === 'view' && 'Product Details'}
-            {mode === 'edit' && 'Edit Product'}
-          </h1>
-        </div>
+                 <div className="flex items-center gap-4">
+           <button
+             onClick={() => router.push('/products')}
+             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+           >
+             <ArrowLeft className="w-4 h-4" />
+             Back to Products
+           </button>
+           <div className="flex items-center gap-3">
+             <h1 className="text-2xl font-bold text-gray-900">
+               {mode === 'add' && 'Add New Product'}
+               {mode === 'view' && 'Product Details'}
+               {mode === 'edit' && 'Edit Product'}
+             </h1>
+             {mode === 'view' && formData.status === 'Published' && (
+               <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
+                 Published
+               </span>
+             )}
+           </div>
+           {mode === 'view' && formData.status === 'Published' && (
+            <div className="flex items-center justify-end gap-3">
+             <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+               <Info className="w-4 h-4 text-orange-600" />
+               <span className="text-sm text-orange-700 font-medium">
+                 To edit, you need to unpublish this product in the marketplace.
+               </span>
+             </div>
+             </div>
+           )}
+         </div>
         <div className="flex items-center gap-3">
           {mode === 'add' && (
             <>
@@ -517,16 +548,16 @@ export default function ProductCatalog({
                    <label className="block text-xs font-medium text-gray-700 mb-2">
                      Low Stock Threshold
                    </label>
-                   <input
-                     type="number"
-                     value={formData.lowStockThreshold || 30}
-                     onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 30)}
-                     disabled={isViewMode}
-                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                     placeholder="30"
-                     min="0"
-                   />
-                   <p className="text-xs text-gray-500 mt-1">Optional, default 30-40</p>
+                                       <input
+                      type="number"
+                      value={formData.lowStockThreshold || 0}
+                      onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 0)}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                      placeholder="0"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Set to your own stock threshold</p>
                  </div>
                <div>
                      <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -753,45 +784,41 @@ export default function ProductCatalog({
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-gray-500" />
-              Pricing and Stock
+              Pricing
             </h2>
             
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Base Pricing
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={formData.sellingPrice}
-                      onChange={(e) => handleInputChange('sellingPrice', parseFloat(e.target.value) || 0)}
-                      disabled={isViewMode}
-                      className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="0.00"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Purchase Price
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={formData.purchasePrice}
-                      onChange={(e) => handleInputChange('purchasePrice', parseFloat(e.target.value) || 0)}
-                      disabled={isViewMode}
-                      className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="0.00"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
+                                 <div>
+                   <label className="block text-xs font-medium text-gray-700 mb-2">
+                     Base Pricing <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
+                   </label>
+                   <div className="relative">
+                     <input
+                       type="text"
+                       value={formData.sellingPrice}
+                       onChange={(e) => handleInputChange('sellingPrice', e.target.value)}
+                       disabled={isViewMode}
+                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                       placeholder="e.g., Rp 150,000 or $25.00"
+                     />
+                   </div>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-medium text-gray-700 mb-2">
+                     Purchase Price <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
+                   </label>
+                   <div className="relative">
+                     <input
+                       type="text"
+                       value={formData.purchasePrice}
+                       onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
+                       disabled={isViewMode}
+                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                       placeholder="e.g., Rp 120,000 or $20.00"
+                     />
+                   </div>
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

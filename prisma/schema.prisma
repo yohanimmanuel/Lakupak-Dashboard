@@ -74,8 +74,8 @@ model Product {
   stockQuantity      Int
   lowStockThreshold  Int?
   stockStatus        String?
-  purchasePrice      Float
-  sellingPrice       Float
+  purchasePrice      String
+  sellingPrice       String
   status             String
   catalogType        String
   catalogName        String
