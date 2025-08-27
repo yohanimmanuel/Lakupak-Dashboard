@@ -16,6 +16,13 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const getButtonText = () => {
+    if (loading) {
+      return step === 0 ? "Sending..." : "Resetting...";
+    }
+    return step === 0 ? "Send" : "Reset Password";
+  };
+
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -82,39 +89,39 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md p-8 rounded-lg">
-        {step === 0 && (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div className="flex flex-col items-center justify-center text-center mb-8">
-              <a href="/">
-                <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
-              </a>
-            </div>
-            <h2 className="text-2xl font-bold text-center text-black mb-4">Forgot Password</h2>
-            <p className="text-center text-gray-500 text-sm mb-10">
-              Enter your registered email address and press 'Send'. We will send you a link to set a new password if the email is found in our system.
-            </p>
-            <div>
-              <label className="block mb-1 text-sm text-gray-500">Registered Email</label>
-              <input
-                type="email"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                placeholder="you@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-            {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
-            <button
-              type="submit"
-              className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-60"
-              disabled={loading}
-            >
-              {loading ? (step === 0 ? "Sending..." : "Resetting...") : (step === 0 ? "Send" : "Reset Password")}
-            </button>
-          </form>
-        )}
+                 {step === 0 && (
+           <form onSubmit={handleEmailSubmit} className="space-y-4">
+             <div className="flex flex-col items-center justify-center text-center mb-8">
+               <a href="/">
+                 <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+               </a>
+             </div>
+             <h2 className="text-2xl font-bold text-center text-black mb-4">Forgot Password</h2>
+             <p className="text-center text-gray-500 text-sm mb-10">
+               Enter your registered email address and press 'Send'. We will send you a link to set a new password if the email is found in our system.
+             </p>
+             <div>
+               <label className="block mb-1 text-sm text-gray-500">Registered Email</label>
+               <input
+                 type="email"
+                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
+                 placeholder="you@email.com"
+                 value={email}
+                 onChange={e => setEmail(e.target.value)}
+                 required
+               />
+             </div>
+             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+             {success && <p className="text-green-600 text-sm mt-2">{success}</p>}
+             <button
+               type="submit"
+               className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-60"
+               disabled={loading}
+             >
+               {getButtonText()}
+             </button>
+           </form>
+         )}
         {step === 1 && (
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div className="flex flex-col items-center justify-center text-center mb-8">
@@ -153,7 +160,7 @@ export default function ForgotPasswordPage() {
               className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-60"
               disabled={loading}
             >
-              {loading ? (step === 0 ? "Sending..." : "Resetting...") : (step === 0 ? "Send" : "Reset Password")}
+              {getButtonText()}
             </button>
           </form>
         )}
