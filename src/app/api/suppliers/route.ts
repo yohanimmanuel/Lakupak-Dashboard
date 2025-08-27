@@ -119,7 +119,18 @@ export async function PUT(req: NextRequest) {
     const userIdNum = Number(userId);
     
     // Clean the update data to ensure proper types
-    const cleanUpdateData: any = {};
+    const cleanUpdateData: Partial<{
+      name: string;
+      contact: string;
+      email: string;
+      phone: string;
+      businessType: string;
+      address: string;
+      status: string;
+      logistics: string | null;
+      notes: string | null;
+      supplies: string | null;
+    }> = {};
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
     if (updateData.contact !== undefined) cleanUpdateData.contact = String(updateData.contact);
     if (updateData.email !== undefined) cleanUpdateData.email = String(updateData.email);

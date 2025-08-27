@@ -7,7 +7,7 @@ import { Plus, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
-import { Buyer, BuyerTableRow, BuyerFormData } from '@/types/client';
+import { Buyer, BuyerTableRow, BuyerFormData, OrderDetail } from '@/types/client';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -35,13 +35,13 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
   })() : [];
   
   if (Array.isArray(orderDetails) && orderDetails.length > 0) {
-    orderDetails.forEach((o: any) => {
+          orderDetails.forEach((o: OrderDetail) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
       const match = (o.totalSpend || '').toString().match(/^([^ - \d]*)/);
       if (match && match[1] && !currency) currency = match[1];
       totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^ - \d]/g, '')) || 0;
     });
-    outstanding = orderDetails.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
+    outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
   }
   
   // Format numbers with thousands separator and currency, ensure space after Rp
@@ -61,7 +61,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     businessType: buyer.businessType,
     address: buyer.address,
     status: buyer.status,
-    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
+    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
     totalSpend: formattedTotalSpend,
     outstanding: formattedOutstanding,
     createdAt: buyer.createdAt ? new Date(buyer.createdAt).toLocaleDateString() : '',
@@ -82,7 +82,7 @@ export default function BuyersPage() {
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as BuyerProfile)
-  const calculateMonthlyAverages = (orderDetails: any[]) => {
+  const calculateMonthlyAverages = (orderDetails: OrderDetail[]) => {
     if (!orderDetails || orderDetails.length === 0) {
       return { avgMonthlyOrders: 0, avgMonthlySpending: 0 };
     }
@@ -91,14 +91,14 @@ export default function BuyersPage() {
     let totalOrders = 0;
     let totalSpending = 0;
     
-    orderDetails.forEach((order: any) => {
+    orderDetails.forEach((order: OrderDetail) => {
       totalOrders += parseInt(order.totalOrders) || 0;
       totalSpending += parseInt((order.totalSpend || '0').toString().replace(/[^\d]/g, '')) || 0;
     });
     
     // Extract unique months from order dates
     const uniqueMonths = new Set();
-    orderDetails.forEach((order: any) => {
+    orderDetails.forEach((order: OrderDetail) => {
       if (order.lastOrderDate) {
         const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
         uniqueMonths.add(monthKey);

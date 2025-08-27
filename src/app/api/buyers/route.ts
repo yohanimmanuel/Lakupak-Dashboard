@@ -126,7 +126,19 @@ export async function PUT(req: NextRequest) {
     const userIdNum = Number(userId);
     
     // Clean the update data to ensure proper types
-    const cleanUpdateData: any = {};
+    const cleanUpdateData: Partial<{
+      avatar: string | null;
+      owner: string;
+      email: string;
+      phone: string;
+      storeName: string;
+      businessType: string;
+      address: string;
+      status: string;
+      logistics: string | null;
+      notes: string | null;
+      orderDetails: string | null;
+    }> = {};
     if (updateData.avatar !== undefined) cleanUpdateData.avatar = updateData.avatar ? String(updateData.avatar) : null;
     if (updateData.owner !== undefined) cleanUpdateData.owner = String(updateData.owner);
     if (updateData.email !== undefined) cleanUpdateData.email = String(updateData.email);

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       status: String(data.status),
       catalogType: String(data.catalogType),
       catalogName: String(data.catalogName),
-      images: Array.isArray(data.images) ? data.images : [],
+             images: Array.isArray(data.images) ? data.images : [String(data.images || '')],
       discount: data.discount ? Number(data.discount) : null,
       discountType: data.discountType ? String(data.discountType) : null,
       userId: Number(data.userId)
@@ -132,7 +132,25 @@ export async function PUT(req: NextRequest) {
     const userIdNum = Number(userId);
     
     // Clean the update data to ensure proper types
-    const cleanUpdateData: any = {};
+    const cleanUpdateData: Partial<{
+      sku: string;
+      name: string;
+      description: string;
+      category: string;
+      brand: string;
+      supplier: string;
+      stockQuantity: number;
+      lowStockThreshold: number | null;
+      stockStatus: string | null;
+      purchasePrice: string;
+      sellingPrice: string;
+      status: string;
+      catalogType: string;
+      catalogName: string;
+      images: string[];
+      discount: number | null;
+      discountType: string | null;
+    }> = {};
     if (updateData.sku !== undefined) cleanUpdateData.sku = String(updateData.sku);
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
     if (updateData.description !== undefined) cleanUpdateData.description = String(updateData.description);
