@@ -4,39 +4,30 @@ import { useMemo } from 'react';
 import { Buyer, Supplier, OrderDetail, SupplyDetail } from '@/types/client';
 
 /**
- * Statcards Component - Multi-Currency Support
+ * Statcards Component - Currency-Agnostic Support
  * 
- * This component handles multiple currencies intelligently:
+ * This component handles multiple currencies without conversion:
  * 
- * 1. **Currency Detection**: Automatically detects the most common currency in the dataset
- * 2. **Dynamic Display**: Shows values with the detected currency prefix
- * 3. **Currency Conversion**: Provides utility functions for converting between currencies
- * 
- * **Supported Currencies**: IDR (Rp), USD ($), EUR (€), SGD (S$)
+ * 1. **Currency Display**: Shows values with their original currency prefix
+ * 2. **No Conversion**: Assumes all data uses the same currency as per user note
+ * 3. **Simple Formatting**: Displays values as-is with proper formatting
  * 
  * **How it works**:
- * - Scans all order/supply data to find currency prefixes
- * - Counts frequency of each currency
- * - Uses the most frequent currency for display
- * - Falls back to 'Rp ' if no currency is detected
+ * - Extracts currency prefix from the first available data point
+ * - Uses that currency for all display values
+ * - No currency conversion or rate calculations
+ * - Assumes user follows the note: "Please use the same currency for all buyers/suppliers"
  * 
- * **Multi-Currency Scenarios**:
- * - Mixed currencies in same dataset → Shows dominant currency
- * - Different currencies per buyer/supplier → Adapts to each dataset
- * - No currency specified → Defaults to Indonesian Rupiah (Rp)
- * 
- * **Monthly Average Calculation (CORRECT METHOD)**:
+ * **Monthly Average Calculation**:
  * 1. Sum all monthly spending/purchase values from each buyer/supplier
  * 2. Count only those with values > 0
  * 3. Divide total by count of active users
  * 4. This gives the true "average monthly spending/purchase per active user"
  * 
- * **Order Frequency Calculation (CORRECT METHOD)**:
+ * **Order Frequency Calculation**:
  * 1. Sum all monthly orders from ALL buyers (regardless of spending)
  * 2. Divide by count of ALL buyers (not just those with spending)
  * 3. This gives true "average monthly orders per buyer"
- * 
- * **Future Enhancement**: Real-time exchange rates via API integration
  */
 interface StatcardsProps {
   type: 'buyer' | 'supplier';
@@ -75,52 +66,30 @@ function extractCurrency(valueStr: string): string {
   return match && match[1] ? match[1].trim() : '';
 }
 
-// Helper function to detect dominant currency from data
-function detectDominantCurrency(data: (Buyer | Supplier)[], valueField: string): string {
-  const currencies = new Map<string, number>();
-  
-  data.forEach(item => {
+// Helper function to get currency from first available data point
+function getCurrencyFromData(data: (Buyer | Supplier)[], valueField: string): string {
+  for (const item of data) {
     if ('orderDetails' in item) {
       const orderDetails = safeParseJSON(item.orderDetails || '[]');
-      if (Array.isArray(orderDetails)) {
-        orderDetails.forEach((detail: OrderDetail) => {
-          const currency = extractCurrency(detail[valueField as keyof OrderDetail] || '');
-          if (currency) {
-            currencies.set(currency, (currencies.get(currency) || 0) + 1);
-          }
-        });
+      if (Array.isArray(orderDetails) && orderDetails.length > 0) {
+        const currency = extractCurrency(orderDetails[0][valueField as keyof OrderDetail] || '');
+        if (currency) return currency;
       }
     } else if ('supplies' in item) {
       const supplies = safeParseJSON(item.supplies || '[]');
-      if (Array.isArray(supplies)) {
-        supplies.forEach((detail: SupplyDetail) => {
-          const currency = extractCurrency(detail[valueField as keyof SupplyDetail] || '');
-          if (currency) {
-            currencies.set(currency, (currencies.get(currency) || 0) + 1);
-          }
-        });
+      if (Array.isArray(supplies) && supplies.length > 0) {
+        const currency = extractCurrency(supplies[0][valueField as keyof SupplyDetail] || '');
+        if (currency) return currency;
       }
     }
-  });
-  
-  // Return the most frequent currency, or default to 'Rp ' if none found
-  if (currencies.size === 0) return 'Rp ';
-  
-  let dominantCurrency = '';
-  let maxCount = 0;
-  currencies.forEach((count, currency) => {
-    if (count > maxCount) {
-      maxCount = count;
-      dominantCurrency = currency;
-    }
-  });
-  
-  return dominantCurrency || 'Rp ';
+  }
+  // Return empty string if no currency found - let the display logic handle it
+  return '';
 }
 
-// Helper function to round to nearest hundred thousand
-function roundToHundredThousand(value: number): number {
-  return Math.round(value / 100000) * 100000;
+// Helper function to clean decimals by rounding to nearest whole number
+function cleanDecimals(value: number): number {
+  return Math.round(value);
 }
 
 export default function Statcards({ type, data }: StatcardsProps) {
@@ -128,10 +97,9 @@ export default function Statcards({ type, data }: StatcardsProps) {
     if (type === 'buyer') {
       const totalBuyers = data.length;
       const activeBuyers = data.filter(b => b.status === 'Active').length;
-      const monthKey = getCurrentMonth();
       
-      // Detect dominant currency from buyer data
-      const dominantCurrency = detectDominantCurrency(data, 'totalSpend');
+      // Get currency from first available data point
+      const currency = getCurrencyFromData(data, 'totalSpend');
       
       // Average monthly spend per buyer - CORRECT CALCULATION
       // Use the monthly analytics data passed from the buyers page
@@ -167,6 +135,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
       
       // Avg. order frequency: total of monthly averages ÷ count of buyers with orders
       const avgOrderFreq = buyersWithOrders > 0 ? (totalAvgMonthlyOrders / buyersWithOrders).toFixed(1) : '0.0';
+      
       return [
         {
           label: 'Total Buyers',
@@ -180,7 +149,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Buyer Spend',
-          value: dominantCurrency + ' ' + roundToHundredThousand(avgMonthlySpend).toLocaleString('id-ID'),
+          value: currency ? currency + ' ' + cleanDecimals(avgMonthlySpend).toLocaleString('id-ID') : cleanDecimals(avgMonthlySpend).toLocaleString('id-ID'),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {
@@ -193,10 +162,9 @@ export default function Statcards({ type, data }: StatcardsProps) {
       // Supplier stats
       const totalSuppliers = data.length;
       const activeSuppliers = data.filter(s => s.status === 'Active').length;
-      const monthKey = getCurrentMonth();
       
-      // Detect dominant currency from supplier data
-      const dominantCurrency = detectDominantCurrency(data, 'totalValue');
+      // Get currency from first available data point
+      const currency = getCurrencyFromData(data, 'totalValue');
       
       // Average monthly purchase value per supplier - CORRECT CALCULATION
       // Use the monthly analytics data passed from the suppliers page
@@ -220,6 +188,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
       
       // Calculate average: total of monthly averages ÷ count of suppliers with purchases
       const avgMonthlyValue = suppliersWithPurchases > 0 ? totalAvgMonthlyValue / suppliersWithPurchases : 0;
+      
       // On-time delivery rate: average of all suppliers' deliverySuccess (from logistics or supplies)
       let deliverySuccessSum = 0, deliverySuccessCount = 0;
       data.forEach(supplier => {
@@ -250,6 +219,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         }
       });
       const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
+      
       return [
         {
           label: 'Total Suppliers',
@@ -263,7 +233,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Purchase Value',
-          value: dominantCurrency + ' ' + roundToHundredThousand(avgMonthlyValue).toLocaleString('id-ID'),
+          value: currency ? currency + ' ' + cleanDecimals(avgMonthlyValue).toLocaleString('id-ID') : cleanDecimals(avgMonthlyValue).toLocaleString('id-ID'),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {

@@ -45,9 +45,8 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
     totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0);
   }
   
-  // Format number with thousands separator and currency, ensure space after Rp
-  const formattedCurrency = (currency || 'Rp').trim() + ' ';
-  const formattedTotalPurchases = formattedCurrency + totalPurchases.toLocaleString('id-ID');
+  // Format number with thousands separator and currency, only add currency if found
+  const formattedTotalPurchases = currency ? (currency.trim() + ' ' + totalPurchases.toLocaleString('id-ID')) : totalPurchases.toLocaleString('id-ID');
   
   return {
     id: supplier.id || 0,

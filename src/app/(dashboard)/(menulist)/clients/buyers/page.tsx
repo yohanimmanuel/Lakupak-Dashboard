@@ -44,10 +44,9 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
   }
   
-  // Format numbers with thousands separator and currency, ensure space after Rp
-  const formattedCurrency = (currency || 'Rp').trim() + ' ';
-  const formattedTotalSpend = formattedCurrency + totalSpend.toLocaleString('id-ID');
-  const formattedOutstanding = formattedCurrency + outstanding.toLocaleString('id-ID');
+  // Format numbers with thousands separator and currency, only add currency if found
+  const formattedTotalSpend = currency ? (currency.trim() + ' ' + totalSpend.toLocaleString('id-ID')) : totalSpend.toLocaleString('id-ID');
+  const formattedOutstanding = currency ? (currency.trim() + ' ' + outstanding.toLocaleString('id-ID')) : outstanding.toLocaleString('id-ID');
   
   return {
     id: buyer.id || 0,
