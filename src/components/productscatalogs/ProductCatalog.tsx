@@ -16,34 +16,13 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
+import { Product, ProductFormData } from "@/types/product";
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
-  product?: ProductData;
-  onSave?: (data: ProductData) => void;
+  product?: Product;
+  onSave?: (data: Product) => void;
   onCancel?: () => void;
-}
-
-interface ProductData {
-  id?: string;
-  productId?: string;
-  sku: string;
-  name: string;
-  description: string;
-  category: string;
-  brand: string;
-  supplier: string;
-  stockQuantity: number;
-  lowStockThreshold?: number;
-  stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  purchasePrice: string;
-  sellingPrice: string;
-  status: 'Draft' | 'Published';
-  catalogType: 'Internal' | 'External';
-  catalogName: string;
-  images: string[];
-  discount?: number;
-  discountType?: string;
 }
 
 export default function ProductCatalog({ 
@@ -54,24 +33,24 @@ export default function ProductCatalog({
 }: ProductCatalogProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [formData, setFormData] = useState<ProductData>(product || {
-    sku: '',
-    name: '',
-    description: '',
-    category: '',
-    brand: '',
-    supplier: '',
-    stockQuantity: 0,
-    lowStockThreshold: 0,
-    stockStatus: 'In Stock',
-    purchasePrice: 'Rp 0',
-    sellingPrice: 'Rp 0',
-    status: 'Draft',
-    catalogType: 'Internal',
-    catalogName: '',
-    images: [],
-    discount: 0,
-    discountType: ''
+  const [formData, setFormData] = useState<ProductFormData>({
+    sku: product?.sku || '',
+    name: product?.name || '',
+    description: product?.description || '',
+    category: product?.category || '',
+    brand: product?.brand || '',
+    supplier: product?.supplier || '',
+    stockQuantity: product?.stockQuantity || 0,
+    lowStockThreshold: product?.lowStockThreshold || 0,
+    stockStatus: product?.stockStatus || 'In Stock',
+    purchasePrice: product?.purchasePrice || 'Rp 0',
+    sellingPrice: product?.sellingPrice || 'Rp 0',
+    status: product?.status || 'Draft',
+    catalogType: product?.catalogType || 'Internal',
+    catalogName: product?.catalogName || '',
+    images: product?.images || [],
+    discount: product?.discount || 0,
+    discountType: product?.discountType || ''
   });
 
 
@@ -124,7 +103,7 @@ export default function ProductCatalog({
   const statusOptions = ['Draft', 'Published'];
   const catalogTypes = ['Internal', 'External'];
 
-  const handleInputChange = (field: keyof ProductData, value: any) => {
+  const handleInputChange = (field: keyof ProductFormData, value: string | number) => {
     setFormData(prev => {
       const newFormData = {
         ...prev,
@@ -257,7 +236,7 @@ export default function ProductCatalog({
     setSaving(true);
     
     try {
-      const finalData: ProductData = {
+      const finalData: ProductFormData = {
         ...formData
       };
 

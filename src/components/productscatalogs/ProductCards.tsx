@@ -1,11 +1,6 @@
 import React from "react";
 import { Package, CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown, X } from "lucide-react";
-
-interface Product {
-  id: string;
-  status: string;
-  stockQuantity: number;
-}
+import { Product } from "@/types/product";
 
 interface ProductCardsProps {
   products: Product[];

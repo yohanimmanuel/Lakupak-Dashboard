@@ -3,32 +3,11 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-type ProductImportRow = {
-  [key: string]: string | any;
-  'Product ID': string;
-  'SKU': string;
-  'Product Name': string;
-  'Description': string;
-  'Category': string;
-  'Brand': string;
-  'Supplier': string;
-  'Stock Quantity': string;
-  'Low Stock Threshold': string;
-  'Stock Status': string;
-  'Purchase Price': string;
-  'Selling Price': string;
-  'Status': string;
-  'Catalog Type': string;
-  'Catalog Name': string;
-
-  'Discount': string;
-  'Discount Type': string;
-};
 
 type ProductImportProps = {
   open: boolean;
   onClose: () => void;
-  onImport: (data: ProductImportRow[]) => void;
+  onImport: (data: Record<string, string>[]) => void;
 };
 
 const productFields = [
@@ -82,7 +61,7 @@ function generateProductId() {
 export default function ProductImport({ open, onClose, onImport }: ProductImportProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
-  const [rows, setRows] = useState<ProductImportRow[]>([]);
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState<string>('');
   const [filename, setFilename] = useState<string>('');
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
@@ -122,15 +101,15 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
         workbook = XLSX.read(data, { type: 'array' });
       }
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
       if (!json.length) {
         setError('File is empty or invalid.');
         return;
       }
-      const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
+      const fileHeadersRow = json[0].map(h => h.trim());
       setFileHeaders(fileHeadersRow);
-      setRows(json.slice(1).map((row: any[]): ProductImportRow => {
-        const obj: any = {};
+      setRows(json.slice(1).map((row: string[]) => {
+        const obj: Record<string, string> = {};
         fileHeadersRow.forEach((h, i) => {
           obj[h] = row[i] ?? '';
         });
@@ -148,8 +127,8 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
 
   // Map rows to required fields using mapping
   const getMappedRows = () => {
-    return rows.map((row: ProductImportRow) => {
-      const mapped: any = {};
+    return rows.map((row: Record<string, string>) => {
+      const mapped: Record<string, string> = {};
       productFields.forEach(f => {
         const col = mapping[f.key];
         mapped[f.key] = col ? row[col] : '';

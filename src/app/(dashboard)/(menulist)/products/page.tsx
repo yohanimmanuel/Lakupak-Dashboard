@@ -7,6 +7,7 @@ import { Upload, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
+import { Product, ProductTableRow } from "@/types/product";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -22,7 +23,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 export default function ProductsPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -51,8 +52,8 @@ export default function ProductsPage() {
   }, [user?.id]);
 
   // Convert product data to table row format
-  const profileToTableRow = (product: any) => ({
-    id: product.id,
+  const profileToTableRow = (product: Product): ProductTableRow => ({
+    id: product.id || 0,
     productId: product.productId,
     sku: product.sku,
     name: product.name,
@@ -65,7 +66,7 @@ export default function ProductsPage() {
     status: product.status,
     createdAt: product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '',
     lastUpdated: product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '',
-    userId: product.userId
+    userId: product.userId || 0
   });
 
   // Generate LKP product ID format: LKP-8 random numbers
@@ -74,7 +75,7 @@ export default function ProductsPage() {
     return `LKP-${randomNumbers}`;
   };
 
-  const handleImport = async (data: any[]) => {
+  const handleImport = async (data: Record<string, string>[]) => {
     if (!user?.id) return;
     
     try {

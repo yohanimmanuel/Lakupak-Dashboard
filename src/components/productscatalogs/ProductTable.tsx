@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 import * as XLSX from 'xlsx';
+import { Product, ProductTableRow } from "@/types/product";
 
 const statusTabs = [
   { label: "All" },
@@ -21,17 +22,17 @@ const stockFilters = [
 ];
 
 // Dynamic category filters based on existing products
-const getCategoryFilters = (products: any[]) => {
+const getCategoryFilters = (products: Product[]) => {
   const categories = new Set(products.map(product => product.category).filter(Boolean));
   return ["All Categories", ...Array.from(categories)];
 };
 
 export default function ProductTable({ products = [], setProducts, onSelectProduct, onExportXLSX, profileToTableRow }: { 
-  products?: any[]; 
-  setProducts?: (fn: (prev: any[]) => any[]) => void; 
-  onSelectProduct?: (product: any) => void; 
-  onExportXLSX?: (wb: any, filename: string) => void; 
-  profileToTableRow: (product: any) => any 
+  products?: Product[]; 
+  setProducts?: (fn: (prev: Product[]) => Product[]) => void; 
+  onSelectProduct?: (product: Product) => void; 
+  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
+  profileToTableRow: (product: Product) => ProductTableRow 
 }) {
   const user = useUserStore(state => state.user);
   const tableRows = products.map(profileToTableRow);
@@ -49,10 +50,10 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<any>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
-  const [productToPublish, setProductToPublish] = useState<any>(null);
+  const [productToPublish, setProductToPublish] = useState<ProductTableRow | null>(null);
   const [showUnpublishModal, setShowUnpublishModal] = useState(false);
   const [isBulkUnpublish, setIsBulkUnpublish] = useState(false);
   
@@ -62,13 +63,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const rowsPerPage = 8;
 
   // Filter products based on search, status, category, and stock
-  let filteredProducts = tableRows.filter((p: any) => String(p.name).toLowerCase().includes(search.toLowerCase()));
+  let filteredProducts = tableRows.filter((p: ProductTableRow) => String(p.name).toLowerCase().includes(search.toLowerCase()));
   
-  if (selectedTab !== "All") filteredProducts = filteredProducts.filter((p: any) => p.status === selectedTab);
-  if (selectedCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: any) => p.category === selectedCategory);
+  if (selectedTab !== "All") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.status === selectedTab);
+  if (selectedCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.category === selectedCategory);
   
   if (selectedStockFilter !== "all") {
-    filteredProducts = filteredProducts.filter((p: any) => {
+    filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
       const stock = p.stockQuantity;
       if (selectedStockFilter === "high") return stock > 50;
       if (selectedStockFilter === "low") return stock <= 50 && stock > 0;
@@ -262,7 +263,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     setShowUnpublishModal(true);
   };
 
-  const handleOpenPublishModal = (product: any) => {
+  const handleOpenPublishModal = (product: ProductTableRow) => {
     setProductToPublish(product);
     setShowPublishModal(true);
   };
@@ -278,15 +279,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     }
   }, [selectedTab]);
 
-  const handleView = (product: any) => {
+  const handleView = (product: ProductTableRow) => {
     router.push(`/products/catalog/${product.productId}`);
   };
 
-  const handleEdit = (product: any) => {
+  const handleEdit = (product: ProductTableRow) => {
     router.push(`/products/edit/${product.productId}`);
   };
 
-  const handleDelete = async (product: any) => {
+  const handleDelete = async (product: ProductTableRow) => {
     setProductToDelete(product);
     setShowDeleteModal(true);
   };
@@ -310,7 +311,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   // Export XLSX function
   const handleExportXLSX = () => {
     const headers = ['Product ID', 'SKU', 'Name', 'Category', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Created At'];
-    const rows = filteredProducts.map((p: any) => [
+    const rows = filteredProducts.map((p: ProductTableRow) => [
       p.productId || `LKP-${String(p.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
       p.sku,
       p.name,
@@ -1177,7 +1178,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
       {/* Product Marketplace Publication Preview Modal */}
       {showPublishModal && (
         <ProductMarketplacePubs
-          product={productToPublish}
+          product={productToPublish!}
           isOpen={showPublishModal}
           onClose={() => {
             setShowPublishModal(false);

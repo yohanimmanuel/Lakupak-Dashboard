@@ -1,9 +1,10 @@
 'use client';
 import React from 'react';
 import { X, Heart, Share2, Star, ShoppingCart, ArrowLeft, Zap } from 'lucide-react';
+import { ProductTableRow } from "@/types/product";
 
 interface ProductMarketplacePubsProps {
-  product: any;
+  product: ProductTableRow;
   isOpen: boolean;
   onClose: () => void;
   onPublish?: () => void;
