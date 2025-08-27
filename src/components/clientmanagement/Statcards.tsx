@@ -1,6 +1,7 @@
 import React from "react";
 import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { useMemo } from 'react';
+import { Buyer, Supplier, OrderDetail, SupplyDetail } from '@/types/client';
 
 /**
  * Statcards Component - Multi-Currency Support
@@ -39,7 +40,7 @@ import { useMemo } from 'react';
  */
 interface StatcardsProps {
   type: 'buyer' | 'supplier';
-  data: any[];
+  data: (Buyer | Supplier)[];
 }
 
 function getCurrentMonth() {
@@ -52,7 +53,7 @@ function parseCurrency(str: string) {
 }
 
 // Helper function to safely parse JSON strings
-function safeParseJSON(jsonStr: string, fallback: any[] | any = []) {
+function safeParseJSON(jsonStr: string, fallback: OrderDetail[] | SupplyDetail[] | Record<string, unknown> = []) {
   if (!jsonStr) return fallback;
   try {
     const parsed = JSON.parse(jsonStr);
@@ -75,17 +76,31 @@ function extractCurrency(valueStr: string): string {
 }
 
 // Helper function to detect dominant currency from data
-function detectDominantCurrency(data: any[], valueField: string): string {
+function detectDominantCurrency(data: (Buyer | Supplier)[], valueField: string): string {
   const currencies = new Map<string, number>();
   
   data.forEach(item => {
-    const orderDetails = safeParseJSON(item.orderDetails || item.supplies || '[]');
-    orderDetails.forEach((detail: any) => {
-      const currency = extractCurrency(detail[valueField] || '');
-      if (currency) {
-        currencies.set(currency, (currencies.get(currency) || 0) + 1);
+    if ('orderDetails' in item) {
+      const orderDetails = safeParseJSON(item.orderDetails || '[]');
+      if (Array.isArray(orderDetails)) {
+        orderDetails.forEach((detail: OrderDetail) => {
+          const currency = extractCurrency(detail[valueField as keyof OrderDetail] || '');
+          if (currency) {
+            currencies.set(currency, (currencies.get(currency) || 0) + 1);
+          }
+        });
       }
-    });
+    } else if ('supplies' in item) {
+      const supplies = safeParseJSON(item.supplies || '[]');
+      if (Array.isArray(supplies)) {
+        supplies.forEach((detail: SupplyDetail) => {
+          const currency = extractCurrency(detail[valueField as keyof SupplyDetail] || '');
+          if (currency) {
+            currencies.set(currency, (currencies.get(currency) || 0) + 1);
+          }
+        });
+      }
+    }
   });
   
   // Return the most frequent currency, or default to 'Rp ' if none found
@@ -101,40 +116,6 @@ function detectDominantCurrency(data: any[], valueField: string): string {
   });
   
   return dominantCurrency || 'Rp ';
-}
-
-// Helper function to convert values to a target currency for consistent display
-function convertToTargetCurrency(value: number, sourceCurrency: string, targetCurrency: string): number {
-  // Simple conversion rates (in production, use real-time exchange rates)
-  const conversionRates: { [key: string]: { [key: string]: number } } = {
-    'Rp': {
-      'USD': 0.000065, // 1 IDR = 0.000065 USD (approximate)
-      'EUR': 0.000060, // 1 IDR = 0.000060 EUR (approximate)
-      'SGD': 0.000088, // 1 IDR = 0.000088 SGD (approximate)
-      'Rp': 1
-    },
-    'USD': {
-      'Rp': 15400, // 1 USD = 15400 IDR (approximate)
-      'EUR': 0.92, // 1 USD = 0.92 EUR (approximate)
-      'SGD': 1.35, // 1 USD = 1.35 SGD (approximate)
-      'USD': 1
-    },
-    'EUR': {
-      'Rp': 16700, // 1 EUR = 16700 IDR (approximate)
-      'USD': 1.09, // 1 EUR = 1.09 USD (approximate)
-      'SGD': 1.47, // 1 EUR = 1.47 SGD (approximate)
-      'EUR': 1
-    },
-    'SGD': {
-      'Rp': 11300, // 1 SGD = 11300 IDR (approximate)
-      'USD': 0.74, // 1 SGD = 0.74 USD (approximate)
-      'EUR': 0.68, // 1 SGD = 0.68 EUR (approximate)
-      'SGD': 1
-    }
-  };
-  
-  const rate = conversionRates[sourceCurrency]?.[targetCurrency];
-  return rate ? value * rate : value;
 }
 
 // Helper function to round to nearest hundred thousand
@@ -161,21 +142,23 @@ export default function Statcards({ type, data }: StatcardsProps) {
       
       data.forEach(buyer => {
         // Use the pre-calculated monthly averages (same as BuyerProfile)
-        const avgMonthlySpending = buyer.avgMonthlySpending || 0;
-        const avgMonthlyOrders = buyer.avgMonthlyOrders || 0;
-        
-        // Add to totals
-        totalAvgMonthlySpend += avgMonthlySpending;
-        totalAvgMonthlyOrders += avgMonthlyOrders;
-        
-        // Count buyers with spending > 0
-        if (avgMonthlySpending > 0) {
-          buyersWithSpending++;
-        }
-        
-        // Count buyers with orders > 0
-        if (avgMonthlyOrders > 0) {
-          buyersWithOrders++;
+        if ('avgMonthlySpending' in buyer && 'avgMonthlyOrders' in buyer) {
+          const avgMonthlySpending = buyer.avgMonthlySpending || 0;
+          const avgMonthlyOrders = buyer.avgMonthlyOrders || 0;
+          
+          // Add to totals
+          totalAvgMonthlySpend += avgMonthlySpending;
+          totalAvgMonthlyOrders += avgMonthlyOrders;
+          
+          // Count buyers with spending > 0
+          if (avgMonthlySpending > 0) {
+            buyersWithSpending++;
+          }
+          
+          // Count buyers with orders > 0
+          if (avgMonthlyOrders > 0) {
+            buyersWithOrders++;
+          }
         }
       });
       
@@ -222,14 +205,16 @@ export default function Statcards({ type, data }: StatcardsProps) {
       
       data.forEach(supplier => {
         // Use the pre-calculated monthly averages (same as SupplierProfile)
-        const avgMonthlyPurchaseValue = supplier.avgMonthlyPurchaseValue || 0;
-        
-        // Add to total
-        totalAvgMonthlyValue += avgMonthlyPurchaseValue;
-        
-        // Only count suppliers who actually have purchases this month
-        if (avgMonthlyPurchaseValue > 0) {
-          suppliersWithPurchases++;
+        if ('avgMonthlyPurchaseValue' in supplier) {
+          const avgMonthlyPurchaseValue = supplier.avgMonthlyPurchaseValue || 0;
+          
+          // Add to total
+          totalAvgMonthlyValue += avgMonthlyPurchaseValue;
+          
+          // Only count suppliers who actually have purchases this month
+          if (avgMonthlyPurchaseValue > 0) {
+            suppliersWithPurchases++;
+          }
         }
       });
       
@@ -239,23 +224,29 @@ export default function Statcards({ type, data }: StatcardsProps) {
       let deliverySuccessSum = 0, deliverySuccessCount = 0;
       data.forEach(supplier => {
         // Parse logistics from string - expect object or empty array
-        const logistics = safeParseJSON(supplier.logistics, {});
-        // Prefer logistics.deliverySuccess if present, else average from supplies
-        if (logistics && typeof logistics === 'object' && 'deliverySuccess' in logistics) {
-          // If logistics is an object with deliverySuccess
-          if (logistics.deliverySuccess !== undefined && logistics.deliverySuccess !== '') {
-            deliverySuccessSum += parseFloat(logistics.deliverySuccess);
-            deliverySuccessCount++;
-          }
-        } else {
-          // If logistics is empty or doesn't have deliverySuccess, check supplies
-          const supplies = safeParseJSON(supplier.supplies);
-          supplies.forEach((s: any) => {
-            if (s.deliverySuccess !== undefined && s.deliverySuccess !== '') {
-              deliverySuccessSum += parseFloat(s.deliverySuccess);
+        if ('logistics' in supplier && supplier.logistics) {
+          const logistics = safeParseJSON(supplier.logistics, {});
+          // Prefer logistics.deliverySuccess if present, else average from supplies
+          if (logistics && typeof logistics === 'object' && 'deliverySuccess' in logistics) {
+            // If logistics is an object with deliverySuccess
+            if (logistics.deliverySuccess !== undefined && logistics.deliverySuccess !== '') {
+              deliverySuccessSum += parseFloat(logistics.deliverySuccess);
               deliverySuccessCount++;
             }
-          });
+          }
+        }
+        
+        // If logistics is empty or doesn't have deliverySuccess, check supplies
+        if ('supplies' in supplier && supplier.supplies) {
+          const supplies = safeParseJSON(supplier.supplies);
+          if (Array.isArray(supplies)) {
+            supplies.forEach((s: SupplyDetail) => {
+              if (s.deliverySuccess !== undefined && s.deliverySuccess !== '') {
+                deliverySuccessSum += parseFloat(s.deliverySuccess);
+                deliverySuccessCount++;
+              }
+            });
+          }
         }
       });
       const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;

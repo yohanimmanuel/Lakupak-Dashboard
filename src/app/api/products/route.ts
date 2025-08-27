@@ -156,12 +156,12 @@ export async function PUT(req: NextRequest) {
     let product;
     if (id) {
       product = await prisma.product.update({
-        where: { id: Number(id) },
+        where: { id: Number(id), userId: userIdNum },
         data: cleanUpdateData
       });
     } else if (productId) {
       product = await prisma.product.update({
-        where: { productId: productId },
+        where: { productId: productId, userId: userIdNum },
         data: cleanUpdateData
       });
     } else {

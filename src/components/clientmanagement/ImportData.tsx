@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { OrderDetail, SupplyDetail } from '@/types/client';
 
 type BuyerImportRow = {
-  [key: string]: string | any;
+  [key: string]: string | OrderDetail[] | undefined;
   'ID': string;
   'Store Name': string;
   'Owner': string;
@@ -18,10 +19,10 @@ type BuyerImportRow = {
   'Shipment Success': string;
   'Notes': string;
   'Order Details': string;
-  orderDetails?: any[];
+  orderDetails?: OrderDetail[];
 };
 type SupplierImportRow = {
-  [key: string]: string | any;
+  [key: string]: string | SupplyDetail[] | undefined;
   'ID': string;
   'Supplier Name': string;
   'Contact': string;
@@ -36,7 +37,7 @@ type SupplierImportRow = {
   'Delivery Success': string;
   'Notes': string;
   'Supplies': string;
-  supplies?: any[];
+  supplies?: SupplyDetail[];
 };
 
 type ImportType = 'Buyers' | 'Suppliers';
@@ -50,7 +51,7 @@ type ImportDataProps = {
 
 type ImportRow = BuyerImportRow | SupplierImportRow;
 
-function parseOrderDetails(cell: string | undefined): any[] {
+function parseOrderDetails(cell: string | undefined): OrderDetail[] {
   if (!cell) return [];
   try {
     return JSON.parse(cell);
@@ -58,7 +59,7 @@ function parseOrderDetails(cell: string | undefined): any[] {
     return [];
   }
 }
-function parseSupplies(cell: string | undefined): any[] {
+function parseSupplies(cell: string | undefined): SupplyDetail[] {
   if (!cell) return [];
   try {
     return JSON.parse(cell);
@@ -194,12 +195,12 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
       }
       const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
       setFileHeaders(fileHeadersRow);
-      setRows(json.slice(1).map((row: any[]): ImportRow => {
-        const obj: any = {};
+      setRows(json.slice(1).map((row: string[]): ImportRow => {
+        const obj: Record<string, string> = {};
         fileHeadersRow.forEach((h, i) => {
           obj[h] = row[i] ?? '';
         });
-        return obj;
+        return obj as ImportRow;
       }));
       setMapping(getAutomap(fileHeadersRow));
       setStep(1); // mapping step
@@ -214,17 +215,17 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
   // Map rows to required fields using mapping
   const getMappedRows = () => {
     return rows.map((row: ImportRow) => {
-      const mapped: any = {};
+      const mapped: Partial<BuyerImportRow | SupplierImportRow> = {};
       fields.forEach(f => {
         const col = mapping[f.key];
-        mapped[f.key] = col ? row[col] : '';
+        mapped[f.key as keyof (BuyerImportRow | SupplierImportRow)] = col ? row[col] : '';
       });
       if (type === 'Buyers') {
         mapped.ID = generateBuyerId();
-        mapped.orderDetails = parseOrderDetails(mapped['Order Details']);
+        mapped.orderDetails = parseOrderDetails(mapped['Order Details'] as string);
       } else {
         mapped.ID = generateSupplierId();
-        mapped.supplies = parseSupplies(mapped['Supplies']);
+        mapped.supplies = parseSupplies(mapped['Supplies'] as string);
       }
       return mapped;
     });
@@ -320,7 +321,14 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
                 <tbody>
                   {getMappedRows().map((row, idx) => (
                     <tr key={idx} className="whitespace-nowrap text-black">
-                      {fields.map(f => <td key={f.key} className="py-2 px-3">{typeof row[f.key] === 'string' ? row[f.key] : JSON.stringify(row[f.key])}</td>)}
+                      {fields.map(f => <td key={f.key} className="py-2 px-3">{
+                        (() => {
+                          const value = row[f.key as keyof typeof row];
+                          if (typeof value === 'string') return value;
+                          if (Array.isArray(value)) return JSON.stringify(value);
+                          return String(value || '');
+                        })()
+                      }</td>)}
                     </tr>
                   ))}
                 </tbody>

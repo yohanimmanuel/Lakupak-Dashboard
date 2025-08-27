@@ -4,6 +4,7 @@ import { Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
+import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -15,15 +16,15 @@ function generateSupplierId() {
 export default function SupplierModal({ open, onClose, onSave, initialData, mode }: {
   open: boolean;
   onClose: () => void;
-  onSave: (data: any) => void;
-  initialData?: any;
+  onSave: (data: SupplierFormData) => void;
+  initialData?: Supplier;
   mode?: 'edit';
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   
   // Helper function to safely parse JSON strings
-  const safeParseJSON = (jsonStr: string, fallback: any) => {
+  const safeParseJSON = (jsonStr: string, fallback: SupplyDetail[] | Record<string, unknown>) => {
     if (!jsonStr) return fallback;
     try {
       return JSON.parse(jsonStr);
@@ -42,11 +43,11 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     }
     
     // Parse JSON strings from database
-    const parsedNotes = safeParseJSON(initialData.notes, []);
-    const parsedLogistics = safeParseJSON(initialData.logistics, {});
+    const parsedNotes = safeParseJSON(initialData.notes || '', []);
+    const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
     
     return {
-      supplierName: initialData.name || initialData.supplierName || '',
+      supplierName: initialData.name || '',
       contact: initialData.contact || '',
       phone: initialData.phone || '',
       email: initialData.email || '',
@@ -62,11 +63,11 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   });
   
   const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
-  const [supplyRows, setSupplyRows] = useState<Array<{ sku: string; product: string; totalSupplied: string | number; totalValue: string; lastDelivery: string; status: string }>>(
+  const [supplyRows, setSupplyRows] = useState<SupplyDetail[]>(
     initialData?.supplies ? (() => {
       try {
         const parsed = JSON.parse(initialData.supplies);
-        return Array.isArray(parsed) ? parsed.map((row: any) => ({
+        return Array.isArray(parsed) ? parsed.map((row: SupplyDetail) => ({
           suppliesno: row.suppliesno || '',
           sku: row.sku || '',
           product: row.product || '',
@@ -82,7 +83,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   );
 
   // Function to get the latest delivery date
-  const getLatestDeliveryDate = (rows: any[]) => {
+  const getLatestDeliveryDate = (rows: SupplyDetail[]) => {
     if (!rows || rows.length === 0) return '';
     const dates = rows
       .map(row => row.lastDelivery)
@@ -98,11 +99,11 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       setForm(prev => ({ ...prev, lastDelivery: latestDate }));
     }
   }, [supplyRows, form.lastDelivery]);
-  const handleSupplyChange = (idx: number, field: string, value: string) => {
-    setSupplyRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
+  const handleSupplyChange = (idx: number, field: keyof SupplyDetail, value: string) => {
+    setSupplyRows((rows: SupplyDetail[]) => rows.map((row: SupplyDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
   };
-  const addSupplyRow = () => setSupplyRows((rows: Array<any>) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
-  const deleteSupplyRow = (idx: number) => setSupplyRows((rows: Array<any>) => rows.filter((_: any, i: number) => i !== idx));
+  const addSupplyRow = () => setSupplyRows((rows: SupplyDetail[]) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
+  const deleteSupplyRow = (idx: number) => setSupplyRows((rows: SupplyDetail[]) => rows.filter((_: SupplyDetail, i: number) => i !== idx));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
@@ -111,8 +112,8 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   useEffect(() => {
     if (open && mode === 'edit' && initialData) {
       // Parse JSON strings from database
-      const parsedNotes = safeParseJSON(initialData.notes, []);
-      const parsedLogistics = safeParseJSON(initialData.logistics, {});
+      const parsedNotes = safeParseJSON(initialData.notes || '', []);
+      const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
       
       // Get supplies first to calculate latest date
       const supplies = initialData?.supplies ? (() => {
@@ -127,7 +128,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       const latestDeliveryDate = getLatestDeliveryDate(supplies);
       
       setForm({
-        supplierName: initialData.name || initialData.supplierName || '',
+        supplierName: initialData.name || '',
         contact: initialData.contact || '',
         phone: initialData.phone || '',
         email: initialData.email || '',
@@ -143,7 +144,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       
       setId(initialData.supplierId || generateSupplierId());
       setSupplyRows(
-        supplies.length > 0 ? supplies.map((row: any) => ({
+        supplies.length > 0 ? supplies.map((row: SupplyDetail) => ({
           suppliesno: row.suppliesno || '',
           sku: row.sku || '',
           product: row.product || '',
@@ -164,7 +165,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     setError('');
     try {
       const isEdit = mode === 'edit';
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...form,
         supplierId: id,
         name: form.supplierName,
@@ -172,9 +173,9 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
-          preferredDays: form.preferredDays,
-          lastDelivery: form.lastDelivery ? new Date(form.lastDelivery).toISOString() : undefined,
-          deliverySuccess: form.deliverySuccess
+          preferredDays: form.preferredDays || '',
+          lastDelivery: form.lastDelivery || '',
+          deliverySuccess: form.deliverySuccess || ''
         }),
         userId: user?.id,
       };
@@ -185,13 +186,20 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       delete payload.preferredDays;
       delete payload.lastDelivery;
       delete payload.deliverySuccess;
+      
+      // Debug: Log the payload being sent
+      console.log('Supplier payload being sent:', payload);
+      
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch('/api/suppliers', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to save');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save');
+      }
       
       const savedSupplier = await res.json();
       onSave(savedSupplier);
@@ -276,7 +284,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                   </tr>
                 </thead>
                 <tbody>
-                  {supplyRows.map((row: any, idx: number) => (
+                  {supplyRows.map((row: SupplyDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>

@@ -7,6 +7,7 @@ import SupplierModal from './SupplierModal';
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportSuppliesModal from './ImportSuppliesModal';
+import { Supplier, SupplyDetail } from '@/types/client';
 
 // Try require fallback for date-fns if import fails
 let parse: any, format: any;
@@ -26,7 +27,7 @@ function getSupplierAnalytics(suppliesStr: string) {
     
     // Group by month (MMM yyyy)
     const map: { [month: string]: { supplied: number; value: number } } = {};
-    supplies.forEach(function(supply: any) {
+    supplies.forEach(function(supply: SupplyDetail) {
       if (!supply.lastDelivery) return;
       const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
       const monthKey = format(date, 'MMM yyyy');
@@ -53,7 +54,7 @@ function getSupplierAnalytics(suppliesStr: string) {
   }
 }
 
-export default function SupplierProfile({ supplier, onClose }: { supplier: any; onClose?: () => void }) {
+export default function SupplierProfile({ supplier, onClose }: { supplier: Supplier; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   
@@ -112,10 +113,10 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
   };
   
   const analyticsData = getSupplierAnalytics(supplier.supplies || '');
-  const totalSupplied = supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
+  const totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
   let totalValue = 0;
   let currency = '';
-  supplies.forEach((s: any) => {
+  supplies.forEach((s: SupplyDetail) => {
     const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
     totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
@@ -129,7 +130,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
 
   function handleExportSupplies() {
     const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Delivery'];
-    const rows = supplies.map((s: any) => [
+    const rows = supplies.map((s: SupplyDetail) => [
       s.sku,
       s.product,
       s.totalSupplied,
@@ -192,7 +193,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Calendar className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.createdAt}</span>
+              <span className="font-medium text-black">{supplier.createdAt ? new Date(supplier.createdAt).toLocaleDateString() : ''}</span>
             </div>
           </div>
         </div>
@@ -296,7 +297,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               </tr>
             </thead>
             <tbody>
-              {pagedSupplies.map((supply: any, idx: number) => (
+              {pagedSupplies.map((supply: SupplyDetail, idx: number) => (
                 <tr key={idx + (supplyPage - 1) * supplyRowsPerPage} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{(supplyPage - 1) * supplyRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
@@ -359,7 +360,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: any) => {
+                supplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -370,7 +371,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               <div className="pt-2">Average Monthly Purchase: <span className="font-semibold text-green-500">{currency}{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: any) => {
+                supplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -390,7 +391,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: any) => {
+                supplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -401,7 +402,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
               <div className="pt-2">Average Monthly Supplied: <span className="font-semibold text-blue-500">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: any) => {
+                supplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);

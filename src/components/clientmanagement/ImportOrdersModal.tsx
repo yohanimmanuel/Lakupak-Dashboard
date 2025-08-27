@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { OrderDetail } from '@/types/client';
 
 const orderFields = [
   { key: 'product', label: 'Product Name' },
@@ -28,10 +29,10 @@ function getAutomap(fileHeaders: string[]) {
   return mapping;
 }
 
-export default function ImportOrdersModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (orderDetails: any[]) => void }) {
+export default function ImportOrdersModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (orderDetails: OrderDetail[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState('');
   const [filename, setFilename] = useState('');
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
@@ -67,8 +68,8 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
       }
       const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
       setFileHeaders(fileHeadersRow);
-      setRows(json.slice(1).map((row: any[]): any => {
-        const obj: any = {};
+      setRows(json.slice(1).map((row: string[]): Record<string, string> => {
+        const obj: Record<string, string> = {};
         fileHeadersRow.forEach((h, i) => {
           obj[h] = row[i] ?? '';
         });
@@ -85,13 +86,13 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
   };
 
   const getMappedRows = () => {
-    return rows.map((row: any) => {
-      const mapped: any = {};
+    return rows.map((row: Record<string, string>) => {
+      const mapped: Partial<OrderDetail> = {};
       orderFields.forEach(f => {
         const col = mapping[f.key];
-        mapped[f.key] = col ? row[col] : '';
+        mapped[f.key as keyof OrderDetail] = col ? row[col] : '';
       });
-      return mapped;
+      return mapped as OrderDetail;
     });
   };
 
@@ -177,7 +178,7 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
                 <tbody>
                   {getMappedRows().map((row, idx) => (
                     <tr key={idx} className="whitespace-nowrap text-black">
-                      {orderFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key]}</td>)}
+                      {orderFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key as keyof OrderDetail]}</td>)}
                     </tr>
                   ))}
                 </tbody>

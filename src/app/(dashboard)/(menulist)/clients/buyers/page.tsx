@@ -7,6 +7,7 @@ import { Plus, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
+import { Buyer, BuyerTableRow, BuyerFormData } from '@/types/client';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -19,7 +20,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-function profileToTableRow(buyer: any) {
+function profileToTableRow(buyer: Buyer): BuyerTableRow {
   let totalSpend = 0;
   let currency = '';
   let outstanding = 0;
@@ -49,16 +50,23 @@ function profileToTableRow(buyer: any) {
   const formattedOutstanding = formattedCurrency + outstanding.toLocaleString('id-ID');
   
   return {
-    id: buyer.id,
+    id: buyer.id || 0,
     buyerId: buyer.buyerId,
+    avatar: buyer.avatar,
+    owner: buyer.owner,
     name: buyer.storeName,
-    address: buyer.address,
+    email: buyer.email,
+    phone: buyer.phone,
+    storeName: buyer.storeName,
     businessType: buyer.businessType,
-    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) : 0,
-    createdAt: buyer.createdAt,
+    address: buyer.address,
+    status: buyer.status,
+    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
     totalSpend: formattedTotalSpend,
     outstanding: formattedOutstanding,
-    status: buyer.status,
+    createdAt: buyer.createdAt ? new Date(buyer.createdAt).toLocaleDateString() : '',
+    lastUpdated: buyer.updatedAt ? new Date(buyer.updatedAt).toLocaleDateString() : '',
+    userId: buyer.userId || 0,
   };
 }
 
@@ -69,7 +77,7 @@ function generateBuyerId() {
 export default function BuyersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [buyers, setBuyers] = useState<any[]>([]);
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(false);
   const user = useUserStore(state => state.user);
 
@@ -109,33 +117,47 @@ export default function BuyersPage() {
   const fetchBuyers = async () => {
     if (!user?.id) return;
     setLoading(true);
-    const res = await fetch(`/api/buyers?userId=${user.id}`);
-    const data = await res.json();
-    const buyersData = Array.isArray(data) ? data : [];
-    
-    // Calculate monthly analytics for each buyer
-    const buyersWithAnalytics = buyersData.map(buyer => {
-      const orderDetails = buyer.orderDetails ? JSON.parse(buyer.orderDetails) : [];
+    try {
+      const res = await fetch(`/api/buyers?userId=${user.id}`);
+      if (!res.ok) {
+        console.error('Failed to fetch buyers:', res.status, res.statusText);
+        setBuyers([]);
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      console.log('Raw buyers data:', data);
+      const buyersData = Array.isArray(data) ? data : [];
       
-      // Calculate monthly averages using the same logic as BuyerProfile
-      const { avgMonthlyOrders, avgMonthlySpending } = calculateMonthlyAverages(orderDetails);
+      // Calculate monthly analytics for each buyer
+      const buyersWithAnalytics = buyersData.map(buyer => {
+        const orderDetails = buyer.orderDetails ? JSON.parse(buyer.orderDetails) : [];
+        
+        // Calculate monthly averages using the same logic as BuyerProfile
+        const { avgMonthlyOrders, avgMonthlySpending } = calculateMonthlyAverages(orderDetails);
+        
+        return {
+          ...buyer,
+          avgMonthlyOrders,
+          avgMonthlySpending
+        };
+      });
       
-      return {
-        ...buyer,
-        avgMonthlyOrders,
-        avgMonthlySpending
-      };
-    });
-    
-    setBuyers(buyersWithAnalytics);
-    setLoading(false);
+      console.log('Processed buyers data:', buyersWithAnalytics);
+      setBuyers(buyersWithAnalytics);
+    } catch (error) {
+      console.error('Error fetching buyers:', error);
+      setBuyers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchBuyers();
   }, [user?.id]);
 
-  const handleAddBuyer = async (data: any) => {
+  const handleAddBuyer = async (data: BuyerFormData) => {
     if (!user?.id) return;
     await fetch('/api/buyers', {
       method: 'POST',
@@ -175,8 +197,19 @@ export default function BuyersPage() {
           </button>
         </div>
       </div>
-      <Statcards type="buyer" data={buyers} />
-      <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading buyers...</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Statcards type="buyer" data={buyers} />
+          <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+        </>
+      )}
       <BuyerModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

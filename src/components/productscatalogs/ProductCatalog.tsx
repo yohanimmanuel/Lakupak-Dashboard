@@ -34,6 +34,8 @@ export default function ProductCatalog({
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [formData, setFormData] = useState<ProductFormData>({
+    id: product?.id,
+    productId: product?.productId || '',
     sku: product?.sku || '',
     name: product?.name || '',
     description: product?.description || '',
@@ -72,7 +74,7 @@ export default function ProductCatalog({
         productId: generateLKPProductId()
       }));
     }
-  }, [mode, formData.productId]);
+  }, [mode, formData.productId, product]);
 
   // Initialize stock status based on stock quantity and threshold
   useEffect(() => {
@@ -228,6 +230,7 @@ export default function ProductCatalog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!user?.id) {
       alert('User not authenticated');
       return;
@@ -248,12 +251,14 @@ export default function ProductCatalog({
              // Submit the full text values including currency symbols
        const payload = {
          ...finalData,
+         id: formData.id,
+         productId: formData.productId,
          purchasePrice: formData.purchasePrice,
          sellingPrice: formData.sellingPrice,
          userId: user.id
        };
 
-      // Submitting payload
+             // Submitting payload
 
       let response;
       if (mode === 'add') {
@@ -262,12 +267,15 @@ export default function ProductCatalog({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-      } else if (mode === 'edit' && finalData.productId) {
+      } else if (mode === 'edit' && (finalData.id || finalData.productId)) {
         response = await fetch('/api/products', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+      } else if (mode === 'edit') {
+        alert('Cannot edit product: Missing product ID');
+        return;
       }
 
       if (response?.ok) {

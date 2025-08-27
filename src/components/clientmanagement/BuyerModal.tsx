@@ -4,6 +4,7 @@ import { Trash, User, Upload, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
+import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -14,15 +15,15 @@ function generateBuyerId() {
 export default function BuyerModal({ open, onClose, onSave, initialData, mode }: {
   open: boolean;
   onClose: () => void;
-  onSave: (data: any) => void;
-  initialData?: any;
+  onSave: (data: BuyerFormData) => void;
+  initialData?: Buyer;
   mode?: 'edit';
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   
   // Helper function to safely parse JSON strings
-  const safeParseJSON = (jsonStr: string, fallback: any) => {
+  const safeParseJSON = (jsonStr: string, fallback: unknown) => {
     if (!jsonStr) return fallback;
     try {
       return JSON.parse(jsonStr);
@@ -41,8 +42,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     }
     
     // Parse JSON strings from database
-    const parsedNotes = safeParseJSON(initialData.notes, []);
-    const parsedLogistics = safeParseJSON(initialData.logistics, {});
+    const parsedNotes = safeParseJSON(initialData.notes || '', []);
+    const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
     
     return {
       storeName: initialData.storeName || '',
@@ -61,11 +62,11 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   });
   
   const [id, setId] = useState(() => initialData?.id || generateBuyerId());
-  const [orderRows, setOrderRows] = useState<Array<{ orderNo: string; product: string; totalOrders: string | number; totalSpend: string; lastOrderDate: string; outstanding: string }>>(
+  const [orderRows, setOrderRows] = useState<OrderDetail[]>(
     initialData?.orderDetails ? (() => {
       try {
         const parsed = JSON.parse(initialData.orderDetails);
-        return Array.isArray(parsed) ? parsed.map((row: any) => ({
+        return Array.isArray(parsed) ? parsed.map((row: OrderDetail) => ({
           orderNo: row.orderNo || '',
           product: row.product || '',
           totalOrders: row.totalOrders || '',
@@ -80,7 +81,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   );
 
   // Function to get the latest order date
-  const getLatestOrderDate = (rows: any[]) => {
+  const getLatestOrderDate = (rows: OrderDetail[]) => {
     if (!rows || rows.length === 0) return '';
     const dates = rows
       .map(row => row.lastOrderDate)
@@ -96,11 +97,11 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       setForm(prev => ({ ...prev, lastShipment: latestDate }));
     }
   }, [orderRows, form.lastShipment]);
-  const handleOrderChange = (idx: number, field: string, value: string) => {
-    setOrderRows((rows: Array<any>) => rows.map((row: any, i: number) => i === idx ? { ...row, [field]: value } : row));
+  const handleOrderChange = (idx: number, field: keyof OrderDetail, value: string) => {
+    setOrderRows((rows: OrderDetail[]) => rows.map((row: OrderDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
   };
-  const addOrderRow = () => setOrderRows((rows: Array<any>) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]);
-  const deleteOrderRow = (idx: number) => setOrderRows((rows: Array<any>) => rows.filter((_: any, i: number) => i !== idx));
+  const addOrderRow = () => setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]);
+  const deleteOrderRow = (idx: number) => setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
@@ -110,8 +111,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   useEffect(() => {
     if (open && mode === 'edit' && initialData) {
       // Parse JSON strings from database
-      const parsedNotes = safeParseJSON(initialData.notes, []);
-      const parsedLogistics = safeParseJSON(initialData.logistics, {});
+      const parsedNotes = safeParseJSON(initialData.notes || '', []);
+      const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
       
       // Get order details first to calculate latest date
       const orderDetails = initialData?.orderDetails ? (() => {
@@ -141,7 +142,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       });
       setId(initialData.buyerId || generateBuyerId());
       setOrderRows(
-        orderDetails.length > 0 ? orderDetails.map((row: any) => ({
+        orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
           orderNo: row.orderNo || '',
           product: row.product || '',
           totalOrders: row.totalOrders || '',
@@ -162,7 +163,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     setError('');
     try {
       const isEdit = mode === 'edit';
-      const payload: any = {
+      const payload = {
         ...form,
         avatar,
         buyerId: id,
@@ -170,25 +171,32 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
-          preferredDays: form.preferredDays,
-          lastShipment: form.lastShipment ? new Date(form.lastShipment).toISOString() : undefined,
-          shipmentSuccess: form.shipmentSuccess
+          preferredDays: form.preferredDays || '',
+          lastShipment: form.lastShipment || '',
+          shipmentSuccess: form.shipmentSuccess || ''
         }),
         userId: user?.id,
       };
       if (isEdit && initialData && typeof initialData.id === 'number') {
-        payload.id = initialData.id;
+        (payload as any).id = initialData.id;
       }
       delete payload.preferredDays;
       delete payload.lastShipment;
       delete payload.shipmentSuccess;
+      
+      // Debug: Log the payload being sent
+      console.log('Buyer payload being sent:', payload);
+      
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch('/api/buyers', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to save');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save');
+      }
       
       const savedBuyer = await res.json();
       onSave(savedBuyer);
@@ -313,7 +321,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                   </tr>
                 </thead>
                 <tbody>
-                  {orderRows.map((row: any, idx: number) => (
+                  {orderRows.map((row: OrderDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleOrderChange(idx, 'product', e.target.value)} /></td>

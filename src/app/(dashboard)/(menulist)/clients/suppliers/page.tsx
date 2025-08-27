@@ -7,6 +7,8 @@ import { Plus, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
+import { Supplier, SupplierTableRow, SupplyDetail, SupplierFormData } from '@/types/client';
+
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -19,7 +21,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-function profileToTableRow(supplier: any) {
+function profileToTableRow(supplier: Supplier): SupplierTableRow {
   let totalPurchases = 0;
   let currency = '';
   let totalSupplied = 0;
@@ -34,13 +36,13 @@ function profileToTableRow(supplier: any) {
   })() : [];
   
   if (Array.isArray(supplies) && supplies.length > 0) {
-    supplies.forEach((s: any) => {
+    supplies.forEach((s: SupplyDetail) => {
       // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
       const match = (s.totalValue || '').toString().match(/^([^-\d]*)/);
       if (match && match[1] && !currency) currency = match[1];
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
-    totalSupplied = supplies.reduce((sum: number, s: any) => sum + (parseInt(s.totalSupplied) || 0), 0);
+    totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0);
   }
   
   // Format number with thousands separator and currency, ensure space after Rp
@@ -48,32 +50,32 @@ function profileToTableRow(supplier: any) {
   const formattedTotalPurchases = formattedCurrency + totalPurchases.toLocaleString('id-ID');
   
   return {
-    id: supplier.id,
+    id: supplier.id || 0,
     supplierId: supplier.supplierId,
     name: supplier.name,
     contact: supplier.contact,
+    email: supplier.email,
+    phone: supplier.phone,
     businessType: supplier.businessType,
     address: supplier.address,
     totalPurchases: formattedTotalPurchases,
     totalSupplies: totalSupplied,
-    createdAt: supplier.createdAt,
+    createdAt: supplier.createdAt ? new Date(supplier.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     status: supplier.status,
+    lastUpdated: supplier.updatedAt ? new Date(supplier.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    userId: supplier.userId || 0,
   };
-}
-
-function generateSupplierId() {
-  return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
 export default function SuppliersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as SupplierProfile)
-  const calculateMonthlyAverages = (supplies: any[]) => {
+  const calculateMonthlyAverages = (supplies: SupplyDetail[]) => {
     if (!supplies || supplies.length === 0) {
       return { avgMonthlyPurchaseValue: 0, avgMonthlySupplied: 0 };
     }
@@ -82,14 +84,14 @@ export default function SuppliersPage() {
     let totalPurchaseValue = 0;
     let totalSupplied = 0;
     
-    supplies.forEach((supply: any) => {
+    supplies.forEach((supply: SupplyDetail) => {
       totalPurchaseValue += parseInt((supply.totalValue || '0').toString().replace(/[^\d]/g, '')) || 0;
       totalSupplied += parseInt(supply.totalSupplied) || 0;
     });
     
     // Extract unique months from delivery dates
     const uniqueMonths = new Set();
-    supplies.forEach((supply: any) => {
+    supplies.forEach((supply: SupplyDetail) => {
       if (supply.lastDelivery) {
         const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
         uniqueMonths.add(monthKey);
@@ -134,7 +136,7 @@ export default function SuppliersPage() {
     fetchSuppliers();
   }, [user?.id]);
 
-  const handleAddSupplier = async (data: any) => {
+  const handleAddSupplier = async (data: SupplierFormData) => {
     if (!user?.id) return;
     await fetch('/api/suppliers', {
       method: 'POST',

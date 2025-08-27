@@ -152,9 +152,10 @@ export async function PUT(req: NextRequest) {
       supplierId: supplier.supplierId || supplierId
     };
     
-    return NextResponse.json(responseData);
+          return NextResponse.json(responseData);
       } catch (err) {
       // PUT /api/suppliers error
-      return NextResponse.json({ error: 'Failed to update supplier' }, { status: 500 });
+      console.error('PUT /api/suppliers error:', err);
+      return NextResponse.json({ error: 'Failed to update supplier', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
     }
 }

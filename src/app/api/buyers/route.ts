@@ -162,9 +162,10 @@ export async function PUT(req: NextRequest) {
       buyerId: buyer.buyerId || buyerId
     };
     
-    return NextResponse.json(responseData);
+          return NextResponse.json(responseData);
       } catch (err) {
       // PUT /api/buyers error
-      return NextResponse.json({ error: 'Failed to update buyer' }, { status: 500 });
+      console.error('PUT /api/buyers error:', err);
+      return NextResponse.json({ error: 'Failed to update buyer', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
     }
 }

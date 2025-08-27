@@ -5,6 +5,7 @@ import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
+import { Supplier, SupplierTableRow } from '@/types/client';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -16,7 +17,7 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: any[]; setSuppliers?: (fn: (prev: any[]) => any[]) => void; onSelectSupplier?: (supplier: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (supplier: any) => any }) {
+export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: Supplier[]; setSuppliers?: (fn: (prev: Supplier[]) => Supplier[]) => void; onSelectSupplier?: (supplier: Supplier) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; profileToTableRow: (supplier: Supplier) => SupplierTableRow }) {
   const user = useUserStore(state => state.user);
   const tableRows = suppliers.map(profileToTableRow);
   const [search, setSearch] = useState("");
@@ -24,7 +25,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const [selectedTab, setSelectedTab] = useState("All");
   const uniqueBusinessTypes = [
     "All Business Types",
-    ...Array.from(new Set(tableRows.map((s: any) => s.businessType)))
+    ...Array.from(new Set(tableRows.map((s: SupplierTableRow) => s.businessType)))
   ];
   const [filter, setFilter] = useState(uniqueBusinessTypes[0]);
   const today = new Date();
@@ -40,12 +41,12 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = 8;
   let filteredSuppliers = tableRows;
-  if (selectedTab !== "All") filteredSuppliers = filteredSuppliers.filter((s: any) => s.status === selectedTab);
-  if (filter !== "All Business Types") filteredSuppliers = filteredSuppliers.filter((s: any) => s.businessType === filter);
-  if (search) filteredSuppliers = filteredSuppliers.filter((s: any) => String(s.name).toLowerCase().includes(search.toLowerCase()));
+  if (selectedTab !== "All") filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => s.status === selectedTab);
+  if (filter !== "All Business Types") filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => s.businessType === filter);
+  if (search) filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => String(s.name).toLowerCase().includes(search.toLowerCase()));
   if (period !== "All Months") {
     const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
-    filteredSuppliers = filteredSuppliers.filter((s: any) => {
+    filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => {
       if (!s.createdAt) return false;
       return s.createdAt.startsWith(periodKey);
     });
@@ -71,15 +72,15 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     if (status === "Blocked") return "bg-red-100 text-red-500";
     return "bg-gray-100 text-gray-500";
   };
-  const handleView = (supplier: any) => {
+  const handleView = (supplier: SupplierTableRow) => {
     router.push(`/clients/suppliers/details/${supplier.supplierId}`);
   };
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [supplierToDelete, setSupplierToDelete] = useState<any>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<SupplierTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
 
-  const handleDeleteClick = (supplier: any) => {
+  const handleDeleteClick = (supplier: SupplierTableRow) => {
     setSupplierToDelete(supplier);
     setShowDeleteModal(true);
   };
@@ -149,7 +150,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   };
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Created At', 'Status'];
-    const rows = filteredSuppliers.map((s: any) => [
+    const rows = filteredSuppliers.map((s: SupplierTableRow) => [
       s.supplierId,
       s.name,
       s.businessType,
@@ -370,7 +371,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             </tr>
           </thead>
           <tbody className="bg-white">
-            {pagedSuppliers.map((supplier: any) => (
+            {pagedSuppliers.map((supplier: SupplierTableRow) => (
               <tr 
                 key={String(supplier.id)} 
                 className={`border-b transition cursor-pointer ${

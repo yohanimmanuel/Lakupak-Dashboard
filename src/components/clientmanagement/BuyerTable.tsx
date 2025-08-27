@@ -5,6 +5,7 @@ import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
+import { Buyer, BuyerTableRow } from '@/types/client';
 
 // Use buyers prop or state, not buyersMock
 // Add explicit types for all map/filter parameters
@@ -16,13 +17,16 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: any[]; setBuyers?: (fn: (prev: any[]) => any[]) => void; onSelectBuyer?: (buyer: any) => void; onExportXLSX?: (wb: any, filename: string) => void; profileToTableRow: (buyer: any) => any }) {
+export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: Buyer[]; setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void; onSelectBuyer?: (buyer: Buyer) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; profileToTableRow: (buyer: Buyer) => BuyerTableRow }) {
   const user = useUserStore(state => state.user);
+  
+  console.log('BuyerTable received buyers:', buyers);
   const tableRows = buyers.map(profileToTableRow);
+  console.log('BuyerTable processed tableRows:', tableRows);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
-  const businessTypeSet = new Set(tableRows.map((b: any) => b.businessType).filter(Boolean));
+  const businessTypeSet = new Set(tableRows.map((b: BuyerTableRow) => b.businessType).filter(Boolean));
   const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
   const [filter, setFilter] = useState(filterOptions[0]);
   const today = new Date();
@@ -30,21 +34,21 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastMonthKey = format(lastMonthDate, 'yyyy-MM');
   const periodOptions = ["All Months", "This Month", "Last Month"];
-  const [period, setPeriod] = useState(periodOptions[1]);
+  const [period, setPeriod] = useState(periodOptions[0]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
-  const buyersList = tableRows.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
+  const buyersList = tableRows.filter((b: BuyerTableRow) => String(b.name).toLowerCase().includes(search.toLowerCase()));
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = 8;
   let filteredBuyers = buyersList;
-  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: any) => b.status === selectedTab);
-  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: any) => b.businessType === filter);
-  if (search) filteredBuyers = filteredBuyers.filter((b: any) => String(b.name).toLowerCase().includes(search.toLowerCase()));
+  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => b.status === selectedTab);
+  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => b.businessType === filter);
+  if (search) filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => String(b.name).toLowerCase().includes(search.toLowerCase()));
   if (period !== "All Months") {
     const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
-    filteredBuyers = filteredBuyers.filter((b: any) => {
+    filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => {
       if (!b.createdAt) return false;
       return b.createdAt.startsWith(periodKey);
     });
@@ -56,7 +60,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [buyerToDelete, setBuyerToDelete] = useState<any>(null);
+  const [buyerToDelete, setBuyerToDelete] = useState<BuyerTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   
@@ -138,11 +142,11 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     }
   }, [selectedTab]);
 
-  const handleView = (buyer: any) => {
+  const handleView = (buyer: BuyerTableRow) => {
     router.push(`/clients/buyers/details/${buyer.buyerId}`);
   };
 
-  const handleDelete = async (buyer: any) => {
+  const handleDelete = async (buyer: BuyerTableRow) => {
     if (!window.confirm('Are you sure you want to delete this buyer?')) return;
     await fetch(`/api/buyers?id=${buyer.buyerId}`, { method: 'DELETE' });
     window.location.reload(); // Or call fetchBuyers if available via props
@@ -161,7 +165,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   // Export XLSX function
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Created At', 'Status'];
-    const rows = filteredBuyers.map((b: any) => [
+    const rows = filteredBuyers.map((b: BuyerTableRow) => [
       b.buyerId,
       b.name,
       b.address,
@@ -385,7 +389,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </tr>
           </thead>
           <tbody className="bg-white">
-            {pagedBuyers.map((buyer: any) => (
+            {pagedBuyers.map((buyer: BuyerTableRow) => (
               <tr 
                 key={String(buyer.id)} 
                 className={`border-b transition cursor-pointer ${

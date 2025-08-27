@@ -8,7 +8,7 @@ import BuyerModal from './BuyerModal';
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
-
+import { Buyer, OrderDetail } from '@/types/client';
 // Try require fallback for date-fns if import fails
 let parse: any, format: any;
 try {
@@ -27,7 +27,7 @@ function getBuyerAnalytics(orderDetailsStr: string) {
     
     // Group by month (MMM yyyy)
     const map: { [month: string]: { orders: number; spending: number } } = {};
-    orderDetails.forEach((order: any) => {
+    orderDetails.forEach((order: OrderDetail) => {
       if (!order.lastOrderDate) return;
       const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
       const monthKey = format(date, 'MMM yyyy');
@@ -54,7 +54,7 @@ function getBuyerAnalytics(orderDetailsStr: string) {
   }
 }
 
-export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?: () => void }) {
+export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   
@@ -113,15 +113,15 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
   };
   
   const analyticsData = getBuyerAnalytics(buyer?.orderDetails || '');
-  const totalOrders = orderDetails.reduce((sum: number, o: any) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
+  const totalOrders = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
   let totalSpend = 0;
   let currency = '';
-  orderDetails.forEach((o: any) => {
+  orderDetails.forEach((o: OrderDetail) => {
     const match = (o.totalSpend || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
     totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
   });
-  const totalOutstanding = orderDetails.reduce((sum: number, o: any) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
+  const totalOutstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
   const [orderPage, setOrderPage] = useState(1);
   const orderRowsPerPage = 5;
   const totalOrderRows = orderDetails.length;
@@ -130,7 +130,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
 
   function handleExportOrders() {
     const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
-    const rows = orderDetails.map((o: any) => [
+    const rows = orderDetails.map((o: OrderDetail) => [
       o.product,
       o.totalOrders,
       o.totalSpend,
@@ -206,7 +206,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Calendar className="w-4 h-4" />
-                <span className="font-medium text-black">{buyer.createdAt}</span>
+                <span className="font-medium text-black">{buyer.createdAt ? new Date(buyer.createdAt).toLocaleDateString() : ''}</span>
               </div>
             </div>  
         </div>
@@ -307,7 +307,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               </tr>
             </thead>
             <tbody>
-              {pagedOrderDetails.map((order: any, idx: number) => (
+              {pagedOrderDetails.map((order: OrderDetail, idx: number) => (
                 <tr key={idx + (orderPage - 1) * orderRowsPerPage} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>
@@ -371,7 +371,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
-                orderDetails.forEach((order: any) => {
+                orderDetails.forEach((order: OrderDetail) => {
                   if (order.lastOrderDate) {
                     const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -382,7 +382,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               <div className="pt-2">Average Monthly Orders: <span className="font-semibold text-blue-500">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
-                orderDetails.forEach((order: any) => {
+                orderDetails.forEach((order: OrderDetail) => {
                   if (order.lastOrderDate) {
                     const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -403,7 +403,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
-                orderDetails.forEach((order: any) => {
+                orderDetails.forEach((order: OrderDetail) => {
                   if (order.lastOrderDate) {
                     const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -414,7 +414,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
               <div className="pt-2">Average Monthly Spending: <span className="font-semibold text-green-500">{currency}{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
-                orderDetails.forEach((order: any) => {
+                orderDetails.forEach((order: OrderDetail) => {
                   if (order.lastOrderDate) {
                     const monthKey = order.lastOrderDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
