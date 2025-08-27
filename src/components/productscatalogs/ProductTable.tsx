@@ -153,7 +153,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
           setShowPublishModal(false);
           setProductToPublish(null);
         } else {
-          console.error('Failed to publish product');
+          // Failed to publish product
         }
       } else if (selectedProducts.length > 0) {
         // Bulk publish all selected draft/inactive products
@@ -184,9 +184,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         setShowPublishModal(false);
         setSelectedProducts([]);
       }
-    } catch (error) {
-      console.error('Error publishing products:', error);
-    }
+          } catch (error) {
+        // Error publishing products
+      }
   };
 
   const handleUnpublishProducts = async () => {
@@ -223,9 +223,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
       // Close the unpublish modal
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
-    } catch (error) {
-      console.error('Error unpublishing products:', error);
-    }
+          } catch (error) {
+        // Error unpublishing products
+      }
   };
 
   const handleProductSelect = (productId: string) => {

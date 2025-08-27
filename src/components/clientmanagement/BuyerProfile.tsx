@@ -50,7 +50,6 @@ function getBuyerAnalytics(orderDetailsStr: string) {
       spending: map[month].spending,
     }));
   } catch (error) {
-    console.error('Error parsing orderDetails:', error);
     return [];
   }
 }
@@ -59,46 +58,37 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: any; onClose?:
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   
-  console.log('BuyerProfile - Raw buyer data:', buyer);
+  // BuyerProfile - Raw buyer data
   
   // Parse orderDetails and notes from strings to arrays
   const orderDetails = buyer.orderDetails ? (() => {
     try {
-      console.log('BuyerProfile - Parsing orderDetails:', buyer.orderDetails);
       const parsed = JSON.parse(buyer.orderDetails);
-      console.log('BuyerProfile - Parsed orderDetails:', parsed);
       return parsed;
     } catch (error) {
-      console.error('BuyerProfile - Error parsing orderDetails:', error);
       return [];
     }
   })() : [];
   
   const notes = buyer.notes ? (() => {
     try {
-      console.log('BuyerProfile - Parsing notes:', buyer.notes);
       const parsed = JSON.parse(buyer.notes);
-      console.log('BuyerProfile - Parsed notes:', parsed);
       return parsed;
     } catch (error) {
-      console.error('BuyerProfile - Error parsing notes:', error);
       return [];
     }
   })() : [];
   
   const logistics = buyer.logistics ? (() => {
     try {
-      console.log('BuyerProfile - Parsing logistics:', buyer.logistics);
       const parsed = JSON.parse(buyer.logistics);
-      console.log('BuyerProfile - Parsed logistics:', parsed);
       return parsed;
     } catch (error) {
-      console.error('BuyerProfile - Error parsing logistics:', error);
       return {};
     }
   })() : {};
   
-  console.log('BuyerProfile - Final parsed data:', { orderDetails, notes, logistics });
+  // BuyerProfile - Final parsed data
   
   const handleCopy = () => {
     let text = '';

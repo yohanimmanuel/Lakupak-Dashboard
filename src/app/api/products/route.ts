@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       
       if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
       
-      console.log('GET /api/products - Returning product data:', JSON.stringify(product, null, 2));
+      // GET /api/products - Returning product data
       return NextResponse.json(product);
     }
     
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     let data = await req.json();
-    console.log('POST /api/products - Received data:', JSON.stringify(data, null, 2));
+    // POST /api/products - Received data
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     
     // Clean and validate the data to match Prisma schema
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       userId: Number(data.userId)
     };
     
-    console.log('POST /api/products - Cleaned data:', JSON.stringify(productData, null, 2));
+    // POST /api/products - Cleaned data
     
     const product = await prisma.product.create({
       data: productData
@@ -114,7 +114,7 @@ export async function DELETE(req: NextRequest) {
       });
     }
     
-    console.log('DELETE Product', { id, userId, deleted });
+    // DELETE Product
     return NextResponse.json({ success: true, deleted });
   } catch (err) {
     console.error('DELETE /api/products error:', err);
@@ -125,7 +125,7 @@ export async function DELETE(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     let data = await req.json();
-    console.log('PUT /api/products - Received data:', JSON.stringify(data, null, 2));
+    // PUT /api/products - Received data
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     
     const { id, productId, userId, ...updateData } = data;
@@ -151,7 +151,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.discount !== undefined) cleanUpdateData.discount = updateData.discount ? Number(updateData.discount) : 0;
     if (updateData.discountType !== undefined) cleanUpdateData.discountType = updateData.discountType ? String(updateData.discountType) : null;
     
-    console.log('PUT /api/products - Cleaned update data:', JSON.stringify(cleanUpdateData, null, 2));
+    // PUT /api/products - Cleaned update data
     
     let product;
     if (id) {

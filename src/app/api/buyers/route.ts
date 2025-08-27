@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       
       if (!buyer) return NextResponse.json({ error: 'Buyer not found' }, { status: 404 });
       
-      console.log('GET /api/buyers - Returning buyer data:', JSON.stringify(buyer, null, 2));
+      // GET /api/buyers - Returning buyer data
       return NextResponse.json(buyer);
     }
     
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(buyers);
   } catch (err) {
-    console.error('GET /api/buyers error:', err);
+    // GET /api/buyers error
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     let data = await req.json();
-    console.log('POST /api/buyers - Received data:', JSON.stringify(data, null, 2));
+    // POST /api/buyers - Received data
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     
     // Clean and validate the data to match Prisma schema
@@ -60,17 +60,17 @@ export async function POST(req: NextRequest) {
       userId: Number(data.userId)
     };
     
-    console.log('POST /api/buyers - Cleaned data:', JSON.stringify(buyerData, null, 2));
+    // POST /api/buyers - Cleaned data
     
     const buyer = await prisma.buyer.create({
       data: buyerData
     });
     
     return NextResponse.json(buyer, { status: 201 });
-  } catch (err) {
-    console.error('POST /api/buyers error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+      } catch (err) {
+      // POST /api/buyers error
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -108,18 +108,18 @@ export async function DELETE(req: NextRequest) {
       });
     }
     
-    console.log('DELETE Buyer', { id, userId, deleted });
+    // DELETE Buyer
     return NextResponse.json({ success: true, deleted });
-  } catch (err) {
-    console.error('DELETE /api/buyers error:', err);
-    return NextResponse.json({ error: 'Failed to delete buyer' }, { status: 500 });
-  }
+      } catch (err) {
+      // DELETE /api/buyers error
+      return NextResponse.json({ error: 'Failed to delete buyer' }, { status: 500 });
+    }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     let data = await req.json();
-    console.log('PUT /api/buyers - Received data:', JSON.stringify(data, null, 2));
+    // PUT /api/buyers - Received data
     if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     
     const { id, buyerId, userId, ...updateData } = data;
@@ -139,7 +139,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.notes !== undefined) cleanUpdateData.notes = updateData.notes ? String(updateData.notes) : null;
     if (updateData.orderDetails !== undefined) cleanUpdateData.orderDetails = updateData.orderDetails ? String(updateData.orderDetails) : null;
     
-    console.log('PUT /api/buyers - Cleaned update data:', JSON.stringify(cleanUpdateData, null, 2));
+    // PUT /api/buyers - Cleaned update data
     
     let buyer;
     if (id) {
@@ -163,8 +163,8 @@ export async function PUT(req: NextRequest) {
     };
     
     return NextResponse.json(responseData);
-  } catch (err) {
-    console.error('PUT /api/buyers error:', err);
-    return NextResponse.json({ error: 'Failed to update buyer' }, { status: 500 });
-  }
+      } catch (err) {
+      // PUT /api/buyers error
+      return NextResponse.json({ error: 'Failed to update buyer' }, { status: 500 });
+    }
 }

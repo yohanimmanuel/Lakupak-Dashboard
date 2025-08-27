@@ -29,10 +29,10 @@ export async function GET(req: NextRequest) {
       where: { userId: Number(userId) }
     });
     return NextResponse.json(suppliers);
-  } catch (err) {
-    console.error('GET /api/suppliers error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+      } catch (err) {
+      // GET /api/suppliers error
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
 
 export async function POST(req: NextRequest) {
@@ -61,10 +61,10 @@ export async function POST(req: NextRequest) {
     });
     
     return NextResponse.json(supplier, { status: 201 });
-  } catch (err) {
-    console.error('POST /api/suppliers error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+      } catch (err) {
+      // POST /api/suppliers error
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -102,12 +102,12 @@ export async function DELETE(req: NextRequest) {
       });
     }
     
-    console.log('DELETE Supplier', { id, userId, deleted });
+    // DELETE Supplier
     return NextResponse.json({ success: true, deleted });
-  } catch (err) {
-    console.error('DELETE /api/suppliers error:', err);
-    return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 });
-  }
+      } catch (err) {
+      // DELETE /api/suppliers error
+      return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 });
+    }
 }
 
 export async function PUT(req: NextRequest) {
@@ -153,8 +153,8 @@ export async function PUT(req: NextRequest) {
     };
     
     return NextResponse.json(responseData);
-  } catch (err) {
-    console.error('PUT /api/suppliers error:', err);
-    return NextResponse.json({ error: 'Failed to update supplier' }, { status: 500 });
-  }
+      } catch (err) {
+      // PUT /api/suppliers error
+      return NextResponse.json({ error: 'Failed to update supplier' }, { status: 500 });
+    }
 }

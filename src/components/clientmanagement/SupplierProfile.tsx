@@ -49,7 +49,6 @@ function getSupplierAnalytics(suppliesStr: string) {
       value: map[month].value,
     }));
   } catch (error) {
-    console.error('Error parsing supplies:', error);
     return [];
   }
 }
@@ -58,46 +57,37 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: any; 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   
-  console.log('SupplierProfile - Raw supplier data:', supplier);
+  // SupplierProfile - Raw supplier data
   
   // Parse supplies and notes from strings to arrays
   const supplies = supplier.supplies ? (() => {
     try {
-      console.log('SupplierProfile - Parsing supplies:', supplier.supplies);
       const parsed = JSON.parse(supplier.supplies);
-      console.log('SupplierProfile - Parsed supplies:', parsed);
       return parsed;
     } catch (error) {
-      console.error('SupplierProfile - Error parsing supplies:', error);
       return [];
     }
   })() : [];
   
   const notes = supplier.notes ? (() => {
     try {
-      console.log('SupplierProfile - Parsing notes:', supplier.notes);
       const parsed = JSON.parse(supplier.notes);
-      console.log('SupplierProfile - Parsed notes:', parsed);
       return parsed;
     } catch (error) {
-      console.error('SupplierProfile - Error parsing notes:', error);
       return [];
     }
   })() : [];
   
   const logistics = supplier.logistics ? (() => {
     try {
-      console.log('SupplierProfile - Parsing logistics:', supplier.logistics);
       const parsed = JSON.parse(supplier.logistics);
-      console.log('SupplierProfile - Parsed logistics:', parsed);
       return parsed;
     } catch (error) {
-      console.error('SupplierProfile - Error parsing logistics:', error);
       return {};
     }
   })() : {};
   
-  console.log('SupplierProfile - Final parsed data:', { supplies, notes, logistics });
+  // SupplierProfile - Final parsed data
   
   const handleCopy = () => {
     let text = '';

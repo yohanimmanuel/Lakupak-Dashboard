@@ -274,7 +274,7 @@ export default function ProductCatalog({
          userId: user.id
        };
 
-      console.log('Submitting payload:', payload);
+      // Submitting payload
 
       let response;
       if (mode === 'add') {
@@ -302,11 +302,9 @@ export default function ProductCatalog({
         }
       } else {
         const errorData = await response?.json();
-        console.error(`Error: ${errorData?.error || 'Failed to save product'}`);
         alert(`Error: ${errorData?.error || 'Failed to save product'}`);
       }
     } catch (error) {
-      console.error('Error saving product:', error);
       alert('Error saving product. Please try again.');
     } finally {
       setSaving(false);

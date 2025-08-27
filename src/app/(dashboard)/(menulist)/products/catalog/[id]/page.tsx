@@ -26,7 +26,6 @@ export default function ViewProductPage() {
           setError('Product not found');
         }
       } catch (error) {
-        console.error('Error fetching product:', error);
         setError('Failed to load product');
       } finally {
         setLoading(false);

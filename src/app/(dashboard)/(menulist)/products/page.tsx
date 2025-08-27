@@ -36,14 +36,12 @@ export default function ProductsPage() {
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
-      } else {
-        console.error('Failed to fetch products');
+            } else {
         setProducts([]);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
       setProducts([]);
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -78,8 +76,6 @@ export default function ProductsPage() {
 
   const handleImport = async (data: any[]) => {
     if (!user?.id) return;
-    
-    console.log('Imported products:', data);
     
     try {
       // Process imported data and save to database
@@ -129,7 +125,7 @@ export default function ProductsPage() {
         });
         
         if (!response.ok) {
-          console.error('Failed to save product:', payload.name);
+          // Failed to save product
         }
       }
       
@@ -142,7 +138,7 @@ export default function ProductsPage() {
              // Import completed successfully
        
      } catch (error) {
-       console.error('Error importing products:', error);
+       // Error importing products
      }
   };
 
