@@ -184,7 +184,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen">
+    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
