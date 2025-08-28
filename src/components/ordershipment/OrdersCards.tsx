@@ -28,7 +28,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <p className="text-xs font-medium text-gray-600">Total Orders</p>
             <p className="text-xl font-bold text-gray-900">{totalOrders}</p>
           </div>
-          <div className="p-3 bg-blue-100 rounded-lg">
+          <div className="p-3 shadow-sm bg-white rounded-lg">
             <Package className="w-6 h-6 text-blue-600" />
           </div>
         </div>
