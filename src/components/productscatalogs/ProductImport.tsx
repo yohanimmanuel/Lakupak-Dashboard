@@ -144,7 +144,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       
       if (stockQuantity === 0) {
         mapped['Stock Status'] = 'Out of Stock';
-      } else if (stockQuantity <= lowStockThreshold) {
+      } else if (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold) {
         mapped['Stock Status'] = 'Low Stock';
       } else {
         mapped['Stock Status'] = 'In Stock';

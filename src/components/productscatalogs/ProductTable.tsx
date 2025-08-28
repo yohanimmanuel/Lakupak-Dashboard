@@ -71,8 +71,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
       const stock = p.stockQuantity;
-      if (selectedStockFilter === "high") return stock > 50;
-      if (selectedStockFilter === "low") return stock <= 50 && stock > 0;
+      const threshold = p.lowStockThreshold;
+      if (selectedStockFilter === "high") return threshold > 0 ? stock > threshold : stock > 0;
+      if (selectedStockFilter === "low") return threshold > 0 ? stock <= threshold && stock > 0 : false;
       if (selectedStockFilter === "out") return stock === 0;
       return true;
     });
@@ -299,35 +300,6 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     if (status === "Published" || status === "Active") return "bg-green-100 text-green-500 font-semibold";
     if (status === "Draft" || status === "Inactive") return "bg-gray-100 text-gray-500 font-semibold";
     return "bg-gray-100 text-gray-500 font-semibold";
-  };
-
-  // Stock status helper
-  const stockStatusBadge = (stock: number, threshold: number = 30) => {
-    if (stock === 0) return "bg-red-100 text-red-500";
-    if (stock <= threshold) return "bg-yellow-100 text-yellow-500";
-    return "bg-green-100 text-green-500";
-  };
-
-  // Export XLSX function
-  const handleExportXLSX = () => {
-    const headers = ['Product ID', 'SKU', 'Name', 'Category', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Created At'];
-    const rows = filteredProducts.map((p: ProductTableRow) => [
-      p.productId || `LKP-${String(p.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
-      p.sku,
-      p.name,
-      p.category,
-      p.brand,
-      p.supplier,
-      p.stockQuantity,
-      p.purchasePrice,
-      p.sellingPrice,
-      p.status,
-      p.createdAt
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Products');
-    if (onExportXLSX) onExportXLSX(wb, 'products.xlsx');
   };
 
   return (
@@ -781,7 +753,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                          Out of Stock
                        </span>
                      )}
-                     {product.stockQuantity > 0 && product.stockQuantity <= 50 && (
+                     {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
                          Low Stock
                        </span>
@@ -893,7 +865,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                        Out of Stock
                      </span>
                    )}
-                   {product.stockQuantity > 0 && product.stockQuantity <= 50 && (
+                   {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
                        Low Stock
                      </span>
@@ -1005,7 +977,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                        Out of Stock
                      </span>
                    )}
-                   {product.stockQuantity > 0 && product.stockQuantity <= 50 && (
+                   {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
                        Low Stock
                      </span>

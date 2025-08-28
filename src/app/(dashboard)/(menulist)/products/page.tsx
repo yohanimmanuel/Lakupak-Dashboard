@@ -61,6 +61,7 @@ export default function ProductsPage() {
     brand: product.brand,
     supplier: product.supplier,
     stockQuantity: product.stockQuantity,
+    lowStockThreshold: product.lowStockThreshold || 30,
     purchasePrice: product.purchasePrice,
     sellingPrice: product.sellingPrice,
     status: product.status,
@@ -89,7 +90,7 @@ export default function ProductsPage() {
         
         if (stockQuantity === 0) {
           stockStatus = 'Out of Stock';
-        } else if (stockQuantity <= lowStockThreshold) {
+        } else if (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold) {
           stockStatus = 'Low Stock';
         } else {
           stockStatus = 'In Stock';

@@ -13,7 +13,7 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   // Calculate stats from products data
   const totalProducts = products.length;
   const activeProducts = products.filter(product => product.status === 'Published').length;
-  const lowStockAlerts = products.filter(product => product.stockQuantity > 0 && product.stockQuantity <= 50).length;
+  const lowStockAlerts = products.filter(product => product.stockQuantity > 0 && (product.lowStockThreshold || 0) > 0 && product.stockQuantity <= (product.lowStockThreshold || 0)).length;
   const outOfStock = products.filter(product => product.stockQuantity === 0).length;
   const stats = [
     {

@@ -32,6 +32,7 @@ export interface ProductTableRow {
   brand: string;
   supplier: string;
   stockQuantity: number;
+  lowStockThreshold: number;
   purchasePrice: string;
   sellingPrice: string;
   status: string;
