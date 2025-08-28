@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
+import { formatDate } from "@/utils/dateUtils";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -37,12 +38,12 @@ export default function ProductsPage() {
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
-            } else {
+      } else {
         setProducts([]);
       }
     } catch (error) {
       setProducts([]);
-      } finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -65,8 +66,8 @@ export default function ProductsPage() {
     purchasePrice: product.purchasePrice,
     sellingPrice: product.sellingPrice,
     status: product.status,
-    createdAt: product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '',
-    lastUpdated: product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '',
+    createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
+    lastUpdated: product.updatedAt ? formatDate(product.updatedAt) : 'N/A',
     userId: product.userId || 0
   });
 
@@ -112,7 +113,6 @@ export default function ProductsPage() {
           status: 'Draft', // Always overwrite status to Draft for imported products
           catalogType: product['Catalog Type'] || 'Internal',
           catalogName: product['Catalog Name'] || '',
-
           discount: parseFloat(product['Discount']) || 0,
           discountType: product['Discount Type'] || '',
           images: [], // Images are not imported via Excel
@@ -137,11 +137,11 @@ export default function ProductsPage() {
       // Close modal
       setIsImportModalOpen(false);
       
-             // Import completed successfully
+      // Import completed successfully
        
-     } catch (error) {
-       // Error importing products
-     }
+    } catch (error) {
+      // Error importing products
+    }
   };
 
   const handleExport = () => {
@@ -158,7 +158,7 @@ export default function ProductsPage() {
       product.purchasePrice,
       product.sellingPrice,
       product.status,
-      product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : ''
+      product.updatedAt ? formatDate(product.updatedAt) : 'N/A'
     ]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -193,31 +193,31 @@ export default function ProductsPage() {
         </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-            {/* Import Button */}
-            <button
+          {/* Import Button */}
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-            >
+          >
             <Upload className="w-4 h-4" />
             Import Data
-            </button>
+          </button>
 
-            {/* Export Button */}
-            <button
-            onClick={handleExport}
+          {/* Export Button */}
+          <button
+            onClick={() => handleExport()}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-            >
+          >
             <Download className="w-4 h-4" />
             Export Data
-            </button>
+          </button>
 
-            {/* Add Product Button */}
-            <button
+          {/* Add Product Button */}
+          <button
             onClick={() => router.push('/products/add')}
             className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
-            >
+          >
             + Add Product
-            </button>
+          </button>
         </div>
       </div>
 

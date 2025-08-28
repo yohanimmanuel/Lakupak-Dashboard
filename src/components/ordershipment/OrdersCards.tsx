@@ -2,6 +2,7 @@
 import React from "react";
 import { Package, CheckCircle, Clock, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Order } from '@/types/order';
+import { formatNumber } from '@/utils/dateUtils';
 
 interface OrdersCardsProps {
   orders: Order[];
@@ -11,7 +12,6 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   // Calculate stats
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(o => o.orderStatus === 'Pending').length;
-  const shippedOrders = orders.filter(o => o.orderStatus === 'Shipped').length;
   const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered').length;
   
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -28,7 +28,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <p className="text-xs font-medium text-gray-600">Total Orders</p>
             <p className="text-xl font-bold text-gray-900">{totalOrders}</p>
           </div>
-          <div className="p-3 bg-white shadow-sm rounded-lg">
+          <div className="p-3 bg-blue-100 rounded-lg">
             <Package className="w-6 h-6 text-blue-600" />
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           <div>
             <p className="text-xs font-medium text-gray-600">Total Revenue</p>
             <p className="text-xl font-bold text-gray-900">
-              ${totalRevenue.toLocaleString()}
+              ${formatNumber(totalRevenue)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">
@@ -65,7 +65,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           <div>
             <p className="text-xs font-medium text-gray-600">Pending Revenue</p>
             <p className="text-xl font-bold text-gray-900">
-              ${pendingRevenue.toLocaleString()}
+              ${formatNumber(pendingRevenue)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">

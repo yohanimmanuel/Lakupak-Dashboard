@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail, SupplierFormData } from '@/types/client';
+import { formatNumber } from '@/utils/dateUtils';
 
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
@@ -46,7 +47,7 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
   }
   
   // Format number with thousands separator and currency, only add currency if found
-  const formattedTotalPurchases = currency ? (currency.trim() + ' ' + totalPurchases.toLocaleString('id-ID')) : totalPurchases.toLocaleString('id-ID');
+  const formattedTotalPurchases = currency ? (currency.trim() + ' ' + formatNumber(totalPurchases)) : formatNumber(totalPurchases);
   
   return {
     id: supplier.id || 0,

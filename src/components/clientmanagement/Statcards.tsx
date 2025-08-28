@@ -1,5 +1,6 @@
 import React from "react";
 import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { formatNumber } from '@/utils/dateUtils';
 import { useMemo } from 'react';
 import { Buyer, Supplier, OrderDetail, SupplyDetail } from '@/types/client';
 
@@ -149,7 +150,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Buyer Spend',
-          value: currency ? currency + ' ' + cleanDecimals(avgMonthlySpend).toLocaleString('id-ID') : cleanDecimals(avgMonthlySpend).toLocaleString('id-ID'),
+          value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlySpend)) : formatNumber(cleanDecimals(avgMonthlySpend)),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {
@@ -233,7 +234,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         },
         {
           label: 'Monthly Purchase Value',
-          value: currency ? currency + ' ' + cleanDecimals(avgMonthlyValue).toLocaleString('id-ID') : cleanDecimals(avgMonthlyValue).toLocaleString('id-ID'),
+          value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlyValue)) : formatNumber(cleanDecimals(avgMonthlyValue)),
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
         },
         {

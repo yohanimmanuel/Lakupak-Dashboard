@@ -2,7 +2,7 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff } from "lucide-react";
-import { format } from 'date-fns';
+
 import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 import * as XLSX from 'xlsx';
@@ -767,7 +767,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     {product.status}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-xs text-gray-700">{format(new Date(product.lastUpdated), 'MMM dd, yyyy')}</td>
+                                    <td className="py-3 px-4 text-xs text-gray-700">{product.lastUpdated || 'N/A'}</td>
                 <td className="py-3 px-4 text-xs text-center">
                   <div className="flex items-center justify-center gap-2">
                     <button

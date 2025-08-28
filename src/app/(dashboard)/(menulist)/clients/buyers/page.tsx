@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerTableRow, BuyerFormData, OrderDetail } from '@/types/client';
+import { formatDate, formatNumber } from '@/utils/dateUtils';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -45,8 +46,8 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
   }
   
   // Format numbers with thousands separator and currency, only add currency if found
-  const formattedTotalSpend = currency ? (currency.trim() + ' ' + totalSpend.toLocaleString('id-ID')) : totalSpend.toLocaleString('id-ID');
-  const formattedOutstanding = currency ? (currency.trim() + ' ' + outstanding.toLocaleString('id-ID')) : outstanding.toLocaleString('id-ID');
+  const formattedTotalSpend = currency ? (currency.trim() + ' ' + formatNumber(totalSpend)) : formatNumber(totalSpend);
+  const formattedOutstanding = currency ? (currency.trim() + ' ' + formatNumber(outstanding)) : formatNumber(outstanding);
   
   return {
     id: buyer.id || 0,
@@ -63,8 +64,8 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
     totalSpend: formattedTotalSpend,
     outstanding: formattedOutstanding,
-    createdAt: buyer.createdAt ? new Date(buyer.createdAt).toLocaleDateString() : '',
-    lastUpdated: buyer.updatedAt ? new Date(buyer.updatedAt).toLocaleDateString() : '',
+          createdAt: formatDate(buyer.createdAt),
+      lastUpdated: formatDate(buyer.updatedAt),
     userId: buyer.userId || 0,
   };
 }

@@ -9,14 +9,7 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
-// Try require fallback for date-fns if import fails
-let parse: any, format: any;
-try {
-  // @ts-ignore
-  ({ parse, format } = require('date-fns'));
-} catch {
-  // fallback to import if available
-}
+import { formatDate, formatNumber } from '@/utils/dateUtils';
 
 function getBuyerAnalytics(orderDetailsStr: string) {
   if (!orderDetailsStr) return [];
@@ -29,8 +22,8 @@ function getBuyerAnalytics(orderDetailsStr: string) {
     const map: { [month: string]: { orders: number; spending: number } } = {};
     orderDetails.forEach((order: OrderDetail) => {
       if (!order.lastOrderDate) return;
-      const date = parse(order.lastOrderDate, 'yyyy-MM-dd', new Date());
-      const monthKey = format(date, 'MMM yyyy');
+      const date = new Date(order.lastOrderDate);
+              const monthKey = formatDate(date);
       const totalOrders = Number(order.totalOrders) || 0;
       // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
       const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
@@ -40,8 +33,8 @@ function getBuyerAnalytics(orderDetailsStr: string) {
     });
     // Sort months chronologically
     const months = Object.keys(map).sort((a, b) => {
-      const dA = parse(a, 'MMM yyyy', new Date());
-      const dB = parse(b, 'MMM yyyy', new Date());
+      const dA = new Date(a);
+      const dB = new Date(b);
       return dA.getTime() - dB.getTime();
     });
     return months.map((month) => ({
@@ -206,7 +199,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Calendar className="w-4 h-4" />
-                <span className="font-medium text-black">{buyer.createdAt ? new Date(buyer.createdAt).toLocaleDateString() : ''}</span>
+                                 <span className="font-medium text-black">{formatDate(buyer.createdAt)}</span>
               </div>
             </div>  
         </div>
@@ -290,8 +283,8 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
         )}
         <div className="flex flex-wrap gap-4 mb-2">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Orders: <span className="font-bold text-black">{totalOrders}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{currency}{totalSpend.toLocaleString()}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{currency}{totalOutstanding.toLocaleString()}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{currency}{formatNumber(totalSpend)}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{currency}{formatNumber(totalOutstanding)}</span></div>
         </div>
         {/* Above Order & Product Details table */}
         <div className="overflow-x-auto rounded-lg">
@@ -399,7 +392,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Spending Analytics</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Spending: <span className="font-medium">{currency}{totalSpend.toLocaleString()}</span></div>
+              <div>Total Monthly Spending: <span className="font-medium">{currency}{formatNumber(totalSpend)}</span></div>
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
@@ -421,7 +414,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                   }
                 });
                 const monthCount = uniqueMonths.size;
-                return monthCount > 0 ? Math.round(totalSpend / monthCount).toLocaleString() : 0;
+                return monthCount > 0 ? formatNumber(Math.round(totalSpend / monthCount)) : 0;
               })()}</span></div>
             </div>
           </div>

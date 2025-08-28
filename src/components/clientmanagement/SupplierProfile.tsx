@@ -8,15 +8,7 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportSuppliesModal from './ImportSuppliesModal';
 import { Supplier, SupplyDetail } from '@/types/client';
-
-// Try require fallback for date-fns if import fails
-let parse: any, format: any;
-try {
-  // @ts-ignore
-  ({ parse, format } = require('date-fns'));
-} catch {
-  // fallback to import if available
-}
+import { formatDate, formatNumber } from '@/utils/dateUtils';
 
 function getSupplierAnalytics(suppliesStr: string) {
   if (!suppliesStr) return [];
@@ -29,8 +21,8 @@ function getSupplierAnalytics(suppliesStr: string) {
     const map: { [month: string]: { supplied: number; value: number } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
       if (!supply.lastDelivery) return;
-      const date = parse(supply.lastDelivery, 'yyyy-MM-dd', new Date());
-      const monthKey = format(date, 'MMM yyyy');
+              const date = new Date(supply.lastDelivery);
+        const monthKey = formatDate(date);
       const totalSupplied = Number(supply.totalSupplied) || 0;
       // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
       const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
@@ -38,12 +30,12 @@ function getSupplierAnalytics(suppliesStr: string) {
       map[monthKey].supplied += totalSupplied;
       map[monthKey].value += value;
     });
-    // Sort months chronologically
-    const months = Object.keys(map).sort((a, b) => {
-      const dA = parse(a, 'MMM yyyy', new Date());
-      const dB = parse(b, 'MMM yyyy', new Date());
-      return dA.getTime() - dB.getTime();
-    });
+          // Sort months chronologically
+      const months = Object.keys(map).sort((a, b) => {
+        const dA = new Date(a);
+        const dB = new Date(b);
+        return dA.getTime() - dB.getTime();
+      });
     return months.map((month) => ({
       month,
       supplied: map[month].supplied,
@@ -193,7 +185,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Calendar className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.createdAt ? new Date(supplier.createdAt).toLocaleDateString() : ''}</span>
+                             <span className="font-medium text-black">{formatDate(supplier.createdAt)}</span>
             </div>
           </div>
         </div>
@@ -281,7 +273,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
             Total Supplied: <span className="font-bold text-black">{totalSupplied}</span>
           </div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
-            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{currency}{totalValue.toLocaleString()}</span>
+                            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{currency}{formatNumber(totalValue)}</span>
           </div>
         </div>
         <div className="overflow-x-auto rounded-lg">
@@ -356,7 +348,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Purchase Analytics</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Purchase Value: <span className="font-medium">{currency}{totalValue.toLocaleString()}</span></div>
+              <div>Total Monthly Purchase Value: <span className="font-medium">{currency}{formatNumber(totalValue)}</span></div>
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
@@ -378,7 +370,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
                   }
                 });
                 const monthCount = uniqueMonths.size;
-                return monthCount > 0 ? Math.round(totalValue / monthCount).toLocaleString() : 0;
+                return monthCount > 0 ? formatNumber(Math.round(totalValue / monthCount)) : 0;
               })()}</span></div>
             </div>
           </div>

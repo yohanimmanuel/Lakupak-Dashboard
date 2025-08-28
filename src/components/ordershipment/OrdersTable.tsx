@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
-import { format } from 'date-fns';
+import { formatDateLong, formatNumber } from '@/utils/dateUtils';
 import { Order, OrderTableRow } from '@/types/order';
 
 const statusTabs = [
@@ -124,7 +124,7 @@ export default function OrdersTable({
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(filteredOrders);
       XLSX.utils.book_append_sheet(wb, ws, "Orders");
-      onExportXLSX(wb, `orders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+              onExportXLSX(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
   };
 
@@ -307,14 +307,14 @@ export default function OrdersTable({
                   </button>
                 </td>
                                  <td className="max-w-30 py-3 px-4 font-medium text-black truncate">#{order.orderId}</td>
-                 <td className="py-3 px-4 text-black">{format(new Date(order.orderDate), 'dd MMM, yyyy')}</td>
+                 <td className="py-3 px-4 text-black">{formatDateLong(order.orderDate)}</td>
                  <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{order.buyerName}</td>
                  <td className="py-3 px-4">
                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(order.orderStatus)}`}>
                      {order.orderStatus}
                    </span>
                  </td>
-                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">${parseFloat(order.totalAmount).toLocaleString()}</td>
+                                   <td className="py-3 px-4 text-[#0a61d7] font-semibold">${formatNumber(parseFloat(order.totalAmount))}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
                  <td className="py-3 px-4 text-black">{order.deliveryMethod}</td>
                  <td className="py-3 px-4 text-black">{order.trackingNumber || 'N/A'}</td>
@@ -404,9 +404,9 @@ export default function OrdersTable({
                   </button>
                 </div>
               </div>
-                             <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{format(new Date(order.orderDate), 'dd MMM, yyyy')}</span></div>
+                             <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
                <div className="text-xs text-gray-500">Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{order.orderStatus}</span></div>
-               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">${parseFloat(order.totalAmount).toLocaleString()}</span></div>
+                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">${formatNumber(parseFloat(order.totalAmount))}</span></div>
                <div className="text-xs text-gray-500">Items: <span className="text-black font-medium">{order.items}</span></div>
                <div className="text-xs text-gray-500">Delivery: <span className="text-black font-medium">{order.deliveryMethod}</span></div>
                <div className="text-xs text-gray-500">Tracking: <span className="text-black font-medium">{order.trackingNumber || 'N/A'}</span></div>
