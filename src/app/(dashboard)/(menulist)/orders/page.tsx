@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 const mockOrders: Order[] = [
   {
     id: '1',
-    orderId: 'ORD001',
+    orderId: 'LKO-12345678',
     buyerId: 'BUY001',
     orderDate: new Date('2024-01-15'),
     orderStatus: 'Pending',
@@ -39,7 +39,7 @@ const mockOrders: Order[] = [
   },
   {
     id: '2',
-    orderId: 'ORD002',
+    orderId: 'LKO-87654321',
     buyerId: 'BUY002',
     orderDate: new Date('2024-01-16'),
     orderStatus: 'Confirmed',
@@ -69,7 +69,7 @@ const mockOrders: Order[] = [
   },
   {
     id: '3',
-    orderId: 'ORD003',
+    orderId: 'LKO-11223344',
     buyerId: 'BUY003',
     orderDate: new Date('2024-01-17'),
     orderStatus: 'Shipped',
@@ -98,7 +98,7 @@ const mockOrders: Order[] = [
   },
   {
     id: '4',
-    orderId: 'ORD004',
+    orderId: 'LKO-55667788',
     buyerId: 'BUY004',
     orderDate: new Date('2024-01-18'),
     orderStatus: 'Delivered',
@@ -132,7 +132,6 @@ const mockOrders: Order[] = [
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const orderToTableRow = (order: Order): OrderTableRow => ({
     id: order.id,
@@ -152,12 +151,6 @@ export default function OrdersPage() {
 
   const handleExportXLSX = (workbook: XLSX.WorkBook, filename: string) => {
     XLSX.writeFile(workbook, filename);
-  };
-
-  const handleOrderSelect = (order: Order) => {
-    setSelectedOrder(order);
-    // Navigate to order details page
-    // router.push(`/orders/${order.id}`);
   };
 
   return (
@@ -204,7 +197,6 @@ export default function OrdersPage() {
         <OrdersTable
           orders={orders}
           setOrders={setOrders}
-          onSelectOrder={handleOrderSelect}
           onExportXLSX={handleExportXLSX}
           orderToTableRow={orderToTableRow}
         />

@@ -1,0 +1,404 @@
+'use client';
+import React, { useState } from 'react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X } from 'lucide-react';
+import { Order } from '@/types/order';
+
+interface OrderDetailsProps {
+  order: Order;
+  onBack: () => void;
+}
+
+export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
+  const [showAllItems, setShowAllItems] = useState(false);
+  const [earningsPage, setEarningsPage] = useState(1);
+   
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Pending': return 'bg-yellow-100 text-yellow-800 font-semibold';
+      case 'Confirmed': return 'bg-blue-100 text-blue-800 font-semibold';
+      case 'Packed': return 'bg-purple-100 text-purple-800 font-semibold';
+      case 'Shipped': return 'bg-indigo-100 text-indigo-800 font-semibold';
+      case 'Delivered': return 'bg-green-100 text-green-800 font-semibold';
+      case 'Cancelled': return 'bg-red-100 text-red-800 font-semibold';
+      case 'Returned': return 'bg-orange-100 text-orange-800 font-semibold';
+      default: return 'bg-gray-100 text-gray-800 font-semibold';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'Paid': return 'bg-green-100 text-green-800 font-semibold';
+      case 'Unpaid': return 'bg-red-100 text-red-800 font-semibold';
+      case 'Overdue': return 'bg-orange-100 text-orange-800 font-semibold';
+      default: return 'bg-gray-100 text-gray-800 font-semibold';
+    }
+  };
+
+  const calculateSubtotal = () => {
+    return order.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+  };
+
+  const calculateTotalAmount = () => {
+    const subtotal = calculateSubtotal();
+    return subtotal + order.taxes + order.shippingFee - order.discounts;
+  };
+
+  // Calculate pagination for earnings table
+  const earningsPerPage = 4;
+  const totalEarningsPages = Math.ceil(order.orderItems.length / earningsPerPage);
+  const startIndex = (earningsPage - 1) * earningsPerPage;
+  const endIndex = startIndex + earningsPerPage;
+  const currentEarningsItems = order.orderItems.slice(startIndex, endIndex);
+
+  return (
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div className="w-full mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-4">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />   
+            <span className="text-xl font-semibold">Back to Order Lists</span>
+          </button>
+          
+          {/* Status Buttons - Top Right */}
+          <div className="flex gap-2">
+            <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(order.orderStatus)}`}>
+              {order.orderStatus}
+            </button>
+            <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getPaymentStatusColor(order.paymentStatus)}`}>
+              {order.paymentStatus}
+            </button>
+          </div>
+        </div>
+
+        {/* Main Content Grid - Layout matching the picture */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-1 space-y-4">
+            
+            {/* Section 1: Order Details (Top Left) */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              {/* Total Order Header */}
+              <div>
+                <div className="text-md font-semibold text-black mb-2">Total Order</div>
+                <div className="text-2xl font-bold text-[#0a61d7] mb-3">${calculateTotalAmount().toFixed(2)}</div>
+              </div>
+
+              {/* Payment Authorization Card */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold text-black">BANK</div>
+                    <div className="text-sm text-gray-600">Transfer</div>
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
+                    {order.paymentStatus.toUpperCase()}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Payment processed successfully. This transaction has been authorized for future reference.
+                </div>
+              </div>
+
+              {/* Order Details List */}
+              <div>
+                <div className="text-sm font-semibold text-gray-500 mb-3">Order Details</div>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Service price:</span>
+                    <span className="font-medium text-black">${calculateSubtotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Discounts:</span>
+                    <span className="font-medium text-green-600">{order.discounts.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Taxes:</span>
+                    <span className="font-medium text-black">{order.taxes.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Shipping fee:</span>
+                    <span className="font-medium text-black">{order.shippingFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Currency:</span>
+                    <span className="font-medium text-black">{order.currency || 'USD'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Payment Terms:</span>
+                    <span className="font-medium text-black">{order.paymentTerms}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Delivery Method:</span>
+                    <span className="font-medium text-black">{order.deliveryMethod}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: Delivery Service (Middle Right) */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-md font-semibold text-black mb-4">Delivery Service</h2>
+              
+              {/* GPS Placeholder */}
+              <div className="bg-gray-100 rounded-lg h-110 flex items-center justify-center mb-4">
+                <div className="text-center">
+                  <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">GPS Map</p>
+                  <p className="text-xs text-gray-400">Location tracking</p>
+                </div>
+              </div>
+
+              {/* Store & Address */}
+              <div className="mb-4 border-b border-gray-200 pb-3">
+                <span className="font-semibold text-sm text-black">{order.storeName}</span>
+                <p className="text-xs font-medium text-gray-600 mt-1">{order.deliveryAddress}</p>
+              </div>
+
+              {/* Delivery Service Details */}
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-gray-600">Service Provider:</span>
+                  <span className="ml-2 font-medium text-black">{order.assignedLogistics || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Preferred Time:</span>
+                  <span className="ml-2 font-medium text-black">{order.preferredDeliveryTime || 'N/A'}</span>
+                </div>
+                {order.trackingNumber && (
+                  <div>
+                    <span className="text-gray-600">Tracking:</span>
+                    <span className="ml-2 font-medium text-black">{order.trackingNumber}</span>
+                  </div>
+                )}
+                
+                {/* Rating Section */}
+                <div className="bg-white rounded-lg border border-gray-200 p-3 mt-3">
+                  <div className="text-xs uppercase text-gray-500 mb-2">RATING</div>
+                  <div className="text-xs text-gray-600">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span>The shop's rating is</span>
+                      <span className="text-3xl font-semibold text-black">4.8</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <span className="text-xs text-gray-600">Based on 23 reviews</span>
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= 4 ? 'text-yellow-500 fill-current' : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column */}
+          <div className="lg:col-span-1 space-y-4">
+
+            {/* Section 4: Customer Information (Bottom Left) */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-md font-semibold text-black mb-4">Customer Information</h2>
+              <div className="flex items-start gap-4">
+                <div className="w-16 h-16 bg-[#0a61d7] rounded-full flex items-center justify-center text-white text-xl font-bold">
+                  <User className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">{order.contactPerson}</h3>
+                  <div className="space-y-2 mt-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-600">Store Name:</span>
+                      <span className="text-black font-medium">{order.storeName}</span>
+                    </div>
+                    <div className='flex items-center justify-between gap-2'>
+                      <span className="text-gray-600">Phone:</span>
+                      <span className="text-black font-medium">{order.contactPhone}</span>
+                    </div>
+                    <div className='flex items-center justify-between gap-2'>
+                      <span className="text-gray-600">Email:</span>
+                      <span className="text-black font-medium">{order.customerEmail || 'N/A'}</span>
+                    </div>
+                    <div className='flex items-center justify-between gap-2'>
+                      <span className="text-gray-600">Order Date:</span>
+                      <span className="text-black font-medium">{order.orderDate.toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+             {/* Section 2: Order Items (Top Right) */}
+             <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-md font-semibold text-black mb-4">Order Items</h2>
+              <div className="space-y-2">
+                {order.orderItems.slice(0, 4).map((item, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3">
+                    {/* Image Placeholder */}
+                    <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Package className="w-6 h-6 text-gray-400" />
+                    </div>
+                    
+                    {/* Item Details */}
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-gray-900">{item.productName}</h3>
+                      <p className="text-xs text-gray-600">SKU: {item.productId}</p>
+                      <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
+                    </div>
+                    
+                    {/* Price & Quantity */}
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-gray-900">${item.unitPrice.toFixed(2)}</p>
+                      <p className="text-sm font-semibold text-black">${item.subtotal.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* See More Button */}
+                {order.orderItems && order.orderItems.length > 4 && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setShowAllItems(true)}
+                      className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      See More ({order.orderItems.length - 4} more items)
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section 3: Earnings Breakdown (Bottom Right) */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-md font-semibold text-black mb-4">Earnings Breakdown</h2>
+              
+              {/* Top Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="text-2xl font-bold text-[#0a61d7]">{order.shopEarnings?.toFixed(2) || '0.00'}</div>
+                  <div className="text-sm text-gray-600">Shop Earnings</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">{order.totalOrders || '0'}</div>
+                  <div className="text-sm text-gray-600">Total Orders</div>
+                </div>
+              </div>
+
+              {/* Detailed Breakdown Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-gray-500">
+                      <th className="text-left py-2 font-medium uppercase">Description</th>
+                      <th className="text-left py-2 font-medium uppercase">Price</th>
+                      <th className="text-left py-2 font-medium uppercase">Quantity</th>
+                      <th className="text-right py-2 font-medium uppercase">Total Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-black">
+                    {currentEarningsItems.map((item, index) => (
+                      <tr key={index} className="border-b border-gray-100">
+                        <td className="py-2">{item.productName}</td>
+                        <td className="py-2">${item.unitPrice.toFixed(2)}</td>
+                        <td className="py-2">{item.quantity}</td>
+                        <td className="py-2 text-right font-medium">${item.subtotal.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-300">
+                      <td colSpan={3} className="py-3 text-lg font-semibold text-gray-900">Total price</td>
+                      <td className="py-3 text-right font-bold text-lg text-gray-900">
+                        ${calculateSubtotal().toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalEarningsPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-4">
+                  <button
+                    onClick={() => setEarningsPage(prev => Math.max(1, prev - 1))}
+                    disabled={earningsPage === 1}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {earningsPage} of {totalEarningsPages}
+                  </span>
+                  <button
+                    onClick={() => setEarningsPage(prev => Math.min(totalEarningsPages, prev + 1))}
+                    disabled={earningsPage === totalEarningsPages}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+      
+      {/* All Items Modal */}
+      {showAllItems && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">All Order Items</h2>
+              <button
+                onClick={() => setShowAllItems(false)}
+                className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors"
+              >
+                <X className="w-6 h-6"/>
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-4 overflow-y-auto max-h-[80vh] hide-scrollbar">
+              <div className="space-y-3">
+                {order.orderItems.map((item, index) => (
+                  <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    {/* Image Placeholder */}
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Package className="w-8 h-8 text-gray-400" />
+                    </div>
+                    
+                    {/* Item Details */}
+                    <div className="flex-1">
+                      <h3 className="text-base font-medium text-gray-900">{item.productName}</h3>
+                      <p className="text-sm text-gray-600">SKU: {item.productId}</p>
+                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                    </div>
+                    
+                    {/* Price & Quantity */}
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">${item.unitPrice.toFixed(2)}</p>
+                      <p className="text-lg font-semibold text-[#0a61d7]">${item.subtotal.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

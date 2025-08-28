@@ -761,7 +761,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    </div>
                  </td>
                 <td className="py-3 px-4 text-xs text-gray-700">{product.purchasePrice}</td>
-                <td className="py-3 px-4 text-xs text-gray-700">{product.sellingPrice}</td>
+                <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">{product.sellingPrice}</td>
                 <td className="py-3 px-4 text-xs">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
                     {product.status}
@@ -873,7 +873,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-gray-900">{product.sellingPrice}</div>
+                 <div className="text-sm font-semibold text-[#0a61d7]">{product.sellingPrice}</div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">
@@ -985,7 +985,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-gray-900">{product.sellingPrice}</div>
+                 <div className="text-sm font-semibold text-[#0a61d7]">{product.sellingPrice}</div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">

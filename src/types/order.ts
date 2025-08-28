@@ -1,42 +1,47 @@
 export interface Order {
-  // 1. Identification
+  // ===== SECTION 1: ORDER DETAILS (Top Left) =====
   id: string;
   orderId: string;
   buyerId: string;
-  
-  // 2. Order Details
   orderDate: Date;
   orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
   paymentStatus: 'Unpaid' | 'Paid' | 'Overdue';
   deliveryMethod: 'Distributor Fleet' | '3rd-Party Courier' | 'Pickup';
-  
-  // 3. Products
-  orderItems: OrderItem[];
-  
-  // 4. Financials
   subtotal: number;
   discounts: number;
   taxes: number;
   shippingFee: number;
   totalAmount: number;
   paymentTerms: string;
-  
-  // 5. Shipping & Fulfillment
-  deliveryAddress: string;
+  currency: string;
+
+  // ===== SECTION 2: ORDER ITEMS (Top Right) =====
+  orderItems: OrderItem[];
+
+  // ===== SECTION 3: EARNINGS BREAKDOWN (Middle) =====
+  shopEarnings: number;
+  totalOrders: number;
+
+  // ===== SECTION 4: CUSTOMER INFORMATION (Bottom Left) =====
   contactPerson: string;
+  storeName: string;
   contactPhone: string;
+  customerEmail?: string;
+
+  // ===== SECTION 5: DELIVERY SERVICE (Bottom Right) =====
+  deliveryAddress: string;
   preferredDeliveryTime?: string;
   assignedLogistics?: string;
   trackingNumber?: string;
   deliveryNoteNo?: string;
-  
-  // 6. Audit & Logs
+  deliveryConfirmation?: string;
+  pod?: string;
+
+  // ===== AUDIT & LOGS =====
   createdAt: Date;
   updatedAt: Date;
   acceptedBy?: string;
   acceptedAt?: Date;
-  deliveryConfirmation?: string;
-  pod?: string;
 }
 
 export interface OrderItem {

@@ -28,13 +28,11 @@ const paymentTabs = [
 export default function OrdersTable({ 
   orders = [], 
   setOrders, 
-  onSelectOrder, 
   onExportXLSX, 
   orderToTableRow 
 }: { 
   orders?: Order[]; 
   setOrders?: (fn: (prev: Order[]) => Order[]) => void; 
-  onSelectOrder?: (order: Order) => void; 
   onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
   orderToTableRow: (order: Order) => OrderTableRow 
 }) {
@@ -129,10 +127,8 @@ export default function OrdersTable({
   };
 
   const handleOrderClick = (order: OrderTableRow) => {
-    const originalOrder = orders.find(o => o.id === order.id);
-    if (originalOrder && onSelectOrder) {
-      onSelectOrder(originalOrder);
-    }
+    // Navigate to order details page using orderId instead of id
+    router.push(`/orders/details/${order.orderId}`);
   };
 
   const handleOrderSelect = (orderId: string) => {
@@ -306,7 +302,7 @@ export default function OrdersTable({
                     )}
                   </button>
                 </td>
-                                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">#{order.orderId}</td>
+                                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{order.orderId}</td>
                  <td className="py-3 px-4 text-black">{formatDateLong(order.orderDate)}</td>
                  <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{order.buyerName}</td>
                  <td className="py-3 px-4">
@@ -314,7 +310,7 @@ export default function OrdersTable({
                      {order.orderStatus}
                    </span>
                  </td>
-                                   <td className="py-3 px-4 text-[#0a61d7] font-semibold">${formatNumber(parseFloat(order.totalAmount))}</td>
+                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">${formatNumber(parseFloat(order.totalAmount))}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
                  <td className="py-3 px-4 text-black">{order.deliveryMethod}</td>
                  <td className="py-3 px-4 text-black">{order.trackingNumber || 'N/A'}</td>
@@ -392,7 +388,7 @@ export default function OrdersTable({
                 </button>
               </div>
               
-              <div className="text-xs text-gray-500">Order: <span className="text-black font-medium">#{order.orderId}</span></div>
+              <div className="text-xs text-gray-500">Order: <span className="text-black font-medium">{order.orderId}</span></div>
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#0a61d7]">{order.buyerName}</span>
                 <div className="flex items-center gap-2">
