@@ -78,20 +78,6 @@ export default function OrderDetailsPage() {
             unitPrice: 8.50,
             subtotal: 170.00
           },
-          {
-            productId: 'PROD005',
-            productName: 'Green Tea Bags',
-            quantity: 100,
-            unitPrice: 2.50,
-            subtotal: 250.00
-          },
-          {
-            productId: 'PROD006',
-            productName: 'Herbal Supplements',
-            quantity: 50,
-            unitPrice: 15.00,
-            subtotal: 750.00
-          }
         ],
 
         // Calculate financial values dynamically
@@ -159,7 +145,7 @@ export default function OrderDetailsPage() {
         preferredDeliveryTime: 'Business Hours (9 AM - 5 PM)',
         assignedLogistics: 'Express Delivery Co.',
         trackingNumber: 'TRK-2024-001234',
-        deliveryNoteNo: 'DO-2024-001234',
+        deliveryNote: 'Drop off at the store',
         deliveryConfirmation: 'Delivered to recipient',
         pod: 'POD-2024-001234',
 

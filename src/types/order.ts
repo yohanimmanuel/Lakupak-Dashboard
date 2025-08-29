@@ -33,7 +33,7 @@ export interface Order {
   preferredDeliveryTime?: string;
   assignedLogistics?: string;
   trackingNumber?: string;
-  deliveryNoteNo?: string;
+  deliveryNote?: string;
   deliveryConfirmation?: string;
   pod?: string;
 
