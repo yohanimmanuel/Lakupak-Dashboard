@@ -1,247 +1,318 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from '@/store/userStore';
+import { validateAuthInput } from '@/utils/auth-security';
+import { 
+  useAuthErrorHandler, 
+  useAuthLoading, 
+  useAuthPerformanceTracking,
+  ValidatedInput,
+  ErrorMessage,
+  SuccessMessage,
+  LoadingButton,
+  FormStepIndicator
+} from '@/utils/auth-enhancements';
 
 const steps = ["User Info", "Company Info", "Set Password"];
 
-function Stepper({ step }: { step: number }) {
-  return (
-    <div className="flex justify-center mb-8">
-      {steps.map((label, idx) => (
-        <div key={label} className="flex items-center">
-          <div
-            className={`rounded-full w-8 h-8 flex items-center justify-center font-bold text-white ${
-              step === idx
-                ? "bg-[#0a61d7]"
-                : step > idx
-                ? "bg-green-500"
-                : "bg-gray-300"
-            }`}
-          >
-            {idx + 1}
-          </div>
-          {idx < steps.length - 1 && (
-            <div className="w-8 h-1 bg-gray-300 mx-2" />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function RegisterPage() {
   const [step, setStep] = useState(0);
+  const [stepKey, setStepKey] = useState(0);
+  
+  // Form data
   const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "" });
   const [companyInfo, setCompanyInfo] = useState({ company: "", address: "" });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [stepKey, setStepKey] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
+  
+  // Validation states
+  const [validationStates, setValidationStates] = useState({
+    firstName: true,
+    lastName: true,
+    email: true,
+    company: true,
+    address: true,
+    password: true,
+    confirmPassword: true
+  });
+  
   const router = useRouter();
   const setUser = useUserStore(state => state.setUser);
+  
+  // Enhanced hooks for production features
+  const { error, handleError, clearError } = useAuthErrorHandler();
+  const { loading, startLoading, stopLoading } = useAuthLoading();
+  const [success, setSuccess] = useState("");
+  
+  // Performance tracking
+  useAuthPerformanceTracking('Registration');
 
-  function validatePassword(pw: string) {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(pw);
-  }
+  const updateValidation = useCallback((field: string, valid: boolean) => {
+    setValidationStates(prev => ({ ...prev, [field]: valid }));
+  }, []);
 
-  async function handleNext(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    if (step === 0) {
-      if (!userInfo.firstName || !userInfo.lastName || !userInfo.email) {
-        setError("Please fill all fields.");
-        return;
-      }
-    }
-    if (step === 1) {
-      if (!companyInfo.company || !companyInfo.address) {
-        setError("Please fill all fields.");
-        return;
-      }
-    }
-    if (step === 2) {
-      if (!validatePassword(password)) {
-        setError(
-          "Password must be at least 8 characters, include uppercase, lowercase, number, and special character."
+  const validateCurrentStep = useCallback(() => {
+    switch (step) {
+      case 0:
+        return (
+          userInfo.firstName.trim() && 
+          userInfo.lastName.trim() && 
+          userInfo.email.trim() && 
+          validationStates.firstName && 
+          validationStates.lastName && 
+          validationStates.email
         );
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        return;
-      }
-      // Submit registration to backend
-      setLoading(true);
-      try {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            email: userInfo.email,
-            password,
-            company: companyInfo.company,
-            address: companyInfo.address,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Registration failed");
-        } else {
-          setSuccess("Registration successful! Redirecting to dashboard...");
-          setUser({
-            id: data.id,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            company: data.company,
-            address: data.address,
-          });
-          router.push("/home");
-        }
-      } catch (err) {
-        setError("Registration failed. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+      case 1:
+        return (
+          companyInfo.company.trim() && 
+          companyInfo.address.trim() && 
+          validationStates.company
+        );
+      case 2:
+        return (
+          password && 
+          confirmPassword && 
+          password === confirmPassword && 
+          validationStates.password
+        );
+      default:
+        return false;
+    }
+  }, [step, userInfo, companyInfo, password, confirmPassword, validationStates]);
+
+  const handleNext = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    setSuccess("");
+    
+    // Validate current step
+    if (!validateCurrentStep()) {
+      handleError({ error: "Please complete all required fields correctly." });
       return;
     }
+    
     if (step < 2) {
+      // Move to next step
       setStep(step + 1);
       setStepKey(prev => prev + 1);
+      return;
     }
-  }
+    
+    // Final step - submit registration
+    startLoading('Creating your account...');
+    
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache"
+        },
+        body: JSON.stringify({
+          firstName: userInfo.firstName.trim(),
+          lastName: userInfo.lastName.trim(),
+          email: userInfo.email.trim(),
+          password,
+          company: companyInfo.company.trim(),
+          address: companyInfo.address.trim(),
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        handleError(data, "Registration failed. Please try again.");
+        return;
+      }
+      
+      // Success
+      setSuccess("Registration successful! Redirecting to dashboard...");
+      setUser({
+        id: data.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        company: data.company,
+        address: data.address,
+      }, true); // Auto-remember new registrations
+      
+      // Track successful registration
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'sign_up', {
+          event_category: 'Authentication',
+          event_label: 'Email Registration',
+          value: 1
+        });
+      }
+      
+      // Small delay for better UX
+      setTimeout(() => {
+        router.push("/home");
+      }, 1500);
+      
+    } catch (err) {
+      console.error('Registration error:', err);
+      handleError({ error: "Network error. Please check your connection and try again." });
+    } finally {
+      stopLoading();
+    }
+  }, [step, userInfo, companyInfo, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
 
-  function handleBack() {
+  const handleBack = useCallback(() => {
     if (step > 0) {
       setStep(step - 1);
       setStepKey(prev => prev + 1);
-      setError(""); // Clear error when going back
+      clearError(); // Clear error when going back
     }
-  }
+  }, [step, clearError]);
+
+  const validateConfirmPassword = useCallback((confirmPw: string) => {
+    if (!confirmPw) return { valid: false, error: 'Please confirm your password' };
+    if (confirmPw !== password) return { valid: false, error: 'Passwords do not match' };
+    return { valid: true };
+  }, [password]);
 
   return (
     <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
       {/* Left: Registration Form */}
       <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
         <div>
-          <a href="/">
+          <a href="/" aria-label="Go to homepage">
             <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-13 mb-4" />
           </a>
         </div>
         <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>
         <p className="mb-8 text-gray-500">Register your distributor account in three easy steps.</p>
-        <Stepper step={step} />
+        
+        <FormStepIndicator steps={steps} currentStep={step} />
+        
+        {/* Enhanced Error/Success Messages */}
+        {error && (
+          <ErrorMessage 
+            message={error} 
+            onClose={clearError}
+          />
+        )}
+        {success && (
+          <SuccessMessage 
+            message={success}
+            onClose={() => setSuccess('')}
+          />
+        )}
+        
         <form onSubmit={handleNext}>
           <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
               <div className="space-y-4">
                 <div className="flex gap-4">
                   <div className="w-1/2">
-                    <label className="block mb-1 text-sm text-gray-500">First Name</label>
-                    <input
+                    <ValidatedInput
+                      label="First Name"
                       type="text"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
                       value={userInfo.firstName}
-                      onChange={e => setUserInfo({ ...userInfo, firstName: e.target.value })}
+                      onChange={(value) => setUserInfo({ ...userInfo, firstName: value })}
+                      onValidation={(valid) => updateValidation('firstName', valid)}
+                      validator={(value) => validateAuthInput.name(value, 'First name')}
+                      placeholder="Enter first name"
                       required
                     />
                   </div>
                   <div className="w-1/2">
-                    <label className="block mb-1 text-sm text-gray-500">Last Name</label>
-                    <input
+                    <ValidatedInput
+                      label="Last Name"
                       type="text"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
                       value={userInfo.lastName}
-                      onChange={e => setUserInfo({ ...userInfo, lastName: e.target.value })}
+                      onChange={(value) => setUserInfo({ ...userInfo, lastName: value })}
+                      onValidation={(valid) => updateValidation('lastName', valid)}
+                      validator={(value) => validateAuthInput.name(value, 'Last name')}
+                      placeholder="Enter last name"
                       required
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Email</label>
-                  <input
-                    type="email"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={userInfo.email}
-                    onChange={e => setUserInfo({ ...userInfo, email: e.target.value })}
-                    required
-                  />
-                </div>
+                <ValidatedInput
+                  label="Email"
+                  type="email"
+                  value={userInfo.email}
+                  onChange={(value) => setUserInfo({ ...userInfo, email: value })}
+                  onValidation={(valid) => updateValidation('email', valid)}
+                  validator={validateAuthInput.email}
+                  placeholder="your.email@company.com"
+                  required
+                />
               </div>
             )}
+            
             {step === 1 && (
               <div className="space-y-4">
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Company Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={companyInfo.company}
-                    onChange={e => setCompanyInfo({ ...companyInfo, company: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Company Address</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={companyInfo.address}
-                    onChange={e => setCompanyInfo({ ...companyInfo, address: e.target.value })}
-                    required
-                  />
-                </div>
+                <ValidatedInput
+                  label="Company Name"
+                  type="text"
+                  value={companyInfo.company}
+                  onChange={(value) => setCompanyInfo({ ...companyInfo, company: value })}
+                  onValidation={(valid) => updateValidation('company', valid)}
+                  validator={validateAuthInput.company}
+                  placeholder="Your Distribution Company"
+                  required
+                />
+                <ValidatedInput
+                  label="Company Address"
+                  type="text"
+                  value={companyInfo.address}
+                  onChange={(value) => setCompanyInfo({ ...companyInfo, address: value })}
+                  placeholder="Complete business address"
+                  required
+                />
               </div>
             )}
+            
             {step === 2 && (
               <div className="space-y-4">
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Password</label>
-                  <input
-                    type="password"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-sm text-gray-500">Confirm Password</label>
-                  <input
-                    type="password"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-black"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
+                <ValidatedInput
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={setPassword}
+                  onValidation={(valid) => updateValidation('password', valid)}
+                  validator={validateAuthInput.password}
+                  placeholder="Create a strong password"
+                  showPasswordStrength
+                  required
+                />
+                <ValidatedInput
+                  label="Confirm Password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  onValidation={(valid) => updateValidation('confirmPassword', valid)}
+                  validator={validateConfirmPassword}
+                  placeholder="Confirm your password"
+                  required
+                />
               </div>
             )}
-            {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
-            {success && <p className="text-green-600 mt-4 text-sm">{success}</p>}
-            <div className="flex justify-between mt-4">
+            
+            <div className="flex justify-between mt-6">
               {step > 0 && (
                 <button
                   type="button"
-                  className="px-6 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 text-sm"
+                  className="px-6 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onClick={handleBack}
+                  disabled={loading}
                 >
                   Back
                 </button>
               )}
-              <button
+              <LoadingButton
                 type="submit"
-                className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm disabled:opacity-60"
-                disabled={loading}
+                loading={loading}
+                loadingText={step < 2 ? "Processing..." : "Creating Account..."}
+                disabled={!validateCurrentStep()}
+                className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
-                {loading ? "Registering..." : step < 2 ? "Next" : "Register"}
-              </button>
+                {step < 2 ? "Next" : "Create Account"}
+              </LoadingButton>
             </div>
           </div>
         </form>
