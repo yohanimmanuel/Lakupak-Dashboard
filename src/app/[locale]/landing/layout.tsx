@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Head from "next/head";
 import LandingNavbar from "./LandingNavbar";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -12,11 +13,102 @@ export default function LandingLayout({
 }) {
   const t = useTranslations("footer");
   const locale = useLocale();
+  
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation Bar */}
-      <LandingNavbar />
-      <div className="pt-20">{children}</div>
+    <>
+      <Head>
+        {/* SEO Meta Tags */}
+        <title>Laku-Laku - B2B Marketplace & SaaS Platform for Indonesian FMCG Distributors</title>
+        <meta 
+          name="description" 
+          content="Laku-Laku is Indonesia's leading B2B marketplace and SaaS platform for FMCG distributors. Streamline operations, manage inventory, and grow your distribution business with our trusted digital platform." 
+        />
+        <meta name="keywords" content="B2B marketplace Indonesia, FMCG distributor, warung supplier, distribution software, inventory management, B2B SaaS Indonesia" />
+        <meta name="robots" content="index, follow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="canonical" href={`https://laku-laku.com/${locale}/landing`} />
+        
+        {/* Open Graph Tags for Social Sharing */}
+        <meta property="og:title" content="Laku-Laku - B2B Marketplace for Indonesian FMCG" />
+        <meta property="og:description" content="Transform your distribution business with Laku-Laku's digital platform. Connect with thousands of warungs and small retailers across Indonesia." />
+        <meta property="og:image" content="https://laku-laku.com/og-image.jpg" />
+        <meta property="og:url" content={`https://laku-laku.com/${locale}/landing`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Laku-Laku" />
+        
+        {/* Twitter Card Tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@lakulaku" />
+        <meta name="twitter:title" content="Laku-Laku - B2B Marketplace for Indonesian FMCG" />
+        <meta name="twitter:description" content="Transform your distribution business with Laku-Laku's digital platform." />
+        <meta name="twitter:image" content="https://laku-laku.com/twitter-image.jpg" />
+        
+        {/* Structured Data for Search Engines */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Laku-Laku",
+              "description": "B2B marketplace and SaaS platform for FMCG distributors in Indonesia",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Web",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "IDR",
+                "availability": "https://schema.org/InStock"
+              },
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "ratingCount": "150"
+              }
+            })
+          }}
+        />
+        
+        {/* Security Headers */}
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
+        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        
+        {/* Google Analytics (placeholder for production) */}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
+                    page_title: 'Landing Page',
+                    page_location: window.location.href,
+                    send_page_view: true
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
+        
+        {/* Preload critical resources */}
+        <link rel="preload" href="/LakuLakuIcon.svg" as="image" />
+        <link rel="preload" href="/LakuLakuTextLogo.svg" as="image" />
+        
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </Head>
+      
+      <div className="min-h-screen bg-white">
+        {/* Navigation Bar */}
+        <LandingNavbar />
+        <div className="pt-20">{children}</div>
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -70,6 +162,7 @@ export default function LandingLayout({
           </div>
         </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }

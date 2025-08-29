@@ -1,14 +1,126 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpenIcon, SparklesIcon, ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { measurePerformance, trackScrollDepth, lazyLoadSection } from "@/utils/performance";
+
+// Performance monitoring hook
+const usePerformanceTracking = () => {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const trackPerformance = () => {
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        if (navigation) {
+          const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+          console.log(`About page load time: ${loadTime}ms`);
+          
+          if (window.gtag) {
+            window.gtag('event', 'page_load_time', {
+              page: 'about',
+              value: Math.round(loadTime)
+            });
+          }
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        trackPerformance();
+      } else {
+        window.addEventListener('load', trackPerformance);
+      }
+    }
+  }, []);
+};
+
+// Conversion tracking utility
+const trackConversion = (action: string, label?: string) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', action, {
+      event_category: 'About Page',
+      event_label: label,
+      page: 'about'
+    });
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`About page conversion tracked: ${action}`, label);
+  }
+};
+
+// Error boundary component
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('About page error:', error);
+      setHasError(true);
+      
+      if (window.gtag) {
+        window.gtag('event', 'exception', {
+          description: error.message,
+          fatal: false,
+          page: 'about'
+        });
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
+          <p className="text-gray-600 mb-4">We're experiencing technical difficulties. Please refresh the page.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-[#0a61d7] text-white px-6 py-2 rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
 
 export default function AboutPage() {
   const router = useRouter();
   const t = useTranslations("about");
   const [activeSlide, setActiveSlide] = React.useState(0);
+  
+  // Use performance tracking
+  usePerformanceTracking();
+  
+  // Track advanced performance metrics and scroll depth
+  useEffect(() => {
+    measurePerformance();
+    const cleanup = trackScrollDepth();
+    
+    // Lazy load heavy sections
+    lazyLoadSection('story', () => {
+      console.log('Story section loaded');
+    });
+    
+    lazyLoadSection('carousel', () => {
+      console.log('Carousel section loaded');
+    });
+    
+    return cleanup;
+  }, []);
+
+  // Enhanced CTA click handler with conversion tracking
+  const handleSolutionsClick = () => {
+    trackConversion('cta_click', 'view_solutions');
+    router.push("/landing/solutions");
+  };
   const slides = [
     {
       title: t("carousel.1.title"),
@@ -40,8 +152,9 @@ export default function AboutPage() {
     },
   ];
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section */}
+    <ErrorBoundary>
+      <div className="min-h-screen bg-white">
+        {/* Hero Section */}
       <section className="relative pt-16 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden animate-fade-in">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="flex flex-col items-center mb-8">
@@ -65,7 +178,7 @@ export default function AboutPage() {
       </section>
 
       {/* Story Section */}
-      <section className="py-16 bg-white">
+      <section id="story" className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-lg text-gray-800 space-y-8">
           {[
             t.raw("story.1"),
@@ -98,7 +211,7 @@ export default function AboutPage() {
       </section>
 
       {/* Mission, Vision, Belief Section as Carousel */}
-      <section className="py-12 bg-white">
+      <section id="carousel" className="py-12 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center relative w-full">
             {/* Left Arrow */}
@@ -166,14 +279,16 @@ export default function AboutPage() {
             {t("cta.subtitle")}
           </p>
           <button
-            onClick={() => router.push("/landing/solutions")}
+            onClick={handleSolutionsClick}
             className="bg-orange-500 text-white px-10 py-4 rounded-lg text-lg font-bold hover:bg-orange-600 transition-all duration-200 shadow-xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
             style={{ animationDelay: '0.3s' }}
+            aria-label="View our solutions"
           >
             {t("cta.button")}
           </button>
         </div>
       </section>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

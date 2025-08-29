@@ -3,10 +3,122 @@ import React, { useRef, useEffect, useState } from "react";
 import { BarChart3Icon, ShoppingCartIcon, CreditCardIcon, PackageIcon, SmartphoneIcon, FileTextIcon, XIcon, CheckIcon, ChartAreaIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { measurePerformance, trackScrollDepth, lazyLoadSection } from "@/utils/performance";
+
+// Performance monitoring hook
+const usePerformanceTracking = () => {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const trackPerformance = () => {
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        if (navigation) {
+          const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+          console.log(`Features page load time: ${loadTime}ms`);
+          
+          if (window.gtag) {
+            window.gtag('event', 'page_load_time', {
+              page: 'features',
+              value: Math.round(loadTime)
+            });
+          }
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        trackPerformance();
+      } else {
+        window.addEventListener('load', trackPerformance);
+      }
+    }
+  }, []);
+};
+
+// Conversion tracking utility
+const trackConversion = (action: string, label?: string) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', action, {
+      event_category: 'Features Page',
+      event_label: label,
+      page: 'features'
+    });
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Features page conversion tracked: ${action}`, label);
+  }
+};
+
+// Error boundary component
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Features page error:', error);
+      setHasError(true);
+      
+      if (window.gtag) {
+        window.gtag('event', 'exception', {
+          description: error.message,
+          fatal: false,
+          page: 'features'
+        });
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
+          <p className="text-gray-600 mb-4">We're experiencing technical difficulties. Please refresh the page.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-[#0a61d7] text-white px-6 py-2 rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
 
 export default function FeaturesPage() {
   const router = useRouter();
   const t = useTranslations("features");
+  
+  // Use performance tracking
+  usePerformanceTracking();
+  
+  // Track advanced performance metrics and scroll depth
+  useEffect(() => {
+    measurePerformance();
+    const cleanup = trackScrollDepth();
+    
+    // Lazy load heavy sections
+    lazyLoadSection('distributor-features', () => {
+      console.log('Distributor features section loaded');
+    });
+    
+    lazyLoadSection('retailer-features', () => {
+      console.log('Retailer features section loaded');
+    });
+    
+    return cleanup;
+  }, []);
+
+  // Enhanced CTA click handler with conversion tracking
+  const handlePricingClick = () => {
+    trackConversion('cta_click', 'view_pricing');
+    router.push("/landing/pricing");
+  };
   const distributorFeaturesRaw = t.raw("distributorFeatures");
   const retailerFeaturesRaw = t.raw("retailerFeatures");
 
@@ -119,7 +231,8 @@ export default function FeaturesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white animate-fade-in">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-white animate-fade-in">
       <div className="w-full">
         {/* Combined Header Section */}
         <div className="flex flex-col items-center justify-center text-center py-20 gap-6 animate-fade-in-up">
@@ -131,8 +244,12 @@ export default function FeaturesPage() {
               <span>{t("header.cta1")}</span>
             </button>
             <button 
-              onClick={() => router.push("/register")}
-              className="bg-white text-[#0a61d7] border border-[#0a61d7] px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#e6f0fa] transition-all duration-200 animate-fade-in-up animation-delay-500">
+              onClick={() => {
+                trackConversion('cta_click', 'header_register');
+                router.push("/register");
+              }}
+              className="bg-white text-[#0a61d7] border border-[#0a61d7] px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#e6f0fa] transition-all duration-200 animate-fade-in-up animation-delay-500"
+              aria-label="Register for Laku-Laku">
               {t("header.cta2")}
             </button>
           </div>
@@ -277,19 +394,23 @@ export default function FeaturesPage() {
 
         
         {/* Distributor Sticky Section */}
-        <StickyFeatureSection
+        <div id="distributor-features">
+          <StickyFeatureSection
           features={distributorFeatures}
           stickyTitle={t("sticky.distributor.title")}
           stickySubtitle={t("sticky.distributor.subtitle")}
           color="text-blue-700"
         />
+        </div>
         {/* Retailer Sticky Section */}
-        <StickyFeatureSection
+        <div id="retailer-features">
+          <StickyFeatureSection
           features={retailerFeatures}
           stickyTitle={t("sticky.retailer.title")}
           stickySubtitle={t("sticky.retailer.subtitle")}
           color="text-orange-700"
         />
+        </div>
         {/* CTA Section with Product Image Placeholder */}
         <section className="py-20 bg-gradient-to-r from-[#0a61d7] to-[#084ba6] mt-20 w-full">
           <div className="w-full flex flex-col items-center justify-center px-0 text-center">
@@ -297,8 +418,12 @@ export default function FeaturesPage() {
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-fade-in-up animate-delay-200">{t("cta.subtitle")}</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animate-delay-400">
               <button
-                onClick={() => router.push("/register")}
+                onClick={() => {
+                  trackConversion('cta_click', 'bottom_register');
+                  router.push("/register");
+                }}
                 className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105 animate-fade-in-up animate-delay-500"
+                aria-label="Start free trial with Laku-Laku"
               >
                 {t("cta.button")}
               </button>
@@ -335,6 +460,7 @@ export default function FeaturesPage() {
           </div>
         </section>
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

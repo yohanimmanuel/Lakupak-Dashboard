@@ -4,12 +4,21 @@ import { useState } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from "next-intl";
+import { usePagePerformanceTracking, createTrackConversion, createErrorBoundary } from '@/utils/landing-enhancements';
+
+const ErrorBoundary = createErrorBoundary('Pricing');
 
 export default function PricingPage() {
   const router = useRouter();
   const t = useTranslations("pricing");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
+  
+  // Use performance tracking
+  usePagePerformanceTracking('Pricing');
+  
+  // Create conversion tracker
+  const trackConversion = createTrackConversion('Pricing');
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -50,7 +59,8 @@ export default function PricingPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-fade-in">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 animate-fade-in">
       {/* Hero Section */}
       <div className="bg-white py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -310,8 +320,12 @@ export default function PricingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-400">
             <button 
-              onClick={() => router.push('/register')}
-              className="bg-orange-500 text-white px-10 py-4 rounded-lg text-md font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105">
+              onClick={() => {
+                trackConversion('cta_click', 'free_trial');
+                router.push('/register');
+              }}
+              className="bg-orange-500 text-white px-10 py-4 rounded-lg text-md font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105"
+              aria-label="Start free trial">
               {t('cta.trial')}
             </button>
             <button className="bg-white text-blue-600 px-10 py-4 rounded-lg text-md font-medium hover:bg-gray-100 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-2 hover:scale-105">
@@ -320,6 +334,7 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

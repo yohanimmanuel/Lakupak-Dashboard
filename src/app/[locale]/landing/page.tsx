@@ -1,16 +1,139 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { XIcon, CheckIcon, ChartBarIcon, ShoppingCartIcon, FileIcon, PackageIcon, RocketIcon, UserIcon, ChartAreaIcon, InstagramIcon, MailIcon, FacebookIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Head from "next/head";
+import { measurePerformance, trackScrollDepth, lazyLoadSection } from "@/utils/performance";
+
+// Performance monitoring hook
+const usePerformanceTracking = () => {
+  useEffect(() => {
+    // Track page load performance
+    if (typeof window !== 'undefined') {
+      const trackPerformance = () => {
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        if (navigation) {
+          const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+          console.log(`Landing page load time: ${loadTime}ms`);
+          
+          // Send to analytics if configured
+          if (window.gtag) {
+            window.gtag('event', 'page_load_time', {
+              custom_parameter: Math.round(loadTime)
+            });
+          }
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        trackPerformance();
+      } else {
+        window.addEventListener('load', trackPerformance);
+      }
+    }
+  }, []);
+};
+
+// Conversion tracking utility
+const trackConversion = (action: string, label?: string) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', action, {
+      event_category: 'Landing Page',
+      event_label: label,
+      custom_parameter: new Date().toISOString()
+    });
+  }
+  
+  // Also log for debugging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Conversion tracked: ${action}`, label);
+  }
+};
+
+// Error boundary component
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Landing page error:', error);
+      setHasError(true);
+      
+      // Track error in analytics
+      if (window.gtag) {
+        window.gtag('event', 'exception', {
+          description: error.message,
+          fatal: false
+        });
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
+          <p className="text-gray-600 mb-4">We're experiencing technical difficulties. Please refresh the page.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-[#0a61d7] text-white px-6 py-2 rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
 
 export default function LandingPage() {
   const router = useRouter();
   const t = useTranslations("landing");
+  
+  // Use performance tracking
+  usePerformanceTracking();
+  
+  // Track advanced performance metrics and scroll depth
+  useEffect(() => {
+    measurePerformance();
+    const cleanup = trackScrollDepth();
+    
+    // Lazy load heavy sections
+    lazyLoadSection('features', () => {
+      console.log('Features section loaded');
+    });
+    
+    lazyLoadSection('socialproof', () => {
+      console.log('Social proof section loaded');
+    });
+    
+    return cleanup;
+  }, []);
+  
+  // Enhanced CTA click handlers with conversion tracking
+  const handleRegisterClick = () => {
+    trackConversion('cta_click', 'register_button');
+    router.push("/register");
+  };
+  
+  const handleLearnMoreClick = () => {
+    trackConversion('cta_click', 'learn_more_button');
+    // Scroll to features section
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-white">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section id="home" className="pt-10 pb-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,12 +163,17 @@ export default function LandingPage() {
               {/* CTA Buttons */}
                <div className="flex flex-col sm:flex-row gap-4">
                  <button
-                   onClick={() => router.push("/register")}
+                   onClick={handleRegisterClick}
                    className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 animate-fade-in-up"
+                   aria-label="Register for Laku-Laku platform"
                  >
                    {t("hero.cta")}
                  </button>
-                 <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-orange-500 hover:text-orange-500 transition-all duration-200 animate-fade-in-up animate-delay-500">
+                 <button 
+                   onClick={handleLearnMoreClick}
+                   className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-orange-500 hover:text-orange-500 transition-all duration-200 animate-fade-in-up animate-delay-500"
+                   aria-label="Learn more about Laku-Laku features"
+                 >
                    {t("hero.learnmore")}
                  </button>
                </div>
@@ -131,7 +259,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-gray-50">
+      <section id="features" className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
@@ -201,7 +329,7 @@ export default function LandingPage() {
       </section>
 
       {/* Social Proof Section */}
-      <section className="py-20 bg-white">
+      <section id="socialproof" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in-up">
@@ -290,13 +418,15 @@ export default function LandingPage() {
             {t("finalcta.subtitle")}
           </p>
           <button
-            onClick={() => router.push("/register")}
+            onClick={handleRegisterClick}
             className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
+            aria-label="Start free trial with Laku-Laku"
           >
             {t("finalcta.cta")}
           </button>
         </div>
       </section>
     </div>
+    </ErrorBoundary>
   );
 }

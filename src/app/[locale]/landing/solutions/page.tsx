@@ -5,10 +5,19 @@ import { useRouter } from "next/navigation";
 import { UserIcon, StarIcon, CheckCircleIcon, ShoppingCartIcon, BarChart2Icon, FileTextIcon, TrendingUpIcon, GiftIcon, TruckIcon, CreditCardIcon, ClockIcon, StoreIcon } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { usePagePerformanceTracking, createTrackConversion, createErrorBoundary } from '@/utils/landing-enhancements';
+
+const ErrorBoundary = createErrorBoundary('Solutions');
 
 export default function SolutionsPage() {
   const router = useRouter();
   const t = useTranslations("solutions");
+  
+  // Use performance tracking
+  usePagePerformanceTracking('Solutions');
+  
+  // Create conversion tracker
+  const trackConversion = createTrackConversion('Solutions');
   // --- Testimonial auto-scroll logic ---
   const testimonials = [
     { name: t("testimonials.1.name"), role: t("testimonials.1.role"), color: "blue", review: t("testimonials.1.text") },
@@ -58,7 +67,8 @@ export default function SolutionsPage() {
   }, [repeatCount, testimonials.length]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative pt-16 pb-24 bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -303,6 +313,7 @@ export default function SolutionsPage() {
           </button>
         </div>
       </section>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
