@@ -158,10 +158,12 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
           // Failed to publish product
         }
       } else if (selectedProducts.length > 0) {
-        // Bulk publish all selected draft/inactive products
+        // Bulk publish only complete products
         for (const productId of selectedProducts) {
           const product = pagedProducts.find(p => String(p.id) === productId);
-          if (product && (product.status === 'Draft' || product.status === 'Inactive' || product.status === 'Active')) {
+          if (product && 
+              (product.status === 'Draft' || product.status === 'Inactive' || product.status === 'Active') &&
+              isProductComplete(product.productId)) {
             const response = await fetch('/api/products', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
@@ -264,7 +266,33 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     setShowUnpublishModal(true);
   };
 
+  // Check if product has complete data for publishing
+  const isProductComplete = (productId: string) => {
+    const originalProduct = products.find(p => p.productId === productId);
+    if (!originalProduct) return false;
+    
+    // Check all required fields for publishing
+    const basicFields = [
+      !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
+      !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
+      !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
+    ];
+    const hasMissingBasicFields = basicFields.some(field => field);
+    
+    const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+    
+    const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+    
+    return !hasMissingBasicFields && !hasMissingPricing && !hasMissingStock;
+  };
+
   const handleOpenPublishModal = (product: ProductTableRow) => {
+    // Check if product has complete data before allowing publish
+    if (!isProductComplete(product.productId)) {
+      alert('Cannot publish product with incomplete data. Please complete all required fields:\n\n• SKU Number\n• Product Name\n• Description\n• Category\n• Brand\n• Supplier\n• Purchase Price\n• Selling Price\n• Stock Quantity');
+      return;
+    }
+    
     setProductToPublish(product);
     setShowPublishModal(true);
   };
@@ -452,6 +480,34 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         </div>
       </div>
 
+      {/* Data Completion Indicator */}
+      {(() => {
+        const currentPageProductIds = pagedProducts.map(p => p.productId);
+        const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
+        
+        const missingDataCount = currentPageOriginalProducts.filter(product => {
+          const basicFields = [
+            !String(product.sku).trim(), !String(product.name).trim(), !String(product.description).trim(),
+            !String(product.category).trim(), !String(product.brand).trim(), !String(product.supplier).trim()
+          ];
+          const hasMissingBasicFields = basicFields.some(field => field);
+          
+          const hasMissingPricing = !String(product.purchasePrice).trim() || !String(product.sellingPrice).trim();
+          
+          const hasMissingStock = product.stockQuantity === undefined || product.stockQuantity === null;
+          
+          return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+        }).length;
+        
+        return missingDataCount > 0 ? (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700 text-sm">
+              ⚠️ <strong>Data Completion:</strong> {missingDataCount} product{missingDataCount !== 1 ? 's' : ''} in this view have missing data that could be completed.
+            </p>
+          </div>
+        ) : null;
+      })()}
+
       {/* Bulk Action Bar */}
       {selectedProducts.length > 0 && (
         <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
@@ -521,7 +577,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                             handleOpenPublishModal(product);
                           }
                         } else {
-                          // Multiple products - show bulk publish modal
+                          // Multiple products - show bulk publish modal with smart filtering
                           setShowPublishModal(true);
                         }
                       }}
@@ -629,7 +685,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                               handleOpenPublishModal(product);
                             }
                           } else {
-                            // Multiple products - show bulk publish modal
+                            // Multiple products - show bulk publish modal with smart filtering
                             setShowPublishModal(true);
                           }
                         }}
@@ -708,16 +764,38 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
             </tr>
           </thead>
           <tbody>
-            {pagedProducts.map((product) => (
-              <tr 
-                key={product.id} 
-                className={`border-b border-gray-100 transition cursor-pointer ${
-                  selectedProducts.includes(String(product.id)) 
-                    ? 'bg-blue-50' 
-                    : 'hover:bg-gray-50'
-                }`}
-                onClick={(e) => handleRowClick(String(product.id), e)}
-              >
+            {pagedProducts.map((product) => {
+              // Get the original product data to check for missing data
+              const originalProduct = products.find(p => p.productId === product.productId);
+              
+              const hasIncompleteData = originalProduct ? (() => {
+                // Check all profile fields for missing data
+                const basicFields = [
+                  !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
+                  !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
+                  !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
+                ];
+                const hasMissingBasicFields = basicFields.some(field => field);
+                
+                const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+                
+                const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+                
+                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+              })() : false;
+              
+              return (
+                <tr 
+                  key={product.id} 
+                  className={`border-b border-gray-100 transition cursor-pointer ${
+                    selectedProducts.includes(String(product.id)) 
+                      ? 'bg-blue-50' 
+                      : hasIncompleteData
+                      ? 'bg-amber-50' // Highlight incomplete rows with amber background
+                      : 'hover:bg-gray-50'
+                  }`}
+                  onClick={(e) => handleRowClick(String(product.id), e)}
+                >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleProductSelect(String(product.id))}
@@ -736,17 +814,45 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 </td>
                 <td className="py-3 px-4 text-xs text-gray-900 max-w-25 truncate">
                   <div>
-                    <div className="font-medium truncate">{product.sku}</div>
+                    <div className="font-medium truncate">
+                      {String(product.sku).trim() ? (
+                        product.sku
+                      ) : (
+                        <span className="text-red-600 font-bold">Missing SKU</span>
+                      )}
+                    </div>
                     <div className="text-gray-500 text-xs truncate">{product.productId}</div>
                   </div>
                 </td>
-                 <td className="max-w-30 py-3 px-4 text-xs text-gray-900 font-medium truncate">{product.name}</td>
-                 <td className="py-3 px-4 text-xs text-gray-700">{product.category}</td>
-                 <td className="py-3 px-4 text-xs text-gray-700">{product.brand}</td>
+                 <td className="max-w-30 py-3 px-4 text-xs text-gray-900 font-medium truncate">
+                   {String(product.name).trim() ? (
+                     product.name
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                   )}
+                 </td>
+                 <td className="py-3 px-4 text-xs text-gray-700">
+                   {String(product.category).trim() ? (
+                     product.category
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Category</span>
+                   )}
+                 </td>
+                 <td className="py-3 px-4 text-xs text-gray-700">
+                   {String(product.brand).trim() ? (
+                     product.brand
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Brand</span>
+                   )}
+                 </td>
                  <td className="py-3 px-4 text-xs">
                    <div className="flex items-center gap-2">
                      <span className="text-black">
-                       {product.stockQuantity}
+                       {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
+                         product.stockQuantity
+                       ) : (
+                         <span className="text-red-600 font-bold">Missing Stock</span>
+                       )}
                      </span>
                      {product.stockQuantity === 0 && (
                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
@@ -760,8 +866,20 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                      )}
                    </div>
                  </td>
-                <td className="py-3 px-4 text-xs text-gray-700">{product.purchasePrice}</td>
-                <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">{product.sellingPrice}</td>
+                <td className="py-3 px-4 text-xs text-gray-700">
+                  {String(product.purchasePrice).trim() ? (
+                    product.purchasePrice
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Purchase Price</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">
+                  {String(product.sellingPrice).trim() ? (
+                    product.sellingPrice
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Selling Price</span>
+                  )}
+                </td>
                 <td className="py-3 px-4 text-xs">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
                     {product.status}
@@ -784,7 +902,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                   </div>
                 </td>
               </tr>
-            ))}
+                );
+            })}
           </tbody>
          </table>
        </div>
@@ -815,16 +934,38 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
            </div>
            
            <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-           {pagedProducts.map((product) => (
-             <div 
-               key={product.id} 
-               className={`rounded-lg shadow-sm border border-gray-200 p-4 relative cursor-pointer transition ${
-                 selectedProducts.includes(String(product.id)) 
-                   ? 'bg-blue-50' 
-                   : 'bg-white hover:bg-gray-50'
-               }`}
-               onClick={() => handleProductSelect(String(product.id))}
-             >
+           {pagedProducts.map((product) => {
+             // Get the original product data to check for missing data
+             const originalProduct = products.find(p => p.productId === product.productId);
+             
+             const hasIncompleteData = originalProduct ? (() => {
+               // Check all profile fields for missing data
+               const basicFields = [
+                 !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
+                 !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
+                 !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
+               ];
+               const hasMissingBasicFields = basicFields.some(field => field);
+               
+               const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+               
+               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               
+               return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+             })() : false;
+             
+             return (
+               <div 
+                 key={product.id} 
+                 className={`rounded-lg shadow-sm border border-gray-200 p-4 relative cursor-pointer transition ${
+                   selectedProducts.includes(String(product.id)) 
+                     ? 'bg-blue-50' 
+                     : hasIncompleteData
+                     ? 'bg-amber-50' // Highlight incomplete cards with amber background
+                     : 'bg-white hover:bg-gray-50'
+                 }`}
+                 onClick={() => handleProductSelect(String(product.id))}
+               >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-3 right-3 z-10">
                  <button
@@ -853,13 +994,37 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                
                {/* Product Info */}
                <div className="space-y-3">
-                 <h3 className="font-medium text-sm text-gray-900 truncate">{product.name}</h3>
-                 <p className="text-xs text-gray-500">{product.category}</p>
-                 <p className="text-xs text-gray-500">{product.brand}</p>
+                 <h3 className="font-medium text-sm text-gray-900 truncate">
+                   {String(product.name).trim() ? (
+                     product.name
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                   )}
+                 </h3>
+                 <p className="text-xs text-gray-500">
+                   {String(product.category).trim() ? (
+                     product.category
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Category</span>
+                   )}
+                 </p>
+                 <p className="text-xs text-gray-500">
+                   {String(product.brand).trim() ? (
+                     product.brand
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Brand</span>
+                   )}
+                 </p>
                  
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
-                   <span className="text-sm font-medium text-gray-900">{product.stockQuantity}</span>
+                   <span className="text-sm font-medium text-gray-900">
+                     {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
+                       product.stockQuantity
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Stock</span>
+                     )}
+                   </span>
                    {product.stockQuantity === 0 && (
                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
                        Out of Stock
@@ -873,7 +1038,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-[#0a61d7]">{product.sellingPrice}</div>
+                 <div className="text-sm font-semibold text-[#0a61d7]">
+                   {String(product.sellingPrice).trim() ? (
+                     product.sellingPrice
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Selling Price</span>
+                   )}
+                 </div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">
@@ -898,7 +1069,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                </div>
              </div>
-           ))}
+               );
+           })}
          </div>
          </>
        )}
@@ -927,16 +1099,38 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
          </div>
          
          <div className="grid grid-cols-2 gap-3">
-           {pagedProducts.map((product) => (
-             <div 
-               key={product.id} 
-               className={`rounded-lg shadow-sm border border-gray-200 p-3 relative cursor-pointer transition ${
-                 selectedProducts.includes(String(product.id)) 
-                   ? 'bg-blue-50' 
-                   : 'bg-white hover:bg-gray-50'
-               }`}
-               onClick={() => handleProductSelect(String(product.id))}
-             >
+           {pagedProducts.map((product) => {
+             // Get the original product data to check for missing data
+             const originalProduct = products.find(p => p.productId === product.productId);
+             
+             const hasIncompleteData = originalProduct ? (() => {
+               // Check all profile fields for missing data
+               const basicFields = [
+                 !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
+                 !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
+                 !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
+               ];
+               const hasMissingBasicFields = basicFields.some(field => field);
+               
+               const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+               
+               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               
+               return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+             })() : false;
+             
+             return (
+               <div 
+                 key={product.id} 
+                 className={`rounded-lg shadow-sm border border-gray-200 p-3 relative cursor-pointer transition ${
+                   selectedProducts.includes(String(product.id)) 
+                     ? 'bg-blue-50' 
+                     : hasIncompleteData
+                     ? 'bg-amber-50' // Highlight incomplete cards with amber background
+                     : 'bg-white hover:bg-gray-50'
+                 }`}
+                 onClick={() => handleProductSelect(String(product.id))}
+               >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-2 right-2 z-10">
                  <button
@@ -965,13 +1159,37 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                
                {/* Product Info */}
                <div className="space-y-2">
-                 <h3 className="font-medium text-sm text-gray-900 truncate">{product.name}</h3>
-                 <p className="text-xs text-gray-500">{product.category}</p>
-                 <p className="text-xs text-gray-500">{product.brand}</p>
+                 <h3 className="font-medium text-sm text-gray-900 truncate">
+                   {String(product.name).trim() ? (
+                     product.name
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                   )}
+                 </h3>
+                 <p className="text-xs text-gray-500">
+                   {String(product.category).trim() ? (
+                     product.category
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Category</span>
+                   )}
+                 </p>
+                 <p className="text-xs text-gray-500">
+                   {String(product.brand).trim() ? (
+                     product.brand
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Brand</span>
+                   )}
+                 </p>
                  
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
-                   <span className="text-sm font-medium text-gray-900">{product.stockQuantity}</span>
+                   <span className="text-sm font-medium text-gray-900">
+                     {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
+                       product.stockQuantity
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Stock</span>
+                     )}
+                   </span>
                    {product.stockQuantity === 0 && (
                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
                        Out of Stock
@@ -985,7 +1203,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-[#0a61d7]">{product.sellingPrice}</div>
+                 <div className="text-sm font-semibold text-[#0a61d7]">
+                   {String(product.sellingPrice).trim() ? (
+                     product.sellingPrice
+                   ) : (
+                     <span className="text-red-600 font-bold">Missing Selling Price</span>
+                   )}
+                 </div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">
@@ -1011,7 +1235,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                </div>
              </div>
-           ))}
+               );
+           })}
          </div>
        </div>
 
@@ -1159,6 +1384,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
           onPublish={handlePublishProduct}
           isBulkPublish={!productToPublish || selectedProducts.length > 1}
           selectedCount={productToPublish ? 1 : selectedProducts.length}
+          selectedProducts={selectedProducts.map(id => pagedProducts.find(p => String(p.id) === id)).filter(Boolean) as ProductTableRow[]}
+          allProducts={products}
+          isProductComplete={isProductComplete}
         />
       )}
     </div>

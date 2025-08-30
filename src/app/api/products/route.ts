@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
+import { 
+  getProductSecurityHeaders, 
+  validateProductInput, 
+  sanitizeProductData,
+  validateProductUpdate,
+  generateUniqueProductId
+} from '../../../utils/product-security';
 
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
+  const headers = getProductSecurityHeaders();
+  
   try {
     const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const id = req.nextUrl.searchParams.get('id');
     if (id) {
@@ -21,71 +43,176 @@ export async function GET(req: NextRequest) {
         });
       }
       
-      if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      if (!product) {
+        return NextResponse.json(
+          { error: 'Product not found' }, 
+          { status: 404, headers }
+        );
+      }
       
-      // GET /api/products - Returning product data
-      return NextResponse.json(product);
+      return NextResponse.json(product, { headers });
     }
     
+    // Get all products with pagination support
+    const page = parseInt(req.nextUrl.searchParams.get('page') || '1');
+    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50');
+    const search = req.nextUrl.searchParams.get('search') || '';
+    const status = req.nextUrl.searchParams.get('status') || '';
+    const category = req.nextUrl.searchParams.get('category') || '';
+    
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid pagination parameters' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Build where clause
+    const whereClause: any = { userId: Number(userId) };
+    
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { category: { contains: search, mode: 'insensitive' } },
+        { brand: { contains: search, mode: 'insensitive' } },
+        { supplier: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (status && status !== 'All') {
+      whereClause.status = status;
+    }
+    
+    if (category && category !== 'All Categories') {
+      whereClause.category = category;
+    }
+    
+    // Get total count for pagination
+    const totalCount = await prisma.product.count({ where: whereClause });
+    
+    // Get paginated results
     const products = await prisma.product.findMany({
-      where: { userId: Number(userId) }
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(products);
-  } catch (err) {
-          // Error fetching products
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    return NextResponse.json({
+      products,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    }, { headers });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500, headers }
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
+  const headers = getProductSecurityHeaders();
+  
   try {
-    let data = await req.json();
-    // POST /api/products - Received data
-    if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const data = await req.json();
     
-    // Clean and validate the data to match Prisma schema
+    if (!data.userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(String(data.userId))) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Sanitize and prepare product data
     const productData = {
-      productId: String(data.productId || data.id),
-      sku: String(data.sku),
-      name: String(data.name),
-      description: String(data.description),
-      category: String(data.category),
-      brand: String(data.brand),
-      supplier: String(data.supplier),
-      stockQuantity: Number(data.stockQuantity),
+      productId: data.productId || generateUniqueProductId(),
+      sku: data.sku || '',
+      name: data.name || '',
+      description: data.description || '',
+      category: data.category || '',
+      brand: data.brand || '',
+      supplier: data.supplier || '',
+      stockQuantity: Number(data.stockQuantity) || 0,
       lowStockThreshold: data.lowStockThreshold ? Number(data.lowStockThreshold) : null,
-      stockStatus: data.stockStatus ? String(data.stockStatus) : null,
-      purchasePrice: String(data.purchasePrice),
-      sellingPrice: String(data.sellingPrice),
-      status: String(data.status),
-      catalogType: String(data.catalogType),
-      catalogName: String(data.catalogName),
-             images: Array.isArray(data.images) ? data.images : [String(data.images || '')],
+      stockStatus: data.stockStatus || null,
+      purchasePrice: String(data.purchasePrice || ''),
+      sellingPrice: String(data.sellingPrice || ''),
+      status: data.status || 'Draft',
+      catalogType: data.catalogType || 'Internal',
+      catalogName: data.catalogName || '',
+      images: Array.isArray(data.images) ? data.images : [],
       discount: data.discount ? Number(data.discount) : null,
-      discountType: data.discountType ? String(data.discountType) : null,
+      discountType: data.discountType || null,
       userId: Number(data.userId)
     };
     
-    // POST /api/products - Cleaned data
+    // Check for unique productId
+    if (productData.productId) {
+      const existingProduct = await prisma.product.findFirst({
+        where: { productId: productData.productId, userId: productData.userId }
+      });
+      
+      if (existingProduct) {
+        // Generate a new unique ID and retry
+        productData.productId = generateUniqueProductId();
+      }
+    }
     
     const product = await prisma.product.create({
       data: productData
     });
     
-    return NextResponse.json(product, { status: 201 });
-  } catch (err) {
-          // Error creating product
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(product, { status: 201, headers });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500, headers }
+    );
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const headers = getProductSecurityHeaders();
+  
   try {
     const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const id = req.nextUrl.searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Missing id parameter' }, 
+        { status: 400, headers }
+      );
+    }
     
     let deleted;
     if (/^\d+$/.test(id)) {
@@ -94,7 +221,10 @@ export async function DELETE(req: NextRequest) {
       });
       
       if (!deleted) {
-        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Product not found' }, 
+          { status: 404, headers }
+        );
       }
       
       await prisma.product.delete({
@@ -106,7 +236,10 @@ export async function DELETE(req: NextRequest) {
       });
       
       if (!deleted) {
-        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Product not found' }, 
+          { status: 404, headers }
+        );
       }
       
       await prisma.product.delete({
@@ -114,19 +247,35 @@ export async function DELETE(req: NextRequest) {
       });
     }
     
-    // DELETE Product
-    return NextResponse.json({ success: true, deleted });
-  } catch (err) {
-          // Error deleting product
-    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
+    return NextResponse.json({ success: true, deleted }, { headers });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Failed to delete product' }, 
+      { status: 500, headers }
+    );
   }
 }
 
 export async function PUT(req: NextRequest) {
+  const headers = getProductSecurityHeaders();
+  
   try {
-    let data = await req.json();
-    // PUT /api/products - Received data
-    if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const data = await req.json();
+    
+    if (!data.userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(String(data.userId))) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const { id, productId, userId, ...updateData } = data;
     const userIdNum = Number(userId);
@@ -192,9 +341,11 @@ export async function PUT(req: NextRequest) {
       productId: product.productId || productId
     };
     
-    return NextResponse.json(responseData);
-  } catch (err) {
-          // Error updating product
-    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
+    return NextResponse.json(responseData, { headers });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Failed to update product' }, 
+      { status: 500, headers }
+    );
   }
 }

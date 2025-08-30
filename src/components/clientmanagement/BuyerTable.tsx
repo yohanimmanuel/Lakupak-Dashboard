@@ -128,7 +128,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
-  
+
   // Enhanced indicator style
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   
@@ -140,11 +140,11 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     setDeleteError('');
     
     try {
-      if (isBulkDelete) {
-        // Bulk delete - delete all selected buyers
+    if (isBulkDelete) {
+      // Bulk delete - delete all selected buyers
         const deletePromises = selectedBuyers.map(async (buyerId) => {
-          const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
-          if (buyer) {
+        const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
+        if (buyer) {
             const res = await fetch(`/api/buyers?id=${buyer.buyerId}&userId=${user.id}`, { 
               method: 'DELETE' 
             });
@@ -162,9 +162,9 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           onRefresh();
         }
         setSelectedBuyers([]);
-      } else {
-        // Single delete - delete one buyer
-        if (!buyerToDelete) return;
+    } else {
+      // Single delete - delete one buyer
+      if (!buyerToDelete) return;
         const res = await fetch(`/api/buyers?id=${buyerToDelete.buyerId}&userId=${user.id}`, { 
           method: 'DELETE' 
         });
@@ -175,18 +175,18 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         // After successful single delete, refresh the data
         if (onRefresh) {
           onRefresh();
-        }
-        setBuyerToDelete(null);
       }
-      
+      setBuyerToDelete(null);
+    }
+    
       // Reset pagination to first page if current page becomes empty
       if (page > 1 && pagedBuyers.length <= 1) {
         setPage(1);
       }
       
       // Close modal and reset states immediately
-      setShowDeleteModal(false);
-      setIsBulkDelete(false);
+    setShowDeleteModal(false);
+    setIsBulkDelete(false);
       
       // Refresh data to ensure UI is in sync
       if (onRefresh) {
@@ -724,17 +724,17 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               })() : false;
               
               return (
-                <tr 
-                  key={String(buyer.id)} 
-                  className={`border-b transition cursor-pointer ${
-                    selectedBuyers.includes(String(buyer.id)) 
-                      ? 'bg-blue-50' 
+              <tr 
+                key={String(buyer.id)} 
+                className={`border-b transition cursor-pointer ${
+                  selectedBuyers.includes(String(buyer.id)) 
+                    ? 'bg-blue-50' 
                       : hasIncompleteData
                       ? 'bg-amber-50' // Highlight incomplete rows with amber background
-                      : 'hover:bg-gray-50'
-                  }`} 
-                  onClick={(e) => handleRowClick(String(buyer.id), e)}
-                >
+                    : 'hover:bg-gray-50'
+                }`} 
+                onClick={(e) => handleRowClick(String(buyer.id), e)}
+              >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleBuyerSelect(String(buyer.id))}
@@ -792,10 +792,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>
                 </td>
-                              </tr>
+              </tr>
               );
             })}
-            </tbody>
+          </tbody>
         </table>
       </div>
       
@@ -899,41 +899,41 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             })() : false;
             
             return (
-              <div 
-                key={String(buyer.id)} 
-                className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
-                  selectedBuyers.includes(String(buyer.id)) 
-                    ? 'bg-blue-50' 
+          <div 
+            key={String(buyer.id)} 
+            className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+              selectedBuyers.includes(String(buyer.id)) 
+                ? 'bg-blue-50' 
                     : hasIncompleteData
                     ? 'bg-amber-50' // Highlight incomplete cards with amber background
-                    : 'bg-white hover:bg-gray-50'
-                }`}
-                onClick={() => handleBuyerSelect(String(buyer.id))}
-              >
-              {/* Checkbox - Top Right Corner */}
-              <div className="absolute top-3 right-3 z-10">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBuyerSelect(String(buyer.id));
-                  }}
+                : 'bg-white hover:bg-gray-50'
+            }`}
+            onClick={() => handleBuyerSelect(String(buyer.id))}
+          >
+            {/* Checkbox - Top Right Corner */}
+            <div className="absolute top-3 right-3 z-10">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBuyerSelect(String(buyer.id));
+                }}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    selectedBuyers.includes(String(buyer.id))
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
+                  selectedBuyers.includes(String(buyer.id))
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
                   aria-label={selectedBuyers.includes(String(buyer.id)) ? `Deselect ${buyer.name}` : `Select ${buyer.name}`}
-                >
-                  {selectedBuyers.includes(String(buyer.id)) && (
-                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              
-              <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
-              <div className="flex items-center justify-between">
+              >
+                {selectedBuyers.includes(String(buyer.id)) && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            
+            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
+            <div className="flex items-center justify-between">
                 <span className={`font-bold ${String(buyer.name).trim() ? 'text-[#0a61d7]' : 'text-red-600'}`}>
                   {String(buyer.name).trim() ? (
                     buyer.name
@@ -941,26 +941,26 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     <span className="font-bold">Missing Name</span>
                   )}
                 </span>
-                <div className="flex items-center gap-2">
-                  <button
+              <div className="flex items-center gap-2">
+              <button
                     className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onClick={() => handleView(buyer)}
+                onClick={() => handleView(buyer)}
                     aria-label={getAriaLabel('View', buyer)}
-                  >
-                    <Eye className="w-4 h-4 text-[#0a61d7]" />
-                  </button>
-                </div>
-              </div>
-              <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
-              <div className="text-xs text-gray-500">Business Type: <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : 'Missing Business Type'}</span></div>
-              <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
-              <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
-              <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>
-              <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
-              <div className="text-xs text-gray-500">
-                Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
+              >
+                <Eye className="w-4 h-4 text-[#0a61d7]" />
+              </button>
               </div>
             </div>
+              <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
+              <div className="text-xs text-gray-500">Business Type: <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : 'Missing Business Type'}</span></div>
+            <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
+            <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
+            <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>
+            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
+            <div className="text-xs text-gray-500">
+              Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
+            </div>
+          </div>
             );
           })}
         </div>

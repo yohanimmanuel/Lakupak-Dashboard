@@ -200,17 +200,6 @@ export default function SuppliersPage() {
     };
   }, [user?.id]);
 
-  const handleAddSupplier = async (data: SupplierFormData) => {
-    if (!user?.id) return;
-    await fetch('/api/suppliers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, userId: user.id }),
-    });
-    setShowAddModal(false);
-    fetchSuppliers();
-  };
-
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">

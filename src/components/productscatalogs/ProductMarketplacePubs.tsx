@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { X, Heart, Share2, Star, ShoppingCart, ArrowLeft, Zap } from 'lucide-react';
-import { ProductTableRow } from "@/types/product";
+import { Product, ProductTableRow } from "@/types/product";
 
 interface ProductMarketplacePubsProps {
   product: ProductTableRow;
@@ -10,10 +10,35 @@ interface ProductMarketplacePubsProps {
   onPublish?: () => void;
   isBulkPublish?: boolean;
   selectedCount?: number;
+  selectedProducts?: ProductTableRow[];
+  allProducts?: Product[];
+  isProductComplete?: (productId: string) => boolean;
 }
 
-export default function ProductMarketplacePubs({ product, isOpen, onClose, onPublish, isBulkPublish = false, selectedCount = 0 }: ProductMarketplacePubsProps) {
+export default function ProductMarketplacePubs({ 
+  product, 
+  isOpen, 
+  onClose, 
+  onPublish, 
+  isBulkPublish = false, 
+  selectedCount = 0,
+  selectedProducts = [],
+  allProducts = [],
+  isProductComplete
+}: ProductMarketplacePubsProps) {
   if (!isOpen) return null;
+
+  // Smart bulk publishing logic
+  const completeProducts = isBulkPublish && isProductComplete 
+    ? selectedProducts.filter(p => isProductComplete(p.productId))
+    : [];
+  
+  const incompleteProducts = isBulkPublish && isProductComplete
+    ? selectedProducts.filter(p => !isProductComplete(p.productId))
+    : [];
+
+  const canPublishCount = completeProducts.length;
+  const blockedCount = incompleteProducts.length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -41,21 +66,105 @@ export default function ProductMarketplacePubs({ product, isOpen, onClose, onPub
 
         {/* Mobile App Preview */}
         <div className="overflow-y-auto max-h-[calc(90vh-150px)] hide-scrollbar">
-          {/* Bulk Publish Information */}
+          {/* Smart Bulk Publish Information */}
           {isBulkPublish && (
-            <div className="mx-4 mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
-                  <span className="text-green-600 text-xs">📢</span>
+            <div className="mx-4 mb-4 space-y-3">
+              {/* Publishable Products */}
+              {canPublishCount > 0 && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                      <span className="text-green-600 text-xs">✅</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-green-800 font-medium">
+                        Ready to Publish ({canPublishCount} product{canPublishCount !== 1 ? 's' : ''})
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        These products have complete data and will be published to the marketplace.
+                      </p>
+                      {canPublishCount <= 3 && (
+                        <div className="mt-2 space-y-1">
+                          {completeProducts.map(product => (
+                            <div key={product.productId} className="text-xs text-green-600 font-medium">
+                              • {product.name || 'Unnamed Product'}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-green-800 font-medium">Bulk Publishing {selectedCount} Products</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    You are about to publish {selectedCount} product{selectedCount === 1 ? '' : 's'} to the marketplace. 
-                    All selected products will be visible to customers and available for purchase.
-                  </p>
+              )}
+              
+              {/* Incomplete Products */}
+              {blockedCount > 0 && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center mt-0.5">
+                      <span className="text-amber-600 text-xs">⚠️</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-amber-800 font-medium">
+                        Cannot Publish ({blockedCount} product{blockedCount !== 1 ? 's' : ''})
+                      </p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        These products have incomplete data and will be skipped. Complete the missing fields to publish them later.
+                      </p>
+                      {blockedCount <= 3 && (
+                        <div className="mt-2 space-y-1">
+                          {incompleteProducts.map(product => {
+                            const originalProduct = allProducts.find(p => p.productId === product.productId);
+                            const missingFields = [];
+                            if (originalProduct) {
+                              if (!String(originalProduct.sku).trim()) missingFields.push('SKU');
+                              if (!String(originalProduct.name).trim()) missingFields.push('Name');
+                              if (!String(originalProduct.description).trim()) missingFields.push('Description');
+                              if (!String(originalProduct.category).trim()) missingFields.push('Category');
+                              if (!String(originalProduct.brand).trim()) missingFields.push('Brand');
+                              if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
+                              if (!String(originalProduct.purchasePrice).trim()) missingFields.push('Purchase Price');
+                              if (!String(originalProduct.sellingPrice).trim()) missingFields.push('Selling Price');
+                              if (originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null) missingFields.push('Stock');
+                            }
+                            
+                            return (
+                              <div key={product.productId} className="text-xs text-amber-600">
+                                <div className="font-medium">• {product.name || 'Unnamed Product'}</div>
+                                {missingFields.length > 0 && (
+                                  <div className="text-amber-500 ml-2">Missing: {missingFields.join(', ')}</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {blockedCount > 3 && (
+                        <div className="mt-2 text-xs text-amber-600">
+                          And {blockedCount - 3} more products with incomplete data...
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+              
+              {/* No Complete Products Warning */}
+              {canPublishCount === 0 && blockedCount > 0 && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center mt-0.5">
+                      <span className="text-red-600 text-xs">❌</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-red-800 font-medium">No Products Ready for Publishing</p>
+                      <p className="text-xs text-red-700 mt-1">
+                        All selected products have incomplete data. Please complete the required fields before publishing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
@@ -368,10 +477,20 @@ export default function ProductMarketplacePubs({ product, isOpen, onClose, onPub
           </button>
           <button 
             onClick={onPublish}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+            disabled={isBulkPublish && canPublishCount === 0}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold transition-colors ${
+              isBulkPublish && canPublishCount === 0
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
           >
             <Zap className="w-4 h-4" />
-            Publish
+            {isBulkPublish 
+              ? canPublishCount === 0 
+                ? 'No Products to Publish'
+                : `Publish ${canPublishCount} Product${canPublishCount !== 1 ? 's' : ''}`
+              : 'Publish'
+            }
           </button>
         </div>
       </div>

@@ -4,31 +4,51 @@ import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-re
 import * as XLSX from 'xlsx';
 
 
+type ProductImportRow = {
+  [key: string]: string | undefined;
+  'Product ID': string;
+  'SKU': string;
+  'Product Name': string;
+  'Description': string;
+  'Category': string;
+  'Brand': string;
+  'Supplier': string;
+  'Stock Quantity': string;
+  'Low Stock Threshold': string;
+  'Stock Status': string;
+  'Purchase Price': string;
+  'Selling Price': string;
+  'Status': string;
+  'Catalog Type': string;
+  'Catalog Name': string;
+  'Discount': string;
+  'Discount Type': string;
+};
+
 type ProductImportProps = {
   open: boolean;
   onClose: () => void;
-  onImport: (data: Record<string, string>[]) => void;
+  onImport: (data: ProductImportRow[]) => void;
 };
 
 const productFields = [
-  { key: 'Product ID', label: 'Product ID' },
-  { key: 'SKU', label: 'SKU' },
-  { key: 'Product Name', label: 'Product Name' },
-  { key: 'Description', label: 'Description' },
-  { key: 'Category', label: 'Category' },
-  { key: 'Brand', label: 'Brand' },
-  { key: 'Supplier', label: 'Supplier' },
-  { key: 'Stock Quantity', label: 'Stock Quantity' },
-  { key: 'Low Stock Threshold', label: 'Low Stock Threshold' },
-  { key: 'Stock Status', label: 'Stock Status' },
-  { key: 'Purchase Price', label: 'Purchase Price' },
-  { key: 'Selling Price', label: 'Selling Price' },
-  { key: 'Status', label: 'Status' },
-  { key: 'Catalog Type', label: 'Catalog Type' },
-  { key: 'Catalog Name', label: 'Catalog Name' },
-  
-  { key: 'Discount', label: 'Discount' },
-  { key: 'Discount Type', label: 'Discount Type' },
+  { key: 'Product ID', label: 'Product ID (Auto-generated LKP format)' },
+  { key: 'SKU', label: 'SKU (Optional)' },
+  { key: 'Product Name', label: 'Product Name (Optional)' },
+  { key: 'Description', label: 'Description (Optional)' },
+  { key: 'Category', label: 'Category (Optional)' },
+  { key: 'Brand', label: 'Brand (Optional)' },
+  { key: 'Supplier', label: 'Supplier (Optional)' },
+  { key: 'Stock Quantity', label: 'Stock Quantity (Optional)' },
+  { key: 'Low Stock Threshold', label: 'Low Stock Threshold (Optional)' },
+  { key: 'Stock Status', label: 'Stock Status (Auto-calculated)' },
+  { key: 'Purchase Price', label: 'Purchase Price (Optional)' },
+  { key: 'Selling Price', label: 'Selling Price (Optional)' },
+  { key: 'Status', label: 'Status (Always Draft)' },
+  { key: 'Catalog Type', label: 'Catalog Type (Optional)' },
+  { key: 'Catalog Name', label: 'Catalog Name (Optional)' },
+  { key: 'Discount', label: 'Discount (Optional)' },
+  { key: 'Discount Type', label: 'Discount Type (Optional)' },
 ];
 
 // Synonyms for automapping
@@ -126,21 +146,22 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
   };
 
   // Map rows to required fields using mapping
-  const getMappedRows = () => {
-    return rows.map((row: Record<string, string>) => {
-      const mapped: Record<string, string> = {};
+  const getMappedRows = (): ProductImportRow[] => {
+    return rows.map((row: Record<string, string>): ProductImportRow => {
+      const mapped: Partial<ProductImportRow> = {};
       productFields.forEach(f => {
         const col = mapping[f.key];
-        mapped[f.key] = col ? row[col] : '';
+        mapped[f.key as keyof ProductImportRow] = col ? row[col] : '';
       });
+      
       // Always overwrite Product ID with LKP format (Laku-Laku standard)
       mapped['Product ID'] = generateProductId();
       // Set default values for required fields
       mapped['Status'] = 'Draft'; // Always set status to Draft for imported products
       
       // Calculate stock status dynamically based on stock quantity and threshold
-      const stockQuantity = parseInt(mapped['Stock Quantity']) || 0;
-      const lowStockThreshold = parseInt(mapped['Low Stock Threshold']) || 30;
+      const stockQuantity = parseInt(mapped['Stock Quantity'] || '0') || 0;
+      const lowStockThreshold = parseInt(mapped['Low Stock Threshold'] || '30') || 30;
       
       if (stockQuantity === 0) {
         mapped['Stock Status'] = 'Out of Stock';
@@ -160,7 +181,8 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       if (!mapped['Discount']) {
         mapped['Discount'] = '0';
       }
-      return mapped;
+      
+      return mapped as ProductImportRow;
     });
   };
 
@@ -209,11 +231,11 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
         
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
-            <div className="mb-2 font-semibold text-black">Map your columns to the required fields:</div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Product IDs will always be automatically generated in LKP format (e.g., LKP-12345678) 
-                and Status will always be set to "Draft" regardless of what's in your import file. This ensures consistency and clarity on product catalogs and inventory.
+            <div className="mb-2 font-semibold text-black">Map your columns to the fields (all fields are optional):</div>
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-700 text-sm">
+                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will remain blank. 
+                Import whatever data you have available! Product IDs are auto-generated and Status is always set to Draft.
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -225,45 +247,23 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
                   </tr>
                 </thead>
                 <tbody>
-                                     {productFields.map(f => {
-                     const isProductId = f.key === 'Product ID';
-                     const isStatus = f.key === 'Status';
-                     return (
-                       <tr key={f.key} className="whitespace-nowrap">
-                         <td className="py-1 px-3 font-semibold text-black">
-                           {f.label}
-                           {isProductId && (
-                             <span className="text-xs text-blue-600 ml-2 font-normal">
-                               (Auto-generated LKP format)
-                             </span>
-                           )}
-                           {isStatus && (
-                             <span className="text-xs text-blue-600 ml-2 font-normal">
-                               (Always Draft)
-                             </span>
-                           )}
-                         </td>
-                         <td className="py-1 px-3">
-                           {isProductId ? (
-                             <span className="text-xs text-gray-500 italic">Auto-generated</span>
-                           ) : isStatus ? (
-                             <span className="text-xs text-gray-500 italic">Auto-set to Draft</span>
-                           ) : (
-                             <select
-                               className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
-                               value={mapping[f.key] || ''}
-                               onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
-                             >
-                               <option value="">-- Not Mapped --</option>
-                               {fileHeaders.map(h => (
-                                 <option key={h} value={h}>{h}</option>
-                               ))}
-                             </select>
-                           )}
-                         </td>
-                       </tr>
-                     );
-                   })}
+                  {productFields.map(f => (
+                    <tr key={f.key} className="whitespace-nowrap">
+                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
+                      <td className="py-1 px-3">
+                        <select
+                          className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
+                          value={mapping[f.key] || ''}
+                          onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
+                        >
+                          <option value="">-- Not Mapped --</option>
+                          {fileHeaders.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -298,12 +298,6 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
             <div className="flex items-center gap-2 mb-2 text-black">
               <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} products to import
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-green-800">
-                <strong>Ready to Import:</strong> All products will receive new LKP format IDs (e.g., LKP-12345678) 
-                and Status will always be set to "Draft". The Product ID and Status columns in your file will be ignored to maintain Laku-Laku standards.
-              </p>
-            </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
@@ -314,7 +308,14 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
                 <tbody>
                   {getMappedRows().map((row, idx) => (
                     <tr key={idx} className="whitespace-nowrap text-black">
-                      {productFields.map(f => <td key={f.key} className="py-2 px-3">{typeof row[f.key] === 'string' ? row[f.key] : JSON.stringify(row[f.key])}</td>)}
+                      {productFields.map(f => <td key={f.key} className="py-2 px-3">{
+                        (() => {
+                          const value = row[f.key as keyof typeof row];
+                          if (typeof value === 'string') return value;
+                          if (Array.isArray(value)) return JSON.stringify(value);
+                          return String(value || '');
+                        })()
+                      }</td>)}
                     </tr>
                   ))}
                 </tbody>

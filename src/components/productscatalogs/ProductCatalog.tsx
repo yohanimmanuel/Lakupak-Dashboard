@@ -398,6 +398,62 @@ export default function ProductCatalog({
         )}
       </div>
 
+      {/* Profile Completion Progress */}
+      {(mode === 'view' || mode === 'edit') && product && (
+        <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
+          {(() => {
+            // Calculate completion progress
+            const requiredFields = [
+              { name: 'SKU Number', value: String(product.sku || '').trim() },
+              { name: 'Product Name', value: String(product.name || '').trim() },
+              { name: 'Description', value: String(product.description || '').trim() },
+              { name: 'Category', value: String(product.category || '').trim() },
+              { name: 'Brand', value: String(product.brand || '').trim() },
+              { name: 'Supplier', value: String(product.supplier || '').trim() },
+              { name: 'Purchase Price', value: String(product.purchasePrice || '').trim() },
+              { name: 'Selling Price', value: String(product.sellingPrice || '').trim() },
+              { name: 'Stock Quantity', value: product.stockQuantity !== undefined && product.stockQuantity !== null }
+            ];
+            
+            const completedFields = requiredFields.filter(field => 
+              typeof field.value === 'boolean' ? field.value : field.value !== ''
+            );
+            const totalFields = requiredFields.length;
+            const completionPercentage = Math.round((completedFields.length / totalFields) * 100);
+            const missingFields = requiredFields.filter(field => 
+              typeof field.value === 'boolean' ? !field.value : field.value === ''
+            );
+            
+            return (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+                  <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
+                    {completionPercentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      completionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-600">
+                  {completedFields.length} of {totalFields} fields completed
+                  {missingFields.length > 0 && (
+                    <span className="ml-2 text-amber-700">
+                      • Missing: {missingFields.map(field => field.name).join(', ')}
+                    </span>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       <form id="product-form" onSubmit={handleSubmit} className="p-4">
         {/* 4-Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -776,7 +832,7 @@ export default function ProductCatalog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Base Pricing <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
+                     Base/Selling Price <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
                    </label>
                    <div className="relative">
                      <input

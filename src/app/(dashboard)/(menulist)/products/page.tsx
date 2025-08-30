@@ -1,14 +1,15 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ProductCards from "@/components/productscatalogs/ProductCards";
 import ProductTable from "@/components/productscatalogs/ProductTable";
 import ProductImport from "@/components/productscatalogs/ProductImport";
-import { Upload, Download } from "lucide-react";
+import { Upload, Download, Check, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
 import { formatDate } from "@/utils/dateUtils";
+import { generateUniqueProductId } from "@/utils/product-security";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -27,29 +28,88 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  
+  // Enhanced state management for overlay animations
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState('');
+  const [isSlidingIn, setIsSlidingIn] = useState(false);
+  const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch products from API
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     if (!user?.id) return;
     
+    setLoading(true);
+    
+    // Clear any existing timeouts
+    if (overlayTimeoutRef.current) {
+      clearTimeout(overlayTimeoutRef.current);
+    }
+    
+    // For refresh button, start slide-in animation
+    if (products.length > 0) {
+      setIsSlidingOut(false);
+      setIsSlidingIn(true);
+      setOverlayMessage('Refreshing product data');
+    }
+    
     try {
-      setLoading(true);
       const response = await fetch(`/api/products?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(data);
+        // Handle both old format (array) and new format (with pagination)
+        const productsData = data.products || data;
+        setProducts(productsData);
+        setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
       } else {
         setProducts([]);
+        setOverlayMessage('Failed to load products');
+        return;
       }
     } catch (error) {
       setProducts([]);
+      setOverlayMessage('Error loading products');
     } finally {
       setLoading(false);
+      
+      // Complete slide-in animation and show overlay
+      setTimeout(() => {
+        setIsSlidingIn(false);
+        setShowOverlay(true);
+      }, 1500);
+      
+      // Auto-hide overlay after 2.5 seconds
+      overlayTimeoutRef.current = setTimeout(() => {
+        // Start slide-out animation
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        
+        // Remove overlay completely after animation
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
     }
-  };
+  }, [user?.id, products.length]);
 
   useEffect(() => {
     fetchProducts();
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    // Start slide-in animation immediately for initial page load
+    setIsSlidingIn(true);
+    setOverlayMessage('Loading product data...');
+    
+    fetchProducts();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+    };
   }, [user?.id]);
 
   // Convert product data to table row format
@@ -71,13 +131,10 @@ export default function ProductsPage() {
     userId: product.userId || 0
   });
 
-  // Generate LKP product ID format: LKP-8 random numbers
-  const generateLKPProductId = () => {
-    const randomNumbers = Math.floor(Math.random() * 90000000) + 10000000; // 8 digits
-    return `LKP-${randomNumbers}`;
-  };
+  // Use the enhanced generateUniqueProductId from security utils
+  const generateLKPProductId = () => generateUniqueProductId();
 
-  const handleImport = async (data: Record<string, string>[]) => {
+  const handleImport = async (data: any[]) => {
     if (!user?.id) return;
     
     try {
@@ -137,10 +194,44 @@ export default function ProductsPage() {
       // Close modal
       setIsImportModalOpen(false);
       
-      // Import completed successfully
+      // Show success overlay
+      setOverlayMessage(`Successfully imported ${data.length} products`);
+      setIsSlidingIn(true);
+      setShowOverlay(true);
+      
+      // Auto-hide overlay after 2.5 seconds
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+      overlayTimeoutRef.current = setTimeout(() => {
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        
+        // Remove overlay completely after animation
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
        
     } catch (error) {
-      // Error importing products
+      // Show error overlay
+      setOverlayMessage('Failed to import products');
+      setIsSlidingIn(true);
+      setShowOverlay(true);
+      
+      // Auto-hide overlay after 2.5 seconds
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+      overlayTimeoutRef.current = setTimeout(() => {
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        
+        // Remove overlay completely after animation
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
     }
   };
 
@@ -193,6 +284,15 @@ export default function ProductsPage() {
         </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
+          {/* Refresh Button */}
+          <button
+            onClick={fetchProducts}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Refresh
+          </button>
+
           {/* Import Button */}
           <button
             onClick={() => setIsImportModalOpen(true)}
@@ -223,6 +323,31 @@ export default function ProductsPage() {
 
       {/* Stats Cards */}
       <ProductCards products={products} />
+
+      {/* Data Status Overlay */}
+      {(showOverlay || isSlidingIn || isSlidingOut) && (
+        <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
+          isSlidingIn ? 'translate-x-0 opacity-100' : 
+          isSlidingOut ? 'translate-x-full opacity-0' : 
+          'translate-x-full opacity-0'
+        }`}>
+          <div className="flex items-center gap-3">
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
+              <p className="text-xs text-gray-500">
+                {loading ? 'Please wait...' : `${products.length} product${products.length !== 1 ? 's' : ''} loaded`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons and Table */}
       <div className="mt-6">
