@@ -171,24 +171,40 @@ export async function POST(req: NextRequest) {
       status: buyerData.status || 'Active',
     };
     
-    // Check if buyer with same email already exists for this user
-    const existingBuyer = await prisma.buyer.findFirst({
-      where: { 
-        email: finalBuyerData.email, 
-        userId: Number(data.userId) 
+    // Only check for unique buyerId - allow duplicate emails, names, etc. for MVP flexibility
+    if (finalBuyerData.buyerId) {
+      const existingBuyer = await prisma.buyer.findFirst({
+        where: { 
+          buyerId: finalBuyerData.buyerId, 
+          userId: Number(data.userId) 
+        }
+      });
+      
+      if (existingBuyer) {
+        return NextResponse.json(
+          { error: 'Buyer with this ID already exists' }, 
+          { status: 409, headers }
+        );
       }
-    });
-    
-    if (existingBuyer) {
-      return NextResponse.json(
-        { error: 'Buyer with this email already exists' }, 
-        { status: 409, headers }
-      );
     }
     
-    // Generate unique buyerId if not provided
+    // Generate unique buyerId if not provided - ensure uniqueness
     if (!finalBuyerData.buyerId) {
-      finalBuyerData.buyerId = 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+      let attempts = 0;
+      let newBuyerId;
+      do {
+        newBuyerId = 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+        attempts++;
+        if (attempts > 10) {
+          return NextResponse.json(
+            { error: 'Unable to generate unique buyer ID' }, 
+            { status: 500, headers }
+          );
+        }
+      } while (await prisma.buyer.findFirst({
+        where: { buyerId: newBuyerId, userId: Number(data.userId) }
+      }));
+      finalBuyerData.buyerId = newBuyerId;
     }
     
     const buyer = await prisma.buyer.create({
@@ -207,8 +223,16 @@ export async function POST(req: NextRequest) {
     // Handle Prisma-specific errors
     if (error?.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Buyer with this identifier already exists' }, 
+        { error: 'Buyer with this ID already exists' }, 
         { status: 409, headers }
+      );
+    }
+    
+    // Provide more specific error messages
+    if (error?.message) {
+      return NextResponse.json(
+        { error: error.message }, 
+        { status: 400, headers }
       );
     }
     
