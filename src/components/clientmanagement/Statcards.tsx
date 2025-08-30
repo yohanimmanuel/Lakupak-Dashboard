@@ -95,154 +95,192 @@ function cleanDecimals(value: number): number {
 
 export default function Statcards({ type, data }: StatcardsProps) {
   const stats = useMemo(() => {
-    if (type === 'buyer') {
-      const totalBuyers = data.length;
-      const activeBuyers = data.filter(b => b.status === 'Active').length;
-      
-      // Get currency from first available data point
-      const currency = getCurrencyFromData(data, 'totalSpend');
-      
-      // Average monthly spend per buyer - CORRECT CALCULATION
-      // Use the monthly analytics data passed from the buyers page
-      let totalAvgMonthlySpend = 0;
-      let totalAvgMonthlyOrders = 0;
-      let buyersWithSpending = 0;
-      let buyersWithOrders = 0;
-      
-      data.forEach(buyer => {
-        // Use the pre-calculated monthly averages (same as BuyerProfile)
-        if ('avgMonthlySpending' in buyer && 'avgMonthlyOrders' in buyer) {
-          const avgMonthlySpending = buyer.avgMonthlySpending || 0;
-          const avgMonthlyOrders = buyer.avgMonthlyOrders || 0;
-          
-          // Add to totals
-          totalAvgMonthlySpend += avgMonthlySpending;
-          totalAvgMonthlyOrders += avgMonthlyOrders;
-          
-          // Count buyers with spending > 0
-          if (avgMonthlySpending > 0) {
-            buyersWithSpending++;
-          }
-          
-          // Count buyers with orders > 0
-          if (avgMonthlyOrders > 0) {
-            buyersWithOrders++;
-          }
-        }
-      });
-      
-      // Calculate average: total of monthly averages ÷ count of buyers with spending
-      const avgMonthlySpend = buyersWithSpending > 0 ? totalAvgMonthlySpend / buyersWithSpending : 0;
-      
-      // Avg. order frequency: total of monthly averages ÷ count of buyers with orders
-      const avgOrderFreq = buyersWithOrders > 0 ? (totalAvgMonthlyOrders / buyersWithOrders).toFixed(1) : '0.0';
-      
-      return [
-        {
-          label: 'Total Buyers',
-          value: totalBuyers,
-          icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'Active Buyers',
-          value: activeBuyers,
-          icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'Monthly Buyer Spend',
-          value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlySpend)) : formatNumber(cleanDecimals(avgMonthlySpend)),
-          icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'Avg. Order Frequency',
-          value: avgOrderFreq + '/mo',
-          icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
-        }
-      ];
-    } else {
-      // Supplier stats
-      const totalSuppliers = data.length;
-      const activeSuppliers = data.filter(s => s.status === 'Active').length;
-      
-      // Get currency from first available data point
-      const currency = getCurrencyFromData(data, 'totalValue');
-      
-      // Average monthly purchase value per supplier - CORRECT CALCULATION
-      // Use the monthly analytics data passed from the suppliers page
-      let totalAvgMonthlyValue = 0;
-      let suppliersWithPurchases = 0;
-      
-      data.forEach(supplier => {
-        // Use the pre-calculated monthly averages (same as SupplierProfile)
-        if ('avgMonthlyPurchaseValue' in supplier) {
-          const avgMonthlyPurchaseValue = supplier.avgMonthlyPurchaseValue || 0;
-          
-          // Add to total
-          totalAvgMonthlyValue += avgMonthlyPurchaseValue;
-          
-          // Only count suppliers who actually have purchases this month
-          if (avgMonthlyPurchaseValue > 0) {
-            suppliersWithPurchases++;
-          }
-        }
-      });
-      
-      // Calculate average: total of monthly averages ÷ count of suppliers with purchases
-      const avgMonthlyValue = suppliersWithPurchases > 0 ? totalAvgMonthlyValue / suppliersWithPurchases : 0;
-      
-      // On-time delivery rate: average of all suppliers' deliverySuccess (from logistics or supplies)
-      let deliverySuccessSum = 0, deliverySuccessCount = 0;
-      data.forEach(supplier => {
-        // Parse logistics from string - expect object or empty array
-        if ('logistics' in supplier && supplier.logistics) {
-          const logistics = safeParseJSON(supplier.logistics, {});
-          // Prefer logistics.deliverySuccess if present, else average from supplies
-          if (logistics && typeof logistics === 'object' && 'deliverySuccess' in logistics) {
-            // If logistics is an object with deliverySuccess
-            if (logistics.deliverySuccess !== undefined && logistics.deliverySuccess !== '') {
-              deliverySuccessSum += parseFloat(logistics.deliverySuccess);
-              deliverySuccessCount++;
-            }
-          }
-        }
+    try {
+      if (type === 'buyer') {
+        const totalBuyers = data.length;
+        const activeBuyers = data.filter(b => b.status === 'Active').length;
         
-        // If logistics is empty or doesn't have deliverySuccess, check supplies
-        if ('supplies' in supplier && supplier.supplies) {
-          const supplies = safeParseJSON(supplier.supplies);
-          if (Array.isArray(supplies)) {
-            supplies.forEach((s: SupplyDetail) => {
-              if (s.deliverySuccess !== undefined && s.deliverySuccess !== '') {
-                deliverySuccessSum += parseFloat(s.deliverySuccess);
-                deliverySuccessCount++;
+        // Get currency from first available data point
+        const currency = getCurrencyFromData(data, 'totalSpend');
+        
+        // Average monthly spend per buyer - CORRECT CALCULATION
+        // Use the monthly analytics data passed from the buyers page
+        let totalAvgMonthlySpend = 0;
+        let totalAvgMonthlyOrders = 0;
+        let buyersWithSpending = 0;
+        let buyersWithOrders = 0;
+        
+        data.forEach(buyer => {
+          try {
+            // Use the pre-calculated monthly averages (same as BuyerProfile)
+            if ('avgMonthlySpending' in buyer && 'avgMonthlyOrders' in buyer) {
+              const avgMonthlySpending = Number(buyer.avgMonthlySpending) || 0;
+              const avgMonthlyOrders = Number(buyer.avgMonthlyOrders) || 0;
+              
+              // Add to totals
+              totalAvgMonthlySpend += avgMonthlySpending;
+              totalAvgMonthlyOrders += avgMonthlyOrders;
+              
+              // Count buyers with spending > 0
+              if (avgMonthlySpending > 0) {
+                buyersWithSpending++;
               }
-            });
+              
+              // Count buyers with orders > 0
+              if (avgMonthlyOrders > 0) {
+                buyersWithOrders++;
+              }
+            }
+          } catch (buyerError) {
+            // Skip this buyer if there's an error processing their data
+            console.warn('Error processing buyer data:', buyerError);
           }
-        }
-      });
-      const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
-      
-      return [
-        {
-          label: 'Total Suppliers',
-          value: totalSuppliers,
-          icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'Active Suppliers',
-          value: activeSuppliers,
-          icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'Monthly Purchase Value',
-          value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlyValue)) : formatNumber(cleanDecimals(avgMonthlyValue)),
-          icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
-        },
-        {
-          label: 'On-time Delivery Rate',
-          value: onTimeRate + '%',
-          icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
-        }
+        });
+        
+        // Calculate average: total of monthly averages ÷ count of buyers with spending
+        const avgMonthlySpend = buyersWithSpending > 0 ? totalAvgMonthlySpend / buyersWithSpending : 0;
+        
+        // Avg. order frequency: total of monthly averages ÷ count of buyers with orders
+        const avgOrderFreq = buyersWithOrders > 0 ? (totalAvgMonthlyOrders / buyersWithOrders).toFixed(1) : '0.0';
+        
+        return [
+          {
+            label: 'Total Buyers',
+            value: totalBuyers,
+            icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'Active Buyers',
+            value: activeBuyers,
+            icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'Monthly Buyer Spend',
+            value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlySpend)) : formatNumber(cleanDecimals(avgMonthlySpend)),
+            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'Avg. Order Frequency',
+            value: avgOrderFreq + '/mo',
+            icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+          }
+        ];
+      } else {
+        // Supplier stats
+        const totalSuppliers = data.length;
+        const activeSuppliers = data.filter(s => s.status === 'Active').length;
+        
+        // Get currency from first available data point
+        const currency = getCurrencyFromData(data, 'totalValue');
+        
+        // Average monthly purchase value per supplier - CORRECT CALCULATION
+        // Use the monthly analytics data passed from the suppliers page
+        let totalAvgMonthlyValue = 0;
+        let suppliersWithPurchases = 0;
+        
+        data.forEach(supplier => {
+          try {
+            // Use the pre-calculated monthly averages (same as SupplierProfile)
+            if ('avgMonthlyPurchaseValue' in supplier) {
+              const avgMonthlyPurchaseValue = Number(supplier.avgMonthlyPurchaseValue) || 0;
+              
+              // Add to total
+              totalAvgMonthlyValue += avgMonthlyPurchaseValue;
+              
+              // Only count suppliers who actually have purchases this month
+              if (avgMonthlyPurchaseValue > 0) {
+                suppliersWithPurchases++;
+              }
+            }
+          } catch (supplierError) {
+            // Skip this supplier if there's an error processing their data
+            console.warn('Error processing supplier data:', supplierError);
+          }
+        });
+        
+        // Calculate average: total of monthly averages ÷ count of suppliers with purchases
+        const avgMonthlyValue = suppliersWithPurchases > 0 ? totalAvgMonthlyValue / suppliersWithPurchases : 0;
+        
+        // On-time delivery rate: average of all suppliers' deliverySuccess (from logistics or supplies)
+        let deliverySuccessSum = 0, deliverySuccessCount = 0;
+        data.forEach(supplier => {
+          try {
+            // Parse logistics from string - expect object or empty array
+            if ('logistics' in supplier && supplier.logistics) {
+              const logistics = safeParseJSON(supplier.logistics, {});
+              // Prefer logistics.deliverySuccess if present, else average from supplies
+              if (logistics && typeof logistics === 'object' && 'deliverySuccess' in logistics) {
+                // If logistics is an object with deliverySuccess
+                if (logistics.deliverySuccess !== undefined && logistics.deliverySuccess !== '') {
+                  const successRate = parseFloat(logistics.deliverySuccess);
+                  if (!isNaN(successRate)) {
+                    deliverySuccessSum += successRate;
+                    deliverySuccessCount++;
+                  }
+                }
+              }
+            }
+            
+            // If logistics is empty or doesn't have deliverySuccess, check supplies
+            if ('supplies' in supplier && supplier.supplies) {
+              const supplies = safeParseJSON(supplier.supplies);
+              if (Array.isArray(supplies)) {
+                supplies.forEach((s: SupplyDetail) => {
+                  if (s.deliverySuccess !== undefined && s.deliverySuccess !== '') {
+                    const successRate = parseFloat(s.deliverySuccess);
+                    if (!isNaN(successRate)) {
+                      deliverySuccessSum += successRate;
+                      deliverySuccessCount++;
+                    }
+                  }
+                });
+              }
+            }
+          } catch (supplierError) {
+            // Skip this supplier if there's an error processing their data
+            console.warn('Error processing supplier delivery data:', supplierError);
+          }
+        });
+        const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
+        
+        return [
+          {
+            label: 'Total Suppliers',
+            value: totalSuppliers,
+            icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'Active Suppliers',
+            value: activeSuppliers,
+            icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'Monthly Purchase Value',
+            value: currency ? currency + ' ' + formatNumber(cleanDecimals(avgMonthlyValue)) : formatNumber(cleanDecimals(avgMonthlyValue)),
+            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+          },
+          {
+            label: 'On-time Delivery Rate',
+            value: onTimeRate + '%',
+            icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+          }
+        ];
+      }
+    } catch (error) {
+      // Fallback to basic stats if there's an error
+      console.error('Error calculating stats:', error);
+      const fallbackStats = type === 'buyer' ? [
+        { label: 'Total Buyers', value: data.length, icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'Active Buyers', value: data.filter(b => b.status === 'Active').length, icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'Monthly Buyer Spend', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'Avg. Order Frequency', value: 'N/A', icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true } }
+      ] : [
+        { label: 'Total Suppliers', value: data.length, icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'Active Suppliers', value: data.filter(s => s.status === 'Active').length, icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'Monthly Purchase Value', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
+        { label: 'On-time Delivery Rate', value: 'N/A', icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true } }
       ];
+      return fallbackStats;
     }
   }, [type, data]);
 

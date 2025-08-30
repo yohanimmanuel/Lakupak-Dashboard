@@ -5,7 +5,7 @@ import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
-import { Buyer, BuyerTableRow } from '@/types/client';
+import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 
 const statusTabs = [
   { label: "All" },
@@ -60,7 +60,14 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   
   // Enhanced filtering logic
   const filteredBuyers = useMemo(() => {
-    let filtered = tableRows.filter((b: BuyerTableRow) => 
+    // Sort buyers by most recent first (newest created/updated at top)
+    const sortedBuyers = [...tableRows].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.lastUpdated || 0);
+      const dateB = new Date(b.createdAt || b.lastUpdated || 0);
+      return dateB.getTime() - dateA.getTime(); // Most recent first
+    });
+    
+    let filtered = sortedBuyers.filter((b: BuyerTableRow) => 
       String(b.name).toLowerCase().includes(search.toLowerCase())
     );
     
@@ -524,11 +531,79 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 
       {/* Missing Data Indicator - Only show when there's missing data */}
       {(() => {
-        const missingDataCount = pagedBuyers.filter(buyer => 
-          !String(buyer.name).trim() || 
-          !String(buyer.address).trim() || 
-          !String(buyer.businessType).trim()
-        ).length;
+        // Get the original buyer data for the current page
+        const currentPageBuyerIds = pagedBuyers.map(b => b.id).filter(id => id !== undefined);
+        const currentPageOriginalBuyers = buyers.filter(b => b.id && currentPageBuyerIds.includes(b.id));
+        
+        const missingDataCount = currentPageOriginalBuyers.filter(buyer => {
+          // Check all profile fields for missing data
+          const basicFields = [
+            !String(buyer.storeName).trim(),
+            !String(buyer.owner).trim(),
+            !String(buyer.address).trim(),
+            !String(buyer.businessType).trim(),
+            !String(buyer.email).trim(),
+            !String(buyer.phone).trim()
+          ];
+          
+          // Check if any basic fields are missing
+          const hasMissingBasicFields = basicFields.some(field => field);
+          
+          // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
+          let hasMissingLogistics = false;
+          try {
+            if (buyer.logistics) {
+              const logistics = JSON.parse(buyer.logistics);
+              
+              // Calculate if there's a valid last order date from order details
+              let hasValidLastOrderDate = false;
+              if (buyer.orderDetails) {
+                try {
+                  const orderDetails = JSON.parse(buyer.orderDetails);
+                  if (Array.isArray(orderDetails)) {
+                    const validDates = orderDetails
+                      .map((order: OrderDetail) => order.lastOrderDate)
+                      .filter((date: string) => date && String(date).trim());
+                    hasValidLastOrderDate = validDates.length > 0;
+                  }
+                } catch {}
+              }
+              
+              // For MVP, only check if we have order details with valid dates
+              // Logistics preferences are optional
+              hasMissingLogistics = !hasValidLastOrderDate;
+            } else {
+              hasMissingLogistics = true; // No logistics data at all
+            }
+          } catch {
+            hasMissingLogistics = true; // Invalid logistics data
+          }
+          
+          // Check order details - must have actual order items with content
+          let hasMissingOrders = false;
+          try {
+            if (buyer.orderDetails) {
+              const orderDetails = JSON.parse(buyer.orderDetails);
+              if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
+                hasMissingOrders = true; // No order details data
+              } else {
+                // Check if orders have meaningful content
+                const hasValidOrders = orderDetails.some((order: OrderDetail) => 
+                  order.product && String(order.product).trim() &&
+                  order.totalOrders && String(order.totalOrders).trim() &&
+                  order.totalSpend && String(order.totalSpend).trim()
+                );
+                hasMissingOrders = !hasValidOrders;
+              }
+            } else {
+              hasMissingOrders = true; // No order details data at all
+            }
+          } catch {
+            hasMissingOrders = true; // Invalid order details data
+          }
+          
+          return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
+        }).length;
         
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -574,16 +649,92 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </tr>
           </thead>
           <tbody className="bg-white">
-            {pagedBuyers.map((buyer: BuyerTableRow) => (
-              <tr 
-                key={String(buyer.id)} 
-                className={`border-b transition cursor-pointer ${
-                  selectedBuyers.includes(String(buyer.id)) 
-                    ? 'bg-blue-50' 
-                    : 'hover:bg-gray-50'
-                }`} 
-                onClick={(e) => handleRowClick(String(buyer.id), e)}
-              >
+            {pagedBuyers.map((buyer: BuyerTableRow) => {
+              // Get the original buyer data to check for missing data
+              const originalBuyer = buyers.find(b => b.id === buyer.id);
+              
+              const hasIncompleteData = originalBuyer ? (() => {
+                // Check all profile fields for missing data (excluding notes and pictures)
+                const basicFields = [
+                  !String(originalBuyer.storeName).trim(),
+                  !String(originalBuyer.owner).trim(),
+                  !String(originalBuyer.address).trim(),
+                  !String(originalBuyer.businessType).trim(),
+                  !String(originalBuyer.email).trim(),
+                  !String(originalBuyer.phone).trim()
+                ];
+                
+                // Check if any basic fields are missing
+                const hasMissingBasicFields = basicFields.some(field => field);
+                
+                // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
+                let hasMissingLogistics = false;
+                try {
+                  if (originalBuyer.logistics) {
+                    const logistics = JSON.parse(originalBuyer.logistics);
+                    
+                    // Calculate if there's a valid last order date from order details
+                    let hasValidLastOrderDate = false;
+                    if (originalBuyer.orderDetails) {
+                      try {
+                        const orderDetails = JSON.parse(originalBuyer.orderDetails);
+                        if (Array.isArray(orderDetails)) {
+                          const validDates = orderDetails
+                            .map((order: OrderDetail) => order.lastOrderDate)
+                            .filter((date: string) => date && String(date).trim());
+                          hasValidLastOrderDate = validDates.length > 0;
+                        }
+                      } catch {}
+                    }
+                    
+                    // For MVP, only check if we have order details with valid dates
+                    // Logistics preferences are optional
+                    hasMissingLogistics = !hasValidLastOrderDate;
+                  } else {
+                    hasMissingLogistics = true; // No logistics data at all
+                  }
+                } catch {
+                  hasMissingLogistics = true; // Invalid logistics data
+                }
+                
+                // Check order details - must have actual order items with content
+                let hasMissingOrders = false;
+                try {
+                  if (originalBuyer.orderDetails) {
+                    const orderDetails = JSON.parse(originalBuyer.orderDetails);
+                    if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
+                      hasMissingOrders = true; // No order details data
+                    } else {
+                      // Check if orders have meaningful content
+                      const hasValidOrders = orderDetails.some((order: OrderDetail) => 
+                        order.product && String(order.product).trim() &&
+                        order.totalOrders && String(order.totalOrders).trim() &&
+                        order.totalSpend && String(order.totalSpend).trim()
+                      );
+                      hasMissingOrders = !hasValidOrders;
+                    }
+                  } else {
+                    hasMissingOrders = true; // No order details data at all
+                  }
+                } catch {
+                  hasMissingOrders = true; // Invalid order details data
+                }
+                
+                return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
+              })() : false;
+              
+              return (
+                <tr 
+                  key={String(buyer.id)} 
+                  className={`border-b transition cursor-pointer ${
+                    selectedBuyers.includes(String(buyer.id)) 
+                      ? 'bg-blue-50' 
+                      : hasIncompleteData
+                      ? 'bg-amber-50' // Highlight incomplete rows with amber background
+                      : 'hover:bg-gray-50'
+                  }`} 
+                  onClick={(e) => handleRowClick(String(buyer.id), e)}
+                >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleBuyerSelect(String(buyer.id))}
@@ -641,9 +792,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>
                 </td>
-              </tr>
-            ))}
-          </tbody>
+                              </tr>
+              );
+            })}
+            </tbody>
         </table>
       </div>
       
@@ -672,16 +824,92 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </div>
         
         <div className="flex flex-col gap-4">
-          {pagedBuyers.map(buyer => (
-            <div 
-              key={String(buyer.id)} 
-              className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
-                selectedBuyers.includes(String(buyer.id)) 
-                  ? 'bg-blue-50' 
-                  : 'bg-white hover:bg-gray-50'
-              }`}
-              onClick={() => handleBuyerSelect(String(buyer.id))}
-            >
+          {pagedBuyers.map(buyer => {
+            // Get the original buyer data to check for missing data
+            const originalBuyer = buyers.find(b => b.id === buyer.id);
+            
+            const hasIncompleteData = originalBuyer ? (() => {
+              // Check all profile fields for missing data (excluding notes and pictures)
+              const basicFields = [
+                !String(originalBuyer.storeName).trim(),
+                !String(originalBuyer.owner).trim(),
+                !String(originalBuyer.address).trim(),
+                !String(originalBuyer.businessType).trim(),
+                !String(originalBuyer.email).trim(),
+                !String(originalBuyer.phone).trim()
+              ];
+              
+              // Check if any basic fields are missing
+              const hasMissingBasicFields = basicFields.some(field => field);
+              
+              // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
+              let hasMissingLogistics = false;
+              try {
+                if (originalBuyer.logistics) {
+                  const logistics = JSON.parse(originalBuyer.logistics);
+                  
+                  // Calculate if there's a valid last order date from order details
+                  let hasValidLastOrderDate = false;
+                  if (originalBuyer.orderDetails) {
+                    try {
+                      const orderDetails = JSON.parse(originalBuyer.orderDetails);
+                      if (Array.isArray(orderDetails)) {
+                        const validDates = orderDetails
+                          .map((order: OrderDetail) => order.lastOrderDate)
+                          .filter((date: string) => date && String(date).trim());
+                        hasValidLastOrderDate = validDates.length > 0;
+                      }
+                    } catch {}
+                  }
+                  
+                  // For MVP, only check if we have order details with valid dates
+                  // Logistics preferences are optional
+                  hasMissingLogistics = !hasValidLastOrderDate;
+                } else {
+                  hasMissingLogistics = true; // No logistics data at all
+                }
+              } catch {
+                hasMissingLogistics = true; // Invalid logistics data
+              }
+              
+              // Check order details - must have actual order items with content
+              let hasMissingOrders = false;
+              try {
+                if (originalBuyer.orderDetails) {
+                  const orderDetails = JSON.parse(originalBuyer.orderDetails);
+                  if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
+                    hasMissingOrders = true; // No order details data
+                  } else {
+                    // Check if orders have meaningful content
+                    const hasValidOrders = orderDetails.some((order: OrderDetail) => 
+                      order.product && String(order.product).trim() &&
+                      order.totalOrders && String(order.totalOrders).trim() &&
+                      order.totalSpend && String(order.totalSpend).trim()
+                    );
+                    hasMissingOrders = !hasValidOrders;
+                  }
+                } else {
+                  hasMissingOrders = true; // No order details data at all
+                }
+              } catch {
+                hasMissingOrders = true; // Invalid order details data
+              }
+              
+              return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
+            })() : false;
+            
+            return (
+              <div 
+                key={String(buyer.id)} 
+                className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+                  selectedBuyers.includes(String(buyer.id)) 
+                    ? 'bg-blue-50' 
+                    : hasIncompleteData
+                    ? 'bg-amber-50' // Highlight incomplete cards with amber background
+                    : 'bg-white hover:bg-gray-50'
+                }`}
+                onClick={() => handleBuyerSelect(String(buyer.id))}
+              >
               {/* Checkbox - Top Right Corner */}
               <div className="absolute top-3 right-3 z-10">
                 <button
@@ -733,7 +961,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       

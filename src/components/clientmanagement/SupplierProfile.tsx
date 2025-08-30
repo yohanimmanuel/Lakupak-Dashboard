@@ -157,6 +157,102 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
           </button>
         </div>
       </div>
+      
+      {/* Data Completion Progress */}
+      {(() => {
+        // Check all profile fields for missing data (excluding notes and pictures)
+        const basicFields = [
+          { name: 'Name', value: supplier.name && supplier.name.trim() },
+          { name: 'Address', value: supplier.address && supplier.address.trim() },
+          { name: 'Business Type', value: supplier.businessType && supplier.businessType.trim() },
+          { name: 'Contact', value: supplier.contact && supplier.contact.trim() },
+          { name: 'Email', value: supplier.email && supplier.email.trim() },
+          { name: 'Phone', value: supplier.phone && supplier.phone.trim() }
+        ];
+        
+        // Check logistics fields
+        const logisticsFields = [];
+        try {
+          if (supplier.logistics) {
+            const logistics = JSON.parse(supplier.logistics);
+            logisticsFields.push(
+              { name: 'Preferred Days', value: logistics?.preferredDays?.trim() },
+              { name: 'Last Delivery', value: logistics?.lastDelivery?.trim() },
+              { name: 'Delivery Success', value: logistics?.deliverySuccess?.trim() }
+            );
+          } else {
+            logisticsFields.push(
+              { name: 'Preferred Days', value: false },
+              { name: 'Last Delivery', value: false },
+              { name: 'Delivery Success', value: false }
+            );
+          }
+        } catch {
+          logisticsFields.push(
+            { name: 'Preferred Days', value: false },
+            { name: 'Last Delivery', value: false },
+            { name: 'Delivery Success', value: false }
+          );
+        }
+        
+        // Check supplies data - must have actual supply items with content
+        const suppliesFields = [];
+        try {
+          if (supplier.supplies) {
+            const supplies = JSON.parse(supplier.supplies);
+            if (!Array.isArray(supplies) || supplies.length === 0) {
+              suppliesFields.push({ name: 'Supplies Data', value: false });
+            } else {
+              // Check if supplies have meaningful content
+              const hasValidSupplies = supplies.some((supply: any) => 
+                supply.sku && String(supply.sku).trim() &&
+                supply.product && String(supply.product).trim() &&
+                supply.totalSupplied && String(supply.totalSupplied).trim() &&
+                supply.totalValue && String(supply.totalValue).trim()
+              );
+              suppliesFields.push({ name: 'Supplies Data', value: hasValidSupplies });
+            }
+          } else {
+            suppliesFields.push({ name: 'Supplies Data', value: false });
+          }
+        } catch {
+          suppliesFields.push({ name: 'Supplies Data', value: false });
+        }
+        
+        const allFields = [...basicFields, ...logisticsFields, ...suppliesFields];
+        const completedFields = allFields.filter(field => field.value).length;
+        const totalFields = allFields.length;
+        const completionPercentage = Math.round((completedFields / totalFields) * 100);
+        const missingFields = allFields.filter(field => !field.value);
+        
+        return (
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+              <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
+                {completionPercentage}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  completionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'
+                }`}
+                style={{ width: `${completionPercentage}%` }}
+              ></div>
+            </div>
+            <div className="text-xs text-gray-600">
+              {completedFields} of {totalFields} fields completed
+              {missingFields.length > 0 && (
+                <span className="ml-2 text-amber-700">
+                  • Missing: {missingFields.map(field => field.name).join(', ')}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+      
       {/* Top Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* General Info */}
@@ -165,23 +261,33 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
           <div className="flex flex-col gap-3 mt-8">
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Store className="w-4 h-5" />
-              <span className="font-semibold text-black text-xs">{supplier.name} | {supplier.supplierId}</span>
+              <span className="font-semibold text-black text-xs">
+                {supplier.name && supplier.name.trim() ? supplier.name : <span className="text-red-600 font-bold">Missing Name</span>} | {supplier.supplierId}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Tag className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.businessType}</span>
+              <span className="font-medium text-black">
+                {supplier.businessType && supplier.businessType.trim() ? supplier.businessType : <span className="text-red-600 font-bold">Missing Business Type</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <MapPin className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.address}</span>
+              <span className="font-medium text-black">
+                {supplier.address && supplier.address.trim() ? supplier.address : <span className="text-red-600 font-bold">Missing Address</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Mail className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.contact} | {supplier.email}</span>
+              <span className="font-medium text-black">
+                {supplier.contact && supplier.contact.trim() ? supplier.contact : <span className="text-red-600 font-bold">Missing Contact</span>} | {supplier.email && supplier.email.trim() ? supplier.email : <span className="text-red-600 font-bold">Missing Email</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Phone className="w-4 h-4" />
-              <span className="font-medium text-black">{supplier.phone}</span>
+              <span className="font-medium text-black">
+                {supplier.phone && supplier.phone.trim() ? supplier.phone : <span className="text-red-600 font-bold">Missing Phone</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Calendar className="w-4 h-4" />
@@ -196,17 +302,23 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{logistics?.preferredDays || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">Missing Preferred Days</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Delivery:</span>
-              <span className="font-semibold text-black">{logistics?.lastDelivery || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.lastDelivery && logistics.lastDelivery.trim() ? logistics.lastDelivery : <span className="text-red-600 font-bold">Missing Last Delivery</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Delivery Success:</span>
-              <span className="font-semibold text-black">{logistics?.deliverySuccess || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.deliverySuccess && logistics.deliverySuccess.trim() ? logistics.deliverySuccess : <span className="text-red-600 font-bold">Missing Delivery Success</span>}
+              </span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>

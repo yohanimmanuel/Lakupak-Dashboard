@@ -33,22 +33,40 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastMonthKey = format(lastMonthDate, 'yyyy-MM');
   const periodOptions = ["All Months", "This Month", "Last Month"];
-  const [period, setPeriod] = useState(periodOptions[1]);
+  const [period, setPeriod] = useState(periodOptions[0]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = 8;
-  let filteredSuppliers = tableRows;
+  
+  // Sort suppliers by most recent first (newest created/updated at top)
+  const sortedSuppliers = [...tableRows].sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.lastUpdated || 0);
+    const dateB = new Date(b.createdAt || b.lastUpdated || 0);
+    return dateB.getTime() - dateA.getTime(); // Most recent first
+  });
+  
+  let filteredSuppliers = sortedSuppliers;
   if (selectedTab !== "All") filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => s.status === selectedTab);
   if (filter !== "All Business Types") filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => s.businessType === filter);
   if (search) filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => String(s.name).toLowerCase().includes(search.toLowerCase()));
   if (period !== "All Months") {
-    const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
     filteredSuppliers = filteredSuppliers.filter((s: SupplierTableRow) => {
       if (!s.createdAt) return false;
-      return s.createdAt.startsWith(periodKey);
+      const createdDate = new Date(s.createdAt);
+      const currentMonth = new Date();
+      const lastMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      
+      if (period === 'This Month') {
+        return createdDate.getMonth() === currentMonth.getMonth() && 
+               createdDate.getFullYear() === currentMonth.getFullYear();
+      } else if (period === 'Last Month') {
+        return createdDate.getMonth() === lastMonth.getMonth() && 
+               createdDate.getFullYear() === lastMonth.getFullYear();
+      }
+      return true;
     });
   }
   const totalRows = filteredSuppliers.length;
@@ -56,6 +74,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const pagedSuppliers = filteredSuppliers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
+  
+
   useLayoutEffect(() => {
     const idx = statusTabs.findIndex(tab => tab.label === selectedTab);
     const node = tabRefs.current[idx];
@@ -167,6 +187,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   };
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+      
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
         <div className="relative w-full md:w-auto flex items-center">
@@ -339,6 +360,78 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         </div>
       )}
 
+      
+      {/* Missing Data Indicator - Only show when there's missing data */}
+      {(() => {
+        // Get the original supplier data for the current page
+        const currentPageSupplierIds = pagedSuppliers.map(s => s.supplierId);
+        const currentPageOriginalSuppliers = suppliers.filter(s => currentPageSupplierIds.includes(s.supplierId));
+        
+        const missingDataCount = currentPageOriginalSuppliers.filter(supplier => {
+          // Check all profile fields for missing data
+          const basicFields = [
+            !String(supplier.name).trim(),
+            !String(supplier.address).trim(),
+            !String(supplier.businessType).trim(),
+            !String(supplier.contact).trim(),
+            !String(supplier.email).trim(),
+            !String(supplier.phone).trim()
+          ];
+          
+          // Check if any basic fields are missing
+          const hasMissingBasicFields = basicFields.some(field => field);
+          
+          // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
+          let hasMissingLogistics = false;
+          try {
+            if (supplier.logistics) {
+              const logistics = JSON.parse(supplier.logistics);
+              hasMissingLogistics = !logistics?.preferredDays?.trim() || 
+                                   !logistics?.lastDelivery?.trim() || 
+                                   !logistics?.deliverySuccess?.trim();
+            } else {
+              hasMissingLogistics = true; // No logistics data at all
+            }
+          } catch {
+            hasMissingLogistics = true; // Invalid logistics data
+          }
+          
+          // Check supplies data - must have actual supply items with content
+          let hasMissingSupplies = false;
+          try {
+            if (supplier.supplies) {
+              const supplies = JSON.parse(supplier.supplies);
+              if (!Array.isArray(supplies) || supplies.length === 0) {
+                hasMissingSupplies = true; // No supplies data
+              } else {
+                // Check if supplies have meaningful content
+                const hasValidSupplies = supplies.some((supply: any) => 
+                  supply.sku && String(supply.sku).trim() &&
+                  supply.product && String(supply.product).trim() &&
+                  supply.totalSupplied && String(supply.totalSupplied).trim() &&
+                  supply.totalValue && String(supply.totalValue).trim()
+                );
+                hasMissingSupplies = !hasValidSupplies;
+              }
+            } else {
+              hasMissingSupplies = true; // No supplies data at all
+            }
+          } catch {
+            hasMissingSupplies = true; // Invalid supplies data
+          }
+          
+          return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
+        }).length;
+        
+        return missingDataCount > 0 ? (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700 text-sm">
+              ⚠️ <strong>Data Completion:</strong> {missingDataCount} supplier{missingDataCount !== 1 ? 's' : ''} in this view have missing data that could be completed.
+            </p>
+          </div>
+        ) : null;
+      })()}
+
       <div className="overflow-x-auto hidden md:block rounded-lg">
         <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
           <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -371,16 +464,78 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             </tr>
           </thead>
           <tbody className="bg-white">
-            {pagedSuppliers.map((supplier: SupplierTableRow) => (
-              <tr 
-                key={String(supplier.id)} 
-                className={`border-b transition cursor-pointer ${
-                  selectedSuppliers.includes(String(supplier.id)) 
-                    ? 'bg-blue-50' 
-                    : 'hover:bg-gray-50'
-                }`} 
-                onClick={(e) => handleRowClick(String(supplier.id), e)}
-              >
+            {pagedSuppliers.map((supplier: SupplierTableRow) => {
+              // Get the original supplier data to check for missing data
+              const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
+              
+              const hasIncompleteData = originalSupplier ? (() => {
+                // Check all profile fields for missing data (excluding notes and pictures)
+                const basicFields = [
+                  !String(originalSupplier.name).trim(),
+                  !String(originalSupplier.address).trim(),
+                  !String(originalSupplier.businessType).trim(),
+                  !String(originalSupplier.contact).trim(),
+                  !String(originalSupplier.email).trim(),
+                  !String(originalSupplier.phone).trim()
+                ];
+                
+                // Check if any basic fields are missing
+                const hasMissingBasicFields = basicFields.some(field => field);
+                
+                // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
+                let hasMissingLogistics = false;
+                try {
+                  if (originalSupplier.logistics) {
+                    const logistics = JSON.parse(originalSupplier.logistics);
+                    hasMissingLogistics = !logistics?.preferredDays?.trim() || 
+                                         !logistics?.lastDelivery?.trim() || 
+                                         !logistics?.deliverySuccess?.trim();
+                  } else {
+                    hasMissingLogistics = true; // No logistics data at all
+                  }
+                } catch {
+                  hasMissingLogistics = true; // Invalid logistics data
+                }
+                
+                // Check supplies data - must have actual supply items with content
+                let hasMissingSupplies = false;
+                try {
+                  if (originalSupplier.supplies) {
+                    const supplies = JSON.parse(originalSupplier.supplies);
+                    if (!Array.isArray(supplies) || supplies.length === 0) {
+                      hasMissingSupplies = true; // No supplies data
+                    } else {
+                      // Check if supplies have meaningful content
+                      const hasValidSupplies = supplies.some((supply: any) => 
+                        supply.sku && String(supply.sku).trim() &&
+                        supply.product && String(supply.product).trim() &&
+                        supply.totalSupplied && String(supply.totalSupplied).trim() &&
+                        supply.totalValue && String(supply.totalValue).trim()
+                      );
+                      hasMissingSupplies = !hasValidSupplies;
+                    }
+                  } else {
+                    hasMissingSupplies = true; // No supplies data at all
+                  }
+                } catch {
+                  hasMissingSupplies = true; // Invalid supplies data
+                }
+                
+                return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
+              })() : false;
+              
+              return (
+                <tr 
+                  key={String(supplier.id)} 
+                  className={`border-b transition cursor-pointer ${
+                    selectedSuppliers.includes(String(supplier.id)) 
+                      ? 'bg-blue-50' 
+                      : hasIncompleteData
+                      ? 'bg-amber-50' // Highlight incomplete rows with amber background
+                      : 'hover:bg-gray-50'
+                  }`} 
+                  onClick={(e) => handleRowClick(String(supplier.id), e)}
+                >
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={(e) => {
@@ -401,9 +556,27 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   </button>
                 </td>
                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(supplier.supplierId)}</td>
-                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(supplier.name)}</td>
-                <td className="py-3 px-4 text-black">{String(supplier.businessType)}</td>
-                <td className="py-3 px-4 text-black max-w-40 truncate">{String(supplier.address)}</td>
+                                    <td className="max-w-30 py-3 px-4 font-medium text-black truncate">
+                      {String(supplier.name).trim() ? (
+                        String(supplier.name)
+                      ) : (
+                        <span className="text-red-600 font-bold">Missing Name</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-black">
+                      {String(supplier.businessType).trim() ? (
+                        String(supplier.businessType)
+                      ) : (
+                        <span className="text-red-600 font-bold">Missing Business Type</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-black max-w-40 truncate">
+                      {String(supplier.address).trim() ? (
+                        String(supplier.address)
+                      ) : (
+                        <span className="text-red-600 font-bold">Missing Address</span>
+                      )}
+                    </td>
                 <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(supplier.totalPurchases)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
@@ -418,9 +591,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>
                 </td>
-              </tr>
-            ))}
-          </tbody>
+                              </tr>
+              );
+            })}
+            </tbody>
         </table>
       </div>
       {/* Mobile Cards */}
@@ -447,16 +621,78 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         </div>
         
         <div className="flex flex-col gap-4">
-          {pagedSuppliers.map(supplier => (
-            <div 
-              key={String(supplier.id)} 
-              className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
-                selectedSuppliers.includes(String(supplier.id)) 
-                  ? 'bg-blue-50' 
-                  : 'bg-white hover:bg-gray-50'
-              }`}
-              onClick={() => handleSupplierSelect(String(supplier.id))}
-            >
+          {pagedSuppliers.map(supplier => {
+            // Get the original supplier data to check for missing data
+            const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
+            
+            const hasIncompleteData = originalSupplier ? (() => {
+              // Check all profile fields for missing data (excluding notes and pictures)
+              const basicFields = [
+                !String(originalSupplier.name).trim(),
+                !String(originalSupplier.address).trim(),
+                !String(originalSupplier.businessType).trim(),
+                !String(originalSupplier.contact).trim(),
+                !String(originalSupplier.email).trim(),
+                !String(originalSupplier.phone).trim()
+              ];
+              
+              // Check if any basic fields are missing
+              const hasMissingBasicFields = basicFields.some(field => field);
+              
+              // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
+              let hasMissingLogistics = false;
+              try {
+                if (originalSupplier.logistics) {
+                  const logistics = JSON.parse(originalSupplier.logistics);
+                  hasMissingLogistics = !logistics?.preferredDays?.trim() || 
+                                       !logistics?.lastDelivery?.trim() || 
+                                       !logistics?.deliverySuccess?.trim();
+                } else {
+                  hasMissingLogistics = true; // No logistics data at all
+                }
+              } catch {
+                hasMissingLogistics = true; // Invalid logistics data
+              }
+              
+              // Check supplies data - must have actual supply items with content
+              let hasMissingSupplies = false;
+              try {
+                if (originalSupplier.supplies) {
+                  const supplies = JSON.parse(originalSupplier.supplies);
+                  if (!Array.isArray(supplies) || supplies.length === 0) {
+                    hasMissingSupplies = true; // No supplies data
+                  } else {
+                    // Check if supplies have meaningful content
+                    const hasValidSupplies = supplies.some((supply: any) => 
+                      supply.sku && String(supply.sku).trim() &&
+                      supply.product && String(supply.product).trim() &&
+                      supply.totalSupplied && String(supply.totalSupplied).trim() &&
+                      supply.totalValue && String(supply.totalValue).trim()
+                    );
+                    hasMissingSupplies = !hasValidSupplies;
+                  }
+                } else {
+                  hasMissingSupplies = true; // No supplies data at all
+                }
+              } catch {
+                hasMissingSupplies = true; // Invalid supplies data
+              }
+              
+              return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
+            })() : false;
+            
+            return (
+              <div 
+                key={String(supplier.id)} 
+                className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+                  selectedSuppliers.includes(String(supplier.id)) 
+                    ? 'bg-blue-50' 
+                    : hasIncompleteData
+                    ? 'bg-amber-50' // Highlight incomplete cards with amber background
+                    : 'bg-white hover:bg-gray-50'
+                }`}
+                onClick={() => handleSupplierSelect(String(supplier.id))}
+              >
               {/* Checkbox - Top Right Corner */}
               <div className="absolute top-3 right-3 z-10">
                               <button
@@ -479,7 +715,13 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </div>
             <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{supplier.supplierId}</span></div>
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[#0a61d7]">{supplier.name}</span>
+                              <span className="font-bold text-[#0a61d7]">
+                  {String(supplier.name).trim() ? (
+                    supplier.name
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Name</span>
+                  )}
+                </span>
               <div className="flex items-center gap-2">
               <button
                 className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
@@ -489,16 +731,29 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </button>
               </div>
             </div>
-            <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{supplier.businessType}</span></div>
-            <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">{supplier.address}</span></div>
+                            <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">
+                  {String(supplier.businessType).trim() ? (
+                    supplier.businessType
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Business Type</span>
+                  )}
+                </span></div>
+                          <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">
+                {String(supplier.address).trim() ? (
+                  supplier.address
+                ) : (
+                  <span className="text-red-600 font-bold">Missing Address</span>
+                )}
+              </span></div>
             <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
             <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{supplier.totalPurchases}</span></div>
             <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>
             </div>
-          </div>
-        ))}
+            </div>
+            );
+          })}
         </div>
       </div>
       {/* Pagination */}

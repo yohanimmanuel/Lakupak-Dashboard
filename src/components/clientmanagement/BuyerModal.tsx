@@ -592,7 +592,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Last Shipment Date 
+                Last Order Date 
                 <span className="text-xs text-gray-400">(auto from orders)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>

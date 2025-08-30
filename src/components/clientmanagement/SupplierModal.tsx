@@ -47,17 +47,17 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
     
     return {
-      supplierName: initialData.name || '',
-      contact: initialData.contact || '',
-      phone: initialData.phone || '',
-      email: initialData.email || '',
-      businessType: initialData.businessType || '',
-      address: initialData.address || '',
+      supplierName: initialData.name && !initialData.name.includes('Missing') ? initialData.name : '',
+      contact: initialData.contact && !initialData.contact.includes('Missing') ? initialData.contact : '',
+      phone: initialData.phone && !initialData.phone.includes('Missing') ? initialData.phone : '',
+      email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
+      businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
+      address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
       status: initialData.status || statusOptions[0],
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      preferredDays: parsedLogistics.preferredDays || '',
-      lastDelivery: parsedLogistics.lastDelivery || '',
-      deliverySuccess: parsedLogistics.deliverySuccess || '',
+      preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
+      lastDelivery: parsedLogistics.lastDelivery && !parsedLogistics.lastDelivery.includes('Missing') ? parsedLogistics.lastDelivery : '',
+      deliverySuccess: parsedLogistics.deliverySuccess && !parsedLogistics.deliverySuccess.includes('Missing') ? parsedLogistics.deliverySuccess : '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     };
   });

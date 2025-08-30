@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
+import { getSupplierSecurityHeaders, validateSupplierInput, sanitizeSupplierData, generateUniqueSupplierId } from '@/utils/supplier-security';
 
 const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
+  const headers = getSupplierSecurityHeaders();
+  
   try {
     const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const id = req.nextUrl.searchParams.get('id');
     if (id) {
@@ -21,59 +37,164 @@ export async function GET(req: NextRequest) {
         });
       }
       
-      if (!supplier) return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
-      return NextResponse.json(supplier);
+      if (!supplier) {
+        return NextResponse.json(
+          { error: 'Supplier not found' }, 
+          { status: 404, headers }
+        );
+      }
+      return NextResponse.json(supplier, { headers });
     }
     
     const suppliers = await prisma.supplier.findMany({
       where: { userId: Number(userId) }
     });
-    return NextResponse.json(suppliers);
-      } catch (err) {
-      // GET /api/suppliers error
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
+    return NextResponse.json(suppliers, { headers });
+    
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500, headers }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
+  const headers = getSupplierSecurityHeaders();
+  
   try {
-    let data = await req.json();
-    if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const data = await req.json();
     
-    // Clean and validate the data to match Prisma schema
+    if (!data.userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(String(data.userId))) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Sanitize and prepare supplier data
     const supplierData = {
-      supplierId: String(data.supplierId),
-      name: String(data.name),
-      contact: String(data.contact),
-      email: String(data.email),
-      phone: String(data.phone),
-      businessType: String(data.businessType),
-      address: String(data.address),
-      status: String(data.status),
-      logistics: data.logistics ? String(data.logistics) : null,
-      notes: data.notes ? String(data.notes) : null,
-      supplies: data.supplies ? String(data.supplies) : null,
+      supplierId: data.supplierId || '',
+      name: data.name || '',
+      contact: data.contact || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      businessType: data.businessType || '',
+      address: data.address || '',
+      status: data.status || 'Active',
+      logistics: data.logistics || null,
+      notes: data.notes || null,
+      supplies: data.supplies || null,
       userId: Number(data.userId)
     };
+    
+    // Only check for unique supplierId - allow duplicate emails, names, etc. for MVP flexibility
+    if (supplierData.supplierId) {
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: { 
+          supplierId: supplierData.supplierId, 
+          userId: Number(data.userId) 
+        }
+      });
+      
+      if (existingSupplier) {
+        return NextResponse.json(
+          { error: 'Supplier with this ID already exists' }, 
+          { status: 409, headers }
+        );
+      }
+    }
+    
+    // Generate unique supplierId if not provided - ensure uniqueness
+    if (!supplierData.supplierId) {
+      let attempts = 0;
+      let newSupplierId;
+      do {
+        newSupplierId = generateUniqueSupplierId();
+        attempts++;
+        if (attempts > 10) {
+          return NextResponse.json(
+            { error: 'Unable to generate unique supplier ID' }, 
+            { status: 500, headers }
+          );
+        }
+      } while (await prisma.supplier.findFirst({
+        where: { supplierId: newSupplierId, userId: Number(data.userId) }
+      }));
+      supplierData.supplierId = newSupplierId;
+    }
     
     const supplier = await prisma.supplier.create({
       data: supplierData
     });
     
-    return NextResponse.json(supplier, { status: 201 });
-      } catch (err) {
-      // POST /api/suppliers error
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(supplier, { 
+      status: 201, 
+      headers: {
+        ...headers,
+        'Location': `/api/suppliers/${supplier.id}`
+      }
+    });
+    
+  } catch (error: any) {
+    // Handle Prisma-specific errors
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Supplier with this ID already exists' }, 
+        { status: 409, headers }
+      );
     }
+    
+    // Provide more specific error messages
+    if (error?.message) {
+      return NextResponse.json(
+        { error: error.message }, 
+        { status: 400, headers }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500, headers }
+    );
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  const headers = getSupplierSecurityHeaders();
+  
   try {
     const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const id = req.nextUrl.searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Missing id parameter' }, 
+        { status: 400, headers }
+      );
+    }
     
     let deleted;
     if (/^\d+$/.test(id)) {
@@ -82,7 +203,10 @@ export async function DELETE(req: NextRequest) {
       });
       
       if (!deleted) {
-        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Supplier not found' }, 
+          { status: 404, headers }
+        );
       }
       
       await prisma.supplier.delete({
@@ -94,7 +218,10 @@ export async function DELETE(req: NextRequest) {
       });
       
       if (!deleted) {
-        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Supplier not found' }, 
+          { status: 404, headers }
+        );
       }
       
       await prisma.supplier.delete({
@@ -102,18 +229,36 @@ export async function DELETE(req: NextRequest) {
       });
     }
     
-    // DELETE Supplier
-    return NextResponse.json({ success: true, deleted });
-      } catch (err) {
-      // DELETE /api/suppliers error
-      return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, deleted }, { headers });
+    
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Failed to delete supplier' }, 
+      { status: 500, headers }
+    );
+  }
 }
 
 export async function PUT(req: NextRequest) {
+  const headers = getSupplierSecurityHeaders();
+  
   try {
-    let data = await req.json();
-    if (!data.userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const data = await req.json();
+    
+    if (!data.userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate userId format
+    if (!/^\d+$/.test(String(data.userId))) {
+      return NextResponse.json(
+        { error: 'Invalid userId format' }, 
+        { status: 400, headers }
+      );
+    }
     
     const { id, supplierId, userId, ...updateData } = data;
     const userIdNum = Number(userId);
@@ -131,6 +276,7 @@ export async function PUT(req: NextRequest) {
       notes: string | null;
       supplies: string | null;
     }> = {};
+    
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
     if (updateData.contact !== undefined) cleanUpdateData.contact = String(updateData.contact);
     if (updateData.email !== undefined) cleanUpdateData.email = String(updateData.email);
@@ -151,10 +297,13 @@ export async function PUT(req: NextRequest) {
     } else if (supplierId) {
       supplier = await prisma.supplier.update({
         where: { supplierId: supplierId },
-        data: cleanUpdateData
-      });
+        data: cleanUpdateData }
+      );
     } else {
-      return NextResponse.json({ error: 'Missing id or supplierId' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing id or supplierId' }, 
+        { status: 400, headers }
+      );
     }
     
     // Ensure we always return the supplierId for proper routing
@@ -163,10 +312,12 @@ export async function PUT(req: NextRequest) {
       supplierId: supplier.supplierId || supplierId
     };
     
-          return NextResponse.json(responseData);
-      } catch (err) {
-      // PUT /api/suppliers error
-      // Error updating supplier
-      return NextResponse.json({ error: 'Failed to update supplier', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
-    }
+    return NextResponse.json(responseData, { headers });
+    
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Failed to update supplier' }, 
+      { status: 500, headers }
+    );
+  }
 }

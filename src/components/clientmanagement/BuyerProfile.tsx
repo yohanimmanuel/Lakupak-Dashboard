@@ -160,6 +160,129 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
           </button>
         </div>
       </div>
+      
+      {/* Data Completion Progress */}
+      {(() => {
+        // Check all profile fields for missing data (excluding notes and pictures)
+        const basicFields = [
+          { name: 'Store Name', value: buyer.storeName && buyer.storeName.trim() },
+          { name: 'Owner', value: buyer.owner && buyer.owner.trim() },
+          { name: 'Address', value: buyer.address && buyer.address.trim() },
+          { name: 'Business Type', value: buyer.businessType && buyer.businessType.trim() },
+          { name: 'Email', value: buyer.email && buyer.email.trim() },
+          { name: 'Phone', value: buyer.phone && buyer.phone.trim() }
+        ];
+        
+        // Check logistics fields
+        const logisticsFields = [];
+        try {
+          if (buyer.logistics) {
+            const logistics = JSON.parse(buyer.logistics);
+            
+            // Calculate if there's a valid last order date from order details
+            let hasValidLastOrderDate = false;
+            if (orderDetails && orderDetails.length > 0) {
+              const validDates = orderDetails
+                .map((order: OrderDetail) => order.lastOrderDate)
+                .filter((date: string) => date && String(date).trim());
+              hasValidLastOrderDate = validDates.length > 0;
+            }
+            
+            logisticsFields.push(
+              { name: 'Preferred Days', value: logistics?.preferredDays?.trim() },
+              { name: 'Last Order Date', value: hasValidLastOrderDate },
+              { name: 'Shipment Success', value: logistics?.shipmentSuccess?.trim() }
+            );
+          } else {
+            // Calculate if there's a valid last order date from order details
+            let hasValidLastOrderDate = false;
+            if (orderDetails && orderDetails.length > 0) {
+              const validDates = orderDetails
+                .map((order: OrderDetail) => order.lastOrderDate)
+                .filter((date: string) => date && String(date).trim());
+              hasValidLastOrderDate = validDates.length > 0;
+            }
+            
+            logisticsFields.push(
+              { name: 'Preferred Days', value: false },
+              { name: 'Last Order Date', value: hasValidLastOrderDate },
+              { name: 'Shipment Success', value: false }
+            );
+          }
+        } catch {
+          // Calculate if there's a valid last order date from order details
+          let hasValidLastOrderDate = false;
+          if (orderDetails && orderDetails.length > 0) {
+            const validDates = orderDetails
+              .map((order: OrderDetail) => order.lastOrderDate)
+              .filter((date: string) => date && String(date).trim());
+            hasValidLastOrderDate = validDates.length > 0;
+          }
+          
+          logisticsFields.push(
+            { name: 'Preferred Days', value: false },
+            { name: 'Last Order Date', value: hasValidLastOrderDate },
+            { name: 'Shipment Success', value: false }
+          );
+        }
+        
+        // Check order details - must have actual order items with content
+        const orderFields = [];
+        try {
+          if (buyer.orderDetails) {
+            const orderDetails = JSON.parse(buyer.orderDetails);
+            if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
+              orderFields.push({ name: 'Order Details', value: false });
+            } else {
+              // Check if orders have meaningful content
+              const hasValidOrders = orderDetails.some((order: OrderDetail) => 
+                order.product && String(order.product).trim() &&
+                order.totalOrders && String(order.totalOrders).trim() &&
+                order.totalSpend && String(order.totalSpend).trim()
+              );
+              orderFields.push({ name: 'Order Details', value: hasValidOrders });
+            }
+          } else {
+            orderFields.push({ name: 'Order Details', value: false });
+          }
+        } catch {
+          orderFields.push({ name: 'Order Details', value: false });
+        }
+        
+        const allFields = [...basicFields, ...logisticsFields, ...orderFields];
+        const completedFields = allFields.filter(field => field.value).length;
+        const totalFields = allFields.length;
+        const completionPercentage = Math.round((completedFields / totalFields) * 100);
+        const missingFields = allFields.filter(field => !field.value);
+        
+        return (
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+              <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
+                {completionPercentage}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  completionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'
+                }`}
+                style={{ width: `${completionPercentage}%` }}
+              ></div>
+            </div>
+            <div className="text-xs text-gray-600">
+              {completedFields} of {totalFields} fields completed
+              {missingFields.length > 0 && (
+                <span className="ml-2 text-amber-700">
+                  • Missing: {missingFields.map(field => field.name).join(', ')}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+      
       {/* Top Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Avatar & Owner */}
@@ -227,9 +350,24 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Last Shipment:</span>
+              <span className="text-gray-500">Last Order Date:</span>
               <span className="font-semibold text-black">
-                {logistics?.lastShipment && logistics.lastShipment.trim() ? logistics.lastShipment : <span className="text-red-600 font-bold">Missing Last Shipment</span>}
+                {(() => {
+                  // Calculate the most recent order date from order details
+                  if (orderDetails && orderDetails.length > 0) {
+                    const validDates = orderDetails
+                      .map((order: OrderDetail) => order.lastOrderDate)
+                      .filter((date: string) => date && String(date).trim())
+                      .map((date: string) => new Date(date))
+                      .filter((date: Date) => !isNaN(date.getTime()));
+                    
+                    if (validDates.length > 0) {
+                      const mostRecentDate = new Date(Math.max(...validDates.map((d: Date) => d.getTime())));
+                      return mostRecentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                    }
+                  }
+                  return <span className="text-red-600 font-bold">Missing Last Order Date</span>;
+                })()}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
