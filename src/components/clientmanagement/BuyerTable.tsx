@@ -522,6 +522,23 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </div>
       )}
 
+      {/* Missing Data Indicator - Only show when there's missing data */}
+      {(() => {
+        const missingDataCount = pagedBuyers.filter(buyer => 
+          !String(buyer.name).trim() || 
+          !String(buyer.address).trim() || 
+          !String(buyer.businessType).trim()
+        ).length;
+        
+        return missingDataCount > 0 ? (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700 text-sm">
+              ⚠️ <strong>Data Completion:</strong> {missingDataCount} buyer{missingDataCount !== 1 ? 's' : ''} in this view have missing data that could be completed.
+            </p>
+          </div>
+        ) : null;
+      })()}
+
       {/* Enhanced Desktop Table */}
       <div className="overflow-x-auto hidden md:block rounded-lg">
         <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
@@ -584,10 +601,28 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     )}
                   </button>
                 </td>
-                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(buyer.buyerId)}</td>
-                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(buyer.name)}</td>
-                <td className="py-3 px-4 text-black max-w-40 truncate">{String(buyer.address)}</td>
-                <td className="py-3 px-4 text-black">{String(buyer.businessType)}</td>
+                <td className="max-w-25 py-3 px-4 font-medium text-black truncate">{String(buyer.buyerId)}</td>
+                <td className="max-w-30 py-3 px-4 font-medium text-black truncate">
+                  {String(buyer.name).trim() ? (
+                    String(buyer.name)
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Name</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-black max-w-35 truncate">
+                  {String(buyer.address).trim() ? (
+                    String(buyer.address)
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Address</span>
+                  )}
+                </td>
+                <td className="max-w-25 py-3 px-4 text-black truncate">
+                  {String(buyer.businessType).trim() ? (
+                    String(buyer.businessType)
+                  ) : (
+                    <span className="text-red-600 font-bold">Missing Business Type</span>
+                  )}
+                </td>
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(buyer.totalSpend)}</td>
                 <td className="py-3 px-4 text-[#f65911] font-semibold">{String(buyer.outstanding)}</td>
@@ -671,7 +706,13 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               
               <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
               <div className="flex items-center justify-between">
-                <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
+                <span className={`font-bold ${String(buyer.name).trim() ? 'text-[#0a61d7]' : 'text-red-600'}`}>
+                  {String(buyer.name).trim() ? (
+                    buyer.name
+                  ) : (
+                    <span className="font-bold">Missing Name</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-2">
                   <button
                     className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -682,8 +723,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   </button>
                 </div>
               </div>
-              <div className="text-xs text-gray-500">Address: <span className="text-black font-medium w-30 truncate">{buyer.address}</span></div>
-              <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{buyer.businessType}</span></div>
+              <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
+              <div className="text-xs text-gray-500">Business Type: <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : 'Missing Business Type'}</span></div>
               <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
               <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
               <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>

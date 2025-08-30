@@ -43,17 +43,17 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
     
     return {
-      storeName: initialData.storeName || '',
-      owner: initialData.owner || '',
-      phone: initialData.phone || '',
-      email: initialData.email || '',
-      address: initialData.address || '',
-      businessType: initialData.businessType || '',
+      storeName: initialData.storeName && !initialData.storeName.includes('Missing') ? initialData.storeName : '',
+      owner: initialData.owner && !initialData.owner.includes('Missing') ? initialData.owner : '',
+      phone: initialData.phone && !initialData.phone.includes('Missing') ? initialData.phone : '',
+      email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
+      address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
+      businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
       status: initialData.status || statusOptions[0],
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      preferredDays: parsedLogistics.preferredDays || '',
-      lastShipment: parsedLogistics.lastShipment || '',
-      shipmentSuccess: parsedLogistics.shipmentSuccess || '',
+      preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
+      lastShipment: parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : '',
+      shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     };
   });
@@ -107,38 +107,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   }, [orderRows, form.lastShipment, getLatestOrderDate]);
 
   // Enhanced form validation
+  // Client-side validation - no required fields
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
     
-    if (!form.storeName.trim()) {
-      errors.storeName = 'Store name is required';
-    }
-    
-    if (!form.owner.trim()) {
-      errors.owner = 'Owner name is required';
-    }
-    
-    if (!form.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      errors.email = 'Please enter a valid email address';
-    }
-    
-    if (!form.phone.trim()) {
-      errors.phone = 'Phone number is required';
-    }
-    
-    if (!form.businessType.trim()) {
-      errors.businessType = 'Business type is required';
-    }
-    
-    if (!form.address.trim()) {
-      errors.address = 'Address is required';
-    }
-    
+    // No validation - all fields are optional
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [form]);
+    return true;
+  }, []);
 
   // Enhanced error handling
   const handleError = useCallback((message: string) => {
@@ -174,11 +150,6 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
-    if (!validateForm()) {
-      handleError('Please fix the validation errors before submitting');
-      return;
-    }
     
     if (isSubmitting) return;
     
@@ -292,18 +263,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       
       const latestOrderDate = getLatestOrderDate(orderDetails);
       
-      setForm({
-        storeName: initialData.storeName || '',
-        owner: initialData.owner || '',
-        phone: initialData.phone || '',
-        email: initialData.email || '',
-        address: initialData.address || '',
-        businessType: initialData.businessType || '',
+              setForm({
+          storeName: initialData.storeName && !initialData.storeName.includes('Missing') ? initialData.storeName : '',
+          owner: initialData.owner && !initialData.owner.includes('Missing') ? initialData.owner : '',
+          phone: initialData.phone && !initialData.phone.includes('Missing') ? initialData.phone : '',
+          email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
+          address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
+          businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
         status: initialData.status || statusOptions[0],
         createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        preferredDays: parsedLogistics.preferredDays || '',
-        lastShipment: latestOrderDate || parsedLogistics.lastShipment || '',
-        shipmentSuccess: parsedLogistics.shipmentSuccess || '',
+                  preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
+          lastShipment: latestOrderDate || (parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : ''),
+          shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
         notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
       });
       setId(initialData.buyerId || generateSecureBuyerId());
@@ -417,40 +388,24 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Store Name
-                <span className="text-red-500 ml-1">*</span>
               </label>
               <input 
                 type="text" 
-                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                  validationErrors.storeName ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-                }`}
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 value={form.storeName} 
                 onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
-                aria-invalid={!!validationErrors.storeName}
-                aria-describedby={validationErrors.storeName ? 'storeName-error' : undefined}
               />
-              {validationErrors.storeName && (
-                <p id="storeName-error" className="text-red-500 text-xs mt-1">{validationErrors.storeName}</p>
-              )}
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Owner Name
-                <span className="text-red-500 ml-1">*</span>
               </label>
               <input 
                 type="text" 
-                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                  validationErrors.owner ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-                }`}
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 value={form.owner} 
                 onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
-                aria-invalid={!!validationErrors.owner}
-                aria-describedby={validationErrors.owner ? 'owner-error' : undefined}
               />
-              {validationErrors.owner && (
-                <p id="owner-error" className="text-red-500 text-xs mt-1">{validationErrors.owner}</p>
-              )}
             </div>
           </div>
           
@@ -459,40 +414,24 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Phone
-                <span className="text-red-500 ml-1">*</span>
               </label>
               <input 
                 type="tel" 
-                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                  validationErrors.phone ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-                }`}
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 value={form.phone} 
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                aria-invalid={!!validationErrors.phone}
-                aria-describedby={validationErrors.phone ? 'phone-error' : undefined}
               />
-              {validationErrors.phone && (
-                <p id="phone-error" className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>
-              )}
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Email
-                <span className="text-red-500 ml-1">*</span>
               </label>
               <input 
                 type="email" 
-                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                  validationErrors.email ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-                }`}
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 value={form.email} 
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                aria-invalid={!!validationErrors.email}
-                aria-describedby={validationErrors.email ? 'email-error' : undefined}
               />
-              {validationErrors.email && (
-                <p id="email-error" className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
-              )}
             </div>
           </div>
           
@@ -501,21 +440,13 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Business Type
-                <span className="text-red-500 ml-1">*</span>
               </label>
               <input 
                 type="text" 
-                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                  validationErrors.businessType ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-                }`}
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 value={form.businessType} 
                 onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))}
-                aria-invalid={!!validationErrors.businessType}
-                aria-describedby={validationErrors.businessType ? 'businessType-error' : undefined}
               />
-              {validationErrors.businessType && (
-                <p id="businessType-error" className="text-red-500 text-xs mt-1">{validationErrors.businessType}</p>
-              )}
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
@@ -533,21 +464,13 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Address
-              <span className="text-red-500 ml-1">*</span>
             </label>
             <textarea 
-              className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
-                validationErrors.address ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
-              }`}
+              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               value={form.address} 
               onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               rows={3}
-              aria-invalid={!!validationErrors.address}
-              aria-describedby={validationErrors.address ? 'address-error' : undefined}
             />
-            {validationErrors.address && (
-              <p id="address-error" className="text-red-500 text-xs mt-1">{validationErrors.address}</p>
-            )}
           </div>
           
           {/* Order & Product Details Table */}

@@ -157,16 +157,17 @@ export async function POST(req: NextRequest) {
     // Sanitize and clean the data
     const buyerData = sanitizeBuyerData(data);
     
-    // Provide defaults for required fields that are missing (for flexible imports)
+    // Use data provided by user - store blank values, frontend will display "Missing"
     const finalBuyerData = {
       ...buyerData,
       userId: Number(data.userId), // Ensure userId is included
-      storeName: buyerData.storeName || 'Imported Store',
-      owner: buyerData.owner || 'Imported Owner',
-      email: buyerData.email || `imported-${Date.now()}@example.com`,
-      phone: buyerData.phone || '000000000',
-      businessType: buyerData.businessType || 'General',
-      address: buyerData.address || 'Imported Address',
+      // Store blank values, frontend will show "Missing" when displaying
+      storeName: buyerData.storeName || '',
+      owner: buyerData.owner || '',
+      email: buyerData.email || '',
+      phone: buyerData.phone || '',
+      businessType: buyerData.businessType || '',
+      address: buyerData.address || '',
       status: buyerData.status || 'Active',
     };
     

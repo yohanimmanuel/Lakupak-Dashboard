@@ -273,7 +273,7 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
             <div className="mb-2 font-semibold text-black">Map your columns to the fields (all fields are optional):</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 text-sm">
-                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will use default values. 
+                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will remain blank. 
                 Import whatever data you have available!
               </p>
             </div>

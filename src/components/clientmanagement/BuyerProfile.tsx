@@ -171,14 +171,16 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
               <User className="w-10 h-10 text-gray-400" />
             )}
           </div>
-          <div className="text-lg font-bold text-black mt-2">{buyer.owner}</div>
+          <div className="text-lg font-bold text-black mt-2">
+            {buyer.owner && buyer.owner.trim() ? buyer.owner : <span className="text-red-600 font-bold">Missing Owner Name</span>}
+          </div>
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <Mail className="w-4 h-4" />
-            <span>{buyer.email}</span>
+            <span>{buyer.email && buyer.email.trim() ? buyer.email : <span className="text-red-600 font-bold">Missing Email</span>}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
             <Phone className="w-3 h-3" />
-            <span>{buyer.phone}</span>
+            <span>{buyer.phone && buyer.phone.trim() ? buyer.phone : <span className="text-red-600 font-bold">Missing Phone</span>}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
             <span className="font-medium text-gray-500">ID: {buyer.buyerId}</span>
@@ -190,15 +192,21 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
             <div className="flex flex-col gap-4 mt-4">
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Store className="w-4 h-5" />
-                <span className="font-semibold text-black text-sm">{buyer.storeName}</span>
+                <span className="font-semibold text-black text-sm">
+                  {buyer.storeName && buyer.storeName.trim() ? buyer.storeName : <span className="text-red-600 font-bold">Missing Store Name</span>}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Tag className="w-4 h-4" />
-                <span className="font-medium text-black">{buyer.businessType}</span>
+                <span className="font-medium text-black">
+                  {buyer.businessType && buyer.businessType.trim() ? buyer.businessType : <span className="text-red-600 font-bold">Missing Business Type</span>}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <MapPin className="w-4 h-4" />
-                <span className="font-medium text-black">{buyer.address}</span>
+                <span className="font-medium text-black">
+                  {buyer.address && buyer.address.trim() ? buyer.address : <span className="text-red-600 font-bold">Missing Address</span>}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Calendar className="w-4 h-4" />
@@ -213,17 +221,23 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Preferred Days:</span>
-              <span className="font-semibold text-black">{logistics?.preferredDays || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">Missing Preferred Days</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Last Shipment:</span>
-              <span className="font-semibold text-black">{logistics?.lastShipment || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.lastShipment && logistics.lastShipment.trim() ? logistics.lastShipment : <span className="text-red-600 font-bold">Missing Last Shipment</span>}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
               <span className="text-gray-500">Shipment Success:</span>
-              <span className="font-semibold text-black">{logistics?.shipmentSuccess || ''}</span>
+              <span className="font-semibold text-black">
+                {logistics?.shipmentSuccess && logistics.shipmentSuccess.trim() ? logistics.shipmentSuccess : <span className="text-red-600 font-bold">Missing Shipment Success</span>}
+              </span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
               <span className="text-gray-500">Status:</span>
