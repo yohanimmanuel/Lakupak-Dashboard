@@ -13,7 +13,7 @@ const usePerformanceTracking = () => {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (navigation) {
           const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-          console.log(`Features page load time: ${loadTime}ms`);
+          // Features page load time tracked
           
           if (window.gtag) {
             window.gtag('event', 'page_load_time', {
@@ -44,7 +44,7 @@ const trackConversion = (action: string, label?: string) => {
   }
   
   if (process.env.NODE_ENV === 'development') {
-    console.log(`Features page conversion tracked: ${action}`, label);
+    // Features page conversion tracked
   }
 };
 
@@ -54,7 +54,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const handleError = (error: ErrorEvent) => {
-      console.error('Features page error:', error);
+      // Features page error logged
       setHasError(true);
       
       if (window.gtag) {
@@ -104,11 +104,11 @@ export default function FeaturesPage() {
     
     // Lazy load heavy sections
     lazyLoadSection('distributor-features', () => {
-      console.log('Distributor features section loaded');
+      // Distributor features section loaded
     });
     
     lazyLoadSection('retailer-features', () => {
-      console.log('Retailer features section loaded');
+      // Retailer features section loaded
     });
     
     return cleanup;

@@ -10,7 +10,7 @@ export const usePagePerformanceTracking = (pageName: string) => {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (navigation) {
           const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-          console.log(`${pageName} page load time: ${loadTime}ms`);
+          // Page load time tracked
           
           if (window.gtag) {
             window.gtag('event', 'page_load_time', {
@@ -48,7 +48,7 @@ export const createTrackConversion = (pageName: string) => {
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`${pageName} page conversion tracked: ${action}`, label);
+      // Conversion tracked
     }
   };
 };
@@ -60,7 +60,7 @@ export const createErrorBoundary = (pageName: string) => {
 
     useEffect(() => {
       const handleError = (error: ErrorEvent) => {
-        console.error(`${pageName} page error:`, error);
+        // Error logged
         setHasError(true);
         
         if (window.gtag) {

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     );
     
   } catch (error) {
-    console.error('Forgot password error:', error);
+    // Forgot password error occurred
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }

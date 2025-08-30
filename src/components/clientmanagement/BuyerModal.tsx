@@ -1,16 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { Trash, User, Upload, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Trash, User, Upload, X, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
+import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-security';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
-
-function generateBuyerId() {
-  return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
-}
 
 export default function BuyerModal({ open, onClose, onSave, initialData, mode }: {
   open: boolean;
@@ -22,16 +18,17 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const router = useRouter();
   const user = useUserStore(state => state.user);
   
-  // Helper function to safely parse JSON strings
-  const safeParseJSON = (jsonStr: string, fallback: unknown) => {
+  // Helper function to safely parse JSON strings (moved to top to fix initialization error)
+  const safeParseJSON = useCallback((jsonStr: string, fallback: unknown) => {
     if (!jsonStr) return fallback;
     try {
       return JSON.parse(jsonStr);
     } catch {
       return fallback;
     }
-  };
-  
+  }, []);
+
+  // Enhanced state management
   const [form, setForm] = useState(() => {
     if (!initialData) {
       return {
@@ -61,7 +58,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     };
   });
   
-  const [id, setId] = useState(() => initialData?.id || generateBuyerId());
+  const [id, setId] = useState(() => initialData?.id || generateSecureBuyerId());
   const [orderRows, setOrderRows] = useState<OrderDetail[]>(
     initialData?.orderDetails ? (() => {
       try {
@@ -80,34 +77,203 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
   );
 
+  // Enhanced state for production features
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [avatar, setAvatar] = useState(initialData?.avatar || '');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
   // Function to get the latest order date
-  const getLatestOrderDate = (rows: OrderDetail[]) => {
+  const getLatestOrderDate = useCallback((rows: OrderDetail[]) => {
     if (!rows || rows.length === 0) return '';
     const dates = rows
       .map(row => row.lastOrderDate)
       .filter(date => date && date.trim() !== '')
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     return dates.length > 0 ? dates[0] : '';
-  };
+  }, []);
 
   // Update lastShipment when orderRows change
-  React.useEffect(() => {
+  useEffect(() => {
     const latestDate = getLatestOrderDate(orderRows);
     if (latestDate && latestDate !== form.lastShipment) {
       setForm(prev => ({ ...prev, lastShipment: latestDate }));
     }
-  }, [orderRows, form.lastShipment]);
-  const handleOrderChange = (idx: number, field: keyof OrderDetail, value: string) => {
-    setOrderRows((rows: OrderDetail[]) => rows.map((row: OrderDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
-  };
-  const addOrderRow = () => setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]);
-  const deleteOrderRow = (idx: number) => setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [redirecting, setRedirecting] = useState(false);
-  const [avatar, setAvatar] = useState(initialData?.avatar || '');
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  }, [orderRows, form.lastShipment, getLatestOrderDate]);
 
+  // Enhanced form validation
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
+    
+    if (!form.storeName.trim()) {
+      errors.storeName = 'Store name is required';
+    }
+    
+    if (!form.owner.trim()) {
+      errors.owner = 'Owner name is required';
+    }
+    
+    if (!form.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!form.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    }
+    
+    if (!form.businessType.trim()) {
+      errors.businessType = 'Business type is required';
+    }
+    
+    if (!form.address.trim()) {
+      errors.address = 'Address is required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [form]);
+
+  // Enhanced error handling
+  const handleError = useCallback((message: string) => {
+    setError(message);
+    setSuccess('');
+    // Auto-hide error after 5 seconds
+    setTimeout(() => setError(''), 5000);
+  }, []);
+
+  // Enhanced success handling
+  const handleSuccess = useCallback((message: string) => {
+    setSuccess(message);
+    setError('');
+    // Auto-hide success after 3 seconds
+    setTimeout(() => setSuccess(''), 3000);
+  }, []);
+
+  // Enhanced order row management
+  const handleOrderChange = useCallback((idx: number, field: keyof OrderDetail, value: string) => {
+    setOrderRows((rows: OrderDetail[]) => rows.map((row: OrderDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
+  }, []);
+
+  const addOrderRow = useCallback(() => {
+    setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]);
+  }, []);
+
+  const deleteOrderRow = useCallback((idx: number) => {
+    if (orderRows.length > 1) {
+      setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
+    }
+  }, [orderRows.length]);
+
+  // Enhanced form submission
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    if (!validateForm()) {
+      handleError('Please fix the validation errors before submitting');
+      return;
+    }
+    
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const isEdit = mode === 'edit';
+      const payload = {
+        ...form,
+        avatar,
+        buyerId: id,
+        orderDetails: JSON.stringify(orderRows),
+        notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim()).filter(Boolean)),
+        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
+        logistics: JSON.stringify({
+          preferredDays: form.preferredDays || '',
+          lastShipment: form.lastShipment || '',
+          shipmentSuccess: form.shipmentSuccess || ''
+        }),
+        userId: user?.id,
+      };
+      
+      if (isEdit && initialData && typeof initialData.id === 'number') {
+        (payload as any).id = initialData.id;
+      }
+      
+      delete payload.preferredDays;
+      delete payload.lastShipment;
+      delete payload.shipmentSuccess;
+      
+      const method = isEdit ? 'PUT' : 'POST';
+      const res = await fetch('/api/buyers', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save buyer');
+      }
+      
+      const savedBuyer = await res.json();
+      onSave(savedBuyer);
+      
+      if (isEdit) {
+        const routeId = savedBuyer.buyerId || payload.buyerId;
+        handleSuccess('Buyer updated successfully!');
+        // Close modal first
+        onClose();
+        // Redirect to profile page
+        router.push(`/clients/buyers/details/${routeId}`);
+        // Force page reload to show updated data
+        setTimeout(() => window.location.reload(), 100);
+      } else {
+        handleSuccess('Buyer created successfully!');
+        onClose();
+      }
+    } catch (err: any) {
+      handleError(err.message || 'Failed to save buyer');
+    } finally {
+      setSaving(false);
+      setIsSubmitting(false);
+    }
+  }, [form, avatar, id, orderRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess]);
+
+  // Enhanced file handling
+  const handleFileUpload = useCallback((file: File) => {
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      handleError('File size must be less than 5MB');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      handleError('Please select an image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatar(ev.target?.result as string);
+    reader.onerror = () => handleError('Failed to read image file');
+    reader.readAsDataURL(file);
+  }, [handleError]);
+
+  // Enhanced accessibility
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  }, [onClose]);
+
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (open && mode === 'edit' && initialData) {
       // Parse JSON strings from database
@@ -140,7 +306,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         shipmentSuccess: parsedLogistics.shipmentSuccess || '',
         notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
       });
-      setId(initialData.buyerId || generateBuyerId());
+      setId(initialData.buyerId || generateSecureBuyerId());
       setOrderRows(
         orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
           orderNo: row.orderNo || '',
@@ -152,86 +318,57 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
       );
       setAvatar(initialData.avatar || '');
+      setValidationErrors({});
+      setError('');
+      setSuccess('');
     }
-  }, [open, mode, initialData]);
+  }, [open, mode, initialData, safeParseJSON, getLatestOrderDate]);
 
   if (!open) return null;
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      const isEdit = mode === 'edit';
-      const payload = {
-        ...form,
-        avatar,
-        buyerId: id,
-        orderDetails: JSON.stringify(orderRows),
-        notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
-        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
-        logistics: JSON.stringify({
-          preferredDays: form.preferredDays || '',
-          lastShipment: form.lastShipment || '',
-          shipmentSuccess: form.shipmentSuccess || ''
-        }),
-        userId: user?.id,
-      };
-      if (isEdit && initialData && typeof initialData.id === 'number') {
-        (payload as any).id = initialData.id;
-      }
-      delete payload.preferredDays;
-      delete payload.lastShipment;
-      delete payload.shipmentSuccess;
-      
-      // Debug: Log the payload being sent
-      console.log('Buyer payload being sent:', payload);
-      
-      const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch('/api/buyers', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save');
-      }
-      
-      const savedBuyer = await res.json();
-      onSave(savedBuyer);
-      
-      if (isEdit) {
-        const routeId = savedBuyer.buyerId || payload.buyerId;
-        // Close modal first
-        onClose();
-        // Redirect to profile page
-        router.push(`/clients/buyers/details/${routeId}`);
-        // Force page reload to show updated data
-        setTimeout(() => window.location.reload(), 100);
-      } else {
-        onClose();
-      }
-    } catch (err) {
-      setError('Failed to save buyer');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="buyer-modal-title"
+    >
+      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative max-h-[90vh] overflow-hidden">
         <button
           type="button"
-          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200 text-gray-500"
+          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Buyer' : 'Add Buyer'}</h2>
-        <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
+        
+        <h2 id="buyer-modal-title" className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">
+          {mode === 'edit' ? 'Edit Buyer' : 'Add Buyer'}
+        </h2>
+        
+        {/* Enhanced Error/Success Messages */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <span className="text-green-700 text-sm">{success}</span>
+          </div>
+        )}
+        
+        <form 
+          ref={formRef}
+          className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar"
+          onSubmit={handleSubmit}
+        >
+          {/* Avatar Section */}
           <div className="flex flex-col items-left mb-4">
             <div className="flex items-center gap-3">
               <div className="w-18 h-18 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden mb-2">
@@ -243,7 +380,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               </div>
               <button
                 type="button"
-                className="ml-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] flex items-center gap-1"
+                className="ml-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] flex items-center gap-1 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="w-4 h-4" /> Upload Photo
@@ -255,55 +392,164 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 className="hidden"
                 onChange={e => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = ev => setAvatar(ev.target?.result as string);
-                    reader.readAsDataURL(file);
-                  }
+                  if (file) handleFileUpload(file);
                 }}
               />
             </div>
           </div>
+          
+          {/* ID Field */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id} onChange={e => setId(e.target.value)} required disabled />
+            <input 
+              type="text" 
+              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" 
+              value={id} 
+              onChange={e => setId(e.target.value)} 
+              disabled 
+              aria-describedby="id-description"
+            />
+            <p id="id-description" className="text-xs text-gray-500 mt-1">Auto-generated unique identifier</p>
           </div>
+          
+          {/* Store Name and Owner */}
           <div className="flex gap-2">
             <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Store Name</label>
-                <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.storeName} onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Store Name
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input 
+                type="text" 
+                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                  validationErrors.storeName ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                value={form.storeName} 
+                onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
+                aria-invalid={!!validationErrors.storeName}
+                aria-describedby={validationErrors.storeName ? 'storeName-error' : undefined}
+              />
+              {validationErrors.storeName && (
+                <p id="storeName-error" className="text-red-500 text-xs mt-1">{validationErrors.storeName}</p>
+              )}
             </div>
             <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Owner Name</label>
-                <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.owner} onChange={e => setForm(f => ({ ...f, owner: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Owner Name
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input 
+                type="text" 
+                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                  validationErrors.owner ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                value={form.owner} 
+                onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
+                aria-invalid={!!validationErrors.owner}
+                aria-describedby={validationErrors.owner ? 'owner-error' : undefined}
+              />
+              {validationErrors.owner && (
+                <p id="owner-error" className="text-red-500 text-xs mt-1">{validationErrors.owner}</p>
+              )}
             </div>
           </div>
+          
+          {/* Phone and Email */}
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Phone
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input 
+                type="tel" 
+                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                  validationErrors.phone ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                value={form.phone} 
+                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                aria-invalid={!!validationErrors.phone}
+                aria-describedby={validationErrors.phone ? 'phone-error' : undefined}
+              />
+              {validationErrors.phone && (
+                <p id="phone-error" className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>
+              )}
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Email
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input 
+                type="email" 
+                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                  validationErrors.email ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                value={form.email} 
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                aria-invalid={!!validationErrors.email}
+                aria-describedby={validationErrors.email ? 'email-error' : undefined}
+              />
+              {validationErrors.email && (
+                <p id="email-error" className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+              )}
             </div>
           </div>
+          
+          {/* Business Type and Status */}
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Business Type</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} required />
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Business Type
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input 
+                type="text" 
+                className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                  validationErrors.businessType ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                value={form.businessType} 
+                onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))}
+                aria-invalid={!!validationErrors.businessType}
+                aria-describedby={validationErrors.businessType ? 'businessType-error' : undefined}
+              />
+              {validationErrors.businessType && (
+                <p id="businessType-error" className="text-red-500 text-xs mt-1">{validationErrors.businessType}</p>
+              )}
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-              <select className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              <select 
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                value={form.status} 
+                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              >
                 {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
               </select>
             </div>
           </div>
+          
+          {/* Address */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
-            <textarea className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required />
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Address
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <textarea 
+              className={`text-black text-xs w-full border rounded-lg px-3 py-2 transition-colors ${
+                validationErrors.address ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+              }`}
+              value={form.address} 
+              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+              rows={3}
+              aria-invalid={!!validationErrors.address}
+              aria-describedby={validationErrors.address ? 'address-error' : undefined}
+            />
+            {validationErrors.address && (
+              <p id="address-error" className="text-red-500 text-xs mt-1">{validationErrors.address}</p>
+            )}
           </div>
+          
           {/* Order & Product Details Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
             <label className="block text-sm font-bold text-black mb-2">Order & Product Details</label>
@@ -324,21 +570,72 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                   {orderRows.map((row: OrderDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleOrderChange(idx, 'product', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalOrders} onChange={e => handleOrderChange(idx, 'totalOrders', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSpend} onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastOrderDate} onChange={e => handleOrderChange(idx, 'lastOrderDate', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.outstanding} onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} /></td>
                       <td className="py-2 px-3">
-                        <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteOrderRow(idx)} disabled={orderRows.length === 1}><Trash className="w-4 h-4" /></button>
+                        <input 
+                          type="text" 
+                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                          value={row.product} 
+                          onChange={e => handleOrderChange(idx, 'product', e.target.value)} 
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input 
+                          type="number" 
+                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                          value={row.totalOrders} 
+                          onChange={e => handleOrderChange(idx, 'totalOrders', e.target.value)} 
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input 
+                          type="text" 
+                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                          value={row.totalSpend} 
+                          onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input 
+                          type="date" 
+                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                          value={row.lastOrderDate} 
+                          onChange={e => handleOrderChange(idx, 'lastOrderDate', e.target.value)} 
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <input 
+                          type="text" 
+                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                          value={row.outstanding} 
+                          onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} 
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <button 
+                          type="button" 
+                          className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                          onClick={() => deleteOrderRow(idx)} 
+                          disabled={orderRows.length === 1}
+                          aria-label={`Delete order row ${idx + 1}`}
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <button type="button" className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6]" onClick={addOrderRow}>+ Add Row</button>
+            <button 
+              type="button" 
+              className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] transition-colors" 
+              onClick={addOrderRow}
+            >
+              + Add Row
+            </button>
           </div>
+          
+          {/* Created At and Preferred Days */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
@@ -346,13 +643,29 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 <span className="text-xs text-gray-400">(auto-generated)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
+              <input 
+                type="date" 
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
+                value={form.createdAt} 
+                onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} 
+                disabled 
+                aria-describedby="createdAt-description"
+              />
+              <p id="createdAt-description" className="text-xs text-gray-500 mt-1">Automatically set to current date</p>
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder="e.g. Mon, Wed, Fri" />
+              <input 
+                type="text" 
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                value={form.preferredDays} 
+                onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} 
+                placeholder="e.g. Mon, Wed, Fri" 
+              />
             </div>
           </div>
+          
+          {/* Last Shipment and Success Rate */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
@@ -360,25 +673,71 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 <span className="text-xs text-gray-400">(auto from orders)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastShipment} onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} disabled />
+              <input 
+                type="date" 
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
+                value={form.lastShipment} 
+                onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} 
+                disabled 
+                aria-describedby="lastShipment-description"
+              />
+              <p id="lastShipment-description" className="text-xs text-gray-500 mt-1">Automatically calculated from order dates</p>
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Shipment Success Rate (%)</label>
-              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.shipmentSuccess} onChange={e => setForm(f => ({ ...f, shipmentSuccess: e.target.value }))} placeholder="e.g. 98" />
+              <input 
+                type="number" 
+                min="0" 
+                max="100" 
+                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                value={form.shipmentSuccess} 
+                onChange={e => setForm(f => ({ ...f, shipmentSuccess: e.target.value }))} 
+                placeholder="e.g. 98" 
+              />
             </div>
           </div>
+          
+          {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span></label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Good payer, Often requests promo items" />
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span>
+            </label>
+            <input 
+              type="text" 
+              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+              value={form.notes} 
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} 
+              placeholder="e.g. Good payer, Often requests promo items" 
+            />
           </div>
-          {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
         </form>
+        
+        {/* Enhanced Action Buttons */}
         <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
-            <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center" onClick={handleSubmit} disabled={saving}>
-              {saving ? <span className="loader mr-2"></span> : null}Save
-            </button>
-          </div>
+          <button 
+            type="button" 
+            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors disabled:opacity-50" 
+            onClick={onClose} 
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center transition-colors disabled:opacity-50" 
+            onClick={handleSubmit} 
+            disabled={saving || isSubmitting}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

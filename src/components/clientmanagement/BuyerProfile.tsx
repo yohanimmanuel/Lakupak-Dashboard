@@ -1,7 +1,7 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download } from "lucide-react";
+import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import BuyerModal from './BuyerModal';
@@ -50,6 +50,9 @@ function getBuyerAnalytics(orderDetailsStr: string) {
 export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose?: () => void }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
+  const [updateSuccess, setUpdateSuccess] = useState('');
   
   // BuyerProfile - Raw buyer data
   
@@ -248,36 +251,79 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Order & Product Details</div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={() => setShowImportOrders(true)}>
-              <Upload className="w-4 h-4" /> Import Orders
+            <button 
+              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50" 
+              onClick={() => setShowImportOrders(true)}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <div className="w-4 h-4 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              {isUpdating ? 'Importing...' : 'Import Orders'}
             </button>
             <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
               <Download className="w-4 h-4" /> Export Orders
             </button>
           </div>
         </div>
+        {/* Success and Error Messages */}
+        {updateSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <span className="text-green-700 text-sm">{updateSuccess}</span>
+          </div>
+        )}
+        
+        {updateError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 text-sm">{updateError}</span>
+          </div>
+        )}
+        
         {showImportOrders && (
           <ImportOrdersModal
             open={showImportOrders}
             onClose={() => setShowImportOrders(false)}
             onImport={async (newOrderDetails) => {
-              // Merge new orders with existing ones instead of replacing
-              const mergedOrderDetails = [...orderDetails, ...newOrderDetails];
-              
-              // Update the buyer with merged order details
-              await fetch(`/api/buyers`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  ...buyer, 
-                  orderDetails: JSON.stringify(mergedOrderDetails),
-                  userId: buyer.userId 
-                })
-              });
-              
-              // Close modal and refresh the page to show updated data
-              setShowImportOrders(false);
-              window.location.reload();
+              try {
+                setIsUpdating(true);
+                setUpdateError('');
+                setUpdateSuccess('');
+                
+                // Merge new orders with existing ones instead of replacing
+                const mergedOrderDetails = [...orderDetails, ...newOrderDetails];
+                
+                // Update the buyer with merged order details
+                const response = await fetch(`/api/buyers`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    ...buyer, 
+                    orderDetails: JSON.stringify(mergedOrderDetails),
+                    userId: buyer.userId 
+                  })
+                });
+                
+                if (!response.ok) {
+                  throw new Error('Failed to update buyer orders');
+                }
+                
+                // Close modal and show success message
+                setShowImportOrders(false);
+                setUpdateSuccess(`Successfully imported ${newOrderDetails.length} orders`);
+                
+                // Refresh the page to show updated data
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              } catch (error) {
+                setUpdateError(error instanceof Error ? error.message : 'Failed to import orders');
+              } finally {
+                setIsUpdating(false);
+              }
             }}
           />
         )}

@@ -14,7 +14,6 @@ const usePerformanceTracking = () => {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (navigation) {
           const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-          console.log(`About page load time: ${loadTime}ms`);
           
           if (window.gtag) {
             window.gtag('event', 'page_load_time', {
@@ -45,7 +44,7 @@ const trackConversion = (action: string, label?: string) => {
   }
   
   if (process.env.NODE_ENV === 'development') {
-    console.log(`About page conversion tracked: ${action}`, label);
+    // About page conversion tracked
   }
 };
 
@@ -55,7 +54,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const handleError = (error: ErrorEvent) => {
-      console.error('About page error:', error);
+      // About page error logged
       setHasError(true);
       
       if (window.gtag) {
@@ -106,11 +105,11 @@ export default function AboutPage() {
     
     // Lazy load heavy sections
     lazyLoadSection('story', () => {
-      console.log('Story section loaded');
+      // Story section loaded
     });
     
     lazyLoadSection('carousel', () => {
-      console.log('Carousel section loaded');
+      // Carousel section loaded
     });
     
     return cleanup;

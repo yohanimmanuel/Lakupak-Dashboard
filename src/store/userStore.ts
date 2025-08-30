@@ -48,7 +48,7 @@ const getInitialUser = (): { user: User | null; sessionExpiry: number | null } =
         }
       }
     } catch (error) {
-      console.error('Error parsing user session:', error);
+              // Error parsing user session
       localStorage.removeItem('userSession');
     }
   }
@@ -83,7 +83,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
       try {
         localStorage.setItem('userSession', JSON.stringify(sessionData));
       } catch (error) {
-        console.error('Error storing user session:', error);
+        // Error storing user session
       }
     }
   },
@@ -145,7 +145,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         try {
           localStorage.setItem('userSession', JSON.stringify(sessionData));
         } catch (error) {
-          console.error('Error extending user session:', error);
+          // Error extending user session
         }
       }
     }

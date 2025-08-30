@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Registration error:', error);
+    // Registration error occurred
     
     // Handle known database errors gracefully
     if (error instanceof Error && error.message.includes('Unique constraint')) {

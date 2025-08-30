@@ -258,7 +258,7 @@ export const useAuthPerformanceTracking = (pageName: string) => {
         });
       }
       
-      console.log(`${pageName} page loaded in ${loadTime.toFixed(2)}ms`);
+      // Page load time tracked
     };
   }, [pageName]);
 };

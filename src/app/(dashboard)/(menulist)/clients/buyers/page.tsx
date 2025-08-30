@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import BuyerModal from '@/components/clientmanagement/BuyerModal';
-import { Plus, Upload, Download } from 'lucide-react';
+import { Plus, Upload, Download, RefreshCw, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
@@ -79,6 +79,11 @@ export default function BuyersPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState('');
+  const [isSlidingIn, setIsSlidingIn] = useState(false);
+  const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as BuyerProfile)
@@ -117,20 +122,34 @@ export default function BuyersPage() {
   const fetchBuyers = async () => {
     if (!user?.id) return;
     setLoading(true);
+    
+    // Clear any existing timeouts
+    if (overlayTimeoutRef.current) {
+      clearTimeout(overlayTimeoutRef.current);
+    }
+    
+    // For refresh button, start slide-in animation
+    if (buyers.length > 0) {
+      setIsSlidingOut(false);
+      setIsSlidingIn(true);
+      setOverlayMessage('Refreshing buyer data');
+    }
+    
     try {
       const res = await fetch(`/api/buyers?userId=${user.id}`);
       if (!res.ok) {
-        console.error('Failed to fetch buyers:', res.status, res.statusText);
+        // Failed to fetch buyers
         setBuyers([]);
         setLoading(false);
+        setOverlayMessage('Failed to load buyers');
         return;
       }
       const data = await res.json();
-      console.log('Raw buyers data:', data);
-      const buyersData = Array.isArray(data) ? data : [];
+      // Handle both old format (array) and new format (object with pagination)
+      const buyersData = Array.isArray(data) ? data : (data.buyers || []);
       
       // Calculate monthly analytics for each buyer
-      const buyersWithAnalytics = buyersData.map(buyer => {
+      const buyersWithAnalytics = buyersData.map((buyer: Buyer) => {
         const orderDetails = buyer.orderDetails ? JSON.parse(buyer.orderDetails) : [];
         
         // Calculate monthly averages using the same logic as BuyerProfile
@@ -143,30 +162,51 @@ export default function BuyersPage() {
         };
       });
       
-      console.log('Processed buyers data:', buyersWithAnalytics);
+      // Buyers data processed with analytics
       setBuyers(buyersWithAnalytics);
+      setOverlayMessage(`Showing buyer data (${buyersWithAnalytics.length})`);
     } catch (error) {
-      console.error('Error fetching buyers:', error);
+      // Error fetching buyers
       setBuyers([]);
+      setOverlayMessage('Error loading buyers');
     } finally {
       setLoading(false);
+      
+      // Complete slide-in animation and show overlay
+      setTimeout(() => {
+        setIsSlidingIn(false);
+        setShowOverlay(true);
+      }, 1500);
+      
+      // Auto-hide overlay after 2.5 seconds
+      overlayTimeoutRef.current = setTimeout(() => {
+        // Start slide-out animation
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        
+        // Remove overlay completely after animation
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
     }
   };
 
   useEffect(() => {
+    // Start slide-in animation immediately for initial page load
+    setIsSlidingIn(true);
+    setOverlayMessage('Loading buyer data...');
+    
     fetchBuyers();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+    };
   }, [user?.id]);
 
-  const handleAddBuyer = async (data: BuyerFormData) => {
-    if (!user?.id) return;
-    await fetch('/api/buyers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, userId: user.id }),
-    });
-    setShowAddModal(false);
-    fetchBuyers();
-  };
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
@@ -177,6 +217,13 @@ export default function BuyersPage() {
           <p className="text-xs text-gray-500 italic">Note: Please use the same currency for all buyers to ensure accurate statistics.</p>
         </div>
         <div className="flex gap-2 items-center">
+          <button
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            onClick={fetchBuyers}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={() => setShowImportModal(true)}
@@ -197,6 +244,31 @@ export default function BuyersPage() {
           </button>
         </div>
       </div>
+      {/* Data Status Overlay */}
+      {(showOverlay || isSlidingIn || isSlidingOut) && (
+        <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
+          isSlidingIn ? 'translate-x-0 opacity-100' : 
+          isSlidingOut ? 'translate-x-full opacity-0' : 
+          'translate-x-full opacity-0'
+        }`}>
+          <div className="flex items-center gap-3">
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
+              <p className="text-xs text-gray-500">
+                {loading ? 'Please wait...' : `${buyers.length} buyer${buyers.length !== 1 ? 's' : ''} loaded`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
@@ -207,7 +279,7 @@ export default function BuyersPage() {
       ) : (
         <>
           <Statcards type="buyer" data={buyers} />
-          <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+          <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
         </>
       )}
       <BuyerModal

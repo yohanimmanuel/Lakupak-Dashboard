@@ -92,7 +92,7 @@ export default function LoginPage() {
       }, 1000);
       
     } catch (err) {
-      console.error('Login error:', err);
+      // Login error occurred
       handleError({ error: "Network error. Please check your connection and try again." });
     } finally {
       stopLoading();

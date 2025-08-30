@@ -16,7 +16,7 @@ export const measurePerformance = () => {
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (entry.entryType === 'largest-contentful-paint') {
-        console.log('LCP:', entry.startTime);
+        // LCP measured
         // Track in analytics
         if (window.gtag) {
           window.gtag('event', 'web_vitals', {
@@ -29,7 +29,7 @@ export const measurePerformance = () => {
       
       if (entry.entryType === 'first-input') {
         const fidEntry = entry as PerformanceEntryWithProcessingStart;
-        console.log('FID:', fidEntry.processingStart - fidEntry.startTime);
+        // FID measured
         if (window.gtag) {
           window.gtag('event', 'web_vitals', {
             name: 'FID',
@@ -42,7 +42,7 @@ export const measurePerformance = () => {
       if (entry.entryType === 'layout-shift') {
         const clsEntry = entry as PerformanceEntryWithValue;
         if (!clsEntry.hadRecentInput) {
-          console.log('CLS:', clsEntry.value);
+          // CLS measured
           if (window.gtag) {
             window.gtag('event', 'web_vitals', {
               name: 'CLS',

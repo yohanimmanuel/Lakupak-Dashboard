@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(products);
   } catch (err) {
-    console.error('GET /api/products error:', err);
+          // Error fetching products
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
-    console.error('POST /api/products error:', err);
+          // Error creating product
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest) {
     // DELETE Product
     return NextResponse.json({ success: true, deleted });
   } catch (err) {
-    console.error('DELETE /api/products error:', err);
+          // Error deleting product
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }
@@ -194,7 +194,7 @@ export async function PUT(req: NextRequest) {
     
     return NextResponse.json(responseData);
   } catch (err) {
-    console.error('PUT /api/products error:', err);
+          // Error updating product
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
   }
 }

@@ -152,7 +152,7 @@ export default function RegisterPage() {
       }, 1500);
       
     } catch (err) {
-      console.error('Registration error:', err);
+      // Registration error occurred
       handleError({ error: "Network error. Please check your connection and try again." });
     } finally {
       stopLoading();

@@ -17,7 +17,7 @@ const usePerformanceTracking = () => {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (navigation) {
           const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-          console.log(`Landing page load time: ${loadTime}ms`);
+          // Landing page load time tracked
           
           // Send to analytics if configured
           if (window.gtag) {
@@ -49,7 +49,7 @@ const trackConversion = (action: string, label?: string) => {
   
   // Also log for debugging in development
   if (process.env.NODE_ENV === 'development') {
-    console.log(`Conversion tracked: ${action}`, label);
+    // Conversion tracked
   }
 };
 
@@ -59,7 +59,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const handleError = (error: ErrorEvent) => {
-      console.error('Landing page error:', error);
+      // Landing page error logged
       setHasError(true);
       
       // Track error in analytics
@@ -109,11 +109,11 @@ export default function LandingPage() {
     
     // Lazy load heavy sections
     lazyLoadSection('features', () => {
-      console.log('Features section loaded');
+      // Features section loaded
     });
     
     lazyLoadSection('socialproof', () => {
-      console.log('Social proof section loaded');
+      // Social proof section loaded
     });
     
     return cleanup;

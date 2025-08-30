@@ -262,7 +262,7 @@ NEXT_PUBLIC_GA_ID=your_ga_tracking_id
 - **Password Reset**: Use forgot password flow
 
 ### Debugging
-- Check browser console for detailed error logs
+- for detailed error logs
 - Review network tab for failed API requests
 - Verify localStorage for session data integrity
 - Monitor performance tab for loading bottlenecks

@@ -188,7 +188,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       delete payload.deliverySuccess;
       
       // Debug: Log the payload being sent
-      console.log('Supplier payload being sent:', payload);
+      // Supplier payload prepared for submission
       
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch('/api/suppliers', {

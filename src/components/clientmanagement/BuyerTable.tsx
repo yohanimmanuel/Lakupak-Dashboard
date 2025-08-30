@@ -1,14 +1,11 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
+import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
 import { Buyer, BuyerTableRow } from '@/types/client';
-
-// Use buyers prop or state, not buyersMock
-// Add explicit types for all map/filter parameters
 
 const statusTabs = [
   { label: "All" },
@@ -17,153 +14,209 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow }: { buyers?: Buyer[]; setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void; onSelectBuyer?: (buyer: Buyer) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; profileToTableRow: (buyer: Buyer) => BuyerTableRow }) {
+export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow, onRefresh }: { 
+  buyers?: Buyer[]; 
+  setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void; 
+  onSelectBuyer?: (buyer: Buyer) => void; 
+  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
+  profileToTableRow: (buyer: Buyer) => BuyerTableRow;
+  onRefresh?: () => void;
+}) {
   const user = useUserStore(state => state.user);
+  const router = useRouter();
   
-  console.log('BuyerTable received buyers:', buyers);
-  const tableRows = buyers.map(profileToTableRow);
-  console.log('BuyerTable processed tableRows:', tableRows);
+  // Enhanced state management
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
-  const businessTypeSet = new Set(tableRows.map((b: BuyerTableRow) => b.businessType).filter(Boolean));
-  const filterOptions = ["All Types", ...Array.from(businessTypeSet)];
-  const [filter, setFilter] = useState(filterOptions[0]);
-  const today = new Date();
-  const thisMonthKey = format(today, 'yyyy-MM');
-  const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastMonthKey = format(lastMonthDate, 'yyyy-MM');
-  const periodOptions = ["All Months", "This Month", "Last Month"];
-  const [period, setPeriod] = useState(periodOptions[0]);
+  const [filter, setFilter] = useState("All Types");
+  const [period, setPeriod] = useState("All Months");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
-  const buyersList = tableRows.filter((b: BuyerTableRow) => String(b.name).toLowerCase().includes(search.toLowerCase()));
-  const router = useRouter();
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 8;
-  let filteredBuyers = buyersList;
-  if (selectedTab !== "All") filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => b.status === selectedTab);
-  if (filter !== "All Types") filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => b.businessType === filter);
-  if (search) filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => String(b.name).toLowerCase().includes(search.toLowerCase()));
-  if (period !== "All Months") {
-    const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
-    filteredBuyers = filteredBuyers.filter((b: BuyerTableRow) => {
-      if (!b.createdAt) return false;
-      return b.createdAt.startsWith(periodKey);
-    });
-  }
-  const totalRows = filteredBuyers.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const pagedBuyers = filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const toRow = Math.min(page * rowsPerPage, totalRows);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [buyerToDelete, setBuyerToDelete] = useState<BuyerTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   
-  const handleDeleteConfirm = async () => {
-    if (!user?.id) return;
+  // Enhanced refs
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Enhanced computed values with useMemo for performance
+  const tableRows = useMemo(() => buyers.map(profileToTableRow), [buyers, profileToTableRow]);
+  
+  const businessTypeSet = useMemo(() => {
+    const types = tableRows.map((b: BuyerTableRow) => b.businessType).filter(Boolean);
+    return new Set(types);
+  }, [tableRows]);
+  
+  const filterOptions = useMemo(() => ["All Types", ...Array.from(businessTypeSet)], [businessTypeSet]);
+  
+  const today = useMemo(() => new Date(), []);
+  const thisMonthKey = useMemo(() => format(today, 'yyyy-MM'), [today]);
+  const lastMonthKey = useMemo(() => {
+    const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return format(lastMonthDate, 'yyyy-MM');
+  }, [today]);
+  
+  const periodOptions = useMemo(() => ["All Months", "This Month", "Last Month"], []);
+  
+  // Enhanced filtering logic
+  const filteredBuyers = useMemo(() => {
+    let filtered = tableRows.filter((b: BuyerTableRow) => 
+      String(b.name).toLowerCase().includes(search.toLowerCase())
+    );
     
-    if (isBulkDelete) {
-      // Bulk delete - delete all selected buyers
-      for (const buyerId of selectedBuyers) {
-        const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
-        if (buyer) {
-          const res = await fetch(`/api/buyers?id=${buyer.buyerId}&userId=${user.id}`, { method: 'DELETE' });
-          if (res.ok && setBuyers) {
-            setBuyers(prev => prev.filter(b => b.buyerId !== buyer.buyerId));
-          }
-        }
-      }
-      setSelectedBuyers([]); // Clear selection after deleting
-    } else {
-      // Single delete - delete one buyer
-      if (!buyerToDelete) return;
-      const res = await fetch(`/api/buyers?id=${buyerToDelete.buyerId}&userId=${user.id}`, { method: 'DELETE' });
-      if (res.ok && setBuyers) {
-        setBuyers(prev => prev.filter(b => b.buyerId !== buyerToDelete.buyerId));
-      }
-      setBuyerToDelete(null);
+    if (selectedTab !== "All") {
+      filtered = filtered.filter((b: BuyerTableRow) => b.status === selectedTab);
     }
     
-    setShowDeleteModal(false);
-    setIsBulkDelete(false);
-  };
+    if (filter !== "All Types") {
+      filtered = filtered.filter((b: BuyerTableRow) => b.businessType === filter);
+    }
+    
+    if (period !== "All Months") {
+      const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
+      filtered = filtered.filter((b: BuyerTableRow) => {
+        if (!b.createdAt) return false;
+        return b.createdAt.startsWith(periodKey);
+      });
+    }
+    
+    return filtered;
+  }, [tableRows, search, selectedTab, filter, period, thisMonthKey, lastMonthKey]);
+  
+  // Enhanced pagination
+  const rowsPerPage = 8;
+  const totalRows = filteredBuyers.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const pagedBuyers = useMemo(() => 
+    filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage), 
+    [filteredBuyers, page, rowsPerPage]
+  );
+  
+  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const toRow = Math.min(page * rowsPerPage, totalRows);
+  
+  // Enhanced indicator style
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  
+  // Enhanced handlers with useCallback
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setIsDeleting(true);
+    setDeleteError('');
+    
+    try {
+      if (isBulkDelete) {
+        // Bulk delete - delete all selected buyers
+        const deletePromises = selectedBuyers.map(async (buyerId) => {
+          const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
+          if (buyer) {
+            const res = await fetch(`/api/buyers?id=${buyer.buyerId}&userId=${user.id}`, { 
+              method: 'DELETE' 
+            });
+            if (!res.ok) {
+              throw new Error(`Failed to delete buyer ${buyer.buyerId}`);
+            }
+            return buyer.buyerId;
+          }
+        });
+        
+        await Promise.all(deletePromises);
+        
+        // After successful bulk delete, refresh the data
+        if (onRefresh) {
+          onRefresh();
+        }
+        setSelectedBuyers([]);
+      } else {
+        // Single delete - delete one buyer
+        if (!buyerToDelete) return;
+        const res = await fetch(`/api/buyers?id=${buyerToDelete.buyerId}&userId=${user.id}`, { 
+          method: 'DELETE' 
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to delete buyer ${buyerToDelete.buyerId}`);
+        }
+        
+        // After successful single delete, refresh the data
+        if (onRefresh) {
+          onRefresh();
+        }
+        setBuyerToDelete(null);
+      }
+      
+      // Reset pagination to first page if current page becomes empty
+      if (page > 1 && pagedBuyers.length <= 1) {
+        setPage(1);
+      }
+      
+      // Close modal and reset states immediately
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+      
+      // Refresh data to ensure UI is in sync
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: any) {
+      setDeleteError(error.message || 'Failed to delete buyer(s)');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user?.id, isBulkDelete, selectedBuyers, pagedBuyers, setBuyers, buyerToDelete]);
 
-  const handleDeleteCancel = () => {
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setBuyerToDelete(null);
     setIsBulkDelete(false);
-  };
+    setDeleteError('');
+  }, []);
 
-
-
-  const handleBuyerSelect = (buyerId: string) => {
+  const handleBuyerSelect = useCallback((buyerId: string) => {
     setSelectedBuyers(prev => 
       prev.includes(buyerId) 
         ? prev.filter(id => id !== buyerId)
         : [...prev, buyerId]
     );
-  };
+  }, []);
 
-  const handleRowClick = (buyerId: string, event: React.MouseEvent) => {
+  const handleRowClick = useCallback((buyerId: string, event: React.MouseEvent) => {
     // Don't trigger row selection if clicking on action buttons or checkbox
     if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
       return;
     }
     handleBuyerSelect(buyerId);
-  };
+  }, [handleBuyerSelect]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedBuyers.length === pagedBuyers.length) {
       setSelectedBuyers([]);
     } else {
       setSelectedBuyers(pagedBuyers.map(buyer => String(buyer.id)));
     }
-  };
+  }, [selectedBuyers.length, pagedBuyers]);
 
-  const handleBulkRemove = () => {
+  const handleBulkRemove = useCallback(() => {
     setIsBulkDelete(true);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-
-  useLayoutEffect(() => {
-    const idx = statusTabs.findIndex(tab => tab.label === selectedTab);
-    const node = tabRefs.current[idx];
-    if (node) {
-      setIndicatorStyle({
-        left: node.offsetLeft,
-        width: node.offsetWidth,
-      });
-    }
-  }, [selectedTab]);
-
-  const handleView = (buyer: BuyerTableRow) => {
+  const handleView = useCallback((buyer: BuyerTableRow) => {
     router.push(`/clients/buyers/details/${buyer.buyerId}`);
-  };
+  }, [router]);
 
-  const handleDelete = async (buyer: BuyerTableRow) => {
-    if (!window.confirm('Are you sure you want to delete this buyer?')) return;
-    await fetch(`/api/buyers?id=${buyer.buyerId}`, { method: 'DELETE' });
-    window.location.reload(); // Or call fetchBuyers if available via props
-  };
+  const handleDelete = useCallback((buyer: BuyerTableRow) => {
+    setBuyerToDelete(buyer);
+    setIsBulkDelete(false);
+    setShowDeleteModal(true);
+  }, []);
 
-  const tabIdx = statusTabs.findIndex(tab => tab.label === selectedTab);
-
-  // Status color helper
-  const statusBadge = (status: string) => {
-    if (status === "Active") return "bg-green-100 text-green-500";
-    if (status === "Inactive") return "bg-gray-100 text-gray-500";
-    if (status === "Blocked") return "bg-red-100 text-red-500";
-    return "bg-gray-100 text-gray-500";
-  };
-
-  // Export XLSX function
-  const handleExportXLSX = () => {
+  const handleExportXLSX = useCallback(() => {
     const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Created At', 'Status'];
     const rows = filteredBuyers.map((b: BuyerTableRow) => [
       b.buyerId,
@@ -180,10 +233,92 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Buyers');
     if (onExportXLSX) onExportXLSX(wb, 'buyers.xlsx');
-  };
+  }, [filteredBuyers, onExportXLSX]);
+
+  // Enhanced search handling
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1); // Reset to first page when searching
+  }, []);
+
+  // Enhanced tab handling
+  const handleTabChange = useCallback((tabLabel: string) => {
+    setSelectedTab(tabLabel);
+    setSelectedBuyers([]); // Reset selection when switching tabs
+    setPage(1); // Reset to first page when changing tabs
+  }, []);
+
+  // Enhanced filter handling
+  const handleFilterChange = useCallback((filterValue: string) => {
+    setFilter(filterValue);
+    setShowFilterDropdown(false);
+    setPage(1); // Reset to first page when changing filter
+  }, []);
+
+  // Enhanced period handling
+  const handlePeriodChange = useCallback((periodValue: string) => {
+    setPeriod(periodValue);
+    setShowPeriodDropdown(false);
+    setPage(1); // Reset to first page when changing period
+  }, []);
+
+  // Enhanced page handling
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    // Scroll to top of table when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Enhanced dropdown handling
+  const handleDropdownToggle = useCallback((dropdownType: 'filter' | 'period') => {
+    if (dropdownType === 'filter') {
+      setShowFilterDropdown(v => !v);
+      setShowPeriodDropdown(false);
+    } else {
+      setShowPeriodDropdown(v => !v);
+      setShowFilterDropdown(false);
+    }
+  }, []);
+
+  // Enhanced keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
+  }, []);
+
+  // Enhanced layout effect for indicator
+  useLayoutEffect(() => {
+    const idx = statusTabs.findIndex(tab => tab.label === selectedTab);
+    const node = tabRefs.current[idx];
+    if (node) {
+      setIndicatorStyle({
+        left: node.offsetLeft,
+        width: node.offsetWidth,
+      });
+    }
+  }, [selectedTab]);
+
+  // Enhanced status color helper
+  const statusBadge = useCallback((status: string) => {
+    if (status === "Active") return "bg-green-100 text-green-500";
+    if (status === "Inactive") return "bg-gray-100 text-gray-500";
+    if (status === "Blocked") return "bg-red-100 text-red-500";
+    return "bg-gray-100 text-gray-500";
+  }, []);
+
+  // Enhanced accessibility
+  const getAriaLabel = useCallback((action: string, buyer?: BuyerTableRow) => {
+    if (buyer) {
+      return `${action} buyer ${buyer.name} (${buyer.buyerId})`;
+    }
+    return action;
+  }, []);
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+      {/* Enhanced Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
         <div className="relative w-full md:w-auto flex items-center">
@@ -203,11 +338,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <button
                 key={tab.label}
                 ref={el => { tabRefs.current[idx] = el; }}
-                onClick={() => {
-                  setSelectedTab(tab.label);
-                  setSelectedBuyers([]); // Reset selection when switching tabs
-                }}
-                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                onClick={() => handleTabChange(tab.label)}
+                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   selectedTab === tab.label
                     ? 'text-white'
                     : 'text-gray-700 hover:text-[#0a61d7]'
@@ -220,32 +352,37 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   minWidth: 0,
                   flex: 'unset',
                 }}
+                aria-pressed={selectedTab === tab.label}
               >
                 {tab.label}
               </button>
             ))}
           </div>
         </div>
+        
         {/* Search and Filters */}
         <div className="flex gap-2 w-full md:w-auto items-center justify-end">
           <div className="relative w-full md:w-64">
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search buyers..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+              onChange={e => handleSearchChange(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white transition-colors"
+              aria-label="Search buyers"
             />
             <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
           </div>
+          
           {/* Filter Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
-              onClick={() => {
-                setShowFilterDropdown(v => !v);
-                setShowPeriodDropdown(false);
-              }}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => handleDropdownToggle('filter')}
+              aria-haspopup="true"
+              aria-expanded={showFilterDropdown}
+              aria-label="Filter by business type"
             >
               <Filter className="w-4 h-4" />
               {filter}
@@ -256,8 +393,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 {filterOptions.map(opt => (
                   <button
                     key={opt}
-                    onClick={() => { setFilter(opt); setShowFilterDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${filter === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
+                    onClick={() => handleFilterChange(opt)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                      filter === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
+                    }`}
                   >
                     {opt}
                   </button>
@@ -265,14 +404,15 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               </div>
             )}
           </div>
+          
           {/* Period Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
-              onClick={() => {
-                setShowPeriodDropdown(v => !v);
-                setShowFilterDropdown(false);
-              }}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => handleDropdownToggle('period')}
+              aria-haspopup="true"
+              aria-expanded={showPeriodDropdown}
+              aria-label="Filter by period"
             >
               <Calendar className="w-4 h-4" />
               {period}
@@ -283,8 +423,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 {periodOptions.map(opt => (
                   <button
                     key={opt}
-                    onClick={() => { setPeriod(opt); setShowPeriodDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${period === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
+                    onClick={() => handlePeriodChange(opt)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                      period === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
+                    }`}
                   >
                     {opt}
                   </button>
@@ -295,7 +437,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </div>
       </div>
 
-      {/* Bulk Action Bar */}
+      {/* Enhanced Bulk Action Bar */}
       {selectedBuyers.length > 0 && (
         <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
           {/* Mobile Layout */}
@@ -318,7 +460,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </div>
             <button
               onClick={handleBulkRemove}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+              aria-label={`Remove ${selectedBuyers.length} selected buyer${selectedBuyers.length === 1 ? '' : 's'}`}
             >
               <Trash className="w-4 h-4" />
               {selectedBuyers.length === 1 ? 'Remove Buyer' : 'Remove Selected'}
@@ -346,7 +489,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               </span>
               <button
                 onClick={handleBulkRemove}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                aria-label={`Remove ${selectedBuyers.length} selected buyer${selectedBuyers.length === 1 ? '' : 's'}`}
               >
                 <Trash className="w-4 h-4" />
                 {selectedBuyers.length === 1 ? 'Remove Buyer' : 'Remove Selected'}
@@ -356,6 +500,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </div>
       )}
 
+      {/* Enhanced Desktop Table */}
       <div className="overflow-x-auto hidden md:block rounded-lg">
         <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
           <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -363,11 +508,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <th className="py-3 px-4 font-medium uppercase">
                 <button
                   onClick={handleSelectAll}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
+                  aria-label={selectedBuyers.length === pagedBuyers.length ? 'Deselect all buyers' : 'Select all buyers'}
                 >
                   {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -402,11 +548,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleBuyerSelect(String(buyer.id))}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       selectedBuyers.includes(String(buyer.id))
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
                     }`}
+                    aria-label={selectedBuyers.includes(String(buyer.id)) ? `Deselect ${buyer.name}` : `Select ${buyer.name}`}
                   >
                     {selectedBuyers.includes(String(buyer.id)) && (
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -424,12 +571,15 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <td className="py-3 px-4 text-[#f65911] font-semibold">{String(buyer.outstanding)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>{String(buyer.status)}</span>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>
+                    {String(buyer.status)}
+                  </span>
                 </td>
                 <td className="py-3 px-4 text-center">
                   <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onClick={() => handleView(buyer)}
+                    aria-label={getAriaLabel('View', buyer)}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>
@@ -439,17 +589,19 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           </tbody>
         </table>
       </div>
-      {/* Mobile Cards */}
+      
+      {/* Enhanced Mobile Cards */}
       <div className="md:hidden">
         {/* Select All for Mobile View */}
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={handleSelectAll}
-            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
               selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
                 ? 'bg-green-500 border-green-500'
                 : 'bg-white border-gray-300 hover:border-green-400'
             }`}
+            aria-label={selectedBuyers.length === pagedBuyers.length ? 'Deselect all buyers' : 'Select all buyers'}
           >
             {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
               <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -463,63 +615,66 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         </div>
         
         <div className="flex flex-col gap-4">
-        {pagedBuyers.map(buyer => (
-          <div 
-            key={String(buyer.id)} 
-            className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
-              selectedBuyers.includes(String(buyer.id)) 
-                ? 'bg-blue-50' 
-                : 'bg-white hover:bg-gray-50'
-            }`}
-            onClick={() => handleBuyerSelect(String(buyer.id))}
-          >
-            {/* Checkbox - Top Right Corner */}
-            <div className="absolute top-3 right-3 z-10">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleBuyerSelect(String(buyer.id));
-                }}
-                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                  selectedBuyers.includes(String(buyer.id))
-                    ? 'bg-green-500 border-green-500'
-                    : 'bg-white border-gray-300 hover:border-green-400'
-                }`}
-              >
-                {selectedBuyers.includes(String(buyer.id)) && (
-                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            
-            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
-              <div className="flex items-center gap-2">
-              <button
-                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
-                onClick={() => handleView(buyer)}
-              >
-                <Eye className="w-4 h-4 text-[#0a61d7]" />
-              </button>
+          {pagedBuyers.map(buyer => (
+            <div 
+              key={String(buyer.id)} 
+              className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+                selectedBuyers.includes(String(buyer.id)) 
+                  ? 'bg-blue-50' 
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+              onClick={() => handleBuyerSelect(String(buyer.id))}
+            >
+              {/* Checkbox - Top Right Corner */}
+              <div className="absolute top-3 right-3 z-10">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBuyerSelect(String(buyer.id));
+                  }}
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    selectedBuyers.includes(String(buyer.id))
+                      ? 'bg-green-500 border-green-500'
+                      : 'bg-white border-gray-300 hover:border-green-400'
+                  }`}
+                  aria-label={selectedBuyers.includes(String(buyer.id)) ? `Deselect ${buyer.name}` : `Select ${buyer.name}`}
+                >
+                  {selectedBuyers.includes(String(buyer.id)) && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              
+              <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#0a61d7]">{buyer.name}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={() => handleView(buyer)}
+                    aria-label={getAriaLabel('View', buyer)}
+                  >
+                    <Eye className="w-4 h-4 text-[#0a61d7]" />
+                  </button>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500">Address: <span className="text-black font-medium w-30 truncate">{buyer.address}</span></div>
+              <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{buyer.businessType}</span></div>
+              <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
+              <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
+              <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>
+              <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
+              <div className="text-xs text-gray-500">
+                Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
               </div>
             </div>
-            <div className="text-xs text-gray-500">Address: <span className="text-black font-medium w-30 truncate">{buyer.address}</span></div>
-            <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">{buyer.businessType}</span></div>
-            <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
-            <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{buyer.totalSpend}</span></div>
-            <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{buyer.outstanding}</span></div>
-            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
-            <div className="text-xs text-gray-500">
-              Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
-            </div>
-          </div>
-        ))}
+          ))}
         </div>
       </div>
-      {/* Pagination */}
+      
+      {/* Enhanced Pagination */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
         {/* Left: Showing X to Y of Z */}
         <div className="text-sm text-gray-500">
@@ -528,8 +683,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         {/* Right: Pagination Controls */}
         <div className="flex items-center gap-3">
           <button
-            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={() => handlePageChange(page - 1)}
             disabled={page === 1}
             aria-label="Previous page"
           >
@@ -538,17 +693,19 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
             <button
               key={p}
-              className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+              className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
               }`}
-              onClick={() => setPage(p)}
+              onClick={() => handlePageChange(p)}
+              aria-label={`Page ${p}`}
+              aria-current={p === page ? 'page' : undefined}
             >
               {p}
             </button>
           ))}
           <button
-            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={() => handlePageChange(page + 1)}
             disabled={page === totalPages}
             aria-label="Next page"
           >
@@ -556,14 +713,25 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           </button>
         </div>
       </div>
+      
       {/* Hidden export trigger for parent */}
       {onExportXLSX && <span style={{ display: 'none' }} id="buyer-table-export-xlsx-trigger" onClick={handleExportXLSX}></span>}
+      
+      {/* Enhanced Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Buyers' : 'Delete Buyer'}
             </h2>
+            
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+            
             <p className="mb-4 text-gray-500">
               {isBulkDelete 
                 ? `Are you sure you want to delete ${selectedBuyers.length} buyer${selectedBuyers.length === 1 ? '' : 's'}? This action cannot be undone.`
@@ -572,16 +740,25 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                Delete
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>

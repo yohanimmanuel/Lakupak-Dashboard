@@ -166,7 +166,7 @@ export async function PUT(req: NextRequest) {
           return NextResponse.json(responseData);
       } catch (err) {
       // PUT /api/suppliers error
-      console.error('PUT /api/suppliers error:', err);
+      // Error updating supplier
       return NextResponse.json({ error: 'Failed to update supplier', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
     }
 }
