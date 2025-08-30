@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import BuyerModal from '@/components/clientmanagement/BuyerModal';
-import { Plus, Upload, Download, RefreshCw, Check } from 'lucide-react';
+import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
@@ -74,6 +74,10 @@ function generateBuyerId() {
   return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
+function generateSecureBuyerId() {
+  return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
 export default function BuyersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -83,6 +87,8 @@ export default function BuyersPage() {
   const [overlayMessage, setOverlayMessage] = useState('');
   const [isSlidingIn, setIsSlidingIn] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState('');
+  const [updateError, setUpdateError] = useState('');
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const user = useUserStore(state => state.user);
 
@@ -207,6 +213,21 @@ export default function BuyersPage() {
     };
   }, [user?.id]);
 
+  // Auto-hide success and error messages
+  useEffect(() => {
+    if (updateSuccess) {
+      const timer = setTimeout(() => setUpdateSuccess(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [updateSuccess]);
+
+  useEffect(() => {
+    if (updateError) {
+      const timer = setTimeout(() => setUpdateError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [updateError]);
+
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
@@ -244,6 +265,21 @@ export default function BuyersPage() {
           </button>
         </div>
       </div>
+      {/* Success and Error Messages */}
+      {updateSuccess && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <Check className="w-5 h-5 text-green-500" />
+          <span className="text-green-700 text-sm">{updateSuccess}</span>
+        </div>
+      )}
+      
+      {updateError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-red-500" />
+          <span className="text-red-700 text-sm">{updateError}</span>
+        </div>
+      )}
+      
       {/* Data Status Overlay */}
       {(showOverlay || isSlidingIn || isSlidingOut) && (
         <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
@@ -294,35 +330,143 @@ export default function BuyersPage() {
         open={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={async (data) => {
-          setShowImportModal(false);
-          if (!user?.id) return;
-          for (const buyer of data) {
-            const payload = {
-              buyerId: buyer.ID,
-              storeName: buyer['Store Name'] || '-',
-              owner: buyer['Owner'] || '-',
-              email: buyer['Email'] || '-',
-              phone: buyer['Phone'] || '-',
-              businessType: buyer['Business Type'] || '-',
-              address: buyer['Address'] || '-',
-              status: buyer['Status'] || '-',
-              createdAt: buyer['Created At'] || new Date().toISOString(),
-              logistics: JSON.stringify({
-                preferredDays: buyer['Preferred Delivery Days'] || '-',
-                lastShipment: buyer['Last Shipment'] || '-',
-                shipmentSuccess: buyer['Shipment Success'] || '-',
-              }),
-              notes: JSON.stringify(buyer['Notes'] ? [buyer['Notes']] : []),
-              orderDetails: JSON.stringify(buyer.orderDetails || []),
-              userId: user.id,
-            };
-            await fetch('/api/buyers', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
+          try {
+            setShowImportModal(false);
+            if (!user?.id) return;
+            
+            // Show loading state
+            setLoading(true);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const buyer of data) {
+              try {
+                
+                // Extract all available data from the buyer object dynamically
+                const extractData = (obj: any) => {
+                  const extracted: any = {};
+                  
+                  // Get all keys from the buyer data
+                  Object.keys(obj).forEach(key => {
+                    const value = obj[key];
+                    if (value !== undefined && value !== null && value !== '') {
+                      // Convert key to camelCase for the API
+                      const camelKey = key.replace(/\s+([a-z])/g, (_, letter) => letter.toUpperCase());
+                      extracted[camelKey] = value;
+                    }
+                  });
+                  
+                  return extracted;
+                };
+                
+                // Extract all available data
+                const extractedData = extractData(buyer);
+                
+                // Create flexible payload - only include fields that have actual data
+                const payload: any = {
+                  userId: user.id,
+                };
+
+                // Only add fields that actually have data
+                if (extractedData.ID || extractedData.id || extractedData.buyerId) {
+                  payload.buyerId = extractedData.ID || extractedData.id || extractedData.buyerId;
+                } else {
+                  // Generate ID only if none provided
+                  payload.buyerId = generateBuyerId();
+                }
+
+                // Only add fields that have actual values (no auto-filling)
+                if (extractedData.storeName || extractedData.store || extractedData.name || extractedData['Store Name']) {
+                  payload.storeName = extractedData.storeName || extractedData.store || extractedData.name || extractedData['Store Name'];
+                }
+
+                if (extractedData.owner || extractedData.contact || extractedData['Owner']) {
+                  payload.owner = extractedData.owner || extractedData.contact || extractedData['Owner'];
+                }
+
+                if (extractedData.email || extractedData.Email) {
+                  payload.email = extractedData.email || extractedData.Email;
+                }
+
+                if (extractedData.phone || extractedData.Phone || extractedData.telephone) {
+                  payload.phone = extractedData.phone || extractedData.Phone || extractedData.telephone;
+                }
+
+                if (extractedData.businessType || extractedData.type || extractedData['Business Type']) {
+                  payload.businessType = extractedData.businessType || extractedData.type || extractedData['Business Type'];
+                }
+
+                if (extractedData.address || extractedData.Address || extractedData.location) {
+                  payload.address = extractedData.address || extractedData.Address || extractedData.location;
+                }
+
+                if (extractedData.status || extractedData.Status) {
+                  payload.status = extractedData.status || extractedData.Status;
+                }
+
+                if (extractedData.createdAt || extractedData.created || extractedData.date) {
+                  payload.createdAt = extractedData.createdAt || extractedData.created || extractedData.date;
+                }
+
+                // Store any additional fields in logistics
+                const additionalFields: any = {};
+                Object.keys(extractedData).forEach(key => {
+                  if (!['ID', 'id', 'buyerId', 'storeName', 'store', 'name', 'owner', 'contact', 'email', 'phone', 'telephone', 
+                        'businessType', 'type', 'address', 'location', 'status', 'createdAt', 'created', 'date',
+                        'preferredDays', 'deliveryDays', 'lastShipment', 'lastDelivery', 'shipmentSuccess', 'successRate'].includes(key)) {
+                    additionalFields[key] = extractedData[key];
+                  }
+                });
+
+                if (Object.keys(additionalFields).length > 0) {
+                  payload.logistics = JSON.stringify(additionalFields);
+                }
+
+                if (extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || 
+                    extractedData.tags || extractedData.Tags) {
+                  payload.notes = JSON.stringify([
+                    extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || extractedData.tags || extractedData.Tags
+                  ]);
+                }
+
+                if (extractedData.orderDetails || extractedData.orders || extractedData['Order Details']) {
+                  payload.orderDetails = JSON.stringify(extractedData.orderDetails || extractedData.orders || extractedData['Order Details']);
+                }
+                
+                const response = await fetch('/api/buyers', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload),
+                });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`API Error: ${response.status} - ${errorText}`);
+                }
+                
+                successCount++;
+              } catch (error) {
+                errorCount++;
+              }
+            }
+            
+            // Show success/error feedback
+            if (successCount > 0) {
+              setUpdateSuccess(`Successfully imported ${successCount} buyer${successCount !== 1 ? 's' : ''}`);
+            }
+            if (errorCount > 0) {
+              setUpdateError(`Failed to import ${errorCount} buyer${errorCount !== 1 ? 's' : ''}. Check console for details.`);
+            }
+            
+            // Refresh data
+            await fetchBuyers();
+            
+          } catch (error) {
+            setUpdateError('Failed to process import data');
+          } finally {
+            setLoading(false);
           }
-          fetchBuyers();
         }}
         type="Buyers"
       />

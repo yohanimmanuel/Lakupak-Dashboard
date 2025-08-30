@@ -144,20 +144,18 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
   const validateMappedData = (mappedRows: OrderDetail[]) => {
     const errors: string[] = [];
     
-    mappedRows.forEach((row, index) => {
-      if (!row.product?.trim()) {
-        errors.push(`Row ${index + 1}: Product name is required`);
-      }
-      if (!row.totalOrders?.trim()) {
-        errors.push(`Row ${index + 1}: Total orders is required`);
-      }
-      if (!row.totalSpend?.trim()) {
-        errors.push(`Row ${index + 1}: Total spend is required`);
-      }
-      if (!row.lastOrderDate?.trim()) {
-        errors.push(`Row ${index + 1}: Last order date is required`);
-      }
-    });
+    // Only validate that we have at least some data to import
+    if (mappedRows.length === 0) {
+      errors.push('No data found to import');
+      return errors;
+    }
+    
+    // Check if at least one field is mapped
+    const hasAnyMapping = Object.keys(mapping).some(key => mapping[key]);
+    if (!hasAnyMapping) {
+      errors.push('Please map at least one column to a field');
+      return errors;
+    }
     
     return errors;
   };

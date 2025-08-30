@@ -109,7 +109,6 @@ export async function GET(req: NextRequest) {
     }, { headers });
     
   } catch (error) {
-    // Log error for monitoring (no console.log)
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500, headers }
@@ -158,10 +157,23 @@ export async function POST(req: NextRequest) {
     // Sanitize and clean the data
     const buyerData = sanitizeBuyerData(data);
     
+    // Provide defaults for required fields that are missing (for flexible imports)
+    const finalBuyerData = {
+      ...buyerData,
+      userId: Number(data.userId), // Ensure userId is included
+      storeName: buyerData.storeName || 'Imported Store',
+      owner: buyerData.owner || 'Imported Owner',
+      email: buyerData.email || `imported-${Date.now()}@example.com`,
+      phone: buyerData.phone || '000000000',
+      businessType: buyerData.businessType || 'General',
+      address: buyerData.address || 'Imported Address',
+      status: buyerData.status || 'Active',
+    };
+    
     // Check if buyer with same email already exists for this user
     const existingBuyer = await prisma.buyer.findFirst({
       where: { 
-        email: buyerData.email, 
+        email: finalBuyerData.email, 
         userId: Number(data.userId) 
       }
     });
@@ -174,12 +186,12 @@ export async function POST(req: NextRequest) {
     }
     
     // Generate unique buyerId if not provided
-    if (!buyerData.buyerId) {
-      buyerData.buyerId = 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+    if (!finalBuyerData.buyerId) {
+      finalBuyerData.buyerId = 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
     }
     
     const buyer = await prisma.buyer.create({
-      data: buyerData
+      data: finalBuyerData
     });
     
     return NextResponse.json(buyer, { 

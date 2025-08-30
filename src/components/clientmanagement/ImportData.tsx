@@ -70,36 +70,36 @@ function parseSupplies(cell: string | undefined): SupplyDetail[] {
 
 // Add mapping state and helpers
 const buyerFields = [
-  { key: 'ID', label: 'ID' },
-  { key: 'Store Name', label: 'Store Name' },
-  { key: 'Owner', label: 'Owner' },
-  { key: 'Phone', label: 'Phone' },
-  { key: 'Email', label: 'Email' },
-  { key: 'Address', label: 'Address' },
-  { key: 'Business Type', label: 'Business Type' },
-  { key: 'Status', label: 'Status' },
-  { key: 'Created At', label: 'Created At' },
-  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days' },
-  { key: 'Last Shipment', label: 'Last Shipment' },
-  { key: 'Shipment Success', label: 'Shipment Success' },
-  { key: 'Notes', label: 'Notes' },
-  { key: 'Order Details', label: 'Order Details (JSON or blank)' },
+  { key: 'ID', label: 'ID (Optional)' },
+  { key: 'Store Name', label: 'Store Name (Optional)' },
+  { key: 'Owner', label: 'Owner (Optional)' },
+  { key: 'Phone', label: 'Phone (Optional)' },
+  { key: 'Email', label: 'Email (Optional)' },
+  { key: 'Address', label: 'Address (Optional)' },
+  { key: 'Business Type', label: 'Business Type (Optional)' },
+  { key: 'Status', label: 'Status (Optional)' },
+  { key: 'Created At', label: 'Created At (Optional)' },
+  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days (Optional)' },
+  { key: 'Last Shipment', label: 'Last Shipment (Optional)' },
+  { key: 'Shipment Success', label: 'Shipment Success (Optional)' },
+  { key: 'Notes', label: 'Notes (Optional)' },
+  { key: 'Order Details', label: 'Order Details (Optional)' },
 ];
 const supplierFields = [
-  { key: 'ID', label: 'ID' },
-  { key: 'Supplier Name', label: 'Supplier Name' },
-  { key: 'Contact', label: 'Contact Person' },
-  { key: 'Phone', label: 'Phone' },
-  { key: 'Email', label: 'Email' },
-  { key: 'Business Type', label: 'Business Type' },
-  { key: 'Address', label: 'Address' },
-  { key: 'Status', label: 'Status' },
-  { key: 'Created At', label: 'Created At' },
-  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days' },
-  { key: 'Last Delivery', label: 'Last Delivery' },
-  { key: 'Delivery Success', label: 'Delivery Success' },
-  { key: 'Notes', label: 'Notes' },
-  { key: 'Supplies', label: 'Supplies (JSON or blank)' },
+  { key: 'ID', label: 'ID (Optional)' },
+  { key: 'Supplier Name', label: 'Supplier Name (Optional)' },
+  { key: 'Contact', label: 'Contact Person (Optional)' },
+  { key: 'Phone', label: 'Phone (Optional)' },
+  { key: 'Email', label: 'Email (Optional)' },
+  { key: 'Business Type', label: 'Business Type (Optional)' },
+  { key: 'Address', label: 'Address (Optional)' },
+  { key: 'Status', label: 'Status (Optional)' },
+  { key: 'Created At', label: 'Created At (Optional)' },
+  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days (Optional)' },
+  { key: 'Last Delivery', label: 'Last Delivery (Optional)' },
+  { key: 'Delivery Success', label: 'Delivery Success (Optional)' },
+  { key: 'Notes', label: 'Notes (Optional)' },
+  { key: 'Supplies', label: 'Supplies (Optional)' },
 ];
 
 // Synonyms for automapping
@@ -270,7 +270,13 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
         )}
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
-            <div className="mb-2 font-semibold text-black">Map your columns to the required fields:</div>
+            <div className="mb-2 font-semibold text-black">Map your columns to the fields (all fields are optional):</div>
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-700 text-sm">
+                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will use default values. 
+                Import whatever data you have available!
+              </p>
+            </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
@@ -302,7 +308,7 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
             </div>
             <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); }}>Back</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>Preview</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)}>Preview</button>
             </div>
           </div>
         )}

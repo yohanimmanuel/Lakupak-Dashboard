@@ -11,66 +11,45 @@ export const getSecurityHeaders = () => ({
 
 // Buyer input validation
 export const validateBuyerInput = (data: any): { valid: boolean; error?: string } => {
-  // Required fields validation
-  if (!data.storeName || data.storeName.trim().length === 0) {
-    return { valid: false, error: 'Store name is required' };
+  // For imports, we allow missing fields - only validate if provided
+  // No required field validation - users can import partial data
+  
+  // Email format validation (flexible for imports)
+  if (data.email && data.email.trim().length > 0) {
+    // Basic email check - just ensure it has @ and .
+    if (!data.email.includes('@') || !data.email.includes('.')) {
+      return { valid: false, error: 'Invalid email format' };
+    }
   }
   
-  if (!data.owner || data.owner.trim().length === 0) {
-    return { valid: false, error: 'Owner name is required' };
+  // Phone format validation (flexible for imports)
+  if (data.phone && data.phone.trim().length > 0) {
+    // Allow any phone format - just check if it's not empty and not too long
+    if (data.phone.trim().length > 20) {
+      return { valid: false, error: 'Phone number must be less than 20 characters' };
+    }
   }
   
-  if (!data.email || data.email.trim().length === 0) {
-    return { valid: false, error: 'Email is required' };
-  }
-  
-  if (!data.phone || data.phone.trim().length === 0) {
-    return { valid: false, error: 'Phone number is required' };
-  }
-  
-  if (!data.businessType || data.businessType.trim().length === 0) {
-    return { valid: false, error: 'Business type is required' };
-  }
-  
-  if (!data.address || data.address.trim().length === 0) {
-    return { valid: false, error: 'Address is required' };
-  }
-  
-  // Email format validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(data.email.trim())) {
-    return { valid: false, error: 'Invalid email format' };
-  }
-  
-  // Phone format validation (basic)
-  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-  const cleanPhone = data.phone.replace(/[\s\-\(\)]/g, '');
-  if (!phoneRegex.test(cleanPhone)) {
-    return { valid: false, error: 'Invalid phone number format' };
-  }
-  
-  // Length validations
-  if (data.storeName.trim().length > 100) {
+  // Length validations (only if fields exist)
+  if (data.storeName && data.storeName.trim().length > 100) {
     return { valid: false, error: 'Store name must be less than 100 characters' };
   }
   
-  if (data.owner.trim().length > 100) {
+  if (data.owner && data.owner.trim().length > 100) {
     return { valid: false, error: 'Owner name must be less than 100 characters' };
   }
   
-  if (data.email.trim().length > 254) {
-    return { valid: false, error: 'Email must be less than 254 characters' };
+  if (data.email && data.email.trim().length > 254) {
+    return { valid: false, error: 'Email must be less than 100 characters' };
   }
   
-  if (data.phone.trim().length > 20) {
-    return { valid: false, error: 'Phone number must be less than 20 characters' };
-  }
+
   
-  if (data.businessType.trim().length > 100) {
+  if (data.businessType && data.businessType.trim().length > 100) {
     return { valid: false, error: 'Business type must be less than 100 characters' };
   }
   
-  if (data.address.trim().length > 500) {
+  if (data.address && data.address.trim().length > 500) {
     return { valid: false, error: 'Address must be less than 500 characters' };
   }
   
@@ -87,8 +66,8 @@ export const validateBuyerInput = (data: any): { valid: boolean; error?: string 
 export const validateBuyerUpdate = (data: any): { valid: boolean; error?: string } => {
   // Email format validation if provided
   if (data.email && data.email.trim().length > 0) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email.trim())) {
+    // Basic email check - just ensure it has @ and .
+    if (!data.email.includes('@') || !data.email.includes('.')) {
       return { valid: false, error: 'Invalid email format' };
     }
     
@@ -99,12 +78,7 @@ export const validateBuyerUpdate = (data: any): { valid: boolean; error?: string
   
   // Phone format validation if provided
   if (data.phone && data.phone.trim().length > 0) {
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    const cleanPhone = data.phone.replace(/[\s\-\(\)]/g, '');
-    if (!phoneRegex.test(cleanPhone)) {
-      return { valid: false, error: 'Invalid phone number format' };
-    }
-    
+    // Allow any phone format - just check length
     if (data.phone.trim().length > 20) {
       return { valid: false, error: 'Phone number must be less than 20 characters' };
     }

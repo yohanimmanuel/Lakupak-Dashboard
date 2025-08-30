@@ -55,11 +55,6 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const filterOptions = useMemo(() => ["All Types", ...Array.from(businessTypeSet)], [businessTypeSet]);
   
   const today = useMemo(() => new Date(), []);
-  const thisMonthKey = useMemo(() => format(today, 'yyyy-MM'), [today]);
-  const lastMonthKey = useMemo(() => {
-    const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    return format(lastMonthDate, 'yyyy-MM');
-  }, [today]);
   
   const periodOptions = useMemo(() => ["All Months", "This Month", "Last Month"], []);
   
@@ -78,15 +73,42 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     }
     
     if (period !== "All Months") {
-      const periodKey = period === 'This Month' ? thisMonthKey : lastMonthKey;
+      // Filter by the original buyer data's createdAt date, not the formatted string
       filtered = filtered.filter((b: BuyerTableRow) => {
-        if (!b.createdAt) return false;
-        return b.createdAt.startsWith(periodKey);
+        // Find the original buyer data to get the actual createdAt date
+        const originalBuyer = buyers.find(buyer => buyer.id === b.id);
+        if (!originalBuyer?.createdAt) return false;
+        
+        try {
+          const buyerDate = new Date(originalBuyer.createdAt);
+          if (isNaN(buyerDate.getTime())) return false;
+          
+          const buyerYear = buyerDate.getFullYear();
+          const buyerMonth = buyerDate.getMonth();
+          
+          if (period === 'This Month') {
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth();
+            return buyerYear === currentYear && buyerMonth === currentMonth;
+          } else if (period === 'Last Month') {
+            const lastMonthYear = today.getFullYear();
+            const lastMonthMonth = today.getMonth() - 1;
+            // Handle year boundary (December -> January)
+            if (lastMonthMonth < 0) {
+              return buyerYear === lastMonthYear - 1 && buyerMonth === 11;
+            }
+            return buyerYear === lastMonthYear && buyerMonth === lastMonthMonth;
+          }
+        } catch (error) {
+          return false;
+        }
+        
+        return false;
       });
     }
     
     return filtered;
-  }, [tableRows, search, selectedTab, filter, period, thisMonthKey, lastMonthKey]);
+  }, [tableRows, search, selectedTab, filter, period, today, buyers]);
   
   // Enhanced pagination
   const rowsPerPage = 8;
@@ -679,6 +701,11 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         {/* Left: Showing X to Y of Z */}
         <div className="text-sm text-gray-500">
           Showing {fromRow} to {toRow} of {totalRows}
+          {(search || selectedTab !== 'All' || filter !== 'All Types' || period !== 'All Months') && (
+            <span className="ml-2 text-blue-600">
+              (filtered from {tableRows.length} total)
+            </span>
+          )}
         </div>
         {/* Right: Pagination Controls */}
         <div className="flex items-center gap-3">
