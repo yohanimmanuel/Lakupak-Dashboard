@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown } from 'lucide-react';
 import { Order } from '@/types/order';
 
 interface OrderDetailsProps {
@@ -11,6 +11,8 @@ interface OrderDetailsProps {
 export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
+  const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -65,9 +67,65 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           
           {/* Status Buttons - Top Right */}
           <div className="flex gap-2">
-            <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(order.orderStatus)}`}>
-              {order.orderStatus}
-            </button>
+            {/* Order Status Dropdown */}
+            <div className="relative group">
+              <button
+                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} border border-[#e6e6e6] hover:opacity-80 transition-all duration-200`}
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                title="Update your order or shipment status here"
+              >
+                {orderStatus}
+                <ChevronDown className="w-4 h-4 ml-3 text-gray-500" />
+              </button>
+              
+              {/* Hover tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                Update your order or shipment status here
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+              </div>
+              
+              {/* Dropdown Menu */}
+              {showStatusDropdown && (
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                  {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'].map(status => (
+                    <button
+                      key={status}
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/orders', {
+                            method: 'PUT',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              orderId: order.orderId,
+                              orderStatus: status
+                            }),
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error('Failed to update order status');
+                          }
+                          
+                          setOrderStatus(status);
+                          setShowStatusDropdown(false);
+                        } catch (error) {
+                          console.error('Failed to update order status:', error);
+                          // You can add a toast notification here
+                        }
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg ${
+                        orderStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Payment Status (Read-only, managed by mobile app) */}
             <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getPaymentStatusColor(order.paymentStatus)}`}>
               {order.paymentStatus}
             </button>

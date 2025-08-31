@@ -21,6 +21,7 @@ model User {
   buyers    Buyer[]
   suppliers Supplier[]
   products  Product[]
+  orders    Order[]    // Add relation to orders
 }
 
 model Buyer {
@@ -41,6 +42,7 @@ model Buyer {
   updatedAt    DateTime @updatedAt
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
+  orders       Order[]  // Add relation to orders
 }
 
 model Supplier {
@@ -86,4 +88,56 @@ model Product {
   updatedAt          DateTime @updatedAt
   userId             Int?
   user               User?    @relation(fields: [userId], references: [id])
+}
+
+model Order {
+  id                    Int      @id @default(autoincrement())
+  orderId               String   @unique
+  buyerId               String
+  orderDate             DateTime
+  orderStatus           String
+  paymentStatus         String
+  deliveryMethod        String
+  
+  // Financial data
+  subtotal              Float
+  discounts             Float
+  taxes                 Float
+  shippingFee           Float
+  totalAmount           Float
+  paymentTerms          String
+  currency              String
+  
+  // Earnings breakdown
+  shopEarnings          Float
+  totalOrders           Float
+  
+  // Customer information
+  contactPerson         String
+  storeName             String
+  contactPhone          String
+  customerEmail         String?
+  
+  // Delivery service
+  deliveryAddress       String
+  preferredDeliveryTime String?
+  assignedLogistics     String?
+  trackingNumber        String?
+  deliveryNote          String?
+  deliveryConfirmation  String?
+  pod                   String?
+  
+  // Order items as JSON string
+  orderItems            String
+  
+  // Audit & logs
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  acceptedBy            String?
+  acceptedAt            DateTime?
+  
+  // Relationships
+  buyer                 Buyer?   @relation(fields: [buyerId], references: [buyerId])
+  userId                Int?
+  user                  User?    @relation(fields: [userId], references: [id])
 }
