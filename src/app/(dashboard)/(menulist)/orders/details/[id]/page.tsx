@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import OrderDetails from '@/components/ordershipment/OrderDetails';
 import { Order } from '@/types/order';
+import { useUserStore } from '@/store/userStore';
 
 export default function OrderDetailsPage() {
+  const user = useUserStore(state => state.user);
   const params = useParams();
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
@@ -17,7 +19,12 @@ export default function OrderDetailsPage() {
     const fetchOrder = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/orders?id=${orderIdParam}`);
+        // For backward compatibility, fetch order without userId if user not authenticated
+        const url = user?.id 
+          ? `/api/orders?id=${orderIdParam}&userId=${user.id}`
+          : `/api/orders?id=${orderIdParam}`;
+        
+        const response = await fetch(url);
         
         if (!response.ok) {
           throw new Error('Failed to fetch order');
@@ -37,16 +44,14 @@ export default function OrderDetailsPage() {
         setOrder(orderWithDates);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching order:', error);
         setLoading(false);
-        // You can add error handling here if needed
       }
     };
 
     if (orderIdParam) {
       fetchOrder();
     }
-  }, [orderIdParam]);
+  }, [orderIdParam, user?.id]);
 
   const handleBack = () => {
     router.push('/orders');

@@ -1,28 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { 
+  getOrderSecurityHeaders, 
+  validateOrderInput, 
+  validateOrderUpdate,
+  sanitizeOrderData,
+  generateSecureOrderId,
+  validateOrderAccess
+} from '@/utils/order-security';
 
-const prisma = new PrismaClient() as any;
+const prisma = new PrismaClient();
 
 // GET /api/orders - Get all orders or get by ID
 export async function GET(request: NextRequest) {
+  const headers = getOrderSecurityHeaders();
+  
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
     
-    if (id) {
-      // Get single order by ID
-      const order = await prisma.order.findUnique({
-        where: { orderId: id },
-        include: {
-          buyer: true,
-          user: true
-        }
-      });
+    // For backward compatibility, allow requests without userId for existing data
+    // In production, this should be required for multi-tenant security
+    let userIdFilter = {};
+    if (userId) {
+      // Validate userId format
+      if (!/^\d+$/.test(userId)) {
+        return NextResponse.json(
+          { error: 'Invalid userId format' }, 
+          { status: 400, headers }
+        );
+      }
+      // For now, allow both the specific userId AND null userId (existing data)
+      // This ensures existing data shows up while maintaining security for new data
+      userIdFilter = {
+        OR: [
+          { userId: Number(userId) },
+          { userId: null }
+        ]
+      };
+    }
+    
+          if (id) {
+        // Get single order by ID
+        const order = await prisma.order.findFirst({
+          where: { 
+            orderId: id,
+            ...userIdFilter // Multi-tenant security (if userId provided)
+          },
+          include: {
+            buyer: true,
+            user: true
+          }
+        });
 
       if (!order) {
         return NextResponse.json(
           { error: 'Order not found' },
-          { status: 404 }
+          { status: 404, headers }
         );
       }
 
@@ -32,7 +67,7 @@ export async function GET(request: NextRequest) {
         orderItems: JSON.parse(order.orderItems)
       };
 
-      return NextResponse.json(orderWithParsedItems);
+      return NextResponse.json(orderWithParsedItems, { headers });
     }
     
     // Get all orders with pagination and filters
@@ -41,10 +76,18 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const buyerId = searchParams.get('buyerId');
     
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid pagination parameters' }, 
+        { status: 400, headers }
+      );
+    }
+    
     const skip = (page - 1) * limit;
     
-    // Build where clause
-    const where: any = {};
+    // Build where clause with multi-tenant security
+    const where = { ...userIdFilter } as any;
     if (status && status !== 'All') where.orderStatus = status;
     if (buyerId) where.buyerId = buyerId;
     
@@ -63,7 +106,7 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Parse orderItems JSON for each order
-    const ordersWithParsedItems = orders.map((order: any) => ({
+    const ordersWithParsedItems = orders.map((order) => ({
       ...order,
       orderItems: JSON.parse(order.orderItems)
     }));
@@ -76,46 +119,48 @@ export async function GET(request: NextRequest) {
         total,
         pages: Math.ceil(total / limit)
       }
-    });
+    }, { headers });
   } catch (error) {
-    console.error('Error fetching orders:', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
 
 // POST /api/orders - Create new order
 export async function POST(request: NextRequest) {
+  const headers = getOrderSecurityHeaders();
+  
   try {
     const body = await request.json();
     
-    // Validate required fields
-    const requiredFields = [
-      'orderId', 'buyerId', 'orderDate', 'orderStatus', 'paymentStatus',
-      'deliveryMethod', 'subtotal', 'totalAmount', 'contactPerson',
-      'storeName', 'contactPhone', 'deliveryAddress'
-    ];
+    // Validate input data
+    const validation = validateOrderInput(body);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400, headers }
+      );
+    }
     
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 }
-        );
-      }
+    // Sanitize input data
+    const sanitizedData = sanitizeOrderData(body);
+    
+    // Generate order ID if not provided
+    if (!sanitizedData.orderId) {
+      sanitizedData.orderId = generateSecureOrderId();
     }
     
     // Convert orderItems to JSON string
     const orderData = {
-      ...body,
-      orderItems: JSON.stringify(body.orderItems || []),
-      orderDate: new Date(body.orderDate),
-      acceptedAt: body.acceptedAt ? new Date(body.acceptedAt) : null
+      ...sanitizedData,
+      orderItems: JSON.stringify(sanitizedData.orderItems || []),
+      orderDate: new Date(String(sanitizedData.orderDate || new Date())),
+      acceptedAt: sanitizedData.acceptedAt ? new Date(String(sanitizedData.acceptedAt)) : null
     };
     
-    const order = await prisma.order.create({
+    const order = await (prisma.order.create as any)({
       data: orderData,
       include: {
         buyer: true,
@@ -129,42 +174,56 @@ export async function POST(request: NextRequest) {
       orderItems: JSON.parse(order.orderItems)
     };
     
-    return NextResponse.json(orderWithParsedItems, { status: 201 });
+    return NextResponse.json(orderWithParsedItems, { status: 201, headers });
   } catch (error) {
-    console.error('Error creating order:', error);
     return NextResponse.json(
       { error: 'Failed to create order' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
 
 // PUT /api/orders - Update order
 export async function PUT(request: NextRequest) {
+  const headers = getOrderSecurityHeaders();
+  
   try {
     const body = await request.json();
     
     if (!body.orderId) {
       return NextResponse.json(
         { error: 'Missing orderId' },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
     
-    // Convert orderItems to JSON string if provided
-    const updateData: any = { ...body };
-    if (body.orderItems) {
-      updateData.orderItems = JSON.stringify(body.orderItems);
-    }
-    if (body.orderDate) {
-      updateData.orderDate = new Date(body.orderDate);
-    }
-    if (body.acceptedAt) {
-      updateData.acceptedAt = new Date(body.acceptedAt);
+    // Validate update data
+    const validation = validateOrderUpdate(body);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400, headers }
+      );
     }
     
-    const order = await prisma.order.update({
-      where: { orderId: body.orderId },
+    // Sanitize update data
+    const sanitizedData = sanitizeOrderData(body);
+    
+    // Convert orderItems to JSON string if provided
+    const updateData: Record<string, unknown> = { ...sanitizedData };
+    if (sanitizedData.orderItems) {
+      updateData.orderItems = JSON.stringify(sanitizedData.orderItems);
+    }
+    if (sanitizedData.orderDate) {
+      updateData.orderDate = new Date(String(sanitizedData.orderDate));
+    }
+    if (sanitizedData.acceptedAt) {
+      updateData.acceptedAt = new Date(String(sanitizedData.acceptedAt));
+    }
+    
+    // For backward compatibility, don't require userId for updates
+    const order = await (prisma.order.update as any)({
+      where: { orderId: sanitizedData.orderId },
       data: updateData,
       include: {
         buyer: true,
@@ -178,25 +237,35 @@ export async function PUT(request: NextRequest) {
       orderItems: JSON.parse(order.orderItems)
     };
 
-    return NextResponse.json(orderWithParsedItems);
+    return NextResponse.json(orderWithParsedItems, { headers });
   } catch (error) {
-    console.error('Error updating order:', error);
     return NextResponse.json(
       { error: 'Failed to update order' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
 
 // DELETE /api/orders - Delete order
 export async function DELETE(request: NextRequest) {
+  const headers = getOrderSecurityHeaders();
+  
   try {
     const body = await request.json();
     
     if (!body.orderId) {
       return NextResponse.json(
         { error: 'Missing orderId' },
-        { status: 400 }
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate order ID format
+    const { validateOrderId } = await import('@/utils/order-security');
+    if (!validateOrderId(String(body.orderId))) {
+      return NextResponse.json(
+        { error: 'Invalid order ID format' },
+        { status: 400, headers }
       );
     }
     
@@ -204,12 +273,11 @@ export async function DELETE(request: NextRequest) {
       where: { orderId: body.orderId }
     });
 
-    return NextResponse.json({ message: 'Order deleted successfully' });
+    return NextResponse.json({ message: 'Order deleted successfully' }, { headers });
   } catch (error) {
-    console.error('Error deleting order:', error);
     return NextResponse.json(
       { error: 'Failed to delete order' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

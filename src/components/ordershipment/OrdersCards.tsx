@@ -9,15 +9,25 @@ interface OrdersCardsProps {
 }
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
-  // Calculate stats
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.orderStatus === 'Pending').length;
-  const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered').length;
+  // Validate and sanitize input
+  const validOrders = Array.isArray(orders) ? orders : [];
   
-  const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const pendingRevenue = orders
+  // Calculate stats with error handling
+  const totalOrders = validOrders.length;
+  const pendingOrders = validOrders.filter(o => o.orderStatus === 'Pending').length;
+  const deliveredOrders = validOrders.filter(o => o.orderStatus === 'Delivered').length;
+  
+  const totalRevenue = validOrders.reduce((sum, order) => {
+    const amount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
+    return sum + amount;
+  }, 0);
+  
+  const pendingRevenue = validOrders
     .filter(o => o.paymentStatus === 'Unpaid')
-    .reduce((sum, order) => sum + order.totalAmount, 0);
+    .reduce((sum, order) => {
+      const amount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
+      return sum + amount;
+    }, 0);
 
   return (
     <div className="space-y-4">

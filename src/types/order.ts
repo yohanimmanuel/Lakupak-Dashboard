@@ -5,7 +5,7 @@ export interface Order {
   buyerId: string;
   orderDate: Date;
   orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
-  paymentStatus: 'Unpaid' | 'Paid' | 'Overdue';
+  paymentStatus: 'Unpaid' | 'Paid';
   deliveryMethod: 'Distributor Fleet' | '3rd-Party Courier' | 'Pickup';
   subtotal: number;
   discounts: number;

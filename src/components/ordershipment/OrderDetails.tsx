@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown } from 'lucide-react';
 import { Order } from '@/types/order';
+import { useUserStore } from '@/store/userStore';
 
 interface OrderDetailsProps {
   order: Order;
@@ -9,6 +10,7 @@ interface OrderDetailsProps {
 }
 
 export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
+  const user = useUserStore(state => state.user);
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
@@ -31,7 +33,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     switch (status) {
       case 'Paid': return 'bg-green-100 text-green-800 font-semibold';
       case 'Unpaid': return 'bg-red-100 text-red-800 font-semibold';
-      case 'Overdue': return 'bg-orange-100 text-orange-800 font-semibold';
       default: return 'bg-gray-100 text-gray-800 font-semibold';
     }
   };
@@ -92,15 +93,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       key={status}
                       onClick={async () => {
                         try {
+                          const requestBody: Record<string, unknown> = {
+                            orderId: order.orderId,
+                            orderStatus: status
+                          };
+                          
+                          // Add userId if user is authenticated
+                          if (user?.id) {
+                            requestBody.userId = user.id;
+                          }
+
                           const response = await fetch('/api/orders', {
                             method: 'PUT',
                             headers: {
                               'Content-Type': 'application/json',
                             },
-                            body: JSON.stringify({
-                              orderId: order.orderId,
-                              orderStatus: status
-                            }),
+                            body: JSON.stringify(requestBody),
                           });
                           
                           if (!response.ok) {
@@ -110,8 +118,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           setOrderStatus(status);
                           setShowStatusDropdown(false);
                         } catch (error) {
-                          console.error('Failed to update order status:', error);
-                          // You can add a toast notification here
                         }
                       }}
                       className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg ${

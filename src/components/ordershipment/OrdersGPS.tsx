@@ -10,14 +10,17 @@ interface OrdersGPSProps {
 export default function OrdersGPS({ orders }: OrdersGPSProps) {
   const [showFullScreenModal, setShowFullScreenModal] = useState(false);
   
+  // Validate and sanitize input
+  const validOrders = Array.isArray(orders) ? orders : [];
+  
   // Mock map data - replace with actual map integration
-  const activeDeliveries = orders.filter(o => 
+  const activeDeliveries = validOrders.filter(o => 
     ['Shipped', 'Packed'].includes(o.orderStatus)
   ).length;
   
-  const shippedOrders = orders.filter(o => o.orderStatus === 'Shipped').length;
-  const deliveredOrders = orders.filter(o => o.orderStatus === 'Delivered').length;
-  const pendingOrders = orders.filter(o => o.orderStatus === 'Pending').length;
+  const shippedOrders = validOrders.filter(o => o.orderStatus === 'Shipped').length;
+  const deliveredOrders = validOrders.filter(o => o.orderStatus === 'Delivered').length;
+  const pendingOrders = validOrders.filter(o => o.orderStatus === 'Pending').length;
 
   return (
     <>
@@ -33,6 +36,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
               onClick={() => setShowFullScreenModal(true)}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               title="View full screen"
+              aria-label="Open full screen map view"
             >
               <Maximize2 className="w-5 h-5" />
             </button>
@@ -74,6 +78,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
             <button
               onClick={() => setShowFullScreenModal(false)}
               className="absolute top-6 right-6 z-10 p-3 text-gray-500 hover:bg-gray-300 rounded-lg transition-colors"
+              aria-label="Close full screen map view"
             >
               <X className="w-8 h-8" />
             </button>

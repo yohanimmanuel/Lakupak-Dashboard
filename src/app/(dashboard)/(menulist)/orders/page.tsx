@@ -6,8 +6,10 @@ import OrdersGPS from '@/components/ordershipment/OrdersGPS';
 import OrdersTable from '@/components/ordershipment/OrdersTable';
 import { Order, OrderTableRow } from '@/types/order';
 import * as XLSX from 'xlsx';
+import { useUserStore } from '@/store/userStore';
 
 export default function OrdersPage() {
+  const user = useUserStore(state => state.user);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,15 +19,19 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/orders');
+        // For backward compatibility, fetch orders without userId if user not authenticated
+        const url = user?.id ? `/api/orders?userId=${user.id}` : '/api/orders';
+        
+        const response = await fetch(url);
+        
         if (!response.ok) {
           throw new Error('Failed to fetch orders');
         }
+        
         const data = await response.json();
         setOrders(data.orders || []);
         setError(null);
       } catch (err) {
-        console.error('Error fetching orders:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch orders');
         setOrders([]);
       } finally {
@@ -34,7 +40,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, []);
+  }, [user?.id]);
 
   const orderToTableRow = (order: Order): OrderTableRow => ({
     id: order.id,

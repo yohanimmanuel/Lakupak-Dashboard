@@ -22,7 +22,6 @@ const paymentTabs = [
   { label: "All" },
   { label: "Unpaid" },
   { label: "Paid" },
-  { label: "Overdue" },
 ];
 
 export default function OrdersTable({ 
@@ -63,12 +62,13 @@ export default function OrdersTable({
     filteredOrders = filteredOrders.filter((o: OrderTableRow) => o.paymentStatus === selectedPaymentTab);
   }
   
-  // Apply search filter
-  if (search) {
+  // Apply search filter with sanitization
+  if (search && search.trim().length > 0) {
+    const sanitizedSearch = search.trim().toLowerCase();
     filteredOrders = filteredOrders.filter((o: OrderTableRow) => 
-      String(o.orderId).toLowerCase().includes(search.toLowerCase()) ||
-      String(o.buyerName).toLowerCase().includes(search.toLowerCase()) ||
-      String(o.trackingNumber).toLowerCase().includes(search.toLowerCase())
+      String(o.orderId || '').toLowerCase().includes(sanitizedSearch) ||
+      String(o.buyerName || '').toLowerCase().includes(sanitizedSearch) ||
+      String(o.trackingNumber || '').toLowerCase().includes(sanitizedSearch)
     );
   }
   
@@ -112,21 +112,32 @@ export default function OrdersTable({
     switch (status) {
       case 'Unpaid': return 'bg-red-100 text-red-500';
       case 'Paid': return 'bg-green-100 text-green-500';
-      case 'Overdue': return 'bg-orange-100 text-orange-500';
       default: return 'bg-gray-100 text-gray-500';
     }
   };
 
   const handleExport = () => {
+    if (!user?.id) {
+      return;
+    }
+    
     if (onExportXLSX) {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(filteredOrders);
-      XLSX.utils.book_append_sheet(wb, ws, "Orders");
-              onExportXLSX(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+      try {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(filteredOrders);
+        XLSX.utils.book_append_sheet(wb, ws, "Orders");
+        onExportXLSX(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+      } catch (error) {
+      }
     }
   };
 
   const handleOrderClick = (order: OrderTableRow) => {
+    // Validate orderId format before navigation
+    if (!order.orderId || typeof order.orderId !== 'string') {
+      return;
+    }
+    
     // Navigate to order details page using orderId instead of id
     router.push(`/orders/details/${order.orderId}`);
   };
@@ -209,6 +220,8 @@ export default function OrdersTable({
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+              aria-label="Search orders by order ID, buyer name, or tracking number"
+              maxLength={100}
             />
             <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
           </div>
@@ -323,6 +336,8 @@ export default function OrdersTable({
                   <button
                     className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
                     onClick={() => handleOrderClick(order)}
+                    aria-label={`View details for order ${order.orderId}`}
+                    title={`View details for order ${order.orderId}`}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>
@@ -395,6 +410,8 @@ export default function OrdersTable({
                   <button
                     className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
                     onClick={() => handleOrderClick(order)}
+                    aria-label={`View details for order ${order.orderId}`}
+                    title={`View details for order ${order.orderId}`}
                   >
                     <Eye className="w-4 h-4 text-[#0a61d7]" />
                   </button>

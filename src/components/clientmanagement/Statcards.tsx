@@ -132,8 +132,6 @@ export default function Statcards({ type, data }: StatcardsProps) {
               }
             }
           } catch (buyerError) {
-            // Skip this buyer if there's an error processing their data
-            console.warn('Error processing buyer data:', buyerError);
           }
         });
         
@@ -193,8 +191,6 @@ export default function Statcards({ type, data }: StatcardsProps) {
               }
             }
           } catch (supplierError) {
-            // Skip this supplier if there's an error processing their data
-            console.warn('Error processing supplier data:', supplierError);
           }
         });
         
@@ -237,8 +233,6 @@ export default function Statcards({ type, data }: StatcardsProps) {
               }
             }
           } catch (supplierError) {
-            // Skip this supplier if there's an error processing their data
-            console.warn('Error processing supplier delivery data:', supplierError);
           }
         });
         const onTimeRate = deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
@@ -267,8 +261,6 @@ export default function Statcards({ type, data }: StatcardsProps) {
         ];
       }
     } catch (error) {
-      // Fallback to basic stats if there's an error
-      console.error('Error calculating stats:', error);
       const fallbackStats = type === 'buyer' ? [
         { label: 'Total Buyers', value: data.length, icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
         { label: 'Active Buyers', value: data.filter(b => b.status === 'Active').length, icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true } },
