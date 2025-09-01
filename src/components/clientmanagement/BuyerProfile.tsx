@@ -10,6 +10,8 @@ import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useUserStore } from '@/store/userStore';
 
 function getBuyerAnalytics(orderDetailsStr: string) {
   if (!orderDetailsStr) return [];
@@ -48,6 +50,10 @@ function getBuyerAnalytics(orderDetailsStr: string) {
 }
 
 export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose?: () => void }) {
+  const user = useUserStore(state => state.user);
+  
+  // Get user currency for display
+  const userCurrency = user?.currency || getDefaultCurrency();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -481,8 +487,8 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
         )}
         <div className="flex flex-wrap gap-4 mb-2">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Orders: <span className="font-bold text-black">{totalOrders}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{currency}{formatNumber(totalSpend)}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{currency}{formatNumber(totalOutstanding)}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{formatCurrency(totalSpend, userCurrency)}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{formatCurrency(totalOutstanding, userCurrency)}</span></div>
         </div>
         {/* Above Order & Product Details table */}
         <div className="overflow-x-auto rounded-lg">
@@ -503,9 +509,9 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>
                   <td className="py-4 px-4 text-black">{order.totalOrders}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{order.totalSpend}</td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(order.totalSpend).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
                   <td className="py-4 px-4 text-black">{order.lastOrderDate}</td>
-                  <td className="py-4 px-4 text-[#f65911] font-semibold">{order.outstanding}</td>
+                  <td className="py-4 px-4 text-[#f65911] font-semibold">{formatCurrency(parseFloat(String(order.outstanding).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -590,7 +596,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Spending Analytics</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Spending: <span className="font-medium">{currency}{formatNumber(totalSpend)}</span></div>
+              <div>Total Monthly Spending: <span className="font-medium">{formatCurrency(totalSpend, userCurrency)}</span></div>
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
@@ -642,7 +648,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `Rp ${value}M`} />
+                  <Tooltip formatter={(value) => `${formatCurrency(Number(value) * 1000000, userCurrency)}`} />
                   <Line type="monotone" dataKey="spending" stroke="#f65911" strokeWidth={3} dot={{ r: 4, fill: '#f65911' }} />
                 </LineChart>
               </ResponsiveContainer>

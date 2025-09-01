@@ -45,10 +45,6 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
   }
   
-  // Format numbers with thousands separator and currency, only add currency if found
-  const formattedTotalSpend = currency ? (currency.trim() + ' ' + formatNumber(totalSpend)) : formatNumber(totalSpend);
-  const formattedOutstanding = currency ? (currency.trim() + ' ' + formatNumber(outstanding)) : formatNumber(outstanding);
-  
   return {
     id: buyer.id || 0,
     buyerId: buyer.buyerId,
@@ -62,8 +58,8 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     address: buyer.address,
     status: buyer.status,
     totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
-    totalSpend: formattedTotalSpend,
-    outstanding: formattedOutstanding,
+    totalSpend: totalSpend.toString(), // Return raw number as string, let BuyerTable format it
+    outstanding: outstanding.toString(), // Return raw number as string, let BuyerTable format it
           createdAt: formatDate(buyer.createdAt),
       lastUpdated: formatDate(buyer.updatedAt),
     userId: buyer.userId || 0,
@@ -344,8 +340,8 @@ export default function BuyersPage() {
               try {
                 
                 // Extract all available data from the buyer object dynamically
-                const extractData = (obj: any) => {
-                  const extracted: any = {};
+                const extractData = (obj: Record<string, unknown>): Record<string, string> => {
+                  const extracted: Record<string, string> = {};
                   
                   // Get all keys from the buyer data
                   Object.keys(obj).forEach(key => {
@@ -353,7 +349,7 @@ export default function BuyersPage() {
                     if (value !== undefined && value !== null && value !== '') {
                       // Convert key to camelCase for the API
                       const camelKey = key.replace(/\s+([a-z])/g, (_, letter) => letter.toUpperCase());
-                      extracted[camelKey] = value;
+                      extracted[camelKey] = String(value);
                     }
                   });
                   
@@ -364,7 +360,7 @@ export default function BuyersPage() {
                 const extractedData = extractData(buyer);
                 
                 // Create flexible payload - only include fields that have actual data
-                const payload: any = {
+                const payload: Record<string, unknown> = {
                   userId: user.id,
                 };
 
@@ -410,7 +406,7 @@ export default function BuyersPage() {
                 }
 
                 // Store any additional fields in logistics
-                const additionalFields: any = {};
+                const additionalFields: Record<string, string> = {};
                 Object.keys(extractedData).forEach(key => {
                   if (!['ID', 'id', 'buyerId', 'storeName', 'store', 'name', 'owner', 'contact', 'email', 'phone', 'telephone', 
                         'businessType', 'type', 'address', 'location', 'status', 'createdAt', 'created', 'date',
@@ -456,7 +452,7 @@ export default function BuyersPage() {
               setUpdateSuccess(`Successfully imported ${successCount} buyer${successCount !== 1 ? 's' : ''}`);
             }
             if (errorCount > 0) {
-              setUpdateError(`Failed to import ${errorCount} buyer${errorCount !== 1 ? 's' : ''}. Check console for details.`);
+              setUpdateError(`Failed to import ${errorCount} buyer${errorCount !== 1 ? 's' : ''}.`);
             }
             
             // Refresh data

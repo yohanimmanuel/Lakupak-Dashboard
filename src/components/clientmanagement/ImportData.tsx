@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { OrderDetail, SupplyDetail } from '@/types/client';
+import { getDefaultCurrency } from '@/utils/currencyUtils';
+import { useUserStore } from '@/store/userStore';
 
 type BuyerImportRow = {
   [key: string]: string | OrderDetail[] | undefined;
@@ -51,21 +53,56 @@ type ImportDataProps = {
 
 type ImportRow = BuyerImportRow | SupplierImportRow;
 
-function parseOrderDetails(cell: string | undefined): OrderDetail[] {
+function parseOrderDetails(cell: string | undefined, userCurrency: string): OrderDetail[] {
   if (!cell) return [];
   try {
-    return JSON.parse(cell);
+    const parsed = JSON.parse(cell);
+    if (Array.isArray(parsed)) {
+      return parsed.map((order: OrderDetail) => ({
+        ...order,
+        totalSpend: standardizeCurrencyFormat(order.totalSpend, userCurrency),
+        outstanding: standardizeCurrencyFormat(order.outstanding, userCurrency)
+      }));
+    }
+    return [];
   } catch {
     return [];
   }
 }
-function parseSupplies(cell: string | undefined): SupplyDetail[] {
+
+function parseSupplies(cell: string | undefined, userCurrency: string): SupplyDetail[] {
   if (!cell) return [];
   try {
-    return JSON.parse(cell);
+    const parsed = JSON.parse(cell);
+    if (Array.isArray(parsed)) {
+      return parsed.map((supply: SupplyDetail) => ({
+        ...supply,
+        totalValue: standardizeCurrencyFormat(supply.totalValue, userCurrency)
+      }));
+    }
+    return [];
   } catch {
     return [];
   }
+}
+
+// Currency format standardization function - only changes display format, preserves actual values
+function standardizeCurrencyFormat(value: string | undefined, targetCurrency: string): string {
+  if (!value) return '';
+  
+  const valueStr = value.toString().trim();
+  if (!valueStr) return '';
+  
+  // Extract the numeric part while preserving original formatting (commas, dots, etc.)
+  // Remove only the currency prefix/symbol but keep the number format exactly as is
+  const match = valueStr.match(/^[^\d]*(.+)$/);
+  if (!match) return valueStr; // Return original if no pattern found
+  
+  const numericPart = match[1].trim();
+  if (!numericPart) return valueStr; // Return original if no numbers found
+  
+  // Simply replace the currency symbol/code with the target currency, preserve exact number format
+  return `${targetCurrency} ${numericPart}`;
 }
 
 // Add mapping state and helpers
@@ -144,6 +181,9 @@ function generateSupplierId() {
 }
 
 export default function ImportData({ open, onClose, onImport, type = 'Buyers' }: ImportDataProps) {
+  const user = useUserStore(state => state.user);
+  const userCurrency = user?.currency || getDefaultCurrency();
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<ImportRow[]>([]);
@@ -154,7 +194,6 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
 
   const fields = type === 'Buyers' ? buyerFields : supplierFields;
   const synonyms = type === 'Buyers' ? buyerSynonyms : supplierSynonyms;
-  const headers = fields.map(f => f.key);
 
   // Automap columns to fields using synonyms
   function getAutomap(fileHeaders: string[]) {
@@ -188,17 +227,17 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
         workbook = XLSX.read(data, { type: 'array' });
       }
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+      const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
       if (!json.length) {
         setError('File is empty or invalid.');
         return;
       }
       const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
       setFileHeaders(fileHeadersRow);
-      setRows(json.slice(1).map((row: string[]): ImportRow => {
+      setRows(json.slice(1).map((row: unknown[]): ImportRow => {
         const obj: Record<string, string> = {};
         fileHeadersRow.forEach((h, i) => {
-          obj[h] = row[i] ?? '';
+          obj[h] = String(row[i] ?? '');
         });
         return obj as ImportRow;
       }));
@@ -222,10 +261,10 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
       });
       if (type === 'Buyers') {
         mapped.ID = generateBuyerId();
-        mapped.orderDetails = parseOrderDetails(mapped['Order Details'] as string);
+        mapped.orderDetails = parseOrderDetails(mapped['Order Details'] as string, userCurrency);
       } else {
         mapped.ID = generateSupplierId();
-        mapped.supplies = parseSupplies(mapped['Supplies'] as string);
+        mapped.supplies = parseSupplies(mapped['Supplies'] as string, userCurrency);
       }
       return mapped;
     });

@@ -7,6 +7,7 @@ interface User {
   email: string;
   company?: string;
   address?: string;
+  currency?: string;
 }
 
 interface SessionData {

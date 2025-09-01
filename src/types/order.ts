@@ -18,8 +18,7 @@ export interface Order {
   // ===== SECTION 2: ORDER ITEMS (Top Right) =====
   orderItems: OrderItem[];
 
-  // ===== SECTION 3: EARNINGS BREAKDOWN (Middle) =====
-  shopEarnings: number;
+  // ===== SECTION 3: ORDER QUANTITY (Middle) =====
   totalOrders: number;
 
   // ===== SECTION 4: CUSTOMER INFORMATION (Bottom Left) =====
@@ -61,6 +60,7 @@ export interface OrderTableRow {
   orderStatus: string;
   paymentStatus: string;
   totalAmount: string;
+  currency: string;
   items: string;
   deliveryMethod: string;
   trackingNumber?: string;

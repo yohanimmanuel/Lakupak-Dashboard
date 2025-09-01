@@ -6,7 +6,7 @@ import { OrderDetail } from '@/types/client';
 const orderFields = [
   { key: 'product', label: 'Product Name' },
   { key: 'totalOrders', label: 'Total Orders (Boxes)' },
-  { key: 'totalSpend', label: 'Total Spend (Rp)' },
+  { key: 'totalSpend', label: 'Total Spend' },
   { key: 'lastOrderDate', label: 'Last Order Date' },
   { key: 'outstanding', label: 'Outstanding' },
 ];
@@ -29,7 +29,27 @@ function getAutomap(fileHeaders: string[]) {
   return mapping;
 }
 
+// Remove currency identifier function - strips currency symbols/codes, preserves numeric values
+function removeCurrencyIdentifier(value: string | undefined): string {
+  if (!value) return '';
+  
+  const valueStr = value.toString().trim();
+  if (!valueStr) return '';
+  
+  // Extract the numeric part while preserving original formatting (commas, dots, etc.)
+  // Remove any currency prefix/symbol but keep the number format exactly as is
+  const match = valueStr.match(/^[^\d]*(.+)$/);
+  if (!match) return valueStr; // Return original if no pattern found
+  
+  const numericPart = match[1].trim();
+  if (!numericPart) return valueStr; // Return original if no numbers found
+  
+  // Return only the numeric part without any currency identifier
+  return numericPart;
+}
+
 export default function ImportOrdersModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (orderDetails: OrderDetail[]) => void }) {
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -82,7 +102,7 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
         }
         
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+        const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
         
         if (!json.length) {
           setError('File is empty or invalid.');
@@ -102,16 +122,16 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
         }
         
         setFileHeaders(fileHeadersRow);
-        setRows(json.slice(1).map((row: string[]): Record<string, string> => {
+        setRows(json.slice(1).map((row: unknown[]): Record<string, string> => {
           const obj: Record<string, string> = {};
           fileHeadersRow.forEach((h, i) => {
-            obj[h] = row[i] ?? '';
+            obj[h] = String(row[i] ?? '');
           });
           return obj;
         }));
         setMapping(getAutomap(fileHeadersRow));
         setStep(1); // mapping step
-      } catch (error) {
+      } catch {
         setError('Failed to process file. Please ensure it\'s a valid Excel or CSV file.');
       } finally {
         setIsProcessing(false);
@@ -135,7 +155,14 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
       const mapped: Partial<OrderDetail> = {};
       orderFields.forEach(f => {
         const col = mapping[f.key];
-        mapped[f.key as keyof OrderDetail] = col ? row[col] : '';
+        let value = col ? row[col] : '';
+        
+        // Remove currency identifier for monetary fields
+        if (f.key === 'totalSpend' || f.key === 'outstanding') {
+          value = removeCurrencyIdentifier(value);
+        }
+        
+        mapped[f.key as keyof OrderDetail] = value;
       });
       return mapped as OrderDetail;
     });

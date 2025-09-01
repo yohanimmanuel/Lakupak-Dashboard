@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
 import { getSupplierSecurityHeaders, validateSupplierInput, sanitizeSupplierData, generateUniqueSupplierId } from '@/utils/supplier-security';
+import { getServerCurrency } from '@/config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(suppliers, { headers });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500, headers }
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Get server currency
+    const serverCurrency = getServerCurrency();
+    
     // Sanitize and prepare supplier data
     const supplierData = {
       supplierId: data.supplierId || '',
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
       businessType: data.businessType || '',
       address: data.address || '',
       status: data.status || 'Active',
+      currency: serverCurrency, // Force server currency
       logistics: data.logistics || null,
       notes: data.notes || null,
       supplies: data.supplies || null,
@@ -144,9 +149,9 @@ export async function POST(req: NextRequest) {
       }
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle Prisma-specific errors
-    if (error?.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Supplier with this ID already exists' }, 
         { status: 409, headers }
@@ -154,7 +159,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Provide more specific error messages
-    if (error?.message) {
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
       return NextResponse.json(
         { error: error.message }, 
         { status: 400, headers }
@@ -231,7 +236,7 @@ export async function DELETE(req: NextRequest) {
     
     return NextResponse.json({ success: true, deleted }, { headers });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to delete supplier' }, 
       { status: 500, headers }
@@ -314,7 +319,7 @@ export async function PUT(req: NextRequest) {
     
     return NextResponse.json(responseData, { headers });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to update supplier' }, 
       { status: 500, headers }

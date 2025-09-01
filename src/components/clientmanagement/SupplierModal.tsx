@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
+import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -22,6 +23,10 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  
+  // Get currency for display
+  const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
   
   // Helper function to safely parse JSON strings
   const safeParseJSON = (jsonStr: string, fallback: SupplyDetail[] | Record<string, unknown>) => {
@@ -169,6 +174,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         ...form,
         supplierId: id,
         name: form.supplierName,
+        currency: userCurrency, // Include server currency
         supplies: JSON.stringify(supplyRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
@@ -226,7 +232,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative">
+      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative">
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}</h2>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
           <div>
@@ -290,7 +296,12 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
                       <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalValue} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} /></td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center">
+                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
+                          <input type="text" className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" value={row.totalValue} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} placeholder="0" />                   
+                        </div>
+                      </td>
                       <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastDelivery} onChange={e => handleSupplyChange(idx, 'lastDelivery', e.target.value)} /></td>
                       <td className="py-2 px-3">
                         <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteSupplyRow(idx)} disabled={supplyRows.length === 1}><Trash className="w-4 h-4" /></button>

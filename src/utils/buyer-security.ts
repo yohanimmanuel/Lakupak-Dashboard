@@ -149,6 +149,10 @@ export const sanitizeBuyerData = (data: any) => {
     sanitized.status = String(data.status).trim();
   }
   
+  if (data.currency !== undefined) {
+    sanitized.currency = String(data.currency).trim();
+  }
+  
   // Optional fields
   if (data.avatar !== undefined) {
     sanitized.avatar = data.avatar ? String(data.avatar).trim() : null;

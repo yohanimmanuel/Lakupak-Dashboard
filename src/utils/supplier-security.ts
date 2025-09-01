@@ -64,6 +64,9 @@ export function sanitizeSupplierData(data: Partial<SupplierFormData>): Partial<S
   if (typeof data.notes === 'string') {
     sanitized.notes = data.notes.trim();
   }
+  if (typeof data.currency === 'string') {
+    sanitized.currency = data.currency.trim();
+  }
 
   return sanitized;
 }

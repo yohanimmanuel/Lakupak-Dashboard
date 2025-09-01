@@ -8,6 +8,8 @@ import {
   generateSecureOrderId,
   validateOrderAccess
 } from '@/utils/order-security';
+import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderUtils';
+import { getServerCurrency } from '@/config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -62,12 +64,49 @@ export async function GET(request: NextRequest) {
       }
 
       // Parse orderItems JSON
-      const orderWithParsedItems = {
+      let orderWithParsedItems = {
         ...order,
         orderItems: JSON.parse(order.orderItems)
       };
 
-      return NextResponse.json(orderWithParsedItems, { headers });
+      // Auto-validate and correct data on every fetch
+      const { order: validatedOrder, wasCorrected } = validateAndCorrectOrder(orderWithParsedItems as any);
+      
+      // If corrections were made, update the database automatically
+      if (wasCorrected) {
+        try {
+          const updateData = {
+            orderId: validatedOrder.orderId,
+            orderItems: validatedOrder.orderItems,
+            subtotal: validatedOrder.subtotal,
+            totalAmount: validatedOrder.totalAmount,
+            totalOrders: validatedOrder.totalOrders,
+            taxes: validatedOrder.taxes,
+            shippingFee: validatedOrder.shippingFee,
+            discounts: validatedOrder.discounts,
+            orderStatus: validatedOrder.orderStatus,
+            paymentStatus: validatedOrder.paymentStatus,
+            deliveryMethod: validatedOrder.deliveryMethod,
+            trackingNumber: validatedOrder.trackingNumber,
+            contactPerson: validatedOrder.contactPerson,
+            orderDate: validatedOrder.orderDate,
+            acceptedAt: validatedOrder.acceptedAt,
+          };
+
+          await prisma.order.update({
+            where: { orderId: validatedOrder.orderId },
+            data: {
+              ...updateData,
+              orderItems: JSON.stringify(validatedOrder.orderItems),
+              orderDate: new Date(validatedOrder.orderDate),
+              acceptedAt: validatedOrder.acceptedAt ? new Date(validatedOrder.acceptedAt) : null
+            }
+          });
+        } catch (error) {
+        }
+      }
+
+      return NextResponse.json(validatedOrder, { headers });
     }
     
     // Get all orders with pagination and filters
@@ -105,11 +144,32 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where })
     ]);
     
-    // Parse orderItems JSON for each order
-    const ordersWithParsedItems = orders.map((order) => ({
-      ...order,
-      orderItems: JSON.parse(order.orderItems)
-    }));
+    // Parse orderItems JSON for each order and auto-validate
+    const ordersWithParsedItems = orders.map((order) => {
+      const orderWithParsedItems = {
+        ...order,
+        orderItems: JSON.parse(order.orderItems)
+      };
+      
+      // Auto-validate and correct each order
+      const { order: validatedOrder, wasCorrected } = validateAndCorrectOrder(orderWithParsedItems as any);
+      
+      // If corrections were made, update the database automatically (async, don't wait)
+      if (wasCorrected) {
+        prisma.order.update({
+          where: { orderId: validatedOrder.orderId },
+          data: {
+            orderItems: JSON.stringify(validatedOrder.orderItems),
+            subtotal: validatedOrder.subtotal,
+            totalAmount: validatedOrder.totalAmount,
+            totalOrders: validatedOrder.totalOrders,
+          }
+        }).catch(error => {
+        });
+      }
+      
+      return validatedOrder;
+    });
     
     return NextResponse.json({
       orders: ordersWithParsedItems,
@@ -152,10 +212,21 @@ export async function POST(request: NextRequest) {
       sanitizedData.orderId = generateSecureOrderId();
     }
     
+    // Get server currency and ensure order uses it
+    const serverCurrency = getServerCurrency();
+    
+    // Recalculate entire order with all mathematical relationships
+    const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+    const recalculatedOrder = recalculateEntireOrder({
+      ...sanitizedData,
+      currency: serverCurrency, // Force server currency
+      orderItems: orderItems
+    } as any);
+    
     // Convert orderItems to JSON string
     const orderData = {
-      ...sanitizedData,
-      orderItems: JSON.stringify(sanitizedData.orderItems || []),
+      ...recalculatedOrder,
+      orderItems: JSON.stringify(recalculatedOrder.orderItems),
       orderDate: new Date(String(sanitizedData.orderDate || new Date())),
       acceptedAt: sanitizedData.acceptedAt ? new Date(String(sanitizedData.acceptedAt)) : null
     };
@@ -209,11 +280,27 @@ export async function PUT(request: NextRequest) {
     // Sanitize update data
     const sanitizedData = sanitizeOrderData(body);
     
-    // Convert orderItems to JSON string if provided
-    const updateData: Record<string, unknown> = { ...sanitizedData };
+    // Get server currency and ensure order uses it
+    const serverCurrency = getServerCurrency();
+    
+    // Recalculate entire order if orderItems are provided
+    let recalculatedData = { ...sanitizedData };
     if (sanitizedData.orderItems) {
-      updateData.orderItems = JSON.stringify(sanitizedData.orderItems);
+      const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+      const recalculatedOrder = recalculateEntireOrder({
+        ...sanitizedData,
+        currency: serverCurrency, // Force server currency
+        orderItems: orderItems
+      } as any);
+      
+      recalculatedData = {
+        ...recalculatedOrder,
+        orderItems: JSON.stringify(recalculatedOrder.orderItems)
+      };
     }
+    
+    // Convert orderItems to JSON string if provided
+    const updateData: Record<string, unknown> = recalculatedData;
     if (sanitizedData.orderDate) {
       updateData.orderDate = new Date(String(sanitizedData.orderDate));
     }

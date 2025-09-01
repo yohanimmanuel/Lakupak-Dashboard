@@ -47,9 +47,6 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
     totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0);
   }
   
-  // Format number with thousands separator and currency, only add currency if found
-  const formattedTotalPurchases = currency ? (currency.trim() + ' ' + formatNumber(totalPurchases)) : formatNumber(totalPurchases);
-  
   return {
     id: supplier.id || 0,
     supplierId: supplier.supplierId,
@@ -59,7 +56,7 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
     phone: supplier.phone,
     businessType: supplier.businessType,
     address: supplier.address,
-    totalPurchases: formattedTotalPurchases,
+    totalPurchases: totalPurchases.toString(), // Return raw number as string, let SupplierTable format it
     totalSupplies: totalSupplied,
     createdAt: supplier.createdAt ? new Date(supplier.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     status: supplier.status,
@@ -276,8 +273,8 @@ export default function SuppliersPage() {
               try {
                 
                 // Extract all available data from the supplier object dynamically
-                const extractData = (obj: any) => {
-                  const extracted: any = {};
+                const extractData = (obj: Record<string, unknown>): Record<string, string> => {
+                  const extracted: Record<string, string> = {};
                   
                   // Get all keys from the supplier data
                   Object.keys(obj).forEach(key => {
@@ -285,7 +282,7 @@ export default function SuppliersPage() {
                     if (value !== undefined && value !== null && value !== '') {
                       // Convert key to camelCase for the API
                       const camelKey = key.replace(/\s+([a-z])/g, (_, letter) => letter.toUpperCase());
-                      extracted[camelKey] = value;
+                      extracted[camelKey] = String(value);
                     }
                   });
                   
@@ -296,7 +293,7 @@ export default function SuppliersPage() {
                 const extractedData = extractData(supplier);
                 
                 // Create flexible payload - only include fields that have actual data
-                const payload: any = {
+                const payload: Record<string, unknown> = {
                   userId: user.id,
                 };
 
@@ -342,7 +339,7 @@ export default function SuppliersPage() {
                 }
 
                 // Store any additional fields in logistics
-                const additionalFields: any = {};
+                const additionalFields: Record<string, string> = {};
                 Object.keys(extractedData).forEach(key => {
                   if (!['ID', 'id', 'supplierId', 'name', 'Supplier Name', 'supplier', 'Name', 'contact', 'Contact', 'Contact Person', 'email', 'phone', 'Phone', 'telephone', 
                         'businessType', 'type', 'Business Type', 'address', 'Address', 'location', 'status', 'Status', 'createdAt', 'created', 'date',

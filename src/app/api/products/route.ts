@@ -7,6 +7,7 @@ import {
   validateProductUpdate,
   generateUniqueProductId
 } from '../../../utils/product-security';
+import { getServerCurrency } from '@/config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -138,6 +139,9 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Get server currency
+    const serverCurrency = getServerCurrency();
+    
     // Sanitize and prepare product data
     const productData = {
       productId: data.productId || generateUniqueProductId(),
@@ -152,6 +156,7 @@ export async function POST(req: NextRequest) {
       stockStatus: data.stockStatus || null,
       purchasePrice: String(data.purchasePrice || ''),
       sellingPrice: String(data.sellingPrice || ''),
+      currency: serverCurrency, // Force server currency
       status: data.status || 'Draft',
       catalogType: data.catalogType || 'Internal',
       catalogName: data.catalogName || '',

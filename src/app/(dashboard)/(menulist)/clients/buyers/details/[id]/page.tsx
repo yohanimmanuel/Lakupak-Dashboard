@@ -75,7 +75,7 @@ export default function BuyerDetailsPage() {
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">Buyer Not Found</div>
-          <div className="text-gray-600">The requested buyer could not be found or you don't have permission to view it.</div>
+          <div className="text-gray-600">The requested buyer could not be found or you don&apos;t have permission to view it.</div>
         </div>
       </div>
     );

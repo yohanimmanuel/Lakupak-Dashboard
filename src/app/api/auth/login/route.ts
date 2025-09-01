@@ -6,6 +6,7 @@ import {
   getSecurityHeaders, 
   sanitizeUserData 
 } from '../../../../utils/auth-security';
+import { getServerCurrency } from '@/config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -66,8 +67,23 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Return sanitized user data
-    const userData = sanitizeUserData(user);
+    // Get server currency and update user if needed
+    const serverCurrency = getServerCurrency();
+    
+    // Update user's currency if it doesn't match server currency
+    if (user.currency !== serverCurrency) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { currency: serverCurrency }
+      });
+      user.currency = serverCurrency;
+    }
+    
+    // Return sanitized user data with currency
+    const userData = {
+      ...sanitizeUserData(user),
+      currency: user.currency
+    };
     
     return NextResponse.json(userData, { 
       status: 200, 

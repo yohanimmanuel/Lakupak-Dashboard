@@ -16,6 +16,7 @@ model User {
   password  String
   company   String?
   address   String?
+  currency  String     @default("IDR")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   buyers    Buyer[]
@@ -35,6 +36,7 @@ model Buyer {
   businessType String
   address      String
   status       String
+  currency     String   @default("IDR")
   createdAt    DateTime @default(now())
   logistics    String?
   notes        String?
@@ -55,6 +57,7 @@ model Supplier {
   businessType String
   address      String
   status       String
+  currency     String   @default("IDR")
   createdAt    DateTime @default(now())
   logistics    String?
   notes        String?
@@ -78,6 +81,7 @@ model Product {
   stockStatus        String?
   purchasePrice      String
   sellingPrice       String
+  currency           String   @default("IDR")
   status             String
   catalogType        String
   catalogName        String
@@ -108,9 +112,8 @@ model Order {
   paymentTerms          String
   currency              String
   
-  // Earnings breakdown
-  shopEarnings          Float
-  totalOrders           Float
+  // Order quantity
+  totalOrders           Int
   
   // Customer information
   contactPerson         String

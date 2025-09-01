@@ -9,6 +9,8 @@ import * as XLSX from 'xlsx';
 import ImportSuppliesModal from './ImportSuppliesModal';
 import { Supplier, SupplyDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useUserStore } from '@/store/userStore';
 
 function getSupplierAnalytics(suppliesStr: string) {
   if (!suppliesStr) return [];
@@ -47,6 +49,10 @@ function getSupplierAnalytics(suppliesStr: string) {
 }
 
 export default function SupplierProfile({ supplier, onClose }: { supplier: Supplier; onClose?: () => void }) {
+  const user = useUserStore(state => state.user);
+  
+  // Get user currency for display
+  const userCurrency = user?.currency || getDefaultCurrency();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   
@@ -204,7 +210,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
               suppliesFields.push({ name: 'Supplies Data', value: false });
             } else {
               // Check if supplies have meaningful content
-              const hasValidSupplies = supplies.some((supply: any) => 
+              const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
                 supply.sku && String(supply.sku).trim() &&
                 supply.product && String(supply.product).trim() &&
                 supply.totalSupplied && String(supply.totalSupplied).trim() &&
@@ -385,7 +391,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
             Total Supplied: <span className="font-bold text-black">{totalSupplied}</span>
           </div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
-                            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{currency}{formatNumber(totalValue)}</span>
+                            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
           </div>
         </div>
         <div className="overflow-x-auto rounded-lg">
@@ -407,7 +413,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
                   <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.product)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{String(supply.totalValue)}</td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supply.totalValue).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.lastDelivery)}</td>
                 </tr>
               ))}
@@ -460,7 +466,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Purchase Analytics</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Purchase Value: <span className="font-medium">{currency}{formatNumber(totalValue)}</span></div>
+              <div>Total Monthly Purchase Value: <span className="font-medium">{formatCurrency(totalValue, userCurrency)}</span></div>
               <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
@@ -542,7 +548,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `Rp ${value}M`} />
+                  <Tooltip formatter={(value) => `${formatCurrency(Number(value) * 1000000, userCurrency)}`} />
                   <Line type="monotone" dataKey="value" stroke="#f65911" strokeWidth={3} dot={{ r: 4, fill: '#f65911' }} />
                 </LineChart>
               </ResponsiveContainer>

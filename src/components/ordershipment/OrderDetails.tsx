@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown } from 'lucide-react';
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
+import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity, forceDatabaseRecalculation } from '@/utils/orderUtils';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 interface OrderDetailsProps {
   order: Order;
@@ -15,6 +17,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -37,13 +40,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     }
   };
 
-  const calculateSubtotal = () => {
-    return order.orderItems.reduce((sum, item) => sum + item.subtotal, 0);
-  };
+  const calculateSubtotal = () => calculateOrderSubtotal(order);
+  const calculateTotalAmount = () => calculateOrderTotalAmount(order);
+  const calculateTotalQuantity = () => calculateOrderTotalQuantity(order);
 
-  const calculateTotalAmount = () => {
-    const subtotal = calculateSubtotal();
-    return subtotal + order.taxes + order.shippingFee - order.discounts;
+  // Handle database recalculation after manual JSON changes
+  const handleRecalculateDatabase = async () => {
+    setIsRecalculating(true);
+    try {
+      await forceDatabaseRecalculation(order.orderId);
+      // Reload the page to show updated values
+      window.location.reload();
+    } catch (error) {
+    } finally {
+      setIsRecalculating(false);
+    }
   };
 
   // Calculate pagination for earnings table
@@ -111,9 +122,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                             body: JSON.stringify(requestBody),
                           });
                           
+                          
                           if (!response.ok) {
-                            throw new Error('Failed to update order status');
+                            const errorText = await response.text();
+                            throw new Error(`Failed to update order status: ${response.status}`);
                           }
+                          
+                          const result = await response.json();
                           
                           setOrderStatus(status);
                           setShowStatusDropdown(false);
@@ -134,6 +149,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Payment Status (Read-only, managed by mobile app) */}
             <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getPaymentStatusColor(order.paymentStatus)}`}>
               {order.paymentStatus}
+            </button>
+            
+            {/* Database Recalculation Button */}
+            <button
+              onClick={handleRecalculateDatabase}
+              disabled={isRecalculating}
+              className="py-2 px-4 rounded-lg text-sm font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors disabled:opacity-50"
+              title="Recalculate database values after manual JSON changes"
+            >
+              {isRecalculating ? 'Recalculating...' : '🔄 Recalculate DB'}
             </button>
           </div>
         </div>
@@ -183,7 +208,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Total Order Header */}
             <div>
               <div className="text-md font-semibold text-black mb-2">Total Order</div>
-              <div className="text-2xl font-bold text-[#0a61d7] mb-3">${calculateTotalAmount().toFixed(2)}</div>
+              <div className="text-2xl font-bold text-[#0a61d7] mb-3">{formatCurrency(calculateTotalAmount(), user?.currency)}</div>
             </div>
 
             {/* Payment Authorization Card */}
@@ -208,23 +233,23 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Service price:</span>
-                  <span className="font-medium text-black">${calculateSubtotal().toFixed(2)}</span>
+                  <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Discounts:</span>
-                  <span className="font-medium text-green-600">{order.discounts.toFixed(2)}</span>
+                  <span className="font-medium text-green-600">{formatCurrency(order.discounts, user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Taxes:</span>
-                  <span className="font-medium text-black">{order.taxes.toFixed(2)}</span>
+                  <span className="font-medium text-black">{formatCurrency(order.taxes, user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping fee:</span>
-                  <span className="font-medium text-black">{order.shippingFee.toFixed(2)}</span>
+                  <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Currency:</span>
-                  <span className="font-medium text-black">{order.currency || 'USD'}</span>
+                  <span className="font-medium text-black">{user?.currency || 'IDR'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Payment Terms:</span>
@@ -322,8 +347,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   
                   {/* Price & Quantity */}
                   <div className="text-right">
-                    <p className="text-xs font-medium text-gray-900">${item.unitPrice.toFixed(2)}</p>
-                    <p className="text-sm font-semibold text-black">${item.subtotal.toFixed(2)}</p>
+                                      <p className="text-xs font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
+                  <p className="text-sm font-semibold text-black">{formatCurrency(item.subtotal, user?.currency)}</p>
                   </div>
                 </div>
               ))}
@@ -342,19 +367,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
           </div>
 
-          {/* Earnings Breakdown Section */}
+          {/* Order Summary Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Earnings Breakdown</h2>
+            <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
             
             {/* Top Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="text-2xl font-bold text-[#0a61d7]">{order.shopEarnings?.toFixed(2) || '0.00'}</div>
-                <div className="text-sm text-gray-600">Shop Earnings</div>
-              </div>
+            <div className="grid grid-cols-1 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="text-2xl font-bold text-green-600">{order.totalOrders || '0'}</div>
-                <div className="text-sm text-gray-600">Total Orders</div>
+                <div className="text-2xl font-bold text-green-600">{calculateTotalQuantity()}</div>
+                <div className="text-sm text-gray-600">Total Items Quantity</div>
               </div>
             </div>
 
@@ -373,9 +394,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   {currentEarningsItems.map((item, index) => (
                     <tr key={index} className="border-b border-gray-100">
                       <td className="py-2">{item.productName}</td>
-                      <td className="py-2">${item.unitPrice.toFixed(2)}</td>
+                      <td className="py-2">{formatCurrency(item.unitPrice, user?.currency)}</td>
                       <td className="py-2">{item.quantity}</td>
-                      <td className="py-2 text-right font-medium">${item.subtotal.toFixed(2)}</td>
+                      <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -383,7 +404,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan={3} className="py-3 text-lg font-semibold text-gray-900">Total price</td>
                     <td className="py-3 text-right font-bold text-lg text-gray-900">
-                      ${calculateSubtotal().toFixed(2)}
+                      {formatCurrency(calculateSubtotal(), user?.currency)}
                     </td>
                   </tr>
                 </tfoot>
@@ -450,8 +471,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     
                     {/* Price & Quantity */}
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">${item.unitPrice.toFixed(2)}</p>
-                      <p className="text-lg font-semibold text-[#0a61d7]">${item.subtotal.toFixed(2)}</p>
+                                        <p className="text-sm font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
+                  <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
                     </div>
                   </div>
                 ))}

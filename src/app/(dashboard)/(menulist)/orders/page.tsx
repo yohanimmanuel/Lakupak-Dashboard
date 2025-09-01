@@ -5,6 +5,7 @@ import OrdersCards from '@/components/ordershipment/OrdersCards';
 import OrdersGPS from '@/components/ordershipment/OrdersGPS';
 import OrdersTable from '@/components/ordershipment/OrdersTable';
 import { Order, OrderTableRow } from '@/types/order';
+import { calculateOrderTotalAmount } from '@/utils/orderUtils';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 
@@ -42,21 +43,24 @@ export default function OrdersPage() {
     fetchOrders();
   }, [user?.id]);
 
-  const orderToTableRow = (order: Order): OrderTableRow => ({
-    id: order.id,
-    orderId: order.orderId,
-    buyerId: order.buyerId,
-    buyerName: order.contactPerson,
-    orderDate: new Date(order.orderDate).toISOString(), // Convert string to Date first
-    orderStatus: order.orderStatus,
-    paymentStatus: order.paymentStatus,
-    totalAmount: order.totalAmount.toString(),
-    items: `${order.orderItems.length} items`,
-    deliveryMethod: order.deliveryMethod,
-    trackingNumber: order.trackingNumber,
-    createdAt: new Date(order.createdAt).toISOString(), // Convert string to Date first
-    updatedAt: new Date(order.updatedAt).toISOString()  // Convert string to Date first
-  });
+  const orderToTableRow = (order: Order): OrderTableRow => {
+    return {
+      id: order.id,
+      orderId: order.orderId,
+      buyerId: order.buyerId,
+      buyerName: order.contactPerson,
+      orderDate: new Date(order.orderDate).toISOString(), // Convert string to Date first
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+      totalAmount: calculateOrderTotalAmount(order).toFixed(2),
+      currency: user?.currency || 'IDR', // Use user's currency instead of order's
+      items: `${order.orderItems.length} items`,
+      deliveryMethod: order.deliveryMethod,
+      trackingNumber: order.trackingNumber,
+      createdAt: new Date(order.createdAt).toISOString(), // Convert string to Date first
+      updatedAt: new Date(order.updatedAt).toISOString()  // Convert string to Date first
+    };
+  };
 
   const handleExportXLSX = (workbook: XLSX.WorkBook, filename: string) => {
     XLSX.writeFile(workbook, filename);

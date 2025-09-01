@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-security';
+import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -17,6 +18,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
 }) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  
+  // Get currency for display
+  const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
   
   // Helper function to safely parse JSON strings (moved to top to fix initialization error)
   const safeParseJSON = useCallback((jsonStr: string, fallback: unknown) => {
@@ -164,6 +169,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         ...form,
         avatar,
         buyerId: id,
+        currency: userCurrency, // Include server currency
         orderDetails: JSON.stringify(orderRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim()).filter(Boolean)),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
@@ -176,7 +182,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       };
       
       if (isEdit && initialData && typeof initialData.id === 'number') {
-        (payload as any).id = initialData.id;
+        (payload as unknown as BuyerFormData & { id: number }).id = initialData.id;
       }
       
       delete payload.preferredDays;
@@ -211,8 +217,9 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         handleSuccess('Buyer created successfully!');
         onClose();
       }
-    } catch (err: any) {
-      handleError(err.message || 'Failed to save buyer');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save buyer';
+      handleError(errorMessage);
     } finally {
       setSaving(false);
       setIsSubmitting(false);
@@ -305,7 +312,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       aria-modal="true"
       aria-labelledby="buyer-modal-title"
     >
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-4xl relative max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
         <button
           type="button"
           className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
@@ -510,12 +517,16 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <input 
-                          type="text" 
-                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.totalSpend} 
-                          onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
-                        />
+                        <div className="flex items-center">
+                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
+                          <input 
+                            type="text" 
+                            className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                            value={row.totalSpend} 
+                            onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
+                            placeholder="0"
+                          />
+                        </div>
                       </td>
                       <td className="py-2 px-3">
                         <input 
@@ -526,12 +537,16 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <input 
-                          type="text" 
-                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.outstanding} 
-                          onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} 
-                        />
+                        <div className="flex items-center">
+                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
+                          <input 
+                            type="text" 
+                            className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                            value={row.outstanding} 
+                            onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} 
+                            placeholder="0"
+                          />
+                        </div>
                       </td>
                       <td className="py-2 px-3">
                         <button 

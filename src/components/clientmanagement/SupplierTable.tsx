@@ -5,7 +5,8 @@ import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
-import { Supplier, SupplierTableRow } from '@/types/client';
+import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -19,6 +20,10 @@ const statusTabs = [
 
 export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: Supplier[]; setSuppliers?: (fn: (prev: Supplier[]) => Supplier[]) => void; onSelectSupplier?: (supplier: Supplier) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; profileToTableRow: (supplier: Supplier) => SupplierTableRow }) {
   const user = useUserStore(state => state.user);
+  
+  // Get user currency for display
+  const userCurrency = user?.currency || getDefaultCurrency();
+  
   const tableRows = suppliers.map(profileToTableRow);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -405,7 +410,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 hasMissingSupplies = true; // No supplies data
               } else {
                 // Check if supplies have meaningful content
-                const hasValidSupplies = supplies.some((supply: any) => 
+                const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
                   supply.sku && String(supply.sku).trim() &&
                   supply.product && String(supply.product).trim() &&
                   supply.totalSupplied && String(supply.totalSupplied).trim() &&
@@ -506,7 +511,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                       hasMissingSupplies = true; // No supplies data
                     } else {
                       // Check if supplies have meaningful content
-                      const hasValidSupplies = supplies.some((supply: any) => 
+                      const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
                         supply.sku && String(supply.sku).trim() &&
                         supply.product && String(supply.product).trim() &&
                         supply.totalSupplied && String(supply.totalSupplied).trim() &&
@@ -578,7 +583,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                       )}
                     </td>
                 <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
-                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{String(supplier.totalPurchases)}</td>
+                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supplier.totalPurchases)) || 0, userCurrency)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
@@ -663,7 +668,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     hasMissingSupplies = true; // No supplies data
                   } else {
                     // Check if supplies have meaningful content
-                    const hasValidSupplies = supplies.some((supply: any) => 
+                    const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
                       supply.sku && String(supply.sku).trim() &&
                       supply.product && String(supply.product).trim() &&
                       supply.totalSupplied && String(supply.totalSupplied).trim() &&
@@ -746,7 +751,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 )}
               </span></div>
             <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
-            <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{supplier.totalPurchases}</span></div>
+            <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supplier.totalPurchases)) || 0, userCurrency)}</span></div>
             <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>

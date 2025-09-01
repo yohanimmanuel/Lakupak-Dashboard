@@ -3,12 +3,17 @@ import React from "react";
 import { Package, CheckCircle, Clock, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Order } from '@/types/order';
 import { formatNumber } from '@/utils/dateUtils';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { calculateOrderTotalAmount } from '@/utils/orderUtils';
+import { useUserStore } from '@/store/userStore';
 
 interface OrdersCardsProps {
   orders: Order[];
 }
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
+  const user = useUserStore(state => state.user);
+  
   // Validate and sanitize input
   const validOrders = Array.isArray(orders) ? orders : [];
   
@@ -18,16 +23,17 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const deliveredOrders = validOrders.filter(o => o.orderStatus === 'Delivered').length;
   
   const totalRevenue = validOrders.reduce((sum, order) => {
-    const amount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
-    return sum + amount;
+    return sum + calculateOrderTotalAmount(order);
   }, 0);
   
   const pendingRevenue = validOrders
     .filter(o => o.paymentStatus === 'Unpaid')
     .reduce((sum, order) => {
-      const amount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
-      return sum + amount;
+      return sum + calculateOrderTotalAmount(order);
     }, 0);
+
+  // Use user's currency or server default
+  const displayCurrency = user?.currency || getDefaultCurrency();
 
   return (
     <div className="space-y-4">
@@ -55,7 +61,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           <div>
             <p className="text-xs font-medium text-gray-600">Total Revenue</p>
             <p className="text-xl font-bold text-gray-900">
-              ${formatNumber(totalRevenue)}
+              {formatCurrency(totalRevenue, displayCurrency)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">
@@ -75,7 +81,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           <div>
             <p className="text-xs font-medium text-gray-600">Pending Revenue</p>
             <p className="text-xl font-bold text-gray-900">
-              ${formatNumber(pendingRevenue)}
+              {formatCurrency(pendingRevenue, displayCurrency)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">

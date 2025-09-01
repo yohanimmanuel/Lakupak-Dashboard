@@ -6,6 +6,7 @@ import {
   sanitizeBuyerData,
   validateBuyerUpdate
 } from '../../../utils/buyer-security';
+import { getServerCurrency } from '@/config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -68,7 +69,17 @@ export async function GET(req: NextRequest) {
     }
     
     // Build where clause
-    const whereClause: any = { userId: Number(userId) };
+    const whereClause: {
+      userId: number;
+      OR?: Array<{
+        storeName?: { contains: string; mode: 'insensitive' };
+        owner?: { contains: string; mode: 'insensitive' };
+        email?: { contains: string; mode: 'insensitive' };
+        address?: { contains: string; mode: 'insensitive' };
+      }>;
+      status?: string;
+      businessType?: string;
+    } = { userId: Number(userId) };
     
     if (search) {
       whereClause.OR = [
@@ -154,6 +165,9 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Get server currency
+    const serverCurrency = getServerCurrency();
+    
     // Sanitize and clean the data
     const buyerData = sanitizeBuyerData(data);
     
@@ -161,6 +175,7 @@ export async function POST(req: NextRequest) {
     const finalBuyerData = {
       ...buyerData,
       userId: Number(data.userId), // Ensure userId is included
+      currency: serverCurrency, // Force server currency
       // Store blank values, frontend will show "Missing" when displaying
       storeName: buyerData.storeName || '',
       owner: buyerData.owner || '',
@@ -219,9 +234,9 @@ export async function POST(req: NextRequest) {
       }
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle Prisma-specific errors
-    if (error?.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Buyer with this ID already exists' }, 
         { status: 409, headers }
@@ -229,7 +244,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Provide more specific error messages
-    if (error?.message) {
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
       return NextResponse.json(
         { error: error.message }, 
         { status: 400, headers }
@@ -310,7 +325,7 @@ export async function DELETE(req: NextRequest) {
       message: 'Buyer deleted successfully'
     }, { headers });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to delete buyer' }, 
       { status: 500, headers }
@@ -425,9 +440,9 @@ export async function PUT(req: NextRequest) {
     
     return NextResponse.json(responseData, { headers });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle Prisma-specific errors
-    if (error?.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Buyer with this identifier already exists' }, 
         { status: 409, headers }
