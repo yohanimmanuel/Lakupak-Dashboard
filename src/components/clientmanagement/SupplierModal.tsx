@@ -174,7 +174,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         ...form,
         supplierId: id,
         name: form.supplierName,
-        currency: userCurrency, // Include server currency
+
         supplies: JSON.stringify(supplyRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),

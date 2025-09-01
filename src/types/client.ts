@@ -9,7 +9,6 @@ export interface Buyer {
   businessType: string;
   address: string;
   status: string;
-  currency?: string;
   logistics?: string;
   notes?: string;
   orderDetails?: string;
@@ -30,7 +29,6 @@ export interface Supplier {
   businessType: string;
   address: string;
   status: string;
-  currency?: string;
   logistics?: string;
   notes?: string;
   supplies?: string;
@@ -108,7 +106,6 @@ export interface BuyerFormData {
   businessType: string;
   address: string;
   status: string;
-  currency?: string;
   createdAt?: string;
   preferredDays?: string;
   lastShipment?: string;
@@ -127,7 +124,6 @@ export interface SupplierFormData {
   businessType: string;
   address: string;
   status: string;
-  currency?: string;
   logistics?: string;
   notes?: string;
   supplies?: SupplyDetail[];

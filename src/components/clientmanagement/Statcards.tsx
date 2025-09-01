@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Users, UserCheck, ShoppingCart, Repeat, Truck, CheckCircle, DollarSign, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { formatNumber } from '@/utils/dateUtils';
 import { useMemo } from 'react';
@@ -7,30 +7,19 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
 /**
- * Statcards Component - Currency-Agnostic Support
+ * Statcards Component - Single Source of Truth Currency
  * 
- * This component handles multiple currencies without conversion:
+ * This component displays all monetary values using ONLY the user's currency:
  * 
- * 1. **Currency Display**: Shows values with their original currency prefix
- * 2. **No Conversion**: Assumes all data uses the same currency as per user note
- * 3. **Simple Formatting**: Displays values as-is with proper formatting
+ * 1. **Single Source**: Only uses user.currency from user profile
+ * 2. **No Currency Extraction**: Removes ALL currency identifiers from data
+ * 3. **Raw Numbers Only**: Processes only numeric values, formats with user currency
  * 
  * **How it works**:
- * - Extracts currency prefix from the first available data point
- * - Uses that currency for all display values
- * - No currency conversion or rate calculations
- * - Assumes user follows the note: "Please use the same currency for all buyers/suppliers"
- * 
- * **Monthly Average Calculation**:
- * 1. Sum all monthly spending/purchase values from each buyer/supplier
- * 2. Count only those with values > 0
- * 3. Divide total by count of active users
- * 4. This gives the true "average monthly spending/purchase per active user"
- * 
- * **Order Frequency Calculation**:
- * 1. Sum all monthly orders from ALL buyers (regardless of spending)
- * 2. Divide by count of ALL buyers (not just those with spending)
- * 3. This gives true "average monthly orders per buyer"
+ * - Strips ALL currency symbols/prefixes from data (Rp, $, S$, etc.)
+ * - Processes only raw numbers
+ * - Formats final display with user's currency only
+ * - Prevents hydration mismatch with client-side only currency
  */
 interface StatcardsProps {
   type: 'buyer' | 'supplier';
@@ -40,10 +29,6 @@ interface StatcardsProps {
 function getCurrentMonth() {
   const now = new Date();
   return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-}
-
-function parseCurrency(str: string) {
-  return parseInt((str || '').toString().replace(/[^\d]/g, '')) || 0;
 }
 
 // Helper function to safely parse JSON strings
@@ -62,33 +47,11 @@ function safeParseJSON(jsonStr: string, fallback: OrderDetail[] | SupplyDetail[]
   }
 }
 
-// Helper function to extract currency from value strings
-function extractCurrency(valueStr: string): string {
-  if (!valueStr) return '';
-  const match = valueStr.toString().match(/^([^\d]*)/);
-  return match && match[1] ? match[1].trim() : '';
-}
 
-// Helper function to get currency from first available data point
-function getCurrencyFromData(data: (Buyer | Supplier)[], valueField: string): string {
-  for (const item of data) {
-    if ('orderDetails' in item) {
-      const orderDetails = safeParseJSON(item.orderDetails || '[]');
-      if (Array.isArray(orderDetails) && orderDetails.length > 0) {
-        const currency = extractCurrency(orderDetails[0][valueField as keyof OrderDetail] || '');
-        if (currency) return currency;
-      }
-    } else if ('supplies' in item) {
-      const supplies = safeParseJSON(item.supplies || '[]');
-      if (Array.isArray(supplies) && supplies.length > 0) {
-        const currency = extractCurrency(supplies[0][valueField as keyof SupplyDetail] || '');
-        if (currency) return currency;
-      }
-    }
-  }
-  // Return empty string if no currency found - let the display logic handle it
-  return '';
-}
+
+
+
+
 
 // Helper function to clean decimals by rounding to nearest whole number
 function cleanDecimals(value: number): number {
@@ -97,17 +60,23 @@ function cleanDecimals(value: number): number {
 
 export default function Statcards({ type, data }: StatcardsProps) {
   const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
   
-  // Get user currency for display
-  const userCurrency = user?.currency || getDefaultCurrency();
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Get user currency for display (only on client)
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+
   const stats = useMemo(() => {
     try {
       if (type === 'buyer') {
         const totalBuyers = data.length;
         const activeBuyers = data.filter(b => b.status === 'Active').length;
         
-        // Get currency from first available data point
-        const currency = getCurrencyFromData(data, 'totalSpend');
+        // Use user's currency for all displays (no data extraction needed)
         
         // Average monthly spend per buyer - CORRECT CALCULATION
         // Use the monthly analytics data passed from the buyers page
@@ -118,23 +87,47 @@ export default function Statcards({ type, data }: StatcardsProps) {
         
         data.forEach(buyer => {
           try {
-            // Use the pre-calculated monthly averages (same as BuyerProfile)
+            // Simple approach: use pre-calculated values if available, otherwise calculate from orderDetails
             if ('avgMonthlySpending' in buyer && 'avgMonthlyOrders' in buyer) {
-              const avgMonthlySpending = Number(buyer.avgMonthlySpending) || 0;
-              const avgMonthlyOrders = Number(buyer.avgMonthlyOrders) || 0;
+              // Use pre-calculated values - but clean them first in case they contain currency symbols
+              const cleanSpending = String(buyer.avgMonthlySpending || '').replace(/[^\d.-]/g, '');
+              const cleanOrders = String(buyer.avgMonthlyOrders || '').replace(/[^\d.-]/g, '');
+              const avgMonthlySpending = Number(cleanSpending) || 0;
+              const avgMonthlyOrders = Number(cleanOrders) || 0;
               
-              // Add to totals
               totalAvgMonthlySpend += avgMonthlySpending;
               totalAvgMonthlyOrders += avgMonthlyOrders;
               
-              // Count buyers with spending > 0
-              if (avgMonthlySpending > 0) {
-                buyersWithSpending++;
-              }
+              if (avgMonthlySpending > 0) buyersWithSpending++;
+              if (avgMonthlyOrders > 0) buyersWithOrders++;
+            } else {
+              // Fallback: calculate from orderDetails
+              const orderDetails = (buyer as Buyer).orderDetails ? (() => {
+                try {
+                  return JSON.parse((buyer as Buyer).orderDetails || '');
+                } catch {
+                  return [];
+                }
+              })() : [];
               
-              // Count buyers with orders > 0
-              if (avgMonthlyOrders > 0) {
-                buyersWithOrders++;
+              if (Array.isArray(orderDetails) && orderDetails.length > 0) {
+                let buyerTotalSpend = 0;
+                let buyerTotalOrders = 0;
+                
+                orderDetails.forEach((o: OrderDetail) => {
+                  // Remove ALL currency identifiers - only keep numbers
+                  const cleanSpend = String(o.totalSpend || '').replace(/[^\d.-]/g, '');
+                  const cleanOrders = String(o.totalOrders || '').replace(/[^\d.-]/g, '');
+                  buyerTotalSpend += Number(cleanSpend) || 0;
+                  buyerTotalOrders += Number(cleanOrders) || 0;
+                });
+                
+                // Use total spend as monthly average (simplified)
+                totalAvgMonthlySpend += buyerTotalSpend;
+                totalAvgMonthlyOrders += buyerTotalOrders;
+                
+                if (buyerTotalSpend > 0) buyersWithSpending++;
+                if (buyerTotalOrders > 0) buyersWithOrders++;
               }
             }
           } catch (buyerError) {
@@ -160,7 +153,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
           },
           {
             label: 'Monthly Buyer Spend',
-            value: formatCurrency(cleanDecimals(avgMonthlySpend), userCurrency),
+            value: cleanDecimals(avgMonthlySpend), // Store raw number, format in render
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
           },
           {
@@ -174,8 +167,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
         const totalSuppliers = data.length;
         const activeSuppliers = data.filter(s => s.status === 'Active').length;
         
-        // Get currency from first available data point
-        const currency = getCurrencyFromData(data, 'totalValue');
+        // Use user's currency for all displays (no data extraction needed)
         
         // Average monthly purchase value per supplier - CORRECT CALCULATION
         // Use the monthly analytics data passed from the suppliers page
@@ -184,16 +176,42 @@ export default function Statcards({ type, data }: StatcardsProps) {
         
         data.forEach(supplier => {
           try {
-            // Use the pre-calculated monthly averages (same as SupplierProfile)
+            // Simple approach: use pre-calculated values if available, otherwise calculate from supplies
             if ('avgMonthlyPurchaseValue' in supplier) {
-              const avgMonthlyPurchaseValue = Number(supplier.avgMonthlyPurchaseValue) || 0;
+              // Use pre-calculated values - but clean them first in case they contain currency symbols
+              const cleanValue = String(supplier.avgMonthlyPurchaseValue || '').replace(/[^\d.-]/g, '');
+              const avgMonthlyPurchaseValue = Number(cleanValue) || 0;
               
-              // Add to total
               totalAvgMonthlyValue += avgMonthlyPurchaseValue;
               
-              // Only count suppliers who actually have purchases this month
               if (avgMonthlyPurchaseValue > 0) {
                 suppliersWithPurchases++;
+              }
+            } else {
+              // Fallback: calculate from supplies
+              const supplies = (supplier as Supplier).supplies ? (() => {
+                try {
+                  return JSON.parse((supplier as Supplier).supplies || '');
+                } catch {
+                  return [];
+                }
+              })() : [];
+              
+              if (Array.isArray(supplies) && supplies.length > 0) {
+                let supplierTotalValue = 0;
+                
+                supplies.forEach((s: SupplyDetail) => {
+                  // Remove ALL currency identifiers - only keep numbers
+                  const cleanValue = String(s.totalValue || '').replace(/[^\d.-]/g, '');
+                  supplierTotalValue += Number(cleanValue) || 0;
+                });
+                
+                // Add to total
+                totalAvgMonthlyValue += supplierTotalValue;
+                
+                if (supplierTotalValue > 0) {
+                  suppliersWithPurchases++;
+                }
               }
             }
           } catch (supplierError) {
@@ -256,7 +274,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
           },
           {
             label: 'Monthly Purchase Value',
-            value: formatCurrency(cleanDecimals(avgMonthlyValue), userCurrency),
+            value: cleanDecimals(avgMonthlyValue), // Store raw number, format in render
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
           },
           {
@@ -295,7 +313,12 @@ export default function Statcards({ type, data }: StatcardsProps) {
             </div>
             <div>
               <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{stat.label}</div>
-              <div className="text-xl font-bold text-black">{stat.value}</div>
+              <div className="text-xl font-bold text-black">
+                {stat.label === 'Monthly Buyer Spend' || stat.label === 'Monthly Purchase Value' 
+                  ? formatCurrency(Number(stat.value), userCurrency)
+                  : stat.value
+                }
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">

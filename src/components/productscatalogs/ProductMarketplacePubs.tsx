@@ -2,6 +2,9 @@
 import React from 'react';
 import { X, Heart, Share2, Star, ShoppingCart, ArrowLeft, Zap } from 'lucide-react';
 import { Product, ProductTableRow } from "@/types/product";
+import { useUserStore } from '@/store/userStore';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useState, useEffect } from 'react';
 
 interface ProductMarketplacePubsProps {
   product: ProductTableRow;
@@ -21,11 +24,19 @@ export default function ProductMarketplacePubs({
   onClose, 
   onPublish, 
   isBulkPublish = false, 
-  selectedCount = 0,
-  selectedProducts = [],
-  allProducts = [],
-  isProductComplete
+  selectedCount = 0, 
+  selectedProducts = [], 
+  allProducts = [], 
+  isProductComplete 
 }: ProductMarketplacePubsProps) {
+  const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   if (!isOpen) return null;
 
   // Smart bulk publishing logic
@@ -234,17 +245,17 @@ export default function ProductMarketplacePubs({
             <div className="mb-3">
               <div className="flex items-center gap-3">
                 <span className="text-2xl font-bold text-[#0a61d7]">
-                  Rp 150,000
+                  {formatCurrency(150000, userCurrency)}
                 </span>
                 <span className="text-lg text-gray-500 line-through">
-                  Rp 200,000
+                  {formatCurrency(200000, userCurrency)}
                 </span>
                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded">
                   -25%
                 </span>
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                Free shipping for orders above Rp 500,000
+                Free shipping for orders above {formatCurrency(500000, userCurrency)}
               </div>
             </div>
 
@@ -305,14 +316,14 @@ export default function ProductMarketplacePubs({
                   <span className="text-blue-600">⚡</span>
                   <span className="text-sm font-medium">Express Shipping</span>
                 </div>
-                <span className="text-sm text-gray-600">Rp 15,000</span>
+                <span className="text-sm text-gray-600">{formatCurrency(15000, userCurrency)}</span>
               </div>
               <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
                 <div className="flex items-center gap-2 text-purple-600">
                   <span className="text-purple-600">🏃</span>
                   <span className="text-sm font-medium">Same Day Delivery</span>
                 </div>
-                <span className="text-sm text-gray-600">Rp 25,000</span>
+                <span className="text-sm text-gray-600">{formatCurrency(25000, userCurrency)}</span>
               </div>
             </div>
           </div>
@@ -439,7 +450,7 @@ export default function ProductMarketplacePubs({
                 Add to Cart
               </button>
               <button className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold transition-colors">
-                Buy Now - Rp 150,000
+                Buy Now - {formatCurrency(150000, userCurrency)}
               </button>
             </div>
             <div className="mt-3">

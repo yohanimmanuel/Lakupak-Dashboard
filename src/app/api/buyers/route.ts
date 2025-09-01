@@ -6,7 +6,7 @@ import {
   sanitizeBuyerData,
   validateBuyerUpdate
 } from '../../../utils/buyer-security';
-import { getServerCurrency } from '@/config/currencyConfig';
+
 
 const prisma = new PrismaClient();
 
@@ -165,9 +165,6 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Get server currency
-    const serverCurrency = getServerCurrency();
-    
     // Sanitize and clean the data
     const buyerData = sanitizeBuyerData(data);
     
@@ -175,7 +172,6 @@ export async function POST(req: NextRequest) {
     const finalBuyerData = {
       ...buyerData,
       userId: Number(data.userId), // Ensure userId is included
-      currency: serverCurrency, // Force server currency
       // Store blank values, frontend will show "Missing" when displaying
       storeName: buyerData.storeName || '',
       owner: buyerData.owner || '',

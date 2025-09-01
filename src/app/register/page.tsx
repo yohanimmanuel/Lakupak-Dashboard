@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
+import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
+import { ChevronDown } from 'lucide-react';
 import { 
   useAuthErrorHandler, 
   useAuthLoading, 
@@ -22,9 +24,11 @@ export default function RegisterPage() {
   
   // Form data
   const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "" });
-  const [companyInfo, setCompanyInfo] = useState({ company: "", address: "" });
+  const [companyInfo, setCompanyInfo] = useState({ company: "", address: "", region: "ID" });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showRegionDropdown, setShowRegionDropdown] = useState(false);
+  const regionDropdownRef = useRef<HTMLDivElement>(null);
   
   // Validation states
   const [validationStates, setValidationStates] = useState({
@@ -33,6 +37,7 @@ export default function RegisterPage() {
     email: true,
     company: true,
     address: true,
+    region: true,
     password: true,
     confirmPassword: true
   });
@@ -67,7 +72,9 @@ export default function RegisterPage() {
         return (
           companyInfo.company.trim() && 
           companyInfo.address.trim() && 
-          validationStates.company
+          companyInfo.region &&
+          validationStates.company &&
+          validationStates.region
         );
       case 2:
         return (
@@ -116,6 +123,7 @@ export default function RegisterPage() {
           password,
           company: companyInfo.company.trim(),
           address: companyInfo.address.trim(),
+          region: companyInfo.region,
         }),
       });
       
@@ -135,6 +143,8 @@ export default function RegisterPage() {
         email: data.email,
         company: data.company,
         address: data.address,
+        region: data.region,
+        currency: data.currency,
       }, true); // Auto-remember new registrations
       
       // Track successful registration
@@ -172,6 +182,33 @@ export default function RegisterPage() {
     if (confirmPw !== password) return { valid: false, error: 'Passwords do not match' };
     return { valid: true };
   }, [password]);
+
+  const handleRegionChange = useCallback((regionCode: string) => {
+    setCompanyInfo({ ...companyInfo, region: regionCode });
+    setShowRegionDropdown(false);
+    updateValidation('region', true);
+  }, [companyInfo, updateValidation]);
+
+  const getSelectedRegion = useCallback(() => {
+    return getRegionByCode(companyInfo.region) || REGIONS[0];
+  }, [companyInfo.region]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (regionDropdownRef.current && !regionDropdownRef.current.contains(event.target as Node)) {
+        setShowRegionDropdown(false);
+      }
+    };
+
+    if (showRegionDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showRegionDropdown]);
 
   return (
     <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
@@ -246,6 +283,45 @@ export default function RegisterPage() {
             
             {step === 1 && (
               <div className="space-y-4">
+                
+                
+                {/* Region Selection */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Business Region <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative" ref={regionDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowRegionDropdown(!showRegionDropdown)}
+                      className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
+                      aria-expanded={showRegionDropdown}
+                      aria-label="Select business region"
+                    >
+                      <span>{getRegionDisplayName(getSelectedRegion())}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    </button>
+                    {showRegionDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                        {REGIONS.map((region) => (
+                          <button
+                            key={region.code}
+                            type="button"
+                            onClick={() => handleRegionChange(region.code)}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                              companyInfo.region === region.code ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
+                            }`}
+                          >
+                            {getRegionDisplayName(region)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Currency will be automatically set based on your region selection
+                  </p>
+                </div>
                 <ValidatedInput
                   label="Company Name"
                   type="text"

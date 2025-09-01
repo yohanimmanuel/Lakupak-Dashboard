@@ -25,7 +25,6 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 
 function profileToTableRow(supplier: Supplier): SupplierTableRow {
   let totalPurchases = 0;
-  let currency = '';
   let totalSupplied = 0;
   
   // Parse supplies from string to array
@@ -39,9 +38,6 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
   
   if (Array.isArray(supplies) && supplies.length > 0) {
     supplies.forEach((s: SupplyDetail) => {
-      // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
-      const match = (s.totalValue || '').toString().match(/^([^-\d]*)/);
-      if (match && match[1] && !currency) currency = match[1];
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
     totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0);
@@ -203,7 +199,7 @@ export default function SuppliersPage() {
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">Suppliers List</h2>
           <p className="text-sm text-gray-500 mb-4">Manage your suppliers and their information.</p>
-          <p className="text-xs text-gray-500 italic">Note: Please use the same currency for all suppliers to ensure accurate statistics.</p>
+
         </div>
         <div className="flex gap-2 items-center">
           <button

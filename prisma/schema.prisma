@@ -16,6 +16,7 @@ model User {
   password  String
   company   String?
   address   String?
+  region    String?
   currency  String     @default("IDR")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -36,7 +37,6 @@ model Buyer {
   businessType String
   address      String
   status       String
-  currency     String   @default("IDR")
   createdAt    DateTime @default(now())
   logistics    String?
   notes        String?
@@ -57,7 +57,6 @@ model Supplier {
   businessType String
   address      String
   status       String
-  currency     String   @default("IDR")
   createdAt    DateTime @default(now())
   logistics    String?
   notes        String?
@@ -81,7 +80,6 @@ model Product {
   stockStatus        String?
   purchasePrice      String
   sellingPrice       String
-  currency           String   @default("IDR")
   status             String
   catalogType        String
   catalogName        String
@@ -110,7 +108,6 @@ model Order {
   shippingFee           Float
   totalAmount           Float
   paymentTerms          String
-  currency              String
   
   // Order quantity
   totalOrders           Int

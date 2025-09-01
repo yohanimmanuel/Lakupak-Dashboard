@@ -1,5 +1,5 @@
 'use client';
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Package, CheckCircle, Clock, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Order } from '@/types/order';
 import { formatNumber } from '@/utils/dateUtils';
@@ -13,6 +13,12 @@ interface OrdersCardsProps {
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
   const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
+  
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   // Validate and sanitize input
   const validOrders = Array.isArray(orders) ? orders : [];
@@ -31,9 +37,9 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
     .reduce((sum, order) => {
       return sum + calculateOrderTotalAmount(order);
     }, 0);
-
-  // Use user's currency or server default
-  const displayCurrency = user?.currency || getDefaultCurrency();
+  
+  // Use user's currency or server default (only on client)
+  const displayCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
 
   return (
     <div className="space-y-4">

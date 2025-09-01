@@ -75,6 +75,8 @@ export default function LoginPage() {
         email: data.email,
         company: data.company,
         address: data.address,
+        region: data.region,
+        currency: data.currency,
       }, rememberMe);
       
       // Track successful login

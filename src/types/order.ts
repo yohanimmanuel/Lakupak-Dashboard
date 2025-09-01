@@ -13,7 +13,6 @@ export interface Order {
   shippingFee: number;
   totalAmount: number;
   paymentTerms: string;
-  currency: string;
 
   // ===== SECTION 2: ORDER ITEMS (Top Right) =====
   orderItems: OrderItem[];
@@ -60,7 +59,6 @@ export interface OrderTableRow {
   orderStatus: string;
   paymentStatus: string;
   totalAmount: string;
-  currency: string;
   items: string;
   deliveryMethod: string;
   trackingNumber?: string;

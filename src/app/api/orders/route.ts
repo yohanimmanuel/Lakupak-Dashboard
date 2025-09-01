@@ -9,7 +9,7 @@ import {
   validateOrderAccess
 } from '@/utils/order-security';
 import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderUtils';
-import { getServerCurrency } from '@/config/currencyConfig';
+
 
 const prisma = new PrismaClient();
 
@@ -212,14 +212,10 @@ export async function POST(request: NextRequest) {
       sanitizedData.orderId = generateSecureOrderId();
     }
     
-    // Get server currency and ensure order uses it
-    const serverCurrency = getServerCurrency();
-    
     // Recalculate entire order with all mathematical relationships
     const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
     const recalculatedOrder = recalculateEntireOrder({
       ...sanitizedData,
-      currency: serverCurrency, // Force server currency
       orderItems: orderItems
     } as any);
     
@@ -280,16 +276,12 @@ export async function PUT(request: NextRequest) {
     // Sanitize update data
     const sanitizedData = sanitizeOrderData(body);
     
-    // Get server currency and ensure order uses it
-    const serverCurrency = getServerCurrency();
-    
     // Recalculate entire order if orderItems are provided
     let recalculatedData = { ...sanitizedData };
     if (sanitizedData.orderItems) {
       const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
       const recalculatedOrder = recalculateEntireOrder({
         ...sanitizedData,
-        currency: serverCurrency, // Force server currency
         orderItems: orderItems
       } as any);
       

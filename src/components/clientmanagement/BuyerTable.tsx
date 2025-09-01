@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
@@ -25,9 +25,15 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 }) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   
-  // Get user currency for display
-  const userCurrency = user?.currency || getDefaultCurrency();
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Get user currency for display (only on client)
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   
   // Enhanced state management
   const [search, setSearch] = useState("");

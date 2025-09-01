@@ -17,6 +17,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
+import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -33,6 +34,8 @@ export default function ProductCatalog({
 }: ProductCatalogProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
   const [formData, setFormData] = useState<ProductFormData>({
     id: product?.id,
     productId: product?.productId || '',
@@ -45,8 +48,8 @@ export default function ProductCatalog({
     stockQuantity: product?.stockQuantity || 0,
     lowStockThreshold: product?.lowStockThreshold || 0,
     stockStatus: product?.stockStatus || 'In Stock',
-    purchasePrice: product?.purchasePrice || 'Rp 0',
-    sellingPrice: product?.sellingPrice || 'Rp 0',
+    purchasePrice: product?.purchasePrice || '',
+    sellingPrice: product?.sellingPrice || '',
     status: product?.status || 'Draft',
     catalogType: product?.catalogType || 'Internal',
     catalogName: product?.catalogName || '',
@@ -255,6 +258,7 @@ export default function ProductCatalog({
          productId: formData.productId,
          purchasePrice: formData.purchasePrice,
          sellingPrice: formData.sellingPrice,
+   
          userId: user.id
        };
 
@@ -841,7 +845,7 @@ export default function ProductCatalog({
                        onChange={(e) => handleInputChange('sellingPrice', e.target.value)}
                        disabled={isViewMode}
                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder="e.g., Rp 150,000 or $25.00"
+                       placeholder="e.g., 150000 or 25.00"
                      />
                    </div>
                  </div>
@@ -856,7 +860,7 @@ export default function ProductCatalog({
                        onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
                        disabled={isViewMode}
                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder="e.g., Rp 120,000 or $20.00"
+                       placeholder="e.g., 120000 or 20.00"
                      />
                    </div>
                  </div>

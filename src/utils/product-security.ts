@@ -68,6 +68,7 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
     sanitized.discountType = data.discountType.trim();
   }
 
+
   return sanitized;
 }
 

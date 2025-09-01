@@ -105,6 +105,12 @@ export const formatCurrencyWithLocale = (amount: number, currencyCode?: string):
   const config = getCurrencyConfig(currencyCode);
   
   try {
+    // For SGD, use custom symbol to ensure S$ instead of $
+    if (currencyCode === 'SGD') {
+      return `${config.symbol}${amount.toLocaleString(config.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    
+    // For other currencies, use Intl.NumberFormat
     return new Intl.NumberFormat(config.locale, config.formatOptions).format(amount);
   } catch (error) {
     // Fallback to simple formatting

@@ -2,8 +2,8 @@ import { getCurrencyConfig, getServerCurrency, formatCurrencyWithLocale } from '
 
 // Currency formatting utility
 export const formatCurrency = (amount: number, currency?: string): string => {
-  // Use server currency if not specified
-  const currencyCode = currency || getServerCurrency();
+  // Use provided currency or default to IDR if not specified
+  const currencyCode = currency || 'IDR';
   return formatCurrencyWithLocale(amount, currencyCode);
 };
 
@@ -22,9 +22,9 @@ export const formatCurrencyAmount = (amount: number, currency?: string): string 
   }
 };
 
-// Get the default currency for the server
+// Get the default currency (IDR as fallback)
 export const getDefaultCurrency = (): string => {
-  return getServerCurrency();
+  return 'IDR';
 };
 
 // Get currency symbol

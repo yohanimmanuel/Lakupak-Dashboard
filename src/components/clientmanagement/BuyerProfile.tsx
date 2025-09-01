@@ -5,7 +5,7 @@ import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign,
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import BuyerModal from './BuyerModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
@@ -51,9 +51,15 @@ function getBuyerAnalytics(orderDetailsStr: string) {
 
 export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose?: () => void }) {
   const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
   
-  // Get user currency for display
-  const userCurrency = user?.currency || getDefaultCurrency();
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Get user currency for display (only on client)
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -498,7 +504,7 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                 <th className="py-2 px-4 font-medium uppercase">No.</th>
                 <th className="py-2 px-4 font-medium uppercase">Product Name</th>
                 <th className="py-2 px-4 font-medium uppercase">Total Orders (Boxes)</th>
-                <th className="py-2 px-4 font-medium uppercase">Total Spend (Rp)</th>
+                <th className="py-2 px-4 font-medium uppercase">Total Spend</th>
                 <th className="py-2 px-4 font-medium uppercase">Last Order Date</th>
                 <th className="py-2 px-4 font-medium uppercase">Outstanding</th>
               </tr>

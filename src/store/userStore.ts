@@ -7,6 +7,7 @@ interface User {
   email: string;
   company?: string;
   address?: string;
+  region?: string;
   currency?: string;
 }
 

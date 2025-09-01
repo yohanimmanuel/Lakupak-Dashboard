@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong, formatNumber } from '@/utils/dateUtils';
-import { formatCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Order, OrderTableRow } from '@/types/order';
 
 const statusTabs = [
@@ -37,6 +37,15 @@ export default function OrdersTable({
   orderToTableRow: (order: Order) => OrderTableRow 
 }) {
   const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
+  
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Get user currency for display (only on client)
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   
   const tableRows = orders.map(orderToTableRow);
   const [search, setSearch] = useState("");
@@ -324,7 +333,7 @@ export default function OrdersTable({
                      {order.orderStatus}
                    </span>
                  </td>
-                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), user?.currency)}</td>
+                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), userCurrency)}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
                  <td className="py-3 px-4 text-black">{order.deliveryMethod}</td>
                  <td className="py-3 px-4 text-black">{order.trackingNumber || 'N/A'}</td>
@@ -420,7 +429,7 @@ export default function OrdersTable({
               </div>
                              <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
                <div className="text-xs text-gray-500">Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{order.orderStatus}</span></div>
-                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), user?.currency)}</span></div>
+                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), userCurrency)}</span></div>
                <div className="text-xs text-gray-500">Items: <span className="text-black font-medium">{order.items}</span></div>
                <div className="text-xs text-gray-500">Delivery: <span className="text-black font-medium">{order.deliveryMethod}</span></div>
                <div className="text-xs text-gray-500">Tracking: <span className="text-black font-medium">{order.trackingNumber || 'N/A'}</span></div>

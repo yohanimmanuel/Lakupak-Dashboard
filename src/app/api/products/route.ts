@@ -7,7 +7,7 @@ import {
   validateProductUpdate,
   generateUniqueProductId
 } from '../../../utils/product-security';
-import { getServerCurrency } from '@/config/currencyConfig';
+
 
 const prisma = new PrismaClient();
 
@@ -70,7 +70,18 @@ export async function GET(req: NextRequest) {
     }
     
     // Build where clause
-    const whereClause: any = { userId: Number(userId) };
+    const whereClause: {
+      userId: number;
+      OR?: Array<{
+        name?: { contains: string; mode: 'insensitive' };
+        sku?: { contains: string; mode: 'insensitive' };
+        category?: { contains: string; mode: 'insensitive' };
+        brand?: { contains: string; mode: 'insensitive' };
+        supplier?: { contains: string; mode: 'insensitive' };
+      }>;
+      status?: string;
+      category?: string;
+    } = { userId: Number(userId) };
     
     if (search) {
       whereClause.OR = [
@@ -110,7 +121,7 @@ export async function GET(req: NextRequest) {
         totalPages: Math.ceil(totalCount / limit)
       }
     }, { headers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500, headers }
@@ -139,9 +150,6 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Get server currency
-    const serverCurrency = getServerCurrency();
-    
     // Sanitize and prepare product data
     const productData = {
       productId: data.productId || generateUniqueProductId(),
@@ -156,7 +164,6 @@ export async function POST(req: NextRequest) {
       stockStatus: data.stockStatus || null,
       purchasePrice: String(data.purchasePrice || ''),
       sellingPrice: String(data.sellingPrice || ''),
-      currency: serverCurrency, // Force server currency
       status: data.status || 'Draft',
       catalogType: data.catalogType || 'Internal',
       catalogName: data.catalogName || '',
@@ -183,7 +190,7 @@ export async function POST(req: NextRequest) {
     });
     
     return NextResponse.json(product, { status: 201, headers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500, headers }
@@ -253,7 +260,7 @@ export async function DELETE(req: NextRequest) {
     }
     
     return NextResponse.json({ success: true, deleted }, { headers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to delete product' }, 
       { status: 500, headers }
@@ -347,7 +354,7 @@ export async function PUT(req: NextRequest) {
     };
     
     return NextResponse.json(responseData, { headers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to update product' }, 
       { status: 500, headers }

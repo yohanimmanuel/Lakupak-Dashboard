@@ -6,6 +6,7 @@ import {
   getSecurityHeaders, 
   sanitizeUserData 
 } from '../../../../utils/auth-security';
+import { getRegionByCode } from '@/config/regionConfig';
 
 const prisma = new PrismaClient();
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const { firstName, lastName, email, password, company, address } = body;
+    const { firstName, lastName, email, password, company, address, region } = body;
     
     // Validate all inputs
     const firstNameValidation = validateAuthInput.name(firstName, 'First name');
@@ -74,6 +75,22 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Validate region and get currency
+    if (!region || typeof region !== 'string') {
+      return NextResponse.json(
+        { error: 'Business region is required' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    const selectedRegion = getRegionByCode(region);
+    if (!selectedRegion) {
+      return NextResponse.json(
+        { error: 'Invalid region selected' }, 
+        { status: 400, headers }
+      );
+    }
+    
     const normalizedEmail = email.trim().toLowerCase();
     
     // Check for existing user
@@ -99,7 +116,9 @@ export async function POST(req: NextRequest) {
         email: normalizedEmail,
         password: hashed,
         company: company.trim(),
-        address: address.trim()
+        address: address.trim(),
+        region: region,
+        currency: selectedRegion.currency
       }
     });
     

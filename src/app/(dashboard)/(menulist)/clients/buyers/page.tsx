@@ -23,7 +23,6 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 
 function profileToTableRow(buyer: Buyer): BuyerTableRow {
   let totalSpend = 0;
-  let currency = '';
   let outstanding = 0;
   
   // Parse orderDetails from string to array
@@ -37,9 +36,6 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
   
   if (Array.isArray(orderDetails) && orderDetails.length > 0) {
           orderDetails.forEach((o: OrderDetail) => {
-      // Extract currency prefix (e.g. 'Rp ', '$ ', etc.)
-      const match = (o.totalSpend || '').toString().match(/^([^ - \d]*)/);
-      if (match && match[1] && !currency) currency = match[1];
       totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^ - \d]/g, '')) || 0;
     });
     outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
@@ -231,7 +227,7 @@ export default function BuyersPage() {
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">Buyers List</h2>
           <p className="text-sm text-gray-500 mb-4">Manage your buyers and their information.</p>
-          <p className="text-xs text-gray-500 italic">Note: Please use the same currency for all buyers to ensure accurate statistics.</p>
+
         </div>
         <div className="flex gap-2 items-center">
           <button

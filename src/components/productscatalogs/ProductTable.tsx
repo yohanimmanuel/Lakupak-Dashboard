@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
 const statusTabs = [
   { label: "All" },
@@ -35,6 +36,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   profileToTableRow: (product: Product) => ProductTableRow 
 }) {
   const user = useUserStore(state => state.user);
+  const userCurrency = user?.currency || getDefaultCurrency();
   const tableRows = products.map(profileToTableRow);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -867,15 +869,15 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    </div>
                  </td>
                 <td className="py-3 px-4 text-xs text-gray-700">
-                  {String(product.purchasePrice).trim() ? (
-                    product.purchasePrice
+                  {String(product.purchasePrice).trim() && String(product.purchasePrice) !== '0' && String(product.purchasePrice) !== '' ? (
+                    formatCurrency(parseFloat(String(product.purchasePrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
                   ) : (
                     <span className="text-red-600 font-bold">Missing Purchase Price</span>
                   )}
                 </td>
                 <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">
-                  {String(product.sellingPrice).trim() ? (
-                    product.sellingPrice
+                  {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                    formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
                   ) : (
                     <span className="text-red-600 font-bold">Missing Selling Price</span>
                   )}
@@ -1039,8 +1041,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  
                  {/* Price */}
                  <div className="text-sm font-semibold text-[#0a61d7]">
-                   {String(product.sellingPrice).trim() ? (
-                     product.sellingPrice
+                   {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                     formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
                    ) : (
                      <span className="text-red-600 font-bold">Missing Selling Price</span>
                    )}
@@ -1204,8 +1206,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  
                  {/* Price */}
                  <div className="text-sm font-semibold text-[#0a61d7]">
-                   {String(product.sellingPrice).trim() ? (
-                     product.sellingPrice
+                   {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                     formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
                    ) : (
                      <span className="text-red-600 font-bold">Missing Selling Price</span>
                    )}

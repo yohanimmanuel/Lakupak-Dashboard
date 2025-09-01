@@ -125,6 +125,7 @@ export default function ProductsPage() {
     lowStockThreshold: product.lowStockThreshold || 30,
     purchasePrice: product.purchasePrice,
     sellingPrice: product.sellingPrice,
+    
     status: product.status,
     createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
     lastUpdated: product.updatedAt ? formatDate(product.updatedAt) : 'N/A',
@@ -165,8 +166,8 @@ export default function ProductsPage() {
           stockQuantity: stockQuantity,
           lowStockThreshold: lowStockThreshold,
           stockStatus: stockStatus,
-          purchasePrice: parseFloat(product['Purchase Price']) || 0,
-          sellingPrice: parseFloat(product['Selling Price']) || 0,
+          purchasePrice: String(product['Purchase Price'] || ''),
+          sellingPrice: String(product['Selling Price'] || ''),
           status: 'Draft', // Always overwrite status to Draft for imported products
           catalogType: product['Catalog Type'] || 'Internal',
           catalogName: product['Catalog Name'] || '',

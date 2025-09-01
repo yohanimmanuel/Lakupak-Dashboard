@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
 import { getSupplierSecurityHeaders, validateSupplierInput, sanitizeSupplierData, generateUniqueSupplierId } from '@/utils/supplier-security';
-import { getServerCurrency } from '@/config/currencyConfig';
+
 
 const prisma = new PrismaClient();
 
@@ -81,9 +81,6 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Get server currency
-    const serverCurrency = getServerCurrency();
-    
     // Sanitize and prepare supplier data
     const supplierData = {
       supplierId: data.supplierId || '',
@@ -94,7 +91,6 @@ export async function POST(req: NextRequest) {
       businessType: data.businessType || '',
       address: data.address || '',
       status: data.status || 'Active',
-      currency: serverCurrency, // Force server currency
       logistics: data.logistics || null,
       notes: data.notes || null,
       supplies: data.supplies || null,

@@ -4,7 +4,7 @@ import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity, forceDatabaseRecalculation } from '@/utils/orderUtils';
-import { formatCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
 interface OrderDetailsProps {
   order: Order;
@@ -249,7 +249,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Currency:</span>
-                  <span className="font-medium text-black">{user?.currency || 'IDR'}</span>
+                  <span className="font-medium text-black">{user?.currency || getDefaultCurrency()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Payment Terms:</span>

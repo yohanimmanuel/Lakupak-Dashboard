@@ -198,6 +198,7 @@ export const sanitizeUserData = (user: Record<string, unknown>) => ({
   email: typeof user.email === 'string' ? user.email.toLowerCase().trim() : user.email,
   company: typeof user.company === 'string' ? user.company.trim() : user.company,
   address: typeof user.address === 'string' ? user.address.trim() : user.address,
+  region: typeof user.region === 'string' ? user.region : undefined,
   currency: typeof user.currency === 'string' ? user.currency : 'IDR',
 });
 

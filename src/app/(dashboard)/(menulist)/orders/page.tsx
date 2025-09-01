@@ -53,7 +53,7 @@ export default function OrdersPage() {
       orderStatus: order.orderStatus,
       paymentStatus: order.paymentStatus,
       totalAmount: calculateOrderTotalAmount(order).toFixed(2),
-      currency: user?.currency || 'IDR', // Use user's currency instead of order's
+ // Use user's currency instead of order's
       items: `${order.orderItems.length} items`,
       deliveryMethod: order.deliveryMethod,
       trackingNumber: order.trackingNumber,
