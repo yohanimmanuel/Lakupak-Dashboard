@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown } from 'lucide-react';
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
-import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity, forceDatabaseRecalculation } from '@/utils/orderUtils';
+import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
 interface OrderDetailsProps {
@@ -17,7 +17,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [isRecalculating, setIsRecalculating] = useState(false);
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -44,18 +43,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const calculateTotalAmount = () => calculateOrderTotalAmount(order);
   const calculateTotalQuantity = () => calculateOrderTotalQuantity(order);
 
-  // Handle database recalculation after manual JSON changes
-  const handleRecalculateDatabase = async () => {
-    setIsRecalculating(true);
-    try {
-      await forceDatabaseRecalculation(order.orderId);
-      // Reload the page to show updated values
-      window.location.reload();
-    } catch (error) {
-    } finally {
-      setIsRecalculating(false);
-    }
-  };
+
 
   // Calculate pagination for earnings table
   const earningsPerPage = 4;
@@ -151,15 +139,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               {order.paymentStatus}
             </button>
             
-            {/* Database Recalculation Button */}
-            <button
-              onClick={handleRecalculateDatabase}
-              disabled={isRecalculating}
-              className="py-2 px-4 rounded-lg text-sm font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors disabled:opacity-50"
-              title="Recalculate database values after manual JSON changes"
-            >
-              {isRecalculating ? 'Recalculating...' : '🔄 Recalculate DB'}
-            </button>
+
           </div>
         </div>
 
@@ -340,15 +320,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   
                   {/* Item Details */}
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-900">{item.productName}</h3>
+                    <h3 
+                      className="text-sm font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
+                      onClick={() => window.location.href = `/products/catalog/${item.productId}`}
+                      title="Click to view product details"
+                    >
+                      {item.productName}
+                    </h3>
                     <p className="text-xs text-gray-600">SKU: {item.productId}</p>
-                    <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
+                    <p className="text-xs text-gray-600">Category: {item.category || 'Uncategorized'}</p>
                   </div>
                   
                   {/* Price & Quantity */}
                   <div className="text-right">
-                                      <p className="text-xs font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
-                  <p className="text-sm font-semibold text-black">{formatCurrency(item.subtotal, user?.currency)}</p>
+                    <p className="text-xs text-gray-600 mb-1">Qty: {item.quantity}</p>
+                    <p className="text-xs font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
+                    <p className="text-sm font-semibold text-black">{formatCurrency(item.subtotal, user?.currency)}</p>
                   </div>
                 </div>
               ))}
@@ -393,7 +380,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <tbody className="text-black">
                   {currentEarningsItems.map((item, index) => (
                     <tr key={index} className="border-b border-gray-100">
-                      <td className="py-2">{item.productName}</td>
+                      <td className="py-2">
+                        <span 
+                          className="font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
+                          onClick={() => window.location.href = `/products/catalog/${item.productId}`}
+                          title="Click to view product details"
+                        >
+                          {item.productName}
+                        </span>
+                      </td>
                       <td className="py-2">{formatCurrency(item.unitPrice, user?.currency)}</td>
                       <td className="py-2">{item.quantity}</td>
                       <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
@@ -464,15 +459,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     
                     {/* Item Details */}
                     <div className="flex-1">
-                      <h3 className="text-base font-medium text-gray-900">{item.productName}</h3>
+                      <h3 
+                        className="text-base font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                        onClick={() => window.location.href = `/products/catalog/${item.productId}`}
+                        title="Click to view product details"
+                      >
+                        {item.productName}
+                      </h3>
                       <p className="text-sm text-gray-600">SKU: {item.productId}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                      <p className="text-sm text-gray-600">Category: {item.category || 'Uncategorized'}</p>
                     </div>
                     
                     {/* Price & Quantity */}
                     <div className="text-right">
-                                        <p className="text-sm font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
-                  <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
+                      <p className="text-sm text-gray-600 mb-1">Qty: {item.quantity}</p>
+                      <p className="text-sm font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
+                      <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
                     </div>
                   </div>
                 ))}

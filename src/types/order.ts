@@ -45,6 +45,7 @@ export interface Order {
 export interface OrderItem {
   productId: string;
   productName: string;
+  category: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;

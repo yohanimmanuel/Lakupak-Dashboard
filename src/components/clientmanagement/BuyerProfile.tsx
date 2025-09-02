@@ -20,29 +20,35 @@ function getBuyerAnalytics(orderDetailsStr: string) {
     const orderDetails = JSON.parse(orderDetailsStr);
     if (!Array.isArray(orderDetails)) return [];
     
-    // Group by month (MMM yyyy)
-    const map: { [month: string]: { orders: number; spending: number } } = {};
+    // Group by month using YYYY-MM format for proper sorting
+    const map: { [monthKey: string]: { orders: number; spending: number; date: Date } } = {};
     orderDetails.forEach((order: OrderDetail) => {
       if (!order.lastOrderDate) return;
       const date = new Date(order.lastOrderDate);
-              const monthKey = formatDate(date);
+      if (isNaN(date.getTime())) return; // Skip invalid dates
+      
+      // Use YYYY-MM format for proper chronological sorting
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const totalOrders = Number(order.totalOrders) || 0;
       // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
       const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
-      if (!map[monthKey]) map[monthKey] = { orders: 0, spending: 0 };
+      
+      if (!map[monthKey]) {
+        map[monthKey] = { orders: 0, spending: 0, date: new Date(date.getFullYear(), date.getMonth(), 1) };
+      }
       map[monthKey].orders += totalOrders;
       map[monthKey].spending += spending;
     });
-    // Sort months chronologically
-    const months = Object.keys(map).sort((a, b) => {
-      const dA = new Date(a);
-      const dB = new Date(b);
-      return dA.getTime() - dB.getTime();
+    
+    // Sort months chronologically and format for display
+    const sortedEntries = Object.entries(map).sort((a, b) => {
+      return a[1].date.getTime() - b[1].date.getTime();
     });
-    return months.map((month) => ({
-      month,
-      orders: map[month].orders,
-      spending: map[month].spending,
+    
+    return sortedEntries.map(([monthKey, data]) => ({
+      month: data.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      orders: data.orders,
+      spending: data.spending,
     }));
   } catch (error) {
     return [];
@@ -632,33 +638,125 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
         
         <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all orders details are added/completed.</p>
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 border border-gray-200 rounded-lg p-4  ">
-            <div className="text-sm text-gray-500 mb-2">Total Orders Per Month</div>
-            <div className="w-full h-100 bg-white flex items-center justify-center text-gray-400">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData} margin={{ top: 30, right: 50, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `${value} orders`} />
-                  <Bar dataKey="orders" fill="#0a61d7" radius={[6, 6, 0, 0]} barSize={50} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-lg font-semibold text-gray-900 mb-6">Total Orders Per Month</div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.8}/>
+                    <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.6}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [`${value} orders`, 'Orders']}
+                  labelStyle={{ 
+                    color: '#1E293B', 
+                    fontWeight: 600,
+                    fontSize: '14px'
+                  }}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+                  itemStyle={{ color: '#0a61d7' }}
+                />
+                <Bar 
+                  dataKey="orders" 
+                  fill="url(#ordersGradient)" 
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={50}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="flex-1 border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500 mb-2">Total Spending Per Month</div>
-            <div className="w-full h-100 bg-white flex items-center justify-center text-gray-400">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData} margin={{ top: 30, right: 50, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `${formatCurrency(Number(value) * 1000000, userCurrency)}`} />
-                  <Line type="monotone" dataKey="spending" stroke="#f65911" strokeWidth={3} dot={{ r: 4, fill: '#f65911' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-lg font-semibold text-gray-900 mb-6">Total Spending Per Month</div>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="spendingGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f65911" stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor="#f65911" stopOpacity={0.2}/>
+                    <stop offset="100%" stopColor="#f65911" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCurrency(value * 1000000, userCurrency)}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(Number(value) * 1000000, userCurrency), 'Spending']}
+                  labelStyle={{ 
+                    color: '#1E293B', 
+                    fontWeight: 600,
+                    fontSize: '14px'
+                  }}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+                  itemStyle={{ color: '#f65911' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="spending" 
+                  stroke="#f65911" 
+                  strokeWidth={3}
+                  dot={{ 
+                    fill: '#f65911', 
+                    strokeWidth: 2, 
+                    r: 4,
+                    stroke: 'white',
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                  }}
+                  activeDot={{ 
+                    r: 6, 
+                    stroke: '#f65911', 
+                    strokeWidth: 3,
+                    fill: 'white',
+                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

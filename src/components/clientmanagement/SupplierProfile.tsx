@@ -19,29 +19,35 @@ function getSupplierAnalytics(suppliesStr: string) {
     const supplies = JSON.parse(suppliesStr);
     if (!Array.isArray(supplies)) return [];
     
-    // Group by month (MMM yyyy)
-    const map: { [month: string]: { supplied: number; value: number } } = {};
+    // Group by month using YYYY-MM format for proper sorting
+    const map: { [monthKey: string]: { supplied: number; value: number; date: Date } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
       if (!supply.lastDelivery) return;
-              const date = new Date(supply.lastDelivery);
-        const monthKey = formatDate(date);
+      const date = new Date(supply.lastDelivery);
+      if (isNaN(date.getTime())) return; // Skip invalid dates
+      
+      // Use YYYY-MM format for proper chronological sorting
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const totalSupplied = Number(supply.totalSupplied) || 0;
       // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
       const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
-      if (!map[monthKey]) map[monthKey] = { supplied: 0, value: 0 };
+      
+      if (!map[monthKey]) {
+        map[monthKey] = { supplied: 0, value: 0, date: new Date(date.getFullYear(), date.getMonth(), 1) };
+      }
       map[monthKey].supplied += totalSupplied;
       map[monthKey].value += value;
     });
-          // Sort months chronologically
-      const months = Object.keys(map).sort((a, b) => {
-        const dA = new Date(a);
-        const dB = new Date(b);
-        return dA.getTime() - dB.getTime();
-      });
-    return months.map((month) => ({
-      month,
-      supplied: map[month].supplied,
-      value: map[month].value,
+    
+    // Sort months chronologically and format for display
+    const sortedEntries = Object.entries(map).sort((a, b) => {
+      return a[1].date.getTime() - b[1].date.getTime();
+    });
+    
+    return sortedEntries.map(([monthKey, data]) => ({
+      month: data.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      supplied: data.supplied,
+      value: data.value,
     }));
   } catch (error) {
     return [];
@@ -526,33 +532,125 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
         </div>
         <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all supplies details are added/completed.</p>
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500 mb-2">Total Supplied Per Month</div>
-            <div className="w-full h-100 bg-white flex items-center justify-center text-gray-400">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData} margin={{ top: 30, right: 50, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `${value} units`} />
-                  <Bar dataKey="supplied" fill="#0a61d7" radius={[6, 6, 0, 0]} barSize={50} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-lg font-semibold text-gray-900 mb-6">Total Supplied Per Month</div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="suppliedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.8}/>
+                    <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.3}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [`${value} units`, 'Supplied']}
+                  labelStyle={{ 
+                    color: '#1E293B', 
+                    fontWeight: 600,
+                    fontSize: '14px'
+                  }}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+                  itemStyle={{ color: '#0a61d7' }}
+                />
+                <Bar 
+                  dataKey="supplied" 
+                  fill="url(#suppliedGradient)" 
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={50}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="flex-1 border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-500 mb-2">Total Value Per Month</div>
-            <div className="w-full h-100 bg-white flex items-center justify-center text-gray-400">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData} margin={{ top: 30, right: 50, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#0a61d7' }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => `${formatCurrency(Number(value) * 1000000, userCurrency)}`} />
-                  <Line type="monotone" dataKey="value" stroke="#f65911" strokeWidth={3} dot={{ r: 4, fill: '#f65911' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="text-lg font-semibold text-gray-900 mb-6">Total Value Per Month</div>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="valueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f65911" stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor="#f65911" stopOpacity={0.2}/>
+                    <stop offset="100%" stopColor="#f65911" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#64748B" 
+                  fontSize={12}
+                  fontWeight={500}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCurrency(value * 1000000, userCurrency)}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(Number(value) * 1000000, userCurrency), 'Value']}
+                  labelStyle={{ 
+                    color: '#1E293B', 
+                    fontWeight: 600,
+                    fontSize: '14px'
+                  }}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    padding: '16px'
+                  }}
+                  cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+                  itemStyle={{ color: '#f65911' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#f65911" 
+                  strokeWidth={3}
+                  dot={{ 
+                    fill: '#f65911', 
+                    strokeWidth: 2, 
+                    r: 4,
+                    stroke: 'white',
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                  }}
+                  activeDot={{ 
+                    r: 6, 
+                    stroke: '#f65911', 
+                    strokeWidth: 3,
+                    fill: 'white',
+                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

@@ -16,14 +16,14 @@ model User {
   password  String
   company   String?
   address   String?
-  region    String?
-  currency  String     @default("IDR")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  currency  String     @default("IDR")
+  region    String?
   buyers    Buyer[]
-  suppliers Supplier[]
+  orders    Order[]
   products  Product[]
-  orders    Order[]    // Add relation to orders
+  suppliers Supplier[]
 }
 
 model Buyer {
@@ -44,7 +44,7 @@ model Buyer {
   updatedAt    DateTime @updatedAt
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
-  orders       Order[]  // Add relation to orders
+  orders       Order[]
 }
 
 model Supplier {
@@ -67,58 +67,51 @@ model Supplier {
 }
 
 model Product {
-  id                 Int      @id @default(autoincrement())
-  productId          String   @unique
-  sku                String
-  name               String
-  description        String
-  category           String
-  brand              String
-  supplier           String
-  stockQuantity      Int
-  lowStockThreshold  Int?
-  stockStatus        String?
-  purchasePrice      String
-  sellingPrice       String
-  status             String
-  catalogType        String
-  catalogName        String
-  images             String[]
-  discount           Float?
-  discountType       String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  userId             Int?
-  user               User?    @relation(fields: [userId], references: [id])
+  id                Int         @id @default(autoincrement())
+  productId         String      @unique
+  sku               String
+  name              String
+  description       String
+  category          String
+  brand             String
+  supplier          String
+  stockQuantity     Int
+  lowStockThreshold Int?
+  stockStatus       String?
+  purchasePrice     String
+  sellingPrice      String
+  status            String
+  catalogType       String
+  catalogName       String
+  images            String[]
+  discount          Float?
+  discountType      String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  userId            Int?
+  orderItems        OrderItem[]
+  user              User?       @relation(fields: [userId], references: [id])
 }
 
 model Order {
-  id                    Int      @id @default(autoincrement())
-  orderId               String   @unique
+  id                    Int         @id @default(autoincrement())
+  orderId               String      @unique
   buyerId               String
   orderDate             DateTime
   orderStatus           String
   paymentStatus         String
   deliveryMethod        String
-  
-  // Financial data
   subtotal              Float
   discounts             Float
   taxes                 Float
   shippingFee           Float
   totalAmount           Float
   paymentTerms          String
-  
-  // Order quantity
   totalOrders           Int
-  
-  // Customer information
   contactPerson         String
   storeName             String
   contactPhone          String
   customerEmail         String?
-  
-  // Delivery service
   deliveryAddress       String
   preferredDeliveryTime String?
   assignedLogistics     String?
@@ -126,18 +119,28 @@ model Order {
   deliveryNote          String?
   deliveryConfirmation  String?
   pod                   String?
-  
-  // Order items as JSON string
   orderItems            String
-  
-  // Audit & logs
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
   acceptedBy            String?
   acceptedAt            DateTime?
-  
-  // Relationships
-  buyer                 Buyer?   @relation(fields: [buyerId], references: [buyerId])
   userId                Int?
-  user                  User?    @relation(fields: [userId], references: [id])
+  buyer                 Buyer       @relation(fields: [buyerId], references: [buyerId])
+  user                  User?       @relation(fields: [userId], references: [id])
+  orderItemsRel         OrderItem[]
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  productId String
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+
+  @@unique([orderId, productId])
 }

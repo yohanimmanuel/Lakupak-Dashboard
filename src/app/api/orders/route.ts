@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
     // In production, this should be required for multi-tenant security
     let userIdFilter = {};
     if (userId) {
-      // Validate userId format
-      if (!/^\d+$/.test(userId)) {
+      // Convert userId to number if it's a valid number string
+      const numericUserId = Number(userId);
+      if (isNaN(numericUserId)) {
         return NextResponse.json(
           { error: 'Invalid userId format' }, 
           { status: 400, headers }
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
       // This ensures existing data shows up while maintaining security for new data
       userIdFilter = {
         OR: [
-          { userId: Number(userId) },
+          { userId: numericUserId },
           { userId: null }
         ]
       };
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
     const buyerId = searchParams.get('buyerId');
     
     // Validate pagination parameters
-    if (page < 1 || limit < 1 || limit > 100) {
+    if (page < 1 || limit < 1 || limit > 1000) {
       return NextResponse.json(
         { error: 'Invalid pagination parameters' }, 
         { status: 400, headers }

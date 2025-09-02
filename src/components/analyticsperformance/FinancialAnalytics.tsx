@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { Order, OrderItem } from '@/types/order';
+import { Product } from '@/types/product';
 
 // Types for financial data
 interface FinancialMetrics {
@@ -71,6 +73,7 @@ interface TopProduct {
   profit: number;
   margin: number;
   unitsSold: number;
+  productId: string;
 }
 
 interface CashFlowData {
@@ -97,137 +100,580 @@ const FinancialAnalytics: React.FC = () => {
     monthlyGrowth: 0,
     orderGrowth: 0
   });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [hasData, setHasData] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  // Mock data - Replace with actual API calls
-  const revenueData: RevenueData[] = useMemo(() => [
-    { month: 'Jan', revenue: 45000, profit: 12000, orders: 45 },
-    { month: 'Feb', revenue: 52000, profit: 15000, orders: 52 },
-    { month: 'Mar', revenue: 48000, profit: 13000, orders: 48 },
-    { month: 'Apr', revenue: 61000, profit: 18000, orders: 61 },
-    { month: 'May', revenue: 55000, profit: 16000, orders: 55 },
-    { month: 'Jun', revenue: 67000, profit: 20000, orders: 67 }
-  ], []);
+  // Helper function to parse currency strings to numbers
+  const parseCurrencyToNumber = (currencyString: string): number => {
+    if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
+    
+    // Remove currency symbols, spaces, and commas, then parse
+    const cleanString = currencyString
+      .replace(/[Rp\s,]/g, '') // Remove Rp, spaces, and commas
+      .replace(/\./g, '') // Remove dots (thousand separators)
+      .trim();
+    
+    const parsed = parseFloat(cleanString);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
-  const categoryData: CategoryData[] = useMemo(() => [
-    { category: 'Electronics', revenue: 25000, profit: 8000, percentage: 37 },
-    { category: 'Clothing', revenue: 18000, profit: 6000, percentage: 27 },
-    { category: 'Home & Garden', revenue: 15000, profit: 4500, percentage: 22 },
-    { category: 'Sports', revenue: 9000, profit: 2500, percentage: 14 }
-  ], []);
+  // Fetch real data from APIs - Orders and Products for category data
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Try to fetch with userId first, then fallback to without userId for existing data
+      let ordersResponse, productsResponse;
+      
+      if (user?.id) {
+        [ordersResponse, productsResponse] = await Promise.all([
+          fetch(`/api/orders?userId=${user.id}&limit=1000`),
+          fetch(`/api/products?userId=${user.id}&limit=1000`)
+        ]);
+      } else {
+        // Fallback: fetch existing data without userId filter
+        [ordersResponse, productsResponse] = await Promise.all([
+          fetch(`/api/orders?limit=1000`),
+          fetch(`/api/products?userId=1&limit=1000`) // Products still need userId
+        ]);
+      }
 
-  const allTopProducts: TopProduct[] = useMemo(() => [
-    { name: 'Smart Bulb C26', category: 'Electronics', revenue: 5120, profit: 3600, margin: 10.00, unitsSold: 713 },
-    { name: 'Rely A13', category: 'Electronics', revenue: 4900, profit: 2940, margin: 9.25, unitsSold: 642 },
-    { name: 'Smart Motor', category: 'Electronics', revenue: 3210, profit: 2550, margin: 8.30, unitsSold: 550 },
-    { name: 'LED Strip', category: 'Electronics', revenue: 2800, profit: 2160, margin: 7.50, unitsSold: 420 },
-    { name: 'Smart Switch', category: 'Electronics', revenue: 2400, profit: 1950, margin: 6.80, unitsSold: 380 },
-    { name: 'Smart Thermostat', category: 'Electronics', revenue: 2200, profit: 1800, margin: 6.50, unitsSold: 350 },
-    { name: 'WiFi Router', category: 'Electronics', revenue: 2000, profit: 1600, margin: 6.20, unitsSold: 320 },
-    { name: 'Security Camera', category: 'Electronics', revenue: 1800, profit: 1400, margin: 5.90, unitsSold: 290 },
-    { name: 'Smart Doorbell', category: 'Electronics', revenue: 1600, profit: 1200, margin: 5.60, unitsSold: 260 },
-    { name: 'Smart Lock', category: 'Electronics', revenue: 1400, profit: 1000, margin: 5.30, unitsSold: 230 },
-    { name: 'Smart Speaker', category: 'Electronics', revenue: 1200, profit: 800, margin: 5.00, unitsSold: 200 },
-    { name: 'Smart TV', category: 'Electronics', revenue: 1000, profit: 600, margin: 4.70, unitsSold: 170 },
-    { name: 'Smart Watch', category: 'Electronics', revenue: 900, profit: 500, margin: 4.40, unitsSold: 150 },
-    { name: 'Smartphone', category: 'Electronics', revenue: 800, profit: 400, margin: 4.10, unitsSold: 130 },
-    { name: 'Tablet', category: 'Electronics', revenue: 700, profit: 300, margin: 3.80, unitsSold: 110 },
-    { name: 'Laptop', category: 'Electronics', revenue: 600, profit: 200, margin: 3.50, unitsSold: 90 },
-    { name: 'Desktop PC', category: 'Electronics', revenue: 500, profit: 150, margin: 3.20, unitsSold: 80 },
-    { name: 'Monitor', category: 'Electronics', revenue: 450, profit: 120, margin: 2.90, unitsSold: 70 },
-    { name: 'Keyboard', category: 'Electronics', revenue: 400, profit: 100, margin: 2.60, unitsSold: 60 },
-    { name: 'Mouse', category: 'Electronics', revenue: 350, profit: 80, margin: 2.30, unitsSold: 50 },
-    { name: 'Headphones', category: 'Electronics', revenue: 300, profit: 60, margin: 2.00, unitsSold: 45 },
-    { name: 'Webcam', category: 'Electronics', revenue: 250, profit: 50, margin: 1.70, unitsSold: 40 },
-    { name: 'Microphone', category: 'Electronics', revenue: 200, profit: 40, margin: 1.40, unitsSold: 35 },
-    { name: 'Printer', category: 'Electronics', revenue: 180, profit: 30, margin: 1.10, unitsSold: 30 },
-    { name: 'Scanner', category: 'Electronics', revenue: 160, profit: 25, margin: 0.80, unitsSold: 25 },
-    { name: 'Projector', category: 'Electronics', revenue: 140, profit: 20, margin: 0.50, unitsSold: 20 },
-    { name: 'Smart Scale', category: 'Electronics', revenue: 120, profit: 18, margin: 0.20, unitsSold: 18 },
-    { name: 'Fitness Tracker', category: 'Electronics', revenue: 100, profit: 15, margin: 0.10, unitsSold: 15 },
-    { name: 'Bluetooth Speaker', category: 'Electronics', revenue: 90, profit: 12, margin: 0.05, unitsSold: 12 },
-    { name: 'Power Bank', category: 'Electronics', revenue: 80, profit: 10, margin: 0.02, unitsSold: 10 },
-    { name: 'USB Cable', category: 'Electronics', revenue: 70, profit: 8, margin: 0.01, unitsSold: 8 },
-    { name: 'Charger', category: 'Electronics', revenue: 60, profit: 6, margin: 0.01, unitsSold: 6 },
-    { name: 'Case', category: 'Electronics', revenue: 50, profit: 5, margin: 0.01, unitsSold: 5 },
-    { name: 'Screen Protector', category: 'Electronics', revenue: 40, profit: 4, margin: 0.01, unitsSold: 4 },
-    { name: 'Stand', category: 'Electronics', revenue: 30, profit: 3, margin: 0.01, unitsSold: 3 },
-    { name: 'Mount', category: 'Electronics', revenue: 25, profit: 2, margin: 0.01, unitsSold: 2 },
-    { name: 'Adapter', category: 'Electronics', revenue: 20, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Extension Cord', category: 'Electronics', revenue: 18, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Surge Protector', category: 'Electronics', revenue: 15, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Ethernet Cable', category: 'Electronics', revenue: 12, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'HDMI Cable', category: 'Electronics', revenue: 10, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Audio Cable', category: 'Electronics', revenue: 8, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Video Cable', category: 'Electronics', revenue: 6, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Network Switch', category: 'Electronics', revenue: 5, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Router Accessory', category: 'Electronics', revenue: 4, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'WiFi Extender', category: 'Electronics', revenue: 3, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Smart Plug', category: 'Electronics', revenue: 2, profit: 1, margin: 0.01, unitsSold: 1 },
-    { name: 'Smart Hub', category: 'Electronics', revenue: 1, profit: 1, margin: 0.01, unitsSold: 1 }
-  ], []);
+      if (ordersResponse.ok && productsResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        const productsData = await productsResponse.json();
+        
+        // Handle different response formats
+        const ordersList = ordersData.orders || ordersData || [];
+        const productsList = productsData.products || productsData || [];
+        
+        setOrders(ordersList);
+        setProducts(productsList);
+        setHasData(ordersList.length > 0);
+      } else {
+        setHasData(false);
+      }
+    } catch (error) {
+      setHasData(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate real metrics from orders and products data - using actual product margins
+  const calculateMetrics = useMemo(() => {
+    if (!hasData || orders.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalProfit: 0,
+        profitMargin: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        totalProducts: 0,
+        totalBuyers: 0,
+        totalSuppliers: 0,
+        monthlyGrowth: 0,
+        orderGrowth: 0
+      };
+    }
+
+    let totalRevenue = 0;
+    let totalProfit = 0;
+    const uniqueProducts = new Set();
+    const uniqueBuyers = new Set();
+    const productMargins: { [key: string]: number } = {};
+
+    // First pass: Calculate individual product margins
+    products.forEach(product => {
+      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      
+      if (sellingPrice > 0 && purchasePrice > 0) {
+        // Calculate margin percentage for this specific product
+        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+        productMargins[product.productId] = margin;
+      }
+    });
+
+    // Second pass: Calculate revenue and profit using actual product margins
+    orders.forEach(order => {
+      uniqueBuyers.add(order.buyerId);
+      
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          uniqueProducts.add(item.productId);
+          
+          // Find the product to get actual purchase and selling prices
+          const product = products.find(p => p.productId === item.productId);
+          
+          if (product) {
+            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+            
+            if (sellingPrice > 0 && purchasePrice > 0) {
+              // Use actual product prices
+              const itemRevenue = sellingPrice * item.quantity;
+              const itemCost = purchasePrice * item.quantity;
+              const itemProfit = itemRevenue - itemCost;
+              
+              totalRevenue += itemRevenue;
+              totalProfit += itemProfit;
+            } else {
+              // Fallback to order total if product prices are invalid
+              const orderAmount = parseFloat(String(order.totalAmount || 0));
+              totalRevenue += orderAmount;
+              // Use average margin from other products if available
+              const avgMargin = Object.values(productMargins).length > 0 
+                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+                : 30; // Default 30% if no margins calculated
+              totalProfit += orderAmount * (avgMargin / 100);
+            }
+          } else {
+            // Fallback to order total if product not found
+            const orderAmount = parseFloat(String(order.totalAmount || 0));
+            totalRevenue += orderAmount;
+            // Use average margin from other products if available
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 30; // Default 30% if no margins calculated
+            totalProfit += orderAmount * (avgMargin / 100);
+          }
+        });
+      } else {
+        // Fallback to order total if orderItems not available
+        const orderAmount = parseFloat(String(order.totalAmount || 0));
+        totalRevenue += orderAmount;
+        // Use average margin from other products if available
+        const avgMargin = Object.values(productMargins).length > 0 
+          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+          : 30; // Default 30% if no margins calculated
+        totalProfit += orderAmount * (avgMargin / 100);
+      }
+    });
+
+    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const totalOrders = orders.length;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    return {
+      totalRevenue,
+      totalProfit,
+      profitMargin,
+      totalOrders,
+      averageOrderValue,
+      totalProducts: uniqueProducts.size,
+      totalBuyers: uniqueBuyers.size,
+      totalSuppliers: 0, // Not available from orders alone
+      monthlyGrowth: 0, // TODO: Calculate from historical data
+      orderGrowth: 0    // TODO: Calculate from historical data
+    };
+  }, [orders, products, hasData]);
+
+  // Calculate real revenue data by month using actual product margins
+  const revenueData: RevenueData[] = useMemo(() => {
+    if (!hasData || orders.length === 0) {
+      return [];
+    }
+
+    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
+    
+    // Calculate product margins first
+    const productMargins: { [key: string]: number } = {};
+    products.forEach(product => {
+      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      
+      if (sellingPrice > 0 && purchasePrice > 0) {
+        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+        productMargins[product.productId] = margin;
+      }
+    });
+    
+    orders.forEach(order => {
+      const date = new Date(order.orderDate);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
+      }
+      
+      monthlyData[monthKey].orders += 1;
+      
+      // Calculate actual revenue and profit from order items
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          const product = products.find(p => p.productId === item.productId);
+          
+          if (product) {
+            const sellingPrice = parseFloat(product.sellingPrice || '0');
+            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            
+            if (sellingPrice > 0 && purchasePrice > 0) {
+              const itemRevenue = sellingPrice * item.quantity;
+              const itemCost = purchasePrice * item.quantity;
+              const itemProfit = itemRevenue - itemCost;
+              
+              monthlyData[monthKey].revenue += itemRevenue;
+              monthlyData[monthKey].profit += itemProfit;
+            } else {
+              // Fallback to order total if product prices are invalid
+              const orderAmount = parseFloat(String(order.totalAmount || 0));
+              monthlyData[monthKey].revenue += orderAmount;
+              // Use average margin from other products
+              const avgMargin = Object.values(productMargins).length > 0 
+                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+                : 30;
+              monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+            }
+          } else {
+            // Fallback to order total if product not found
+            const orderAmount = parseFloat(String(order.totalAmount || 0));
+            monthlyData[monthKey].revenue += orderAmount;
+            // Use average margin from other products
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 30;
+            monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+          }
+        });
+      } else {
+        // Fallback to order total if orderItems not available
+        const orderAmount = parseFloat(String(order.totalAmount || 0));
+        monthlyData[monthKey].revenue += orderAmount;
+        // Use average margin from other products
+        const avgMargin = Object.values(productMargins).length > 0 
+          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+          : 30;
+        monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+      }
+    });
+
+    return Object.entries(monthlyData).map(([month, data]) => ({
+      month,
+      revenue: data.revenue,
+      profit: data.profit,
+      orders: data.orders
+    })).sort((a, b) => {
+      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+    });
+  }, [orders, products, hasData]);
+
+  // Calculate real category revenue using actual product margins
+  const categoryData: CategoryData[] = useMemo(() => {
+    if (!hasData || orders.length === 0) {
+      return [];
+    }
+
+    const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
+    
+    // Calculate product margins first
+    const productMargins: { [key: string]: number } = {};
+    products.forEach(product => {
+      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      
+      if (sellingPrice > 0 && purchasePrice > 0) {
+        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+        productMargins[product.productId] = margin;
+      }
+    });
+    
+    orders.forEach(order => {
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          // Handle missing category field gracefully
+          let category = 'Uncategorized';
+          
+          // First try to get category from order item (if it exists)
+          if (item.category) {
+            category = item.category;
+          } else {
+            // Fallback to product data
+            const product = products.find(p => p.productId === item.productId);
+            if (product?.category) {
+              category = product.category;
+            }
+          }
+          
+          // Calculate actual revenue and profit using product prices
+          const product = products.find(p => p.productId === item.productId);
+          
+          if (product) {
+            const sellingPrice = parseFloat(product.sellingPrice || '0');
+            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            
+            if (sellingPrice > 0 && purchasePrice > 0) {
+              const itemRevenue = sellingPrice * item.quantity;
+              const itemCost = purchasePrice * item.quantity;
+              const itemProfit = itemRevenue - itemCost;
+              
+              if (!categoryStats[category]) {
+                categoryStats[category] = { revenue: 0, profit: 0 };
+              }
+              categoryStats[category].revenue += itemRevenue;
+              categoryStats[category].profit += itemProfit;
+            } else {
+              // Fallback to item pricing if product prices are invalid
+              const revenue = item.unitPrice * item.quantity;
+              // Use average margin from other products
+              const avgMargin = Object.values(productMargins).length > 0 
+                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+                : 30;
+              const profit = revenue * (avgMargin / 100);
+              
+              if (!categoryStats[category]) {
+                categoryStats[category] = { revenue: 0, profit: 0 };
+              }
+              categoryStats[category].revenue += revenue;
+              categoryStats[category].profit += profit;
+            }
+          } else {
+            // Fallback to item pricing if product not found
+            const revenue = item.unitPrice * item.quantity;
+            // Use average margin from other products
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 30;
+            const profit = revenue * (avgMargin / 100);
+            
+            if (!categoryStats[category]) {
+              categoryStats[category] = { revenue: 0, profit: 0 };
+            }
+            categoryStats[category].revenue += revenue;
+            categoryStats[category].profit += profit;
+          }
+        });
+      }
+    });
+
+    const totalRevenue = Object.values(categoryStats).reduce((sum, stats) => sum + stats.revenue, 0);
+
+    return Object.entries(categoryStats).map(([category, stats]) => ({
+      category,
+      revenue: stats.revenue,
+      profit: stats.profit,
+      percentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
+    })).sort((a, b) => b.revenue - a.revenue);
+  }, [orders, products, hasData]);
+
+  // Calculate real top products using actual product margins
+  const allTopProducts: TopProduct[] = useMemo(() => {
+    if (!hasData || orders.length === 0) {
+      return [];
+    }
+
+    const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+    
+    // Calculate product margins first
+    const productMargins: { [key: string]: number } = {};
+    products.forEach(product => {
+      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      
+      if (sellingPrice > 0 && purchasePrice > 0) {
+        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+        productMargins[product.productId] = margin;
+      }
+    });
+    
+    orders.forEach(order => {
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          const productId = item.productId;
+          if (!productStats[productId]) {
+            // Find the product to get its name and category
+            const product = products.find(p => p.productId === productId);
+            
+            // Handle missing category field gracefully
+            let category = 'Uncategorized';
+            if (item.category) {
+              category = item.category;
+            } else if (product?.category) {
+              category = product.category;
+            }
+            
+            productStats[productId] = {
+              revenue: 0,
+              unitsSold: 0,
+              category: category,
+              name: product?.name || `Product ${productId}`,
+              profit: 0
+            };
+          }
+          
+          // Calculate actual revenue and profit using product prices
+          const product = products.find(p => p.productId === item.productId);
+          
+          if (product) {
+            const sellingPrice = parseFloat(product.sellingPrice || '0');
+            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            
+            if (sellingPrice > 0 && purchasePrice > 0) {
+              const itemRevenue = sellingPrice * item.quantity;
+              const itemCost = purchasePrice * item.quantity;
+              const itemProfit = itemRevenue - itemCost;
+              
+              productStats[productId].revenue += itemRevenue;
+              productStats[productId].profit += itemProfit;
+            } else {
+              // Fallback to item pricing if product prices are invalid
+              const itemRevenue = item.unitPrice * item.quantity;
+              // Use average margin from other products
+              const avgMargin = Object.values(productMargins).length > 0 
+                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+                : 30;
+              const itemProfit = itemRevenue * (avgMargin / 100);
+              
+              productStats[productId].revenue += itemRevenue;
+              productStats[productId].profit += itemProfit;
+            }
+          } else {
+            // Fallback to item pricing if product not found
+            const itemRevenue = item.unitPrice * item.quantity;
+            // Use average margin from other products
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 30;
+            const itemProfit = itemRevenue * (avgMargin / 100);
+            
+            productStats[productId].revenue += itemRevenue;
+            productStats[productId].profit += itemProfit;
+          }
+          
+          productStats[productId].unitsSold += item.quantity;
+        });
+      }
+    });
+
+    return Object.entries(productStats).map(([productId, stats]) => {
+      const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+      
+      return {
+        name: stats.name,
+        revenue: stats.revenue,
+        unitsSold: stats.unitsSold,
+        margin,
+        category: stats.category,
+        profit: stats.profit,
+        productId: productId
+      };
+    }).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
+  }, [orders, products, hasData]);
+
+  // Calculate real cash flow data using actual product margins
+  const cashFlowData: CashFlowData[] = useMemo(() => {
+    if (!hasData || orders.length === 0) {
+      return [];
+    }
+
+    const monthlyFlow: { [key: string]: { inflows: number; outflows: number } } = {};
+    
+    // Calculate product margins first
+    const productMargins: { [key: string]: number } = {};
+    products.forEach(product => {
+      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      
+      if (sellingPrice > 0 && purchasePrice > 0) {
+        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+        productMargins[product.productId] = margin;
+      }
+    });
+    
+    orders.forEach(order => {
+      const date = new Date(order.orderDate);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      if (!monthlyFlow[monthKey]) {
+        monthlyFlow[monthKey] = { inflows: 0, outflows: 0 };
+      }
+      
+      // Calculate actual inflows and outflows from order items
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          const product = products.find(p => p.productId === item.productId);
+          
+          if (product) {
+            const sellingPrice = parseFloat(product.sellingPrice || '0');
+            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            
+            if (sellingPrice > 0 && purchasePrice > 0) {
+              // Inflows from sales (revenue)
+              monthlyFlow[monthKey].inflows += sellingPrice * item.quantity;
+              
+              // Outflows from cost of goods sold
+              monthlyFlow[monthKey].outflows += purchasePrice * item.quantity;
+            } else {
+              // Fallback to order total if product prices are invalid
+              const orderAmount = parseFloat(String(order.totalAmount || 0));
+              monthlyFlow[monthKey].inflows += orderAmount;
+              // Use average margin to calculate cost
+              const avgMargin = Object.values(productMargins).length > 0 
+                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+                : 30;
+              const costRatio = (100 - avgMargin) / 100;
+              monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+            }
+          } else {
+            // Fallback to order total if product not found
+            const orderAmount = parseFloat(String(order.totalAmount || 0));
+            monthlyFlow[monthKey].inflows += orderAmount;
+            // Use average margin to calculate cost
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 30;
+            const costRatio = (100 - avgMargin) / 100;
+            monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+          }
+        });
+      } else {
+        // Fallback to order total if orderItems not available
+        const orderAmount = parseFloat(String(order.totalAmount || 0));
+        monthlyFlow[monthKey].inflows += orderAmount;
+        // Use average margin to calculate cost
+        const avgMargin = Object.values(productMargins).length > 0 
+          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+          : 30;
+        const costRatio = (100 - avgMargin) / 100;
+        monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+      }
+    });
+
+    return Object.entries(monthlyFlow).map(([month, flow]) => ({
+      month,
+      inflows: flow.inflows,
+      outflows: flow.outflows,
+      netFlow: flow.inflows - flow.outflows
+    })).sort((a, b) => {
+      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+    });
+  }, [orders, products, hasData]);
 
   // Pagination logic for Top Products
   const productsPerPage = 5;
   const totalProducts = allTopProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalProducts / productsPerPage));
-  const pagedProducts = useMemo(() => 
-    allTopProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage), 
-    [allTopProducts, currentPage, productsPerPage]
-  );
-  
   const fromProduct = totalProducts === 0 ? 0 : (currentPage - 1) * productsPerPage + 1;
   const toProduct = Math.min(currentPage * productsPerPage, totalProducts);
+  const pagedProducts = allTopProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
-
-  const cashFlowData: CashFlowData[] = useMemo(() => [
-    { month: 'Jan', inflows: 45000, outflows: 32000, netFlow: 13000 },
-    { month: 'Feb', inflows: 52000, outflows: 38000, netFlow: 14000 },
-    { month: 'Mar', inflows: 48000, outflows: 35000, netFlow: 13000 },
-    { month: 'Apr', inflows: 61000, outflows: 42000, netFlow: 19000 },
-    { month: 'May', inflows: 55000, outflows: 39000, netFlow: 16000 },
-    { month: 'Jun', inflows: 67000, outflows: 45000, netFlow: 22000 }
-  ], []);
 
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   useEffect(() => {
-    const fetchFinancialData = async () => {
-      try {
-        setLoading(true);
-        
-        // Calculate metrics from mock data
-        const totalRevenue = revenueData.reduce((sum, item) => sum + item.revenue, 0);
-        const totalProfit = revenueData.reduce((sum, item) => sum + item.profit, 0);
-        const totalOrders = revenueData.reduce((sum, item) => sum + item.orders, 0);
-        
-        setMetrics({
-          totalRevenue,
-          totalProfit,
-          profitMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
-          totalOrders,
-          averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-          totalProducts: 156,
-          totalBuyers: 89,
-          totalSuppliers: 23,
-          monthlyGrowth: 12.5,
-          orderGrowth: 8.3
-        });
-      } catch (error) {
-        console.error('Error fetching financial data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchData();
+  }, []);
 
-    fetchFinancialData();
-  }, [revenueData]);
+  useEffect(() => {
+    setMetrics(calculateMetrics);
+  }, [calculateMetrics]);
 
   const MetricCard: React.FC<{
     title: string;
@@ -274,6 +720,38 @@ const FinancialAnalytics: React.FC = () => {
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-80 bg-gray-200 rounded-xl"></div>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show placeholder when no data
+  if (!hasData) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+            <DollarSign className="w-12 h-12 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Financial Data Available</h3>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            Start by adding products and creating orders to see your financial analytics. 
+            Your revenue, profit, and performance metrics will appear here once you have data.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button 
+              onClick={() => window.location.href = '/products'}
+              className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+            >
+              Add Products
+            </button>
+            <button 
+              onClick={() => window.location.href = '/orders'}
+              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Create Orders
+            </button>
           </div>
         </div>
       </div>
@@ -349,7 +827,7 @@ const FinancialAnalytics: React.FC = () => {
                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
                  </linearGradient>
                </defs>
-               <CartesianGrid strokeDasharray="2 4" stroke="#F1F5F9" strokeOpacity={0.6} />
+               <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
                <XAxis 
                  dataKey="month" 
                  stroke="#64748B" 
@@ -537,9 +1015,9 @@ const FinancialAnalytics: React.FC = () => {
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
            <div className="lg:col-span-6">
                   {/* Top Products */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 h-full flex flex-col">
            <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
-           <div className="overflow-x-auto rounded-lg">
+           <div className="flex-1 overflow-x-auto rounded-lg">
              <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                                <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
                   <tr>
@@ -553,14 +1031,18 @@ const FinancialAnalytics: React.FC = () => {
                 </thead>
                <tbody className="bg-white">
                  {pagedProducts.map((product, index) => (
-                   <tr key={index} className="border-b hover:bg-gray-50 transition-colors">
+                   <tr key={index} className="border-b transition-colors">
                      <td className="py-3 px-4 text-left text-black">
                        {(currentPage - 1) * productsPerPage + index + 1}
                      </td>
-                                                                 <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
-                        <span className="cursor-pointer hover:underline transition-all duration-200 hover:text-[#1d4ed8]">
-                          {product.name}
-                        </span>
+                                                 <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
+                         <span 
+                           className="cursor-pointer transition-all duration-200 hover:text-blue-800"
+                           onClick={() => window.location.href = `/products/catalog/${product.productId}`}
+                           title="Click to view product details"
+                         >
+                            {product.name}
+                          </span>
                       </td>
                       <td className="py-3 px-4 text-center text-gray-600">
                         {product.category}
@@ -612,7 +1094,7 @@ const FinancialAnalytics: React.FC = () => {
                  <ChevronRight className="w-4 h-4 text-gray-500" />
                </button>
              </div>
-                       </div>
+           </div>
           </div>
            </div>
            <div className="lg:col-span-5">
@@ -651,7 +1133,7 @@ const FinancialAnalytics: React.FC = () => {
                    <stop offset="100%" stopColor="#EF4444" stopOpacity={0.6}/>
                  </linearGradient>
                </defs>
-               <CartesianGrid strokeDasharray="2 4" stroke="#F1F5F9" strokeOpacity={0.6} />
+               <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
                <XAxis 
                  dataKey="month" 
                  stroke="#64748B" 
