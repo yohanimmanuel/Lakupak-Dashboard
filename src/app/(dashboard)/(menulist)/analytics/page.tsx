@@ -1,5 +1,5 @@
 'use client';
-import { DollarSign, TrendingUp } from 'lucide-react';
+import { ArrowRight, DollarSign, TrendingUp } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -289,6 +289,13 @@ export default function AnalyticsPage() {
                 <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
                 <span className="text-sm text-gray-600 font-medium">Profit</span>
               </div>
+              <button 
+                onClick={() => window.location.href = '/analytics/financial'}
+                className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+              >
+                See More
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </button>
             </div>
           </div>
           
