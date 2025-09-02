@@ -746,12 +746,6 @@ const FinancialAnalytics: React.FC = () => {
             >
               Add Products
             </button>
-            <button 
-              onClick={() => window.location.href = '/orders'}
-              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Create Orders
-            </button>
           </div>
         </div>
       </div>
@@ -814,7 +808,7 @@ const FinancialAnalytics: React.FC = () => {
              </div>
            </div>
            <ResponsiveContainer width="100%" height={320}>
-             <AreaChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+             <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                <defs>
                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                    <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
@@ -1118,7 +1112,7 @@ const FinancialAnalytics: React.FC = () => {
              </div>
            </div>
            <ResponsiveContainer width="100%" height={312}>
-             <ComposedChart data={cashFlowData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+             <ComposedChart data={cashFlowData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                <defs>
                  <linearGradient id="netFlowGradient" x1="0" y1="0" x2="1" y2="0">
                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8}/>
