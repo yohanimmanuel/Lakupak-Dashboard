@@ -152,7 +152,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <User className="w-8 h-8" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">{order.contactPerson}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {order.contactPerson}
+                  <span
+                    className="ml-2 text-[#0a61d7] text-sm font-semibold cursor-pointer hover:text-blue-800"
+                    title="View buyer profile"
+                    onClick={() => window.location.href = `/clients/buyers/details/${order.buyerId}`}
+                  >
+                    ({order.buyerId})
+                  </span>
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-xs">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
