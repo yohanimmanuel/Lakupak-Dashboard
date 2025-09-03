@@ -28,13 +28,14 @@ import {
   Users,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowRight,
   Calendar,
   Filter,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
 
@@ -224,20 +225,20 @@ const FinancialAnalytics: React.FC = () => {
               // Fallback to order total if product prices are invalid
               const orderAmount = parseFloat(String(order.totalAmount || 0));
               totalRevenue += orderAmount;
-              // Use average margin from other products if available
+              // Use average margin from other products, otherwise 0% if available, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30; // Default 30% if no margins calculated
+                : 0; // Default 0% if no margins calculated
               totalProfit += orderAmount * (avgMargin / 100);
             }
           } else {
             // Fallback to order total if product not found
             const orderAmount = parseFloat(String(order.totalAmount || 0));
             totalRevenue += orderAmount;
-            // Use average margin from other products if available
+            // Use average margin from other products, otherwise 0% if available, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30; // Default 30% if no margins calculated
+              : 0; // Default 0% if no margins calculated
             totalProfit += orderAmount * (avgMargin / 100);
           }
         });
@@ -245,10 +246,10 @@ const FinancialAnalytics: React.FC = () => {
         // Fallback to order total if orderItems not available
         const orderAmount = parseFloat(String(order.totalAmount || 0));
         totalRevenue += orderAmount;
-        // Use average margin from other products if available
+        // Use average margin from other products if available, otherwise 0%
         const avgMargin = Object.values(productMargins).length > 0 
           ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 30; // Default 30% if no margins calculated
+          : 0; // Default 0% if no margins calculated
         totalProfit += orderAmount * (avgMargin / 100);
       }
     });
@@ -307,8 +308,8 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === item.productId);
           
           if (product) {
-            const sellingPrice = parseFloat(product.sellingPrice || '0');
-            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               const itemRevenue = sellingPrice * item.quantity;
@@ -321,20 +322,20 @@ const FinancialAnalytics: React.FC = () => {
               // Fallback to order total if product prices are invalid
               const orderAmount = parseFloat(String(order.totalAmount || 0));
               monthlyData[monthKey].revenue += orderAmount;
-              // Use average margin from other products
+              // Use average margin from other products, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
+                : 0;
               monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
             }
           } else {
             // Fallback to order total if product not found
             const orderAmount = parseFloat(String(order.totalAmount || 0));
             monthlyData[monthKey].revenue += orderAmount;
-            // Use average margin from other products
+            // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
+              : 0;
             monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
           }
         });
@@ -402,8 +403,8 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === item.productId);
           
           if (product) {
-            const sellingPrice = parseFloat(product.sellingPrice || '0');
-            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               const itemRevenue = sellingPrice * item.quantity;
@@ -418,10 +419,10 @@ const FinancialAnalytics: React.FC = () => {
             } else {
               // Fallback to item pricing if product prices are invalid
               const revenue = item.unitPrice * item.quantity;
-              // Use average margin from other products
+              // Use average margin from other products, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
+                : 0;
               const profit = revenue * (avgMargin / 100);
               
               if (!categoryStats[category]) {
@@ -433,10 +434,10 @@ const FinancialAnalytics: React.FC = () => {
           } else {
             // Fallback to item pricing if product not found
             const revenue = item.unitPrice * item.quantity;
-            // Use average margin from other products
+            // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
+              : 0;
             const profit = revenue * (avgMargin / 100);
             
             if (!categoryStats[category]) {
@@ -508,8 +509,8 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === item.productId);
           
           if (product) {
-            const sellingPrice = parseFloat(product.sellingPrice || '0');
-            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               const itemRevenue = sellingPrice * item.quantity;
@@ -521,10 +522,10 @@ const FinancialAnalytics: React.FC = () => {
             } else {
               // Fallback to item pricing if product prices are invalid
               const itemRevenue = item.unitPrice * item.quantity;
-              // Use average margin from other products
+              // Use average margin from other products, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
+                : 0;
               const itemProfit = itemRevenue * (avgMargin / 100);
               
               productStats[productId].revenue += itemRevenue;
@@ -533,10 +534,10 @@ const FinancialAnalytics: React.FC = () => {
           } else {
             // Fallback to item pricing if product not found
             const itemRevenue = item.unitPrice * item.quantity;
-            // Use average margin from other products
+            // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
+              : 0;
             const itemProfit = itemRevenue * (avgMargin / 100);
             
             productStats[productId].revenue += itemRevenue;
@@ -597,8 +598,8 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === item.productId);
           
           if (product) {
-            const sellingPrice = parseFloat(product.sellingPrice || '0');
-            const purchasePrice = parseFloat(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               // Inflows from sales (revenue)
@@ -613,7 +614,7 @@ const FinancialAnalytics: React.FC = () => {
               // Use average margin to calculate cost
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
+                : 0;
               const costRatio = (100 - avgMargin) / 100;
               monthlyFlow[monthKey].outflows += orderAmount * costRatio;
             }
@@ -624,7 +625,7 @@ const FinancialAnalytics: React.FC = () => {
             // Use average margin to calculate cost
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
+              : 0;
             const costRatio = (100 - avgMargin) / 100;
             monthlyFlow[monthKey].outflows += orderAmount * costRatio;
           }
@@ -636,7 +637,7 @@ const FinancialAnalytics: React.FC = () => {
         // Use average margin to calculate cost
         const avgMargin = Object.values(productMargins).length > 0 
           ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 30;
+          : 0;
         const costRatio = (100 - avgMargin) / 100;
         monthlyFlow[monthKey].outflows += orderAmount * costRatio;
       }
@@ -675,6 +676,7 @@ const FinancialAnalytics: React.FC = () => {
     setMetrics(calculateMetrics);
   }, [calculateMetrics]);
 
+  // Reusable MetricCard component for both Analytics pages
   const MetricCard: React.FC<{
     title: string;
     value: string;
@@ -759,14 +761,14 @@ const FinancialAnalytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Revenue"
-          value={formatCurrency(metrics.totalRevenue, userCurrency)}
+          value={utilsFormatCurrency(metrics.totalRevenue, userCurrency)}
           change={metrics.monthlyGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Total Profit"
-          value={formatCurrency(metrics.totalProfit, userCurrency)}
+          value={utilsFormatCurrency(metrics.totalProfit, userCurrency)}
           change={15.2}
           icon={<TrendingUp className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
@@ -780,7 +782,7 @@ const FinancialAnalytics: React.FC = () => {
         />
         <MetricCard
           title="Average Order Value"
-          value={formatCurrency(metrics.averageOrderValue, userCurrency)}
+          value={utilsFormatCurrency(metrics.averageOrderValue, userCurrency)}
           change={-1.8}
           icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
           color="bg-[#e6e6e6]"
@@ -834,13 +836,13 @@ const FinancialAnalytics: React.FC = () => {
                  stroke="#64748B" 
                  fontSize={12}
                  fontWeight={500}
-                 tickFormatter={(value) => formatCurrency(value, userCurrency)}
+                 tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
                  tickLine={false}
                  axisLine={false}
                />
                <Tooltip 
                  formatter={(value: number, name: string) => [
-                   formatCurrency(value, userCurrency), 
+                   utilsFormatCurrency(value, userCurrency), 
                    name === 'revenue' ? 'Revenue' : 'Profit'
                  ]}
                  labelStyle={{ 
@@ -958,7 +960,7 @@ const FinancialAnalytics: React.FC = () => {
                </Pie>
                <Tooltip 
                  formatter={(value: number, name: string, props: any) => [
-                   formatCurrency(value, userCurrency), 
+                   utilsFormatCurrency(value, userCurrency), 
                    `${props.payload.category}`
                  ]}
                  labelStyle={{ 
@@ -1045,7 +1047,7 @@ const FinancialAnalytics: React.FC = () => {
                         {product.unitsSold.toLocaleString()}
                       </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
-                       {formatCurrency(product.revenue, userCurrency)}
+                       {utilsFormatCurrency(product.revenue, userCurrency)}
                      </td>
                      <td className="py-3 px-4 text-center text-black">
                        {product.margin.toFixed(2)}%
@@ -1140,7 +1142,7 @@ const FinancialAnalytics: React.FC = () => {
                  stroke="#64748B" 
                  fontSize={12}
                  fontWeight={500}
-                 tickFormatter={(value) => formatCurrency(value, userCurrency)}
+                 tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
                  tickLine={false}
                  axisLine={false}
                />
@@ -1172,7 +1174,7 @@ const FinancialAnalytics: React.FC = () => {
                                  style={{ backgroundColor: dotColor }}
                                />
                                <span className="text-gray-700">
-                                 {formatCurrency(entry.value, userCurrency)}
+                                 {utilsFormatCurrency(entry.value, userCurrency)}
                                </span>
                                <span className="text-gray-500 ml-1">
                                  {labelText}
@@ -1231,5 +1233,325 @@ const FinancialAnalytics: React.FC = () => {
      </div>
    );
  };
+
+// ===== REUSABLE COMPONENTS FOR ANALYTICS PAGES =====
+
+// Shared MetricCard component
+export const AnalyticsMetricCard: React.FC<{
+  title: string;
+  value: string;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+}> = ({ title, value, change, icon, color }) => (
+  <div className={`flex flex-col justify-between p-4 rounded-lg shadow-sm bg-white border border-[#e6e6e6] ${color}`}>
+    <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{title}</div>
+        <div className="text-xl font-bold text-black">{value}</div>
+      </div>
+    </div>
+    <div className="flex items-center gap-2 mt-4 ml-1">
+      {change >= 0 ? (
+        <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+      ) : (
+        <TrendingDown className="w-5 h-5 text-[#f65911]" />
+      )}
+      <span className={change >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
+        {Math.abs(change)}%
+      </span>
+      <span className="text-gray-400 text-xs">vs last month</span>
+    </div>
+  </div>
+);
+
+// Shared Revenue Trend Chart component
+export const AnalyticsRevenueTrendChart: React.FC<{
+  revenueData: RevenueData[];
+  userCurrency: string;
+  hasData: boolean;
+}> = ({ revenueData, userCurrency, hasData }) => (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
+          <span className="text-sm text-gray-600 font-medium">Revenue</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
+          <span className="text-sm text-gray-600 font-medium">Profit</span>
+        </div>
+        <button 
+          onClick={() => window.location.href = '/analytics/financial'}
+          className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+        >
+          See More
+          <ArrowRight className="w-4 h-4 ml-1" />
+        </button>
+      </div>
+    </div>
+    
+    {hasData && revenueData.length > 0 ? (
+      <ResponsiveContainer width="100%" height={320}>
+        <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 60, bottom: 20 }}>
+          <defs>
+            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
+              <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
+              <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+            </linearGradient>
+            <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
+              <stop offset="50%" stopColor="#10B981" stopOpacity={0.2}/>
+              <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+          <XAxis 
+            dataKey="month"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickMargin={10}
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #E5E7EB',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+            formatter={(value: number, name: string) => [
+              utilsFormatCurrency(value, userCurrency), 
+              name === 'revenue' ? 'Revenue' : 'Profit'
+            ]}
+            labelStyle={{ color: '#374151', fontWeight: '600' }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="revenue" 
+            stroke="#0a61d7" 
+            strokeWidth={2}
+            fillOpacity={1} 
+            fill="url(#revenueGradient)" 
+          />
+          <Area 
+            type="monotone" 
+            dataKey="profit" 
+            stroke="#10B981" 
+            strokeWidth={2}
+            fillOpacity={1} 
+            fill="url(#profitGradient)" 
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    ) : (
+      <div className="h-80 flex items-center justify-center">
+        <div className="text-center">
+          <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm">No revenue data available</p>
+          <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// ===== SHARED DATA CALCULATION UTILITIES =====
+
+// Shared function to parse currency strings to numbers
+export const parseCurrencyToNumber = (currencyString: string): number => {
+  if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
+  
+  // Remove currency symbols, spaces, and commas, then parse
+  const cleanString = currencyString
+    .replace(/[Rp\s,]/g, '') // Remove Rp, spaces, and commas
+    .replace(/\./g, '') // Remove dots (thousand separators)
+    .trim();
+  
+  const parsed = parseFloat(cleanString);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Shared function to format currency
+export const formatCurrency = (amount: number, currency: string): string => {
+  if (currency === 'USD') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } else if (currency === 'SGD') {
+    return new Intl.NumberFormat('en-SG', {
+      style: 'currency',
+      currency: 'SGD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } else {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
+};
+
+// Shared function to calculate revenue data from orders and products
+export const calculateRevenueData = (
+  orders: Order[], 
+  products: Product[], 
+  hasData: boolean
+): RevenueData[] => {
+  if (!hasData || orders.length === 0) {
+    return [];
+  }
+
+  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
+  
+  // Calculate product margins first
+  const productMargins: { [key: string]: number } = {};
+  products.forEach(product => {
+    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+    
+    if (sellingPrice > 0 && purchasePrice > 0) {
+      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+      productMargins[product.productId] = margin;
+    }
+  });
+  
+  orders.forEach(order => {
+    const date = new Date(order.orderDate);
+    const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+    
+    if (!monthlyData[monthKey]) {
+      monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
+    }
+    
+    monthlyData[monthKey].orders += 1;
+    
+    // Calculate actual revenue and profit from order items
+    if (order.orderItems && Array.isArray(order.orderItems)) {
+      order.orderItems.forEach(item => {
+        const product = products.find(p => p.productId === item.productId);
+        
+        if (product) {
+          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+          
+          if (sellingPrice > 0 && purchasePrice > 0) {
+            const itemRevenue = sellingPrice * item.quantity;
+            const itemCost = purchasePrice * item.quantity;
+            const itemProfit = itemRevenue - itemCost;
+            
+            monthlyData[monthKey].revenue += itemRevenue;
+            monthlyData[monthKey].profit += itemProfit;
+          } else {
+            // Fallback to order total if product prices are invalid
+            const orderAmount = parseFloat(String(order.totalAmount || 0));
+            monthlyData[monthKey].revenue += orderAmount;
+            // Use average margin from other products, otherwise 0%
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 0;
+            monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+          }
+        } else {
+          // Fallback to order total if product not found
+          const orderAmount = parseFloat(String(order.totalAmount || 0));
+          monthlyData[monthKey].revenue += orderAmount;
+          // Use average margin from other products
+          const avgMargin = Object.values(productMargins).length > 0 
+            ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+            : 30;
+          monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+        }
+      });
+    } else {
+      // Fallback to order total if orderItems not available
+      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      monthlyData[monthKey].revenue += orderAmount;
+      // Use average margin from other products
+      const avgMargin = Object.values(productMargins).length > 0 
+        ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+        : 30;
+      monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+    }
+  });
+
+  return Object.entries(monthlyData).map(([month, data]) => ({
+    month,
+    revenue: data.revenue,
+    profit: data.profit,
+    orders: data.orders
+  })).sort((a, b) => {
+    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+  });
+};
+
+// Shared function to calculate total revenue from orders and products
+export const calculateTotalRevenue = (orders: Order[], products: Product[]): number => {
+  let totalRevenue = 0;
+  const productMargins: { [key: string]: number } = {};
+
+  // First pass: Calculate individual product margins
+  products.forEach(product => {
+    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+    
+    if (sellingPrice > 0 && purchasePrice > 0) {
+      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+      productMargins[product.productId] = margin;
+    }
+  });
+
+  // Second pass: Calculate revenue using actual product margins
+  orders.forEach(order => {
+    if (order.orderItems && Array.isArray(order.orderItems)) {
+      order.orderItems.forEach(item => {
+        const product = products.find(p => p.productId === item.productId);
+        
+        if (product) {
+          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+          
+          if (sellingPrice > 0 && purchasePrice > 0) {
+            const itemRevenue = sellingPrice * item.quantity;
+            totalRevenue += itemRevenue;
+          } else {
+            // Fallback to order total if product prices are invalid
+            const orderAmount = parseFloat(String(order.totalAmount || 0));
+            totalRevenue += orderAmount;
+          }
+        } else {
+          // Fallback to order total if product not found
+          const orderAmount = parseFloat(String(order.totalAmount || 0));
+          totalRevenue += orderAmount;
+        }
+      });
+    } else {
+      // Fallback to order total if orderItems not available
+      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      totalRevenue += orderAmount;
+    }
+  });
+
+  return totalRevenue;
+};
 
 export default FinancialAnalytics;
