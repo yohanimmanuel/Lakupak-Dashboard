@@ -1,6 +1,35 @@
 import { Order, OrderItem } from '@/types/order';
+import { PrismaClient } from '@/generated/prisma';
+
+const prisma = new PrismaClient();
 
 // ===== CALCULATION FUNCTIONS =====
+
+// Ensure price consistency by fetching product's sellingPrice
+export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem> => {
+  try {
+    const product = await prisma.product.findFirst({
+      where: { productId: item.productId }
+    });
+    
+    if (!product) {
+      throw new Error(`Product not found: ${item.productId}`);
+    }
+    
+    // Use the product's sellingPrice as the unitPrice to ensure consistency
+    const consistentUnitPrice = parseFloat(product.sellingPrice);
+    const consistentSubtotal = consistentUnitPrice * item.quantity;
+    
+    return {
+      ...item,
+      unitPrice: consistentUnitPrice,
+      subtotal: consistentSubtotal
+    };
+  } catch (error) {
+    // If product not found, return original item
+    return item;
+  }
+};
 
 // Recalculate order item subtotal
 export const recalculateOrderItem = (item: OrderItem): OrderItem => {
@@ -14,6 +43,14 @@ export const recalculateOrderItem = (item: OrderItem): OrderItem => {
 // Recalculate all order items and their subtotals
 export const recalculateOrderItems = (orderItems: OrderItem[]): OrderItem[] => {
   return orderItems.map(item => recalculateOrderItem(item));
+};
+
+// Ensure price consistency for all order items
+export const ensureAllPriceConsistency = async (orderItems: OrderItem[]): Promise<OrderItem[]> => {
+  const consistentItems = await Promise.all(
+    orderItems.map(item => ensurePriceConsistency(item))
+  );
+  return consistentItems;
 };
 
 // Calculate subtotal from order items (with validation)

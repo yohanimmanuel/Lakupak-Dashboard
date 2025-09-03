@@ -8,7 +8,7 @@ import {
   generateSecureOrderId,
   validateOrderAccess
 } from '@/utils/order-security';
-import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderUtils';
+import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
 
 
 const prisma = new PrismaClient();
@@ -53,7 +53,12 @@ export async function GET(request: NextRequest) {
           },
           include: {
             buyer: true,
-            user: true
+            user: true,
+            orderItemsRel: {
+              include: {
+                product: true
+              }
+            }
           }
         });
 
@@ -64,10 +69,27 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Parse orderItems JSON
+      // Parse orderItems JSON and merge with OrderItem table data
+      const parsedOrderItems = JSON.parse(order.orderItems);
+      const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+        // Find corresponding OrderItem with product data
+        const orderItemWithProduct = order.orderItemsRel?.find(
+          (orderItem: any) => orderItem.productId === jsonItem.productId
+        );
+        
+        return {
+          ...jsonItem,
+          productName: orderItemWithProduct?.product?.name || 'Unknown Product',
+          category: orderItemWithProduct?.product?.category || 'Uncategorized',
+          brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
+          description: orderItemWithProduct?.product?.description || '',
+          images: orderItemWithProduct?.product?.images || []
+        };
+      });
+
       let orderWithParsedItems = {
         ...order,
-        orderItems: JSON.parse(order.orderItems)
+        orderItems: enrichedOrderItems
       };
 
       // Auto-validate and correct data on every fetch
@@ -139,7 +161,12 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         include: {
           buyer: true,
-          user: true
+          user: true,
+          orderItemsRel: {
+            include: {
+              product: true
+            }
+          }
         }
       }),
       prisma.order.count({ where })
@@ -147,9 +174,27 @@ export async function GET(request: NextRequest) {
     
     // Parse orderItems JSON for each order and auto-validate
     const ordersWithParsedItems = orders.map((order) => {
+      // Parse orderItems JSON and merge with OrderItem table data
+      const parsedOrderItems = JSON.parse(order.orderItems);
+      const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+        // Find corresponding OrderItem with product data
+        const orderItemWithProduct = order.orderItemsRel?.find(
+          (orderItem: any) => orderItem.productId === jsonItem.productId
+        );
+        
+        return {
+          ...jsonItem,
+          productName: orderItemWithProduct?.product?.name || 'Unknown Product',
+          category: orderItemWithProduct?.product?.category || 'Uncategorized',
+          brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
+          description: orderItemWithProduct?.product?.description || '',
+          images: orderItemWithProduct?.product?.images || []
+        };
+      });
+
       const orderWithParsedItems = {
         ...order,
-        orderItems: JSON.parse(order.orderItems)
+        orderItems: enrichedOrderItems
       };
       
       // Auto-validate and correct each order
@@ -213,11 +258,12 @@ export async function POST(request: NextRequest) {
       sanitizedData.orderId = generateSecureOrderId();
     }
     
-    // Recalculate entire order with all mathematical relationships
+    // Ensure price consistency and recalculate entire order
     const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+    const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
     const recalculatedOrder = recalculateEntireOrder({
       ...sanitizedData,
-      orderItems: orderItems
+      orderItems: consistentOrderItems
     } as any);
     
     // Convert orderItems to JSON string
@@ -232,14 +278,66 @@ export async function POST(request: NextRequest) {
       data: orderData,
       include: {
         buyer: true,
-        user: true
+        user: true,
+        orderItemsRel: {
+          include: {
+            product: true
+          }
+        }
       }
     });
     
-    // Parse orderItems back for response
+    // Create OrderItem records for each item with price consistency
+    if (recalculatedOrder.orderItems && Array.isArray(recalculatedOrder.orderItems)) {
+      const orderItemPromises = recalculatedOrder.orderItems.map(async (item: any) => {
+        // Fetch the product to ensure price consistency
+        const product = await prisma.product.findFirst({
+          where: { productId: item.productId }
+        });
+        
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`);
+        }
+        
+        // Use the product's sellingPrice as the unitPrice to ensure consistency
+        const consistentUnitPrice = parseFloat(product.sellingPrice);
+        const consistentSubtotal = consistentUnitPrice * item.quantity;
+        
+        return prisma.orderItem.create({
+          data: {
+            orderId: sanitizedData.orderId as string,
+            productId: item.productId as string,
+            quantity: item.quantity as number,
+            unitPrice: consistentUnitPrice,
+            subtotal: consistentSubtotal
+          }
+        });
+      });
+      
+      await Promise.all(orderItemPromises);
+    }
+    
+    // Parse orderItems back for response and enrich with product data
+    const parsedOrderItems = JSON.parse(order.orderItems);
+    const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+      // Find corresponding OrderItem with product data
+      const orderItemWithProduct = order.orderItemsRel?.find(
+        (orderItem: any) => orderItem.productId === jsonItem.productId
+      );
+      
+      return {
+        ...jsonItem,
+        productName: orderItemWithProduct?.product?.name || 'Unknown Product',
+        category: orderItemWithProduct?.product?.category || 'Uncategorized',
+        brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
+        description: orderItemWithProduct?.product?.description || '',
+        images: orderItemWithProduct?.product?.images || []
+      };
+    });
+
     const orderWithParsedItems = {
       ...order,
-      orderItems: JSON.parse(order.orderItems)
+      orderItems: enrichedOrderItems
     };
     
     return NextResponse.json(orderWithParsedItems, { status: 201, headers });
@@ -281,9 +379,10 @@ export async function PUT(request: NextRequest) {
     let recalculatedData = { ...sanitizedData };
     if (sanitizedData.orderItems) {
       const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+      const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
       const recalculatedOrder = recalculateEntireOrder({
         ...sanitizedData,
-        orderItems: orderItems
+        orderItems: consistentOrderItems
       } as any);
       
       recalculatedData = {
@@ -307,14 +406,72 @@ export async function PUT(request: NextRequest) {
       data: updateData,
       include: {
         buyer: true,
-        user: true
+        user: true,
+        orderItemsRel: {
+          include: {
+            product: true
+          }
+        }
       }
     });
 
-    // Parse orderItems back for response
+    // Update OrderItem records if orderItems were provided
+    if (sanitizedData.orderItems && Array.isArray(sanitizedData.orderItems)) {
+      // Delete existing OrderItem records for this order
+      await prisma.orderItem.deleteMany({
+        where: { orderId: sanitizedData.orderId as string }
+      });
+      
+      // Create new OrderItem records with price consistency
+      const orderItemPromises = sanitizedData.orderItems.map(async (item: any) => {
+        // Fetch the product to ensure price consistency
+        const product = await prisma.product.findFirst({
+          where: { productId: item.productId }
+        });
+        
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`);
+        }
+        
+        // Use the product's sellingPrice as the unitPrice to ensure consistency
+        const consistentUnitPrice = parseFloat(product.sellingPrice);
+        const consistentSubtotal = consistentUnitPrice * item.quantity;
+        
+        return prisma.orderItem.create({
+          data: {
+            orderId: sanitizedData.orderId as string,
+            productId: item.productId as string,
+            quantity: item.quantity as number,
+            unitPrice: consistentUnitPrice,
+            subtotal: consistentSubtotal
+          }
+        });
+      });
+      
+      await Promise.all(orderItemPromises);
+    }
+
+    // Parse orderItems back for response and enrich with product data
+    const parsedOrderItems = JSON.parse(order.orderItems);
+    const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+      // Find corresponding OrderItem with product data
+      const orderItemWithProduct = order.orderItemsRel?.find(
+        (orderItem: any) => orderItem.productId === jsonItem.productId
+      );
+      
+      return {
+        ...jsonItem,
+        productName: orderItemWithProduct?.product?.name || 'Unknown Product',
+        category: orderItemWithProduct?.product?.category || 'Uncategorized',
+        brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
+        description: orderItemWithProduct?.product?.description || '',
+        images: orderItemWithProduct?.product?.images || []
+      };
+    });
+
     const orderWithParsedItems = {
       ...order,
-      orderItems: JSON.parse(order.orderItems)
+      orderItems: enrichedOrderItems
     };
 
     return NextResponse.json(orderWithParsedItems, { headers });
@@ -349,6 +506,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
+    // Delete OrderItem records first (due to foreign key constraint)
+    await prisma.orderItem.deleteMany({
+      where: { orderId: body.orderId }
+    });
+    
+    // Delete the order
     await prisma.order.delete({
       where: { orderId: body.orderId }
     });
