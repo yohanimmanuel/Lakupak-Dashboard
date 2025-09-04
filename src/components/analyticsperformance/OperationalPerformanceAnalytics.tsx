@@ -292,24 +292,25 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     }));
   }, [orders, hasData]);
 
-  // Calculate processing time trends
+  // Calculate processing time trends (last 6 months dynamically)
   const processingTimeData: ProcessingTimeData[] = useMemo(() => {
     if (!hasData || orders.length === 0) return [];
 
-    const monthlyData: { [key: string]: { totalTime: number; count: number; totalOrders: number; completed: number } } = {};
+    const monthlyData: { [key: string]: { label: string; totalTime: number; count: number; totalOrders: number; completed: number } } = {};
     
     orders.forEach(order => {
       const date = new Date(order.orderDate);
-      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
+      const label = `${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`;
       
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
+      if (!monthlyData[key]) {
+        monthlyData[key] = { label, totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
       }
       
-      monthlyData[monthKey].totalOrders += 1;
+      monthlyData[key].totalOrders += 1;
       
       if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') {
-        monthlyData[monthKey].completed += 1;
+        monthlyData[key].completed += 1;
       }
       
       if (order.acceptedAt && order.orderDate) {
@@ -317,21 +318,17 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         const acceptedDate = new Date(order.acceptedAt);
         const diffHours = (acceptedDate.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
         if (diffHours >= 0) {
-          monthlyData[monthKey].totalTime += diffHours;
-          monthlyData[monthKey].count += 1;
+          monthlyData[key].totalTime += diffHours;
+          monthlyData[key].count += 1;
         }
       }
     });
 
-    return Object.entries(monthlyData).map(([month, data]) => ({
-      month,
-      avgProcessingTime: data.count > 0 ? data.totalTime / data.count : 0,
-      totalOrders: data.totalOrders,
-      completedOrders: data.completed
-    })).sort((a, b) => {
-      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-    });
+    const sorted = Object.entries(monthlyData)
+      .map(([key, d]) => ({ key, month: d.label, avgProcessingTime: d.count > 0 ? d.totalTime / d.count : 0, totalOrders: d.totalOrders, completedOrders: d.completed }))
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-6);
+    return sorted;
   }, [orders, hasData]);
 
   // Calculate inventory health by category
@@ -1246,30 +1243,24 @@ export const computeOrderStatusData = (orders: Order[]): OrderStatusData[] => {
 
 export const computeProcessingTimeData = (orders: Order[]): ProcessingTimeData[] => {
   if (!orders?.length) return [];
-  const monthly: { [key: string]: { totalTime: number; count: number; totalOrders: number; completed: number } } = {};
+  const monthly: { [key: string]: { label: string; totalTime: number; count: number; totalOrders: number; completed: number } } = {};
   orders.forEach(order => {
-    const date = new Date(order.orderDate);
-    const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-    if (!monthly[monthKey]) monthly[monthKey] = { totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
-    monthly[monthKey].totalOrders += 1;
-    if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') monthly[monthKey].completed += 1;
+    const d = new Date(order.orderDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+    const label = `${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear()}`;
+    if (!monthly[key]) monthly[key] = { label, totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
+    monthly[key].totalOrders += 1;
+    if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') monthly[key].completed += 1;
     if (order.acceptedAt && order.orderDate) {
       const start = new Date(order.orderDate).getTime();
       const end = new Date(order.acceptedAt).getTime();
-      const diffHours = (end - start) / (1000 * 60 * 60);
-      if (diffHours >= 0) {
-        monthly[monthKey].totalTime += diffHours;
-        monthly[monthKey].count += 1;
-      }
+      const diffH = (end - start) / (1000 * 60 * 60);
+      if (diffH >= 0) { monthly[key].totalTime += diffH; monthly[key].count += 1; }
     }
   });
-  return Object.entries(monthly).map(([month, data]) => ({
-    month,
-    avgProcessingTime: data.count > 0 ? data.totalTime / data.count : 0,
-    totalOrders: data.totalOrders,
-    completedOrders: data.completed
-  })).sort((a, b) => {
-    const order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return order.indexOf(a.month) - order.indexOf(b.month);
-  });
+  return Object.entries(monthly)
+    .map(([key, v]) => ({ key, month: v.label, avgProcessingTime: v.count > 0 ? v.totalTime / v.count : 0, totalOrders: v.totalOrders, completedOrders: v.completed }))
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .slice(-6)
+    .map(({ month, avgProcessingTime, totalOrders, completedOrders }) => ({ month, avgProcessingTime, totalOrders, completedOrders }));
 };

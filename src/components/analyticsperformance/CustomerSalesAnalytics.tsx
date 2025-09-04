@@ -46,20 +46,21 @@ export type SalesTrendPoint = { month: string; orders: number; units: number };
 
 export const calculateSalesTrend = (orders: Order[], hasData: boolean): SalesTrendPoint[] => {
 	if (!hasData || orders.length === 0) return [];
-	const monthly: Record<string, { orders: number; units: number }> = {};
+	const monthly: Record<string, { orders: number; units: number; label: string }> = {};
 	orders.forEach(o => {
-		const date = new Date(o.orderDate);
-		const key = date.toLocaleDateString('en-US', { month: 'short' });
-		if (!monthly[key]) monthly[key] = { orders: 0, units: 0 };
+		const d = new Date(o.orderDate);
+		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+		const label = d.toLocaleDateString('en-US', { month: 'short' });
+		if (!monthly[key]) monthly[key] = { orders: 0, units: 0, label };
 		monthly[key].orders += 1;
 		if (o.orderItems && Array.isArray(o.orderItems)) {
 			o.orderItems.forEach(i => monthly[key].units += i.quantity);
 		}
 	});
-	const monthOrder = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-	return Object.entries(monthly)
-		.map(([month, v]) => ({ month, ...v }))
-		.sort((a, b) => monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month));
+	const sorted = Object.entries(monthly)
+		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, units: v.units }))
+		.sort((a, b) => a.key.localeCompare(b.key));
+	return sorted.slice(-6);
 };
 
 export const calculateSalesMetrics = (
@@ -374,7 +375,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 	return (
 		<div className="space-y-4">
 			{/* Key Metrics */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
 				<AnalyticsMetricCard
 					title="Total Orders"
 					value={String(metrics.totalOrders)}

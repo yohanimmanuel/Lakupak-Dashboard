@@ -275,92 +275,7 @@ const FinancialAnalytics: React.FC = () => {
 
   // Calculate real revenue data by month using actual product margins
   const revenueData: RevenueData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) {
-      return [];
-    }
-
-    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
-    
-    // Calculate product margins first
-    const productMargins: { [key: string]: number } = {};
-    products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-      
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
-      }
-    });
-    
-    orders.forEach(order => {
-      const date = new Date(order.orderDate);
-      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
-      }
-      
-      monthlyData[monthKey].orders += 1;
-      
-      // Calculate actual revenue and profit from order items
-      if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach(item => {
-          const product = products.find(p => p.productId === item.productId);
-          
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
-              const itemProfit = itemRevenue - itemCost;
-              
-              monthlyData[monthKey].revenue += itemRevenue;
-              monthlyData[monthKey].profit += itemProfit;
-            } else {
-              // Fallback to order total if product prices are invalid
-              const orderAmount = parseFloat(String(order.totalAmount || 0));
-              monthlyData[monthKey].revenue += orderAmount;
-              // Use average margin from other products, otherwise 0%
-              const avgMargin = Object.values(productMargins).length > 0 
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 0;
-              monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
-            }
-          } else {
-            // Fallback to order total if product not found
-            const orderAmount = parseFloat(String(order.totalAmount || 0));
-            monthlyData[monthKey].revenue += orderAmount;
-            // Use average margin from other products, otherwise 0%
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
-          }
-        });
-      } else {
-        // Fallback to order total if orderItems not available
-        const orderAmount = parseFloat(String(order.totalAmount || 0));
-        monthlyData[monthKey].revenue += orderAmount;
-        // Use average margin from other products
-        const avgMargin = Object.values(productMargins).length > 0 
-          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 30;
-        monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
-      }
-    });
-
-    return Object.entries(monthlyData).map(([month, data]) => ({
-      month,
-      revenue: data.revenue,
-      profit: data.profit,
-      orders: data.orders
-    })).sort((a, b) => {
-      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-    });
+    return calculateRevenueData(orders, products, hasData);
   }, [orders, products, hasData]);
 
   // Calculate real category revenue using actual product margins
@@ -571,7 +486,7 @@ const FinancialAnalytics: React.FC = () => {
       return [];
     }
 
-    const monthlyFlow: { [key: string]: { inflows: number; outflows: number } } = {};
+    const monthlyFlow: { [key: string]: { inflows: number; outflows: number; label: string } } = {};
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
@@ -587,10 +502,11 @@ const FinancialAnalytics: React.FC = () => {
     
     orders.forEach(order => {
       const date = new Date(order.orderDate);
-      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
+      const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
       
-      if (!monthlyFlow[monthKey]) {
-        monthlyFlow[monthKey] = { inflows: 0, outflows: 0 };
+      if (!monthlyFlow[key]) {
+        monthlyFlow[key] = { inflows: 0, outflows: 0, label };
       }
       
       // Calculate actual inflows and outflows from order items
@@ -604,55 +520,52 @@ const FinancialAnalytics: React.FC = () => {
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               // Inflows from sales (revenue)
-              monthlyFlow[monthKey].inflows += sellingPrice * item.quantity;
+              monthlyFlow[key].inflows += sellingPrice * item.quantity;
               
               // Outflows from cost of goods sold
-              monthlyFlow[monthKey].outflows += purchasePrice * item.quantity;
+              monthlyFlow[key].outflows += purchasePrice * item.quantity;
             } else {
               // Fallback to order total if product prices are invalid
               const orderAmount = parseFloat(String(order.totalAmount || 0));
-              monthlyFlow[monthKey].inflows += orderAmount;
+              monthlyFlow[key].inflows += orderAmount;
               // Use average margin to calculate cost
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
                 : 0;
               const costRatio = (100 - avgMargin) / 100;
-              monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+              monthlyFlow[key].outflows += orderAmount * costRatio;
             }
           } else {
             // Fallback to order total if product not found
             const orderAmount = parseFloat(String(order.totalAmount || 0));
-            monthlyFlow[monthKey].inflows += orderAmount;
+            monthlyFlow[key].inflows += orderAmount;
             // Use average margin to calculate cost
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 0;
             const costRatio = (100 - avgMargin) / 100;
-            monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+            monthlyFlow[key].outflows += orderAmount * costRatio;
           }
         });
       } else {
         // Fallback to order total if orderItems not available
         const orderAmount = parseFloat(String(order.totalAmount || 0));
-        monthlyFlow[monthKey].inflows += orderAmount;
+        monthlyFlow[key].inflows += orderAmount;
         // Use average margin to calculate cost
         const avgMargin = Object.values(productMargins).length > 0 
           ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
           : 0;
         const costRatio = (100 - avgMargin) / 100;
-        monthlyFlow[monthKey].outflows += orderAmount * costRatio;
+        monthlyFlow[key].outflows += orderAmount * costRatio;
       }
     });
 
-    return Object.entries(monthlyFlow).map(([month, flow]) => ({
-      month,
-      inflows: flow.inflows,
-      outflows: flow.outflows,
-      netFlow: flow.inflows - flow.outflows
-    })).sort((a, b) => {
-      const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-    });
+    const sorted = Object.entries(monthlyFlow)
+      .map(([key, flow]) => ({ key, month: flow.label, inflows: flow.inflows, outflows: flow.outflows, netFlow: flow.inflows - flow.outflows }))
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-6)
+      .map(({ month, inflows, outflows, netFlow }) => ({ month, inflows, outflows, netFlow }));
+    return sorted;
   }, [orders, products, hasData]);
 
   // Pagination logic for Top Products
@@ -1346,6 +1259,18 @@ export const AnalyticsRevenueTrendChart: React.FC<{
             strokeWidth={2}
             fillOpacity={1} 
             fill="url(#revenueGradient)" 
+            dot={{ 
+              fill: '#3B82F6', 
+              strokeWidth: 2, 
+              r: 4,
+              stroke: 'white'
+            }}
+            activeDot={{ 
+              r: 6, 
+              stroke: '#3B82F6', 
+              strokeWidth: 3,
+              fill: 'white'
+            }}
           />
           <Area 
             type="monotone" 
@@ -1354,6 +1279,18 @@ export const AnalyticsRevenueTrendChart: React.FC<{
             strokeWidth={2}
             fillOpacity={1} 
             fill="url(#profitGradient)" 
+            dot={{ 
+              fill: '#10B981', 
+              strokeWidth: 2, 
+              r: 4,
+              stroke: 'white'
+            }}
+            activeDot={{ 
+              r: 6, 
+              stroke: '#10B981', 
+              strokeWidth: 3,
+              fill: 'white'
+            }}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -1421,7 +1358,7 @@ export const calculateRevenueData = (
     return [];
   }
 
-  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
+  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
   
   // Calculate product margins first
   const productMargins: { [key: string]: number } = {};
@@ -1437,13 +1374,14 @@ export const calculateRevenueData = (
   
   orders.forEach(order => {
     const date = new Date(order.orderDate);
-    const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
+    const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
     
-    if (!monthlyData[monthKey]) {
-      monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
+    if (!monthlyData[key]) {
+      monthlyData[key] = { revenue: 0, profit: 0, orders: 0, label };
     }
     
-    monthlyData[monthKey].orders += 1;
+    monthlyData[key].orders += 1;
     
     // Calculate actual revenue and profit from order items
     if (order.orderItems && Array.isArray(order.orderItems)) {
@@ -1459,50 +1397,47 @@ export const calculateRevenueData = (
             const itemCost = purchasePrice * item.quantity;
             const itemProfit = itemRevenue - itemCost;
             
-            monthlyData[monthKey].revenue += itemRevenue;
-            monthlyData[monthKey].profit += itemProfit;
+            monthlyData[key].revenue += itemRevenue;
+            monthlyData[key].profit += itemProfit;
           } else {
             // Fallback to order total if product prices are invalid
             const orderAmount = parseFloat(String(order.totalAmount || 0));
-            monthlyData[monthKey].revenue += orderAmount;
+            monthlyData[key].revenue += orderAmount;
             // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 0;
-            monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+            monthlyData[key].profit += orderAmount * (avgMargin / 100);
           }
         } else {
           // Fallback to order total if product not found
           const orderAmount = parseFloat(String(order.totalAmount || 0));
-          monthlyData[monthKey].revenue += orderAmount;
+          monthlyData[key].revenue += orderAmount;
           // Use average margin from other products
           const avgMargin = Object.values(productMargins).length > 0 
             ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
             : 30;
-          monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+          monthlyData[key].profit += orderAmount * (avgMargin / 100);
         }
       });
     } else {
       // Fallback to order total if orderItems not available
       const orderAmount = parseFloat(String(order.totalAmount || 0));
-      monthlyData[monthKey].revenue += orderAmount;
+      monthlyData[key].revenue += orderAmount;
       // Use average margin from other products
       const avgMargin = Object.values(productMargins).length > 0 
         ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
         : 30;
-      monthlyData[monthKey].profit += orderAmount * (avgMargin / 100);
+      monthlyData[key].profit += orderAmount * (avgMargin / 100);
     }
   });
 
-  return Object.entries(monthlyData).map(([month, data]) => ({
-    month,
-    revenue: data.revenue,
-    profit: data.profit,
-    orders: data.orders
-  })).sort((a, b) => {
-    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
-  });
+  const sorted = Object.entries(monthlyData)
+    .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .slice(-6)
+    .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
+  return sorted;
 };
 
 // Shared function to calculate total revenue from orders and products
