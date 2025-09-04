@@ -13,6 +13,14 @@ import {
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
 import { CustomerUnitsSoldCard, SalesTrendChart, calculateSalesTrend, calculateSalesMetrics } from '@/components/analyticsperformance/CustomerSalesAnalytics';
+import { 
+  OperationalMetricCard,
+  OrderStatusDistributionChart,
+  ProcessingTimeTrendChart,
+  computeOperationalMetrics,
+  computeOrderStatusData,
+  computeProcessingTimeData
+} from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 
 export default function AnalyticsPage() {
   const { user } = useUserStore();
@@ -28,6 +36,11 @@ export default function AnalyticsPage() {
   const revenueData = useMemo(() => {
     return calculateRevenueData(orders, products, hasData);
   }, [orders, products, hasData]);
+
+  // Operational metrics reused from OperationalPerformanceAnalytics
+  const opMetrics = useMemo(() => computeOperationalMetrics(orders, products), [orders, products]);
+  const opStatusData = useMemo(() => computeOrderStatusData(orders), [orders]);
+  const opProcessingData = useMemo(() => computeProcessingTimeData(orders), [orders]);
 
   // Customer Sales metrics reused
   const customerMetrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData]);
@@ -118,7 +131,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Row 1: Metric Cards (4 columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           <>
             <AnalyticsMetricCard
               title="Total Revenue"
@@ -128,6 +141,14 @@ export default function AnalyticsPage() {
               color="bg-[#f7faff]"
             />
             <CustomerUnitsSoldCard unitsSold={customerMetrics.totalUnitsSold} />
+            {/* Operational metric card reused */}
+            <OperationalMetricCard
+              title="Order Completion Rate"
+              value={`${opMetrics.completionRate.toFixed(1)}%`}
+              change={5.2}
+              icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
+              color="bg-white"
+            />
           </>
       </div>
 
@@ -142,6 +163,13 @@ export default function AnalyticsPage() {
         </div>
         <div>
           <SalesTrendChart data={salesTrend} showSeeMore />
+        </div>
+        {/* Reused Operational charts */}
+        <div>
+          <OrderStatusDistributionChart data={opStatusData} />
+        </div>
+        <div>
+          <ProcessingTimeTrendChart data={opProcessingData} />
         </div>
       </div>
     </div>
