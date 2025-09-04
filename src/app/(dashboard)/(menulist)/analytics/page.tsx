@@ -37,12 +37,18 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const ordersResponse = await fetch('/api/orders?userId=1&limit=1000');
+        if (!user?.id) {
+          setOrders([]);
+          setProducts([]);
+          setHasData(false);
+          return;
+        }
+        const ordersResponse = await fetch(`/api/orders?userId=${user.id}&limit=1000`);
         if (ordersResponse.ok) {
           const ordersData = await ordersResponse.json();
           const ordersList = ordersData.orders || [];
           setOrders(ordersList);
-          const productsResponse = await fetch('/api/products?userId=1&limit=1000');
+          const productsResponse = await fetch(`/api/products?userId=${user.id}&limit=1000`);
           if (productsResponse.ok) {
             const productsData = await productsResponse.json();
             const productsList = productsData.products || [];
@@ -62,7 +68,7 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, []);
+  }, [user?.id]);
 
   if (loading) {
     return (
@@ -71,6 +77,34 @@ export default function AnalyticsPage() {
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
           <div className="h-32 bg-gray-200 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+          <p className="text-sm text-gray-600">Key insights and performance metrics for your business</p>
+        </div>
+        <div className="text-center mt-30">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+            <DollarSign className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Analytics Data</h3>
+          <p className="text-gray-500 max-w-md mx-auto">
+            Add products and track orders to see revenue and sales analytics for your account.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row mt-6 justify-center">
+          <button 
+            onClick={() => window.location.href = '/products'}
+            className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            Add Products
+          </button>
         </div>
       </div>
     );

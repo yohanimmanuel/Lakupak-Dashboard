@@ -738,7 +738,7 @@ const FinancialAnalytics: React.FC = () => {
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Financial Data Available</h3>
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
-            Start by adding products and creating orders to see your financial analytics. 
+            Start by adding products and tracking orders to see your financial analytics. 
             Your revenue, profit, and performance metrics will appear here once you have data.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -959,9 +959,9 @@ const FinancialAnalytics: React.FC = () => {
                  })}
                </Pie>
                <Tooltip 
-                 formatter={(value: number, name: string, props: any) => [
+                 formatter={(value: number, name: string, item?: { payload?: { category?: string } }) => [
                    utilsFormatCurrency(value, userCurrency), 
-                   `${props.payload.category}`
+                   `${item?.payload?.category ?? name}`
                  ]}
                  labelStyle={{ 
                    color: '#1E293B', 
@@ -1147,12 +1147,12 @@ const FinancialAnalytics: React.FC = () => {
                  axisLine={false}
                />
                <Tooltip 
-                 content={({ active, payload, label }) => {
+                 content={({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey?: string; value?: number }>; label?: string | number }) => {
                    if (active && payload && payload.length) {
                      return (
                        <div className="bg-white border-none rounded-xl shadow-lg p-4">
                          <p className="font-semibold text-gray-900 mb-2">{label}</p>
-                         {payload.map((entry: any, index: number) => {
+                         {payload.map((entry, index) => {
                            let dotColor = '#64748B';
                            let labelText = '';
                            
@@ -1174,7 +1174,7 @@ const FinancialAnalytics: React.FC = () => {
                                  style={{ backgroundColor: dotColor }}
                                />
                                <span className="text-gray-700">
-                                 {utilsFormatCurrency(entry.value, userCurrency)}
+                                 {utilsFormatCurrency(Number(entry.value || 0), userCurrency)}
                                </span>
                                <span className="text-gray-500 ml-1">
                                  {labelText}

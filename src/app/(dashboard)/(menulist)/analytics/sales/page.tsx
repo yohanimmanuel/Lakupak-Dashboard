@@ -28,11 +28,11 @@ export default function SalesAnalyticsPage() {
 		return () => document.removeEventListener('mousedown', onClick);
 	}, []);
 
-	// ===== Types for export calculations =====
-	type OrderItem = { productId: string | number; quantity: number; unitPrice: number; category?: string };
-	type OrderLite = { buyerId: string | number; orderDate: string; totalAmount?: number; orderItems?: OrderItem[]; storeName?: string; contactPerson?: string };
-	type ProductLite = { productId: string | number; name: string; category?: string; sellingPrice?: string; purchasePrice?: string };
-	type BuyerLite = { buyerId: string | number; storeName?: string; owner?: string; businessType?: string };
+	// ===== Types for export calculations (explicit, no any) =====
+	interface ExportOrderItem { productId: string; quantity: number; unitPrice: number; category?: string }
+	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
+	interface ExportProduct { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string }
+	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
 
 	const parseCurrencyToNumber = (currencyString: string | undefined): number => {
 		if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
@@ -42,9 +42,9 @@ export default function SalesAnalyticsPage() {
 	};
 
 	const createWordDocument = (
-		orders: OrderLite[],
-		products: ProductLite[],
-		buyers: BuyerLite[],
+		orders: ExportOrder[],
+		products: ExportProduct[],
+		buyers: ExportBuyer[],
 		timeRangeValue: string
 	): string => {
 		const timestamp = new Date().toLocaleString();
@@ -57,21 +57,21 @@ export default function SalesAnalyticsPage() {
 		const timeRangeLabel = timeRangesLocal.find(r => r.value === timeRangeValue)?.label || timeRangeValue;
 
 		// Build indices
-		const productIndex = new Map<string | number, ProductLite>();
-		products.forEach(p => productIndex.set(p.productId, p));
-		const buyerIndex = new Map<string | number, BuyerLite>();
-		buyers.forEach(b => buyerIndex.set(b.buyerId, b));
+		const productIndex = new Map<string, ExportProduct>();
+		products.forEach(p => productIndex.set(String(p.productId), p));
+		const buyerIndex = new Map<string, ExportBuyer>();
+		buyers.forEach(b => buyerIndex.set(String(b.buyerId), b));
 
 		// Metrics
 		let totalUnitsSold = 0;
 		let revenueSum = 0;
-		const buyerOrderCount = new Map<string | number, number>();
+		const buyerOrderCount = new Map<string, number>();
 		orders.forEach(o => {
 			buyerOrderCount.set(o.buyerId, (buyerOrderCount.get(o.buyerId) || 0) + 1);
 			if (o.orderItems && Array.isArray(o.orderItems)) {
 				o.orderItems.forEach(it => {
 					totalUnitsSold += it.quantity;
-					const prod = productIndex.get(it.productId);
+					const prod = productIndex.get(String(it.productId));
 					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.unitPrice || 0);
 					revenueSum += unitPrice * it.quantity;
 				});
@@ -96,7 +96,7 @@ export default function SalesAnalyticsPage() {
 			if (o.orderItems && Array.isArray(o.orderItems)) {
 				o.orderItems.forEach(it => {
 					monthly[key].units += it.quantity;
-					const prod = productIndex.get(it.productId);
+					const prod = productIndex.get(String(it.productId));
 					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.unitPrice || 0);
 					monthly[key].revenue += unitPrice * it.quantity;
 				});
@@ -112,7 +112,7 @@ export default function SalesAnalyticsPage() {
 		orders.forEach(o => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
-				const prod = productIndex.get(it.productId);
+				const prod = productIndex.get(String(it.productId));
 				const category = it.category || prod?.category || 'Uncategorized';
 				unitsByCategoryMap.set(category, (unitsByCategoryMap.get(category) || 0) + it.quantity);
 			});
@@ -123,8 +123,8 @@ export default function SalesAnalyticsPage() {
 			.slice(0, 8);
 
 		// Top customers by revenue
-		type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; revenue: number };
-		const revenueByBuyer = new Map<string | number, { orders: number; revenue: number }>();
+		type TopCustomer = { buyerId: string; name: string; businessType: string; orders: number; revenue: number };
+		const revenueByBuyer = new Map<string, { orders: number; revenue: number }>();
 		orders.forEach(o => {
 			let orderRevenue = 0;
 			if (o.orderItems && Array.isArray(o.orderItems)) {
@@ -136,16 +136,16 @@ export default function SalesAnalyticsPage() {
 			} else if (typeof o.totalAmount === 'number') {
 				orderRevenue = o.totalAmount;
 			}
-			const cur = revenueByBuyer.get(o.buyerId) || { orders: 0, revenue: 0 };
-			revenueByBuyer.set(o.buyerId, { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
+			const cur = revenueByBuyer.get(String(o.buyerId)) || { orders: 0, revenue: 0 };
+			revenueByBuyer.set(String(o.buyerId), { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
 		});
 		const topCustomers: TopCustomer[] = Array.from(revenueByBuyer.entries()).map(([buyerId, v]) => {
-			const buyer = buyerIndex.get(buyerId);
+			const buyer = buyerIndex.get(String(buyerId));
 			const displayName = (buyer?.storeName && String(buyer.storeName).trim().length > 0)
 				? String(buyer.storeName)
 				: ((buyer?.owner && String(buyer.owner).trim().length > 0) ? String(buyer.owner) : String(buyerId));
 			const displayBusinessType = buyer?.businessType ? String(buyer.businessType) : '—';
-			return { buyerId, name: displayName, businessType: displayBusinessType, orders: v.orders, revenue: v.revenue };
+			return { buyerId: String(buyerId), name: displayName, businessType: displayBusinessType, orders: v.orders, revenue: v.revenue };
 		}).sort((a,b) => b.revenue - a.revenue).slice(0, 10);
 
 		// Build HTML content
@@ -260,9 +260,9 @@ export default function SalesAnalyticsPage() {
 			const ordersJson = await ordersResponse.json();
 			const productsJson = await productsResponse.json();
 			const buyersJson = await buyersResponse.json();
-			const orders: OrderLite[] = Array.isArray(ordersJson.orders) ? ordersJson.orders : (Array.isArray(ordersJson) ? ordersJson : []);
-			const products: ProductLite[] = Array.isArray(productsJson.products) ? productsJson.products : (Array.isArray(productsJson) ? productsJson : []);
-			const buyers: BuyerLite[] = Array.isArray(buyersJson.buyers) ? buyersJson.buyers : (Array.isArray(buyersJson) ? buyersJson : []);
+			const orders: ExportOrder[] = Array.isArray(ordersJson.orders) ? ordersJson.orders : (Array.isArray(ordersJson) ? ordersJson : []);
+			const products: ExportProduct[] = Array.isArray(productsJson.products) ? productsJson.products : (Array.isArray(productsJson) ? productsJson : []);
+			const buyers: ExportBuyer[] = Array.isArray(buyersJson.buyers) ? buyersJson.buyers : (Array.isArray(buyersJson) ? buyersJson : []);
 
 			const content = createWordDocument(orders, products, buyers, timeRange);
 			const blob = new Blob([content], { type: 'application/msword;charset=utf-8;' });

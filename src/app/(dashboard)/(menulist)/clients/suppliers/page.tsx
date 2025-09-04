@@ -132,7 +132,9 @@ export default function SuppliersPage() {
         return;
       }
       const data = await res.json();
-      const suppliersData = Array.isArray(data) ? data : [];
+      const suppliersData = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.suppliers) ? data.suppliers : []);
       
       // Calculate monthly analytics for each supplier
       const suppliersWithAnalytics = suppliersData.map(supplier => {

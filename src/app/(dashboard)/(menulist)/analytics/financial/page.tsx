@@ -44,8 +44,13 @@ export default function FinancialAnalyticsPage() {
     }
   };
 
+  // Types for export generation (explicit, no any)
+  type ExportOrderItem = { productId: string; quantity: number; unitPrice: number };
+  type ExportOrder = { buyerId: string; orderDate: string | Date; totalAmount?: number; orderItems?: ExportOrderItem[] };
+  type ExportProduct = { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string };
+
   // Helper function to create Word document content
-  const createWordDocument = (orders: any[], products: any[], timeRange: string): string => {
+  const createWordDocument = (orders: ExportOrder[], products: ExportProduct[], timeRange: string): string => {
     const timestamp = new Date().toLocaleString();
     const timeRangeLabel = timeRanges.find(range => range.value === timeRange)?.label || timeRange;
     
@@ -70,8 +75,8 @@ export default function FinancialAnalyticsPage() {
     let totalBuyers = 0;
     let totalSuppliers = 0;
     
-    const uniqueBuyers = new Set();
-    const uniqueSuppliers = new Set();
+    const uniqueBuyers = new Set<string>();
+    const uniqueSuppliers = new Set<string>();
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
@@ -85,10 +90,10 @@ export default function FinancialAnalyticsPage() {
     });
 
     orders.forEach(order => {
-      uniqueBuyers.add(order.buyerId);
+      uniqueBuyers.add(String(order.buyerId));
       
       if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: any) => {
+        order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           if (product) {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
@@ -119,7 +124,7 @@ export default function FinancialAnalyticsPage() {
           }
         });
       } else {
-        const revenue = order.totalAmount;
+        const revenue = Number(order.totalAmount || 0);
         const avgMargin = Object.values(productMargins).length > 0
           ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
           : 30;
@@ -146,7 +151,7 @@ export default function FinancialAnalyticsPage() {
       monthlyData[monthKey].orders += 1;
       
       if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: any) => {
+        order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           if (product) {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
@@ -183,7 +188,7 @@ export default function FinancialAnalyticsPage() {
         });
       } else {
         // If no orderItems, use totalAmount
-        const revenue = order.totalAmount;
+        const revenue = Number(order.totalAmount || 0);
         const avgMargin = Object.values(productMargins).length > 0
           ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
           : 30;
@@ -197,7 +202,7 @@ export default function FinancialAnalyticsPage() {
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: any) => {
+        order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           const category = product?.category || 'Uncategorized';
           const sellingPrice = parseCurrencyToNumber(product?.sellingPrice || '0');
@@ -230,7 +235,7 @@ export default function FinancialAnalyticsPage() {
     const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: any) => {
+        order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           if (product) {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
@@ -490,7 +495,7 @@ export default function FinancialAnalyticsPage() {
                   let ordersWithThisProduct = 0;
                   orders.forEach(order => {
                     if (order.orderItems && Array.isArray(order.orderItems)) {
-                      const hasProduct = order.orderItems.some((item: any) => item.productId === product.productId);
+                      const hasProduct = order.orderItems.some((item: ExportOrderItem) => item.productId === product.productId);
                       if (hasProduct) ordersWithThisProduct++;
                     }
                   });

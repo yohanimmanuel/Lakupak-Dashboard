@@ -18,7 +18,8 @@ const salesmen = [
   { name: 'Mike Brown', avatar: 'https://randomuser.me/api/portraits/men/45.jpg' },
 ];
 
-const DropdownPortal = ({ anchorRef, show, children }: any) => {
+type DropdownPortalProps = { anchorRef: React.RefObject<HTMLElement>; show: boolean; children: React.ReactNode };
+const DropdownPortal = ({ anchorRef, show, children }: DropdownPortalProps) => {
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   useEffect(() => {
     if (show && anchorRef.current) {

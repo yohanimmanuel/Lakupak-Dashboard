@@ -122,7 +122,7 @@ export const calculateOrderTotalQuantity = (order: Order): number => {
 // ===== VALIDATION FUNCTIONS =====
 
 // Validate order item calculations
-export const validateOrderItem = (item: any): { valid: boolean; error?: string } => {
+export const validateOrderItem = (item: OrderItem): { valid: boolean; error?: string } => {
   const expectedSubtotal = item.quantity * item.unitPrice;
   if (Math.abs(item.subtotal - expectedSubtotal) > 0.01) {
     return { 

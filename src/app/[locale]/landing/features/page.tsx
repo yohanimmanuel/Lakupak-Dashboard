@@ -133,11 +133,14 @@ export default function FeaturesPage() {
     <SmartphoneIcon className="text-orange-500" size={45} />
   ];
 
-  const distributorFeatures = distributorFeaturesRaw.map((feature: any, idx: number) => ({
+  type RawFeature = { badge: string; title: string; subtitle: string; points: string[]; image?: React.ReactNode };
+  type UiFeature = RawFeature & { icon: React.ReactNode };
+
+  const distributorFeatures: UiFeature[] = (distributorFeaturesRaw as RawFeature[]).map((feature, idx: number) => ({
     ...feature,
     icon: distributorIcons[idx]
   }));
-  const retailerFeatures = retailerFeaturesRaw.map((feature: any, idx: number) => ({
+  const retailerFeatures: UiFeature[] = (retailerFeaturesRaw as RawFeature[]).map((feature, idx: number) => ({
     ...feature,
     icon: retailerIcons[idx]
   }));
@@ -187,7 +190,7 @@ export default function FeaturesPage() {
                 <h2 className={`text-4xl font-bold mb-2 ${color}`}>{stickyTitle}</h2>
                 <p className="text-md text-gray-500 mb-6 animate-fade-in-up animation-delay-200">{stickySubtitle}</p>
                 <div className="relative w-[500px] h-[300px]">
-                  {features.map((feature: any, idx: number) => (
+                  {features.map((feature: UiFeature, idx: number) => (
                     <div
                       key={idx}
                       className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
@@ -203,7 +206,7 @@ export default function FeaturesPage() {
           </div>
           {/* Feature Descriptions */}
           <div className="flex flex-col space-y-100 mt-20">
-            {features.map((feature: any, idx: number) => (
+            {features.map((feature: UiFeature, idx: number) => (
               <div
                 key={idx}
                 ref={(el: HTMLDivElement | null) => {
@@ -218,7 +221,7 @@ export default function FeaturesPage() {
                 </div>
                 <p className="text-gray-600 mb-3 text-lg animate-fade-in-up animation-delay-500">{feature.subtitle}</p>
                 <ul className="list-disc pl-5 space-y-2 text-gray-700 text-base animate-fade-in-up animation-delay-600">
-                  {feature.points.map((point: any, i: number) => (
+                  {feature.points.map((point: string, i: number) => (
                     <li key={i}>{point}</li>
                   ))}
                 </ul>

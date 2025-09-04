@@ -25,8 +25,9 @@ export default function PricingPage() {
   };
 
   // Use translated pricing tiers from JSON
-  const tiers = t.raw('tiers');
-  const pricingTiers = tiers.map((tier: any, idx: number) => ({
+  type Tier = { name: string; description: string; features: string[]; commission: string };
+  const tiers = t.raw('tiers') as Tier[];
+  const pricingTiers = tiers.map((tier: Tier, idx: number) => ({
     name: tier.name,
     monthlyPrice: [
       'Rp 0',
@@ -50,7 +51,8 @@ export default function PricingPage() {
   }));
 
   // Use translated comparison table from JSON
-  const comparisonFeatures = t.raw('comparison');
+  type ComparisonRow = { feature: string; free: string; starter: string; business: string; enterprise: string };
+  const comparisonFeatures = t.raw('comparison') as { features: ComparisonRow[] };
 
   // Use translated FAQ from JSON
   const faqs = Array.from({ length: 7 }, (_, i) => ({
@@ -107,7 +109,7 @@ export default function PricingPage() {
 
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-16">
-            {pricingTiers.map((tier: any, index: number) => {
+            {pricingTiers.map((tier, index: number) => {
                let borderColor = 'border-gray-200';
                if (index === 1) borderColor = 'border-blue-500';
                else if (index === 2) borderColor = 'border-orange-500';
@@ -148,7 +150,7 @@ export default function PricingPage() {
                  </div>
 
                 <ul className="space-y-3 mb-8">
-                  {tier.features.map((feature: any, featureIndex: number) => (
+                  {tier.features.map((feature: string, featureIndex: number) => (
                     <li key={featureIndex} className="flex items-start">
                       <Check className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
                       <span className="text-gray-700 text-sm">{feature}</span>
@@ -227,7 +229,7 @@ export default function PricingPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {comparisonFeatures.features.map((row: any, index: number) => (
+                {comparisonFeatures.features.map((row: ComparisonRow, index: number) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {row.feature}

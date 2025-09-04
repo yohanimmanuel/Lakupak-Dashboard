@@ -65,11 +65,14 @@ const Menu = () => {
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const renderMenuItem = (item: any) => {
+  type SubItem = { icon: React.ReactNode; label: string; href: string };
+  type MenuItem = { label: string; href?: string; color?: string; icon: React.ReactNode; submenu?: SubItem[] };
+
+  const renderMenuItem = (item: MenuItem) => {
     const isActive = pathname === item.href || (item.href && pathname.startsWith(item.href));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
-      const isAnySubActive = item.submenu.some((sub: any) => pathname.startsWith(sub.href));
+      const isAnySubActive = item.submenu.some((sub: SubItem) => pathname.startsWith(sub.href));
       // Collapsed: floating submenu on hover
       const handleMouseEnter = () => {
         if (isCollapsed) {
@@ -135,7 +138,7 @@ const Menu = () => {
               onMouseEnter={handleSubmenuEnter}
               onMouseLeave={handleSubmenuLeave}
             >
-              {item.submenu.map((sub: any) => (
+              {item.submenu.map((sub: SubItem) => (
                 <Link
                   key={sub.label}
                   href={sub.href}
@@ -154,7 +157,7 @@ const Menu = () => {
           {/* Submenu Items (expanded mode) */}
           {item.submenu && !isCollapsed && isOpen && (
             <div className="ml-2 mt-1 space-y-1 pl-1">
-              {item.submenu.map((sub: any) => (
+              {item.submenu.map((sub: SubItem) => (
                 <Link
                   key={sub.label}
                   href={sub.href}
@@ -178,7 +181,7 @@ const Menu = () => {
     return (
       <Link
         key={item.label}
-        href={item.href}
+        href={item.href || '#'}
         className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 ${
           isActive ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
         } ${item.color || ''}`}

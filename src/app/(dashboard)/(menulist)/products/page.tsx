@@ -7,7 +7,7 @@ import { Upload, Download, Check, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
-import { Product, ProductTableRow } from "@/types/product";
+import { Product, ProductImportRow, ProductTableRow } from "@/types/product";
 import { formatDate } from "@/utils/dateUtils";
 import { generateUniqueProductId } from "@/utils/product-security";
 
@@ -135,7 +135,7 @@ export default function ProductsPage() {
   // Use the enhanced generateUniqueProductId from security utils
   const generateLKPProductId = () => generateUniqueProductId();
 
-  const handleImport = async (data: any[]) => {
+  const handleImport = async (data: ProductImportRow[]) => {
     if (!user?.id) return;
     
     try {

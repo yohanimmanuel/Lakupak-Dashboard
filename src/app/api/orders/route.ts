@@ -9,6 +9,7 @@ import {
   validateOrderAccess
 } from '@/utils/order-security';
 import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
+import { Order } from '@/generated/prisma';
 
 
 const prisma = new PrismaClient();
@@ -70,11 +71,11 @@ export async function GET(request: NextRequest) {
       }
 
       // Parse orderItems JSON and merge with OrderItem table data
-      const parsedOrderItems = JSON.parse(order.orderItems);
-      const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+      const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
+      const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
         // Find corresponding OrderItem with product data
         const orderItemWithProduct = order.orderItemsRel?.find(
-          (orderItem: any) => orderItem.productId === jsonItem.productId
+          (orderItem: { productId: string; product?: { name?: string; category?: string; brand?: string; description?: string; images?: string[] } }) => orderItem.productId === jsonItem.productId
         );
         
         return {
@@ -92,44 +93,7 @@ export async function GET(request: NextRequest) {
         orderItems: enrichedOrderItems
       };
 
-      // Auto-validate and correct data on every fetch
-      const { order: validatedOrder, wasCorrected } = validateAndCorrectOrder(orderWithParsedItems as any);
-      
-      // If corrections were made, update the database automatically
-      if (wasCorrected) {
-        try {
-          const updateData = {
-            orderId: validatedOrder.orderId,
-            orderItems: validatedOrder.orderItems,
-            subtotal: validatedOrder.subtotal,
-            totalAmount: validatedOrder.totalAmount,
-            totalOrders: validatedOrder.totalOrders,
-            taxes: validatedOrder.taxes,
-            shippingFee: validatedOrder.shippingFee,
-            discounts: validatedOrder.discounts,
-            orderStatus: validatedOrder.orderStatus,
-            paymentStatus: validatedOrder.paymentStatus,
-            deliveryMethod: validatedOrder.deliveryMethod,
-            trackingNumber: validatedOrder.trackingNumber,
-            contactPerson: validatedOrder.contactPerson,
-            orderDate: validatedOrder.orderDate,
-            acceptedAt: validatedOrder.acceptedAt,
-          };
-
-          await prisma.order.update({
-            where: { orderId: validatedOrder.orderId },
-            data: {
-              ...updateData,
-              orderItems: JSON.stringify(validatedOrder.orderItems),
-              orderDate: new Date(validatedOrder.orderDate),
-              acceptedAt: validatedOrder.acceptedAt ? new Date(validatedOrder.acceptedAt) : null
-            }
-          });
-        } catch (error) {
-        }
-      }
-
-      return NextResponse.json(validatedOrder, { headers });
+      return NextResponse.json(orderWithParsedItems, { headers });
     }
     
     // Get all orders with pagination and filters
@@ -175,11 +139,11 @@ export async function GET(request: NextRequest) {
     // Parse orderItems JSON for each order and auto-validate
     const ordersWithParsedItems = orders.map((order) => {
       // Parse orderItems JSON and merge with OrderItem table data
-      const parsedOrderItems = JSON.parse(order.orderItems);
-      const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+      const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
+      const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
         // Find corresponding OrderItem with product data
         const orderItemWithProduct = order.orderItemsRel?.find(
-          (orderItem: any) => orderItem.productId === jsonItem.productId
+          (orderItem: { productId: string; product?: { name?: string; category?: string; brand?: string; description?: string; images?: string[] } }) => orderItem.productId === jsonItem.productId
         );
         
         return {
@@ -197,24 +161,7 @@ export async function GET(request: NextRequest) {
         orderItems: enrichedOrderItems
       };
       
-      // Auto-validate and correct each order
-      const { order: validatedOrder, wasCorrected } = validateAndCorrectOrder(orderWithParsedItems as any);
-      
-      // If corrections were made, update the database automatically (async, don't wait)
-      if (wasCorrected) {
-        prisma.order.update({
-          where: { orderId: validatedOrder.orderId },
-          data: {
-            orderItems: JSON.stringify(validatedOrder.orderItems),
-            subtotal: validatedOrder.subtotal,
-            totalAmount: validatedOrder.totalAmount,
-            totalOrders: validatedOrder.totalOrders,
-          }
-        }).catch(error => {
-        });
-      }
-      
-      return validatedOrder;
+      return orderWithParsedItems;
     });
     
     return NextResponse.json({
@@ -258,23 +205,49 @@ export async function POST(request: NextRequest) {
       sanitizedData.orderId = generateSecureOrderId();
     }
     
-    // Ensure price consistency and recalculate entire order
+    // Ensure price consistency and compute totals
     const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
     const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
-    const recalculatedOrder = recalculateEntireOrder({
-      ...sanitizedData,
-      orderItems: consistentOrderItems
-    } as any);
+    const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || (it.unitPrice || 0) * (it.quantity || 0)), 0);
+    const totalQtyCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+    const taxes = Number(sanitizedData.taxes || 0);
+    const shippingFee = Number(sanitizedData.shippingFee || 0);
+    const discounts = Number(sanitizedData.discounts || 0);
+    const totalAmountCalc = subtotalCalc + taxes + shippingFee - discounts;
     
     // Convert orderItems to JSON string
     const orderData = {
-      ...recalculatedOrder,
-      orderItems: JSON.stringify(recalculatedOrder.orderItems),
+      orderId: String(sanitizedData.orderId),
+      buyerId: String(sanitizedData.buyerId || ''),
       orderDate: new Date(String(sanitizedData.orderDate || new Date())),
-      acceptedAt: sanitizedData.acceptedAt ? new Date(String(sanitizedData.acceptedAt)) : null
+      orderStatus: String(sanitizedData.orderStatus || 'Pending'),
+      paymentStatus: String(sanitizedData.paymentStatus || 'Unpaid'),
+      deliveryMethod: String(sanitizedData.deliveryMethod || 'Distributor Fleet'),
+      subtotal: subtotalCalc,
+      discounts,
+      taxes,
+      shippingFee,
+      totalAmount: totalAmountCalc,
+      paymentTerms: String(sanitizedData.paymentTerms || ''),
+      totalOrders: totalQtyCalc,
+      contactPerson: String(sanitizedData.contactPerson || ''),
+      storeName: String(sanitizedData.storeName || ''),
+      contactPhone: String(sanitizedData.contactPhone || ''),
+      customerEmail: sanitizedData.customerEmail ? String(sanitizedData.customerEmail) : null,
+      deliveryAddress: String(sanitizedData.deliveryAddress || ''),
+      preferredDeliveryTime: sanitizedData.preferredDeliveryTime ? String(sanitizedData.preferredDeliveryTime) : null,
+      assignedLogistics: sanitizedData.assignedLogistics ? String(sanitizedData.assignedLogistics) : null,
+      trackingNumber: sanitizedData.trackingNumber ? String(sanitizedData.trackingNumber) : null,
+      deliveryNote: sanitizedData.deliveryNote ? String(sanitizedData.deliveryNote) : null,
+      deliveryConfirmation: sanitizedData.deliveryConfirmation ? String(sanitizedData.deliveryConfirmation) : null,
+      pod: sanitizedData.pod ? String(sanitizedData.pod) : null,
+      orderItems: JSON.stringify(consistentOrderItems),
+      acceptedBy: sanitizedData.acceptedBy ? String(sanitizedData.acceptedBy) : null,
+      acceptedAt: sanitizedData.acceptedAt ? new Date(String(sanitizedData.acceptedAt)) : null,
+      userId: typeof sanitizedData.userId === 'number' ? sanitizedData.userId : null
     };
     
-    const order = await (prisma.order.create as any)({
+    const order = await prisma.order.create({
       data: orderData,
       include: {
         buyer: true,
@@ -288,8 +261,8 @@ export async function POST(request: NextRequest) {
     });
     
     // Create OrderItem records for each item with price consistency
-    if (recalculatedOrder.orderItems && Array.isArray(recalculatedOrder.orderItems)) {
-      const orderItemPromises = recalculatedOrder.orderItems.map(async (item: any) => {
+    if (Array.isArray(consistentOrderItems)) {
+      const orderItemPromises = consistentOrderItems.map(async (item: { productId: string; quantity: number; unitPrice?: number; subtotal?: number }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -301,13 +274,13 @@ export async function POST(request: NextRequest) {
         
         // Use the product's sellingPrice as the unitPrice to ensure consistency
         const consistentUnitPrice = parseFloat(product.sellingPrice);
-        const consistentSubtotal = consistentUnitPrice * item.quantity;
+        const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
           data: {
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
-            quantity: item.quantity as number,
+            quantity: Number(item.quantity || 0),
             unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal
           }
@@ -318,12 +291,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Parse orderItems back for response and enrich with product data
-    const parsedOrderItems = JSON.parse(order.orderItems);
-    const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
+    const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
+    const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
       // Find corresponding OrderItem with product data
-      const orderItemWithProduct = order.orderItemsRel?.find(
-        (orderItem: any) => orderItem.productId === jsonItem.productId
-      );
+      const orderItemWithProduct = order.orderItemsRel?.find((orderItem) => orderItem.productId === jsonItem.productId);
       
       return {
         ...jsonItem,
@@ -380,14 +351,14 @@ export async function PUT(request: NextRequest) {
     if (sanitizedData.orderItems) {
       const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
       const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
-      const recalculatedOrder = recalculateEntireOrder({
-        ...sanitizedData,
-        orderItems: consistentOrderItems
-      } as any);
-      
+      const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || (it.unitPrice || 0) * (it.quantity || 0)), 0);
+      const totalQtyCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
       recalculatedData = {
-        ...recalculatedOrder,
-        orderItems: JSON.stringify(recalculatedOrder.orderItems)
+        ...sanitizedData,
+        subtotal: subtotalCalc,
+        totalAmount: subtotalCalc + Number(sanitizedData.taxes || 0) + Number(sanitizedData.shippingFee || 0) - Number(sanitizedData.discounts || 0),
+        totalOrders: totalQtyCalc,
+        orderItems: JSON.stringify(consistentOrderItems)
       };
     }
     
@@ -401,17 +372,13 @@ export async function PUT(request: NextRequest) {
     }
     
     // For backward compatibility, don't require userId for updates
-    const order = await (prisma.order.update as any)({
-      where: { orderId: sanitizedData.orderId },
+    const order = await prisma.order.update({
+      where: { orderId: String(sanitizedData.orderId) },
       data: updateData,
       include: {
         buyer: true,
         user: true,
-        orderItemsRel: {
-          include: {
-            product: true
-          }
-        }
+        orderItemsRel: false
       }
     });
 
@@ -423,7 +390,7 @@ export async function PUT(request: NextRequest) {
       });
       
       // Create new OrderItem records with price consistency
-      const orderItemPromises = sanitizedData.orderItems.map(async (item: any) => {
+      const orderItemPromises = sanitizedData.orderItems.map(async (item: { productId: string; quantity: number }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -435,13 +402,13 @@ export async function PUT(request: NextRequest) {
         
         // Use the product's sellingPrice as the unitPrice to ensure consistency
         const consistentUnitPrice = parseFloat(product.sellingPrice);
-        const consistentSubtotal = consistentUnitPrice * item.quantity;
+        const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
           data: {
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
-            quantity: item.quantity as number,
+            quantity: Number(item.quantity || 0),
             unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal
           }
@@ -452,20 +419,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // Parse orderItems back for response and enrich with product data
-    const parsedOrderItems = JSON.parse(order.orderItems);
-    const enrichedOrderItems = parsedOrderItems.map((jsonItem: any) => {
-      // Find corresponding OrderItem with product data
-      const orderItemWithProduct = order.orderItemsRel?.find(
-        (orderItem: any) => orderItem.productId === jsonItem.productId
-      );
-      
+    const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
+    const productIdsUpdate = parsedOrderItems.map(i => i.productId);
+    const productsUpdate = await prisma.product.findMany({ where: { productId: { in: productIdsUpdate } } });
+    const enrichedOrderItems = parsedOrderItems.map(jsonItem => {
+      const p = productsUpdate.find(pp => pp.productId === jsonItem.productId);
       return {
         ...jsonItem,
-        productName: orderItemWithProduct?.product?.name || 'Unknown Product',
-        category: orderItemWithProduct?.product?.category || 'Uncategorized',
-        brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
-        description: orderItemWithProduct?.product?.description || '',
-        images: orderItemWithProduct?.product?.images || []
+        productName: p?.name || 'Unknown Product',
+        category: p?.category || 'Uncategorized'
       };
     });
 

@@ -46,11 +46,70 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json(supplier, { headers });
     }
-    
+
+    // Pagination and filters
+    const page = parseInt(req.nextUrl.searchParams.get('page') || '1');
+    const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50');
+    const search = req.nextUrl.searchParams.get('search') || '';
+    const status = req.nextUrl.searchParams.get('status') || '';
+    const businessType = req.nextUrl.searchParams.get('businessType') || '';
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid pagination parameters' },
+        { status: 400, headers }
+      );
+    }
+
+    const whereClause: {
+      userId: number;
+      OR?: Array<{
+        name?: { contains: string; mode: 'insensitive' };
+        contact?: { contains: string; mode: 'insensitive' };
+        email?: { contains: string; mode: 'insensitive' };
+        phone?: { contains: string; mode: 'insensitive' };
+        address?: { contains: string; mode: 'insensitive' };
+      }>;
+      status?: string;
+      businessType?: string;
+    } = { userId: Number(userId) };
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { contact: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    if (status && status !== 'All') {
+      whereClause.status = status;
+    }
+
+    if (businessType && businessType !== 'All Types') {
+      whereClause.businessType = businessType;
+    }
+
+    const total = await prisma.supplier.count({ where: whereClause });
+
     const suppliers = await prisma.supplier.findMany({
-      where: { userId: Number(userId) }
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(suppliers, { headers });
+
+    return NextResponse.json({
+      suppliers,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, { headers });
     
   } catch (error: unknown) {
     return NextResponse.json(

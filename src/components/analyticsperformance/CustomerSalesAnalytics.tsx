@@ -81,7 +81,7 @@ export const calculateSalesMetrics = (
 	let revenueSum = 0;
 	const buyerOrderCount = new Map<string | number, number>();
 	orders.forEach(order => {
-		buyerOrderCount.set(order.buyerId as any, (buyerOrderCount.get(order.buyerId as any) || 0) + 1);
+		buyerOrderCount.set(order.buyerId as string, (buyerOrderCount.get(order.buyerId as string) || 0) + 1);
 		if (order.orderItems && Array.isArray(order.orderItems)) {
 			order.orderItems.forEach(item => {
 				totalUnitsSold += item.quantity;
@@ -151,7 +151,7 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 										<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
 										<p className="font-semibold text-gray-900">{label}</p>
 									</div>
-									{payload.map((entry: any, index: number) => (
+									{payload.map((entry: { dataKey: string; value: number }, index: number) => (
 										<div key={index} className="flex items-center space-x-2 mb-1">
 											<div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.dataKey === 'orders' ? '#3B82F6' : '#10B981' }} />
 											<span className="text-gray-700">{entry.dataKey === 'orders' ? 'Orders' : 'Units'} : {entry.value}</span>
@@ -290,8 +290,9 @@ const CustomerSalesAnalytics: React.FC = () => {
 			} else if (o.totalAmount) {
 				orderRevenue = parseFloat(String(o.totalAmount));
 			}
-			const cur = map.get(o.buyerId as any) || { orders: 0, revenue: 0 };
-			map.set(o.buyerId as any, { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
+			const buyerKey = String(o.buyerId);
+			const cur = map.get(buyerKey) || { orders: 0, revenue: 0 };
+			map.set(buyerKey, { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
 		});
 		const buyerIndex = new Map<string, BuyerLite>();
 		buyers.forEach(b => buyerIndex.set(b.buyerId, b));
@@ -356,7 +357,15 @@ const CustomerSalesAnalytics: React.FC = () => {
 						<Users className="w-12 h-12 text-gray-400" />
 					</div>
 					<h3 className="text-xl font-semibold text-gray-900 mb-2">No Customer/Sales Data</h3>
-					<p className="text-gray-500 mb-6 max-w-md mx-auto">Add orders to see customer and sales analytics.</p>
+					<p className="text-gray-500 max-w-md mx-auto">Add products and track orders to see customer and sales analytics.</p>
+				</div>
+				<div className="flex flex-col sm:flex-row -mt-6 justify-center">
+					<button 
+					onClick={() => window.location.href = '/products'}
+					className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+					>
+					Add Products
+					</button>
 				</div>
 			</div>
 		);
@@ -415,8 +424,8 @@ const CustomerSalesAnalytics: React.FC = () => {
 									))}
 								</Pie>
 								<Tooltip 
-									formatter={(value: number, name: string, props: any) => [
-										`${value} units`, `${props?.payload?.category || name}`
+									formatter={(value: number, name: string, props: { payload?: { category?: string } }) => [
+										`${value} units`, `${props?.payload?.category ?? name}`
 									]}
 									labelStyle={{ color: '#1E293B', fontWeight: 600, fontSize: '14px' }}
 									contentStyle={{ backgroundColor: 'white', border: 'none', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', padding: '16px' }}

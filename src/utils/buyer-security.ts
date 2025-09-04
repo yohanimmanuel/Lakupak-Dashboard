@@ -10,7 +10,24 @@ export const getSecurityHeaders = () => ({
 });
 
 // Buyer input validation
-export const validateBuyerInput = (data: any): { valid: boolean; error?: string } => {
+type BuyerInput = {
+  buyerId?: string | number;
+  storeName?: string;
+  owner?: string;
+  email?: string;
+  phone?: string;
+  businessType?: string;
+  address?: string;
+  status?: 'Active' | 'Inactive' | 'Blocked' | string;
+  avatar?: string | null;
+  logistics?: string | null;
+  notes?: string | null;
+  orderDetails?: string | null;
+  userId?: number | string;
+  createdAt?: string | Date;
+};
+
+export const validateBuyerInput = (data: BuyerInput): { valid: boolean; error?: string } => {
   // For imports, we allow missing fields - only validate if provided
   // No required field validation - users can import partial data
   
@@ -63,7 +80,7 @@ export const validateBuyerInput = (data: any): { valid: boolean; error?: string 
 };
 
 // Buyer update validation
-export const validateBuyerUpdate = (data: any): { valid: boolean; error?: string } => {
+export const validateBuyerUpdate = (data: BuyerInput): { valid: boolean; error?: string } => {
   // Email format validation if provided
   if (data.email && data.email.trim().length > 0) {
     // Basic email check - just ensure it has @ and .
@@ -113,8 +130,8 @@ export const validateBuyerUpdate = (data: any): { valid: boolean; error?: string
 };
 
 // Sanitize buyer data to prevent XSS and ensure proper types
-export const sanitizeBuyerData = (data: any) => {
-  const sanitized: any = {};
+export const sanitizeBuyerData = (data: BuyerInput) => {
+  const sanitized: Record<string, unknown> = {};
   
   // Basic string fields
   if (data.buyerId !== undefined) {
