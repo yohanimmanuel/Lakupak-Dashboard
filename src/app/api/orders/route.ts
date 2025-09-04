@@ -22,35 +22,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
-    
-    // For backward compatibility, allow requests without userId for existing data
-    // In production, this should be required for multi-tenant security
-    let userIdFilter = {};
-    if (userId) {
-      // Convert userId to number if it's a valid number string
-      const numericUserId = Number(userId);
-      if (isNaN(numericUserId)) {
-        return NextResponse.json(
-          { error: 'Invalid userId format' }, 
-          { status: 400, headers }
-        );
-      }
-      // For now, allow both the specific userId AND null userId (existing data)
-      // This ensures existing data shows up while maintaining security for new data
-      userIdFilter = {
-        OR: [
-          { userId: numericUserId },
-          { userId: null }
-        ]
-      };
+    // Enforce userId strictly
+    if (!userId || isNaN(Number(userId))) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400, headers });
     }
+    const userWhere = { userId: Number(userId) } as const;
     
           if (id) {
         // Get single order by ID
         const order = await prisma.order.findFirst({
           where: { 
             orderId: id,
-            ...userIdFilter // Multi-tenant security (if userId provided)
+            ...userWhere
           },
           include: {
             buyer: true,
@@ -70,30 +53,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Parse orderItems JSON and merge with OrderItem table data
-      const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
-      const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
-        // Find corresponding OrderItem with product data
-        const orderItemWithProduct = order.orderItemsRel?.find(
-          (orderItem: { productId: string; product?: { name?: string; category?: string; brand?: string; description?: string; images?: string[] } }) => orderItem.productId === jsonItem.productId
-        );
-        
-        return {
-          ...jsonItem,
-          productName: orderItemWithProduct?.product?.name || 'Unknown Product',
-          category: orderItemWithProduct?.product?.category || 'Uncategorized',
-          brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
-          description: orderItemWithProduct?.product?.description || '',
-          images: orderItemWithProduct?.product?.images || []
-        };
-      });
+      // Build items directly from relational rows (no JSON dependency)
+      const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+        productId: oi.productId,
+        quantity: oi.quantity,
+        unitPrice: oi.unitPrice,
+        subtotal: oi.subtotal,
+        productName: oi.product?.name || 'Unknown Product',
+        category: oi.product?.category || 'Uncategorized',
+        brand: oi.product?.brand || 'Unknown Brand',
+        description: oi.product?.description || '',
+        images: oi.product?.images || []
+      }));
 
-      let orderWithParsedItems = {
-        ...order,
-        orderItems: enrichedOrderItems
-      };
-
-      return NextResponse.json(orderWithParsedItems, { headers });
+      return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
     }
     
     // Get all orders with pagination and filters
@@ -112,8 +85,8 @@ export async function GET(request: NextRequest) {
     
     const skip = (page - 1) * limit;
     
-    // Build where clause with multi-tenant security
-    const where = { ...userIdFilter } as any;
+    // Build where clause with multi-tenant security (strict)
+    const where = { ...userWhere } as any;
     if (status && status !== 'All') where.orderStatus = status;
     if (buyerId) where.buyerId = buyerId;
     
@@ -136,32 +109,20 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where })
     ]);
     
-    // Parse orderItems JSON for each order and auto-validate
+    // Build items from relational rows for each order (no JSON dependency)
     const ordersWithParsedItems = orders.map((order) => {
-      // Parse orderItems JSON and merge with OrderItem table data
-      const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
-      const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
-        // Find corresponding OrderItem with product data
-        const orderItemWithProduct = order.orderItemsRel?.find(
-          (orderItem: { productId: string; product?: { name?: string; category?: string; brand?: string; description?: string; images?: string[] } }) => orderItem.productId === jsonItem.productId
-        );
-        
-        return {
-          ...jsonItem,
-          productName: orderItemWithProduct?.product?.name || 'Unknown Product',
-          category: orderItemWithProduct?.product?.category || 'Uncategorized',
-          brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
-          description: orderItemWithProduct?.product?.description || '',
-          images: orderItemWithProduct?.product?.images || []
-        };
-      });
-
-      const orderWithParsedItems = {
-        ...order,
-        orderItems: enrichedOrderItems
-      };
-      
-      return orderWithParsedItems;
+      const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+        productId: oi.productId,
+        quantity: oi.quantity,
+        unitPrice: oi.unitPrice,
+        subtotal: oi.subtotal,
+        productName: oi.product?.name || 'Unknown Product',
+        category: oi.product?.category || 'Uncategorized',
+        brand: oi.product?.brand || 'Unknown Brand',
+        description: oi.product?.description || '',
+        images: oi.product?.images || []
+      }));
+      return { ...order, orderItems: enrichedOrderItems };
     });
     
     return NextResponse.json({
@@ -290,28 +251,20 @@ export async function POST(request: NextRequest) {
       await Promise.all(orderItemPromises);
     }
     
-    // Parse orderItems back for response and enrich with product data
-    const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
-    const enrichedOrderItems = parsedOrderItems.map((jsonItem) => {
-      // Find corresponding OrderItem with product data
-      const orderItemWithProduct = order.orderItemsRel?.find((orderItem) => orderItem.productId === jsonItem.productId);
-      
-      return {
-        ...jsonItem,
-        productName: orderItemWithProduct?.product?.name || 'Unknown Product',
-        category: orderItemWithProduct?.product?.category || 'Uncategorized',
-        brand: orderItemWithProduct?.product?.brand || 'Unknown Brand',
-        description: orderItemWithProduct?.product?.description || '',
-        images: orderItemWithProduct?.product?.images || []
-      };
-    });
+    // Build items from relational rows for response
+    const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+      productId: oi.productId,
+      quantity: oi.quantity,
+      unitPrice: oi.unitPrice,
+      subtotal: oi.subtotal,
+      productName: oi.product?.name || 'Unknown Product',
+      category: oi.product?.category || 'Uncategorized',
+      brand: oi.product?.brand || 'Unknown Brand',
+      description: oi.product?.description || '',
+      images: oi.product?.images || []
+    }));
 
-    const orderWithParsedItems = {
-      ...order,
-      orderItems: enrichedOrderItems
-    };
-    
-    return NextResponse.json(orderWithParsedItems, { status: 201, headers });
+    return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to create order' },
@@ -418,25 +371,20 @@ export async function PUT(request: NextRequest) {
       await Promise.all(orderItemPromises);
     }
 
-    // Parse orderItems back for response and enrich with product data
-    const parsedOrderItems = JSON.parse(order.orderItems) as Array<{ productId: string; quantity: number; unitPrice: number }>;
-    const productIdsUpdate = parsedOrderItems.map(i => i.productId);
-    const productsUpdate = await prisma.product.findMany({ where: { productId: { in: productIdsUpdate } } });
-    const enrichedOrderItems = parsedOrderItems.map(jsonItem => {
-      const p = productsUpdate.find(pp => pp.productId === jsonItem.productId);
-      return {
-        ...jsonItem,
-        productName: p?.name || 'Unknown Product',
-        category: p?.category || 'Uncategorized'
-      };
-    });
+    // Build items from relational rows for response
+    const enrichedOrderItemsUpdate = ((order as any).orderItemsRel || []).map((oi: any) => ({
+      productId: oi.productId,
+      quantity: oi.quantity,
+      unitPrice: oi.unitPrice,
+      subtotal: oi.subtotal,
+      productName: oi.product?.name || 'Unknown Product',
+      category: oi.product?.category || 'Uncategorized',
+      brand: oi.product?.brand || 'Unknown Brand',
+      description: oi.product?.description || '',
+      images: oi.product?.images || []
+    }));
 
-    const orderWithParsedItems = {
-      ...order,
-      orderItems: enrichedOrderItems
-    };
-
-    return NextResponse.json(orderWithParsedItems, { headers });
+    return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to update order' },

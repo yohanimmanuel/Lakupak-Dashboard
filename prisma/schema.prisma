@@ -119,7 +119,6 @@ model Order {
   deliveryNote          String?
   deliveryConfirmation  String?
   pod                   String?
-  orderItems            String
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   acceptedBy            String?
