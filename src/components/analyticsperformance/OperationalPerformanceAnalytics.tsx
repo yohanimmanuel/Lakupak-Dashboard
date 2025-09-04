@@ -629,8 +629,8 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                   <ComposedChart data={processingTimeData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                   <defs>
                     <linearGradient id="processingGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
-                      <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+                      <stop offset="20%" stopColor="#0a61d7" stopOpacity={0.6}/>
+                      <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.4}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
@@ -1118,8 +1118,8 @@ export const ProcessingTimeTrendChart: React.FC<{
         <ComposedChart data={data} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
           <defs>
             <linearGradient id="processingGradientMain" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
-              <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+              <stop offset="20%" stopColor="#0a61d7" stopOpacity={0.6}/>
+              <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.4}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
