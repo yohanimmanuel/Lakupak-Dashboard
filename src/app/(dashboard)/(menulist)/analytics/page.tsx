@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   AnalyticsMetricCard, 
   AnalyticsRevenueTrendChart,
+  AnalyticsTopProductsTable,
+  calculateTopProducts,
   calculateRevenueData,
   calculateTotalRevenue,
   formatCurrency,
@@ -41,6 +43,9 @@ export default function AnalyticsPage() {
   const opMetrics = useMemo(() => computeOperationalMetrics(orders, products), [orders, products]);
   const opStatusData = useMemo(() => computeOrderStatusData(orders), [orders]);
   const opProcessingData = useMemo(() => computeProcessingTimeData(orders), [orders]);
+
+  // Top products (reused from FinancialAnalytics exports)
+  const topProducts = useMemo(() => calculateTopProducts(orders, products, hasData, 10), [orders, products, hasData]);
 
   // Customer Sales metrics reused
   const customerMetrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData]);
@@ -171,6 +176,11 @@ export default function AnalyticsPage() {
         <div>
           <ProcessingTimeTrendChart data={opProcessingData} />
         </div>
+      </div>
+
+      {/* Row 4: Top Performing Products Table */}
+      <div className="mt-4">
+        <AnalyticsTopProductsTable products={topProducts} userCurrency={userCurrency} maxRows={5} seeMoreHref="/analytics/financial" />
       </div>
     </div>
   );

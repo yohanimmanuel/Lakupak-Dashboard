@@ -32,7 +32,8 @@ import {
   Calendar,
   Filter,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowRightIcon
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -1555,3 +1556,155 @@ export const calculateTotalRevenue = (orders: Order[], products: Product[]): num
 };
 
 export default FinancialAnalytics;
+
+// ===== Shared Top Products utilities and component =====
+
+export type TopProductRow = {
+  name: string;
+  category: string;
+  revenue: number;
+  profit: number;
+  margin: number;
+  unitsSold: number;
+  productId: string;
+};
+
+export const calculateTopProducts = (
+  orders: Order[],
+  products: Product[],
+  hasData: boolean,
+  limit: number = 50
+): TopProductRow[] => {
+  if (!hasData || orders.length === 0) {
+    return [];
+  }
+
+  const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+
+  const productMargins: { [key: string]: number } = {};
+  products.forEach(product => {
+    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+    if (sellingPrice > 0 && purchasePrice > 0) {
+      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
+      productMargins[product.productId] = margin;
+    }
+  });
+
+  orders.forEach(order => {
+    if (order.orderItems && Array.isArray(order.orderItems)) {
+      order.orderItems.forEach(item => {
+        const productId = item.productId;
+        const product = products.find(p => p.productId === productId);
+        if (!productStats[productId]) {
+          const category = item.category || product?.category || 'Uncategorized';
+          productStats[productId] = {
+            revenue: 0,
+            unitsSold: 0,
+            category,
+            name: product?.name || `Product ${productId}`,
+            profit: 0
+          };
+        }
+
+        if (product) {
+          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
+          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+          if (sellingPrice > 0 && purchasePrice > 0) {
+            const itemRevenue = sellingPrice * item.quantity;
+            const itemCost = purchasePrice * item.quantity;
+            const itemProfit = itemRevenue - itemCost;
+            productStats[productId].revenue += itemRevenue;
+            productStats[productId].profit += itemProfit;
+          } else {
+            const itemRevenue = item.unitPrice * item.quantity;
+            const avgMargin = Object.values(productMargins).length > 0 
+              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+              : 0;
+            const itemProfit = itemRevenue * (avgMargin / 100);
+            productStats[productId].revenue += itemRevenue;
+            productStats[productId].profit += itemProfit;
+          }
+        } else {
+          const itemRevenue = item.unitPrice * item.quantity;
+          const avgMargin = Object.values(productMargins).length > 0 
+            ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
+            : 0;
+          const itemProfit = itemRevenue * (avgMargin / 100);
+          productStats[productId].revenue += itemRevenue;
+          productStats[productId].profit += itemProfit;
+        }
+
+        productStats[productId].unitsSold += item.quantity;
+      });
+    }
+  });
+
+  return Object.entries(productStats).map(([productId, stats]) => {
+    const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+    return {
+      name: stats.name,
+      revenue: stats.revenue,
+      unitsSold: stats.unitsSold,
+      margin,
+      category: stats.category,
+      profit: stats.profit,
+      productId
+    };
+  }).sort((a, b) => b.revenue - a.revenue).slice(0, limit);
+};
+
+export const AnalyticsTopProductsTable: React.FC<{
+  products: TopProductRow[];
+  userCurrency: string;
+  maxRows?: number;
+  seeMoreHref?: string;
+}> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial' }) => (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+    <div className="flex items-center justify-between mb-6">
+      <h3 className="text-lg font-semibold text-gray-900">Top Performing Products</h3>
+      <button 
+        onClick={() => (window.location.href = seeMoreHref)}
+        className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+        aria-label="See more financial analytics"
+      >
+        See More
+        <ArrowRightIcon className="w-4 h-4 ml-1" />
+      </button>
+    </div>
+    <div className="overflow-x-auto rounded-lg">
+      <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
+        <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
+          <tr>
+            <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
+            <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Units Sold</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white">
+          {products.slice(0, maxRows).map((product, index) => (
+            <tr key={product.productId} className="border-b transition-colors">
+              <td className="py-3 px-4 text-left text-black">{index + 1}</td>
+              <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
+                <span 
+                  className="cursor-pointer transition-all duration-200 hover:text-blue-800"
+                  onClick={() => window.location.href = `/products/catalog/${product.productId}`}
+                  title="Click to view product details"
+                >
+                  {product.name}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-center text-gray-600">{product.category}</td>
+              <td className="py-3 px-4 text-center text-black">{product.unitsSold.toLocaleString()}</td>
+              <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
+              <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
