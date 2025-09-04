@@ -774,7 +774,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         stockoutSKUs: '#EF4444'
                       };
                       const labelsMap: Record<string, string> = {
-                        healthySKUs: 'Healthy Stock',
+                        healthySKUs: 'Healthy stock (In-stock)',
                         lowStockSKUs: 'Low Stock',
                         stockoutSKUs: 'Out of Stock'
                       };
@@ -828,7 +828,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
               <div className="flex justify-center gap-6 mt-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700 font-medium">Healthy Stock</span>
+                  <span className="text-sm text-gray-700 font-medium">Healthy stock (In-stock)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
