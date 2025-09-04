@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil } from 'lucide-react';
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
@@ -17,6 +17,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  type DeliveryMethod = Order['deliveryMethod'];
+  const [formFields, setFormFields] = useState({
+    deliveryAddress: order.deliveryAddress,
+    contactPerson: order.contactPerson,
+    contactPhone: order.contactPhone,
+    preferredDeliveryTime: order.preferredDeliveryTime || '',
+    deliveryNote: order.deliveryNote || '',
+    assignedLogistics: order.assignedLogistics || '',
+    trackingNumber: order.trackingNumber || '',
+    deliveryMethod: order.deliveryMethod as DeliveryMethod,
+    pod: (order as any).pod || ''
+  });
+  const [podFileName, setPodFileName] = useState<string>('');
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,7 +84,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Order Status Dropdown */}
             <div className="relative group">
               <button
-                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} border border-[#e6e6e6] hover:opacity-80 transition-all duration-200`}
+                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} hover:opacity-80 transition-all duration-200`}
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
                 title="Update your order or shipment status here"
               >
@@ -139,6 +153,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               {order.paymentStatus}
             </button>
             
+            {/* Edit Button */}
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-2 py-2 px-4 rounded-lg text-sm text-black font-medium border border-gray-300 hover:bg-gray-50"
+              title="Edit order delivery and contact details"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
 
           </div>
         </div>
@@ -260,12 +282,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <span className="text-blue-700">Preferred Time:</span>
                   <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || 'N/A'}</span>
                 </div>
-                {order.trackingNumber && (
-                  <div>
-                    <span className="text-blue-700">Tracking:</span>
-                    <span className="ml-2 font-medium text-blue-900">{order.trackingNumber}</span>
-                  </div>
-                )}
+                <div>
+                  <span className="text-blue-700">Tracking:</span>
+                  <span className="ml-2 font-semibold text-blue-900">{order.trackingNumber || 'N/A'}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -488,6 +508,172 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Order Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Edit Order</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors"
+                aria-label="Close edit order"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[70vh]">
+              <p className="p-4 bg-orange-50 rounded-lg border border-orange-200 text-xs text-orange-600 mb-3 italic">
+                *Please complete these order details. Updates here will be shared with buyers so they receive the latest delivery and contact information.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500">Contact Person</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="e.g. Store owner or PIC name"
+                    value={formFields.contactPerson}
+                    onChange={(e) => setFormFields({ ...formFields, contactPerson: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Contact Phone</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="e.g. 0812-3456-7890"
+                    value={formFields.contactPhone}
+                    onChange={(e) => setFormFields({ ...formFields, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs text-gray-500">Delivery Address</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="Street, City, Province, Postal Code"
+                    value={formFields.deliveryAddress}
+                    onChange={(e) => setFormFields({ ...formFields, deliveryAddress: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Preferred Delivery Time</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="e.g. 09:00 - 12:00"
+                    value={formFields.preferredDeliveryTime}
+                    onChange={(e) => setFormFields({ ...formFields, preferredDeliveryTime: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Delivery Method</label>
+                  <select
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    value={formFields.deliveryMethod}
+                    onChange={(e) => setFormFields({ ...formFields, deliveryMethod: e.target.value as DeliveryMethod })}
+                  >
+                    <option value="Distributor Fleet">Distributor Fleet</option>
+                    <option value="3rd-Party Courier">3rd-Party Courier</option>
+                    <option value="Pickup">Pickup</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Assigned Logistics</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="e.g. JNE / Internal Fleet / Vendor name"
+                    value={formFields.assignedLogistics}
+                    onChange={(e) => setFormFields({ ...formFields, assignedLogistics: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Tracking Number</label>
+                  <input
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    placeholder="e.g. 1Z999AA10123456784"
+                    value={formFields.trackingNumber}
+                    onChange={(e) => setFormFields({ ...formFields, trackingNumber: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs text-gray-500">Delivery Note</label>
+                  <textarea
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    rows={3}
+                    placeholder="Notes for driver or warehouse (e.g. fragile, gate access)"
+                    value={formFields.deliveryNote}
+                    onChange={(e) => setFormFields({ ...formFields, deliveryNote: e.target.value })}
+                  />
+                </div>
+                {orderStatus === 'Delivered' && (
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500">Proof of Delivery (POD)</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="text-xs"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setPodFileName(file.name);
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            setFormFields({ ...formFields, pod: String(reader.result || '') });
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      {podFileName && <span className="text-xs text-gray-600">{podFileName}</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">Accepted: JPG, PNG, PDF.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const requestBody: Record<string, unknown> = {
+                    orderId: order.orderId,
+                    deliveryAddress: formFields.deliveryAddress,
+                    contactPerson: formFields.contactPerson,
+                    contactPhone: formFields.contactPhone,
+                    preferredDeliveryTime: formFields.preferredDeliveryTime,
+                    deliveryNote: formFields.deliveryNote,
+                    assignedLogistics: formFields.assignedLogistics,
+                    trackingNumber: formFields.trackingNumber,
+                    deliveryMethod: formFields.deliveryMethod
+                  };
+                  if (orderStatus === 'Delivered' && formFields.pod) {
+                    requestBody.pod = formFields.pod;
+                    requestBody.deliveryConfirmation = 'delivered';
+                  }
+                  if (user?.id) requestBody.userId = user.id;
+                  const response = await fetch('/api/orders', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                  });
+                  if (response.ok) {
+                    setShowEditModal(false);
+                    // Optional: refresh to reflect edits
+                    window.location.reload();
+                  }
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6]"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>

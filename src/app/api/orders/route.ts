@@ -200,11 +200,16 @@ export async function POST(request: NextRequest) {
       assignedLogistics: sanitizedData.assignedLogistics ? String(sanitizedData.assignedLogistics) : null,
       trackingNumber: sanitizedData.trackingNumber ? String(sanitizedData.trackingNumber) : null,
       deliveryNote: sanitizedData.deliveryNote ? String(sanitizedData.deliveryNote) : null,
-      deliveryConfirmation: sanitizedData.deliveryConfirmation ? String(sanitizedData.deliveryConfirmation) : null,
+      deliveryConfirmation: sanitizedData.deliveryConfirmation ? String(sanitizedData.deliveryConfirmation) : 'pending',
       pod: sanitizedData.pod ? String(sanitizedData.pod) : null,
       orderItems: JSON.stringify(consistentOrderItems),
-      acceptedBy: sanitizedData.acceptedBy ? String(sanitizedData.acceptedBy) : null,
-      acceptedAt: sanitizedData.acceptedAt ? new Date(String(sanitizedData.acceptedAt)) : null,
+      acceptedBy: sanitizedData.acceptedBy
+        ? String(sanitizedData.acceptedBy)
+        : (String(sanitizedData.orderStatus || 'Pending') === 'Confirmed' ? 'Admin' : null),
+      // Auto-set acceptedAt if status is Confirmed and not explicitly provided
+      acceptedAt: sanitizedData.acceptedAt
+        ? new Date(String(sanitizedData.acceptedAt))
+        : (String(sanitizedData.orderStatus || 'Pending') === 'Confirmed' ? new Date() : null),
       userId: typeof sanitizedData.userId === 'number' ? sanitizedData.userId : null
     };
     
@@ -322,6 +327,36 @@ export async function PUT(request: NextRequest) {
     }
     if (sanitizedData.acceptedAt) {
       updateData.acceptedAt = new Date(String(sanitizedData.acceptedAt));
+    }
+
+    // Auto-set acceptedAt on status transition to Confirmed when not provided
+    if (!sanitizedData.acceptedAt && typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
+      const existing = await prisma.order.findUnique({ where: { orderId: String(sanitizedData.orderId) } });
+      if (existing) {
+        const nextStatus = String(sanitizedData.orderStatus);
+        const prevStatus = String(existing.orderStatus || '');
+        if (nextStatus === 'Confirmed' && !existing.acceptedAt) {
+          updateData.acceptedAt = new Date();
+          if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
+            updateData.acceptedBy = 'Admin';
+          }
+        }
+
+        // Auto-wire deliveryConfirmation based on orderStatus if not explicitly provided
+        if (!sanitizedData.deliveryConfirmation) {
+          if (nextStatus === 'Pending') {
+            updateData.deliveryConfirmation = 'pending';
+          } else if (nextStatus === 'Confirmed') {
+            updateData.deliveryConfirmation = 'confirmed';
+          } else if (nextStatus === 'Shipped' || nextStatus === 'Packed') {
+            updateData.deliveryConfirmation = 'in_transit';
+          } else if (nextStatus === 'Delivered') {
+            updateData.deliveryConfirmation = 'delivered';
+          } else if (nextStatus === 'Cancelled' || nextStatus === 'Returned') {
+            updateData.deliveryConfirmation = nextStatus.toLowerCase();
+          }
+        }
+      }
     }
     
     // For backward compatibility, don't require userId for updates
