@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { Download, Archive, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import OrdersCards from '@/components/ordershipment/OrdersCards';
 import OrdersGPS from '@/components/ordershipment/OrdersGPS';
@@ -18,33 +18,72 @@ export default function OrdersPage() {
   const userCurrency = (useUserStore.getState().user?.currency) || getDefaultCurrency();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState('');
+  const [isSlidingIn, setIsSlidingIn] = useState(false);
+  const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch orders from database
+  // Unified fetch function (used on load and by Refresh button)
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      // Clear any existing timeouts
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+      // For refresh with existing data, start slide-in animation
+      if (orders.length > 0) {
+        setIsSlidingOut(false);
+        setIsSlidingIn(true);
+        setOverlayMessage('Refreshing order data');
+      } else {
+        setIsSlidingIn(true);
+        setOverlayMessage('Loading order data...');
+      }
+
+      // For backward compatibility, fetch orders without userId if user not authenticated
+      const url = user?.id ? `/api/orders?userId=${user.id}` : '/api/orders';
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+      const data = await response.json();
+      const list: Order[] = data.orders || [];
+      setOrders(list);
+      setOverlayMessage(`Showing order data (${list.length})`);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch orders');
+      setOrders([]);
+      setOverlayMessage('Error loading orders');
+    } finally {
+      setLoading(false);
+      // Complete slide-in animation and show overlay
+      setTimeout(() => {
+        setIsSlidingIn(false);
+        setShowOverlay(true);
+      }, 1500);
+      // Auto-hide overlay after 2.5 seconds
+      overlayTimeoutRef.current = setTimeout(() => {
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
+    }
+  };
+
+  // Fetch orders from database on mount/user change
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        // For backward compatibility, fetch orders without userId if user not authenticated
-        const url = user?.id ? `/api/orders?userId=${user.id}` : '/api/orders';
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders');
-        }
-        
-        const data = await response.json();
-        setOrders(data.orders || []);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch orders');
-        setOrders([]);
-      } finally {
-        setLoading(false);
+    fetchOrders();
+    return () => {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
       }
     };
-
-    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const fetchArchived = async () => {
@@ -95,8 +134,16 @@ export default function OrdersPage() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={fetchOrders}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
                 onClick={async () => { await fetchArchived(); setShowArchivedModal(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
               >
                 <Archive className="w-4 h-4" />
                 Archived Orders
@@ -165,6 +212,31 @@ export default function OrdersPage() {
               orderToTableRow={orderToTableRow}
             />
           </>
+        )}
+
+        {/* Data Status Overlay */}
+        {(showOverlay || isSlidingIn || isSlidingOut) && (
+          <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
+            isSlidingIn ? 'translate-x-0 opacity-100' : 
+            isSlidingOut ? 'translate-x-full opacity-0' : 
+            'translate-x-full opacity-0'
+          }`}>
+            <div className="flex items-center gap-3">
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
+                <p className="text-xs text-gray-500">
+                  {loading ? 'Please wait...' : `${orders.length} order${orders.length !== 1 ? 's' : ''} loaded`}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Archived Modal */}
