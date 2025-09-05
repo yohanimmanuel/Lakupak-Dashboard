@@ -39,7 +39,6 @@ export default function FinancialAnalyticsPage() {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Export failed:', error);
       alert('Failed to export data. Please try again.');
     }
   };

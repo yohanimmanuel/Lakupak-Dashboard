@@ -43,12 +43,16 @@ export interface Order {
 }
 
 export interface OrderItem {
-  productId: string;
+  productId: string | null;
   productName: string;
   category: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  // augmented fields for deleted product handling
+  productDeleted?: boolean;
+  productNameSnapshot?: string;
+  productSkuSnapshot?: string;
 }
 
 export interface OrderTableRow {

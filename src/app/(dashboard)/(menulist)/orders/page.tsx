@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Archive, Eye } from 'lucide-react';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import OrdersCards from '@/components/ordershipment/OrdersCards';
 import OrdersGPS from '@/components/ordershipment/OrdersGPS';
 import OrdersTable from '@/components/ordershipment/OrdersTable';
@@ -12,6 +13,9 @@ import { useUserStore } from '@/store/userStore';
 export default function OrdersPage() {
   const user = useUserStore(state => state.user);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
+  const userCurrency = (useUserStore.getState().user?.currency) || getDefaultCurrency();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +46,17 @@ export default function OrdersPage() {
 
     fetchOrders();
   }, [user?.id]);
+
+  const fetchArchived = async () => {
+    try {
+      const ts = Date.now();
+      const url = user?.id ? `/api/orders?userId=${user.id}&archived=1&_=${ts}` : `/api/orders?archived=1&_=${ts}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch archived orders');
+      const data = await response.json();
+      setArchivedOrders(data.orders || []);
+    } catch {}
+  };
 
   const orderToTableRow = (order: Order): OrderTableRow => {
     return {
@@ -79,6 +94,13 @@ export default function OrdersPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={async () => { await fetchArchived(); setShowArchivedModal(true); }}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Archive className="w-4 h-4" />
+                Archived Orders
+              </button>
               <button
                 onClick={() => handleExportXLSX(
                   XLSX.utils.book_new(),
@@ -143,6 +165,62 @@ export default function OrdersPage() {
               orderToTableRow={orderToTableRow}
             />
           </>
+        )}
+
+        {/* Archived Modal */}
+        {showArchivedModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden">
+              <div className="p-4 border-b flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Archived Orders</h3>
+                <button onClick={() => setShowArchivedModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Close</button>
+              </div>
+              <div className="p-4 overflow-auto" style={{maxHeight:'70vh'}}>
+                {archivedOrders.length === 0 ? (
+                  <div className="text-center text-gray-500 text-sm py-8">No archived orders</div>
+                ) : (
+                  <ul className="divide-y divide-gray-200">
+                    {archivedOrders.map((o) => (
+                      <li key={o.id} className="py-3 flex items-center justify-between">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900">{o.orderId}</div>
+                          <div className="text-xs text-gray-500">
+                            {o.contactPerson} • {new Date(o.orderDate).toLocaleDateString()} • {o.orderItems.length} items
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm font-semibold text-[#0a61d7]">
+                            {formatCurrency(Number(o.totalAmount), userCurrency)}
+                          </div>
+                          <button
+                            onClick={() => window.location.href = `/orders/details/${o.orderId}`}
+                            className="px-3 py-1 text-sm text-[#0a61d7] border border-gray-200 rounded-lg hover:bg-gray-50 inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-4 h-4" /> View
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await fetch('/api/orders', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orderId: o.orderId, unarchive: true, userId: user?.id })
+                              });
+                              // Move back to active list immediately
+                              setArchivedOrders(prev => prev.filter(x => x.orderId !== o.orderId));
+                              setOrders(prev => [{ ...o, archivedAt: null as any }, ...prev]);
+                            }}
+                            className="px-3 py-1 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+                          >
+                            Unarchive
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

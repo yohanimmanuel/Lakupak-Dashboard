@@ -123,6 +123,7 @@ model Order {
   updatedAt             DateTime    @updatedAt @db.Timestamptz(3)
   acceptedBy            String?
   acceptedAt            DateTime?  @db.Timestamptz(3)
+  archivedAt            DateTime?  @db.Timestamptz(3)
   userId                Int?
   buyer                 Buyer       @relation(fields: [buyerId], references: [buyerId])
   user                  User?       @relation(fields: [userId], references: [id])
@@ -132,14 +133,17 @@ model Order {
 model OrderItem {
   id        Int      @id @default(autoincrement())
   orderId   String
-  productId String
+  productId String?
   quantity  Int
   unitPrice Float
   subtotal  Float
+  // Snapshots to preserve display data if product is deleted
+  productNameSnapshot String?
+  productSkuSnapshot  String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   order     Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [productId])
+  product   Product? @relation(fields: [productId], references: [productId], onDelete: SetNull)
 
-  @@unique([orderId, productId])
+  // If uniqueness is required, consider adding a lineIndex instead. Dropping composite unique to allow null productId.
 }

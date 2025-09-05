@@ -22,6 +22,9 @@ export default function ViewProductPage() {
         if (response.ok) {
           const data = await response.json();
           setProduct(data);
+        } else if (response.status === 404) {
+          window.location.href = `/products/deleted?id=${params.id}`;
+          return;
         } else {
           setError('Product not found');
         }

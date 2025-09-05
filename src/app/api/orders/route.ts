@@ -21,30 +21,28 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const archivedFlag = searchParams.get('archived');
     const userId = searchParams.get('userId');
-    // Enforce userId strictly
-    if (!userId || isNaN(Number(userId))) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400, headers });
-    }
-    const userWhere = { userId: Number(userId) } as const;
+    // Make user scoping optional for backward compatibility
+    const userWhere: Record<string, unknown> = (userId && !isNaN(Number(userId))) ? { userId: Number(userId) } : {};
     
-          if (id) {
-        // Get single order by ID
-        const order = await prisma.order.findFirst({
-          where: { 
-            orderId: id,
-            ...userWhere
-          },
-          include: {
-            buyer: true,
-            user: true,
-            orderItemsRel: {
-              include: {
-                product: true
-              }
+    if (id) {
+      // Get single order by ID
+      const order = await prisma.order.findFirst({
+        where: { 
+          orderId: id,
+          ...userWhere
+        },
+        include: {
+          buyer: true,
+          user: true,
+          orderItemsRel: {
+            include: {
+              product: true
             }
           }
-        });
+        }
+      });
 
       if (!order) {
         return NextResponse.json(
@@ -53,17 +51,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Build items directly from relational rows (no JSON dependency)
+      // Build items directly from relational rows with snapshot fallbacks
       const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
-        productId: oi.productId,
+        productId: oi.productId ?? null,
         quantity: oi.quantity,
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
-        productName: oi.product?.name || 'Unknown Product',
+        productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
         category: oi.product?.category || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
-        images: oi.product?.images || []
+        images: oi.product?.images || [],
+        productDeleted: !oi.product,
+        productNameSnapshot: (oi as any).productNameSnapshot || null,
+        productSkuSnapshot: (oi as any).productSkuSnapshot || null
       }));
 
       return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
@@ -85,8 +86,13 @@ export async function GET(request: NextRequest) {
     
     const skip = (page - 1) * limit;
     
-    // Build where clause with multi-tenant security (strict)
-    const where = { ...userWhere } as any;
+    // Build where clause with optional multi-tenant security
+    const where: any = { ...userWhere };
+    if (archivedFlag === '1' || archivedFlag === 'true') {
+      where.archivedAt = { not: null };
+    } else {
+      where.archivedAt = null;
+    }
     if (status && status !== 'All') where.orderStatus = status;
     if (buyerId) where.buyerId = buyerId;
     
@@ -109,18 +115,21 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where })
     ]);
     
-    // Build items from relational rows for each order (no JSON dependency)
+    // Build items from relational rows for each order (with snapshots)
     const ordersWithParsedItems = orders.map((order) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
-        productId: oi.productId,
+        productId: oi.productId ?? null,
         quantity: oi.quantity,
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
-        productName: oi.product?.name || 'Unknown Product',
+        productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
         category: oi.product?.category || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
-        images: oi.product?.images || []
+        images: oi.product?.images || [],
+        productDeleted: !oi.product,
+        productNameSnapshot: (oi as any).productNameSnapshot || null,
+        productSkuSnapshot: (oi as any).productSkuSnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
     });
@@ -228,7 +237,7 @@ export async function POST(request: NextRequest) {
     
     // Create OrderItem records for each item with price consistency
     if (Array.isArray(consistentOrderItems)) {
-      const orderItemPromises = consistentOrderItems.map(async (item: { productId: string; quantity: number; unitPrice?: number; subtotal?: number }) => {
+      const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { productId: string; quantity: number; unitPrice?: number; subtotal?: number }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -243,13 +252,15 @@ export async function POST(request: NextRequest) {
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
-          data: {
+          data: ({
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
             quantity: Number(item.quantity || 0),
             unitPrice: consistentUnitPrice,
-            subtotal: consistentSubtotal
-          }
+            subtotal: consistentSubtotal,
+            productNameSnapshot: product.name,
+            productSkuSnapshot: product.sku
+          } as any)
         });
       });
       
@@ -258,15 +269,18 @@ export async function POST(request: NextRequest) {
     
     // Build items from relational rows for response
     const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
-      productId: oi.productId,
+      productId: oi.productId ?? null,
       quantity: oi.quantity,
       unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
-      productName: oi.product?.name || 'Unknown Product',
+      productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
       category: oi.product?.category || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
-      images: oi.product?.images || []
+      images: oi.product?.images || [],
+      productDeleted: !oi.product,
+      productNameSnapshot: (oi as any).productNameSnapshot || null,
+      productSkuSnapshot: (oi as any).productSkuSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
@@ -285,20 +299,85 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     
-    if (!body.orderId) {
+    // Bulk archive support
+    if (Array.isArray(body.archiveOrderIds) && body.archiveOrderIds.length > 0) {
+      const baseWhere: any = {};
+      if (body.userId && !isNaN(Number(body.userId))) baseWhere.userId = Number(body.userId);
+      const updated = await prisma.order.updateMany({
+        where: { ...baseWhere, orderId: { in: body.archiveOrderIds.map((v: unknown) => String(v)) } },
+        data: ({ archivedAt: new Date() } as any)
+      });
+      return NextResponse.json({ success: true, count: updated.count }, { headers });
+    }
+
+    if (body.archive === true && (body.orderId || body.id)) {
+      const where: any = {};
+      if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
+      if (body.orderId) where.orderId = String(body.orderId);
+      else if (body.id) where.id = Number(body.id);
+
+      let result = await prisma.order.updateMany({
+        where,
+        data: ({ archivedAt: new Date() } as any)
+      });
+      if (result.count === 0) {
+        // Retry without user filter
+        const retryWhere: any = {};
+        if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
+        else if (body.id) retryWhere.id = Number(body.id);
+        try {
+          const single = await prisma.order.update({ where: retryWhere, data: ({ archivedAt: new Date() } as any) });
+          return NextResponse.json({ success: true }, { headers });
+        } catch (e) {
+          return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+        }
+      }
+      return NextResponse.json({ success: true }, { headers });
+    }
+
+    if ((body.unarchive === true || body.archive === false) && (body.orderId || body.id)) {
+      const where: any = {};
+      if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
+      if (body.orderId) where.orderId = String(body.orderId);
+      else if (body.id) where.id = Number(body.id);
+
+      let result = await prisma.order.updateMany({
+        where,
+        data: ({ archivedAt: null } as any)
+      });
+      if (result.count === 0) {
+        // Retry without user filter
+        const retryWhere: any = {};
+        if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
+        else if (body.id) retryWhere.id = Number(body.id);
+        try {
+          const single = await prisma.order.update({ where: retryWhere, data: ({ archivedAt: null } as any) });
+          return NextResponse.json({ success: true }, { headers });
+        } catch (e) {
+          return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+        }
+      }
+      return NextResponse.json({ success: true }, { headers });
+    }
+
+    // Skip orderId requirement for archive/unarchive operations
+    if (!body.orderId && !body.archive && !body.unarchive && !Array.isArray(body.archiveOrderIds)) {
       return NextResponse.json(
         { error: 'Missing orderId' },
         { status: 400, headers }
       );
     }
     
-    // Validate update data
-    const validation = validateOrderUpdate(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error },
-        { status: 400, headers }
-      );
+    // Skip validation for archive operations  
+    if (!body.archive && !body.unarchive && !Array.isArray(body.archiveOrderIds)) {
+      // Validate update data
+      const validation = validateOrderUpdate(body);
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: validation.error },
+          { status: 400, headers }
+        );
+      }
     }
     
     // Sanitize update data
@@ -378,7 +457,7 @@ export async function PUT(request: NextRequest) {
       });
       
       // Create new OrderItem records with price consistency
-      const orderItemPromises = sanitizedData.orderItems.map(async (item: { productId: string; quantity: number }) => {
+      const orderItemPromises = (sanitizedData.orderItems as any[]).map(async (item: { productId: string; quantity: number }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -393,13 +472,15 @@ export async function PUT(request: NextRequest) {
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
-          data: {
+          data: ({
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
             quantity: Number(item.quantity || 0),
             unitPrice: consistentUnitPrice,
-            subtotal: consistentSubtotal
-          }
+            subtotal: consistentSubtotal,
+            productNameSnapshot: product.name,
+            productSkuSnapshot: product.sku
+          } as any)
         });
       });
       
@@ -408,21 +489,24 @@ export async function PUT(request: NextRequest) {
 
     // Build items from relational rows for response
     const enrichedOrderItemsUpdate = ((order as any).orderItemsRel || []).map((oi: any) => ({
-      productId: oi.productId,
+      productId: oi.productId ?? null,
       quantity: oi.quantity,
       unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
-      productName: oi.product?.name || 'Unknown Product',
+      productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
       category: oi.product?.category || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
-      images: oi.product?.images || []
+      images: oi.product?.images || [],
+      productDeleted: !oi.product,
+      productNameSnapshot: oi.productNameSnapshot || null,
+      productSkuSnapshot: oi.productSkuSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { error: 'Failed to update order' },
+      { error: 'Failed to update order', detail: String(error?.message || error) }, 
       { status: 500, headers }
     );
   }

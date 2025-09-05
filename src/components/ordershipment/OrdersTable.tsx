@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Archive } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong, formatNumber } from '@/utils/dateUtils';
@@ -88,7 +88,7 @@ export default function OrdersTable({
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // stores orderId values
   
   // Handle tab indicator animation
   useLayoutEffect(() => {
@@ -172,8 +172,28 @@ export default function OrdersTable({
     if (selectedOrders.length === pagedOrders.length) {
       setSelectedOrders([]);
     } else {
-      setSelectedOrders(pagedOrders.map(order => order.id));
+      setSelectedOrders(pagedOrders.map(order => order.orderId));
     }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      const successes: string[] = [];
+      for (const orderId of selectedOrders) {
+        const row = pagedOrders.find(o => o.orderId === orderId);
+        const res = await fetch('/api/orders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, id: row ? Number(row.id) : undefined, archive: true, userId: user?.id })
+        });
+        if (res.ok) successes.push(orderId);
+      }
+      if (successes.length > 0 && setOrders) {
+        setOrders(prev => prev.filter(o => !successes.includes(o.orderId)));
+      }
+      setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
+    } catch {}
   };
 
   return (
@@ -265,7 +285,24 @@ export default function OrdersTable({
           </div>
         </div>
       </div>
-
+      
+      {/* Bulk Action Bar - match ProductTable style */}
+      {selectedOrders.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2 flex items-center justify-between">
+          <div className="text-white text-sm font-semibold">
+            {selectedOrders.length} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkArchive}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              <Archive className="w-4 h-4" /> Archive Orders
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="overflow-x-auto hidden md:block rounded-lg">
         <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
           <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -301,24 +338,24 @@ export default function OrdersTable({
           <tbody className="bg-white">
             {pagedOrders.map((order) => (
               <tr 
-                key={order.id} 
+                key={order.orderId} 
                 className={`border-b transition cursor-pointer ${
-                  selectedOrders.includes(order.id) 
+                  selectedOrders.includes(order.orderId) 
                     ? 'bg-blue-50' 
                     : 'hover:bg-gray-50'
                 }`} 
-                onClick={(e) => handleRowClick(order.id, e)}
+                onClick={(e) => handleRowClick(order.orderId, e)}
               >
                 <td className="py-3 px-4 text-xs">
                   <button
-                    onClick={() => handleOrderSelect(order.id)}
+                    onClick={() => handleOrderSelect(order.orderId)}
                     className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                      selectedOrders.includes(order.id)
+                      selectedOrders.includes(order.orderId)
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
                     }`}
                   >
-                    {selectedOrders.includes(order.id) && (
+                    {selectedOrders.includes(order.orderId) && (
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -384,28 +421,28 @@ export default function OrdersTable({
         <div className="flex flex-col gap-4">
           {pagedOrders.map(order => (
             <div 
-              key={order.id} 
+              key={order.orderId} 
               className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
-                selectedOrders.includes(order.id) 
+                selectedOrders.includes(order.orderId) 
                   ? 'bg-blue-50' 
                   : 'bg-white hover:bg-gray-50'
               }`}
-              onClick={() => handleOrderSelect(order.id)}
+              onClick={() => handleOrderSelect(order.orderId)}
             >
               {/* Checkbox - Top Right Corner */}
               <div className="absolute top-3 right-3 z-10">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleOrderSelect(order.id);
+                    handleOrderSelect(order.orderId);
                   }}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    selectedOrders.includes(order.id)
+                    selectedOrders.includes(order.orderId)
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
                 >
-                  {selectedOrders.includes(order.id) && (
+                  {selectedOrders.includes(order.orderId) && (
                     <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>

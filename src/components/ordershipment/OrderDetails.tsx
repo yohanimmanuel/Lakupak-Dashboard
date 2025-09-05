@@ -351,12 +351,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <div className="flex-1">
                     <h3 
                       className="text-sm font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
-                      onClick={() => window.location.href = `/products/catalog/${item.productId}`}
+                      onClick={() => {
+                        const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
+                        window.location.href = href;
+                      }}
                       title="Click to view product details"
                     >
                       {item.productName}
                     </h3>
-                    <p className="text-xs text-gray-600">SKU: {item.productId}</p>
+                    <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
                     <p className="text-xs text-gray-600">Category: {item.category || 'Uncategorized'}</p>
                   </div>
                   
@@ -412,7 +415,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <td className="py-2">
                         <span 
                           className="font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
-                          onClick={() => window.location.href = `/products/catalog/${item.productId}`}
+                          onClick={() => {
+                            const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
+                            window.location.href = href;
+                          }}
                           title="Click to view product details"
                         >
                           {item.productName}
