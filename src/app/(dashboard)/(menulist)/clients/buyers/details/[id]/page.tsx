@@ -30,6 +30,14 @@ export default function BuyerDetailsPage() {
     }
   );
 
+  // Redirect to deleted page if API indicates missing buyer
+  useEffect(() => {
+    if (buyer && (buyer.error === 'Buyer not found' || buyer === null)) {
+      const ref = encodeURIComponent(String(id || ''));
+      window.location.href = `/clients/buyers/deleted?id=${ref}`;
+    }
+  }, [buyer, id]);
+
   // Enhanced error handling and loading states
   if (!user?.id || !id) {
     return (
@@ -70,12 +78,13 @@ export default function BuyerDetailsPage() {
     );
   }
 
-  if (!buyer || buyer.error) {
+  if (!buyer || buyer.error === 'Buyer not found') {
+    // Fallback UI in case redirect didn't happen
     return (
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
-          <div className="text-gray-500 text-lg font-semibold mb-2">Buyer Not Found</div>
-          <div className="text-gray-600">The requested buyer could not be found or you don&apos;t have permission to view it.</div>
+          <div className="text-gray-500 text-lg font-semibold mb-2">Buyer has been deleted</div>
+          <div className="text-gray-600">Redirecting to deleted notice...</div>
         </div>
       </div>
     );

@@ -58,13 +58,14 @@ export async function GET(request: NextRequest) {
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
         productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || 'Uncategorized',
+        category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
         productDeleted: !oi.product,
         productNameSnapshot: (oi as any).productNameSnapshot || null,
-        productSkuSnapshot: (oi as any).productSkuSnapshot || null
+        productSkuSnapshot: (oi as any).productSkuSnapshot || null,
+        productCategorySnapshot: (oi as any).productCategorySnapshot || null
       }));
 
       return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
@@ -123,13 +124,14 @@ export async function GET(request: NextRequest) {
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
         productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || 'Uncategorized',
+        category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
         productDeleted: !oi.product,
         productNameSnapshot: (oi as any).productNameSnapshot || null,
-        productSkuSnapshot: (oi as any).productSkuSnapshot || null
+        productSkuSnapshot: (oi as any).productSkuSnapshot || null,
+        productCategorySnapshot: (oi as any).productCategorySnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
     });
@@ -189,7 +191,9 @@ export async function POST(request: NextRequest) {
     const orderData = {
       orderId: String(sanitizedData.orderId),
       buyerId: String(sanitizedData.buyerId || ''),
+      buyerIdSnapshot: String(sanitizedData.buyerId || ''),
       orderDate: new Date(String(sanitizedData.orderDate || new Date())),
+      orderDateSnapshot: new Date(String(sanitizedData.orderDate || new Date())),
       orderStatus: String(sanitizedData.orderStatus || 'Pending'),
       paymentStatus: String(sanitizedData.paymentStatus || 'Unpaid'),
       deliveryMethod: String(sanitizedData.deliveryMethod || 'Distributor Fleet'),
@@ -201,10 +205,15 @@ export async function POST(request: NextRequest) {
       paymentTerms: String(sanitizedData.paymentTerms || ''),
       totalOrders: totalQtyCalc,
       contactPerson: String(sanitizedData.contactPerson || ''),
+      contactPersonSnapshot: String(sanitizedData.contactPerson || ''),
       storeName: String(sanitizedData.storeName || ''),
+      storeNameSnapshot: String(sanitizedData.storeName || ''),
       contactPhone: String(sanitizedData.contactPhone || ''),
+      contactPhoneSnapshot: String(sanitizedData.contactPhone || ''),
       customerEmail: sanitizedData.customerEmail ? String(sanitizedData.customerEmail) : null,
+      customerEmailSnapshot: sanitizedData.customerEmail ? String(sanitizedData.customerEmail) : null,
       deliveryAddress: String(sanitizedData.deliveryAddress || ''),
+      deliveryAddressSnapshot: String(sanitizedData.deliveryAddress || ''),
       preferredDeliveryTime: sanitizedData.preferredDeliveryTime ? String(sanitizedData.preferredDeliveryTime) : null,
       assignedLogistics: sanitizedData.assignedLogistics ? String(sanitizedData.assignedLogistics) : null,
       trackingNumber: sanitizedData.trackingNumber ? String(sanitizedData.trackingNumber) : null,
@@ -259,7 +268,8 @@ export async function POST(request: NextRequest) {
             unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal,
             productNameSnapshot: product.name,
-            productSkuSnapshot: product.sku
+            productSkuSnapshot: product.sku,
+            productCategorySnapshot: product.category
           } as any)
         });
       });
@@ -479,7 +489,8 @@ export async function PUT(request: NextRequest) {
             unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal,
             productNameSnapshot: product.name,
-            productSkuSnapshot: product.sku
+            productSkuSnapshot: product.sku,
+            productCategorySnapshot: product.category
           } as any)
         });
       });

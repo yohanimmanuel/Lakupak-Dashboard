@@ -31,6 +31,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     pod: (order as any).pod || ''
   });
   const [podFileName, setPodFileName] = useState<string>('');
+  
+  // Use buyerId snapshot when buyer is deleted (FK set null)
+  const buyerIdDisplay = (order as any).buyerId || (order as any).buyerIdSnapshot || '';
+  const buyerHref = (order as any).buyerId
+    ? `/clients/buyers/details/${buyerIdDisplay}`
+    : `/clients/buyers/deleted?id=${buyerIdDisplay}`;
+
+  // Snapshot fallbacks for buyer-related display fields
+  const contactPersonDisplay = (order as any).buyerId ? order.contactPerson : ((order as any).contactPersonSnapshot || order.contactPerson);
+  const storeNameDisplay = (order as any).buyerId ? order.storeName : ((order as any).storeNameSnapshot || order.storeName);
+  const contactPhoneDisplay = (order as any).buyerId ? order.contactPhone : ((order as any).contactPhoneSnapshot || order.contactPhone);
+  const customerEmailDisplay = (order as any).buyerId ? order.customerEmail : ((order as any).customerEmailSnapshot || order.customerEmail);
+  const orderDateDisplay = (order as any).buyerId ? order.orderDate : ((order as any).orderDateSnapshot || order.orderDate);
+  const deliveryAddressDisplay = (order as any).buyerId ? order.deliveryAddress : ((order as any).deliveryAddressSnapshot || order.deliveryAddress);
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -175,34 +189,34 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {order.contactPerson}
+                  {contactPersonDisplay}
                   <span
                     className="ml-2 text-[#0a61d7] text-sm font-semibold cursor-pointer hover:text-blue-800"
                     title="View buyer profile"
-                    onClick={() => window.location.href = `/clients/buyers/details/${order.buyerId}`}
+                    onClick={() => { if (buyerIdDisplay) window.location.href = buyerHref; }}
                   >
-                    ({order.buyerId})
+                    ({buyerIdDisplay})
                   </span>
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-xs">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-gray-600">Store Name:</span>
-                      <span className="text-black font-medium">{order.storeName}</span>
+                      <span className="text-black font-medium">{storeNameDisplay}</span>
                     </div>
                     <div className='flex items-center justify-between gap-2'>
                       <span className="text-gray-600">Phone:</span>
-                      <span className="text-black font-medium">{order.contactPhone}</span>
+                      <span className="text-black font-medium">{contactPhoneDisplay}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className='flex items-center justify-between gap-2'>
                       <span className="text-gray-600">Email:</span>
-                      <span className="text-black font-medium">{order.customerEmail || 'N/A'}</span>
+                      <span className="text-black font-medium">{customerEmailDisplay || 'N/A'}</span>
                     </div>
                     <div className='flex items-center justify-between gap-2'>
                       <span className="text-gray-600">Order Date:</span>
-                      <span className="text-black font-medium">{order.orderDate.toLocaleDateString()}</span>
+                      <span className="text-black font-medium">{(orderDateDisplay instanceof Date ? orderDateDisplay : new Date(orderDateDisplay)).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -305,8 +319,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
             {/* Store & Address */}
             <div className="mb-4 border-b border-gray-200 pb-4 mb-4">
-              <span className="font-semibold text-sm text-black">{order.storeName}</span>
-              <p className="text-xs font-medium text-gray-600 mt-1">{order.deliveryAddress}</p>
+              <span className="font-semibold text-sm text-black">{storeNameDisplay}</span>
+              <p className="text-xs font-medium text-gray-600 mt-1">{deliveryAddressDisplay}</p>
               <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
             </div>
 
