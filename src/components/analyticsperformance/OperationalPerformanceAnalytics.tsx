@@ -1152,7 +1152,10 @@ export const ProcessingTimeTrendChart: React.FC<{
             cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
           />
           <Bar yAxisId="orders" dataKey="totalOrders" fill="url(#processingGradientMain)" name="totalOrders" radius={[4, 4, 0, 0]} maxBarSize={30} />
-          <Line yAxisId="time" type="monotone" dataKey="avgProcessingTime" stroke="#0a61d7" strokeWidth={3} name="avgProcessingTime" />
+          <Line yAxisId="time" type="monotone" dataKey="avgProcessingTime" stroke="#0a61d7" strokeWidth={3} name="avgProcessingTime" 
+            dot={{ fill: '#0a61d7', strokeWidth: 2, r: 4, stroke: 'white' }}
+            activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 3, fill: 'white' }}
+          />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
