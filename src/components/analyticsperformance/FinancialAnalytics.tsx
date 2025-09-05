@@ -181,78 +181,48 @@ const FinancialAnalytics: React.FC = () => {
       };
     }
 
-    let totalRevenue = 0;
-    let totalProfit = 0;
-    const uniqueProducts = new Set();
-    const uniqueBuyers = new Set();
-    const productMargins: { [key: string]: number } = {};
+    // Use consistent revenue calculation with Orders module
+    const totalRevenue = calculateTotalRevenue(orders, products);
 
-    // First pass: Calculate individual product margins
-    products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-      
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        // Calculate margin percentage for this specific product
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
+    // Build quick lookup for product purchase prices (as numbers)
+    const productCostById: Record<string, number> = {};
+    products.forEach(p => {
+      const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+      if (!isNaN(cost) && cost > 0) {
+        productCostById[p.productId] = cost;
       }
     });
 
-    // Second pass: Calculate revenue and profit using actual product margins
+    // Compute precise profit based on recorded costs only (no estimates)
+    let totalProfit = 0;
+    const uniqueProducts = new Set();
+    const uniqueBuyers = new Set();
+
+    // Collect unique products and buyers
     orders.forEach(order => {
-      uniqueBuyers.add(order.buyerId);
+      if (order.buyerId) {
+        uniqueBuyers.add(order.buyerId);
+      }
       
+      // Compute order-level profit components
+      let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
-          uniqueProducts.add(item.productId);
-          
-          // Find the product to get actual purchase and selling prices
-          const product = products.find(p => p.productId === item.productId);
-          
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Use actual product prices
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
-              const itemProfit = itemRevenue - itemCost;
-              
-              totalRevenue += itemRevenue;
-              totalProfit += itemProfit;
-            } else {
-              // Fallback to order total if product prices are invalid
-              const orderAmount = parseFloat(String(order.totalAmount || 0));
-              totalRevenue += orderAmount;
-              // Use average margin from other products, otherwise 0% if available, otherwise 0%
-              const avgMargin = Object.values(productMargins).length > 0 
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 0; // Default 0% if no margins calculated
-              totalProfit += orderAmount * (avgMargin / 100);
-            }
-          } else {
-            // Fallback to order total if product not found
-            const orderAmount = parseFloat(String(order.totalAmount || 0));
-            totalRevenue += orderAmount;
-            // Use average margin from other products, otherwise 0% if available, otherwise 0%
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0; // Default 0% if no margins calculated
-            totalProfit += orderAmount * (avgMargin / 100);
+          const pid = item.productId;
+          if (!pid) { return; }
+          const cost = productCostById[pid];
+          // Only include COGS when product exists and purchasePrice > 0
+          if (typeof cost === 'number' && cost > 0) {
+            orderCogs += cost * item.quantity;
+            uniqueProducts.add(pid);
           }
         });
-      } else {
-        // Fallback to order total if orderItems not available
-        const orderAmount = parseFloat(String(order.totalAmount || 0));
-        totalRevenue += orderAmount;
-        // Use average margin from other products if available, otherwise 0%
-        const avgMargin = Object.values(productMargins).length > 0 
-          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 0; // Default 0% if no margins calculated
-        totalProfit += orderAmount * (avgMargin / 100);
       }
+
+      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
+      const orderRevenue = parseFloat(String(order.totalAmount || 0));
+      const orderProfit = orderRevenue - orderCogs - shippingExpense;
+      totalProfit += orderProfit;
     });
 
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
@@ -399,7 +369,9 @@ const FinancialAnalytics: React.FC = () => {
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
-          const productId = item.productId;
+          const pid = item.productId;
+          if (!pid) { return; }
+          const productId = pid as string;
           if (!productStats[productId]) {
             // Find the product to get its name and category
             const product = products.find(p => p.productId === productId);
@@ -422,7 +394,7 @@ const FinancialAnalytics: React.FC = () => {
           }
           
           // Calculate actual revenue and profit using product prices
-          const product = products.find(p => p.productId === item.productId);
+          const product = products.find(p => p.productId === productId);
           
           if (product) {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
@@ -480,26 +452,22 @@ const FinancialAnalytics: React.FC = () => {
     }).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
   }, [orders, products, hasData]);
 
-  // Calculate real cash flow data using actual product margins
+  // Calculate cash flow data: inflows from totalAmount; outflows from COGS (valid purchasePrice only) + shipping (3rd-Party Courier only)
   const cashFlowData: CashFlowData[] = useMemo(() => {
     if (!hasData || orders.length === 0) {
       return [];
     }
 
-    const monthlyFlow: { [key: string]: { inflows: number; outflows: number; label: string } } = {};
-    
-    // Calculate product margins first
-    const productMargins: { [key: string]: number } = {};
-    products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-      
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
+    // Precompute product costs
+    const productCostById: Record<string, number> = {};
+    products.forEach(p => {
+      const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+      if (!isNaN(cost) && cost > 0) {
+        productCostById[p.productId] = cost;
       }
     });
-    
+
+    const monthlyFlow: { [key: string]: { inflows: number; outflows: number; label: string } } = {};
     orders.forEach(order => {
       const date = new Date(order.orderDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
@@ -509,55 +477,23 @@ const FinancialAnalytics: React.FC = () => {
         monthlyFlow[key] = { inflows: 0, outflows: 0, label };
       }
       
-      // Calculate actual inflows and outflows from order items
+      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      monthlyFlow[key].inflows += orderAmount;
+
+      // Compute COGS for this order
+      let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
-          const product = products.find(p => p.productId === item.productId);
-          
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Inflows from sales (revenue)
-              monthlyFlow[key].inflows += sellingPrice * item.quantity;
-              
-              // Outflows from cost of goods sold
-              monthlyFlow[key].outflows += purchasePrice * item.quantity;
-            } else {
-              // Fallback to order total if product prices are invalid
-              const orderAmount = parseFloat(String(order.totalAmount || 0));
-              monthlyFlow[key].inflows += orderAmount;
-              // Use average margin to calculate cost
-              const avgMargin = Object.values(productMargins).length > 0 
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 0;
-              const costRatio = (100 - avgMargin) / 100;
-              monthlyFlow[key].outflows += orderAmount * costRatio;
-            }
-          } else {
-            // Fallback to order total if product not found
-            const orderAmount = parseFloat(String(order.totalAmount || 0));
-            monthlyFlow[key].inflows += orderAmount;
-            // Use average margin to calculate cost
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            const costRatio = (100 - avgMargin) / 100;
-            monthlyFlow[key].outflows += orderAmount * costRatio;
+          const pid = item.productId;
+          if (!pid) { return; }
+          const cost = productCostById[pid];
+          if (typeof cost === 'number' && cost > 0) {
+            orderCogs += cost * item.quantity;
           }
         });
-      } else {
-        // Fallback to order total if orderItems not available
-        const orderAmount = parseFloat(String(order.totalAmount || 0));
-        monthlyFlow[key].inflows += orderAmount;
-        // Use average margin to calculate cost
-        const avgMargin = Object.values(productMargins).length > 0 
-          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 0;
-        const costRatio = (100 - avgMargin) / 100;
-        monthlyFlow[key].outflows += orderAmount * costRatio;
       }
+      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
+      monthlyFlow[key].outflows += (orderCogs + shippingExpense);
     });
 
     const sorted = Object.entries(monthlyFlow)
@@ -1358,19 +1294,16 @@ export const calculateRevenueData = (
     return [];
   }
 
-  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
-  
-  // Calculate product margins first
-  const productMargins: { [key: string]: number } = {};
-  products.forEach(product => {
-    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-    
-    if (sellingPrice > 0 && purchasePrice > 0) {
-      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-      productMargins[product.productId] = margin;
+  // Precompute product costs from recorded data only (no estimates)
+  const productCostById: Record<string, number> = {};
+  products.forEach(p => {
+    const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+    if (!isNaN(cost) && cost > 0) {
+      productCostById[p.productId] = cost;
     }
   });
+
+  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
   
   orders.forEach(order => {
     const date = new Date(order.orderDate);
@@ -1383,53 +1316,25 @@ export const calculateRevenueData = (
     
     monthlyData[key].orders += 1;
     
-    // Calculate actual revenue and profit from order items
+    // Use order totals to match Orders module
+    const orderAmount = parseFloat(String(order.totalAmount || 0));
+    monthlyData[key].revenue += orderAmount;
+
+    // Compute actual profit = revenue - COGS - shipping(if 3rd-party)
+    let orderCogs = 0;
     if (order.orderItems && Array.isArray(order.orderItems)) {
       order.orderItems.forEach(item => {
-        const product = products.find(p => p.productId === item.productId);
-        
-        if (product) {
-          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-          
-          if (sellingPrice > 0 && purchasePrice > 0) {
-            const itemRevenue = sellingPrice * item.quantity;
-            const itemCost = purchasePrice * item.quantity;
-            const itemProfit = itemRevenue - itemCost;
-            
-            monthlyData[key].revenue += itemRevenue;
-            monthlyData[key].profit += itemProfit;
-          } else {
-            // Fallback to order total if product prices are invalid
-            const orderAmount = parseFloat(String(order.totalAmount || 0));
-            monthlyData[key].revenue += orderAmount;
-            // Use average margin from other products, otherwise 0%
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            monthlyData[key].profit += orderAmount * (avgMargin / 100);
-          }
-        } else {
-          // Fallback to order total if product not found
-          const orderAmount = parseFloat(String(order.totalAmount || 0));
-          monthlyData[key].revenue += orderAmount;
-          // Use average margin from other products
-          const avgMargin = Object.values(productMargins).length > 0 
-            ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-            : 30;
-          monthlyData[key].profit += orderAmount * (avgMargin / 100);
+        const pid = item.productId;
+        if (!pid) { return; }
+        const cost = productCostById[pid];
+        if (typeof cost === 'number' && cost > 0) {
+          orderCogs += cost * item.quantity;
         }
       });
-    } else {
-      // Fallback to order total if orderItems not available
-      const orderAmount = parseFloat(String(order.totalAmount || 0));
-      monthlyData[key].revenue += orderAmount;
-      // Use average margin from other products
-      const avgMargin = Object.values(productMargins).length > 0 
-        ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-        : 30;
-      monthlyData[key].profit += orderAmount * (avgMargin / 100);
     }
+    const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
+    const orderProfit = orderAmount - orderCogs - shippingExpense;
+    monthlyData[key].profit += orderProfit;
   });
 
   const sorted = Object.entries(monthlyData)
@@ -1441,53 +1346,9 @@ export const calculateRevenueData = (
 };
 
 // Shared function to calculate total revenue from orders and products
-export const calculateTotalRevenue = (orders: Order[], products: Product[]): number => {
-  let totalRevenue = 0;
-  const productMargins: { [key: string]: number } = {};
-
-  // First pass: Calculate individual product margins
-  products.forEach(product => {
-    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-    
-    if (sellingPrice > 0 && purchasePrice > 0) {
-      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-      productMargins[product.productId] = margin;
-    }
-  });
-
-  // Second pass: Calculate revenue using actual product margins
-  orders.forEach(order => {
-    if (order.orderItems && Array.isArray(order.orderItems)) {
-      order.orderItems.forEach(item => {
-        const product = products.find(p => p.productId === item.productId);
-        
-        if (product) {
-          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-          
-          if (sellingPrice > 0 && purchasePrice > 0) {
-            const itemRevenue = sellingPrice * item.quantity;
-            totalRevenue += itemRevenue;
-          } else {
-            // Fallback to order total if product prices are invalid
-            const orderAmount = parseFloat(String(order.totalAmount || 0));
-            totalRevenue += orderAmount;
-          }
-        } else {
-          // Fallback to order total if product not found
-          const orderAmount = parseFloat(String(order.totalAmount || 0));
-          totalRevenue += orderAmount;
-        }
-      });
-    } else {
-      // Fallback to order total if orderItems not available
-      const orderAmount = parseFloat(String(order.totalAmount || 0));
-      totalRevenue += orderAmount;
-    }
-  });
-
-  return totalRevenue;
+export const calculateTotalRevenue = (orders: Order[], _products: Product[]): number => {
+  // Match Orders module: sum full order totals (includes shipping, taxes, discounts)
+  return orders.reduce((sum, order) => sum + parseFloat(String(order.totalAmount || 0)), 0);
 };
 
 export default FinancialAnalytics;
@@ -1529,8 +1390,11 @@ export const calculateTopProducts = (
   orders.forEach(order => {
     if (order.orderItems && Array.isArray(order.orderItems)) {
       order.orderItems.forEach(item => {
-        const productId = item.productId;
+        const pid = item.productId;
+        if (!pid) { return; }
+        const productId = pid as string;
         const product = products.find(p => p.productId === productId);
+        if (!product) { return; }
         if (!productStats[productId]) {
           const category = item.category || product?.category || 'Uncategorized';
           productStats[productId] = {

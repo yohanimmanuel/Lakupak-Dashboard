@@ -31,6 +31,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     pod: (order as any).pod || ''
   });
   const [podFileName, setPodFileName] = useState<string>('');
+  const [showPodPreview, setShowPodPreview] = useState(false);
   
   // Use buyerId snapshot when buyer is deleted (FK set null)
   const buyerIdDisplay = (order as any).buyerId || (order as any).buyerIdSnapshot || '';
@@ -324,26 +325,33 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
             </div>
 
-            {/* Rating Section */}
-            <div className="text-xs text-gray-600">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span>The shop's rating is</span>
-                <span className="text-3xl font-semibold text-black">4.8</span>
+            {/* Proof of Delivery Preview */}
+            {((order as any).pod) ? (
+              <div className="mb-4">
+                <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
+                {String((order as any).pod).startsWith('data:') ? (
+                  <button
+                    className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                    onClick={() => setShowPodPreview(true)}
+                  >
+                    View Proof of Delivery
+                  </button>
+                ) : (
+                  <a
+                    href={(order as any).pod as string}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                  >
+                    View Proof of Delivery
+                  </a>
+                )}
               </div>
-              <div className="flex items-center justify-between gap-2 mt-2">
-                <span className="text-xs text-gray-600">Based on 23 reviews</span>
-                <div className="flex items-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= 4 ? 'text-yellow-500 fill-current' : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
+            ) : (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600">
+                Proof of delivery will be shown here once the order status is set to <span className="font-semibold text-green-600">Delivered</span> and a proof of delivery file has been uploaded via <span className="font-semibold">Edit</span>.
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -631,11 +639,30 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 {orderStatus === 'Delivered' && (
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500">Proof of Delivery (POD)</label>
-                    <div className="mt-1 flex items-center gap-3">
+                    <div
+                      className="mt-1 p-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-center cursor-pointer select-none"
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (!file) return;
+                        setPodFileName(file.name);
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setFormFields({ ...formFields, pod: String(reader.result || '') });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      onClick={() => document.getElementById('pod-file-input')?.click()}
+                      role="button"
+                      aria-label="Upload proof of delivery by clicking or dragging a file"
+                    >
                       <input
+                        id="pod-file-input"
                         type="file"
                         accept="image/*,application/pdf"
-                        className="text-xs"
+                        className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -647,9 +674,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           reader.readAsDataURL(file);
                         }}
                       />
-                      {podFileName && <span className="text-xs text-gray-600">{podFileName}</span>}
+                      <div className="text-xs text-gray-600">
+                        {podFileName ? (
+                          <span className="font-medium">POD selected: {podFileName}</span>
+                        ) : formFields.pod ? (
+                          <span className="font-medium">Existing POD selected</span>
+                        ) : (
+                          <>
+                            <span className="font-medium text-gray-700">Drag & drop</span> a file here, or <span className="text-[#0a61d7] font-semibold">browse</span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-1">Accepted: JPG, PNG, PDF.</p>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1">Accepted: JPG, PNG, PDF.</p>
                   </div>
                 )}
               </div>
@@ -694,6 +731,23 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POD Preview Modal */}
+      {showPodPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full overflow-hidden">
+            <div className="flex items-center justify-between p-3 border-b">
+              <div className="text-lg font-semibold text-black">Proof of Delivery</div>
+              <button className="p-2 text-gray-700 hover:bg-gray-100 rounded" onClick={() => setShowPodPreview(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center">
+              <img src={(order as any).pod as string} alt="Proof of Delivery" className="max-h-[80vh] rounded border" />
             </div>
           </div>
         </div>

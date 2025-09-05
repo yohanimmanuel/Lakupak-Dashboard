@@ -86,11 +86,9 @@ export const calculateSalesMetrics = (
 		if (order.orderItems && Array.isArray(order.orderItems)) {
 			order.orderItems.forEach(item => {
 				totalUnitsSold += item.quantity;
-				const product = products.find(p => p.productId === item.productId);
-				const unitPrice = product ? parseCurrencyToNumber(product.sellingPrice || '0') : item.unitPrice || 0;
-				revenueSum += unitPrice * item.quantity;
 			});
-		} else if (order.totalAmount) {
+		}
+		if (order.totalAmount) {
 			revenueSum += parseFloat(String(order.totalAmount));
 		}
 	});
@@ -275,31 +273,22 @@ const CustomerSalesAnalytics: React.FC = () => {
 			.slice(0, 8);
 	}, [orders, products, hasData]);
 
-	// Top customers by revenue
-	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; revenue: number };
+	// Top customers (exclude deleted/missing buyers)
+	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number };
 	const topCustomers: TopCustomer[] = useMemo(() => {
 		if (!hasData || orders.length === 0) return [] as TopCustomer[];
-		const map = new Map<string | number, { orders: number; revenue: number }>();
+		const map = new Map<string | number, { orders: number }>();
 		orders.forEach(o => {
-			let orderRevenue = 0;
-			if (o.orderItems && Array.isArray(o.orderItems)) {
-				o.orderItems.forEach(i => {
-					const prod = products.find(p => p.productId === i.productId);
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice || '0') : i.unitPrice || 0;
-					orderRevenue += unitPrice * i.quantity;
-				});
-			} else if (o.totalAmount) {
-				orderRevenue = parseFloat(String(o.totalAmount));
-			}
 			const buyerKey = String(o.buyerId);
-			const cur = map.get(buyerKey) || { orders: 0, revenue: 0 };
-			map.set(buyerKey, { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
+			const cur = map.get(buyerKey) || { orders: 0 };
+			map.set(buyerKey, { orders: cur.orders + 1 });
 		});
 		const buyerIndex = new Map<string, BuyerLite>();
 		buyers.forEach(b => buyerIndex.set(b.buyerId, b));
 		return Array.from(map.entries())
 			.map(([buyerId, v]) => {
 				const buyer = buyerIndex.get(String(buyerId));
+				if (!buyer) { return null; }
 				// Fallback: derive from any order with same buyerId
 				const orderForBuyer = orders.find(o => String(o.buyerId) === String(buyerId));
 				const orderDerivedName = orderForBuyer?.storeName || orderForBuyer?.contactPerson;
@@ -312,11 +301,11 @@ const CustomerSalesAnalytics: React.FC = () => {
 					buyerId,
 					name: displayName,
 					businessType: displayBusinessType,
-					orders: v.orders,
-					revenue: v.revenue
+					orders: v.orders
 				};
 			})
-			.sort((a, b) => b.revenue - a.revenue);
+			.filter((x): x is TopCustomer => x !== null)
+			.sort((a, b) => b.orders - a.orders);
 	}, [orders, products, buyers, hasData]);
 
 	// Pagination for Top Customers
@@ -461,17 +450,15 @@ const CustomerSalesAnalytics: React.FC = () => {
 								<th className="py-3 px-4 font-medium uppercase text-left">Name</th>
 								<th className="py-3 px-4 font-medium uppercase text-left">Business Type</th>
 								<th className="py-3 px-4 font-medium uppercase text-center">Orders</th>
-								<th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
 							</tr>
 						</thead>
 						<tbody className="bg-white">
 							{pagedCustomers.map((c, idx) => (
 								<tr key={idx} className="border-b transition-colors">
-									<td className="py-3 px-4 text-left text-black">{String(c.buyerId)}</td>
+									<td className="py-3 px-4 text-left text-black"><span className="cursor-pointer text-[#0a61d7] font-semibold hover:text-blue-800" onClick={() => (window.location.href = `/clients/buyers/details/${String(c.buyerId)}`)} title="View buyer profile">{String(c.buyerId)}</span></td>
 									<td className="py-3 px-4 text-left text-black">{c.name}</td>
 									<td className="py-3 px-4 text-left text-black">{c.businessType}</td>
 									<td className="py-3 px-4 text-center text-black">{c.orders}</td>
-									<td className="py-3 px-4 text-center font-semibold text-black">{formatCurrencyShared(c.revenue, userCurrency)}</td>
 								</tr>
 							))}
 						</tbody>
