@@ -116,6 +116,31 @@ export default function OrdersPage() {
     };
   };
 
+  // Export current orders to XLSX (parent-level export)
+  const exportOrdersXLSX = () => {
+    try {
+      // Shape rows with human-friendly headers
+      const rows = orders.map(o => ({
+        OrderID: o.orderId,
+        Buyer: o.contactPerson,
+        OrderDate: new Date(o.orderDate).toISOString().split('T')[0],
+        Status: o.orderStatus,
+        PaymentStatus: o.paymentStatus,
+        Items: o.orderItems.length,
+        TotalAmount: Number(calculateOrderTotalAmount(o)),
+        DeliveryMethod: o.deliveryMethod,
+        TrackingNumber: o.trackingNumber || ''
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+      XLSX.writeFile(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (_) {
+      // noop per user preference to avoid console logs
+    }
+  };
+
   const handleExportXLSX = (workbook: XLSX.WorkBook, filename: string) => {
     XLSX.writeFile(workbook, filename);
   };
@@ -149,10 +174,7 @@ export default function OrdersPage() {
                 Archived Orders
               </button>
               <button
-                onClick={() => handleExportXLSX(
-                  XLSX.utils.book_new(),
-                  `orders_${new Date().toISOString().split('T')[0]}.xlsx`
-                )}
+                onClick={exportOrdersXLSX}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
               >
                 <Download className="w-4 h-4" />
