@@ -12,6 +12,7 @@ import {
   SuccessMessage,
   LoadingButton
 } from '@/utils/auth-enhancements';
+import { signIn, signOut } from "next-auth/react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -182,11 +183,18 @@ export default function LoginPage() {
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex space-x-4">
-          <button className="flex-1 py-2 text-gray-500 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50">
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut({ redirect: false });
+              signIn('google', { 
+                callbackUrl: '/home',
+                prompt: 'select_account'
+              });
+            }}
+            className="flex-1 py-2 text-gray-500 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50"
+          >
             <img src="/google.svg" alt="Google" className="h-5 w-5 mr-2" /> Google
-          </button>
-          <button className="flex-1 py-2 text-gray-500 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50">
-            <img src="/apple.svg" alt="Apple" className="h-5 w-4 mr-2" /> Apple
           </button>
         </div>
         <p className="mt-6 text-center text-sm text-gray-500">

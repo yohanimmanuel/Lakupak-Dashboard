@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { signIn, signOut } from "next-auth/react";
 import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
 import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
@@ -389,6 +390,31 @@ export default function RegisterPage() {
               >
                 {step < 2 ? "Next" : "Create Account"}
               </LoadingButton>
+            </div>
+            
+            {/* Google Sign-in Option */}
+            <div className="mt-2">
+              <div className="flex items-center my-4">
+                <div className="flex-1 border-t border-gray-300"></div>
+                <span className="px-3 text-sm text-gray-500 bg-white">or</span>
+                <div className="flex-1 border-t border-gray-300"></div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut({ redirect: false });
+                  signIn('google', { 
+                    callbackUrl: '/home',
+                    prompt: 'select_account'
+                  });
+                }}
+                className="w-full py-2.5 px-4 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition-colors text-sm text-gray-700"
+                disabled={loading}
+              >
+                <img src="/google.svg" alt="Google" className="h-5 w-5 mr-3" />
+                Sign up with Google
+              </button>
             </div>
           </div>
         </form>
