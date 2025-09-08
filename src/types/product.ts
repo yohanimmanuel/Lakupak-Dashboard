@@ -18,6 +18,11 @@ export interface Product {
   images: string[];
   discount?: number;
   discountType?: string;
+  // Product assurance
+  halalCertified?: boolean;
+  bpomApproved?: boolean;
+  originalProduct?: boolean;
+  returnPolicyDays?: number;
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
@@ -81,6 +86,11 @@ export interface ProductFormData {
   images: string[];
   discount: number;
   discountType: string;
+  // Product assurance
+  halalCertified: boolean;
+  bpomApproved: boolean;
+  originalProduct: boolean;
+  returnPolicyDays: number;
 }
 
 export interface ProductStats {

@@ -170,6 +170,11 @@ export async function POST(req: NextRequest) {
       images: Array.isArray(data.images) ? data.images : [],
       discount: data.discount ? Number(data.discount) : null,
       discountType: data.discountType || null,
+      // Product assurance fields
+      halalCertified: data.halalCertified === true,
+      bpomApproved: data.bpomApproved === true,
+      originalProduct: data.originalProduct !== false,
+      returnPolicyDays: data.returnPolicyDays !== undefined ? Number(data.returnPolicyDays) : 7,
       userId: Number(data.userId)
     };
     
@@ -311,6 +316,10 @@ export async function PUT(req: NextRequest) {
       images: string[];
       discount: number | null;
       discountType: string | null;
+      halalCertified: boolean;
+      bpomApproved: boolean;
+      originalProduct: boolean;
+      returnPolicyDays: number;
     }> = {};
     if (updateData.sku !== undefined) cleanUpdateData.sku = String(updateData.sku);
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
@@ -329,6 +338,10 @@ export async function PUT(req: NextRequest) {
     if (updateData.images !== undefined) cleanUpdateData.images = Array.isArray(updateData.images) ? updateData.images : [];
     if (updateData.discount !== undefined) cleanUpdateData.discount = updateData.discount ? Number(updateData.discount) : 0;
     if (updateData.discountType !== undefined) cleanUpdateData.discountType = updateData.discountType ? String(updateData.discountType) : null;
+    if (updateData.halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(updateData.halalCertified);
+    if (updateData.bpomApproved !== undefined) cleanUpdateData.bpomApproved = Boolean(updateData.bpomApproved);
+    if (updateData.originalProduct !== undefined) cleanUpdateData.originalProduct = Boolean(updateData.originalProduct);
+    if (updateData.returnPolicyDays !== undefined) cleanUpdateData.returnPolicyDays = Number(updateData.returnPolicyDays);
     
     // PUT /api/products - Cleaned update data
     

@@ -95,6 +95,11 @@ model Product {
   images            String[]
   discount          Float?
   discountType      String?
+  // Product assurance fields
+  halalCertified    Boolean?    @default(false)
+  bpomApproved      Boolean?    @default(false)
+  originalProduct   Boolean?    @default(true)
+  returnPolicyDays  Int?        @default(7)
   createdAt         DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
   userId            Int?

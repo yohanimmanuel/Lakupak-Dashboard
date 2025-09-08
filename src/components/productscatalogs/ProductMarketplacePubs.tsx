@@ -344,10 +344,6 @@ export default function ProductMarketplacePubs({
                 <span className="text-sm text-gray-600">Unit:</span>
                 <span className="text-sm font-medium text-gray-900">Piece</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">MOQ:</span>
-                <span className="text-sm font-medium text-gray-900">1 piece</span>
-              </div>
             </div>
 
             {/* Description */}
