@@ -61,7 +61,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">{deliveredOrders}</div>
-            <div className="text-sm text-gray-600">Delivered Today</div>
+            <div className="text-sm text-gray-600">Delivered</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-orange-600">{pendingOrders}</div>
