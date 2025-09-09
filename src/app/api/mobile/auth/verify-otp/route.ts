@@ -43,36 +43,27 @@ export async function POST(req: NextRequest) {
 
     if (!verified) return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 })
 
-    // Upsert or find user by synthetic email derived from phone for mobile accounts
-    const email = profile?.email ?? undefined
-    const name = profile?.name ?? undefined
-    const address = profile?.address ?? undefined
+    // Marketplace user channel (separate from SaaS User)
+    const normalizedPhone = phone.startsWith('+') ? phone : `+${phone}`
+    const randomSuffix = Math.floor(10000000 + Math.random() * 90000000).toString()
+    const username = `user${randomSuffix}`
 
-    const mobileEmail = email ?? `${phone}@mobile.lakulaku`
-    let user = await prisma.user.findUnique({ where: { email: mobileEmail } })
-
+    // always look up by phone for phone-based registration/login
+    let muser = await prisma.marketplaceUser.findUnique({ where: { phone: normalizedPhone } })
     if (mode === 'login') {
-      if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
-      }
+      if (!muser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      // no profile field updates on login for phone-only flow
     } else {
-      // signup or default: create or update
-      user = await prisma.user.upsert({
-        where: { email: mobileEmail },
-        update: { name: name ?? undefined, address: address ?? undefined },
-        create: { email: mobileEmail, name: name ?? undefined, address: address ?? undefined },
+      muser = await prisma.marketplaceUser.create({
+        data: {
+          username,
+          phone: normalizedPhone,
+        },
       })
     }
 
-    // Ensure MarketplaceProfile exists and is linked
-    await prisma.marketplaceProfile.upsert({
-      where: { userId: user.id },
-      update: { phone: phone.startsWith('+') ? phone : `+${phone}`, country: countryCode ?? undefined },
-      create: { userId: user.id, phone: phone.startsWith('+') ? phone : `+${phone}`, country: countryCode ?? undefined },
-    })
-
-    const token = signAccessToken({ sub: user.id, phone })
-    return NextResponse.json({ token, user: { id: user.id, name: user.name, email: user.email, address: user.address } })
+    const token = signAccessToken({ sub: muser.id, phone: normalizedPhone })
+    return NextResponse.json({ token, user: { id: muser.id, username: muser.username, email: muser.email, phone: muser.phone, address: muser.address, country: muser.country, createdAt: muser.createdAt, updatedAt: muser.updatedAt } })
   } catch (err: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: err?.message || '' }, { status: 500 })
   }

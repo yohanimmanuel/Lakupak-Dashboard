@@ -33,7 +33,6 @@ model User {
   suppliers      Supplier[]
   accounts       Account[]
   sessions       Session[]
-  marketplace    MarketplaceProfile?
 }
 
 model Buyer {
@@ -109,13 +108,16 @@ model Product {
 }
 
 // Mobile marketplace profile (separates marketplace data from core User)
-model MarketplaceProfile {
+// Dedicated marketplace user (separate channel from SaaS dashboard)
+model MarketplaceUser {
   id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  user      User     @relation(fields: [userId], references: [id])
+  username  String   @unique
+  email     String?  @unique
+  password  String?
+  bio       String?
   phone     String   @unique
-  country   String?
   address   String?
+  country   String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
