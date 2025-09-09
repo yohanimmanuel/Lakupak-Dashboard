@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const payload = verifyAccessToken(token)
     const user = await prisma.marketplaceUser.findUnique({ where: { id: payload.sub } })
     if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json({ id: user.id, username: user.username, email: user.email, phone: user.phone, address: user.address, country: user.country, bio: user.bio })
+    return NextResponse.json({ id: user.id, username: user.username, name: user.name, email: user.email, phone: user.phone, chosenAddress: user.chosenAddress, country: user.country, bio: user.bio })
   } catch (err) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -29,21 +29,25 @@ export async function PATCH(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const payload = verifyAccessToken(token)
     const body = await req.json()
+    
     const updated = await prisma.marketplaceUser.update({
       where: { id: payload.sub },
       data: {
         username: body.username ?? undefined,
+        name: body.name ?? undefined,
+        storeName: body.storeName ?? undefined,
         email: body.email ?? undefined,
         bio: body.bio ?? undefined,
         phone: body.phone ?? undefined,
-        address: body.address ?? undefined,
+        chosenAddress: body.chosenAddress ?? undefined,
         country: body.country ?? undefined,
       },
-      select: { id: true, username: true, email: true, phone: true, address: true, country: true, bio: true },
+      select: { id: true, username: true, name: true, storeName: true, email: true, phone: true, chosenAddress: true, country: true, bio: true },
     })
+    
     return NextResponse.json(updated)
-  } catch (err) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Update failed', message: err?.message || '' }, { status: 500 })
   }
 }
 

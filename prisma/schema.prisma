@@ -112,14 +112,31 @@ model Product {
 model MarketplaceUser {
   id        Int      @id @default(autoincrement())
   username  String   @unique
+  name      String?
+  storeName String?
   email     String?  @unique
   password  String?
   bio       String?
   phone     String   @unique
-  address   String?
+  chosenAddress String?
   country   String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  addresses Address[]
+}
+
+model Address {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  fullName   String
+  phone      String
+  address    String
+  isDefault  Boolean  @default(false)
+  label      String   // "work" | "store" | "home"
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  user MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Order {
