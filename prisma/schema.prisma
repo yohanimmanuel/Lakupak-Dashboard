@@ -125,6 +125,10 @@ model MarketplaceUser {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   addresses Address[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([createdAt])
 }
 
 model Address {
@@ -139,6 +143,10 @@ model Address {
   updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   user MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isDefault])
+  @@index([userId, isDefault])
 }
 
 model Order {
