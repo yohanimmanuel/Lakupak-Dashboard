@@ -193,11 +193,11 @@ export const getClientIP = (req: NextRequest): string => {
 // Sanitize user data for responses
 export const sanitizeUserData = (user: Record<string, unknown>) => ({
   id: user.id,
-  firstName: typeof user.firstName === 'string' ? user.firstName.trim() : user.firstName,
-  lastName: typeof user.lastName === 'string' ? user.lastName.trim() : user.lastName,
+  firstName: typeof user.firstName === 'string' ? user.firstName.trim() : (user.firstName || ''),
+  lastName: typeof user.lastName === 'string' ? user.lastName.trim() : (user.lastName || ''),
   email: typeof user.email === 'string' ? user.email.toLowerCase().trim() : user.email,
-  company: typeof user.company === 'string' ? user.company.trim() : user.company,
-  address: typeof user.address === 'string' ? user.address.trim() : user.address,
+  company: typeof user.company === 'string' ? user.company.trim() : (user.company || ''),
+  address: typeof user.address === 'string' ? user.address.trim() : (user.address || ''),
   region: typeof user.region === 'string' ? user.region : undefined,
   currency: typeof user.currency === 'string' ? user.currency : 'IDR',
 });

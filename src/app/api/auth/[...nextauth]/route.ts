@@ -70,6 +70,10 @@ export const authOptions: NextAuthOptions = {
           (session.user as any).id = dbUser.id;
           (session.user as any).firstName = dbUser.firstName;
           (session.user as any).lastName = dbUser.lastName;
+          (session.user as any).company = dbUser.company;
+          (session.user as any).address = dbUser.address;
+          (session.user as any).region = dbUser.region;
+          (session.user as any).currency = dbUser.currency;
         }
       } else if (token?.sub) {
         (session.user as any).id = token.sub;

@@ -11,10 +11,16 @@ export function AuthSync() {
     if (status === "loading") return; // Still loading
 
     if (status === "authenticated" && session?.user) {
-      // Sync NextAuth session to useUserStore if not already synced
+      // Sync NextAuth session to useUserStore
       const sessionUser = session.user as any;
       
-      if (!user || user.email !== sessionUser.email) {
+      // Only sync if the user data has changed to prevent infinite loops
+      if (!user || 
+          user.id !== sessionUser.id || 
+          user.email !== sessionUser.email ||
+          user.firstName !== (sessionUser.firstName || sessionUser.name?.split(' ')[0] || '') ||
+          user.lastName !== (sessionUser.lastName || sessionUser.name?.split(' ').slice(1).join(' ') || '')) {
+        
         setUser({
           id: sessionUser.id || 0,
           firstName: sessionUser.firstName || sessionUser.name?.split(' ')[0] || '',
@@ -32,7 +38,7 @@ export function AuthSync() {
         clearUser();
       }
     }
-  }, [session, status, user, setUser, clearUser]);
+  }, [session, status]); // Removed user, setUser, clearUser from dependencies to prevent infinite loops
 
   return null; // This component doesn't render anything
 }

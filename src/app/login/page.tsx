@@ -69,6 +69,12 @@ export default function LoginPage() {
       
       // Success
       setSuccess("Login successful! Redirecting...");
+      
+      // Clear any existing user session first
+      const clearUser = useUserStore.getState().clearUser;
+      clearUser();
+      
+      // Set new user session
       setUser({
         id: data.id,
         firstName: data.firstName,
@@ -186,6 +192,10 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={async () => {
+              // Clear user store session
+              const clearUser = useUserStore.getState().clearUser;
+              clearUser();
+              
               await signOut({ redirect: false });
               signIn('google', { 
                 callbackUrl: '/home',

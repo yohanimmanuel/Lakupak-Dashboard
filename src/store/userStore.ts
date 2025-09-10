@@ -65,6 +65,15 @@ export const useUserStore = create<UserStore>((set, get) => ({
   sessionExpiry: initialExpiry,
   
   setUser: (user, rememberMe = false) => {
+    // Clear any existing session first to prevent conflicts
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('userSession');
+      } catch (error) {
+        // Error clearing user session
+      }
+    }
+    
     const now = Date.now();
     const duration = rememberMe ? REMEMBER_ME_DURATION : SESSION_DURATION;
     const expiresAt = now + duration;
