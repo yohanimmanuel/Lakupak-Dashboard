@@ -118,6 +118,8 @@ model MarketplaceUser {
   password  String?
   bio       String?
   phone     String   @unique
+  image     String?
+  bannerImage String?
   chosenAddress String?
   country   String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)

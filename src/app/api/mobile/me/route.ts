@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const payload = verifyAccessToken(token)
     const user = await prisma.marketplaceUser.findUnique({ where: { id: payload.sub } })
     if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json({ id: user.id, username: user.username, name: user.name, email: user.email, phone: user.phone, chosenAddress: user.chosenAddress, country: user.country, bio: user.bio })
+    return NextResponse.json({ id: user.id, username: user.username, name: user.name, storeName: user.storeName, email: user.email, phone: user.phone, image: user.image, bannerImage: user.bannerImage, chosenAddress: user.chosenAddress, country: user.country, bio: user.bio })
   } catch (err) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -39,10 +39,12 @@ export async function PATCH(req: NextRequest) {
         email: body.email ?? undefined,
         bio: body.bio ?? undefined,
         phone: body.phone ?? undefined,
+        image: body.image ?? undefined,
+        bannerImage: body.bannerImage ?? undefined,
         chosenAddress: body.chosenAddress ?? undefined,
         country: body.country ?? undefined,
       },
-      select: { id: true, username: true, name: true, storeName: true, email: true, phone: true, chosenAddress: true, country: true, bio: true },
+      select: { id: true, username: true, name: true, storeName: true, email: true, phone: true, image: true, bannerImage: true, chosenAddress: true, country: true, bio: true },
     })
     
     return NextResponse.json(updated)
