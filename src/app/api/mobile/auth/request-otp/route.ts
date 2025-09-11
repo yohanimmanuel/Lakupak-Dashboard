@@ -1,63 +1,138 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { twilioClient, smsFrom, waFrom } from '@/lib/twilio'
-import { prisma } from '@/lib/db'
-
-function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
+import { NextRequest, NextResponse } from 'next/server';
+import { getSecurityHeaders } from '../../../../../utils/auth-security';
+import { twilioClient, waFrom, smsFrom } from '../../../../../lib/twilio';
 
 export async function POST(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  
   try {
-    const { phone, countryCode, channel } = await req.json()
-    if (!phone) {
-      return NextResponse.json({ error: 'phone is required' }, { status: 400 })
+    // Parse and validate request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request format' }, 
+        { status: 400, headers }
+      );
     }
-    const normalizedChannel = channel === 'whatsapp' ? 'whatsapp' : 'sms'
-
-    if (!twilioClient) {
-      return NextResponse.json({ error: 'Twilio client not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' }, { status: 500 })
+    
+    const { phone, countryCode, channel } = body;
+    
+    // Validate input
+    if (!phone || typeof phone !== 'string') {
+      return NextResponse.json(
+        { error: 'Phone number is required' }, 
+        { status: 400, headers }
+      );
     }
-
-    const code = generateOtp()
-
-    // Prefer Twilio Verify if configured
-    // Prefer Verify for SMS. For WhatsApp sandbox, use Messaging API + store OTP in DB.
-    if (process.env.TWILIO_VERIFY_SID && normalizedChannel !== 'whatsapp') {
-      await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SID).verifications.create({ to: phone.startsWith('+') ? phone : `+${phone}`, channel: 'sms' as any })
-      return NextResponse.json({ ok: true })
-    } else {
-      // Fallback to direct messaging if Verify is not set
-      const to = normalizedChannel === 'whatsapp' ? `whatsapp:${phone}` : phone
-      const from = normalizedChannel === 'whatsapp' ? waFrom : smsFrom
-      if (!from) {
-        return NextResponse.json({ error: 'Twilio FROM not configured (set TWILIO_WHATSAPP_FROM or TWILIO_SMS_FROM)' }, { status: 500 })
-      }
+    
+    if (!countryCode || typeof countryCode !== 'string') {
+      return NextResponse.json(
+        { error: 'Country code is required' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Basic phone validation
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+      return NextResponse.json(
+        { error: 'Invalid phone number format' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Generate OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Send OTP via Twilio WhatsApp
+    if (channel === 'whatsapp' && twilioClient && waFrom) {
       try {
-        const msg = await twilioClient.messages.create({ to, from, body: `Your Laku-Laku verification code: ${code}` })
-        // Persist OTP for verification (5 minutes)
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
-        await prisma.otpCode.create({
-          data: {
-            phone,
-            countryCode: countryCode ?? null,
-            channel: normalizedChannel,
-            code,
-            expiresAt,
-            ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
-          },
-        })
-        return NextResponse.json({ ok: true, sid: msg.sid })
-      } catch (e: any) {
-        const errMsg = e?.message || 'Twilio send failed'
-        const errCode = e?.code || 'unknown'
-        return NextResponse.json({ error: 'TWILIO_SEND_FAILED', message: errMsg, code: errCode }, { status: 502 })
+        // The phone parameter already includes the country code (e.g., "+6586548867")
+        // So we just need to add the whatsapp: prefix
+        const whatsappPhone = `whatsapp:${phone}`;
+        const message = `Your Laku-Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
+        
+        console.log(`Sending WhatsApp to: ${whatsappPhone}`);
+        
+        await twilioClient.messages.create({
+          from: waFrom,
+          to: whatsappPhone,
+          body: message
+        });
+        
+        console.log(`WhatsApp OTP sent to ${whatsappPhone}`);
+        
+        return NextResponse.json({
+          ok: true,
+          message: `OTP sent to ${countryCode}${phone} via WhatsApp`
+        }, {
+          status: 200, 
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+          }
+        });
+        
+      } catch (twilioError) {
+        console.error('Twilio WhatsApp error:', twilioError);
+        return NextResponse.json(
+          { error: 'Failed to send WhatsApp OTP. Please try again.' }, 
+          { status: 500, headers }
+        );
       }
     }
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    
+    // Fallback for SMS or if WhatsApp not configured
+    if (twilioClient && smsFrom) {
+      try {
+        // The phone parameter already includes the country code (e.g., "+6586548867")
+        // So we can use it directly for SMS
+        const smsPhone = phone;
+        const message = `Your Laku-Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
+        
+        console.log(`Sending SMS to: ${smsPhone}`);
+        
+        await twilioClient.messages.create({
+          from: smsFrom,
+          to: smsPhone,
+          body: message
+        });
+        
+        console.log(`SMS OTP sent to ${smsPhone}`);
+        
+        return NextResponse.json({
+          ok: true,
+          message: `OTP sent to ${countryCode}${phone} via SMS`
+        }, {
+          status: 200, 
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+          }
+        });
+        
+      } catch (twilioError) {
+        console.error('Twilio SMS error:', twilioError);
+        return NextResponse.json(
+          { error: 'Failed to send SMS OTP. Please try again.' }, 
+          { status: 500, headers }
+        );
+      }
+    }
+    
+    // If Twilio not configured, return error
+    return NextResponse.json(
+      { error: 'OTP service not configured. Please contact support.' }, 
+      { status: 500, headers }
+    );
+    
+  } catch (error) {
+    console.error('OTP request error:', error);
+    return NextResponse.json(
+      { error: 'Failed to send OTP. Please try again.' }, 
+      { status: 500, headers }
+    );
   }
 }
-
-

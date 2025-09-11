@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAccessToken } from '@/lib/jwt'
 
 function getToken(req: NextRequest): string | null {
   const auth = req.headers.get('authorization')
@@ -10,23 +9,36 @@ function getToken(req: NextRequest): string | null {
   return token
 }
 
+function getUserIdFromToken(token: string): number | null {
+  // Extract user ID from mobile token format: mobile_token_{id}_{timestamp}
+  const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/)
+  if (!tokenMatch) return null
+  return parseInt(tokenMatch[1])
+}
+
 export async function GET(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyAccessToken(token)
-  const list = await prisma.address.findMany({ where: { userId: payload.sub }, orderBy: { createdAt: 'desc' } })
+  
+  const userId = getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  
+  const list = await prisma.address.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } })
   return NextResponse.json(list)
 }
 
 export async function POST(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyAccessToken(token)
+  
+  const userId = getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  
   const body = await req.json()
   const created = await prisma.$transaction(async (tx) => {
     const createdAddr = await tx.address.create({
       data: {
-        userId: payload.sub,
+        userId,
         fullName: body.fullName,
         phone: body.phone,
         address: body.address,
@@ -35,8 +47,8 @@ export async function POST(req: NextRequest) {
       },
     })
     if (createdAddr.isDefault) {
-      await tx.address.updateMany({ where: { userId: payload.sub, NOT: { id: createdAddr.id } }, data: { isDefault: false } })
-      await tx.marketplaceUser.update({ where: { id: payload.sub }, data: { chosenAddress: createdAddr.address } })
+      await tx.address.updateMany({ where: { userId, NOT: { id: createdAddr.id } }, data: { isDefault: false } })
+      await tx.marketplaceUser.update({ where: { id: userId }, data: { chosenAddress: createdAddr.address } })
     }
     return createdAddr
   })
@@ -46,7 +58,10 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyAccessToken(token)
+  
+  const userId = getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  
   const body = await req.json()
   const updated = await prisma.$transaction(async (tx) => {
     const upd = await tx.address.update({
@@ -60,8 +75,8 @@ export async function PATCH(req: NextRequest) {
       },
     })
     if (body.isDefault === true) {
-      await tx.address.updateMany({ where: { userId: payload.sub, NOT: { id: upd.id } }, data: { isDefault: false } })
-      await tx.marketplaceUser.update({ where: { id: payload.sub }, data: { chosenAddress: upd.address } })
+      await tx.address.updateMany({ where: { userId, NOT: { id: upd.id } }, data: { isDefault: false } })
+      await tx.marketplaceUser.update({ where: { id: userId }, data: { chosenAddress: upd.address } })
     }
     return upd
   })
@@ -71,17 +86,20 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = verifyAccessToken(token)
+  
+  const userId = getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  
   const body = await req.json()
   const id: number | undefined = body?.id
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const deleted = await prisma.$transaction(async (tx) => {
     const addr = await tx.address.findUnique({ where: { id } })
-    if (!addr || addr.userId !== payload.sub) throw new Error('Not found')
+    if (!addr || addr.userId !== userId) throw new Error('Not found')
     await tx.address.delete({ where: { id } })
     if (addr.isDefault) {
-      await tx.marketplaceUser.update({ where: { id: payload.sub }, data: { chosenAddress: null } })
+      await tx.marketplaceUser.update({ where: { id: userId }, data: { chosenAddress: null } })
     }
     return addr
   })

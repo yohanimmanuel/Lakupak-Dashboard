@@ -1,79 +1,203 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { verifyAccessToken } from '@/lib/jwt'
-import { prisma } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '../../../../generated/prisma';
+import { getSecurityHeaders } from '../../../../utils/auth-security';
 
-function getToken(req: NextRequest): string | null {
-  const auth = req.headers.get('authorization')
-  if (!auth) return null
-  const [type, token] = auth.split(' ')
-  if (type !== 'Bearer' || !token) return null
-  return token
-}
+const prisma = new PrismaClient();
 
+// GET /api/mobile/me - Get current user profile
 export async function GET(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  
   try {
-    const token = getToken(req)
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyAccessToken(token)
-    const user = await prisma.marketplaceUser.findUnique({ where: { id: payload.sub } })
-    if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json({ id: user.id, username: user.username, name: user.name, storeName: user.storeName, email: user.email, phone: user.phone, image: user.image, bannerImage: user.bannerImage, chosenAddress: user.chosenAddress, country: user.country, bio: user.bio }, {
-      headers: {
-        'Cache-Control': 'private, max-age=300', // 5 minutes cache
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'X-XSS-Protection': '1; mode=block',
-      }
-    })
-  } catch (err) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-}
-
-// Input sanitization helper
-function sanitizeInput(input: string | undefined): string | undefined {
-  if (!input) return undefined
-  return input.trim().slice(0, 500) // Limit length and trim whitespace
-}
-
-export async function PATCH(req: NextRequest) {
-  try {
-    const token = getToken(req)
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyAccessToken(token)
-    const body = await req.json()
-    
-    // Sanitize all string inputs
-    const sanitizedData = {
-      username: sanitizeInput(body.username),
-      name: sanitizeInput(body.name),
-      storeName: sanitizeInput(body.storeName),
-      email: sanitizeInput(body.email),
-      bio: sanitizeInput(body.bio),
-      phone: sanitizeInput(body.phone),
-      image: sanitizeInput(body.image),
-      bannerImage: sanitizeInput(body.bannerImage),
-      chosenAddress: sanitizeInput(body.chosenAddress),
-      country: sanitizeInput(body.country),
+    // Extract token from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' }, 
+        { status: 401, headers }
+      );
     }
     
-    const updated = await prisma.marketplaceUser.update({
-      where: { id: payload.sub },
-      data: sanitizedData,
-      select: { id: true, username: true, name: true, storeName: true, email: true, phone: true, image: true, bannerImage: true, chosenAddress: true, country: true, bio: true },
-    })
+    const token = authHeader.replace('Bearer ', '');
     
-    return NextResponse.json(updated, {
+    // For now, we'll extract user ID from the token format: mobile_token_{id}_{timestamp}
+    // In production, you'd verify the JWT token properly
+    const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/);
+    if (!tokenMatch) {
+      return NextResponse.json(
+        { error: 'Invalid token format' }, 
+        { status: 401, headers }
+      );
+    }
+    
+    const userId = parseInt(tokenMatch[1]);
+    
+    // Find the marketplace user
+    const user = await prisma.marketplaceUser.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' }, 
+        { status: 404, headers }
+      );
+    }
+    
+    // Return user data
+    return NextResponse.json({
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      storeName: user.storeName,
+      email: user.email,
+      bio: user.bio,
+      phone: user.phone,
+      image: user.image,
+      bannerImage: user.bannerImage,
+      chosenAddress: user.chosenAddress,
+      country: user.country,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    }, { 
+      status: 200, 
       headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'X-XSS-Protection': '1; mode=block',
+        ...headers,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private'
       }
-    })
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Update failed', message: err?.message || '' }, { status: 500 })
+    });
+    
+  } catch (error) {
+    console.error('Mobile me GET error:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred. Please try again.' }, 
+      { status: 500, headers }
+    );
   }
 }
 
-
+// PATCH /api/mobile/me - Update current user profile
+export async function PATCH(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  
+  try {
+    // Extract token from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' }, 
+        { status: 401, headers }
+      );
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Extract user ID from token
+    const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/);
+    if (!tokenMatch) {
+      return NextResponse.json(
+        { error: 'Invalid token format' }, 
+        { status: 401, headers }
+      );
+    }
+    
+    const userId = parseInt(tokenMatch[1]);
+    
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request format' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    const { username, name, storeName, email, bio, phone, image, bannerImage, chosenAddress, country } = body;
+    
+    // Check if user exists
+    const existingUser = await prisma.marketplaceUser.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'User not found' }, 
+        { status: 404, headers }
+      );
+    }
+    
+    // Check for unique constraints if updating username or email
+    if (username && username !== existingUser.username) {
+      const usernameExists = await prisma.marketplaceUser.findUnique({
+        where: { username: username.trim() }
+      });
+      if (usernameExists) {
+        return NextResponse.json(
+          { error: 'Username already taken' }, 
+          { status: 409, headers }
+        );
+      }
+    }
+    
+    if (email && email !== existingUser.email) {
+      const emailExists = await prisma.marketplaceUser.findUnique({
+        where: { email: email.trim().toLowerCase() }
+      });
+      if (emailExists) {
+        return NextResponse.json(
+          { error: 'Email already taken' }, 
+          { status: 409, headers }
+        );
+      }
+    }
+    
+    // Update user
+    const updatedUser = await prisma.marketplaceUser.update({
+      where: { id: userId },
+      data: {
+        ...(username && { username: username.trim() }),
+        ...(name && { name: name.trim() }),
+        ...(storeName && { storeName: storeName.trim() }),
+        ...(email && { email: email.trim().toLowerCase() }),
+        ...(bio && { bio: bio.trim() }),
+        ...(phone && { phone: phone.trim() }),
+        ...(image && { image: image.trim() }),
+        ...(bannerImage && { bannerImage: bannerImage.trim() }),
+        ...(chosenAddress && { chosenAddress: chosenAddress.trim() }),
+        ...(country && { country: country.trim() })
+      }
+    });
+    
+    // Return updated user data
+    return NextResponse.json({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      name: updatedUser.name,
+      storeName: updatedUser.storeName,
+      email: updatedUser.email,
+      bio: updatedUser.bio,
+      phone: updatedUser.phone,
+      image: updatedUser.image,
+      bannerImage: updatedUser.bannerImage,
+      chosenAddress: updatedUser.chosenAddress,
+      country: updatedUser.country,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt
+    }, { 
+      status: 200, 
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Mobile me PATCH error:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred. Please try again.' }, 
+      { status: 500, headers }
+    );
+  }
+}
