@@ -266,69 +266,7 @@ export default function ProductMarketplacePubs({
             </div>
           </div>
 
-          {/* 3. SELLER INFORMATION */}
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <h4 className="font-semibold text-gray-900 mb-3">Seller Information</h4>
-              <div className="flex items-center gap-3 mb-3">
-               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                 <span className="text-blue-600 font-bold text-sm">L</span>
-               </div>
-               <div>
-                 <div className="flex items-center gap-2 mb-1">
-                   <p className="font-medium text-gray-900">Laku-Laku Official Store</p>
-                   <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">OFFICIAL STORE</div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                   <span className="text-xs text-gray-600">4.9 (2.1k+ ratings)</span>
-                 </div>
-               </div>
-             </div>
-            <div className="grid grid-cols-3 gap-4 text-center text-xs">
-              <div>
-                <p className="text-gray-600">Response Time</p>
-                <p className="font-medium text-gray-900">1-2 hours</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Delivery Speed</p>
-                <p className="font-medium text-gray-900">1-3 days</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Return Policy</p>
-                <p className="font-medium text-gray-900">7 days</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. LOGISTICS & SHIPPING */}
-          <div className="p-4 border-b border-gray-100">
-            <h4 className="font-semibold text-gray-900 mb-3">Shipping & Delivery</h4>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-2 text-green-600">
-                  <span className="text-green-600">🚚</span>
-                  <span className="text-sm font-medium">Standard Shipping</span>
-                </div>
-                <span className="text-sm text-gray-600">Free</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <span className="text-blue-600">⚡</span>
-                  <span className="text-sm font-medium">Express Shipping</span>
-                </div>
-                <span className="text-sm text-gray-600">{formatCurrency(15000, userCurrency)}</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                <div className="flex items-center gap-2 text-purple-600">
-                  <span className="text-purple-600">🏃</span>
-                  <span className="text-sm font-medium">Same Day Delivery</span>
-                </div>
-                <span className="text-sm text-gray-600">{formatCurrency(25000, userCurrency)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. PRODUCT DETAILS */}
+          {/* 3. PRODUCT DETAILS */}
           <div className="p-4 border-b border-gray-100">
             <h4 className="font-semibold text-gray-900 mb-3">Product Details</h4>
             <div className="space-y-2 mb-4">
@@ -355,7 +293,30 @@ export default function ProductMarketplacePubs({
             </div>
           </div>
 
-          {/* 6. REVIEWS & RATINGS */}
+          {/* 4. PRODUCT ASSURANCE */}
+          <div className="p-4 border-b border-gray-100">
+            <h4 className="font-semibold text-gray-900 mb-3">Product Assurance</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
+                <span className="text-green-600">✅</span>
+                <span className="text-sm font-medium text-green-700">Halal Certified</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+                <span className="text-blue-600">🏛️</span>
+                <span className="text-sm font-medium text-blue-700">BPOM Approved</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
+                <span className="text-purple-600">🔒</span>
+                <span className="text-sm font-medium text-purple-700">Original Product</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg">
+                <span className="text-orange-600">↩️</span>
+                <span className="text-sm font-medium text-orange-700">7 Days Return</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. CUSTOMER REVIEWS */}
           <div className="p-4 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-gray-900">Customer Reviews</h4>
@@ -415,25 +376,64 @@ export default function ProductMarketplacePubs({
             </div>
           </div>
 
-          {/* 7. COMPLIANCE & ASSURANCE */}
+          {/* 6. SELLER INFORMATION */}
+          <div className="p-4 border-b border-gray-100 bg-gray-50">
+            <h4 className="font-semibold text-gray-900 mb-3">Seller Information</h4>
+              <div className="flex items-center gap-3 mb-3">
+               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                 <span className="text-blue-600 font-bold text-sm">L</span>
+               </div>
+               <div>
+                 <div className="flex items-center gap-2 mb-1">
+                   <p className="font-medium text-gray-900">Laku-Laku Official Store</p>
+                   <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">OFFICIAL STORE</div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                   <span className="text-xs text-gray-600">4.9 (2.1k+ ratings)</span>
+                 </div>
+               </div>
+             </div>
+            <div className="grid grid-cols-3 gap-4 text-center text-xs">
+              <div>
+                <p className="text-gray-600">Response Time</p>
+                <p className="font-medium text-gray-900">1-2 hours</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Delivery Speed</p>
+                <p className="font-medium text-gray-900">1-3 days</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Return Policy</p>
+                <p className="font-medium text-gray-900">7 days</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 7. LOGISTICS & SHIPPING */}
           <div className="p-4 border-b border-gray-100">
-            <h4 className="font-semibold text-gray-900 mb-3">Product Assurance</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
-                <span className="text-green-600">✅</span>
-                <span className="text-xs text-gray-700">Halal Certified</span>
+            <h4 className="font-semibold text-gray-900 mb-3">Shipping & Delivery</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-2 text-green-600">
+                  <span className="text-green-600">🚚</span>
+                  <span className="text-sm font-medium">Standard Shipping</span>
+                </div>
+                <span className="text-sm text-gray-600">Free</span>
               </div>
-              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-                <span className="text-blue-600">🏆</span>
-                <span className="text-xs text-gray-700">BPOM Approved</span>
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <span className="text-blue-600">⚡</span>
+                  <span className="text-sm font-medium">Express Shipping</span>
+                </div>
+                <span className="text-sm text-gray-600">{formatCurrency(15000, userCurrency)}</span>
               </div>
-              <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
-                <span className="text-purple-600">🔒</span>
-                <span className="text-xs text-gray-700">7-Day Return</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg">
-                <span className="text-orange-600">📦</span>
-                <span className="text-xs text-gray-700">Original Product</span>
+              <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
+                <div className="flex items-center gap-2 text-purple-600">
+                  <span className="text-purple-600">🏃</span>
+                  <span className="text-sm font-medium">Same Day Delivery</span>
+                </div>
+                <span className="text-sm text-gray-600">{formatCurrency(25000, userCurrency)}</span>
               </div>
             </div>
           </div>
@@ -446,7 +446,7 @@ export default function ProductMarketplacePubs({
                 Add to Cart
               </button>
               <button className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold transition-colors">
-                Buy Now - {formatCurrency(150000, userCurrency)}
+                Buy Now
               </button>
             </div>
             <div className="mt-3">
