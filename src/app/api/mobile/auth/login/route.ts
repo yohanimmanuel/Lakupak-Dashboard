@@ -109,7 +109,6 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Mobile login error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }

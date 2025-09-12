@@ -54,15 +54,11 @@ export async function POST(req: NextRequest) {
         const whatsappPhone = `whatsapp:${phone}`;
         const message = `Your Laku-Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
         
-        console.log(`Sending WhatsApp to: ${whatsappPhone}`);
-        
         await twilioClient.messages.create({
           from: waFrom,
           to: whatsappPhone,
           body: message
         });
-        
-        console.log(`WhatsApp OTP sent to ${whatsappPhone}`);
         
         return NextResponse.json({
           ok: true,
@@ -76,7 +72,6 @@ export async function POST(req: NextRequest) {
         });
         
       } catch (twilioError) {
-        console.error('Twilio WhatsApp error:', twilioError);
         return NextResponse.json(
           { error: 'Failed to send WhatsApp OTP. Please try again.' }, 
           { status: 500, headers }
@@ -92,15 +87,13 @@ export async function POST(req: NextRequest) {
         const smsPhone = phone;
         const message = `Your Laku-Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
         
-        console.log(`Sending SMS to: ${smsPhone}`);
-        
         await twilioClient.messages.create({
           from: smsFrom,
           to: smsPhone,
           body: message
         });
         
-        console.log(`SMS OTP sent to ${smsPhone}`);
+        (`SMS OTP sent to ${smsPhone}`);
         
         return NextResponse.json({
           ok: true,
@@ -114,7 +107,6 @@ export async function POST(req: NextRequest) {
         });
         
       } catch (twilioError) {
-        console.error('Twilio SMS error:', twilioError);
         return NextResponse.json(
           { error: 'Failed to send SMS OTP. Please try again.' }, 
           { status: 500, headers }
@@ -129,7 +121,6 @@ export async function POST(req: NextRequest) {
     );
     
   } catch (error) {
-    console.error('OTP request error:', error);
     return NextResponse.json(
       { error: 'Failed to send OTP. Please try again.' }, 
       { status: 500, headers }

@@ -69,9 +69,7 @@ export async function POST(req: NextRequest) {
     
     // Handle signup mode with complete profile
     if (mode === 'signup' && profile) {
-      const { name, email, storeName, bio, username, password } = profile;
-      
-      console.log('Signup profile received:', { name, email, storeName, bio, username, password: password ? '***' : 'missing' });
+      const { name, email, storeName, bio, username, password } = profile;;
       
       // Validate profile data
       if (!name || typeof name !== 'string' || !name.trim()) {
@@ -106,22 +104,19 @@ export async function POST(req: NextRequest) {
       
       const normalizedEmail = email.trim().toLowerCase();
       
-      console.log(`Checking for existing marketplace user with email: ${normalizedEmail}`);
-      
       // Check if marketplace user already exists
       const existingUser = await prisma.marketplaceUser.findUnique({ 
         where: { email: normalizedEmail } 
       });
       
       if (existingUser) {
-        console.log(`Marketplace user already exists:`, { id: existingUser.id, email: existingUser.email, name: existingUser.name });
         return NextResponse.json(
           { error: 'User is registered. Please Log in.' }, 
           { status: 409, headers }
         );
       }
       
-      console.log(`No existing marketplace user found, proceeding with account creation for: ${normalizedEmail}`);
+      (`No existing marketplace user found, proceeding with account creation for: ${normalizedEmail}`);
       
       // Create new marketplace user with complete profile
       const hashedPassword = await hash(password, 12);
@@ -169,7 +164,6 @@ export async function POST(req: NextRequest) {
     const cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
     const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
     
-    console.log(`Looking for user with phone: ${phone} (clean: ${cleanPhone}, with+: ${phoneWithPlus})`);
     
     // Try to find user with either format
     let existingUser = await prisma.marketplaceUser.findUnique({
@@ -209,7 +203,6 @@ export async function POST(req: NextRequest) {
     );
     
   } catch (error) {
-    console.error('OTP verification error:', error);
     return NextResponse.json(
       { error: 'Verification failed. Please try again.' }, 
       { status: 500, headers }

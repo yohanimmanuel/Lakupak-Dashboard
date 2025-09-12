@@ -68,7 +68,6 @@ export async function GET(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Mobile me GET error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }
@@ -194,7 +193,6 @@ export async function PATCH(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Mobile me PATCH error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }
