@@ -440,18 +440,17 @@ export default function ProductMarketplacePubs({
 
           {/* 8. CTA BUTTONS */}
           <div className="p-4">
-            <div className="flex gap-3">
-              <button className="flex-1 bg-[#0a61d7] text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
-                <ShoppingCart className="w-5 h-5" />
-                Add to Cart
+            <div className="flex gap-2">
+              <button className="flex-1 bg-gray-100 text-gray-800 py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
+                <span className="text-sm">💬</span>
+                <span className="text-xs">Chat Now</span>
               </button>
-              <button className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold transition-colors">
+              <button className="flex-1 bg-[#0a61d7] text-white py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
+                <ShoppingCart className="w-4 h-4" />
+                <span className="text-xs">Add to Cart</span>
+              </button>
+              <button className="flex-[2] bg-green-600 text-white py-1 px-4 rounded-lg font-semibold transition-colors">
                 Buy Now
-              </button>
-            </div>
-            <div className="mt-3">
-              <button className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2">
-                💬 Chat Seller
               </button>
             </div>
           </div>
