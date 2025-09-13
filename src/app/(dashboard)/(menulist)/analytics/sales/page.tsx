@@ -36,7 +36,7 @@ export default function SalesAnalyticsPage() {
 
 	const parseCurrencyToNumber = (currencyString: string | undefined): number => {
 		if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
-		const cleanString = currencyString.replace(/[Rp\s,]/g, '').replace(/\./g, '').trim();
+		const cleanString = currencyString.replace(/[^\d.-]/g, '').replace(/\./g, '').trim();
 		const parsed = parseFloat(cleanString);
 		return Number.isNaN(parsed) ? 0 : parsed;
 	};

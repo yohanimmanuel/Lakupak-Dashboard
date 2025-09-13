@@ -204,6 +204,7 @@ export const sanitizeUserData = (user: Record<string, unknown>) => ({
   company: user.company, // This will be the full company object now
   region: typeof user.region === 'string' ? user.region : undefined,
   currency: typeof user.currency === 'string' ? user.currency : 'IDR',
+  language: typeof user.language === 'string' ? user.language : 'en',
 });
 
 // Sanitize company data for responses

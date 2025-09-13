@@ -146,6 +146,7 @@ export default function RegisterPage() {
         company: data.company,
         region: data.region,
         currency: data.currency,
+        language: data.language || 'en',
       }, true); // Auto-remember new registrations
       
       // Track successful registration

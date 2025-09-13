@@ -88,6 +88,7 @@ export default function LoginPage() {
         company: data.company || null,
         region: data.region || 'ID',
         currency: data.currency || 'IDR',
+        language: data.language || 'en',
       };
       
       setUser(userData, rememberMe);

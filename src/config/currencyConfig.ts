@@ -7,7 +7,7 @@ export interface CurrencyConfig {
   formatOptions: Intl.NumberFormatOptions;
 }
 
-// Default currency configurations
+// Default currency configurations - matches all currencies from regionConfig.ts
 export const CURRENCY_CONFIGS: Record<string, CurrencyConfig> = {
   'IDR': {
     code: 'IDR',
@@ -29,18 +29,6 @@ export const CURRENCY_CONFIGS: Record<string, CurrencyConfig> = {
     formatOptions: {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }
-  },
-  'EUR': {
-    code: 'EUR',
-    symbol: '€',
-    name: 'Euro',
-    locale: 'de-DE',
-    formatOptions: {
-      style: 'currency',
-      currency: 'EUR',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
@@ -68,6 +56,102 @@ export const CURRENCY_CONFIGS: Record<string, CurrencyConfig> = {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
+  },
+  'THB': {
+    code: 'THB',
+    symbol: '฿',
+    name: 'Thai Baht',
+    locale: 'th-TH',
+    formatOptions: {
+      style: 'currency',
+      currency: 'THB',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  },
+  'PHP': {
+    code: 'PHP',
+    symbol: '₱',
+    name: 'Philippine Peso',
+    locale: 'en-PH',
+    formatOptions: {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  },
+  'VND': {
+    code: 'VND',
+    symbol: '₫',
+    name: 'Vietnamese Dong',
+    locale: 'vi-VN',
+    formatOptions: {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }
+  },
+  'JPY': {
+    code: 'JPY',
+    symbol: '¥',
+    name: 'Japanese Yen',
+    locale: 'ja-JP',
+    formatOptions: {
+      style: 'currency',
+      currency: 'JPY',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }
+  },
+  'KRW': {
+    code: 'KRW',
+    symbol: '₩',
+    name: 'South Korean Won',
+    locale: 'ko-KR',
+    formatOptions: {
+      style: 'currency',
+      currency: 'KRW',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }
+  },
+  'AUD': {
+    code: 'AUD',
+    symbol: 'A$',
+    name: 'Australian Dollar',
+    locale: 'en-AU',
+    formatOptions: {
+      style: 'currency',
+      currency: 'AUD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  },
+  'GBP': {
+    code: 'GBP',
+    symbol: '£',
+    name: 'British Pound Sterling',
+    locale: 'en-GB',
+    formatOptions: {
+      style: 'currency',
+      currency: 'GBP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  },
+  'EUR': {
+    code: 'EUR',
+    symbol: '€',
+    name: 'Euro',
+    locale: 'de-DE',
+    formatOptions: {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
   }
 };
 
@@ -87,8 +171,15 @@ export const getServerCurrency = (): string => {
     'Asia/Jakarta': 'IDR',
     'Asia/Singapore': 'SGD',
     'Asia/Kuala_Lumpur': 'MYR',
-    'America/New_York': 'USD',
-    'Europe/Berlin': 'EUR'
+    'Asia/Bangkok': 'THB',
+    'Asia/Manila': 'PHP',
+    'Asia/Ho_Chi_Minh': 'VND',
+    'Asia/Tokyo': 'JPY',
+    'Asia/Seoul': 'KRW',
+    'Australia/Sydney': 'AUD',
+    'Europe/London': 'GBP',
+    'Europe/Berlin': 'EUR',
+    'America/New_York': 'USD'
   };
 
   return timezoneCurrencyMap[timezone] || 'IDR'; // Default to IDR for Indonesian market
@@ -105,9 +196,14 @@ export const formatCurrencyWithLocale = (amount: number, currencyCode?: string):
   const config = getCurrencyConfig(currencyCode);
   
   try {
-    // For SGD, use custom symbol to ensure S$ instead of $
-    if (currencyCode === 'SGD') {
+    // For currencies with custom symbols, use custom formatting
+    if (currencyCode === 'SGD' || currencyCode === 'AUD') {
       return `${config.symbol}${amount.toLocaleString(config.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    
+    // For currencies with 0 decimal places, use custom formatting
+    if (currencyCode === 'IDR' || currencyCode === 'VND' || currencyCode === 'JPY' || currencyCode === 'KRW') {
+      return `${config.symbol}${amount.toLocaleString(config.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
     
     // For other currencies, use Intl.NumberFormat

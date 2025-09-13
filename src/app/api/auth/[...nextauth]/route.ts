@@ -85,6 +85,7 @@ export const authOptions: NextAuthOptions = {
           (session.user as any).company = dbUser.company;
           (session.user as any).region = dbUser.region;
           (session.user as any).currency = dbUser.currency;
+          (session.user as any).language = dbUser.language;
         }
       } else if (token?.sub) {
         (session.user as any).id = token.sub;

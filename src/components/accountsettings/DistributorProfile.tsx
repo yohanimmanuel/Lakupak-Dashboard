@@ -475,7 +475,7 @@ export default function DistributorProfile() {
             </button>
             <button
               onClick={handleCancel}
-              className="px-4 py-2 bg-gray-500 text-white text-sm font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 bg-white border border-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>

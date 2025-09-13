@@ -112,9 +112,9 @@ const FinancialAnalytics: React.FC = () => {
   const parseCurrencyToNumber = (currencyString: string): number => {
     if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
     
-    // Remove currency symbols, spaces, and commas, then parse
+    // Remove all currency symbols, spaces, and commas, then parse
     const cleanString = currencyString
-      .replace(/[Rp\s,]/g, '') // Remove Rp, spaces, and commas
+      .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
       .replace(/\./g, '') // Remove dots (thousand separators)
       .trim();
     
@@ -241,12 +241,12 @@ const FinancialAnalytics: React.FC = () => {
       monthlyGrowth: 0, // TODO: Calculate from historical data
       orderGrowth: 0    // TODO: Calculate from historical data
     };
-  }, [orders, products, hasData]);
+  }, [orders, products, hasData, userCurrency]);
 
   // Calculate real revenue data by month using actual product margins
   const revenueData: RevenueData[] = useMemo(() => {
     return calculateRevenueData(orders, products, hasData);
-  }, [orders, products, hasData]);
+  }, [orders, products, hasData, userCurrency]);
 
   // Calculate real category revenue using actual product margins
   const categoryData: CategoryData[] = useMemo(() => {
@@ -344,7 +344,7 @@ const FinancialAnalytics: React.FC = () => {
       profit: stats.profit,
       percentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     })).sort((a, b) => b.revenue - a.revenue);
-  }, [orders, products, hasData]);
+  }, [orders, products, hasData, userCurrency]);
 
   // Calculate real top products using actual product margins
   const allTopProducts: TopProduct[] = useMemo(() => {
@@ -450,7 +450,7 @@ const FinancialAnalytics: React.FC = () => {
         productId: productId
       };
     }).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
-  }, [orders, products, hasData]);
+  }, [orders, products, hasData, userCurrency]);
 
   // Calculate cash flow data: inflows from totalAmount; outflows from COGS (valid purchasePrice only) + shipping (3rd-Party Courier only)
   const cashFlowData: CashFlowData[] = useMemo(() => {
@@ -502,7 +502,7 @@ const FinancialAnalytics: React.FC = () => {
       .slice(-6)
       .map(({ month, inflows, outflows, netFlow }) => ({ month, inflows, outflows, netFlow }));
     return sorted;
-  }, [orders, products, hasData]);
+  }, [orders, products, hasData, userCurrency]);
 
   // Pagination logic for Top Products
   const productsPerPage = 5;
@@ -1250,7 +1250,7 @@ export const parseCurrencyToNumber = (currencyString: string): number => {
   
   // Remove currency symbols, spaces, and commas, then parse
   const cleanString = currencyString
-    .replace(/[Rp\s,]/g, '') // Remove Rp, spaces, and commas
+    .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
     .replace(/\./g, '') // Remove dots (thousand separators)
     .trim();
   
@@ -1258,30 +1258,9 @@ export const parseCurrencyToNumber = (currencyString: string): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-// Shared function to format currency
+// Shared function to format currency - uses proper currencyConfig.ts
 export const formatCurrency = (amount: number, currency: string): string => {
-  if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } else if (currency === 'SGD') {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } else {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  }
+  return utilsFormatCurrency(amount, currency);
 };
 
 // Shared function to calculate revenue data from orders and products

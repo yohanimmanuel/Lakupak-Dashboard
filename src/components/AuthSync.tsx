@@ -34,6 +34,7 @@ export function AuthSync() {
           company: sessionUser.company || null,
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
+          language: sessionUser.language || 'en',
         });
       }
     } else if (status === "unauthenticated") {

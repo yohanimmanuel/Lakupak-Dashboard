@@ -69,7 +69,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
   
   // Get user currency for display (only on client)
   const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
-
+  
   const stats = useMemo(() => {
     try {
       if (type === 'buyer') {

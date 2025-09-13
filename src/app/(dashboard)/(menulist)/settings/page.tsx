@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
 import DistributorProfile from '@/components/accountsettings/DistributorProfile';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
+import LanguageRegion from '@/components/accountsettings/LanguageRegion';
 
 type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile';
 
@@ -53,7 +54,7 @@ export default function SettingsPage() {
       case 'security':
         return <SecurityPass />;
       case 'language':
-        return <div className="p-8 text-center text-gray-500">Language & Region settings coming soon...</div>;
+        return <LanguageRegion />;
       case 'billing':
         return <div className="p-8 text-center text-gray-500">Billing & Payment settings coming soon...</div>;
       case 'team':

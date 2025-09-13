@@ -251,7 +251,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 	}, [user?.id]);
 
 	// Derived metrics
-	const metrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData]);
+	const metrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData, userCurrency]);
 
 	// Sales trend
 	const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData), [orders, hasData]);

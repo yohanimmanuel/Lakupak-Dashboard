@@ -39,6 +39,7 @@ interface User {
   company?: Company;
   region?: string;
   currency?: string;
+  language?: string;
 }
 
 interface SessionData {
