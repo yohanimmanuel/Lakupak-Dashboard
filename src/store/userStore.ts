@@ -81,7 +81,6 @@ const getInitialUser = (): { user: User | null; sessionExpiry: number | null } =
         }
       }
     } catch (error) {
-              // Error parsing user session
       localStorage.removeItem('userSession');
     }
   }

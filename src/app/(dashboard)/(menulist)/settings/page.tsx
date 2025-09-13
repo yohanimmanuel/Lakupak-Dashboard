@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Shield, Globe, CreditCard, Users, Building2 } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
 import DistributorProfile from '@/components/accountsettings/DistributorProfile';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
@@ -19,6 +20,31 @@ const settingsTabs = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  const { user, isAuthenticated } = useUserStore();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+
+  // Show loading state while user data is being loaded
+  if (!isClient || !user) {
+    return (
+      <div className="w-full mx-auto bg-gradient-to-b from-gray-50 to-white min-h-screen">
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <h1 className="text-2xl font-bold text-black mb-2">Account Settings</h1>
+          <p className="text-sm text-gray-600">Manage your account preferences and settings</p>
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-pulse text-center">
+            <div className="h-8 bg-gray-200 rounded w-48 mb-4 mx-auto"></div>
+            <div className="text-gray-500">Loading your settings...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (activeTab) {

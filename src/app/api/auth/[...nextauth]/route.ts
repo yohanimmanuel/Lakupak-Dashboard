@@ -65,13 +65,24 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user?.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() } });
+        const dbUser = await prisma.user.findUnique({ 
+          where: { email: session.user.email.toLowerCase() },
+          include: {
+            company: true
+          }
+        });
         if (dbUser) {
+          
           (session.user as any).id = dbUser.id;
           (session.user as any).firstName = dbUser.firstName;
           (session.user as any).lastName = dbUser.lastName;
+          (session.user as any).phone = dbUser.phone;
+          (session.user as any).bio = dbUser.bio;
+          (session.user as any).location = dbUser.location;
+          // Use Google profile image if available, otherwise use database avatar
+          (session.user as any).avatar = session.user.image || dbUser.avatar;
+          (session.user as any).companyId = dbUser.companyId;
           (session.user as any).company = dbUser.company;
-          (session.user as any).address = dbUser.address;
           (session.user as any).region = dbUser.region;
           (session.user as any).currency = dbUser.currency;
         }

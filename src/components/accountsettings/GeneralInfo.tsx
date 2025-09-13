@@ -44,7 +44,7 @@ export default function GeneralInfo() {
       // Check if avatar is a blob URL (temporary) and treat as null
       const avatar = user?.avatar && !user.avatar.startsWith('blob:') ? user.avatar : null;
       
-      setFormData({
+      const newFormData = {
         firstName: user?.firstName || '',
         lastName: user?.lastName || '',
         email: user?.email || '',
@@ -52,16 +52,10 @@ export default function GeneralInfo() {
         bio: user?.bio || '',
         location: user?.location || '',
         avatar: avatar,
-      });
-      setOriginalData({
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
-        email: user?.email || '',
-        phone: user?.phone || '',
-        bio: user?.bio || '',
-        location: user?.location || '',
-        avatar: avatar,
-      });
+      };
+      
+      setFormData(newFormData);
+      setOriginalData(newFormData);
     }
   }, [user, isClient]);
 

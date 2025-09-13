@@ -123,7 +123,6 @@ export async function PUT(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('User update error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }

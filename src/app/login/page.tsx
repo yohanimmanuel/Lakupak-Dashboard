@@ -75,16 +75,22 @@ export default function LoginPage() {
       clearUser();
       
       // Set new user session
-      setUser({
+      const userData = {
         id: data.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        company: data.company,
-        address: data.address,
-        region: data.region,
-        currency: data.currency,
-      }, rememberMe);
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        bio: data.bio || '',
+        location: data.location || '',
+        avatar: data.avatar || '',
+        companyId: data.companyId || null,
+        company: data.company || null,
+        region: data.region || 'ID',
+        currency: data.currency || 'IDR',
+      };
+      
+      setUser(userData, rememberMe);
       
       // Track successful login
       if (typeof window !== 'undefined' && window.gtag) {

@@ -26,9 +26,13 @@ export function AuthSync() {
           firstName: sessionUser.firstName || sessionUser.name?.split(' ')[0] || '',
           lastName: sessionUser.lastName || sessionUser.name?.split(' ').slice(1).join(' ') || '',
           email: sessionUser.email || '',
-          company: sessionUser.company || '',
-          address: sessionUser.address || '',
-          region: sessionUser.region || '',
+          phone: sessionUser.phone || '',
+          bio: sessionUser.bio || '',
+          location: sessionUser.location || '',
+          avatar: sessionUser.avatar || sessionUser.image || '',
+          companyId: sessionUser.companyId || null,
+          company: sessionUser.company || null,
+          region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
         });
       }
