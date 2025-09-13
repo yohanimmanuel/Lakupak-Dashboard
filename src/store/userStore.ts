@@ -1,12 +1,42 @@
 import { create } from 'zustand';
 
+interface Company {
+  id: number;
+  name: string;
+  businessRegistrationNumber?: string;
+  taxId?: string;
+  logo?: string;
+  bannerImage?: string;
+  industryType?: string;
+  businessDescription?: string;
+  yearsInOperation?: string;
+  companySize?: string;
+  businessAddress?: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  documentVerification: boolean;
+  businessLicenseVerification: boolean;
+  complianceStatus: string;
+  shippingPreferences?: string;
+  deliveryTimeSlots?: string;
+  preferredDeliveryDays?: string;
+  deliveryRadius?: string;
+  specialInstructions?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface User {
   id: number | null;
   firstName: string;
   lastName: string;
   email: string;
-  company?: string;
-  address?: string;
+  phone?: string;
+  bio?: string;
+  location?: string;
+  avatar?: string;
+  companyId?: number;
+  company?: Company;
   region?: string;
   currency?: string;
 }
@@ -22,6 +52,7 @@ interface UserStore {
   isAuthenticated: boolean;
   sessionExpiry: number | null;
   setUser: (user: User, rememberMe?: boolean) => void;
+  updateUser: (updates: Partial<User>) => void;
   clearUser: () => void;
   checkSession: () => boolean;
   extendSession: () => void;
@@ -95,6 +126,29 @@ export const useUserStore = create<UserStore>((set, get) => ({
         localStorage.setItem('userSession', JSON.stringify(sessionData));
       } catch (error) {
         // Error storing user session
+      }
+    }
+  },
+  
+  updateUser: (updates) => {
+    const { user, sessionExpiry } = get();
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...updates };
+    
+    set({ user: updatedUser });
+    
+    // Update localStorage if available
+    if (typeof window !== 'undefined' && sessionExpiry) {
+      try {
+        const sessionData: SessionData = {
+          user: updatedUser,
+          timestamp: Date.now(),
+          expiresAt: sessionExpiry
+        };
+        localStorage.setItem('userSession', JSON.stringify(sessionData));
+      } catch (error) {
+        // Error updating user session
       }
     }
   },

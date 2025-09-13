@@ -1,0 +1,132 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '../../../../generated/prisma';
+import { 
+  validateAuthInput, 
+  getSecurityHeaders, 
+  sanitizeUserData 
+} from '../../../../utils/auth-security';
+
+const prisma = new PrismaClient();
+
+export async function PUT(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  
+  try {
+    // Parse and validate request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request format' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    const { userId, firstName, lastName, email, phone, bio, location, avatar } = body;
+    
+    // Validate userId
+    if (!userId || typeof userId !== 'number') {
+      return NextResponse.json(
+        { error: 'Valid user ID is required' }, 
+        { status: 400, headers }
+      );
+    }
+    
+    // Validate inputs
+    if (firstName) {
+      const firstNameValidation = validateAuthInput.name(firstName, 'First name');
+      if (!firstNameValidation.valid) {
+        return NextResponse.json(
+          { error: firstNameValidation.error }, 
+          { status: 400, headers }
+        );
+      }
+    }
+    
+    if (lastName) {
+      const lastNameValidation = validateAuthInput.name(lastName, 'Last name');
+      if (!lastNameValidation.valid) {
+        return NextResponse.json(
+          { error: lastNameValidation.error }, 
+          { status: 400, headers }
+        );
+      }
+    }
+    
+    if (email) {
+      const emailValidation = validateAuthInput.email(email);
+      if (!emailValidation.valid) {
+        return NextResponse.json(
+          { error: emailValidation.error }, 
+          { status: 400, headers }
+        );
+      }
+    }
+    
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'User not found' }, 
+        { status: 404, headers }
+      );
+    }
+    
+    // Check for email conflicts if email is being updated
+    if (email && email !== existingUser.email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailExists = await prisma.user.findUnique({
+        where: { email: normalizedEmail }
+      });
+      
+      if (emailExists) {
+        return NextResponse.json(
+          { error: 'An account with this email already exists' }, 
+          { status: 409, headers }
+        );
+      }
+    }
+
+    
+    // Update user data
+    const updateData: any = {};
+    
+    if (firstName !== undefined) updateData.firstName = firstName.trim();
+    if (lastName !== undefined) updateData.lastName = lastName.trim();
+    if (email !== undefined) updateData.email = email.trim().toLowerCase();
+    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    if (bio !== undefined) updateData.bio = bio?.trim() || null;
+    if (location !== undefined) updateData.location = location?.trim() || null;
+    if (avatar !== undefined) updateData.avatar = avatar?.trim() || null;
+    
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        company: true
+      }
+    });
+    
+    // Return sanitized user data
+    const userData = sanitizeUserData(updatedUser);
+    
+    return NextResponse.json(userData, { 
+      status: 200, 
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+      }
+    });
+    
+  } catch (error) {
+    console.error('User update error:', error);
+    return NextResponse.json(
+      { error: 'An unexpected error occurred. Please try again.' }, 
+      { status: 500, headers }
+    );
+  }
+}

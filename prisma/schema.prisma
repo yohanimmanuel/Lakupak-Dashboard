@@ -21,8 +21,16 @@ model User {
   // Password is optional to allow Google OAuth users
   password       String?
 
-  company        String?
-  address        String?
+  // Personal fields only
+  phone          String?
+  bio            String?
+  location       String?
+  avatar         String?
+  
+  // Company relationship
+  companyId      Int?
+  company        Company?   @relation(fields: [companyId], references: [id])
+  
   createdAt      DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
   currency       String     @default("IDR")
@@ -33,6 +41,44 @@ model User {
   suppliers      Supplier[]
   accounts       Account[]
   sessions       Session[]
+}
+
+model Company {
+  id                        Int       @id @default(autoincrement())
+  name                      String
+  businessRegistrationNumber String?
+  taxId                     String?
+  logo                      String?
+  bannerImage               String?
+  
+  // Business details
+  industryType              String?
+  businessDescription       String?
+  yearsInOperation          String?
+  companySize               String?
+  
+  // Contact information
+  businessAddress           String?
+  businessPhone             String?
+  businessEmail             String?
+  
+  // Verification status
+  documentVerification      Boolean   @default(false)
+  businessLicenseVerification Boolean @default(false)
+  complianceStatus          String    @default("Pending")
+  
+  // Shipping preferences (JSON for flexibility)
+  shippingPreferences       String?   // JSON array
+  deliveryTimeSlots         String?   // JSON array
+  preferredDeliveryDays     String?   // JSON array
+  deliveryRadius            String?
+  specialInstructions       String?
+  
+  createdAt                 DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime  @updatedAt @db.Timestamptz(3)
+  
+  // Relations
+  users                     User[]
 }
 
 model Buyer {

@@ -142,8 +142,8 @@ export default function RegisterPage() {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
+        companyId: data.companyId,
         company: data.company,
-        address: data.address,
         region: data.region,
         currency: data.currency,
       }, true); // Auto-remember new registrations

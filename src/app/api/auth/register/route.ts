@@ -108,17 +108,41 @@ export async function POST(req: NextRequest) {
     // Hash password with stronger salt rounds for production
     const hashed = await hash(password, 12);
     
-    // Create user with sanitized data
+    // Create company first
+    const companyData = await prisma.company.create({
+      data: {
+        name: company.trim(),
+        businessAddress: address.trim(),
+        businessEmail: normalizedEmail,
+        businessPhone: '', // Will be updated later
+        industryType: '',
+        businessDescription: '',
+        yearsInOperation: '',
+        companySize: '',
+        documentVerification: false,
+        businessLicenseVerification: false,
+        complianceStatus: 'Pending',
+        shippingPreferences: JSON.stringify([]),
+        deliveryTimeSlots: JSON.stringify([]),
+        preferredDeliveryDays: JSON.stringify([]),
+        deliveryRadius: '',
+        specialInstructions: ''
+      }
+    });
+
+    // Create user with company relationship
     const user = await prisma.user.create({
       data: {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizedEmail,
         password: hashed,
-        company: company.trim(),
-        address: address.trim(),
+        companyId: companyData.id,
         region: region,
         currency: selectedRegion.currency
+      },
+      include: {
+        company: true
       }
     });
     

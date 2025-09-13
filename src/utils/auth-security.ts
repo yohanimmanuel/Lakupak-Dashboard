@@ -196,10 +196,41 @@ export const sanitizeUserData = (user: Record<string, unknown>) => ({
   firstName: typeof user.firstName === 'string' ? user.firstName.trim() : (user.firstName || ''),
   lastName: typeof user.lastName === 'string' ? user.lastName.trim() : (user.lastName || ''),
   email: typeof user.email === 'string' ? user.email.toLowerCase().trim() : user.email,
-  company: typeof user.company === 'string' ? user.company.trim() : (user.company || ''),
-  address: typeof user.address === 'string' ? user.address.trim() : (user.address || ''),
+  phone: typeof user.phone === 'string' ? user.phone.trim() : (user.phone || undefined),
+  bio: typeof user.bio === 'string' ? user.bio.trim() : (user.bio || undefined),
+  location: typeof user.location === 'string' ? user.location.trim() : (user.location || undefined),
+  avatar: typeof user.avatar === 'string' ? user.avatar : (user.avatar || undefined),
+  companyId: user.companyId,
+  company: user.company, // This will be the full company object now
   region: typeof user.region === 'string' ? user.region : undefined,
   currency: typeof user.currency === 'string' ? user.currency : 'IDR',
+});
+
+// Sanitize company data for responses
+export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
+  id: company.id,
+  name: typeof company.name === 'string' ? company.name.trim() : (company.name || ''),
+  businessRegistrationNumber: typeof company.businessRegistrationNumber === 'string' ? company.businessRegistrationNumber.trim() : (company.businessRegistrationNumber || null),
+  taxId: typeof company.taxId === 'string' ? company.taxId.trim() : (company.taxId || null),
+  logo: typeof company.logo === 'string' ? company.logo : (company.logo || null),
+  bannerImage: typeof company.bannerImage === 'string' ? company.bannerImage : (company.bannerImage || null),
+  industryType: typeof company.industryType === 'string' ? company.industryType.trim() : (company.industryType || null),
+  businessDescription: typeof company.businessDescription === 'string' ? company.businessDescription.trim() : (company.businessDescription || null),
+  yearsInOperation: typeof company.yearsInOperation === 'string' ? company.yearsInOperation.trim() : (company.yearsInOperation || null),
+  companySize: typeof company.companySize === 'string' ? company.companySize.trim() : (company.companySize || null),
+  businessAddress: typeof company.businessAddress === 'string' ? company.businessAddress.trim() : (company.businessAddress || null),
+  businessPhone: typeof company.businessPhone === 'string' ? company.businessPhone.trim() : (company.businessPhone || null),
+  businessEmail: typeof company.businessEmail === 'string' ? company.businessEmail.toLowerCase().trim() : (company.businessEmail || null),
+  documentVerification: Boolean(company.documentVerification),
+  businessLicenseVerification: Boolean(company.businessLicenseVerification),
+  complianceStatus: typeof company.complianceStatus === 'string' ? company.complianceStatus : 'Pending',
+  shippingPreferences: typeof company.shippingPreferences === 'string' ? company.shippingPreferences : (company.shippingPreferences || null),
+  deliveryTimeSlots: typeof company.deliveryTimeSlots === 'string' ? company.deliveryTimeSlots : (company.deliveryTimeSlots || null),
+  preferredDeliveryDays: typeof company.preferredDeliveryDays === 'string' ? company.preferredDeliveryDays : (company.preferredDeliveryDays || null),
+  deliveryRadius: typeof company.deliveryRadius === 'string' ? company.deliveryRadius.trim() : (company.deliveryRadius || null),
+  specialInstructions: typeof company.specialInstructions === 'string' ? company.specialInstructions.trim() : (company.specialInstructions || null),
+  createdAt: company.createdAt,
+  updatedAt: company.updatedAt,
 });
 
 // Session token generation (simple JWT alternative for MVP)
