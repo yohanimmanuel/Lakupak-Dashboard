@@ -374,28 +374,16 @@ export default function GeneralInfo() {
               <label className="block text-xs font-medium text-gray-700 mb-2">
                 Email Address *
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  disabled={!isEditing}
-                  className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter your email address"
-                />
-                {isEditing && (
-                  <button 
-                    onClick={() => {
-                      // Focus on email input when change is clicked
-                      const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
-                      emailInput?.focus();
-                    }}
-                    className="px-3 py-2 text-xs text-[#0a61d7] font-medium hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    Change
-                  </button>
-                )}
-              </div>
+              <input
+                type="email"
+                value={formData.email}
+                disabled
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                placeholder="Email address"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Email cannot be changed for security reasons. Contact support if you need to update your email address.
+              </p>
             </div>
 
             <div>

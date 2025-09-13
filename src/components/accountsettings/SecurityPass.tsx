@@ -96,54 +96,6 @@ export default function SecurityPass() {
     );
   };
 
-  const handleEmailUpdate = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      if (!formData.email.trim()) {
-        setError('Email is required');
-        return;
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError('Please enter a valid email address');
-        return;
-      }
-
-      // Update email via API
-      const response = await fetch('/api/user/update', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user?.id,
-          email: formData.email.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update email');
-      }
-
-      const updatedUser = await response.json();
-      updateUser(updatedUser);
-      setOriginalData(prev => ({ ...prev, email: formData.email }));
-      setSuccess('Email updated successfully');
-      
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-    } catch (err) {
-      setError('Failed to update email. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCurrentPasswordValidation = async () => {
     try {
@@ -367,22 +319,16 @@ export default function SecurityPass() {
             <label className="block text-xs font-medium text-gray-700 mb-2">
               Email Address
             </label>
-            <div className="flex gap-3">
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
-                placeholder="Enter your email address"
-              />
-              <button
-                onClick={handleEmailUpdate}
-                disabled={isLoading}
-                className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 transition-colors flex items-center gap-2"
-              >
-                {isLoading ? 'Updating...' : 'Update Email'}
-              </button>
-            </div>
+            <input
+              type="email"
+              value={formData.email}
+              disabled
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+              placeholder="Email address"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Email cannot be changed for security reasons. Contact support if you need to update your email address.
+            </p>
           </div>
 
           {/* Password Section */}
