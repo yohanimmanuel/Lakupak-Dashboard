@@ -7,16 +7,18 @@ import GeneralInfo from '@/components/accountsettings/GeneralInfo';
 import DistributorProfile from '@/components/accountsettings/DistributorProfile';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
 import LanguageRegion from '@/components/accountsettings/LanguageRegion';
+import BillingPayment from '@/components/accountsettings/BillingPayment';
+import TeamManagement from '@/components/accountsettings/TeamManagement';
 
 type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile';
 
 const settingsTabs = [
   { id: 'general' as const, label: 'General Info', icon: <User className="w-4 h-4" /> },
   { id: 'profile' as const, label: 'Company Profile', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'security' as const, label: 'Security & Password', icon: <Shield className="w-4 h-4" /> },
+  { id: 'team' as const, label: 'Team & Sales', icon: <Users className="w-4 h-4" /> },
   { id: 'language' as const, label: 'Language & Region', icon: <Globe className="w-4 h-4" /> },
   { id: 'billing' as const, label: 'Billing & Payment', icon: <CreditCard className="w-4 h-4" /> },
-  { id: 'team' as const, label: 'Team Management', icon: <Users className="w-4 h-4" /> },
+  { id: 'security' as const, label: 'Security & Password', icon: <Shield className="w-4 h-4" /> },
 ];
 
 export default function SettingsPage() {
@@ -56,9 +58,9 @@ export default function SettingsPage() {
       case 'language':
         return <LanguageRegion />;
       case 'billing':
-        return <div className="p-8 text-center text-gray-500">Billing & Payment settings coming soon...</div>;
+        return <BillingPayment />;
       case 'team':
-        return <div className="p-8 text-center text-gray-500">Team Management settings coming soon...</div>;
+        return <TeamManagement />;
       case 'profile':
         return <DistributorProfile />;
       default:

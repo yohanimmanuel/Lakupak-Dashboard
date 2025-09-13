@@ -34,17 +34,9 @@ const secondaryMenuItems = [
     label: 'Sales',
     icon: <BadgePercentIcon className="w-5 h-5" />,
     submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Lead Management', href: '/sales/leadmanagement' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Team Management', href: '/sales/teammanagement' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/sales/campaigns' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Analytics', href: '/sales/analytics' },
-    ],
-  },
-  {
-    label: 'Leads',
-    icon: <UsersIcon className="w-5 h-5" />,
-    submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Buyer Leads', href: '/leads/buyerleads' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Supplier Leads', href: '/leads/supplierleads' },
     ],
   },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },

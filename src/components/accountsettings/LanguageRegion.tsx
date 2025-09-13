@@ -223,13 +223,13 @@ export default function LanguageRegion() {
       )}
 
       {/* Language & Region Settings */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <GlobeIcon className="w-5 h-5 text-gray-500" />
           Language & Regional Settings
         </h2>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Language Selection */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
