@@ -224,3 +224,46 @@ export const getCurrencySymbol = (currencyCode?: string): string => {
 export const isValidCurrency = (currencyCode: string): boolean => {
   return currencyCode in CURRENCY_CONFIGS;
 };
+
+// Format number according to currency locale (without currency symbol)
+export const formatNumberByCurrency = (value: string | number, currencyCode?: string): string => {
+  const config = getCurrencyConfig(currencyCode);
+  const num = typeof value === 'string' ? parseFloat(value.replace(/[^\d.-]/g, '')) : value;
+  if (isNaN(num)) return '0';
+  
+  try {
+    return num.toLocaleString(config.locale, {
+      minimumFractionDigits: config.formatOptions.minimumFractionDigits,
+      maximumFractionDigits: config.formatOptions.maximumFractionDigits
+    });
+  } catch (error) {
+    return num.toLocaleString(config.locale);
+  }
+};
+
+// Parse formatted number back to number according to currency rules
+export const parseNumberByCurrency = (value: string, currencyCode?: string): number => {
+  const config = getCurrencyConfig(currencyCode);
+  
+  // For IDR (Indonesian), dots are thousands separators, commas are decimals
+  if (config.locale === 'id-ID') {
+    // Remove dots (thousands separators) and replace commas with dots (decimal separators)
+    const cleaned = value.replace(/\./g, '').replace(/,/g, '.');
+    return parseFloat(cleaned) || 0;
+  }
+  
+  // For other currencies, use standard parsing (commas for thousands, dots for decimals)
+  const cleaned = value.replace(/[^\d.-]/g, '');
+  return parseFloat(cleaned) || 0;
+};
+
+// Get placeholder text for price input based on currency
+export const getPricePlaceholder = (currencyCode?: string): string => {
+  const config = getCurrencyConfig(currencyCode);
+  
+  if (config.locale === 'id-ID') {
+    return "e.g., 150.000 or 25,50";
+  }
+  
+  return "e.g., 150,000 or 25.00";
+};

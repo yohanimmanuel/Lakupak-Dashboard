@@ -162,6 +162,9 @@ export async function POST(req: NextRequest) {
       stockQuantity: Number(data.stockQuantity) || 0,
       lowStockThreshold: data.lowStockThreshold ? Number(data.lowStockThreshold) : null,
       stockStatus: data.stockStatus || null,
+      // Package information
+      packageType: data.packageType || null,
+      piecesPerPackage: data.piecesPerPackage ? Number(data.piecesPerPackage) : 1,
       purchasePrice: String(data.purchasePrice || ''),
       sellingPrice: String(data.sellingPrice || ''),
       status: data.status || 'Draft',
@@ -308,6 +311,9 @@ export async function PUT(req: NextRequest) {
       stockQuantity: number;
       lowStockThreshold: number | null;
       stockStatus: string | null;
+      // Package information
+      packageType: string | null;
+      piecesPerPackage: number;
       purchasePrice: string;
       sellingPrice: string;
       status: string;
@@ -330,6 +336,9 @@ export async function PUT(req: NextRequest) {
     if (updateData.stockQuantity !== undefined) cleanUpdateData.stockQuantity = Number(updateData.stockQuantity);
     if (updateData.lowStockThreshold !== undefined) cleanUpdateData.lowStockThreshold = updateData.lowStockThreshold ? Number(updateData.lowStockThreshold) : null;
     if (updateData.stockStatus !== undefined) cleanUpdateData.stockStatus = updateData.stockStatus ? String(updateData.stockStatus) : null;
+    // Package information
+    if (updateData.packageType !== undefined) cleanUpdateData.packageType = updateData.packageType ? String(updateData.packageType) : null;
+    if (updateData.piecesPerPackage !== undefined) cleanUpdateData.piecesPerPackage = updateData.piecesPerPackage ? Number(updateData.piecesPerPackage) : 1;
          if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(updateData.purchasePrice);
      if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(updateData.sellingPrice);
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);

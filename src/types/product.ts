@@ -10,6 +10,9 @@ export interface Product {
   stockQuantity: number;
   lowStockThreshold?: number;
   stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  // Package information
+  packageType?: string;
+  piecesPerPackage?: number;
   purchasePrice: string;
   sellingPrice: string;
   status: 'Draft' | 'Published';
@@ -38,6 +41,9 @@ export interface ProductTableRow {
   supplier: string;
   stockQuantity: number;
   lowStockThreshold: number;
+  // Package information
+  packageType?: string;
+  piecesPerPackage?: number;
   purchasePrice: string;
   sellingPrice: string;
   status: string;
@@ -78,6 +84,9 @@ export interface ProductFormData {
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  // Package information
+  packageType: string;
+  piecesPerPackage: number;
   purchasePrice: string;
   sellingPrice: string;
   status: 'Draft' | 'Published';

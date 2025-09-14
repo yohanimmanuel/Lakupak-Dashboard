@@ -134,6 +134,9 @@ model Product {
   stockQuantity     Int
   lowStockThreshold Int?
   stockStatus       String?
+  // Package information
+  packageType       String?
+  piecesPerPackage  Int?        @default(1)
   purchasePrice     String
   sellingPrice      String
   status            String

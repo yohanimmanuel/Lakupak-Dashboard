@@ -4,6 +4,7 @@ import { X, Heart, Share2, Star, ShoppingCart, ArrowLeft, Zap } from 'lucide-rea
 import { Product, ProductTableRow } from "@/types/product";
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
 import { useState, useEffect } from 'react';
 
 interface ProductMarketplacePubsProps {
@@ -254,6 +255,8 @@ export default function ProductMarketplacePubs({
                   -25%
                 </span>
               </div>
+              
+              
               <div className="text-xs text-gray-500 mt-1">
                 Free shipping for orders above {formatCurrency(500000, userCurrency)}
               </div>
@@ -279,8 +282,16 @@ export default function ProductMarketplacePubs({
                 <span className="text-sm font-medium text-gray-900">Sample Category</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Unit:</span>
-                <span className="text-sm font-medium text-gray-900">Piece</span>
+                <span className="text-sm text-gray-600">Package Type:</span>
+                <span className="text-sm font-medium text-gray-900">Carton</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Qty of Pieces per Package:</span>
+                <span className="text-sm font-medium text-gray-900">10 pieces</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Price per Package:</span>
+                <span className="text-sm font-medium text-gray-900">{formatCurrency(1500000, userCurrency)}</span>
               </div>
             </div>
 

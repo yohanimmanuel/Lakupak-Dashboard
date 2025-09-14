@@ -8,6 +8,7 @@ import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
 
 const statusTabs = [
   { label: "All" },
@@ -870,14 +871,14 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </td>
                 <td className="py-3 px-4 text-xs text-gray-700">
                   {String(product.purchasePrice).trim() && String(product.purchasePrice) !== '0' && String(product.purchasePrice) !== '' ? (
-                    formatCurrency(parseFloat(String(product.purchasePrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
+                    formatCurrency(parseNumberByCurrency(String(product.purchasePrice), userCurrency), userCurrency)
                   ) : (
                     <span className="text-red-600 font-bold">Missing Purchase Price</span>
                   )}
                 </td>
                 <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">
                   {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                    formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
+                    formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
                   ) : (
                     <span className="text-red-600 font-bold">Missing Selling Price</span>
                   )}
@@ -1042,10 +1043,23 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Price */}
                  <div className="text-sm font-semibold text-[#0a61d7]">
                    {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                     formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
+                     formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
                    ) : (
                      <span className="text-red-600 font-bold">Missing Selling Price</span>
                    )}
+                 </div>
+                 
+                 {/* Package Information */}
+                 <div className="text-xs text-gray-500 mt-1">
+                   <div className="flex items-center gap-1">
+                     <span>Per Carton:</span>
+                     <span className="font-medium text-gray-700">
+                       {formatCurrency(1500000, userCurrency)}
+                     </span>
+                   </div>
+                   <div className="text-xs text-gray-400">
+                     10 pieces
+                   </div>
                  </div>
                  
                  {/* Status Badge */}
@@ -1207,10 +1221,23 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Price */}
                  <div className="text-sm font-semibold text-[#0a61d7]">
                    {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                     formatCurrency(parseFloat(String(product.sellingPrice).replace(/[^\d.-]/g, '')) || 0, userCurrency)
+                     formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
                    ) : (
                      <span className="text-red-600 font-bold">Missing Selling Price</span>
                    )}
+                 </div>
+                 
+                 {/* Package Information */}
+                 <div className="text-xs text-gray-500 mt-1">
+                   <div className="flex items-center gap-1">
+                     <span>Per Carton:</span>
+                     <span className="font-medium text-gray-700">
+                       {formatCurrency(1500000, userCurrency)}
+                     </span>
+                   </div>
+                   <div className="text-xs text-gray-400">
+                     10 pieces
+                   </div>
                  </div>
                  
                  {/* Status Badge */}

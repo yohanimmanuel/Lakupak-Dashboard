@@ -17,7 +17,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
-import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
+import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -59,7 +60,9 @@ export default function ProductCatalog({
     halalCertified: (product as any)?.halalCertified ?? false,
     bpomApproved: (product as any)?.bpomApproved ?? false,
     originalProduct: (product as any)?.originalProduct ?? true,
-    returnPolicyDays: (product as any)?.returnPolicyDays ?? 7
+    returnPolicyDays: (product as any)?.returnPolicyDays ?? 7,
+    packageType: (product as any)?.packageType ?? '',
+    piecesPerPackage: (product as any)?.piecesPerPackage ?? 1
   });
 
 
@@ -112,6 +115,33 @@ export default function ProductCatalog({
   const statusOptions = ['Draft', 'Published'];
   const catalogTypes = ['Internal', 'External'];
 
+
+  // Helper function to handle price input with better UX
+  const handlePriceInput = (field: 'purchasePrice' | 'sellingPrice', value: string) => {
+    // Allow typing without immediate formatting
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Helper function to format price on blur
+  const handlePriceBlur = (field: 'purchasePrice' | 'sellingPrice') => {
+    const currentValue = formData[field];
+    if (currentValue && currentValue.trim() !== '') {
+      // Parse the current value to get the numeric value
+      const numericValue = parseNumberByCurrency(currentValue, userCurrency);
+      
+      // Format it properly according to currency
+      const formattedValue = formatNumberByCurrency(numericValue, userCurrency);
+      
+      setFormData(prev => ({
+        ...prev,
+        [field]: formattedValue
+      }));
+    }
+  };
+
   const handleInputChange = (field: keyof ProductFormData, value: any) => {
     setFormData(prev => {
       const newFormData = {
@@ -139,7 +169,6 @@ export default function ProductCatalog({
       return newFormData;
     });
   };
-
 
 
   const handleImageUpload = (files: FileList) => {
@@ -653,6 +682,38 @@ export default function ProductCatalog({
                   <h3 className="text-sm font-semibold text-gray-900 mb-4">Stock Information</h3>
                 </div>
                 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Package Type
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.packageType}
+                      onChange={(e) => handleInputChange('packageType', e.target.value)}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                      placeholder="e.g., Box, Carton, Case"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Type of packaging unit</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Pieces per Package
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.piecesPerPackage}
+                      onChange={(e) => handleInputChange('piecesPerPackage', parseInt(e.target.value) || 1)}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                      placeholder="1"
+                      min="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Number of individual pieces per package</p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -667,7 +728,7 @@ export default function ProductCatalog({
                      placeholder="0"
                      min="0"
                    />
-                   <p className="text-xs text-gray-500 mt-1">Current units available</p>
+                   <p className="text-xs text-gray-500 mt-1">Current packages available</p>
                  </div>
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -910,6 +971,7 @@ export default function ProductCatalog({
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-gray-500" />
               Pricing
+              <span className="text-xs text-gray-500 font-normal">(format matches {userCurrency})</span>
             </h2>
             
             <div className="space-y-4">
@@ -925,10 +987,11 @@ export default function ProductCatalog({
                      <input
                        type="text"
                        value={formData.sellingPrice}
-                       onChange={(e) => handleInputChange('sellingPrice', e.target.value)}
+                       onChange={(e) => handlePriceInput('sellingPrice', e.target.value)}
+                       onBlur={() => handlePriceBlur('sellingPrice')}
                        disabled={isViewMode}
                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder="e.g., 150000 or 25.00"
+                       placeholder={getPricePlaceholder(userCurrency)}
                      />
                    </div>
                  </div>
@@ -943,10 +1006,11 @@ export default function ProductCatalog({
                      <input
                        type="text"
                        value={formData.purchasePrice}
-                       onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
+                       onChange={(e) => handlePriceInput('purchasePrice', e.target.value)}
+                       onBlur={() => handlePriceBlur('purchasePrice')}
                        disabled={isViewMode}
                        className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder="e.g., 120000 or 20.00"
+                       placeholder={getPricePlaceholder(userCurrency)}
                      />
                    </div>
                  </div>
@@ -980,6 +1044,35 @@ export default function ProductCatalog({
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                     placeholder="e.g., Seasonal Sale"
                   />
+                </div>
+              </div>
+
+              {/* Calculated Price per Package */}
+              <div className="border-t border-gray-200 pt-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Price per Package (Calculated)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                      {currencySymbol}
+                    </div>
+                    <input
+                      type="text"
+                      value={(() => {
+                        const sellingPrice = parseNumberByCurrency(formData.sellingPrice, userCurrency) || 0;
+                        const piecesPerPackage = formData.piecesPerPackage || 1;
+                        const packagePrice = sellingPrice * piecesPerPackage;
+                        return packagePrice > 0 ? formatNumberByCurrency(packagePrice, userCurrency) : '0';
+                      })()}
+                      disabled={true}
+                      className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                      readOnly
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formData.sellingPrice || '0'} per {formData.packageType || 'piece'}
+                  </p>
                 </div>
               </div>
             </div>
