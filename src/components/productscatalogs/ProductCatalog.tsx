@@ -916,30 +916,36 @@ export default function ProductCatalog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Base/Selling Price <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
+                     Base/Selling Price 
                    </label>
                    <div className="relative">
+                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                       {currencySymbol}
+                     </div>
                      <input
                        type="text"
                        value={formData.sellingPrice}
                        onChange={(e) => handleInputChange('sellingPrice', e.target.value)}
                        disabled={isViewMode}
-                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                       className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                        placeholder="e.g., 150000 or 25.00"
                      />
                    </div>
                  </div>
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Purchase Price <span className="text-xs text-gray-500 italic">(Indicate the currency)</span>
+                     Purchase Price
                    </label>
                    <div className="relative">
+                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                       {currencySymbol}
+                     </div>
                      <input
                        type="text"
                        value={formData.purchasePrice}
                        onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
                        disabled={isViewMode}
-                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                       className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                        placeholder="e.g., 120000 or 20.00"
                      />
                    </div>
