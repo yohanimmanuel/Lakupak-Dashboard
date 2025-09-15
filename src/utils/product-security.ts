@@ -64,9 +64,6 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.catalogName === 'string') {
     sanitized.catalogName = data.catalogName.trim();
   }
-  if (typeof data.discountType === 'string') {
-    sanitized.discountType = data.discountType.trim();
-  }
 
 
   return sanitized;

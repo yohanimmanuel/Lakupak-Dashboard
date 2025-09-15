@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Shield, Globe, CreditCard, Users, Building2 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
-import DistributorProfile from '@/components/accountsettings/DistributorProfile';
+import DistributorOperations from '@/components/accountsettings/DistributorOperations';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
 import LanguageRegion from '@/components/accountsettings/LanguageRegion';
 import BillingPayment from '@/components/accountsettings/BillingPayment';
@@ -14,7 +14,7 @@ type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'p
 
 const settingsTabs = [
   { id: 'general' as const, label: 'General Info', icon: <User className="w-4 h-4" /> },
-  { id: 'profile' as const, label: 'Company Profile', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'profile' as const, label: 'Distributor Operations', icon: <Building2 className="w-4 h-4" /> },
   { id: 'team' as const, label: 'Team & Sales', icon: <Users className="w-4 h-4" /> },
   { id: 'language' as const, label: 'Language & Region', icon: <Globe className="w-4 h-4" /> },
   { id: 'billing' as const, label: 'Billing & Payment', icon: <CreditCard className="w-4 h-4" /> },
@@ -62,7 +62,7 @@ export default function SettingsPage() {
       case 'team':
         return <TeamManagement />;
       case 'profile':
-        return <DistributorProfile />;
+        return <DistributorOperations />;
       default:
         return <GeneralInfo />;
     }

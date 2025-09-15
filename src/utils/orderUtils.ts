@@ -133,7 +133,7 @@ export const validateAndCorrectOrder = (order: Order): { order: Order; wasCorrec
 
   // 2. Calculate correct values
   const correctSubtotal = correctedItems.reduce((sum, item) => sum + item.subtotal, 0);
-  const correctTotalAmount = correctSubtotal + order.taxes + order.shippingFee - order.discounts;
+  const correctTotalAmount = correctSubtotal + order.shippingFee - order.discounts;
   const correctTotalQuantity = correctedItems.reduce((sum, item) => {
     const piecesPerPackage = item.piecesPerPackage || 1;
     const packageQuantity = item.packageQuantity || 1;
@@ -167,7 +167,7 @@ export const validateAndCorrectOrder = (order: Order): { order: Order; wasCorrec
 // Calculate total amount from order items (same logic as OrderDetails)
 export const calculateOrderTotalAmount = (order: Order): number => {
   const subtotal = calculateOrderSubtotal(order);
-  return subtotal + order.taxes + order.shippingFee - order.discounts;
+  return subtotal + order.shippingFee - order.discounts;
 };
 
 // Calculate total quantity from order items (total pieces)
@@ -237,7 +237,7 @@ export const recalculateEntireOrder = (order: Order): Order => {
   const newSubtotal = recalculatedItems.reduce((sum, item) => sum + item.subtotal, 0);
   
   // 3. Calculate new total amount
-  const newTotalAmount = newSubtotal + order.taxes + order.shippingFee - order.discounts;
+  const newTotalAmount = newSubtotal + order.shippingFee - order.discounts;
   
   // 4. Calculate new total quantity (total pieces)
   const newTotalQuantity = recalculatedItems.reduce((sum, item) => {
@@ -369,7 +369,7 @@ export const forceDatabaseRecalculation = async (orderId: string): Promise<Order
       subtotal: recalculatedOrder.subtotal,
       totalAmount: recalculatedOrder.totalAmount,
       totalOrders: recalculatedOrder.totalOrders,
-      taxes: recalculatedOrder.taxes, // Include other fields that might affect totalAmount
+      // Include other fields that might affect totalAmount
       shippingFee: recalculatedOrder.shippingFee,
       discounts: recalculatedOrder.discounts,
       // Include other fields that might be necessary for a complete update

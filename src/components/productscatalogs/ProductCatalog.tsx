@@ -55,8 +55,6 @@ export default function ProductCatalog({
     catalogType: product?.catalogType || 'Internal',
     catalogName: product?.catalogName || '',
     images: product?.images || [],
-    discount: product?.discount || 0,
-    discountType: product?.discountType || '',
     halalCertified: (product as any)?.halalCertified ?? false,
     bpomApproved: (product as any)?.bpomApproved ?? false,
     originalProduct: (product as any)?.originalProduct ?? true,
@@ -1016,36 +1014,6 @@ export default function ProductCatalog({
                  </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Discount (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.discount || 0}
-                    onChange={(e) => handleInputChange('discount', parseFloat(e.target.value) || 0)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="0"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Discount Type
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.discountType || ''}
-                    onChange={(e) => handleInputChange('discountType', e.target.value)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="e.g., Seasonal Sale"
-                  />
-                </div>
-              </div>
 
               {/* Calculated Price per Package */}
               <div className="border-t border-gray-200 pt-4">

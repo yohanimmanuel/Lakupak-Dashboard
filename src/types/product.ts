@@ -19,8 +19,6 @@ export interface Product {
   catalogType: 'Internal' | 'External';
   catalogName: string;
   images: string[];
-  discount?: number;
-  discountType?: string;
   // Product assurance
   halalCertified?: boolean;
   bpomApproved?: boolean;
@@ -68,8 +66,6 @@ export interface ProductImportRow {
   'Status': string;
   'Catalog Type': string;
   'Catalog Name': string;
-  'Discount': string;
-  'Discount Type': string;
 }
 
 export interface ProductFormData {
@@ -93,8 +89,6 @@ export interface ProductFormData {
   catalogType: 'Internal' | 'External';
   catalogName: string;
   images: string[];
-  discount: number;
-  discountType: string;
   // Product assurance
   halalCertified: boolean;
   bpomApproved: boolean;

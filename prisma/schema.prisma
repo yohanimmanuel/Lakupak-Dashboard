@@ -143,8 +143,6 @@ model Product {
   catalogType       String
   catalogName       String
   images            String[]
-  discount          Float?
-  discountType      String?
   // Product assurance fields
   halalCertified    Boolean?    @default(false)
   bpomApproved      Boolean?    @default(false)
@@ -212,7 +210,6 @@ model Order {
   deliveryMethod        String
   subtotal              Float
   discounts             Float
-  taxes                 Float
   shippingFee           Float
   totalAmount           Float
   paymentTerms          String

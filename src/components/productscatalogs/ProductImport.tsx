@@ -21,8 +21,6 @@ type ProductImportRow = {
   'Status': string;
   'Catalog Type': string;
   'Catalog Name': string;
-  'Discount': string;
-  'Discount Type': string;
 };
 
 type ProductImportProps = {
@@ -47,8 +45,6 @@ const productFields = [
   { key: 'Status', label: 'Status (Always Draft)' },
   { key: 'Catalog Type', label: 'Catalog Type (Optional)' },
   { key: 'Catalog Name', label: 'Catalog Name (Optional)' },
-  { key: 'Discount', label: 'Discount (Optional)' },
-  { key: 'Discount Type', label: 'Discount Type (Optional)' },
 ];
 
 // Synonyms for automapping
@@ -70,8 +66,6 @@ const productSynonyms: { [key: string]: string[] } = {
   'Catalog Name': ['catalog name', 'catalog', 'nama katalog'],
   
   
-  'Discount': ['discount', 'diskon', 'potongan'],
-  'Discount Type': ['discount type', 'discount category', 'jenis diskon'],
 };
 
 function generateProductId() {
@@ -177,9 +171,6 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       
       if (!mapped['Low Stock Threshold']) {
         mapped['Low Stock Threshold'] = '30';
-      }
-      if (!mapped['Discount']) {
-        mapped['Discount'] = '0';
       }
       
       return mapped as ProductImportRow;

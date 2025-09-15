@@ -1360,7 +1360,7 @@ export const calculateRevenueData = (
 
 // Shared function to calculate total revenue from orders and products
 export const calculateTotalRevenue = (orders: Order[], _products: Product[]): number => {
-  // Match Orders module: sum full order totals (includes shipping, taxes, discounts)
+  // Match Orders module: sum full order totals (includes shipping, discounts)
   return orders.reduce((sum, order) => sum + parseFloat(String(order.totalAmount || 0)), 0);
 };
 

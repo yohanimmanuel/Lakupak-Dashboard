@@ -9,7 +9,6 @@ export interface Order {
   deliveryMethod: 'Distributor Fleet' | '3rd-Party Courier' | 'Pickup';
   subtotal: number;
   discounts: number;
-  taxes: number;
   shippingFee: number;
   totalAmount: number;
   paymentTerms: string;

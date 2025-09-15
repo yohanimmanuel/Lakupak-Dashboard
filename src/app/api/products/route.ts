@@ -171,8 +171,6 @@ export async function POST(req: NextRequest) {
       catalogType: data.catalogType || 'Internal',
       catalogName: data.catalogName || '',
       images: Array.isArray(data.images) ? data.images : [],
-      discount: data.discount ? Number(data.discount) : null,
-      discountType: data.discountType || null,
       // Product assurance fields
       halalCertified: data.halalCertified === true,
       bpomApproved: data.bpomApproved === true,
@@ -320,8 +318,6 @@ export async function PUT(req: NextRequest) {
       catalogType: string;
       catalogName: string;
       images: string[];
-      discount: number | null;
-      discountType: string | null;
       halalCertified: boolean;
       bpomApproved: boolean;
       originalProduct: boolean;
@@ -345,8 +341,6 @@ export async function PUT(req: NextRequest) {
     if (updateData.catalogType !== undefined) cleanUpdateData.catalogType = String(updateData.catalogType);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);
     if (updateData.images !== undefined) cleanUpdateData.images = Array.isArray(updateData.images) ? updateData.images : [];
-    if (updateData.discount !== undefined) cleanUpdateData.discount = updateData.discount ? Number(updateData.discount) : 0;
-    if (updateData.discountType !== undefined) cleanUpdateData.discountType = updateData.discountType ? String(updateData.discountType) : null;
     if (updateData.halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(updateData.halalCertified);
     if (updateData.bpomApproved !== undefined) cleanUpdateData.bpomApproved = Boolean(updateData.bpomApproved);
     if (updateData.originalProduct !== undefined) cleanUpdateData.originalProduct = Boolean(updateData.originalProduct);

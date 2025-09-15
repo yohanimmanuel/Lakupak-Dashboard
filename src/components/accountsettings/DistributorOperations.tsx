@@ -83,7 +83,7 @@ const shippingOptions = [
   'Pickup Available'
 ];
 
-export default function DistributorProfile() {
+export default function DistributorOperations() {
   const { user, updateUser } = useUserStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -451,8 +451,8 @@ export default function DistributorProfile() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black mb-2">Company Profile</h1>
-          <p className="text-sm text-gray-600">Manage your company information and business details</p>
+          <h1 className="text-2xl font-bold text-black mb-2">Distributor Operations</h1>
+          <p className="text-sm text-gray-600">Manage your distributor operations and business details</p>
         </div>
         
         {!isEditing ? (
@@ -845,51 +845,54 @@ export default function DistributorProfile() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Shipping and Delivery Preferences */}
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Truck className="w-4 h-4 text-gray-500" />
-                Shipping & Delivery Preferences
-              </h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Shipping Options
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {shippingOptions.map(option => (
-                      <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isEditing) {
-                              if (formData.shippingPreferences.includes(option)) {
-                                handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
-                              } else {
-                                handleInputChange('shippingPreferences', [...formData.shippingPreferences, option]);
-                              }
-                            }
-                          }}
-                          disabled={!isEditing}
-                          className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
-                            formData.shippingPreferences.includes(option)
-                              ? 'bg-green-500 border-green-500'
-                              : 'bg-white border-gray-300 hover:border-green-400'
-                          } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {formData.shippingPreferences.includes(option) && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </button>
-                        <span className="text-xs text-gray-700">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+      {/* Shipping and Delivery Preferences */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
+        <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Truck className="w-5 h-5 text-gray-500" />
+          Shipping & Delivery Preferences
+        </h2>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Shipping Options
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {shippingOptions.map(option => (
+                <label key={option} className="flex items-center space-x-2 cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isEditing) {
+                        if (formData.shippingPreferences.includes(option)) {
+                          handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
+                        } else {
+                          handleInputChange('shippingPreferences', [...formData.shippingPreferences, option]);
+                        }
+                      }
+                    }}
+                    disabled={!isEditing}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
+                      formData.shippingPreferences.includes(option)
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {formData.shippingPreferences.includes(option) && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                  <span className="text-xs text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -979,21 +982,18 @@ export default function DistributorProfile() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Special Delivery Instructions
-                  </label>
-                  <textarea
-                    value={formData.specialInstructions}
-                    onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
-                    disabled={!isEditing}
-                    rows={3}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
-                    placeholder="Any special instructions for delivery"
-                  />
-                </div>
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Special Delivery Instructions
+            </label>
+            <textarea
+              value={formData.specialInstructions}
+              onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
+              disabled={!isEditing}
+              rows={3}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
+              placeholder="Any special instructions for delivery"
+            />
           </div>
         </div>
       </div>

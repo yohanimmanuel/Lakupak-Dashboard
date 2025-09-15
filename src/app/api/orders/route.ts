@@ -190,10 +190,9 @@ export async function POST(request: NextRequest) {
       const packageQuantity = it.packageQuantity || 1;
       return sum + (packageQuantity * piecesPerPackage);
     }, 0);
-    const taxes = Number(sanitizedData.taxes || 0);
     const shippingFee = Number(sanitizedData.shippingFee || 0);
     const discounts = Number(sanitizedData.discounts || 0);
-    const totalAmountCalc = subtotalCalc + taxes + shippingFee - discounts;
+    const totalAmountCalc = subtotalCalc + shippingFee - discounts;
     
     // Convert orderItems to JSON string
     const orderData = {
@@ -207,7 +206,6 @@ export async function POST(request: NextRequest) {
       deliveryMethod: String(sanitizedData.deliveryMethod || 'Distributor Fleet'),
       subtotal: subtotalCalc,
       discounts,
-      taxes,
       shippingFee,
       totalAmount: totalAmountCalc,
       paymentTerms: String(sanitizedData.paymentTerms || ''),
@@ -433,7 +431,7 @@ export async function PUT(request: NextRequest) {
       recalculatedData = {
         ...sanitizedData,
         subtotal: subtotalCalc,
-        totalAmount: subtotalCalc + Number(sanitizedData.taxes || 0) + Number(sanitizedData.shippingFee || 0) - Number(sanitizedData.discounts || 0),
+        totalAmount: subtotalCalc + Number(sanitizedData.shippingFee || 0) - Number(sanitizedData.discounts || 0),
         totalOrders: totalQtyCalc,
         orderItems: JSON.stringify(consistentOrderItems)
       };

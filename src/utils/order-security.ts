@@ -100,9 +100,6 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
     return { valid: false, error: 'Discounts must be a positive number' };
   }
   
-  if (orderData.taxes !== undefined && (isNaN(Number(orderData.taxes)) || Number(orderData.taxes) < 0)) {
-    return { valid: false, error: 'Taxes must be a positive number' };
-  }
   
   if (orderData.shippingFee !== undefined && (isNaN(Number(orderData.shippingFee)) || Number(orderData.shippingFee) < 0)) {
     return { valid: false, error: 'Shipping fee must be a positive number' };
@@ -217,9 +214,6 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
     return { valid: false, error: 'Discounts must be a positive number' };
   }
   
-  if (orderData.taxes !== undefined && (isNaN(Number(orderData.taxes)) || Number(orderData.taxes) < 0)) {
-    return { valid: false, error: 'Taxes must be a positive number' };
-  }
   
   if (orderData.shippingFee !== undefined && (isNaN(Number(orderData.shippingFee)) || Number(orderData.shippingFee) < 0)) {
     return { valid: false, error: 'Shipping fee must be a positive number' };
@@ -346,9 +340,6 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.discounts = parseFloat(String(orderData.discounts)) || 0;
   }
   
-  if (orderData.taxes !== undefined) {
-    sanitized.taxes = parseFloat(String(orderData.taxes)) || 0;
-  }
   
   if (orderData.shippingFee !== undefined) {
     sanitized.shippingFee = parseFloat(String(orderData.shippingFee)) || 0;

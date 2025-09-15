@@ -266,10 +266,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <span className="font-medium text-green-600">{formatCurrency(order.discounts, user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Taxes:</span>
-                  <span className="font-medium text-black">{formatCurrency(order.taxes, user?.currency)}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-600">Shipping fee:</span>
                   <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
                 </div>
