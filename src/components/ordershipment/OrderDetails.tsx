@@ -355,11 +355,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
         </div>
 
-        {/* Row 3: Order Items and Earnings Breakdown side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Row 3: Order Items and Order Summary side by side (3:4 ratio) */}
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
           
-          {/* Order Items Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          {/* Order Items Section (3 columns) */}
+          <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Items</h2>
             <div className="space-y-2">
               {order.orderItems.slice(0, 4).map((item, index) => (
@@ -385,11 +385,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <p className="text-xs text-gray-600">Category: {item.category || 'Uncategorized'}</p>
                   </div>
                   
-                  {/* Price & Quantity */}
+                  {/* Package Information */}
                   <div className="text-right">
-                    <p className="text-xs text-gray-600 mb-1">Qty: {item.quantity}</p>
-                    <p className="text-xs font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
-                    <p className="text-sm font-semibold text-black">{formatCurrency(item.subtotal, user?.currency)}</p>
+                    <p className="text-xs text-gray-600 mb-1">
+                      Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)} per {item.packageType || 'package'}
+                    </p>
+                    <p className="text-sm font-semibold text-black">
+                      {formatCurrency(item.pricePerPackage || item.subtotal, user?.currency)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -408,15 +414,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
           </div>
 
-          {/* Order Summary Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          {/* Order Summary Section (4 columns) */}
+          <div className="lg:col-span-4 bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
             
             {/* Top Summary Cards */}
-            <div className="grid grid-cols-1 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                 <div className="text-2xl font-bold text-green-600">{calculateTotalQuantity()}</div>
                 <div className="text-sm text-gray-600">Total Items Quantity</div>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <div className="text-2xl font-bold text-blue-600">
+                  {order.orderItems.reduce((sum, item) => sum + (item.packageQuantity || 1), 0)}
+                </div>
+                <div className="text-sm text-gray-600">Total Packages</div>
               </div>
             </div>
 
@@ -426,8 +438,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500">
                     <th className="text-left py-2 font-medium uppercase">Description</th>
-                    <th className="text-left py-2 font-medium uppercase">Price</th>
-                    <th className="text-left py-2 font-medium uppercase">Quantity</th>
+                    <th className="text-left py-2 font-medium uppercase">Pckg Type</th>
+                    <th className="text-left py-2 font-medium uppercase">Pcs/Pckg</th>
+                    <th className="text-left py-2 font-medium uppercase">Qty of Pckg</th>
+                    <th className="text-left py-2 font-medium uppercase">Price/Pckg</th>
                     <th className="text-right py-2 font-medium uppercase">Total Amount</th>
                     </tr>
                 </thead>
@@ -446,15 +460,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           {item.productName}
                         </span>
                       </td>
-                      <td className="py-2">{formatCurrency(item.unitPrice, user?.currency)}</td>
-                      <td className="py-2">{item.quantity}</td>
+                      <td className="py-2">{item.packageType || 'Package'}</td>
+                      <td className="py-2">{item.piecesPerPackage || 1}</td>
+                      <td className="py-2">{item.packageQuantity || 1}</td>
+                      <td className="py-2">{formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)}</td>
                       <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300">
-                    <td colSpan={3} className="py-3 text-lg font-semibold text-gray-900">Total price</td>
+                    <td colSpan={5} className="py-3 text-lg font-semibold text-gray-900">Total price</td>
                     <td className="py-3 text-right font-bold text-lg text-gray-900">
                       {formatCurrency(calculateSubtotal(), user?.currency)}
                     </td>
@@ -527,10 +543,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <p className="text-sm text-gray-600">Category: {item.category || 'Uncategorized'}</p>
                     </div>
                     
-                    {/* Price & Quantity */}
+                    {/* Package Information */}
                     <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">Qty: {item.quantity}</p>
-                      <p className="text-sm font-medium text-gray-900">{formatCurrency(item.unitPrice, user?.currency)}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {item.piecesPerPackage || 1} pieces per {item.packageType || 'package'}
+                      </p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)} per package
+                      </p>
                       <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
                     </div>
                   </div>

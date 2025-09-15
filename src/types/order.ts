@@ -49,6 +49,11 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  // Package information for B2B wholesale model
+  packageType?: string;
+  piecesPerPackage?: number;
+  packageQuantity?: number;
+  pricePerPackage?: number;
   // augmented fields for deleted product handling
   productDeleted?: boolean;
   productNameSnapshot?: string;

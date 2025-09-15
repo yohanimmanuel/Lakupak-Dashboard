@@ -5,9 +5,38 @@ const prisma = new PrismaClient();
 
 // ===== CALCULATION FUNCTIONS =====
 
-// Ensure price consistency by fetching product's sellingPrice
+// Create order item from product data with package information
+export const createOrderItemFromProduct = (
+  product: any, 
+  packageQuantity: number = 1
+): OrderItem => {
+  const unitPrice = parseFloat(product.sellingPrice);
+  const piecesPerPackage = product.piecesPerPackage || 1;
+  const pricePerPackage = unitPrice * piecesPerPackage;
+  const subtotal = packageQuantity * pricePerPackage;
+  
+  return {
+    productId: product.productId,
+    productName: product.name,
+    category: product.category,
+    quantity: packageQuantity * piecesPerPackage, // Total pieces
+    unitPrice: unitPrice,
+    subtotal: subtotal,
+    packageType: product.packageType,
+    piecesPerPackage: piecesPerPackage,
+    packageQuantity: packageQuantity,
+    pricePerPackage: pricePerPackage
+  };
+};
+
+// Ensure price consistency by fetching product's sellingPrice and package info
 export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem> => {
   try {
+    // Skip if productId is null
+    if (!item.productId) {
+      return item;
+    }
+    
     const product = await prisma.product.findFirst({
       where: { productId: item.productId }
     });
@@ -18,6 +47,25 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     
     // Use the product's sellingPrice as the unitPrice to ensure consistency
     const consistentUnitPrice = parseFloat(product.sellingPrice);
+    
+    // Calculate package-based pricing if package information is available
+    if (product.packageType && product.piecesPerPackage) {
+      const pricePerPackage = consistentUnitPrice * product.piecesPerPackage;
+      const packageQuantity = item.packageQuantity || 1;
+      const consistentSubtotal = packageQuantity * pricePerPackage;
+      
+      return {
+        ...item,
+        unitPrice: consistentUnitPrice,
+        packageType: product.packageType,
+        piecesPerPackage: product.piecesPerPackage,
+        packageQuantity: packageQuantity,
+        pricePerPackage: pricePerPackage,
+        subtotal: consistentSubtotal
+      };
+    }
+    
+    // Fallback to unit-based pricing
     const consistentSubtotal = consistentUnitPrice * item.quantity;
     
     return {
@@ -31,8 +79,18 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
   }
 };
 
-// Recalculate order item subtotal
+// Recalculate order item subtotal (package-based)
 export const recalculateOrderItem = (item: OrderItem): OrderItem => {
+  // For package-based pricing, calculate based on package quantity and price per package
+  if (item.packageQuantity && item.pricePerPackage) {
+    const newSubtotal = item.packageQuantity * item.pricePerPackage;
+    return {
+      ...item,
+      subtotal: newSubtotal
+    };
+  }
+  
+  // Fallback to unit-based pricing for backward compatibility
   const newSubtotal = item.quantity * item.unitPrice;
   return {
     ...item,

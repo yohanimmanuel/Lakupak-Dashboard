@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
         quantity: oi.quantity,
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
+        packageType: oi.packageType,
+        piecesPerPackage: oi.piecesPerPackage,
+        packageQuantity: oi.packageQuantity,
+        pricePerPackage: oi.pricePerPackage,
         productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
         category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -123,6 +127,10 @@ export async function GET(request: NextRequest) {
         quantity: oi.quantity,
         unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
+        packageType: oi.packageType,
+        piecesPerPackage: oi.piecesPerPackage,
+        packageQuantity: oi.packageQuantity,
+        pricePerPackage: oi.pricePerPackage,
         productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
         category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -246,7 +254,16 @@ export async function POST(request: NextRequest) {
     
     // Create OrderItem records for each item with price consistency
     if (Array.isArray(consistentOrderItems)) {
-      const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { productId: string; quantity: number; unitPrice?: number; subtotal?: number }) => {
+      const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { 
+        productId: string; 
+        quantity: number; 
+        unitPrice?: number; 
+        subtotal?: number;
+        packageType?: string;
+        piecesPerPackage?: number;
+        packageQuantity?: number;
+        pricePerPackage?: number;
+      }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -258,7 +275,16 @@ export async function POST(request: NextRequest) {
         
         // Use the product's sellingPrice as the unitPrice to ensure consistency
         const consistentUnitPrice = parseFloat(product.sellingPrice);
-        const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
+        
+        // Calculate package-based pricing if package information is available
+        let consistentSubtotal;
+        if (product.packageType && product.piecesPerPackage && item.packageQuantity) {
+          const pricePerPackage = consistentUnitPrice * product.piecesPerPackage;
+          consistentSubtotal = item.packageQuantity * pricePerPackage;
+        } else {
+          // Fallback to unit-based pricing
+          consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
+        }
         
         return prisma.orderItem.create({
           data: ({
@@ -267,6 +293,10 @@ export async function POST(request: NextRequest) {
             quantity: Number(item.quantity || 0),
             unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal,
+            packageType: item.packageType || product.packageType || null,
+            piecesPerPackage: item.piecesPerPackage || product.piecesPerPackage || 1,
+            packageQuantity: item.packageQuantity || 1,
+            pricePerPackage: item.pricePerPackage || (product.piecesPerPackage ? consistentUnitPrice * product.piecesPerPackage : null),
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
             productCategorySnapshot: product.category
@@ -283,6 +313,10 @@ export async function POST(request: NextRequest) {
       quantity: oi.quantity,
       unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
+      packageType: oi.packageType,
+      piecesPerPackage: oi.piecesPerPackage,
+      packageQuantity: oi.packageQuantity,
+      pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
       category: oi.product?.category || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
@@ -504,6 +538,10 @@ export async function PUT(request: NextRequest) {
       quantity: oi.quantity,
       unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
+      packageType: oi.packageType,
+      piecesPerPackage: oi.piecesPerPackage,
+      packageQuantity: oi.packageQuantity,
+      pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
       category: oi.product?.category || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',

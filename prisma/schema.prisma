@@ -251,6 +251,11 @@ model OrderItem {
   quantity  Int
   unitPrice Float
   subtotal  Float
+  // Package information for B2B wholesale model
+  packageType       String?
+  piecesPerPackage  Int?     @default(1)
+  packageQuantity   Int?     @default(1)
+  pricePerPackage   Float?
   // Snapshots to preserve display data if product is deleted
   productNameSnapshot String?
   productSkuSnapshot  String?
