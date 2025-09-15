@@ -117,12 +117,12 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
       }
       
       for (const item of items) {
-        if (!item.productId || !item.productName || !item.quantity || !item.unitPrice || !item.subtotal) {
-          return { valid: false, error: 'Order items must have productId, productName, quantity, unitPrice, and subtotal' };
+        if (!item.productId || !item.productName || !item.packageQuantity || !item.pricePerPackage || !item.subtotal) {
+          return { valid: false, error: 'Order items must have productId, productName, packageQuantity, pricePerPackage, and subtotal' };
         }
         
-        if (item.quantity <= 0 || item.unitPrice <= 0 || item.subtotal <= 0) {
-          return { valid: false, error: 'Order item quantities and prices must be positive numbers' };
+        if (item.packageQuantity <= 0 || item.pricePerPackage <= 0 || item.subtotal <= 0) {
+          return { valid: false, error: 'Order item package quantities and prices must be positive numbers' };
         }
       }
     } catch (error) {
@@ -234,12 +234,12 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
       }
       
       for (const item of items) {
-        if (!item.productId || !item.productName || !item.quantity || !item.unitPrice || !item.subtotal) {
-          return { valid: false, error: 'Order items must have productId, productName, quantity, unitPrice, and subtotal' };
+        if (!item.productId || !item.productName || !item.packageQuantity || !item.pricePerPackage || !item.subtotal) {
+          return { valid: false, error: 'Order items must have productId, productName, packageQuantity, pricePerPackage, and subtotal' };
         }
         
-        if (item.quantity <= 0 || item.unitPrice <= 0 || item.subtotal <= 0) {
-          return { valid: false, error: 'Order item quantities and prices must be positive numbers' };
+        if (item.packageQuantity <= 0 || item.pricePerPackage <= 0 || item.subtotal <= 0) {
+          return { valid: false, error: 'Order item package quantities and prices must be positive numbers' };
         }
       }
     } catch (error) {

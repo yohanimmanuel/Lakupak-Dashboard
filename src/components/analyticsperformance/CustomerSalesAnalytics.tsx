@@ -42,23 +42,29 @@ interface BuyerLite {
 }
 
 // ===== Reusable types & utilities (exported) =====
-export type SalesTrendPoint = { month: string; orders: number; units: number };
+export type SalesTrendPoint = { month: string; orders: number; packages: number; units: number };
 
 export const calculateSalesTrend = (orders: Order[], hasData: boolean): SalesTrendPoint[] => {
 	if (!hasData || orders.length === 0) return [];
-	const monthly: Record<string, { orders: number; units: number; label: string }> = {};
+	const monthly: Record<string, { orders: number; packages: number; units: number; label: string }> = {};
 	orders.forEach(o => {
 		const d = new Date(o.orderDate);
 		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
 		const label = d.toLocaleDateString('en-US', { month: 'short' });
-		if (!monthly[key]) monthly[key] = { orders: 0, units: 0, label };
+		if (!monthly[key]) monthly[key] = { orders: 0, packages: 0, units: 0, label };
 		monthly[key].orders += 1;
 		if (o.orderItems && Array.isArray(o.orderItems)) {
-			o.orderItems.forEach(i => monthly[key].units += i.quantity);
+			o.orderItems.forEach(i => {
+				// Calculate packages and units using package-based pricing
+				const packageQuantity = i.packageQuantity || 1;
+				const piecesPerPackage = i.piecesPerPackage || 1;
+				monthly[key].packages += packageQuantity;
+				monthly[key].units += packageQuantity * piecesPerPackage;
+			});
 		}
 	});
 	const sorted = Object.entries(monthly)
-		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, units: v.units }))
+		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, packages: v.packages, units: v.units }))
 		.sort((a, b) => a.key.localeCompare(b.key));
 	return sorted.slice(-6);
 };
@@ -71,13 +77,16 @@ export const calculateSalesMetrics = (
 	if (!hasData || orders.length === 0) {
 		return {
 			totalOrders: 0,
+			totalPackagesSold: 0,
 			totalUnitsSold: 0,
-			avgItemsPerOrder: 0,
+			avgPackagesPerOrder: 0,
+			avgUnitsPerOrder: 0,
 			avgOrderValue: 0,
 			uniqueCustomers: 0,
 			repeatCustomerRate: 0
 		};
 	}
+	let totalPackagesSold = 0;
 	let totalUnitsSold = 0;
 	let revenueSum = 0;
 	const buyerOrderCount = new Map<string | number, number>();
@@ -85,7 +94,11 @@ export const calculateSalesMetrics = (
 		buyerOrderCount.set(order.buyerId as string, (buyerOrderCount.get(order.buyerId as string) || 0) + 1);
 		if (order.orderItems && Array.isArray(order.orderItems)) {
 			order.orderItems.forEach(item => {
-				totalUnitsSold += item.quantity;
+				// Calculate packages and units from package-based pricing
+				const packageQuantity = item.packageQuantity || 1;
+				const piecesPerPackage = item.piecesPerPackage || 1;
+				totalPackagesSold += packageQuantity;
+				totalUnitsSold += packageQuantity * piecesPerPackage;
 			});
 		}
 		if (order.totalAmount) {
@@ -96,12 +109,15 @@ export const calculateSalesMetrics = (
 	const uniqueCustomers = Array.from(buyerOrderCount.keys()).length;
 	const repeatCustomers = Array.from(buyerOrderCount.values()).filter(c => c > 1).length;
 	const repeatCustomerRate = uniqueCustomers > 0 ? (repeatCustomers / uniqueCustomers) * 100 : 0;
-	const avgItemsPerOrder = totalOrders > 0 ? totalUnitsSold / totalOrders : 0;
+	const avgPackagesPerOrder = totalOrders > 0 ? totalPackagesSold / totalOrders : 0;
+	const avgUnitsPerOrder = totalOrders > 0 ? totalUnitsSold / totalOrders : 0;
 	const avgOrderValue = totalOrders > 0 ? revenueSum / totalOrders : 0;
 	return {
 		totalOrders,
+		totalPackagesSold,
 		totalUnitsSold,
-		avgItemsPerOrder,
+		avgPackagesPerOrder,
+		avgUnitsPerOrder,
 		avgOrderValue,
 		uniqueCustomers,
 		repeatCustomerRate
@@ -133,6 +149,10 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 						<stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
 						<stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.7}/>
 					</linearGradient>
+					<linearGradient id="packagesGradient" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.9}/>
+						<stop offset="100%" stopColor="#7C3AED" stopOpacity={0.7}/>
+					</linearGradient>
 					<linearGradient id="unitsGradient" x1="0" y1="0" x2="0" y2="1">
 						<stop offset="0%" stopColor="#10B981" stopOpacity={0.9}/>
 						<stop offset="100%" stopColor="#059669" stopOpacity={0.7}/>
@@ -150,12 +170,26 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 										<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
 										<p className="font-semibold text-gray-900">{label}</p>
 									</div>
-									{payload.map((entry: { dataKey: string; value: number }, index: number) => (
-										<div key={index} className="flex items-center space-x-2 mb-1">
-											<div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.dataKey === 'orders' ? '#3B82F6' : '#10B981' }} />
-											<span className="text-gray-700">{entry.dataKey === 'orders' ? 'Orders' : 'Units'} : {entry.value}</span>
-										</div>
-									))}
+									{payload.map((entry: { dataKey: string; value: number }, index: number) => {
+										let label = '';
+										let color = '';
+										if (entry.dataKey === 'orders') {
+											label = 'Orders';
+											color = '#3B82F6';
+										} else if (entry.dataKey === 'packages') {
+											label = 'Packages';
+											color = '#8B5CF6';
+										} else if (entry.dataKey === 'units') {
+											label = 'Pieces';
+											color = '#10B981';
+										}
+										return (
+											<div key={index} className="flex items-center space-x-2 mb-1">
+												<div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+												<span className="text-gray-700">{label} : {entry.value}</span>
+											</div>
+										);
+									})}
 							</div>
 						);
 					}
@@ -164,16 +198,17 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 					cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
 				/>
 				<Bar dataKey="orders" name="Orders" fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
-				<Bar dataKey="units" name="Units" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+				<Bar dataKey="packages" name="Packages" fill="url(#packagesGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+				<Bar dataKey="units" name="Pieces" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
 			</BarChart>
 		</ResponsiveContainer>
 	</div>
 );
 
-export const CustomerUnitsSoldCard: React.FC<{ unitsSold: number; userCurrency?: string }> = ({ unitsSold }) => (
+export const CustomerPackagesSoldCard: React.FC<{ packagesSold: number; unitsSold: number; userCurrency?: string }> = ({ packagesSold, unitsSold }) => (
 	<AnalyticsMetricCard
-		title="Units Sold"
-		value={unitsSold.toLocaleString()}
+		title="Packages Sold"
+		value={`${packagesSold.toLocaleString()}`}
 		change={0}
 		icon={<Package className="w-6 h-6 text-green-600" />}
 		color="bg-[#e6f7ec]"
@@ -265,7 +300,10 @@ const CustomerSalesAnalytics: React.FC = () => {
 			o.orderItems.forEach(it => {
 				const prod = products.find(p => p.productId === it.productId);
 				const category = it.category || prod?.category || 'Uncategorized';
-				map[category] = (map[category] || 0) + it.quantity;
+				// Calculate units using package-based pricing
+				const piecesPerPackage = it.piecesPerPackage || 1;
+				const packageQuantity = it.packageQuantity || 1;
+				map[category] = (map[category] || 0) + (packageQuantity * piecesPerPackage);
 			});
 		});
 		return Object.entries(map).map(([category, units]) => ({ category, units }))
@@ -372,16 +410,14 @@ const CustomerSalesAnalytics: React.FC = () => {
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
 					color="bg-[#f7faff]"
 				/>
-				<AnalyticsMetricCard
-					title="Units Sold"
-					value={metrics.totalUnitsSold.toLocaleString()}
-					change={0}
-					icon={<Package className="w-6 h-6 text-green-600" />}
-					color="bg-[#e6f7ec]"
+				<CustomerPackagesSoldCard
+					packagesSold={metrics.totalPackagesSold}
+					unitsSold={metrics.totalUnitsSold}
+					userCurrency={user?.currency}
 				/>
 				<AnalyticsMetricCard
-					title="Avg Items / Order"
-					value={metrics.avgItemsPerOrder.toFixed(2)}
+					title="Avg Packages / Order"
+					value={`${metrics.avgPackagesPerOrder.toFixed(2)}`}
 					change={0}
 					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
 					color="bg-[#fff7ed]"

@@ -29,7 +29,7 @@ export default function SalesAnalyticsPage() {
 	}, []);
 
 	// ===== Types for export calculations (explicit, no any) =====
-	interface ExportOrderItem { productId: string; quantity: number; unitPrice: number; category?: string }
+	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string }
 	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
 	interface ExportProduct { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string }
 	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
@@ -70,10 +70,13 @@ export default function SalesAnalyticsPage() {
 			buyerOrderCount.set(o.buyerId, (buyerOrderCount.get(o.buyerId) || 0) + 1);
 			if (o.orderItems && Array.isArray(o.orderItems)) {
 				o.orderItems.forEach(it => {
-					totalUnitsSold += it.quantity;
+					// Calculate units and revenue using package-based pricing
+					const piecesPerPackage = it.piecesPerPackage || 1;
+					const packageQuantity = it.packageQuantity || 1;
+					totalUnitsSold += packageQuantity * piecesPerPackage;
 					const prod = productIndex.get(String(it.productId));
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.unitPrice || 0);
-					revenueSum += unitPrice * it.quantity;
+					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
+					revenueSum += unitPrice * packageQuantity;
 				});
 			} else if (typeof o.totalAmount === 'number') {
 				revenueSum += o.totalAmount;
@@ -95,10 +98,13 @@ export default function SalesAnalyticsPage() {
 			monthly[key].orders += 1;
 			if (o.orderItems && Array.isArray(o.orderItems)) {
 				o.orderItems.forEach(it => {
-					monthly[key].units += it.quantity;
+					// Calculate units and revenue using package-based pricing
+					const piecesPerPackage = it.piecesPerPackage || 1;
+					const packageQuantity = it.packageQuantity || 1;
+					monthly[key].units += packageQuantity * piecesPerPackage;
 					const prod = productIndex.get(String(it.productId));
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.unitPrice || 0);
-					monthly[key].revenue += unitPrice * it.quantity;
+					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
+					monthly[key].revenue += unitPrice * packageQuantity;
 				});
 			} else if (typeof o.totalAmount === 'number') {
 				monthly[key].revenue += o.totalAmount;
@@ -114,7 +120,10 @@ export default function SalesAnalyticsPage() {
 			o.orderItems.forEach(it => {
 				const prod = productIndex.get(String(it.productId));
 				const category = it.category || prod?.category || 'Uncategorized';
-				unitsByCategoryMap.set(category, (unitsByCategoryMap.get(category) || 0) + it.quantity);
+				// Calculate units using package-based pricing
+				const piecesPerPackage = it.piecesPerPackage || 1;
+				const packageQuantity = it.packageQuantity || 1;
+				unitsByCategoryMap.set(category, (unitsByCategoryMap.get(category) || 0) + (packageQuantity * piecesPerPackage));
 			});
 		});
 		const unitsByCategory = Array.from(unitsByCategoryMap.entries())
@@ -130,8 +139,10 @@ export default function SalesAnalyticsPage() {
 			if (o.orderItems && Array.isArray(o.orderItems)) {
 				o.orderItems.forEach(it => {
 					const prod = productIndex.get(it.productId);
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.unitPrice || 0);
-					orderRevenue += unitPrice * it.quantity;
+					// Calculate revenue using package-based pricing
+					const packageQuantity = it.packageQuantity || 1;
+					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
+					orderRevenue += unitPrice * packageQuantity;
 				});
 			} else if (typeof o.totalAmount === 'number') {
 				orderRevenue = o.totalAmount;

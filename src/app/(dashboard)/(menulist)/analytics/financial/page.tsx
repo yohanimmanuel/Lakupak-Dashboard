@@ -44,7 +44,7 @@ export default function FinancialAnalyticsPage() {
   };
 
   // Types for export generation (explicit, no any)
-  type ExportOrderItem = { productId: string; quantity: number; unitPrice: number };
+  type ExportOrderItem = { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string };
   type ExportOrder = { buyerId: string; orderDate: string | Date; totalAmount?: number; orderItems?: ExportOrderItem[] };
   type ExportProduct = { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string };
 
@@ -98,13 +98,19 @@ export default function FinancialAnalyticsPage() {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
             const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             if (sellingPrice > 0 && purchasePrice > 0) {
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
+              // Calculate revenue and cost using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
               totalRevenue += itemRevenue;
               totalProfit += itemProfit;
             } else {
-              const revenue = item.unitPrice * item.quantity;
+              // Calculate revenue using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const revenue = (item.pricePerPackage || 0) * packageQuantity;
               const avgMargin = Object.values(productMargins).length > 0
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
                 : 30;
@@ -113,7 +119,10 @@ export default function FinancialAnalyticsPage() {
               totalProfit += profit;
             }
           } else {
-            const revenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const revenue = item.pricePerPackage * packageQuantity;
             const avgMargin = Object.values(productMargins).length > 0
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 30;
@@ -160,12 +169,18 @@ export default function FinancialAnalyticsPage() {
             let itemProfit = 0;
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
+              // Calculate revenue and cost using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               itemProfit = itemRevenue - itemCost;
             } else {
               // Use unitPrice from order item if product prices are not available
-              itemRevenue = item.unitPrice * item.quantity;
+              // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
               const avgMargin = Object.values(productMargins).length > 0
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
                 : 30;
@@ -176,7 +191,10 @@ export default function FinancialAnalyticsPage() {
             monthlyData[monthKey].profit += itemProfit;
           } else {
             // If product not found, use order item data
-            const itemRevenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const itemRevenue = item.pricePerPackage * packageQuantity;
             const avgMargin = Object.values(productMargins).length > 0
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 30;
@@ -211,12 +229,18 @@ export default function FinancialAnalyticsPage() {
           let itemProfit = 0;
           
           if (sellingPrice > 0 && purchasePrice > 0) {
-            itemRevenue = sellingPrice * item.quantity;
-            const itemCost = purchasePrice * item.quantity;
+            // Calculate revenue and cost using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+            const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
             itemProfit = itemRevenue - itemCost;
           } else {
             // Use unitPrice from order item if product prices are not available
-            itemRevenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
             const avgMargin = Object.values(productMargins).length > 0
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 30;
@@ -251,13 +275,19 @@ export default function FinancialAnalyticsPage() {
             }
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
+              // Calculate revenue and cost using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
               productStats[item.productId].revenue += itemRevenue;
               productStats[item.productId].profit += itemProfit;
             } else {
-              const revenue = item.unitPrice * item.quantity;
+              // Calculate revenue using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const revenue = (item.pricePerPackage || 0) * packageQuantity;
               const avgMargin = Object.values(productMargins).length > 0
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
                 : 30;
@@ -266,7 +296,10 @@ export default function FinancialAnalyticsPage() {
               productStats[item.productId].profit += profit;
             }
             
-            productStats[item.productId].unitsSold += item.quantity;
+            // Calculate units sold using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            productStats[item.productId].unitsSold += packageQuantity * piecesPerPackage;
           }
         });
       }

@@ -75,6 +75,7 @@ interface TopProduct {
   profit: number;
   margin: number;
   unitsSold: number;
+  packagesSold: number;
   productId: string;
 }
 
@@ -213,7 +214,10 @@ const FinancialAnalytics: React.FC = () => {
           const cost = productCostById[pid];
           // Only include COGS when product exists and purchasePrice > 0
           if (typeof cost === 'number' && cost > 0) {
-            orderCogs += cost * item.quantity;
+            // Calculate COGS using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            orderCogs += cost * packageQuantity * piecesPerPackage;
             uniqueProducts.add(pid);
           }
         });
@@ -293,8 +297,11 @@ const FinancialAnalytics: React.FC = () => {
             const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
+              // Calculate revenue and cost using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
               
               if (!categoryStats[category]) {
@@ -304,7 +311,10 @@ const FinancialAnalytics: React.FC = () => {
               categoryStats[category].profit += itemProfit;
             } else {
               // Fallback to item pricing if product prices are invalid
-              const revenue = item.unitPrice * item.quantity;
+              // Calculate revenue using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const revenue = (item.pricePerPackage || 0) * packageQuantity;
               // Use average margin from other products, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
@@ -319,7 +329,10 @@ const FinancialAnalytics: React.FC = () => {
             }
           } else {
             // Fallback to item pricing if product not found
-            const revenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const revenue = (item.pricePerPackage || 0) * packageQuantity;
             // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
@@ -352,7 +365,7 @@ const FinancialAnalytics: React.FC = () => {
       return [];
     }
 
-    const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; name: string; profit: number } } = {};
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
@@ -387,6 +400,7 @@ const FinancialAnalytics: React.FC = () => {
             productStats[productId] = {
               revenue: 0,
               unitsSold: 0,
+              packagesSold: 0,
               category: category,
               name: product?.name || `Product ${productId}`,
               profit: 0
@@ -401,15 +415,21 @@ const FinancialAnalytics: React.FC = () => {
             const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              const itemRevenue = sellingPrice * item.quantity;
-              const itemCost = purchasePrice * item.quantity;
+              // Calculate revenue and cost using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
               
               productStats[productId].revenue += itemRevenue;
               productStats[productId].profit += itemProfit;
             } else {
               // Fallback to item pricing if product prices are invalid
-              const itemRevenue = item.unitPrice * item.quantity;
+              // Calculate revenue using package-based pricing
+              const piecesPerPackage = item.piecesPerPackage || 1;
+              const packageQuantity = item.packageQuantity || 1;
+              const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
               // Use average margin from other products, otherwise 0%
               const avgMargin = Object.values(productMargins).length > 0 
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
@@ -421,7 +441,10 @@ const FinancialAnalytics: React.FC = () => {
             }
           } else {
             // Fallback to item pricing if product not found
-            const itemRevenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
             // Use average margin from other products, otherwise 0%
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
@@ -432,7 +455,11 @@ const FinancialAnalytics: React.FC = () => {
             productStats[productId].profit += itemProfit;
           }
           
-          productStats[productId].unitsSold += item.quantity;
+          // Calculate units sold using package-based pricing
+          const piecesPerPackage = item.piecesPerPackage || 1;
+          const packageQuantity = item.packageQuantity || 1;
+          productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
+          productStats[productId].packagesSold += packageQuantity;
         });
       }
     });
@@ -444,6 +471,7 @@ const FinancialAnalytics: React.FC = () => {
         name: stats.name,
         revenue: stats.revenue,
         unitsSold: stats.unitsSold,
+        packagesSold: stats.packagesSold,
         margin,
         category: stats.category,
         profit: stats.profit,
@@ -488,7 +516,10 @@ const FinancialAnalytics: React.FC = () => {
           if (!pid) { return; }
           const cost = productCostById[pid];
           if (typeof cost === 'number' && cost > 0) {
-            orderCogs += cost * item.quantity;
+            // Calculate COGS using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            orderCogs += cost * packageQuantity * piecesPerPackage;
           }
         });
       }
@@ -870,7 +901,7 @@ const FinancialAnalytics: React.FC = () => {
                     <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
                     <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Units Sold</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">CR</th>
                   </tr>
@@ -894,7 +925,7 @@ const FinancialAnalytics: React.FC = () => {
                         {product.category}
                       </td>
                       <td className="py-3 px-4 text-center text-black">
-                        {product.unitsSold.toLocaleString()}
+                        {product.packagesSold.toLocaleString()} pckg ({product.unitsSold.toLocaleString()})
                       </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
                        {utilsFormatCurrency(product.revenue, userCurrency)}
@@ -1307,7 +1338,10 @@ export const calculateRevenueData = (
         if (!pid) { return; }
         const cost = productCostById[pid];
         if (typeof cost === 'number' && cost > 0) {
-          orderCogs += cost * item.quantity;
+          // Calculate COGS using package-based pricing
+          const piecesPerPackage = item.piecesPerPackage || 1;
+          const packageQuantity = item.packageQuantity || 1;
+          orderCogs += cost * packageQuantity * piecesPerPackage;
         }
       });
     }
@@ -1341,6 +1375,7 @@ export type TopProductRow = {
   profit: number;
   margin: number;
   unitsSold: number;
+  packagesSold: number;
   productId: string;
 };
 
@@ -1354,7 +1389,7 @@ export const calculateTopProducts = (
     return [];
   }
 
-  const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+  const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; name: string; profit: number } } = {};
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
@@ -1379,6 +1414,7 @@ export const calculateTopProducts = (
           productStats[productId] = {
             revenue: 0,
             unitsSold: 0,
+            packagesSold: 0,
             category,
             name: product?.name || `Product ${productId}`,
             profit: 0
@@ -1389,13 +1425,19 @@ export const calculateTopProducts = (
           const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
           const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
           if (sellingPrice > 0 && purchasePrice > 0) {
-            const itemRevenue = sellingPrice * item.quantity;
-            const itemCost = purchasePrice * item.quantity;
+            // Calculate revenue and cost using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
+            const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
             const itemProfit = itemRevenue - itemCost;
             productStats[productId].revenue += itemRevenue;
             productStats[productId].profit += itemProfit;
           } else {
-            const itemRevenue = item.unitPrice * item.quantity;
+            // Calculate revenue using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
             const avgMargin = Object.values(productMargins).length > 0 
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 0;
@@ -1404,7 +1446,10 @@ export const calculateTopProducts = (
             productStats[productId].profit += itemProfit;
           }
         } else {
-          const itemRevenue = item.unitPrice * item.quantity;
+          // Calculate revenue using package-based pricing
+          const piecesPerPackage = item.piecesPerPackage || 1;
+          const packageQuantity = item.packageQuantity || 1;
+          const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
           const avgMargin = Object.values(productMargins).length > 0 
             ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
             : 0;
@@ -1413,7 +1458,11 @@ export const calculateTopProducts = (
           productStats[productId].profit += itemProfit;
         }
 
-        productStats[productId].unitsSold += item.quantity;
+        // Calculate units and packages sold using package-based pricing
+        const piecesPerPackage = item.piecesPerPackage || 1;
+        const packageQuantity = item.packageQuantity || 1;
+        productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
+        productStats[productId].packagesSold += packageQuantity;
       });
     }
   });
@@ -1424,6 +1473,7 @@ export const calculateTopProducts = (
       name: stats.name,
       revenue: stats.revenue,
       unitsSold: stats.unitsSold,
+      packagesSold: stats.packagesSold,
       margin,
       category: stats.category,
       profit: stats.profit,
@@ -1457,7 +1507,7 @@ export const AnalyticsTopProductsTable: React.FC<{
             <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
             <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Units Sold</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
           </tr>
@@ -1476,7 +1526,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                 </span>
               </td>
               <td className="py-3 px-4 text-center text-gray-600">{product.category}</td>
-              <td className="py-3 px-4 text-center text-black">{product.unitsSold.toLocaleString()}</td>
+              <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()} pckg ({product.unitsSold.toLocaleString()})</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>
