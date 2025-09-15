@@ -19,8 +19,6 @@ export const createOrderItemFromProduct = (
     productId: product.productId,
     productName: product.name,
     category: product.category,
-    quantity: packageQuantity * piecesPerPackage, // Total pieces
-    unitPrice: unitPrice,
     subtotal: subtotal,
     packageType: product.packageType,
     piecesPerPackage: piecesPerPackage,
@@ -54,23 +52,28 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
       const packageQuantity = item.packageQuantity || 1;
       const consistentSubtotal = packageQuantity * pricePerPackage;
       
-      return {
-        ...item,
-        unitPrice: consistentUnitPrice,
-        packageType: product.packageType,
-        piecesPerPackage: product.piecesPerPackage,
-        packageQuantity: packageQuantity,
-        pricePerPackage: pricePerPackage,
-        subtotal: consistentSubtotal
-      };
+    return {
+      ...item,
+      packageType: product.packageType,
+      piecesPerPackage: product.piecesPerPackage,
+      packageQuantity: packageQuantity,
+      pricePerPackage: pricePerPackage,
+      subtotal: consistentSubtotal
+    };
     }
     
-    // Fallback to unit-based pricing
-    const consistentSubtotal = consistentUnitPrice * item.quantity;
+    // Fallback to package-based pricing with defaults
+    const piecesPerPackage = 1;
+    const packageQuantity = item.packageQuantity || 1;
+    const pricePerPackage = consistentUnitPrice;
+    const consistentSubtotal = packageQuantity * pricePerPackage;
     
     return {
       ...item,
-      unitPrice: consistentUnitPrice,
+      packageType: 'Package',
+      piecesPerPackage: piecesPerPackage,
+      packageQuantity: packageQuantity,
+      pricePerPackage: pricePerPackage,
       subtotal: consistentSubtotal
     };
   } catch (error) {
@@ -81,17 +84,8 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
 
 // Recalculate order item subtotal (package-based)
 export const recalculateOrderItem = (item: OrderItem): OrderItem => {
-  // For package-based pricing, calculate based on package quantity and price per package
-  if (item.packageQuantity && item.pricePerPackage) {
-    const newSubtotal = item.packageQuantity * item.pricePerPackage;
-    return {
-      ...item,
-      subtotal: newSubtotal
-    };
-  }
-  
-  // Fallback to unit-based pricing for backward compatibility
-  const newSubtotal = item.quantity * item.unitPrice;
+  // Package-based pricing: calculate based on package quantity and price per package
+  const newSubtotal = (item.packageQuantity || 1) * (item.pricePerPackage || 0);
   return {
     ...item,
     subtotal: newSubtotal
@@ -114,8 +108,8 @@ export const ensureAllPriceConsistency = async (orderItems: OrderItem[]): Promis
 // Calculate subtotal from order items (with validation)
 export const calculateOrderSubtotal = (order: Order): number => {
   return order.orderItems.reduce((sum, item) => {
-    // Validate that item.subtotal = item.quantity × item.unitPrice
-    const expectedSubtotal = item.quantity * item.unitPrice;
+    // Validate that item.subtotal = item.packageQuantity × item.pricePerPackage
+    const expectedSubtotal = (item.packageQuantity || 1) * (item.pricePerPackage || 0);
     if (Math.abs(item.subtotal - expectedSubtotal) > 0.01) {
     }
     return sum + item.subtotal;
@@ -129,7 +123,7 @@ export const validateAndCorrectOrder = (order: Order): { order: Order; wasCorrec
 
   // 1. Validate and correct each order item
   const correctedItems = order.orderItems.map(item => {
-    const expectedSubtotal = item.quantity * item.unitPrice;
+    const expectedSubtotal = (item.packageQuantity || 1) * (item.pricePerPackage || 0);
     if (Math.abs(item.subtotal - expectedSubtotal) > 0.01) {
       wasCorrected = true;
       return { ...item, subtotal: expectedSubtotal };
@@ -140,7 +134,11 @@ export const validateAndCorrectOrder = (order: Order): { order: Order; wasCorrec
   // 2. Calculate correct values
   const correctSubtotal = correctedItems.reduce((sum, item) => sum + item.subtotal, 0);
   const correctTotalAmount = correctSubtotal + order.taxes + order.shippingFee - order.discounts;
-  const correctTotalQuantity = correctedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const correctTotalQuantity = correctedItems.reduce((sum, item) => {
+    const piecesPerPackage = item.piecesPerPackage || 1;
+    const packageQuantity = item.packageQuantity || 1;
+    return sum + (packageQuantity * piecesPerPackage);
+  }, 0);
 
   // 3. Check if order-level calculations need correction
   if (Math.abs(order.subtotal - correctSubtotal) > 0.01) {
@@ -172,16 +170,20 @@ export const calculateOrderTotalAmount = (order: Order): number => {
   return subtotal + order.taxes + order.shippingFee - order.discounts;
 };
 
-// Calculate total quantity from order items
+// Calculate total quantity from order items (total pieces)
 export const calculateOrderTotalQuantity = (order: Order): number => {
-  return order.orderItems.reduce((sum, item) => sum + item.quantity, 0);
+  return order.orderItems.reduce((sum, item) => {
+    const piecesPerPackage = item.piecesPerPackage || 1;
+    const packageQuantity = item.packageQuantity || 1;
+    return sum + (packageQuantity * piecesPerPackage);
+  }, 0);
 };
 
 // ===== VALIDATION FUNCTIONS =====
 
 // Validate order item calculations
 export const validateOrderItem = (item: OrderItem): { valid: boolean; error?: string } => {
-  const expectedSubtotal = item.quantity * item.unitPrice;
+  const expectedSubtotal = (item.packageQuantity || 1) * (item.pricePerPackage || 0);
   if (Math.abs(item.subtotal - expectedSubtotal) > 0.01) {
     return { 
       valid: false, 
@@ -215,7 +217,7 @@ export const validateOrderCalculations = (order: Order): { valid: boolean; error
     errors.push(`Order total amount mismatch: expected ${calculatedTotal}, got ${order.totalAmount}`);
   }
   
-  // Validate order quantity
+  // Validate order quantity (total pieces)
   const calculatedQuantity = calculateOrderTotalQuantity(order);
   if (order.totalOrders !== calculatedQuantity) {
     errors.push(`Order quantity mismatch: expected ${calculatedQuantity}, got ${order.totalOrders}`);
@@ -237,8 +239,12 @@ export const recalculateEntireOrder = (order: Order): Order => {
   // 3. Calculate new total amount
   const newTotalAmount = newSubtotal + order.taxes + order.shippingFee - order.discounts;
   
-  // 4. Calculate new total quantity
-  const newTotalQuantity = recalculatedItems.reduce((sum, item) => sum + item.quantity, 0);
+  // 4. Calculate new total quantity (total pieces)
+  const newTotalQuantity = recalculatedItems.reduce((sum, item) => {
+    const piecesPerPackage = item.piecesPerPackage || 1;
+    const packageQuantity = item.packageQuantity || 1;
+    return sum + (packageQuantity * piecesPerPackage);
+  }, 0);
   
   // 5. Return updated order with all recalculated values
   return {
@@ -270,22 +276,22 @@ export const updateOrderItem = (
   return recalculateEntireOrder(orderWithUpdatedItems);
 };
 
-// Update order item price and recalculate
-export const updateOrderItemPrice = (
+// Update order item price per package and recalculate
+export const updateOrderItemPricePerPackage = (
   order: Order, 
   itemIndex: number, 
-  newPrice: number
+  newPricePerPackage: number
 ): Order => {
-  return updateOrderItem(order, itemIndex, { unitPrice: newPrice });
+  return updateOrderItem(order, itemIndex, { pricePerPackage: newPricePerPackage });
 };
 
-// Update order item quantity and recalculate
-export const updateOrderItemQuantity = (
+// Update order item package quantity and recalculate
+export const updateOrderItemPackageQuantity = (
   order: Order, 
   itemIndex: number, 
-  newQuantity: number
+  newPackageQuantity: number
 ): Order => {
-  return updateOrderItem(order, itemIndex, { quantity: newQuantity });
+  return updateOrderItem(order, itemIndex, { packageQuantity: newPackageQuantity });
 };
 
 // ===== DATABASE FUNCTIONS =====

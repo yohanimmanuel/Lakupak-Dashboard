@@ -391,10 +391,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)} per {item.packageType || 'package'}
+                      {formatCurrency(item.pricePerPackage || 0, user?.currency)} per {item.packageType || 'package'}
                     </p>
                     <p className="text-sm font-semibold text-black">
-                      {formatCurrency(item.pricePerPackage || item.subtotal, user?.currency)}
+                      {formatCurrency(item.subtotal, user?.currency)}
                     </p>
                   </div>
                 </div>
@@ -463,7 +463,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <td className="py-2">{item.packageType || 'Package'}</td>
                       <td className="py-2">{item.piecesPerPackage || 1}</td>
                       <td className="py-2">{item.packageQuantity || 1}</td>
-                      <td className="py-2">{formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)}</td>
+                      <td className="py-2">{formatCurrency(item.pricePerPackage || 0, user?.currency)}</td>
                       <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
                     </tr>
                   ))}
@@ -552,7 +552,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         {item.piecesPerPackage || 1} pieces per {item.packageType || 'package'}
                       </p>
                       <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(item.pricePerPackage || item.unitPrice, user?.currency)} per package
+                        {formatCurrency(item.pricePerPackage || 0, user?.currency)} per package
                       </p>
                       <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
                     </div>

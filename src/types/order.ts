@@ -46,8 +46,6 @@ export interface OrderItem {
   productId: string | null;
   productName: string;
   category: string;
-  quantity: number;
-  unitPrice: number;
   subtotal: number;
   // Package information for B2B wholesale model
   packageType?: string;

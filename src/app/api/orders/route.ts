@@ -54,8 +54,6 @@ export async function GET(request: NextRequest) {
       // Build items directly from relational rows with snapshot fallbacks
       const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
         productId: oi.productId ?? null,
-        quantity: oi.quantity,
-        unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
@@ -124,8 +122,6 @@ export async function GET(request: NextRequest) {
     const ordersWithParsedItems = orders.map((order) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
         productId: oi.productId ?? null,
-        quantity: oi.quantity,
-        unitPrice: oi.unitPrice,
         subtotal: oi.subtotal,
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
@@ -188,8 +184,12 @@ export async function POST(request: NextRequest) {
     // Ensure price consistency and compute totals
     const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
     const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
-    const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || (it.unitPrice || 0) * (it.quantity || 0)), 0);
-    const totalQtyCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+    const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);
+    const totalQtyCalc = consistentOrderItems.reduce((sum, it) => {
+      const piecesPerPackage = it.piecesPerPackage || 1;
+      const packageQuantity = it.packageQuantity || 1;
+      return sum + (packageQuantity * piecesPerPackage);
+    }, 0);
     const taxes = Number(sanitizedData.taxes || 0);
     const shippingFee = Number(sanitizedData.shippingFee || 0);
     const discounts = Number(sanitizedData.discounts || 0);
@@ -276,22 +276,16 @@ export async function POST(request: NextRequest) {
         // Use the product's sellingPrice as the unitPrice to ensure consistency
         const consistentUnitPrice = parseFloat(product.sellingPrice);
         
-        // Calculate package-based pricing if package information is available
-        let consistentSubtotal;
-        if (product.packageType && product.piecesPerPackage && item.packageQuantity) {
-          const pricePerPackage = consistentUnitPrice * product.piecesPerPackage;
-          consistentSubtotal = item.packageQuantity * pricePerPackage;
-        } else {
-          // Fallback to unit-based pricing
-          consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
-        }
+        // Calculate package-based pricing
+        const piecesPerPackage = product.piecesPerPackage || 1;
+        const packageQuantity = item.packageQuantity || 1;
+        const pricePerPackage = consistentUnitPrice * piecesPerPackage;
+        const consistentSubtotal = packageQuantity * pricePerPackage;
         
         return prisma.orderItem.create({
           data: ({
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
-            quantity: Number(item.quantity || 0),
-            unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal,
             packageType: item.packageType || product.packageType || null,
             piecesPerPackage: item.piecesPerPackage || product.piecesPerPackage || 1,
@@ -310,8 +304,6 @@ export async function POST(request: NextRequest) {
     // Build items from relational rows for response
     const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
       productId: oi.productId ?? null,
-      quantity: oi.quantity,
-      unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
       piecesPerPackage: oi.piecesPerPackage,
@@ -432,8 +424,12 @@ export async function PUT(request: NextRequest) {
     if (sanitizedData.orderItems) {
       const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
       const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
-      const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || (it.unitPrice || 0) * (it.quantity || 0)), 0);
-      const totalQtyCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+      const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);
+      const totalQtyCalc = consistentOrderItems.reduce((sum, it) => {
+        const piecesPerPackage = it.piecesPerPackage || 1;
+        const packageQuantity = it.packageQuantity || 1;
+        return sum + (packageQuantity * piecesPerPackage);
+      }, 0);
       recalculatedData = {
         ...sanitizedData,
         subtotal: subtotalCalc,
@@ -535,8 +531,6 @@ export async function PUT(request: NextRequest) {
     // Build items from relational rows for response
     const enrichedOrderItemsUpdate = ((order as any).orderItemsRel || []).map((oi: any) => ({
       productId: oi.productId ?? null,
-      quantity: oi.quantity,
-      unitPrice: oi.unitPrice,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
       piecesPerPackage: oi.piecesPerPackage,

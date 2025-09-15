@@ -248,8 +248,6 @@ model OrderItem {
   id        Int      @id @default(autoincrement())
   orderId   String
   productId String?
-  quantity  Int
-  unitPrice Float
   subtotal  Float
   // Package information for B2B wholesale model
   packageType       String?
