@@ -72,8 +72,14 @@ model Company {
   shippingPreferences       String?   // JSON array
   deliveryTimeSlots         String?   // JSON array
   preferredDeliveryDays     String?   // JSON array
-  deliveryRadius            String?
   specialInstructions       String?
+  
+  // Shipping fee configuration
+  baseShippingRadius        Float?    // Base radius in km (e.g., 50km)
+  baseShippingPrice         Float?    // Price for base radius
+  additionalPricePerKm      Float?    // Price per km beyond base radius
+  maxShippingRadius         Float?    // Maximum delivery distance in km
+  freeShippingThreshold     Float?    // Order value for free shipping
   
   createdAt                 DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt                 DateTime  @updatedAt @db.Timestamptz(3)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../../generated/prisma';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
+import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 
 const prisma = new PrismaClient();
 
@@ -36,8 +37,12 @@ export async function PUT(req: NextRequest) {
       shippingPreferences,
       deliveryTimeSlots,
       preferredDeliveryDays,
-      deliveryRadius,
-      specialInstructions
+      specialInstructions,
+      baseShippingRadius,
+      baseShippingPrice,
+      additionalPricePerKm,
+      maxShippingRadius,
+      freeShippingThreshold
     } = body;
     
     // Validate companyId
@@ -97,8 +102,12 @@ export async function PUT(req: NextRequest) {
     if (shippingPreferences !== undefined) updateData.shippingPreferences = Array.isArray(shippingPreferences) ? JSON.stringify(shippingPreferences) : shippingPreferences;
     if (deliveryTimeSlots !== undefined) updateData.deliveryTimeSlots = Array.isArray(deliveryTimeSlots) ? JSON.stringify(deliveryTimeSlots) : deliveryTimeSlots;
     if (preferredDeliveryDays !== undefined) updateData.preferredDeliveryDays = Array.isArray(preferredDeliveryDays) ? JSON.stringify(preferredDeliveryDays) : preferredDeliveryDays;
-    if (deliveryRadius !== undefined) updateData.deliveryRadius = deliveryRadius?.trim() || null;
     if (specialInstructions !== undefined) updateData.specialInstructions = specialInstructions?.trim() || null;
+    if (baseShippingRadius !== undefined) updateData.baseShippingRadius = baseShippingRadius ? Number(baseShippingRadius) : null;
+    if (baseShippingPrice !== undefined) updateData.baseShippingPrice = baseShippingPrice ? parseNumberByCurrency(baseShippingPrice.toString()) || null : null;
+    if (additionalPricePerKm !== undefined) updateData.additionalPricePerKm = additionalPricePerKm ? parseNumberByCurrency(additionalPricePerKm.toString()) || null : null;
+    if (maxShippingRadius !== undefined) updateData.maxShippingRadius = maxShippingRadius ? Number(maxShippingRadius) : null;
+    if (freeShippingThreshold !== undefined) updateData.freeShippingThreshold = freeShippingThreshold ? parseNumberByCurrency(freeShippingThreshold.toString()) || null : null;
     
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },

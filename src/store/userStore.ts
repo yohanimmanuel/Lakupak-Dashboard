@@ -20,8 +20,12 @@ interface Company {
   shippingPreferences?: string;
   deliveryTimeSlots?: string;
   preferredDeliveryDays?: string;
-  deliveryRadius?: string;
   specialInstructions?: string;
+  baseShippingRadius?: number;
+  baseShippingPrice?: number;
+  additionalPricePerKm?: number;
+  maxShippingRadius?: number;
+  freeShippingThreshold?: number;
   createdAt: string;
   updatedAt: string;
 }

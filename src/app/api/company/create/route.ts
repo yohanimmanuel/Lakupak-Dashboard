@@ -64,6 +64,11 @@ export async function POST(req: NextRequest) {
         documentVerification: false,
         businessLicenseVerification: false,
         complianceStatus: 'Pending',
+        baseShippingRadius: 50,
+        baseShippingPrice: 15000,
+        additionalPricePerKm: 500,
+        maxShippingRadius: 200,
+        freeShippingThreshold: 100000,
       }
     });
     

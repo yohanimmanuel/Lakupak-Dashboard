@@ -125,8 +125,12 @@ export async function POST(req: NextRequest) {
         shippingPreferences: JSON.stringify([]),
         deliveryTimeSlots: JSON.stringify([]),
         preferredDeliveryDays: JSON.stringify([]),
-        deliveryRadius: '',
-        specialInstructions: ''
+        specialInstructions: '',
+        baseShippingRadius: 50,
+        baseShippingPrice: 15000,
+        additionalPricePerKm: 500,
+        maxShippingRadius: 200,
+        freeShippingThreshold: 100000
       }
     });
 

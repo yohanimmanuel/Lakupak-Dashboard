@@ -228,8 +228,12 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
   shippingPreferences: typeof company.shippingPreferences === 'string' ? company.shippingPreferences : (company.shippingPreferences || null),
   deliveryTimeSlots: typeof company.deliveryTimeSlots === 'string' ? company.deliveryTimeSlots : (company.deliveryTimeSlots || null),
   preferredDeliveryDays: typeof company.preferredDeliveryDays === 'string' ? company.preferredDeliveryDays : (company.preferredDeliveryDays || null),
-  deliveryRadius: typeof company.deliveryRadius === 'string' ? company.deliveryRadius.trim() : (company.deliveryRadius || null),
   specialInstructions: typeof company.specialInstructions === 'string' ? company.specialInstructions.trim() : (company.specialInstructions || null),
+  baseShippingRadius: typeof company.baseShippingRadius === 'number' ? company.baseShippingRadius : (company.baseShippingRadius || null),
+  baseShippingPrice: typeof company.baseShippingPrice === 'number' ? company.baseShippingPrice : (company.baseShippingPrice || null),
+  additionalPricePerKm: typeof company.additionalPricePerKm === 'number' ? company.additionalPricePerKm : (company.additionalPricePerKm || null),
+  maxShippingRadius: typeof company.maxShippingRadius === 'number' ? company.maxShippingRadius : (company.maxShippingRadius || null),
+  freeShippingThreshold: typeof company.freeShippingThreshold === 'number' ? company.freeShippingThreshold : (company.freeShippingThreshold || null),
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,
 });

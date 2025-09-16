@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown } from 'lucide-react';
+import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown, DollarSign } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { getCurrencySymbol, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatNumberByCurrency } from '@/config/currencyConfig';
 
 interface CompanyProfileData {
   // Company Information
@@ -32,8 +34,14 @@ interface CompanyProfileData {
   shippingPreferences: string[];
   deliveryTimeSlots: string[];
   preferredDeliveryDays: string[];
-  deliveryRadius: string;
   specialInstructions: string;
+  
+  // Shipping Fee Configuration
+  baseShippingRadius: number;
+  baseShippingPrice: string;
+  additionalPricePerKm: string;
+  maxShippingRadius: number;
+  freeShippingThreshold: string;
 }
 
 const industryTypes = [
@@ -85,6 +93,8 @@ const shippingOptions = [
 
 export default function DistributorOperations() {
   const { user, updateUser } = useUserStore();
+  const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,8 +122,12 @@ export default function DistributorOperations() {
     shippingPreferences: [],
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
-    deliveryRadius: '',
     specialInstructions: '',
+    baseShippingRadius: 50,
+    baseShippingPrice: '15000',
+    additionalPricePerKm: '500',
+    maxShippingRadius: 200,
+    freeShippingThreshold: '100000',
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -135,8 +149,12 @@ export default function DistributorOperations() {
     shippingPreferences: [],
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
-    deliveryRadius: '',
     specialInstructions: '',
+    baseShippingRadius: 50,
+    baseShippingPrice: '15000',
+    additionalPricePerKm: '500',
+    maxShippingRadius: 200,
+    freeShippingThreshold: '100000',
   });
   
   // Dropdown states
@@ -172,8 +190,12 @@ export default function DistributorOperations() {
         shippingPreferences: company?.shippingPreferences ? JSON.parse(company.shippingPreferences) : [],
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
-        deliveryRadius: company?.deliveryRadius || '',
         specialInstructions: company?.specialInstructions || '',
+        baseShippingRadius: (company as any)?.baseShippingRadius || 50,
+        baseShippingPrice: (company as any)?.baseShippingPrice ? formatNumberByCurrency((company as any).baseShippingPrice, userCurrency) : '15000',
+        additionalPricePerKm: (company as any)?.additionalPricePerKm ? formatNumberByCurrency((company as any).additionalPricePerKm, userCurrency) : '500',
+        maxShippingRadius: (company as any)?.maxShippingRadius || 200,
+        freeShippingThreshold: (company as any)?.freeShippingThreshold ? formatNumberByCurrency((company as any).freeShippingThreshold, userCurrency) : '100000',
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -194,8 +216,12 @@ export default function DistributorOperations() {
         shippingPreferences: company?.shippingPreferences ? JSON.parse(company.shippingPreferences) : [],
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
-        deliveryRadius: company?.deliveryRadius || '',
         specialInstructions: company?.specialInstructions || '',
+        baseShippingRadius: (company as any)?.baseShippingRadius || 50,
+        baseShippingPrice: (company as any)?.baseShippingPrice ? formatNumberByCurrency((company as any).baseShippingPrice, userCurrency) : '15000',
+        additionalPricePerKm: (company as any)?.additionalPricePerKm ? formatNumberByCurrency((company as any).additionalPricePerKm, userCurrency) : '500',
+        maxShippingRadius: (company as any)?.maxShippingRadius || 200,
+        freeShippingThreshold: (company as any)?.freeShippingThreshold ? formatNumberByCurrency((company as any).freeShippingThreshold, userCurrency) : '100000',
       });
     }
   }, [user, isClient]);
@@ -216,7 +242,7 @@ export default function DistributorOperations() {
     };
   }, []);
 
-  const handleInputChange = (field: keyof CompanyProfileData, value: string | boolean | string[]) => {
+  const handleInputChange = (field: keyof CompanyProfileData, value: string | boolean | string[] | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError(null);
   };
@@ -373,8 +399,12 @@ export default function DistributorOperations() {
         shippingPreferences: formData.shippingPreferences,
         deliveryTimeSlots: formData.deliveryTimeSlots,
         preferredDeliveryDays: formData.preferredDeliveryDays,
-        deliveryRadius: formData.deliveryRadius.trim(),
         specialInstructions: formData.specialInstructions.trim(),
+        baseShippingRadius: formData.baseShippingRadius,
+        baseShippingPrice: formData.baseShippingPrice,
+        additionalPricePerKm: formData.additionalPricePerKm,
+        maxShippingRadius: formData.maxShippingRadius,
+        freeShippingThreshold: formData.freeShippingThreshold,
       };
 
 
@@ -968,18 +998,104 @@ export default function DistributorOperations() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Delivery Radius (km)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.deliveryRadius}
-                    onChange={(e) => handleInputChange('deliveryRadius', e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="e.g., 50"
-                  />
+
+                {/* Shipping Fee Configuration */}
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-gray-500" />
+                    Shipping Fee Configuration
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Base Radius (km)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.baseShippingRadius}
+                        onChange={(e) => handleInputChange('baseShippingRadius', parseFloat(e.target.value) || 0)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="e.g., 50"
+                        min="0"
+                        step="0.1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Base Shipping Price
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.baseShippingPrice}
+                          onChange={(e) => handleInputChange('baseShippingPrice', e.target.value)}
+                          disabled={!isEditing}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                          placeholder="15000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Additional Price per km
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.additionalPricePerKm}
+                          onChange={(e) => handleInputChange('additionalPricePerKm', e.target.value)}
+                          disabled={!isEditing}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                          placeholder="500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Max Delivery Radius (km)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.maxShippingRadius}
+                        onChange={(e) => handleInputChange('maxShippingRadius', parseFloat(e.target.value) || 0)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="e.g., 200"
+                        min="0"
+                        step="10"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Free Shipping Threshold
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.freeShippingThreshold}
+                          onChange={(e) => handleInputChange('freeShippingThreshold', e.target.value)}
+                          disabled={!isEditing}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                          placeholder="100000"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
           <div>
