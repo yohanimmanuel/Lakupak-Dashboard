@@ -48,7 +48,7 @@ const Navbar = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
-  const { toggleMenu } = useMenuContext();
+  const { toggleMenu, isMobileMenuOpen, toggleMobileMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
 
@@ -94,7 +94,7 @@ const Navbar = () => {
   const extraCount = salesmen.length - maxAvatars;
 
   return (
-    <div className="flex items-center justify-between p-4 z-30 relative bg-white border-b border-gray-200 h-16">
+    <div className="flex items-center justify-between px-4 py-3 z-30 relative bg-white border-b border-gray-200 h-16">
       {/* MENU COLLAPSE BUTTON */}
       <button
         className="mr-4 p-2 rounded-lg hover:bg-gray-200 transition-all duration-100 flex-shrink-0 group"
@@ -103,8 +103,8 @@ const Navbar = () => {
       >
         <MenuIcon size={20} className="text-gray-700 transition-colors duration-100" />
       </button>
-      {/* SEARCH BAR */}
-      <div className="flex-1 flex items-left justify-left">
+      {/* SEARCH BAR - Hidden on Mobile */}
+      <div className="hidden sm:flex flex-1 items-left justify-left">
         <div className="relative w-[300px] max-w-full">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={15} />
@@ -117,34 +117,34 @@ const Navbar = () => {
         </div>
       </div>
       {/* NAVBAR GROUPS */}
-      <div className="flex items-center gap-0 justify-end">
+      <div className="flex items-center gap-2 justify-end">
         {/* Salesmen Avatars Group */}
-        <div className="flex items-center gap-1 mr-2 pr-4 border-r border-gray-200">
+        <div className="flex items-center gap-1 mr-2 sm:mr-4 pr-2 sm:pr-4 border-r border-gray-200">
           {salesmen.slice(0, maxAvatars).map((s, i) => (
             <img
               key={s.name}
               src={s.avatar}
               alt={s.name}
-              className={`w-7 h-7 rounded-full border-2 border-white -ml-2 first:ml-0 shadow-sm object-cover`}
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white -ml-1 sm:-ml-2 first:ml-0 shadow-sm object-cover`}
               title={s.name}
               style={{ zIndex: 10 - i }}
             />
           ))}
           {extraCount > 0 && (
-            <span className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-2" style={{ zIndex: 8 }}>
+            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-1 sm:-ml-2" style={{ zIndex: 8 }}>
               +{extraCount}
             </span>
           )}
           <button
             onClick={handleAddSalesman}
-            className="w-7 h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 ml-1 shadow-sm"
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 ml-1 shadow-sm"
             title="Add Salesman"
           >
-            <Plus size={16} />
+            <Plus size={14} className="sm:w-4 sm:h-4" />
           </button>
         </div>
         {/* Message & Notification Group */}
-        <div className="flex items-center gap-4 px-4 border-r border-gray-200">
+        <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 border-r border-gray-200">
           <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={msgRef}>
             <MessageCircle size={20} className="text-gray-500" onClick={() => { setShowMsgDropdown(v => !v); setShowNotifDropdown(false); setShowDropdown(false); }} />
           </div>
@@ -173,8 +173,8 @@ const Navbar = () => {
           </DropdownPortal>
         </div>
         {/* User Group */}
-        <div className="flex items-center gap-4 pl-4">
-          <div className="flex flex-col text-black max-w-[60px] truncate text-xs text-right">
+        <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4">
+          <div className="hidden sm:flex flex-col text-black max-w-[80px] truncate text-xs text-right">
             <span className="text-xs leading-3 font-medium truncate">{user?.firstName || 'User'}</span>
             <span className="text-[10px] text-gray-500 text-right truncate">{user?.email || ''}</span>
           </div>
