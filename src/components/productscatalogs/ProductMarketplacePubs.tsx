@@ -421,34 +421,6 @@ export default function ProductMarketplacePubs({
             </div>
           </div>
 
-          {/* 7. LOGISTICS & SHIPPING */}
-          <div className="p-4 border-b border-gray-100">
-            <h4 className="font-semibold text-gray-900 mb-3">Shipping & Delivery</h4>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-2 text-green-600">
-                  <span className="text-green-600">🚚</span>
-                  <span className="text-sm font-medium">Standard Shipping</span>
-                </div>
-                <span className="text-sm text-gray-600">Free</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <span className="text-blue-600">⚡</span>
-                  <span className="text-sm font-medium">Express Shipping</span>
-                </div>
-                <span className="text-sm text-gray-600">{formatCurrency(15000, userCurrency)}</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                <div className="flex items-center gap-2 text-purple-600">
-                  <span className="text-purple-600">🏃</span>
-                  <span className="text-sm font-medium">Same Day Delivery</span>
-                </div>
-                <span className="text-sm text-gray-600">{formatCurrency(25000, userCurrency)}</span>
-              </div>
-            </div>
-          </div>
-
           {/* 8. CTA BUTTONS */}
           <div className="p-4">
             <div className="flex gap-2">
