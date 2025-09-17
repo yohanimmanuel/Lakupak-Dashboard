@@ -447,7 +447,8 @@ export default function ProductCatalog({
               { name: 'Supplier', value: String(product.supplier || '').trim() },
               { name: 'Purchase Price', value: String(product.purchasePrice || '').trim() },
               { name: 'Selling Price', value: String(product.sellingPrice || '').trim() },
-              { name: 'Stock Quantity', value: product.stockQuantity !== undefined && product.stockQuantity !== null }
+              { name: 'Stock Quantity', value: product.stockQuantity !== undefined && product.stockQuantity !== null },
+              { name: 'Product Images', value: product.images && product.images.length > 0 }
             ];
             
             const completedFields = requiredFields.filter(field => 
@@ -462,7 +463,7 @@ export default function ProductCatalog({
             return (
               <>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+                  <h3 className="text-sm font-semibold text-gray-800">Product Catalog Completion</h3>
                   <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
                     {completionPercentage}%
                   </span>

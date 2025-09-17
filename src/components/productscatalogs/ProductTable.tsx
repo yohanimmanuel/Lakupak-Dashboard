@@ -128,6 +128,28 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     setIsBulkUnpublish(false);
   };
 
+  // Check if product is complete for marketplace publishing
+  const isProductComplete = (productId: string): boolean => {
+    const product = products.find(p => p.productId === productId);
+    if (!product) return false;
+    
+    // Check required fields for marketplace publishing
+    const hasRequiredFields = Boolean(product.sku && 
+                             product.name && 
+                             product.description && 
+                             product.category && 
+                             product.brand && 
+                             product.supplier && 
+                             product.purchasePrice && 
+                             product.sellingPrice && 
+                             product.stockQuantity !== undefined && 
+                             product.stockQuantity !== null);
+    
+    const hasImages = Boolean(product.images && product.images.length > 0);
+    
+    return hasRequiredFields && hasImages;
+  };
+
   const handlePublishProduct = async () => {
     if (!user?.id) return;
     
@@ -269,33 +291,9 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     setShowUnpublishModal(true);
   };
 
-  // Check if product has complete data for publishing
-  const isProductComplete = (productId: string) => {
-    const originalProduct = products.find(p => p.productId === productId);
-    if (!originalProduct) return false;
-    
-    // Check all required fields for publishing
-    const basicFields = [
-      !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
-      !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
-      !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
-    ];
-    const hasMissingBasicFields = basicFields.some(field => field);
-    
-    const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
-    
-    const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
-    
-    return !hasMissingBasicFields && !hasMissingPricing && !hasMissingStock;
-  };
 
   const handleOpenPublishModal = (product: ProductTableRow) => {
-    // Check if product has complete data before allowing publish
-    if (!isProductComplete(product.productId)) {
-      alert('Cannot publish product with incomplete data. Please complete all required fields:\n\n• SKU Number\n• Product Name\n• Description\n• Category\n• Brand\n• Supplier\n• Purchase Price\n• Selling Price\n• Stock Quantity');
-      return;
-    }
-    
+    // Always show the modal - let ProductMarketplacePubs handle smart identification
     setProductToPublish(product);
     setShowPublishModal(true);
   };
@@ -489,23 +487,28 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
         
         const missingDataCount = currentPageOriginalProducts.filter(product => {
-          const basicFields = [
-            !String(product.sku).trim(), !String(product.name).trim(), !String(product.description).trim(),
-            !String(product.category).trim(), !String(product.brand).trim(), !String(product.supplier).trim()
-          ];
-          const hasMissingBasicFields = basicFields.some(field => field);
+          // Use the same logic as isProductComplete function
+          const hasRequiredFields = Boolean(product.sku && 
+                                   product.name && 
+                                   product.description && 
+                                   product.category && 
+                                   product.brand && 
+                                   product.supplier && 
+                                   product.purchasePrice && 
+                                   product.sellingPrice && 
+                                   product.stockQuantity !== undefined && 
+                                   product.stockQuantity !== null);
           
-          const hasMissingPricing = !String(product.purchasePrice).trim() || !String(product.sellingPrice).trim();
+          const hasImages = Boolean(product.images && product.images.length > 0);
           
-          const hasMissingStock = product.stockQuantity === undefined || product.stockQuantity === null;
-          
-          return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+          // Return true if product is NOT complete (missing data)
+          return !(hasRequiredFields && hasImages);
         }).length;
         
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-amber-700 text-sm">
-              ⚠️ <strong>Data Completion:</strong> {missingDataCount} product{missingDataCount !== 1 ? 's' : ''} in this view have missing data that could be completed.
+              ⚠️ <strong>Data Completion:</strong> {missingDataCount} product{missingDataCount !== 1 ? 's' : ''} in this view have missing data (required fields or images) that could be completed.
             </p>
           </div>
         ) : null;
@@ -772,19 +775,22 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
               const originalProduct = products.find(p => p.productId === product.productId);
               
               const hasIncompleteData = originalProduct ? (() => {
-                // Check all profile fields for missing data
-                const basicFields = [
-                  !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
-                  !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
-                  !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
-                ];
-                const hasMissingBasicFields = basicFields.some(field => field);
+                // Use the same logic as isProductComplete function
+                const hasRequiredFields = Boolean(originalProduct.sku && 
+                                         originalProduct.name && 
+                                         originalProduct.description && 
+                                         originalProduct.category && 
+                                         originalProduct.brand && 
+                                         originalProduct.supplier && 
+                                         originalProduct.purchasePrice && 
+                                         originalProduct.sellingPrice && 
+                                         originalProduct.stockQuantity !== undefined && 
+                                         originalProduct.stockQuantity !== null);
                 
-                const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+                const hasImages = Boolean(originalProduct.images && originalProduct.images.length > 0);
                 
-                const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
-                
-                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
+                // Return true if product is NOT complete (has incomplete data)
+                return !(hasRequiredFields && hasImages);
               })() : false;
               
               return (

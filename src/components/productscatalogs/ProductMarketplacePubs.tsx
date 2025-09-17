@@ -32,12 +32,91 @@ export default function ProductMarketplacePubs({
 }: ProductMarketplacePubsProps) {
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  
+  // Handle publish to marketplace
+  const handlePublish = async () => {
+    try {
+      setPublishing(true);
+      setError('');
+      
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      if (isBulkPublish) {
+        // Bulk publish multiple products
+        const publishPromises = completeProducts.map(async (product) => {
+          const response = await fetch('/api/marketplace', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              productId: product.productId,
+              userId: user?.id,
+              action: 'publish'
+            })
+          });
+          
+          if (!response.ok) {
+            const result = await response.json();
+            throw new Error(result.error || 'Failed to publish product');
+          }
+          
+          return response.json();
+        });
+        
+        await Promise.all(publishPromises);
+      } else {
+        // Single product publish - check if product is complete
+        if (isProductComplete && !isProductComplete(product.productId)) {
+          throw new Error('Cannot publish product with incomplete data. Please complete all required fields and add product images.');
+        }
+        
+        const response = await fetch('/api/marketplace', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: product.productId,
+            userId: user?.id,
+            action: 'publish'
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to publish product');
+        }
+      }
+      
+      if (onPublish) {
+        onPublish();
+      }
+      
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 2000);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to publish product. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+  
   if (!isOpen) return null;
 
   // Smart bulk publishing logic
@@ -78,9 +157,22 @@ export default function ProductMarketplacePubs({
 
         {/* Mobile App Preview */}
         <div className="overflow-y-auto max-h-[calc(90vh-150px)] hide-scrollbar">
+          {/* Single Product Incomplete Warning */}
+          {!isBulkPublish && isProductComplete && !isProductComplete(product.productId) && (
+            <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-500">⚠️</span>
+                <p className="text-sm text-amber-800 font-medium">Selected product is incomplete</p>
+              </div>
+              <p className="text-xs text-amber-700 mt-1">
+                This product is missing required fields or images. Complete the missing data to publish.
+              </p>
+            </div>
+          )}
+
           {/* Smart Bulk Publish Information */}
           {isBulkPublish && (
-            <div className="mx-4 mb-4 space-y-3">
+            <div className="mx-4 mb-4 mt-2 space-y-3">
               {/* Publishable Products */}
               {canPublishCount > 0 && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -405,20 +497,6 @@ export default function ProductMarketplacePubs({
                  </div>
                </div>
              </div>
-            <div className="grid grid-cols-3 gap-4 text-center text-xs">
-              <div>
-                <p className="text-gray-600">Response Time</p>
-                <p className="font-medium text-gray-900">1-2 hours</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Delivery Speed</p>
-                <p className="font-medium text-gray-900">1-3 days</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Return Policy</p>
-                <p className="font-medium text-gray-900">7 days</p>
-              </div>
-            </div>
           </div>
 
           {/* 8. CTA BUTTONS */}
@@ -456,6 +534,21 @@ export default function ProductMarketplacePubs({
         </div>
         
 
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="mx-4 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <span className="text-red-500">⚠️</span>
+          <span className="text-red-700 text-sm">{error}</span>
+        </div>
+      )}
+      
+      {success && (
+        <div className="mx-4 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <span className="text-green-500">✅</span>
+          <span className="text-green-700 text-sm">Product published to marketplace successfully!</span>
+        </div>
+      )}
+
       {/* Sticky Action Buttons */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
         <div className="flex gap-3">
@@ -465,20 +558,28 @@ export default function ProductMarketplacePubs({
             Cancel
           </button>
           <button 
-            onClick={onPublish}
-            disabled={isBulkPublish && canPublishCount === 0}
+            onClick={handlePublish}
+            disabled={
+              (isBulkPublish && canPublishCount === 0) || 
+              (!isBulkPublish && isProductComplete && !isProductComplete(product.productId)) ||
+              publishing
+            }
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold transition-colors ${
-              isBulkPublish && canPublishCount === 0
+              (isBulkPublish && canPublishCount === 0) || 
+              (!isBulkPublish && isProductComplete && !isProductComplete(product.productId)) ||
+              publishing
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-green-600 text-white hover:bg-green-700'
             }`}
           >
             <Zap className="w-4 h-4" />
-            {isBulkPublish 
-              ? canPublishCount === 0 
-                ? 'No Products to Publish'
-                : `Publish ${canPublishCount} Product${canPublishCount !== 1 ? 's' : ''}`
-              : 'Publish'
+            {publishing 
+              ? 'Publishing...'
+              : isBulkPublish 
+                ? canPublishCount === 0
+                  ? 'No Products to Publish'
+                  : `Publish ${canPublishCount} Product${canPublishCount !== 1 ? 's' : ''}`
+                : 'Publish'
             }
           </button>
         </div>

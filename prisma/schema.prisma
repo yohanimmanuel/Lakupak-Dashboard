@@ -145,6 +145,10 @@ model Product {
   piecesPerPackage  Int?        @default(1)
   purchasePrice     String
   sellingPrice      String
+  // Marketplace integration fields
+  marketplaceStatus String?     @default("Not Published") // Not Published, Published, Unpublished
+  publishedAt       DateTime?
+  lastSyncAt        DateTime?
   status            String
   catalogType       String
   catalogName       String
