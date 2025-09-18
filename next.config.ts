@@ -16,9 +16,7 @@ const nextConfig: NextConfig = {
     ];
   },
   // Allow external connections for mobile development
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client']
-  }
+  serverExternalPackages: ['@prisma/client']
 };
 
 export default withNextIntl(nextConfig);
