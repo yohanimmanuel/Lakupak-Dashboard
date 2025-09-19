@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
                 name: true,
                 businessAddress: true,
                 businessPhone: true,
-                businessEmail: true
+                businessEmail: true,
+                industryType: true
               }
             }
           }
@@ -105,7 +106,14 @@ export async function GET(request: NextRequest) {
            isOfficial: true, // Keep this as true for now
            responseTime: 'N/A', // Will be calculated from actual response times
            deliverySpeed: 'N/A', // Will be calculated from actual delivery data
-           returnPolicy: `${product.returnPolicyDays || 7} days return policy`
+           returnPolicy: `${product.returnPolicyDays || 7} days return policy`,
+           company: product.user?.company ? {
+             name: product.user.company.name,
+             businessAddress: product.user.company.businessAddress,
+             businessPhone: product.user.company.businessPhone,
+             businessEmail: product.user.company.businessEmail,
+             industryType: product.user.company.industryType
+           } : undefined
          },
          shipping: {
            standard: { price: 0, free: true },

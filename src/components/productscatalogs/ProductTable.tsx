@@ -769,7 +769,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="text-xs whitespace-nowrap">
             {pagedProducts.map((product) => {
               // Get the original product data to check for missing data
               const originalProduct = products.find(p => p.productId === product.productId);
@@ -840,7 +840,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                      <span className="text-red-600 font-bold">Missing Product Name</span>
                    )}
                  </td>
-                 <td className="py-3 px-4 text-xs text-gray-700">
+                 <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
                    {String(product.category).trim() ? (
                      product.category
                    ) : (
