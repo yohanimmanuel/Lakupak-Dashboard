@@ -1,7 +1,6 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
-  Package, 
   DollarSign, 
   Tag, 
   Upload, 
@@ -12,13 +11,16 @@ import {
   Eye,
   Edit,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Package
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
 import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
+import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
+import { ChevronDown } from 'lucide-react';
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -68,6 +70,16 @@ export default function ProductCatalog({
   const [uploadingImages, setUploadingImages] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Category dropdown states
+  const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
+  const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
+  const [showCatalogTypeDropdown, setShowCatalogTypeDropdown] = useState(false);
+  
+  // Refs for click outside detection
+  const generalCategoryRef = useRef<HTMLDivElement>(null);
+  const catalogCategoryRef = useRef<HTMLDivElement>(null);
+  const catalogTypeRef = useRef<HTMLDivElement>(null);
+
   // Generate LKP product ID format: LKP-8 random numbers
   const generateLKPProductId = () => {
     const randomNumbers = Math.floor(Math.random() * 90000000) + 10000000; // 8 digits
@@ -109,9 +121,50 @@ export default function ProductCatalog({
     }
   }, [formData.stockQuantity, formData.lowStockThreshold, formData.stockStatus]);
 
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (generalCategoryRef.current && !generalCategoryRef.current.contains(event.target as Node)) {
+        setShowGeneralCategoryDropdown(false);
+      }
+      if (catalogCategoryRef.current && !catalogCategoryRef.current.contains(event.target as Node)) {
+        setShowCatalogCategoryDropdown(false);
+      }
+      if (catalogTypeRef.current && !catalogTypeRef.current.contains(event.target as Node)) {
+        setShowCatalogTypeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
 
   const statusOptions = ['Draft', 'Published'];
   const catalogTypes = ['Internal', 'External'];
+
+  // Category helper functions
+  const availableCategories = getAvailableCategories();
+
+  const handleCategorySelect = (categoryValue: string, field: 'category') => {
+    handleInputChange(field, categoryValue);
+    setShowGeneralCategoryDropdown(false);
+    setShowCatalogCategoryDropdown(false);
+  };
+
+  const handleCatalogTypeSelect = (catalogType: string) => {
+    handleInputChange('catalogType', catalogType);
+    setShowCatalogTypeDropdown(false);
+  };
+
+  const getSelectedCategory = (categoryValue: string) => {
+    return getCategoryByValue(categoryValue);
+  };
+
+
+
 
 
   // Helper function to handle price input with better UX
@@ -564,14 +617,52 @@ export default function ProductCatalog({
                    <label className="block text-xs font-medium text-gray-700 mb-2">
                      Category
                    </label>
-                   <input
-                     type="text"
-                     value={formData.category}
-                     onChange={(e) => handleInputChange('category', e.target.value)}
-                     disabled={isViewMode}
-                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                     placeholder="Enter category"
-                   />
+                   <div className="relative" ref={generalCategoryRef}>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setShowGeneralCategoryDropdown(!showGeneralCategoryDropdown);
+                         setShowCatalogCategoryDropdown(false);
+                       }}
+                       disabled={isViewMode}
+                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                     >
+                     <span className="flex items-center gap-2">
+                       {formData.category ? (
+                         <>
+                           {(() => {
+                             const selectedCategory = getSelectedCategory(formData.category);
+                             const IconComponent = getCategoryIconComponent(formData.category);
+                             return <IconComponent className="w-4 h-4" style={{ color: selectedCategory?.color }} />;
+                           })()}
+                           <span className="text-black">{getSelectedCategory(formData.category)?.label || formData.category}</span>
+                         </>
+                       ) : (
+                         <span className="text-gray-500">Select category</span>
+                       )}
+                     </span>
+                       <ChevronDown className="w-4 h-4 text-gray-400" />
+                     </button>
+                     
+                   {showGeneralCategoryDropdown && !isViewMode && (
+                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                       {availableCategories.map((category) => {
+                         const IconComponent = getCategoryIconComponent(category.value);
+                         return (
+                           <button
+                             key={category.value}
+                             type="button"
+                             onClick={() => handleCategorySelect(category.value, 'category')}
+                             className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
+                           >
+                             <IconComponent className="w-4 h-4" style={{ color: category.color }} />
+                             <span className="text-black">{category.label}</span>
+                           </button>
+                         );
+                       })}
+                     </div>
+                   )}
+                   </div>
                  </div>
               </div>
               <div>
@@ -923,30 +1014,88 @@ export default function ProductCatalog({
                  <label className="block text-xs font-medium text-gray-700 mb-2">
                    Product Category
                  </label>
-                 <input
-                   type="text"
-                   value={formData.category}
-                   onChange={(e) => handleInputChange('category', e.target.value)}
-                   disabled={isViewMode}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Enter product category"
-                 />
+                 <div className="relative" ref={catalogCategoryRef}>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowCatalogCategoryDropdown(!showCatalogCategoryDropdown);
+                       setShowGeneralCategoryDropdown(false);
+                     }}
+                     disabled={isViewMode}
+                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                   >
+                     <span className="flex items-center gap-2">
+                       {formData.category ? (
+                         <>
+                           {(() => {
+                             const selectedCategory = getSelectedCategory(formData.category);
+                             const IconComponent = getCategoryIconComponent(formData.category);
+                             return <IconComponent className="w-4 h-4" style={{ color: selectedCategory?.color }} />;
+                           })()}
+                           <span className="text-black">{getSelectedCategory(formData.category)?.label || formData.category}</span>
+                         </>
+                       ) : (
+                         <span className="text-gray-500">Select category</span>
+                       )}
+                     </span>
+                     <ChevronDown className="w-4 h-4 text-gray-400" />
+                   </button>
+                   
+                   {showCatalogCategoryDropdown && !isViewMode && (
+                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                       {availableCategories.map((category) => {
+                         const IconComponent = getCategoryIconComponent(category.value);
+                         return (
+                           <button
+                             key={category.value}
+                             type="button"
+                             onClick={() => handleCategorySelect(category.value, 'category')}
+                             className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
+                           >
+                             <IconComponent className="w-4 h-4" style={{ color: category.color }} />
+                             <span className="text-black">{category.label}</span>
+                           </button>
+                         );
+                       })}
+                     </div>
+                   )}
+                 </div>
                </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Catalog Type
                 </label>
-                <select
-                  value={formData.catalogType}
-                  onChange={(e) => handleInputChange('catalogType', e.target.value)}
-                  disabled={isViewMode}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                >
-                  {catalogTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+                <div className="relative" ref={catalogTypeRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCatalogTypeDropdown(!showCatalogTypeDropdown);
+                      setShowGeneralCategoryDropdown(false);
+                      setShowCatalogCategoryDropdown(false);
+                    }}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                  >
+                    <span className="text-black">{formData.catalogType}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                  
+                  {showCatalogTypeDropdown && !isViewMode && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {catalogTypes.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => handleCatalogTypeSelect(type)}
+                          className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <span className="text-black">{type}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               
                              <div>
