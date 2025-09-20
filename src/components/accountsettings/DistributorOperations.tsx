@@ -42,6 +42,11 @@ interface CompanyProfileData {
   additionalPricePerKm: string;
   maxShippingRadius: number;
   freeShippingThreshold: string;
+  
+  // Additional shipping options pricing
+  expressShippingPrice: string;
+  sameDayShippingPrice: string;
+  nextDayShippingPrice: string;
 }
 
 const industryTypes = [
@@ -128,6 +133,9 @@ export default function DistributorOperations() {
     additionalPricePerKm: '500',
     maxShippingRadius: 200,
     freeShippingThreshold: '100000',
+    expressShippingPrice: '',
+    sameDayShippingPrice: '',
+    nextDayShippingPrice: '',
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -155,6 +163,9 @@ export default function DistributorOperations() {
     additionalPricePerKm: '500',
     maxShippingRadius: 200,
     freeShippingThreshold: '100000',
+    expressShippingPrice: '',
+    sameDayShippingPrice: '',
+    nextDayShippingPrice: '',
   });
   
   // Dropdown states
@@ -196,6 +207,9 @@ export default function DistributorOperations() {
         additionalPricePerKm: (company as any)?.additionalPricePerKm ? formatNumberByCurrency((company as any).additionalPricePerKm, userCurrency) : '500',
         maxShippingRadius: (company as any)?.maxShippingRadius || 200,
         freeShippingThreshold: (company as any)?.freeShippingThreshold ? formatNumberByCurrency((company as any).freeShippingThreshold, userCurrency) : '100000',
+        expressShippingPrice: (company as any)?.expressShippingPrice ? formatNumberByCurrency((company as any).expressShippingPrice, userCurrency) : '',
+        sameDayShippingPrice: (company as any)?.sameDayShippingPrice ? formatNumberByCurrency((company as any).sameDayShippingPrice, userCurrency) : '',
+        nextDayShippingPrice: (company as any)?.nextDayShippingPrice ? formatNumberByCurrency((company as any).nextDayShippingPrice, userCurrency) : '',
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -222,6 +236,9 @@ export default function DistributorOperations() {
         additionalPricePerKm: (company as any)?.additionalPricePerKm ? formatNumberByCurrency((company as any).additionalPricePerKm, userCurrency) : '500',
         maxShippingRadius: (company as any)?.maxShippingRadius || 200,
         freeShippingThreshold: (company as any)?.freeShippingThreshold ? formatNumberByCurrency((company as any).freeShippingThreshold, userCurrency) : '100000',
+        expressShippingPrice: (company as any)?.expressShippingPrice ? formatNumberByCurrency((company as any).expressShippingPrice, userCurrency) : '',
+        sameDayShippingPrice: (company as any)?.sameDayShippingPrice ? formatNumberByCurrency((company as any).sameDayShippingPrice, userCurrency) : '',
+        nextDayShippingPrice: (company as any)?.nextDayShippingPrice ? formatNumberByCurrency((company as any).nextDayShippingPrice, userCurrency) : '',
       });
     }
   }, [user, isClient]);
@@ -405,6 +422,9 @@ export default function DistributorOperations() {
         additionalPricePerKm: formData.additionalPricePerKm,
         maxShippingRadius: formData.maxShippingRadius,
         freeShippingThreshold: formData.freeShippingThreshold,
+        expressShippingPrice: formData.shippingPreferences.includes('Express Shipping') ? formData.expressShippingPrice : null,
+        sameDayShippingPrice: formData.shippingPreferences.includes('Same-day Delivery') ? formData.sameDayShippingPrice : null,
+        nextDayShippingPrice: formData.shippingPreferences.includes('Next-day Delivery') ? formData.nextDayShippingPrice : null,
       };
 
 
@@ -1096,6 +1116,81 @@ export default function DistributorOperations() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Additional Shipping Options Pricing - Only show if selected */}
+                  {formData.shippingPreferences.some(pref => 
+                    ['Express Shipping', 'Same-day Delivery', 'Next-day Delivery'].includes(pref)
+                  ) && (
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                      <h5 className="text-sm font-medium text-gray-900 mb-4">
+                        Additional Shipping Options Pricing
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {formData.shippingPreferences.includes('Express Shipping') && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Express Shipping Price
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={formData.expressShippingPrice}
+                                onChange={(e) => handleInputChange('expressShippingPrice', e.target.value)}
+                                disabled={!isEditing}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder="Enter express shipping price"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {formData.shippingPreferences.includes('Same-day Delivery') && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Same-day Delivery Price
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={formData.sameDayShippingPrice}
+                                onChange={(e) => handleInputChange('sameDayShippingPrice', e.target.value)}
+                                disabled={!isEditing}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder="Enter same-day delivery price"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {formData.shippingPreferences.includes('Next-day Delivery') && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Next-day Delivery Price
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={formData.nextDayShippingPrice}
+                                onChange={(e) => handleInputChange('nextDayShippingPrice', e.target.value)}
+                                disabled={!isEditing}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder="Enter next-day delivery price"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
           <div>

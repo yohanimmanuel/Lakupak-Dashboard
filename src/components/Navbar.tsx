@@ -18,7 +18,7 @@ const salesmen = [
   { name: 'Mike Brown', avatar: 'https://randomuser.me/api/portraits/men/45.jpg' },
 ];
 
-type DropdownPortalProps = { anchorRef: React.RefObject<HTMLElement>; show: boolean; children: React.ReactNode };
+type DropdownPortalProps = { anchorRef: React.RefObject<HTMLElement | null>; show: boolean; children: React.ReactNode };
 const DropdownPortal = ({ anchorRef, show, children }: DropdownPortalProps) => {
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   useEffect(() => {
@@ -32,7 +32,11 @@ const DropdownPortal = ({ anchorRef, show, children }: DropdownPortalProps) => {
   }, [show, anchorRef]);
   if (!show) return null;
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: DROPDOWN_WIDTH, zIndex: 50 }} className="border border-gray-200 bg-white rounded-xl shadow-2xl py-0 px-0 mt-1">
+    <div 
+      data-dropdown-portal
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: DROPDOWN_WIDTH, zIndex: 50 }} 
+      className="border border-gray-200 bg-white rounded-xl shadow-2xl py-0 px-0 mt-1"
+    >
       {children}
     </div>,
     document.body
@@ -58,13 +62,22 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
+      const target = event.target as Node;
+      
+      // Check if click is outside user dropdown (including portal content)
+      if (showDropdown) {
+        const isClickOnAvatar = dropdownRef.current && dropdownRef.current.contains(target);
+        const isClickOnPortal = (target as Element).closest('[data-dropdown-portal]');
+        if (!isClickOnAvatar && !isClickOnPortal) {
+          setShowDropdown(false);
+        }
       }
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+      
+      // Check other dropdowns
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setShowNotifDropdown(false);
       }
-      if (msgRef.current && !msgRef.current.contains(event.target as Node)) {
+      if (msgRef.current && !msgRef.current.contains(target)) {
         setShowMsgDropdown(false);
       }
     };
@@ -72,7 +85,7 @@ const Navbar = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showDropdown]);
 
   const handleSignOut = () => {
     clearUser();
@@ -178,33 +191,47 @@ const Navbar = () => {
             <span className="text-xs leading-3 font-medium truncate">{user?.firstName || 'User'}</span>
             <span className="text-[10px] text-gray-500 text-right truncate">{user?.email || ''}</span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={dropdownRef}>
+          <div className="w-9 h-9 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition overflow-hidden" ref={dropdownRef}>
             <div
               className="w-full h-full flex items-center justify-center"
               onClick={() => { setShowDropdown(v => !v); setShowNotifDropdown(false); setShowMsgDropdown(false); }}
             >
-              <User size={20} className="text-gray-500" />
+              {user?.avatar && user.avatar !== null && user.avatar.trim() !== '' ? (
+                <Image
+                  src={user.avatar}
+                  alt={`${user.firstName || 'User'} avatar`}
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <User size={20} className="text-gray-500" />
+              )}
             </div>
-            {/* User dropdown menu */}
-            {showDropdown && (
-              <div className="absolute right-0 top-[135%] min-w-[230px] max-w-[350px] w-max border border-gray-200 bg-white rounded-lg shadow-lg py-1 z-10 break-words">
-                <div className="px-4 py-2 border-b">
-                  <p className="text-xs font-medium text-gray-900 truncate" title={user?.firstName}>{user?.firstName || 'User'}</p>
-                  <p className="text-xs text-gray-500" title={user?.email}>{user?.email || ''}</p>
-                </div>
-                <a href="/settings" className="block px-4 py-2 text-xs text-gray-700 hover:bg-gray-100">
-                  Account Settings
-                </a>
-                <button 
-                  className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-gray-100 flex items-center"
-                  onClick={handleSignOut}
-                >
-                  <LogOut size={16} className="mr-2" />
-                  Sign out
-                </button>
-              </div>
-            )}
           </div>
+          {/* User dropdown menu using portal */}
+          <DropdownPortal anchorRef={dropdownRef} show={showDropdown}>
+            <div className="px-4 py-2 border-b">
+              <p className="text-xs font-medium text-gray-900 truncate" title={user?.firstName}>{user?.firstName || 'User'}</p>
+              <p className="text-xs text-gray-500" title={user?.email}>{user?.email || ''}</p>
+            </div>
+            <a 
+              href="/settings" 
+              className="block px-4 py-2 text-xs text-gray-700 hover:bg-gray-100"
+              onClick={() => {
+                setShowDropdown(false);
+              }}
+            >
+              Account Settings
+            </a>
+            <button 
+              className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-gray-100 flex items-center"
+              onClick={handleSignOut}
+            >
+              <LogOut size={16} className="mr-2" />
+              Sign out
+            </button>
+          </DropdownPortal>
         </div>
       </div>
     </div>

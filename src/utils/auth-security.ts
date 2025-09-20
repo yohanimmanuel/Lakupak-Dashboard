@@ -199,7 +199,7 @@ export const sanitizeUserData = (user: Record<string, unknown>) => ({
   phone: typeof user.phone === 'string' ? user.phone.trim() : (user.phone || undefined),
   bio: typeof user.bio === 'string' ? user.bio.trim() : (user.bio || undefined),
   location: typeof user.location === 'string' ? user.location.trim() : (user.location || undefined),
-  avatar: typeof user.avatar === 'string' ? user.avatar : (user.avatar || undefined),
+  avatar: typeof user.avatar === 'string' ? user.avatar : (user.avatar || null),
   companyId: user.companyId,
   company: user.company, // This will be the full company object now
   region: typeof user.region === 'string' ? user.region : undefined,
@@ -234,6 +234,9 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
   additionalPricePerKm: typeof company.additionalPricePerKm === 'number' ? company.additionalPricePerKm : (company.additionalPricePerKm || null),
   maxShippingRadius: typeof company.maxShippingRadius === 'number' ? company.maxShippingRadius : (company.maxShippingRadius || null),
   freeShippingThreshold: typeof company.freeShippingThreshold === 'number' ? company.freeShippingThreshold : (company.freeShippingThreshold || null),
+  expressShippingPrice: typeof company.expressShippingPrice === 'number' ? company.expressShippingPrice : (company.expressShippingPrice || null),
+  sameDayShippingPrice: typeof company.sameDayShippingPrice === 'number' ? company.sameDayShippingPrice : (company.sameDayShippingPrice || null),
+  nextDayShippingPrice: typeof company.nextDayShippingPrice === 'number' ? company.nextDayShippingPrice : (company.nextDayShippingPrice || null),
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,
 });

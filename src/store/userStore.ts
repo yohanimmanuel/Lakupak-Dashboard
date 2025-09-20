@@ -26,6 +26,9 @@ interface Company {
   additionalPricePerKm?: number;
   maxShippingRadius?: number;
   freeShippingThreshold?: number;
+  expressShippingPrice?: number;
+  sameDayShippingPrice?: number;
+  nextDayShippingPrice?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,51 +59,57 @@ interface UserStore {
   user: User | null;
   isAuthenticated: boolean;
   sessionExpiry: number | null;
+  isHydrated: boolean;
   setUser: (user: User, rememberMe?: boolean) => void;
   updateUser: (updates: Partial<User>) => void;
   clearUser: () => void;
   checkSession: () => boolean;
   extendSession: () => void;
+  hydrate: () => void;
+  debugSession: () => void;
+  forceClearAllSessions: () => void;
 }
 
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const getInitialUser = (): { user: User | null; sessionExpiry: number | null } => {
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('userSession');
-      if (stored) {
-        const sessionData: SessionData = JSON.parse(stored);
-        const now = Date.now();
-        
-        // Check if session is still valid
-        if (now < sessionData.expiresAt) {
-          return { 
-            user: sessionData.user, 
-            sessionExpiry: sessionData.expiresAt 
-          };
-        } else {
-          // Session expired, clean up
-          localStorage.removeItem('userSession');
-        }
+  // Always return null during SSR to prevent hydration mismatches
+  if (typeof window === 'undefined') {
+    return { user: null, sessionExpiry: null };
+  }
+  
+  try {
+    const stored = localStorage.getItem('userSession');
+    if (stored) {
+      const sessionData: SessionData = JSON.parse(stored);
+      const now = Date.now();
+      
+      // Check if session is still valid
+      if (now < sessionData.expiresAt) {
+        return { 
+          user: sessionData.user, 
+          sessionExpiry: sessionData.expiresAt 
+        };
+      } else {
+        // Session expired, clean up
+        localStorage.removeItem('userSession');
       }
-    } catch (error) {
-      localStorage.removeItem('userSession');
     }
+  } catch (error) {
+    localStorage.removeItem('userSession');
   }
   return { user: null, sessionExpiry: null };
 };
 
-const { user: initialUser, sessionExpiry: initialExpiry } = getInitialUser();
-
 export const useUserStore = create<UserStore>((set, get) => ({
-  user: initialUser,
-  isAuthenticated: !!initialUser,
-  sessionExpiry: initialExpiry,
+  user: null,
+  isAuthenticated: false,
+  sessionExpiry: null,
+  isHydrated: false,
   
   setUser: (user, rememberMe = false) => {
-    // Clear any existing session first to prevent conflicts
+    // Simple: just set the user, last login wins
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('userSession');
@@ -167,6 +176,15 @@ export const useUserStore = create<UserStore>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.removeItem('userSession');
       
+      // Clear NextAuth session if it exists
+      try {
+        // This will trigger NextAuth to clear its session
+        fetch('/api/auth/signout', { method: 'POST' }).then(() => {
+        });
+      } catch (error) {
+        // Ignore errors if NextAuth is not available
+      }
+      
       // Track logout event
       if (window.gtag) {
         window.gtag('event', 'logout', {
@@ -174,6 +192,51 @@ export const useUserStore = create<UserStore>((set, get) => ({
           event_label: 'User Logout'
         });
       }
+    }
+  },
+
+  hydrate: () => {
+    if (typeof window === 'undefined') return;
+    
+    const { user, sessionExpiry } = getInitialUser();
+    set({
+      user,
+      isAuthenticated: !!user,
+      sessionExpiry,
+      isHydrated: true
+    });
+  },
+
+  debugSession: () => {
+    if (typeof window === 'undefined') return;
+    
+    const { user, isAuthenticated, sessionExpiry, isHydrated } = get();
+    const stored = localStorage.getItem('userSession');
+  },
+
+  forceClearAllSessions: () => {
+    if (typeof window === 'undefined') return;
+    
+    
+    // Clear user store
+    set({ 
+      user: null, 
+      isAuthenticated: false,
+      sessionExpiry: null 
+    });
+    
+    // Clear localStorage
+    localStorage.removeItem('userSession');
+    
+    // Clear NextAuth session
+    try {
+      fetch('/api/auth/signout', { method: 'POST' }).then(() => {
+        // Reload page to ensure clean state
+        window.location.reload();
+      });
+    } catch (error) {
+      // Still reload to ensure clean state
+      window.location.reload();
     }
   },
   

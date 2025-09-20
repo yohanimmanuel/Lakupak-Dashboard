@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, createContext, useContext, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Menu from '@/components/Menu';
 import Navbar from '@/components/Navbar';
+import { useUserStore } from '@/store/userStore';
+import { useAuthHydration } from '@/hooks/useAuthHydration';
 
 const MenuContext = createContext({
   isCollapsed: false,
@@ -16,6 +19,35 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
+  const { user, checkSession } = useUserStore();
+  const { isHydrated } = useAuthHydration();
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Simple authentication check - wait for hydration
+  useEffect(() => {
+    if (!isClient || !isHydrated) return;
+
+    // Small delay to ensure everything is properly loaded
+    const timeoutId = setTimeout(() => {
+      // Now check if user exists and session is valid
+      if (user && checkSession()) {
+        setIsCheckingAuth(false);
+        return;
+      }
+      
+      // No valid user, redirect to login
+      router.push('/login');
+    }, 200);
+    
+    return () => clearTimeout(timeoutId);
+  }, [user, checkSession, router, isClient, isHydrated]);
 
   // Check if screen is mobile size
   useEffect(() => {
@@ -37,6 +69,19 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-gray-600">Loading dashboard...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <MenuContext.Provider value={{ isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu }}>

@@ -5,22 +5,17 @@ import { useEffect } from "react";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
-  const { user, setUser, clearUser } = useUserStore();
+  const { setUser, clearUser, isHydrated } = useUserStore();
 
   useEffect(() => {
-    if (status === "loading") return; // Still loading
+    if (status === "loading" || !isHydrated) return;
 
     if (status === "authenticated" && session?.user) {
-      // Sync NextAuth session to useUserStore
-      const sessionUser = session.user as any;
-      
-      // Only sync if the user data has changed to prevent infinite loops
-      if (!user || 
-          user.id !== sessionUser.id || 
-          user.email !== sessionUser.email ||
-          user.firstName !== (sessionUser.firstName || sessionUser.name?.split(' ')[0] || '') ||
-          user.lastName !== (sessionUser.lastName || sessionUser.name?.split(' ').slice(1).join(' ') || '')) {
-        
+      // Only sync if there's no current user in the store
+      // This prevents NextAuth from overwriting existing sessions on page reload
+      const { user } = useUserStore.getState();
+      if (!user) {
+        const sessionUser = session.user as any;
         setUser({
           id: sessionUser.id || 0,
           firstName: sessionUser.firstName || sessionUser.name?.split(' ')[0] || '',
@@ -38,12 +33,10 @@ export function AuthSync() {
         });
       }
     } else if (status === "unauthenticated") {
-      // Clear userStore if not authenticated
-      if (user) {
-        clearUser();
-      }
+      // Don't clear user store on NextAuth unauthenticated
+      // Let the dashboard handle authentication checks
     }
-  }, [session, status]); // Removed user, setUser, clearUser from dependencies to prevent infinite loops
+  }, [session, status, setUser, clearUser, isHydrated]);
 
-  return null; // This component doesn't render anything
+  return null;
 }

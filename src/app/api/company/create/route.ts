@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
         additionalPricePerKm: 500,
         maxShippingRadius: 200,
         freeShippingThreshold: 100000,
+        expressShippingPrice: 25000,
+        sameDayShippingPrice: 35000,
+        nextDayShippingPrice: 20000,
       }
     });
     

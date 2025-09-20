@@ -9,83 +9,67 @@ datasource db {
 }
 
 model User {
-  id             Int        @id @default(autoincrement())
-  // For OAuth users these may be null; for email/password users we can enforce app-level validation
-  firstName      String?
-  lastName       String?
-  // NextAuth expected fields
-  name           String?
-  email          String     @unique
-  emailVerified  DateTime?
-  image          String?
-  // Password is optional to allow Google OAuth users
-  password       String?
-
-  // Personal fields only
-  phone          String?
-  bio            String?
-  location       String?
-  avatar         String?
-  
-  // Company relationship
-  companyId      Int?
-  company        Company?   @relation(fields: [companyId], references: [id])
-  
-  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
-  currency       String     @default("IDR")
-  region         String?
-  language       String     @default("en")
-  buyers         Buyer[]
-  orders         Order[]
-  products       Product[]
-  suppliers      Supplier[]
-  accounts       Account[]
-  sessions       Session[]
+  id            Int        @id @default(autoincrement())
+  firstName     String?
+  lastName      String?
+  email         String     @unique
+  password      String?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  currency      String     @default("IDR")
+  region        String?
+  emailVerified DateTime?
+  image         String?
+  name          String?
+  avatar        String?
+  bio           String?
+  location      String?
+  phone         String?
+  companyId     Int?
+  language      String     @default("en")
+  accounts      Account[]
+  buyers        Buyer[]
+  orders        Order[]
+  products      Product[]
+  sessions      Session[]
+  suppliers     Supplier[]
+  company       Company?   @relation(fields: [companyId], references: [id])
 }
 
 model Company {
-  id                        Int       @id @default(autoincrement())
-  name                      String
-  businessRegistrationNumber String?
-  taxId                     String?
-  logo                      String?
-  bannerImage               String?
-  
-  // Business details
-  industryType              String?
-  businessDescription       String?
-  yearsInOperation          String?
-  companySize               String?
-  
-  // Contact information
-  businessAddress           String?
-  businessPhone             String?
-  businessEmail             String?
-  
-  // Verification status
-  documentVerification      Boolean   @default(false)
-  businessLicenseVerification Boolean @default(false)
-  complianceStatus          String    @default("Pending")
-  
-  // Shipping preferences (JSON for flexibility)
-  shippingPreferences       String?   // JSON array
-  deliveryTimeSlots         String?   // JSON array
-  preferredDeliveryDays     String?   // JSON array
-  specialInstructions       String?
-  
-  // Shipping fee configuration
-  baseShippingRadius        Float?    // Base radius in km (e.g., 50km)
-  baseShippingPrice         Float?    // Price for base radius
-  additionalPricePerKm      Float?    // Price per km beyond base radius
-  maxShippingRadius         Float?    // Maximum delivery distance in km
-  freeShippingThreshold     Float?    // Order value for free shipping
-  
-  createdAt                 DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt                 DateTime  @updatedAt @db.Timestamptz(3)
-  
-  // Relations
-  users                     User[]
+  id                          Int      @id @default(autoincrement())
+  name                        String
+  businessRegistrationNumber  String?
+  taxId                       String?
+  logo                        String?
+  industryType                String?
+  businessDescription         String?
+  yearsInOperation            String?
+  companySize                 String?
+  businessAddress             String?
+  businessPhone               String?
+  businessEmail               String?
+  documentVerification        Boolean  @default(false)
+  businessLicenseVerification Boolean  @default(false)
+  complianceStatus            String   @default("Pending")
+  shippingPreferences         String?
+  deliveryTimeSlots           String?
+  preferredDeliveryDays       String?
+  specialInstructions         String?
+  createdAt                   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime @updatedAt @db.Timestamptz(3)
+  bannerImage                 String?
+  additionalPricePerKm        Float?
+  baseShippingPrice           Float?
+  baseShippingRadius          Float?
+  freeShippingThreshold       Float?
+  maxShippingRadius           Float?
+  // Additional shipping options pricing
+  expressShippingPrice        Float?
+  nextDayShippingPrice        Float?
+  sameDayShippingPrice        Float?
+
+  users                       User[]
 }
 
 model Buyer {
@@ -140,49 +124,44 @@ model Product {
   stockQuantity     Int
   lowStockThreshold Int?
   stockStatus       String?
-  // Package information
-  packageType       String?
-  piecesPerPackage  Int?        @default(1)
   purchasePrice     String
   sellingPrice      String
-  // Marketplace integration fields
-  marketplaceStatus String?     @default("Not Published") // Not Published, Published, Unpublished
-  publishedAt       DateTime?
-  lastSyncAt        DateTime?
   status            String
   catalogType       String
   catalogName       String
   images            String[]
-  // Product assurance fields
-  halalCertified    Boolean?    @default(false)
-  bpomApproved      Boolean?    @default(false)
-  originalProduct   Boolean?    @default(true)
-  returnPolicyDays  Int?        @default(7)
   createdAt         DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
   userId            Int?
+  bpomApproved      Boolean?    @default(false)
+  halalCertified    Boolean?    @default(false)
+  originalProduct   Boolean?    @default(true)
+  returnPolicyDays  Int?        @default(7)
+  packageType       String?
+  piecesPerPackage  Int?        @default(1)
+  lastSyncAt        DateTime?
+  marketplaceStatus String?     @default("Not Published")
+  publishedAt       DateTime?
   orderItems        OrderItem[]
   user              User?       @relation(fields: [userId], references: [id])
 }
 
-// Mobile marketplace profile (separates marketplace data from core User)
-// Dedicated marketplace user (separate channel from SaaS dashboard)
 model MarketplaceUser {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  name      String?
-  storeName String?
-  email     String?  @unique
-  password  String?
-  bio       String?
-  phone     String   @unique
-  image     String?
-  bannerImage String?
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  email         String?   @unique
+  password      String?
+  bio           String?
+  phone         String    @unique
+  country       String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  name          String?
+  storeName     String?
   chosenAddress String?
-  country   String?
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
-  addresses Address[]
+  image         String?
+  bannerImage   String?
+  addresses     Address[]
 
   @@index([phone])
   @@index([email])
@@ -190,17 +169,16 @@ model MarketplaceUser {
 }
 
 model Address {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  fullName   String
-  phone      String
-  address    String
-  isDefault  Boolean  @default(false)
-  label      String   // "work" | "store" | "home"
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
-
-  user MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  fullName  String
+  phone     String
+  address   String
+  isDefault Boolean         @default(false)
+  label     String
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+  user      MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isDefault])
@@ -208,87 +186,80 @@ model Address {
 }
 
 model Order {
-  id                    Int         @id @default(autoincrement())
-  orderId               String      @unique
-  buyerId               String?
-  // Snapshots to preserve buyer-related display data if buyer is deleted (FK set null)
-  buyerIdSnapshot       String?
-  orderDate             DateTime   @db.Timestamptz(3)
-  orderDateSnapshot     DateTime?  @db.Timestamptz(3)
-  orderStatus           String
-  paymentStatus         String
-  deliveryMethod        String
-  subtotal              Float
-  discounts             Float
-  shippingFee           Float
-  totalAmount           Float
-  paymentTerms          String
-  totalOrders           Int
-  contactPerson         String
-  contactPersonSnapshot String?
-  storeName             String
-  storeNameSnapshot     String?
-  contactPhone          String
-  contactPhoneSnapshot  String?
-  customerEmail         String?
-  customerEmailSnapshot String?
-  deliveryAddress       String
+  id                      Int         @id @default(autoincrement())
+  orderId                 String      @unique
+  buyerId                 String?
+  orderDate               DateTime    @db.Timestamptz(3)
+  orderStatus             String
+  paymentStatus           String
+  deliveryMethod          String
+  subtotal                Float
+  discounts               Float
+  shippingFee             Float
+  totalAmount             Float
+  paymentTerms            String
+  totalOrders             Int
+  contactPerson           String
+  storeName               String
+  contactPhone            String
+  customerEmail           String?
+  deliveryAddress         String
+  preferredDeliveryTime   String?
+  assignedLogistics       String?
+  trackingNumber          String?
+  deliveryNote            String?
+  deliveryConfirmation    String?
+  pod                     String?
+  createdAt               DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
+  acceptedBy              String?
+  acceptedAt              DateTime?   @db.Timestamptz(3)
+  userId                  Int?
+  archivedAt              DateTime?   @db.Timestamptz(3)
+  buyerIdSnapshot         String?
+  contactPersonSnapshot   String?
+  contactPhoneSnapshot    String?
+  customerEmailSnapshot   String?
   deliveryAddressSnapshot String?
-  preferredDeliveryTime String?
-  assignedLogistics     String?
-  trackingNumber        String?
-  deliveryNote          String?
-  deliveryConfirmation  String?
-  pod                   String?
-  createdAt             DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt             DateTime    @updatedAt @db.Timestamptz(3)
-  acceptedBy            String?
-  acceptedAt            DateTime?  @db.Timestamptz(3)
-  archivedAt            DateTime?  @db.Timestamptz(3)
-  userId                Int?
-  buyer                 Buyer?      @relation(fields: [buyerId], references: [buyerId], onDelete: SetNull)
-  user                  User?       @relation(fields: [userId], references: [id])
-  orderItemsRel         OrderItem[]
+  orderDateSnapshot       DateTime?   @db.Timestamptz(3)
+  storeNameSnapshot       String?
+  buyer                   Buyer?      @relation(fields: [buyerId], references: [buyerId])
+  user                    User?       @relation(fields: [userId], references: [id])
+  orderItemsRel           OrderItem[]
 }
 
 model OrderItem {
-  id        Int      @id @default(autoincrement())
-  orderId   String
-  productId String?
-  subtotal  Float
-  // Package information for B2B wholesale model
-  packageType       String?
-  piecesPerPackage  Int?     @default(1)
-  packageQuantity   Int?     @default(1)
-  pricePerPackage   Float?
-  // Snapshots to preserve display data if product is deleted
-  productNameSnapshot String?
-  productSkuSnapshot  String?
+  id                      Int      @id @default(autoincrement())
+  orderId                 String
+  productId               String?
+  subtotal                Float
+  createdAt               DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime @updatedAt @db.Timestamptz(3)
+  productNameSnapshot     String?
+  productSkuSnapshot      String?
   productCategorySnapshot String?
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
-  order     Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  product   Product? @relation(fields: [productId], references: [productId], onDelete: SetNull)
-
-  // If uniqueness is required, consider adding a lineIndex instead. Dropping composite unique to allow null productId.
+  packageQuantity         Int?     @default(1)
+  packageType             String?
+  piecesPerPackage        Int?     @default(1)
+  pricePerPackage         Float?
+  order                   Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product                 Product? @relation(fields: [productId], references: [productId])
 }
 
-// NextAuth models (required for Prisma Adapter)
 model Account {
-  id                 String  @id @default(cuid())
-  userId             Int
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @map("refresh_token")
-  access_token       String?  @map("access_token")
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @map("refresh_token")
+  access_token      String? @map("access_token")
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -298,8 +269,7 @@ model Session {
   sessionToken String   @unique
   userId       Int
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -312,16 +282,16 @@ model VerificationToken {
 
 /// OTP codes for mobile authentication
 model OtpCode {
-  id           Int       @id @default(autoincrement())
-  phone        String
-  countryCode  String?
-  channel      String    // "whatsapp" | "sms"
-  code         String
-  expiresAt    DateTime  @db.Timestamptz(3)
-  consumedAt   DateTime? @db.Timestamptz(3)
-  attempts     Int       @default(0)
-  ipAddress    String?
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  id          Int       @id @default(autoincrement())
+  phone       String
+  countryCode String?
+  channel     String
+  code        String
+  expiresAt   DateTime  @db.Timestamptz(3)
+  consumedAt  DateTime? @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  ipAddress   String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([phone, createdAt])
 }
