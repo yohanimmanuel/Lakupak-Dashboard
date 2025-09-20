@@ -50,7 +50,13 @@ export async function GET(request: NextRequest) {
                 businessAddress: true,
                 businessPhone: true,
                 businessEmail: true,
-                industryType: true
+                industryType: true,
+                shippingPreferences: true,
+                baseShippingPrice: true,
+                expressShippingPrice: true,
+                sameDayShippingPrice: true,
+                nextDayShippingPrice: true,
+                pickupAddress: true
               }
             }
           }
@@ -112,13 +118,42 @@ export async function GET(request: NextRequest) {
              businessAddress: product.user.company.businessAddress,
              businessPhone: product.user.company.businessPhone,
              businessEmail: product.user.company.businessEmail,
-             industryType: product.user.company.industryType
+             industryType: product.user.company.industryType,
+             pickupAddress: product.user.company.pickupAddress
            } : undefined
          },
          shipping: {
-           standard: { price: 0, free: true },
-           express: { price: 0, free: false },
-           sameDay: { price: 0, free: false }
+           preferences: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences) : [],
+           standard: { 
+             price: product.user?.company?.baseShippingPrice || 0, 
+             free: false,
+             available: true // Always available as base shipping option
+           },
+           express: { 
+             price: product.user?.company?.expressShippingPrice || 0, 
+             free: false,
+             available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Express Shipping') : false
+           },
+           sameDay: { 
+             price: product.user?.company?.sameDayShippingPrice || 0, 
+             free: false,
+             available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Same-day Delivery') : false
+           },
+           nextDay: { 
+             price: product.user?.company?.nextDayShippingPrice || 0, 
+             free: false,
+             available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Next-day Delivery') : false
+           },
+           scheduled: {
+             price: product.user?.company?.baseShippingPrice || 0,
+             free: false,
+             available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Scheduled Delivery') : false
+           },
+           pickup: {
+             price: 0,
+             free: true,
+             available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Pickup Available') : false
+           }
          },
          shippingInfo: {
            location: 'Indonesia' // User region - country only for B2B

@@ -234,9 +234,10 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
   additionalPricePerKm: typeof company.additionalPricePerKm === 'number' ? company.additionalPricePerKm : (company.additionalPricePerKm || null),
   maxShippingRadius: typeof company.maxShippingRadius === 'number' ? company.maxShippingRadius : (company.maxShippingRadius || null),
   freeShippingThreshold: typeof company.freeShippingThreshold === 'number' ? company.freeShippingThreshold : (company.freeShippingThreshold || null),
-  expressShippingPrice: typeof company.expressShippingPrice === 'number' ? company.expressShippingPrice : (company.expressShippingPrice || null),
-  sameDayShippingPrice: typeof company.sameDayShippingPrice === 'number' ? company.sameDayShippingPrice : (company.sameDayShippingPrice || null),
-  nextDayShippingPrice: typeof company.nextDayShippingPrice === 'number' ? company.nextDayShippingPrice : (company.nextDayShippingPrice || null),
+    expressShippingPrice: typeof company.expressShippingPrice === 'number' ? company.expressShippingPrice : (company.expressShippingPrice || null),
+    sameDayShippingPrice: typeof company.sameDayShippingPrice === 'number' ? company.sameDayShippingPrice : (company.sameDayShippingPrice || null),
+    nextDayShippingPrice: typeof company.nextDayShippingPrice === 'number' ? company.nextDayShippingPrice : (company.nextDayShippingPrice || null),
+    pickupAddress: typeof company.pickupAddress === 'string' ? company.pickupAddress : (company.pickupAddress || null),
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,
 });

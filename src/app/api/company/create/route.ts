@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
         expressShippingPrice: 25000,
         sameDayShippingPrice: 35000,
         nextDayShippingPrice: 20000,
+        pickupAddress: null,
       }
     });
     

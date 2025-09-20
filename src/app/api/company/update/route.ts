@@ -43,9 +43,10 @@ export async function PUT(req: NextRequest) {
       additionalPricePerKm,
       maxShippingRadius,
       freeShippingThreshold,
-      expressShippingPrice,
-      sameDayShippingPrice,
-      nextDayShippingPrice
+        expressShippingPrice,
+        sameDayShippingPrice,
+        nextDayShippingPrice,
+        pickupAddress
     } = body;
     
     // Validate companyId
@@ -114,6 +115,7 @@ export async function PUT(req: NextRequest) {
     if (expressShippingPrice !== undefined) updateData.expressShippingPrice = expressShippingPrice ? parseNumberByCurrency(expressShippingPrice.toString()) || null : null;
     if (sameDayShippingPrice !== undefined) updateData.sameDayShippingPrice = sameDayShippingPrice ? parseNumberByCurrency(sameDayShippingPrice.toString()) || null : null;
     if (nextDayShippingPrice !== undefined) updateData.nextDayShippingPrice = nextDayShippingPrice ? parseNumberByCurrency(nextDayShippingPrice.toString()) || null : null;
+    if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress?.trim() || null;
     
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },

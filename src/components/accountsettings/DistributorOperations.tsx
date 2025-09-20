@@ -47,6 +47,7 @@ interface CompanyProfileData {
   expressShippingPrice: string;
   sameDayShippingPrice: string;
   nextDayShippingPrice: string;
+  pickupAddress: string;
 }
 
 const industryTypes = [
@@ -136,6 +137,7 @@ export default function DistributorOperations() {
     expressShippingPrice: '',
     sameDayShippingPrice: '',
     nextDayShippingPrice: '',
+    pickupAddress: '',
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -166,6 +168,7 @@ export default function DistributorOperations() {
     expressShippingPrice: '',
     sameDayShippingPrice: '',
     nextDayShippingPrice: '',
+    pickupAddress: '',
   });
   
   // Dropdown states
@@ -210,6 +213,7 @@ export default function DistributorOperations() {
         expressShippingPrice: (company as any)?.expressShippingPrice ? formatNumberByCurrency((company as any).expressShippingPrice, userCurrency) : '',
         sameDayShippingPrice: (company as any)?.sameDayShippingPrice ? formatNumberByCurrency((company as any).sameDayShippingPrice, userCurrency) : '',
         nextDayShippingPrice: (company as any)?.nextDayShippingPrice ? formatNumberByCurrency((company as any).nextDayShippingPrice, userCurrency) : '',
+        pickupAddress: (company as any)?.pickupAddress || '',
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -239,6 +243,7 @@ export default function DistributorOperations() {
         expressShippingPrice: (company as any)?.expressShippingPrice ? formatNumberByCurrency((company as any).expressShippingPrice, userCurrency) : '',
         sameDayShippingPrice: (company as any)?.sameDayShippingPrice ? formatNumberByCurrency((company as any).sameDayShippingPrice, userCurrency) : '',
         nextDayShippingPrice: (company as any)?.nextDayShippingPrice ? formatNumberByCurrency((company as any).nextDayShippingPrice, userCurrency) : '',
+        pickupAddress: (company as any)?.pickupAddress || '',
       });
     }
   }, [user, isClient]);
@@ -425,6 +430,7 @@ export default function DistributorOperations() {
         expressShippingPrice: formData.shippingPreferences.includes('Express Shipping') ? formData.expressShippingPrice : null,
         sameDayShippingPrice: formData.shippingPreferences.includes('Same-day Delivery') ? formData.sameDayShippingPrice : null,
         nextDayShippingPrice: formData.shippingPreferences.includes('Next-day Delivery') ? formData.nextDayShippingPrice : null,
+        pickupAddress: formData.shippingPreferences.includes('Pickup Available') ? formData.pickupAddress : null,
       };
 
 
@@ -912,37 +918,64 @@ export default function DistributorOperations() {
               Shipping Options
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {shippingOptions.map(option => (
-                <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isEditing) {
-                        if (formData.shippingPreferences.includes(option)) {
-                          handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
-                        } else {
-                          handleInputChange('shippingPreferences', [...formData.shippingPreferences, option]);
+              {shippingOptions.map(option => {
+                const isStandardShipping = option === 'Standard Shipping';
+                const isChecked = isStandardShipping ? true : formData.shippingPreferences.includes(option);
+                
+                return (
+                  <label key={option} className={`flex items-center space-x-2 ${isStandardShipping ? 'cursor-default' : 'cursor-pointer'}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isEditing && !isStandardShipping) {
+                          if (isChecked) {
+                            handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
+                          } else {
+                            handleInputChange('shippingPreferences', [...formData.shippingPreferences, option]);
+                          }
                         }
-                      }
-                    }}
-                    disabled={!isEditing}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
-                      formData.shippingPreferences.includes(option)
-                        ? 'bg-green-500 border-green-500'
-                        : 'bg-white border-gray-300 hover:border-green-400'
-                    } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {formData.shippingPreferences.includes(option) && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                  <span className="text-xs text-gray-700">{option}</span>
-                </label>
-              ))}
+                      }}
+                      disabled={!isEditing || isStandardShipping}
+                      className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
+                        isStandardShipping
+                          ? 'bg-green-500 border-green-500 opacity-60 cursor-default' // Always checked and disabled for Standard Shipping
+                          : isChecked
+                            ? 'bg-green-500 border-green-500'
+                            : 'bg-white border-gray-300 hover:border-green-400'
+                      } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {isChecked && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                    <span className={`text-xs ${isStandardShipping ? 'text-gray-500' : 'text-gray-700'}`}>
+                      {option}
+                      {isStandardShipping && <span className="text-gray-400 ml-1">(Required)</span>}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
+
+          {/* Pickup Address - Only show if Pickup Available is selected */}
+          {formData.shippingPreferences.includes('Pickup Available') && (
+            <div className="mt-6">
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                Pickup Address
+              </label>
+              <input
+                type="text"
+                value={formData.pickupAddress}
+                onChange={(e) => handleInputChange('pickupAddress', e.target.value)}
+                disabled={!isEditing}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                placeholder="Enter pickup location address"
+              />
+            </div>
+          )}
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">

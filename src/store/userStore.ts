@@ -29,6 +29,7 @@ interface Company {
   expressShippingPrice?: number;
   sameDayShippingPrice?: number;
   nextDayShippingPrice?: number;
+  pickupAddress?: string;
   createdAt: string;
   updatedAt: string;
 }
