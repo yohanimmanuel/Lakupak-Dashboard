@@ -64,12 +64,10 @@ model Company {
   baseShippingRadius          Float?
   freeShippingThreshold       Float?
   maxShippingRadius           Float?
-  // Additional shipping options pricing
   expressShippingPrice        Float?
   nextDayShippingPrice        Float?
   sameDayShippingPrice        Float?
   pickupAddress               String?
-
   users                       User[]
 }
 
@@ -148,21 +146,22 @@ model Product {
 }
 
 model MarketplaceUser {
-  id            Int       @id @default(autoincrement())
-  username      String    @unique
-  email         String?   @unique
+  id            Int        @id @default(autoincrement())
+  username      String     @unique
+  email         String?    @unique
   password      String?
   bio           String?
-  phone         String    @unique
+  phone         String     @unique
   country       String?
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
   name          String?
   storeName     String?
   chosenAddress String?
   image         String?
   bannerImage   String?
   addresses     Address[]
+  userActivities UserActivity[]
 
   @@index([phone])
   @@index([email])
@@ -295,4 +294,21 @@ model OtpCode {
   createdAt   DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([phone, createdAt])
+}
+
+/// Generic user activity tracking for marketplace users
+model UserActivity {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  productId    String   // Reference to marketplace product ID
+  productData  Json     // Store complete product data as JSON
+  activityType String   // 'cart', 'favorite', 'viewed', 'purchased'
+  metadata     Json?    // Additional data (quantity, variant, etc.)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  user         MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, activityType])
+  @@index([productId])
+  @@index([activityType])
 }
