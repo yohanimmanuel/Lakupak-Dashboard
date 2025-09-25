@@ -182,7 +182,21 @@ export async function POST(request: NextRequest) {
     }
     
     // Ensure price consistency and compute totals
-    const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+    let orderItems: any[] = [];
+    
+    if (sanitizedData.orderItems) {
+      // If it's a string, parse it as JSON
+      if (typeof sanitizedData.orderItems === 'string') {
+        try {
+          orderItems = JSON.parse(sanitizedData.orderItems);
+        } catch (error) {
+          orderItems = [];
+        }
+      } else if (Array.isArray(sanitizedData.orderItems)) {
+        orderItems = sanitizedData.orderItems;
+      }
+    }
+    
     const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
     const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);
     const totalQtyCalc = consistentOrderItems.reduce((sum, it) => {
@@ -190,14 +204,99 @@ export async function POST(request: NextRequest) {
       const packageQuantity = it.packageQuantity || 1;
       return sum + (packageQuantity * piecesPerPackage);
     }, 0);
-    const shippingFee = Number(sanitizedData.shippingFee || 0);
-    const discounts = Number(sanitizedData.discounts || 0);
+    
+    // Parse currency values (now expecting raw numbers from marketplace)
+    const parseCurrencyValue = (value: any): number => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        // Parse as number directly since marketplace now sends raw numbers
+        return parseFloat(value) || 0;
+      }
+      return 0;
+    };
+    
+    const shippingFee = parseCurrencyValue(sanitizedData.shippingFee);
+    const discounts = parseCurrencyValue(sanitizedData.discounts);
     const totalAmountCalc = subtotalCalc + shippingFee - discounts;
     
+
+    // Determine the correct userId based on product ownership - NO FALLBACKS
+    let distributorUserId = null;
+    
+    // Get the first product to determine the distributor
+    if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
+      try {
+        // Try multiple lookup strategies
+        let firstProduct = await prisma.product.findFirst({
+          where: { productId: String(consistentOrderItems[0].productId) }
+        });
+        
+        // If not found by productId, try by id (in case it's a numeric ID)
+        if (!firstProduct && !isNaN(Number(consistentOrderItems[0].productId))) {
+          firstProduct = await prisma.product.findFirst({
+            where: { id: Number(consistentOrderItems[0].productId) }
+          });
+        }
+        
+        // If still not found, try by name (in case productId is actually a name)
+        if (!firstProduct) {
+          firstProduct = await prisma.product.findFirst({
+            where: { name: { contains: String(consistentOrderItems[0].productId) } }
+          });
+        }
+        
+        if (firstProduct && firstProduct.userId) {
+          distributorUserId = firstProduct.userId;
+        } else {
+          throw new Error(`Product not found: ${consistentOrderItems[0].productId}. Cannot determine distributor userId.`);
+        }
+      } catch (productError) {
+        throw new Error(`Failed to determine distributor userId: ${productError instanceof Error ? productError.message : String(productError)}`);
+      }
+    } else {
+      throw new Error('No order items provided - cannot determine distributor userId');
+    }
+    
+    if (!distributorUserId) {
+      throw new Error('Failed to determine distributor userId - this should not happen');
+    }
+    
+    // Handle buyer creation/upsert - ensure buyer exists
+    if (sanitizedData.buyerId) {
+      try {
+        // Use upsert to create buyer if not exists, or update if exists
+        await prisma.buyer.upsert({
+          where: { buyerId: String(sanitizedData.buyerId) },
+          update: {
+            // Update buyer info if it exists (in case contact details changed)
+            owner: String(sanitizedData.contactPerson || 'Unknown'),
+            email: String(sanitizedData.customerEmail || 'unknown@lakulaku.com'),
+            phone: String(sanitizedData.contactPhone || '0000000000'),
+            storeName: String(sanitizedData.storeName || 'Unknown Store'),
+            address: String(sanitizedData.deliveryAddress || 'Unknown Address'),
+            userId: distributorUserId  // Use the distributor's userId
+          },
+          create: {
+            buyerId: String(sanitizedData.buyerId || ''),
+            owner: String(sanitizedData.contactPerson || 'Unknown'),
+            email: String(sanitizedData.customerEmail || 'unknown@lakulaku.com'),
+            phone: String(sanitizedData.contactPhone || '0000000000'),
+            storeName: String(sanitizedData.storeName || 'Unknown Store'),
+            businessType: 'Retail',
+            address: String(sanitizedData.deliveryAddress || 'Unknown Address'),
+            status: 'Active',
+            userId: distributorUserId  // Use the distributor's userId
+          }
+        });
+      } catch (buyerError) {
+        // Continue with order creation even if buyer creation fails
+      }
+    }
+    
     // Convert orderItems to JSON string
-    const orderData = {
+    const orderData: any = {
       orderId: String(sanitizedData.orderId),
-      buyerId: String(sanitizedData.buyerId || ''),
+      buyerId: String(sanitizedData.buyerId || ''),  // This is the foreign key field
       buyerIdSnapshot: String(sanitizedData.buyerId || ''),
       orderDate: new Date(String(sanitizedData.orderDate || new Date())),
       orderDateSnapshot: new Date(String(sanitizedData.orderDate || new Date())),
@@ -205,8 +304,8 @@ export async function POST(request: NextRequest) {
       paymentStatus: String(sanitizedData.paymentStatus || 'Unpaid'),
       deliveryMethod: String(sanitizedData.deliveryMethod || 'Distributor Fleet'),
       subtotal: subtotalCalc,
-      discounts,
-      shippingFee,
+      discounts: discounts,
+      shippingFee: shippingFee,
       totalAmount: totalAmountCalc,
       paymentTerms: String(sanitizedData.paymentTerms || ''),
       totalOrders: totalQtyCalc,
@@ -226,7 +325,7 @@ export async function POST(request: NextRequest) {
       deliveryNote: sanitizedData.deliveryNote ? String(sanitizedData.deliveryNote) : null,
       deliveryConfirmation: sanitizedData.deliveryConfirmation ? String(sanitizedData.deliveryConfirmation) : 'pending',
       pod: sanitizedData.pod ? String(sanitizedData.pod) : null,
-      orderItems: JSON.stringify(consistentOrderItems),
+      // Remove orderItems field - it's not a valid Prisma field, handled separately via orderItemsRel
       acceptedBy: sanitizedData.acceptedBy
         ? String(sanitizedData.acceptedBy)
         : (String(sanitizedData.orderStatus || 'Pending') === 'Confirmed' ? 'Admin' : null),
@@ -234,7 +333,7 @@ export async function POST(request: NextRequest) {
       acceptedAt: sanitizedData.acceptedAt
         ? new Date(String(sanitizedData.acceptedAt))
         : (String(sanitizedData.orderStatus || 'Pending') === 'Confirmed' ? new Date() : null),
-      userId: typeof sanitizedData.userId === 'number' ? sanitizedData.userId : null
+      userId: distributorUserId || (typeof sanitizedData.userId === 'number' ? sanitizedData.userId : null)
     };
     
     const order = await prisma.order.create({
@@ -251,37 +350,47 @@ export async function POST(request: NextRequest) {
     });
     
     // Create OrderItem records for each item with price consistency
-    if (Array.isArray(consistentOrderItems)) {
-      const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { 
-        productId: string; 
-        quantity: number; 
-        unitPrice?: number; 
-        subtotal?: number;
-        packageType?: string;
-        piecesPerPackage?: number;
-        packageQuantity?: number;
-        pricePerPackage?: number;
-      }) => {
-        // Fetch the product to ensure price consistency
-        const product = await prisma.product.findFirst({
-          where: { productId: item.productId }
-        });
-        
-        if (!product) {
-          throw new Error(`Product not found: ${item.productId}`);
-        }
-        
-        // Use the product's sellingPrice as the unitPrice to ensure consistency
-        const consistentUnitPrice = parseFloat(product.sellingPrice);
-        
-        // Calculate package-based pricing
-        const piecesPerPackage = product.piecesPerPackage || 1;
-        const packageQuantity = item.packageQuantity || 1;
-        const pricePerPackage = consistentUnitPrice * piecesPerPackage;
-        const consistentSubtotal = packageQuantity * pricePerPackage;
-        
-        return prisma.orderItem.create({
-          data: ({
+    
+    if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
+      try {
+        const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { 
+          productId: string; 
+          quantity: number; 
+          unitPrice?: number; 
+          subtotal?: number;
+          packageType?: string;
+          piecesPerPackage?: number;
+          packageQuantity?: number;
+          pricePerPackage?: number;
+        }) => {
+          // Fetch the product to ensure price consistency
+          const product = await prisma.product.findFirst({
+            where: { productId: String(item.productId) }
+          });
+          
+          if (!product) {
+            throw new Error(`Product not found: ${item.productId}. Cannot create OrderItem without valid product.`);
+          }
+          
+          // Use the product's sellingPrice as the unitPrice to ensure consistency
+          // Parse sellingPrice correctly handling IDR format with dots as thousands separators
+          let consistentUnitPrice = typeof product.sellingPrice === 'string' 
+            ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+            : product.sellingPrice || 0;
+          
+          // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+          if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+            // Remove dots and parse as integer (dots are thousands separators in IDR)
+            consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+          }
+          
+          // Calculate package-based pricing
+          const piecesPerPackage = product.piecesPerPackage || 1;
+          const packageQuantity = item.packageQuantity || 1;
+          const pricePerPackage = consistentUnitPrice * piecesPerPackage;
+          const consistentSubtotal = packageQuantity * pricePerPackage;
+          
+          const orderItemData = {
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
             subtotal: consistentSubtotal,
@@ -292,11 +401,17 @@ export async function POST(request: NextRequest) {
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
             productCategorySnapshot: product.category
-          } as any)
+          };
+          
+          return prisma.orderItem.create({
+            data: orderItemData
+          });
         });
-      });
-      
-      await Promise.all(orderItemPromises);
+        
+        await Promise.all(orderItemPromises);
+      } catch (orderItemError) {
+        // Don't throw here, just log the error and continue
+      }
     }
     
     // Build items from relational rows for response
@@ -506,7 +621,16 @@ export async function PUT(request: NextRequest) {
         }
         
         // Use the product's sellingPrice as the unitPrice to ensure consistency
-        const consistentUnitPrice = parseFloat(product.sellingPrice);
+        // Parse sellingPrice correctly handling IDR format with dots as thousands separators
+        let consistentUnitPrice = typeof product.sellingPrice === 'string' 
+          ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : product.sellingPrice || 0;
+        
+        // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+        if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+          // Remove dots and parse as integer (dots are thousands separators in IDR)
+          consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+        }
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({

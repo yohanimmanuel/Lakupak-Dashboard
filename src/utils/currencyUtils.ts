@@ -1,7 +1,7 @@
 import { getCurrencyConfig, getServerCurrency, formatCurrencyWithLocale } from '@/config/currencyConfig';
 
 // Currency formatting utility
-export const formatCurrency = (amount: number, currency?: string): string => {
+export const formatCurrency = (amount: number | string, currency?: string): string => {
   // Use provided currency or default to IDR if not specified
   const currencyCode = currency || 'IDR';
   return formatCurrencyWithLocale(amount, currencyCode);

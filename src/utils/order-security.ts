@@ -87,22 +87,33 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
     return { valid: false, error: 'Invalid delivery method' };
   }
   
-  // Numeric validations
-  if (orderData.subtotal !== undefined && (isNaN(Number(orderData.subtotal)) || Number(orderData.subtotal) < 0)) {
-    return { valid: false, error: 'Subtotal must be a positive number' };
+  // Numeric validations (now expecting raw numbers from marketplace)
+  if (orderData.subtotal !== undefined) {
+    const subtotalValue = Number(orderData.subtotal);
+    if (isNaN(subtotalValue) || subtotalValue < 0) {
+      return { valid: false, error: 'Subtotal must be a positive number' };
+    }
   }
   
-  if (orderData.totalAmount !== undefined && (isNaN(Number(orderData.totalAmount)) || Number(orderData.totalAmount) < 0)) {
-    return { valid: false, error: 'Total amount must be a positive number' };
+  if (orderData.totalAmount !== undefined) {
+    const totalAmountValue = Number(orderData.totalAmount);
+    if (isNaN(totalAmountValue) || totalAmountValue < 0) {
+      return { valid: false, error: 'Total amount must be a positive number' };
+    }
   }
   
-  if (orderData.discounts !== undefined && (isNaN(Number(orderData.discounts)) || Number(orderData.discounts) < 0)) {
-    return { valid: false, error: 'Discounts must be a positive number' };
+  if (orderData.discounts !== undefined) {
+    const discountsValue = Number(orderData.discounts);
+    if (isNaN(discountsValue) || discountsValue < 0) {
+      return { valid: false, error: 'Discounts must be a positive number' };
+    }
   }
   
-  
-  if (orderData.shippingFee !== undefined && (isNaN(Number(orderData.shippingFee)) || Number(orderData.shippingFee) < 0)) {
-    return { valid: false, error: 'Shipping fee must be a positive number' };
+  if (orderData.shippingFee !== undefined) {
+    const shippingFeeValue = Number(orderData.shippingFee);
+    if (isNaN(shippingFeeValue) || shippingFeeValue < 0) {
+      return { valid: false, error: 'Shipping fee must be a positive number' };
+    }
   }
   
   // Order items validation

@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     
     // Transform products for marketplace format
     const marketplaceProducts = products.map(product => {
-      // Convert price strings to numbers, handling different formats
+      // Convert price strings to numbers, handling IDR format with dots as thousands separators
       let sellingPrice = typeof product.sellingPrice === 'string' 
         ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
         : product.sellingPrice || 0;
@@ -78,13 +78,15 @@ export async function GET(request: NextRequest) {
         ? parseFloat(product.purchasePrice.replace(/[^\d.-]/g, '')) || 0
         : product.purchasePrice || 0;
       
-      // If prices seem too small (likely stored in thousands), multiply by 1000
-      // This handles cases where 150 was entered instead of 150000
-      if (sellingPrice > 0 && sellingPrice < 1000) {
-        sellingPrice = sellingPrice * 1000;
+      // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+      if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+        // Remove dots and parse as integer (dots are thousands separators in IDR)
+        sellingPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
       }
-      if (purchasePrice > 0 && purchasePrice < 1000) {
-        purchasePrice = purchasePrice * 1000;
+      
+      if (typeof product.purchasePrice === 'string' && product.purchasePrice.includes('.')) {
+        // Remove dots and parse as integer (dots are thousands separators in IDR)
+        purchasePrice = parseInt(product.purchasePrice.replace(/[^\d]/g, '')) || 0;
       }
       
       return {

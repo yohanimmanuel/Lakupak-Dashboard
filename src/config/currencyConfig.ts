@@ -192,25 +192,37 @@ export const getCurrencyConfig = (currencyCode?: string): CurrencyConfig => {
 };
 
 // Format currency with proper locale
-export const formatCurrencyWithLocale = (amount: number, currencyCode?: string): string => {
+export const formatCurrencyWithLocale = (amount: number | string, currencyCode?: string): string => {
   const config = getCurrencyConfig(currencyCode);
+  
+  // Ensure amount is a number
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
   
   try {
     // For currencies with custom symbols, use custom formatting
     if (currencyCode === 'SGD' || currencyCode === 'AUD') {
-      return `${config.symbol}${amount.toLocaleString(config.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `${config.symbol}${numericAmount.toLocaleString(config.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     
     // For currencies with 0 decimal places, use custom formatting
     if (currencyCode === 'IDR' || currencyCode === 'VND' || currencyCode === 'JPY' || currencyCode === 'KRW') {
-      return `${config.symbol}${amount.toLocaleString(config.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+      // For IDR, use dots as thousands separators
+      if (currencyCode === 'IDR') {
+        const formatted = numericAmount.toLocaleString('id-ID', { 
+          minimumFractionDigits: 0, 
+          maximumFractionDigits: 0,
+          useGrouping: true
+        });
+        return `${config.symbol}${formatted}`;
+      }
+      return `${config.symbol}${numericAmount.toLocaleString(config.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
     
     // For other currencies, use Intl.NumberFormat
-    return new Intl.NumberFormat(config.locale, config.formatOptions).format(amount);
+    return new Intl.NumberFormat(config.locale, config.formatOptions).format(numericAmount);
   } catch (error) {
     // Fallback to simple formatting
-    return `${config.symbol} ${amount.toLocaleString(config.locale)}`;
+    return `${config.symbol} ${numericAmount.toLocaleString(config.locale)}`;
   }
 };
 

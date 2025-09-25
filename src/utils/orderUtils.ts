@@ -10,7 +10,16 @@ export const createOrderItemFromProduct = (
   product: any, 
   packageQuantity: number = 1
 ): OrderItem => {
-  const unitPrice = parseFloat(product.sellingPrice);
+  // Parse sellingPrice correctly handling IDR format with dots as thousands separators
+  let unitPrice = typeof product.sellingPrice === 'string' 
+    ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+    : product.sellingPrice || 0;
+  
+  // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+  if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+    // Remove dots and parse as integer (dots are thousands separators in IDR)
+    unitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+  }
   const piecesPerPackage = product.piecesPerPackage || 1;
   const pricePerPackage = unitPrice * piecesPerPackage;
   const subtotal = packageQuantity * pricePerPackage;
@@ -44,7 +53,16 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     }
     
     // Use the product's sellingPrice as the unitPrice to ensure consistency
-    const consistentUnitPrice = parseFloat(product.sellingPrice);
+    // Parse sellingPrice correctly handling IDR format with dots as thousands separators
+    let consistentUnitPrice = typeof product.sellingPrice === 'string' 
+      ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+      : product.sellingPrice || 0;
+    
+    // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+    if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+      // Remove dots and parse as integer (dots are thousands separators in IDR)
+      consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+    }
     
     // Calculate package-based pricing if package information is available
     if (product.packageType && product.piecesPerPackage) {
