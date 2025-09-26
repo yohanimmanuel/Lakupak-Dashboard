@@ -1,13 +1,13 @@
 'use client';
 import React, { useState } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil } from 'lucide-react';
-import { Order } from '@/types/order';
+import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
 interface OrderDetailsProps {
-  order: Order;
+  order: OrderWithSnapshots;
   onBack: () => void;
 }
 
@@ -28,24 +28,24 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     assignedLogistics: order.assignedLogistics || '',
     trackingNumber: order.trackingNumber || '',
     deliveryMethod: order.deliveryMethod as DeliveryMethod,
-    pod: (order as any).pod || ''
+    pod: order.pod || ''
   });
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
   
   // Use buyerId snapshot when buyer is deleted (FK set null)
-  const buyerIdDisplay = (order as any).buyerId || (order as any).buyerIdSnapshot || '';
-  const buyerHref = (order as any).buyerId
+  const buyerIdDisplay = order.buyerId || order.buyerIdSnapshot || '';
+  const buyerHref = order.buyerId
     ? `/clients/buyers/details/${buyerIdDisplay}`
     : `/clients/buyers/deleted?id=${buyerIdDisplay}`;
 
   // Snapshot fallbacks for buyer-related display fields
-  const contactPersonDisplay = (order as any).buyerId ? order.contactPerson : ((order as any).contactPersonSnapshot || order.contactPerson);
-  const storeNameDisplay = (order as any).buyerId ? order.storeName : ((order as any).storeNameSnapshot || order.storeName);
-  const contactPhoneDisplay = (order as any).buyerId ? order.contactPhone : ((order as any).contactPhoneSnapshot || order.contactPhone);
-  const customerEmailDisplay = (order as any).buyerId ? order.customerEmail : ((order as any).customerEmailSnapshot || order.customerEmail);
-  const orderDateDisplay = (order as any).buyerId ? order.orderDate : ((order as any).orderDateSnapshot || order.orderDate);
-  const deliveryAddressDisplay = (order as any).buyerId ? order.deliveryAddress : ((order as any).deliveryAddressSnapshot || order.deliveryAddress);
+  const contactPersonDisplay = order.buyerId ? order.contactPerson : (order.contactPersonSnapshot || order.contactPerson);
+  const storeNameDisplay = order.buyerId ? order.storeName : (order.storeNameSnapshot || order.storeName);
+  const contactPhoneDisplay = order.buyerId ? order.contactPhone : (order.contactPhoneSnapshot || order.contactPhone);
+  const customerEmailDisplay = order.buyerId ? order.customerEmail : (order.customerEmailSnapshot || order.customerEmail);
+  const orderDateDisplay = order.buyerId ? order.orderDate : (order.orderDateSnapshot || order.orderDate);
+  const deliveryAddressDisplay = order.buyerId ? order.deliveryAddress : (order.deliveryAddressSnapshot || order.deliveryAddress);
    
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -322,10 +322,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
 
             {/* Proof of Delivery Preview */}
-            {((order as any).pod) ? (
+            {order.pod ? (
               <div className="mb-4">
                 <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
-                {String((order as any).pod).startsWith('data:') ? (
+                {String(order.pod).startsWith('data:') ? (
                   <button
                     className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                     onClick={() => setShowPodPreview(true)}
@@ -334,7 +334,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   </button>
                 ) : (
                   <a
-                    href={(order as any).pod as string}
+                    href={order.pod as string}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
@@ -766,7 +766,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </button>
             </div>
             <div className="p-4 flex items-center justify-center">
-              <img src={(order as any).pod as string} alt="Proof of Delivery" className="max-h-[80vh] rounded border" />
+              <img src={order.pod as string} alt="Proof of Delivery" className="max-h-[80vh] rounded border" />
             </div>
           </div>
         </div>

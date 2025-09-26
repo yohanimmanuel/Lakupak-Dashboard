@@ -41,6 +41,18 @@ export interface Order {
   acceptedAt?: Date;
 }
 
+// Extended Order interface with snapshot fields for deleted buyer handling
+export interface OrderWithSnapshots extends Order {
+  // Snapshot fields for when buyer is deleted
+  buyerIdSnapshot?: string;
+  contactPersonSnapshot?: string;
+  storeNameSnapshot?: string;
+  contactPhoneSnapshot?: string;
+  customerEmailSnapshot?: string;
+  deliveryAddressSnapshot?: string;
+  orderDateSnapshot?: Date;
+}
+
 export interface OrderItem {
   productId: string | null;
   productName: string;

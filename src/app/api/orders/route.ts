@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     
     // Build where clause with optional multi-tenant security
-    const where: any = { ...userWhere };
+    const where: Record<string, unknown> = { ...userWhere };
     if (archivedFlag === '1' || archivedFlag === 'true') {
       where.archivedAt = { not: null };
     } else {
@@ -210,7 +210,15 @@ export async function POST(request: NextRequest) {
     }
     
     // Ensure price consistency and compute totals
-    let orderItems: any[] = [];
+    let orderItems: Array<{
+      productId: string;
+      quantity: number;
+      subtotal: number;
+      packageType?: string;
+      piecesPerPackage?: number;
+      packageQuantity?: number;
+      pricePerPackage?: number;
+    }> = [];
     
     if (sanitizedData.orderItems) {
       // If it's a string, parse it as JSON
@@ -234,7 +242,7 @@ export async function POST(request: NextRequest) {
     }, 0);
     
     // Parse currency values (now expecting raw numbers from marketplace)
-    const parseCurrencyValue = (value: any): number => {
+    const parseCurrencyValue = (value: unknown): number => {
       if (typeof value === 'number') return value;
       if (typeof value === 'string') {
         // Parse as number directly since marketplace now sends raw numbers
@@ -322,7 +330,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Convert orderItems to JSON string
-    const orderData: any = {
+    const orderData: Record<string, unknown> = {
       orderId: String(sanitizedData.orderId),
       buyerId: String(sanitizedData.buyerId || ''),  // This is the foreign key field
       buyerIdSnapshot: String(sanitizedData.buyerId || ''),
@@ -381,7 +389,7 @@ export async function POST(request: NextRequest) {
     
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
       try {
-        const orderItemPromises = (consistentOrderItems as any[]).map(async (item: { 
+        const orderItemPromises = consistentOrderItems.map(async (item: { 
           productId: string; 
           quantity: number; 
           unitPrice?: number; 
@@ -478,28 +486,28 @@ export async function PUT(request: NextRequest) {
     
     // Bulk archive support
     if (Array.isArray(body.archiveOrderIds) && body.archiveOrderIds.length > 0) {
-      const baseWhere: any = {};
+      const baseWhere: Record<string, unknown> = {};
       if (body.userId && !isNaN(Number(body.userId))) baseWhere.userId = Number(body.userId);
       const updated = await prisma.order.updateMany({
         where: { ...baseWhere, orderId: { in: body.archiveOrderIds.map((v: unknown) => String(v)) } },
-        data: ({ archivedAt: new Date() } as any)
+        data: { archivedAt: new Date() }
       });
       return NextResponse.json({ success: true, count: updated.count }, { headers });
     }
 
     if (body.archive === true && (body.orderId || body.id)) {
-      const where: any = {};
+      const where: Record<string, unknown> = {};
       if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
       if (body.orderId) where.orderId = String(body.orderId);
       else if (body.id) where.id = Number(body.id);
 
       let result = await prisma.order.updateMany({
         where,
-        data: ({ archivedAt: new Date() } as any)
+        data: { archivedAt: new Date() }
       });
       if (result.count === 0) {
         // Retry without user filter
-        const retryWhere: any = {};
+        const retryWhere: Record<string, unknown> = {};
         if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
         else if (body.id) retryWhere.id = Number(body.id);
         try {
@@ -513,18 +521,18 @@ export async function PUT(request: NextRequest) {
     }
 
     if ((body.unarchive === true || body.archive === false) && (body.orderId || body.id)) {
-      const where: any = {};
+      const where: Record<string, unknown> = {};
       if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
       if (body.orderId) where.orderId = String(body.orderId);
       else if (body.id) where.id = Number(body.id);
 
       let result = await prisma.order.updateMany({
         where,
-        data: ({ archivedAt: null } as any)
+        data: { archivedAt: null }
       });
       if (result.count === 0) {
         // Retry without user filter
-        const retryWhere: any = {};
+        const retryWhere: Record<string, unknown> = {};
         if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
         else if (body.id) retryWhere.id = Number(body.id);
         try {
@@ -671,7 +679,7 @@ export async function PUT(request: NextRequest) {
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
             productCategorySnapshot: product.category
-          } as any)
+          }
         });
       });
       
@@ -679,7 +687,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build items from relational rows for response
-    const enrichedOrderItemsUpdate = ((order as any).orderItemsRel || []).map((oi: any) => ({
+    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }> }).orderItemsRel || []).map((oi: { productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }) => ({
       productId: oi.productId ?? null,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
@@ -697,7 +705,7 @@ export async function PUT(request: NextRequest) {
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to update order', detail: String(error?.message || error) }, 
       { status: 500, headers }
