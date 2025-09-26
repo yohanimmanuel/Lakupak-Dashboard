@@ -89,8 +89,12 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Generate a simple token (in production, use JWT)
-    const token = `mobile_token_${user.id}_${Date.now()}`;
+    // Generate JWT token
+    const { signAccessToken } = await import('../../../../../lib/jwt');
+    const token = signAccessToken({ 
+      sub: user.id, 
+      phone: user.phone 
+    }, '30d');
     
     return NextResponse.json({
       token,

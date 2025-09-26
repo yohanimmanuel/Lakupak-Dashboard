@@ -39,13 +39,22 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     }
   }, []);
 
-  // Enhanced state management
-  const [form, setForm] = useState(() => {
+  // Enhanced state management with proper typing
+  const [form, setForm] = useState<BuyerFormData>(() => {
     if (!initialData) {
       return {
-        storeName: '', owner: '', phone: '', email: '', address: '', businessType: '', 
-        status: statusOptions[0], createdAt: new Date().toISOString().split('T')[0], preferredDays: '', lastShipment: '', 
-        shipmentSuccess: '', notes: '',
+        storeName: '', 
+        owner: '', 
+        phone: '', 
+        email: '', 
+        address: '', 
+        businessType: '', 
+        status: statusOptions[0], 
+        createdAt: new Date().toISOString().split('T')[0], 
+        preferredDays: '', 
+        lastShipment: '', 
+        shipmentSuccess: '', 
+        notes: '',
       };
     }
     
@@ -171,13 +180,12 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     
     try {
       const isEdit = mode === 'edit';
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...form,
         avatar,
         buyerId: id,
-
         orderDetails: JSON.stringify(orderRows),
-        notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim()).filter(Boolean)),
+        notes: JSON.stringify((form.notes || '').split(',').map((n: string) => n.trim()).filter(Boolean)),
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
@@ -188,9 +196,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       };
       
       if (isEdit && initialData && typeof initialData.id === 'number') {
-        (payload as unknown as BuyerFormData & { id: number }).id = initialData.id;
+        payload.id = initialData.id;
       }
       
+      // Remove fields that are not part of the API payload
       delete payload.preferredDays;
       delete payload.lastShipment;
       delete payload.shipmentSuccess;

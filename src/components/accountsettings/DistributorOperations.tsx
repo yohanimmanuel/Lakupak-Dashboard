@@ -363,8 +363,83 @@ export default function DistributorOperations() {
       setIsLoading(true);
       setError(null);
 
+      // Enhanced validation
+      const validationErrors: string[] = [];
+
+      // Company name validation
       if (!formData.companyName.trim()) {
-        setError('Company name is required');
+        validationErrors.push('Company name is required');
+      } else if (formData.companyName.trim().length < 2) {
+        validationErrors.push('Company name must be at least 2 characters');
+      } else if (formData.companyName.trim().length > 100) {
+        validationErrors.push('Company name must be less than 100 characters');
+      }
+
+      // Business address validation
+      if (!formData.businessAddress.trim()) {
+        validationErrors.push('Business address is required');
+      } else if (formData.businessAddress.trim().length < 10) {
+        validationErrors.push('Business address must be at least 10 characters');
+      } else if (formData.businessAddress.trim().length > 500) {
+        validationErrors.push('Business address must be less than 500 characters');
+      }
+
+      // Business phone validation
+      if (formData.businessPhone.trim()) {
+        const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,20}$/;
+        if (!phoneRegex.test(formData.businessPhone.trim())) {
+          validationErrors.push('Please enter a valid business phone number');
+        }
+      }
+
+      // Business email validation
+      if (formData.businessEmail.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.businessEmail.trim())) {
+          validationErrors.push('Please enter a valid business email address');
+        } else if (formData.businessEmail.trim().length > 254) {
+          validationErrors.push('Business email must be less than 254 characters');
+        }
+      }
+
+      // Business description validation
+      if (formData.businessDescription.trim() && formData.businessDescription.trim().length > 1000) {
+        validationErrors.push('Business description must be less than 1000 characters');
+      }
+
+      // Special instructions validation
+      if (formData.specialInstructions.trim() && formData.specialInstructions.trim().length > 500) {
+        validationErrors.push('Special instructions must be less than 500 characters');
+      }
+
+      // Pickup address validation
+      if (formData.shippingPreferences.includes('Pickup Available') && formData.pickupAddress.trim()) {
+        if (formData.pickupAddress.trim().length < 10) {
+          validationErrors.push('Pickup address must be at least 10 characters');
+        } else if (formData.pickupAddress.trim().length > 500) {
+          validationErrors.push('Pickup address must be less than 500 characters');
+        }
+      }
+
+      // Numeric validations
+      if (formData.baseShippingRadius < 1 || formData.baseShippingRadius > 1000) {
+        validationErrors.push('Base shipping radius must be between 1 and 1000 km');
+      }
+
+      if (formData.maxShippingRadius < formData.baseShippingRadius) {
+        validationErrors.push('Maximum shipping radius must be greater than base shipping radius');
+      }
+
+      // XSS prevention
+      const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
+      if (xssPattern.test(formData.companyName) || xssPattern.test(formData.businessDescription) || 
+          xssPattern.test(formData.specialInstructions) || xssPattern.test(formData.pickupAddress)) {
+        validationErrors.push('Invalid characters detected in input fields');
+      }
+
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join('. '));
+        setIsLoading(false);
         return;
       }
 

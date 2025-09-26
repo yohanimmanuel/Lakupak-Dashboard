@@ -110,16 +110,61 @@ export default function GeneralInfo() {
       setIsLoading(true);
       setError(null);
 
-      // Validate required fields
-      if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
-        setError('First name, last name, and email are required');
-        return;
+      // Enhanced validation
+      const validationErrors: string[] = [];
+
+      // Required fields validation
+      if (!formData.firstName.trim()) {
+        validationErrors.push('First name is required');
+      } else if (formData.firstName.trim().length < 2) {
+        validationErrors.push('First name must be at least 2 characters');
       }
 
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        setError('Please enter a valid email address');
+      if (!formData.lastName.trim()) {
+        validationErrors.push('Last name is required');
+      } else if (formData.lastName.trim().length < 2) {
+        validationErrors.push('Last name must be at least 2 characters');
+      }
+
+      if (!formData.email.trim()) {
+        validationErrors.push('Email is required');
+      } else {
+        // Enhanced email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+          validationErrors.push('Please enter a valid email address');
+        } else if (formData.email.trim().length > 500) {
+          validationErrors.push('Email must be less than 500 characters');
+        }
+      }
+
+      // Phone validation (optional but if provided, must be valid)
+      if (formData.phone.trim() && formData.phone.trim().length > 0) {
+        const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,20}$/;
+        if (!phoneRegex.test(formData.phone.trim())) {
+          validationErrors.push('Please enter a valid phone number');
+        }
+      }
+
+      // Bio validation (optional but if provided, must be reasonable length)
+      if (formData.bio.trim() && formData.bio.trim().length > 500) {
+        validationErrors.push('Bio must be less than 500 characters');
+      }
+
+      // Location validation (optional but if provided, must be reasonable length)
+      if (formData.location.trim() && formData.location.trim().length > 100) {
+        validationErrors.push('Location must be less than 100 characters');
+      }
+
+      // XSS prevention
+      const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
+      if (xssPattern.test(formData.firstName) || xssPattern.test(formData.lastName) || 
+          xssPattern.test(formData.bio) || xssPattern.test(formData.location)) {
+        validationErrors.push('Invalid characters detected in input fields');
+      }
+
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join('. '));
         return;
       }
 

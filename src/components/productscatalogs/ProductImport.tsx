@@ -21,6 +21,8 @@ type ProductImportRow = {
   'Status': string;
   'Catalog Type': string;
   'Catalog Name': string;
+  'Discount': string;
+  'Discount Type': string;
 };
 
 type ProductImportProps = {

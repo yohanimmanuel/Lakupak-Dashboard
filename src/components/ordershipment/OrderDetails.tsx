@@ -213,7 +213,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <div className="space-y-2">
                     <div className='flex items-center justify-between gap-2'>
                       <span className="text-gray-600">Email:</span>
-                      <span className="text-black font-medium">{customerEmailDisplay || 'N/A'}</span>
+                      <span className="text-black font-medium">{customerEmailDisplay || 'No customer email'}</span>
                     </div>
                     <div className='flex items-center justify-between gap-2'>
                       <span className="text-gray-600">Order Date:</span>
@@ -287,15 +287,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Service Provider Card */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
               <div className="text-sm font-semibold text-blue-800 mb-1">Delivery Service</div>
-              <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || 'N/A'}</div>
+              <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || 'No delivery service assigned'}</div>
               <div className="text-xs space-y-2">
                 <div>
                   <span className="text-blue-700">Preferred Time:</span>
-                  <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || 'N/A'}</span>
+                  <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || 'No preferred delivery time'}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">Tracking:</span>
-                  <span className="ml-2 font-semibold text-blue-900">{order.trackingNumber || 'N/A'}</span>
+                  <span className="ml-2 font-semibold text-blue-900">{order.trackingNumber || 'No tracking number'}</span>
                 </div>
               </div>
             </div>

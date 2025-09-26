@@ -117,6 +117,36 @@ export default function LanguageRegion() {
     setIsSaving(true);
     setError('');
 
+    // Enhanced validation
+    const validationErrors: string[] = [];
+
+    // Language validation
+    if (!data.language || data.language.trim().length === 0) {
+      validationErrors.push('Language is required');
+    } else if (!['en', 'id'].includes(data.language)) {
+      validationErrors.push('Invalid language selection');
+    }
+
+    // Region validation
+    if (!data.region || data.region.trim().length === 0) {
+      validationErrors.push('Region is required');
+    } else if (!['ID', 'US', 'SG', 'MY', 'TH', 'VN', 'PH'].includes(data.region)) {
+      validationErrors.push('Invalid region selection');
+    }
+
+    // Currency validation
+    if (!data.currency || data.currency.trim().length === 0) {
+      validationErrors.push('Currency is required');
+    } else if (!['IDR', 'USD', 'SGD', 'MYR', 'THB', 'VND', 'PHP'].includes(data.currency)) {
+      validationErrors.push('Invalid currency selection');
+    }
+
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join('. '));
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/user/update', {
         method: 'PUT',

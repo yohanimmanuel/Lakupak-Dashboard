@@ -20,17 +20,18 @@ export async function GET(req: NextRequest) {
     
     const token = authHeader.replace('Bearer ', '');
     
-    // For now, we'll extract user ID from the token format: mobile_token_{id}_{timestamp}
-    // In production, you'd verify the JWT token properly
-    const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/);
-    if (!tokenMatch) {
+    // Verify JWT token
+    const { verifyAccessToken } = await import('../../../../lib/jwt');
+    let userId: number;
+    try {
+      const payload = verifyAccessToken(token);
+      userId = payload.sub;
+    } catch (error) {
       return NextResponse.json(
-        { error: 'Invalid token format' }, 
+        { error: 'Invalid or expired token' }, 
         { status: 401, headers }
       );
     }
-    
-    const userId = parseInt(tokenMatch[1]);
     
     // Find the marketplace user
     const user = await prisma.marketplaceUser.findUnique({
@@ -91,16 +92,18 @@ export async function PATCH(req: NextRequest) {
     
     const token = authHeader.replace('Bearer ', '');
     
-    // Extract user ID from token
-    const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/);
-    if (!tokenMatch) {
+    // Verify JWT token
+    const { verifyAccessToken } = await import('../../../../lib/jwt');
+    let userId: number;
+    try {
+      const payload = verifyAccessToken(token);
+      userId = payload.sub;
+    } catch (error) {
       return NextResponse.json(
-        { error: 'Invalid token format' }, 
+        { error: 'Invalid or expired token' }, 
         { status: 401, headers }
       );
     }
-    
-    const userId = parseInt(tokenMatch[1]);
     
     // Parse request body
     let body;
