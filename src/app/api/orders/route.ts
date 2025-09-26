@@ -23,6 +23,34 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const archivedFlag = searchParams.get('archived');
     const userId = searchParams.get('userId');
+    const checkExists = searchParams.get('checkExists');
+    const orderIds = searchParams.get('orderIds');
+    
+    // Handle checking order existence
+    if (checkExists === 'true' && orderIds) {
+      try {
+        const orderIdArray = JSON.parse(orderIds);
+        const existingOrders = await prisma.order.findMany({
+          where: {
+            orderId: {
+              in: orderIdArray
+            }
+          },
+          select: {
+            orderId: true
+          }
+        });
+        
+        const existingOrderIds = existingOrders.map(order => order.orderId);
+        return NextResponse.json({ existingOrderIds }, { headers });
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid orderIds format' },
+          { status: 400, headers }
+        );
+      }
+    }
+    
     // Make user scoping optional for backward compatibility
     const userWhere: Record<string, unknown> = (userId && !isNaN(Number(userId))) ? { userId: Number(userId) } : {};
     
@@ -700,6 +728,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
+
     // Delete OrderItem records first (due to foreign key constraint)
     await prisma.orderItem.deleteMany({
       where: { orderId: body.orderId }
