@@ -15,7 +15,21 @@ export function AuthSync() {
       // This prevents NextAuth from overwriting existing sessions on page reload
       const { user } = useUserStore.getState();
       if (!user) {
-        const sessionUser = session.user as any;
+        const sessionUser = session.user as {
+          id?: number;
+          firstName?: string;
+          lastName?: string;
+          email?: string;
+          phone?: string;
+          bio?: string;
+          location?: string;
+          avatar?: string;
+          companyId?: number;
+          company?: unknown;
+          region?: string;
+          currency?: string;
+          language?: string;
+        };
         setUser({
           id: sessionUser.id || 0,
           firstName: sessionUser.firstName || sessionUser.name?.split(' ')[0] || '',

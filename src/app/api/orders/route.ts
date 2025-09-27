@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { OrderItem } from '@/types/order';
 import { 
   getOrderSecurityHeaders, 
   validateOrderInput, 
@@ -87,15 +88,15 @@ export async function GET(request: NextRequest) {
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
         pricePerPackage: oi.pricePerPackage,
-        productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
+        productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
+        category: oi.product?.category || (oi as { productCategorySnapshot?: string }).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
         productDeleted: !oi.product,
-        productNameSnapshot: (oi as any).productNameSnapshot || null,
-        productSkuSnapshot: (oi as any).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as any).productCategorySnapshot || null
+        productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
+        productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
+        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null
       }));
 
       return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
@@ -155,15 +156,15 @@ export async function GET(request: NextRequest) {
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
         pricePerPackage: oi.pricePerPackage,
-        productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || (oi as any).productCategorySnapshot || 'Uncategorized',
+        productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
+        category: oi.product?.category || (oi as { productCategorySnapshot?: string }).productCategorySnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
         productDeleted: !oi.product,
-        productNameSnapshot: (oi as any).productNameSnapshot || null,
-        productSkuSnapshot: (oi as any).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as any).productCategorySnapshot || null
+        productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
+        productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
+        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
     });
@@ -233,7 +234,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
+    const consistentOrderItems = await ensureAllPriceConsistency(orderItems as unknown as OrderItem[]);
     const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);
     const totalQtyCalc = consistentOrderItems.reduce((sum, it) => {
       const piecesPerPackage = it.piecesPerPackage || 1;
@@ -330,7 +331,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Convert orderItems to JSON string
-    const orderData: Record<string, unknown> = {
+    const orderData = {
       orderId: String(sanitizedData.orderId),
       buyerId: String(sanitizedData.buyerId || ''),  // This is the foreign key field
       buyerIdSnapshot: String(sanitizedData.buyerId || ''),
@@ -389,16 +390,7 @@ export async function POST(request: NextRequest) {
     
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
       try {
-        const orderItemPromises = consistentOrderItems.map(async (item: { 
-          productId: string; 
-          quantity: number; 
-          unitPrice?: number; 
-          subtotal?: number;
-          packageType?: string;
-          piecesPerPackage?: number;
-          packageQuantity?: number;
-          pricePerPackage?: number;
-        }) => {
+        const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
           // Fetch the product to ensure price consistency
           const product = await prisma.product.findFirst({
             where: { productId: String(item.productId) }
@@ -458,14 +450,14 @@ export async function POST(request: NextRequest) {
       piecesPerPackage: oi.piecesPerPackage,
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
-      productName: oi.product?.name || (oi as any).productNameSnapshot || 'Unknown Product',
+      productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
       category: oi.product?.category || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],
       productDeleted: !oi.product,
-      productNameSnapshot: (oi as any).productNameSnapshot || null,
-      productSkuSnapshot: (oi as any).productSkuSnapshot || null
+      productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
+      productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
@@ -507,11 +499,16 @@ export async function PUT(request: NextRequest) {
       });
       if (result.count === 0) {
         // Retry without user filter
-        const retryWhere: Record<string, unknown> = {};
-        if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
-        else if (body.id) retryWhere.id = Number(body.id);
+        let retryWhere: { orderId: string } | { id: number };
+        if (body.orderId) {
+          retryWhere = { orderId: String(body.orderId).trim() };
+        } else if (body.id) {
+          retryWhere = { id: Number(body.id) };
+        } else {
+          throw new Error('No orderId or id provided');
+        }
         try {
-          const single = await prisma.order.update({ where: retryWhere, data: ({ archivedAt: new Date() } as any) });
+          const single = await prisma.order.update({ where: retryWhere, data: { archivedAt: new Date() } });
           return NextResponse.json({ success: true }, { headers });
         } catch (e) {
           return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
@@ -532,11 +529,16 @@ export async function PUT(request: NextRequest) {
       });
       if (result.count === 0) {
         // Retry without user filter
-        const retryWhere: Record<string, unknown> = {};
-        if (body.orderId) retryWhere.orderId = String(body.orderId).trim();
-        else if (body.id) retryWhere.id = Number(body.id);
+        let retryWhere: { orderId: string } | { id: number };
+        if (body.orderId) {
+          retryWhere = { orderId: String(body.orderId).trim() };
+        } else if (body.id) {
+          retryWhere = { id: Number(body.id) };
+        } else {
+          throw new Error('No orderId or id provided');
+        }
         try {
-          const single = await prisma.order.update({ where: retryWhere, data: ({ archivedAt: null } as any) });
+          const single = await prisma.order.update({ where: retryWhere, data: { archivedAt: null } });
           return NextResponse.json({ success: true }, { headers });
         } catch (e) {
           return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
@@ -646,7 +648,7 @@ export async function PUT(request: NextRequest) {
       });
       
       // Create new OrderItem records with price consistency
-      const orderItemPromises = (sanitizedData.orderItems as any[]).map(async (item: { productId: string; quantity: number }) => {
+      const orderItemPromises = (sanitizedData.orderItems as Array<{ productId: string; quantity: number }>).map(async (item: { productId: string; quantity: number }) => {
         // Fetch the product to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId }
@@ -670,15 +672,17 @@ export async function PUT(request: NextRequest) {
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
-          data: ({
+          data: {
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
-            quantity: Number(item.quantity || 0),
-            unitPrice: consistentUnitPrice,
             subtotal: consistentSubtotal,
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
-            productCategorySnapshot: product.category
+            productCategorySnapshot: product.category,
+            packageQuantity: (item as any).packageQuantity || 1,
+            packageType: (item as any).packageType,
+            piecesPerPackage: (item as any).piecesPerPackage || 1,
+            pricePerPackage: (item as any).pricePerPackage || consistentUnitPrice
           }
         });
       });
@@ -687,7 +691,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build items from relational rows for response
-    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }> }).orderItemsRel || []).map((oi: { productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }) => ({
+    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
       productId: oi.productId ?? null,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
@@ -707,7 +711,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'Failed to update order', detail: String(error?.message || error) }, 
+      { error: 'Failed to update order', detail: String(error instanceof Error ? error.message : error) }, 
       { status: 500, headers }
     );
   }

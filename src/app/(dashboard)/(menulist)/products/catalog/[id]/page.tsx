@@ -7,7 +7,25 @@ import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 export default function ViewProductPage() {
   const params = useParams();
   const user = useUserStore(state => state.user);
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<{
+    id: number;
+    productId: string;
+    name: string;
+    description: string;
+    category: string;
+    brand: string;
+    supplier: string;
+    stockQuantity: number;
+    sellingPrice: string;
+    purchasePrice: string;
+    status: 'Draft' | 'Published';
+    catalogType: 'Internal' | 'External';
+    catalogName: string;
+    images: string[];
+    sku: string;
+    packageType: string;
+    piecesPerPackage: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

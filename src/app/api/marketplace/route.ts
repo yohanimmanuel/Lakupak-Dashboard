@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     
     // Build where clause for published products only
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       marketplaceStatus: 'Published',
       status: 'Published'
     };
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Update product marketplace status
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       marketplaceStatus: action === 'publish' ? 'Published' : 'Unpublished',
       lastSyncAt: new Date()
     };

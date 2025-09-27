@@ -301,7 +301,7 @@ export default function OrdersPage() {
                               });
                               // Move back to active list immediately
                               setArchivedOrders(prev => prev.filter(x => x.orderId !== o.orderId));
-                              setOrders(prev => [{ ...o, archivedAt: null as any }, ...prev]);
+                              setOrders(prev => [{ ...o, archivedAt: null }, ...prev]);
                             }}
                             className="px-3 py-1 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
                           >

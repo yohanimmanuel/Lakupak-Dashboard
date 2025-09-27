@@ -73,7 +73,7 @@ export const getCategoryIcon = (value: string): string => {
 // Get category icon component
 export const getCategoryIconComponent = (value: string) => {
   const iconName = getCategoryIcon(value);
-  const iconMap: { [key: string]: any } = {
+  const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
     'Utensils': Utensils,
     'Smartphone': Smartphone,
     'Shirt': Shirt,

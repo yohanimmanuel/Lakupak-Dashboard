@@ -93,7 +93,7 @@ export async function PUT(req: NextRequest) {
 
     
     // Update user data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     if (firstName !== undefined) updateData.firstName = firstName.trim();
     if (lastName !== undefined) updateData.lastName = lastName.trim();

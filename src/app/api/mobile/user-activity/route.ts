@@ -33,11 +33,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user activities by type
+    let whereClause: any = { 
+      userId: userIdNum,
+      activityType: activityType
+    };
+
+    // For viewed products, only show today's views
+    if (activityType === 'viewed') {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      
+      whereClause.createdAt = {
+        gte: startOfDay,
+        lte: endOfDay
+      };
+    }
+
+    // Cleanup old viewed products if fetching viewed activities
+    if (activityType === 'viewed') {
+      await cleanupOldViewedProducts(userIdNum);
+    }
+
     const activities = await prisma.userActivity.findMany({
-      where: { 
-        userId: userIdNum,
-        activityType: activityType
-      },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       take: activityType === 'viewed' ? 20 : undefined // Limit viewed products to 20 most recent
     });
@@ -53,6 +72,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to cleanup old viewed products (older than today)
+async function cleanupOldViewedProducts(userId: number) {
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  const deletedCount = await prisma.userActivity.deleteMany({
+    where: {
+      userId: userId,
+      activityType: 'viewed',
+      createdAt: {
+        lt: startOfDay
+      }
+    }
+  });
+  
+  return deletedCount.count;
 }
 
 // POST /api/mobile/user-activity - Add or update user activity
@@ -96,6 +133,11 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      // Cleanup old viewed products if this is a viewed activity
+      if (activityType === 'viewed') {
+        await cleanupOldViewedProducts(userIdNum);
+      }
+
       return NextResponse.json({
         success: true,
         activity: updatedActivity,
@@ -112,6 +154,11 @@ export async function POST(request: NextRequest) {
           metadata: metadata || {}
         }
       });
+
+      // Cleanup old viewed products if this is a viewed activity
+      if (activityType === 'viewed') {
+        await cleanupOldViewedProducts(userIdNum);
+      }
 
       return NextResponse.json({
         success: true,

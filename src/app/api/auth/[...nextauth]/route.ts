@@ -6,7 +6,7 @@ import { PrismaClient } from "@/generated/prisma";
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma) as unknown as any,
   session: { strategy: "jwt" },
   providers: [
     GoogleProvider({
@@ -44,10 +44,10 @@ export const authOptions: NextAuthOptions = {
                 type: account.type as string,
                 provider: account.provider,
                 providerAccountId: account.providerAccountId as string,
-                access_token: (account as any).access_token ?? null,
-                refresh_token: (account as any).refresh_token ?? null,
-                expires_at: (account as any).expires_at ?? null,
-                id_token: (account as any).id_token ?? null,
+                access_token: (account as { access_token?: string }).access_token ?? null,
+                refresh_token: (account as { refresh_token?: string }).refresh_token ?? null,
+                expires_at: (account as { expires_at?: number }).expires_at ?? null,
+                id_token: (account as { id_token?: string }).id_token ?? null,
               },
             });
           }
@@ -72,23 +72,38 @@ export const authOptions: NextAuthOptions = {
           }
         });
         if (dbUser) {
+          const extendedUser = session.user as typeof session.user & {
+            id: number;
+            firstName: string | null;
+            lastName: string | null;
+            phone: string | null;
+            bio: string | null;
+            location: string | null;
+            avatar: string | null;
+            companyId: number | null;
+            company: unknown;
+            region: string | null;
+            currency: string | null;
+            language: string | null;
+          };
           
-          (session.user as any).id = dbUser.id;
-          (session.user as any).firstName = dbUser.firstName;
-          (session.user as any).lastName = dbUser.lastName;
-          (session.user as any).phone = dbUser.phone;
-          (session.user as any).bio = dbUser.bio;
-          (session.user as any).location = dbUser.location;
+          extendedUser.id = dbUser.id;
+          extendedUser.firstName = dbUser.firstName;
+          extendedUser.lastName = dbUser.lastName;
+          extendedUser.phone = dbUser.phone;
+          extendedUser.bio = dbUser.bio;
+          extendedUser.location = dbUser.location;
           // Use Google profile image if available, otherwise use database avatar
-          (session.user as any).avatar = session.user.image || dbUser.avatar;
-          (session.user as any).companyId = dbUser.companyId;
-          (session.user as any).company = dbUser.company;
-          (session.user as any).region = dbUser.region;
-          (session.user as any).currency = dbUser.currency;
-          (session.user as any).language = dbUser.language;
+          extendedUser.avatar = session.user.image || dbUser.avatar;
+          extendedUser.companyId = dbUser.companyId;
+          extendedUser.company = dbUser.company;
+          extendedUser.region = dbUser.region;
+          extendedUser.currency = dbUser.currency;
+          extendedUser.language = dbUser.language;
         }
       } else if (token?.sub) {
-        (session.user as any).id = token.sub;
+        const extendedUser = session.user as typeof session.user & { id: string };
+        extendedUser.id = token.sub;
       }
       return session;
     },

@@ -89,7 +89,7 @@ export async function PUT(req: NextRequest) {
 
     
     // Update company data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     if (name !== undefined) updateData.name = name.trim();
     if (businessRegistrationNumber !== undefined) updateData.businessRegistrationNumber = businessRegistrationNumber?.trim() || null;

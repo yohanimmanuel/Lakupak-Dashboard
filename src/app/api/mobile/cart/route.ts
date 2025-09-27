@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     if (existingItem) {
       // Update quantity and product data
-      const metadata = existingItem.metadata as any || {};
+      const metadata = (existingItem.metadata as { quantity?: number; variant?: string; selected?: boolean }) || {};
       const currentQuantity = metadata.quantity || 1;
       const updatedItem = await prisma.userActivity.update({
         where: { id: existingItem.id },
@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date()
     };
 

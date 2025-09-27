@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     
     // Handle signup mode with complete profile
     if (mode === 'signup' && profile) {
-      const { name, email, storeName, bio, username, password } = profile;;
+      const { name, email, storeName, bio, username, password } = profile;
       
       // Validate profile data
       if (!name || typeof name !== 'string' || !name.trim()) {
@@ -92,6 +92,13 @@ export async function POST(req: NextRequest) {
           { status: 400, headers }
         );
       }
+
+      if (!username || typeof username !== 'string' || !username.trim()) {
+        return NextResponse.json(
+          { error: 'Username is required' }, 
+          { status: 400, headers }
+        );
+      }
       
       // Validate email format
       const emailValidation = validateAuthInput.email(email);
@@ -104,26 +111,56 @@ export async function POST(req: NextRequest) {
       
       const normalizedEmail = email.trim().toLowerCase();
       
-      // Check if marketplace user already exists
-      const existingUser = await prisma.marketplaceUser.findUnique({ 
+      // Check if marketplace user already exists by email, username, or phone
+      const existingUserByEmail = await prisma.marketplaceUser.findUnique({ 
         where: { email: normalizedEmail } 
       });
       
-      if (existingUser) {
+      if (existingUserByEmail) {
         return NextResponse.json(
-          { error: 'User is registered. Please Log in.' }, 
+          { error: 'User with this email is already registered. Please log in.' }, 
           { status: 409, headers }
         );
       }
+
+      // Check if username already exists
+      const existingUserByUsername = await prisma.marketplaceUser.findUnique({ 
+        where: { username: username.trim() } 
+      });
       
-      (`No existing marketplace user found, proceeding with account creation for: ${normalizedEmail}`);
+      if (existingUserByUsername) {
+        return NextResponse.json(
+          { error: 'Username is already taken. Please choose a different username.' }, 
+          { status: 409, headers }
+        );
+      }
+
+      // Check if phone already exists (skip check for dummy phone numbers used to skip verification)
+      const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
+      const isDummyPhone = phoneWithPlus === '+0000000000' || phoneWithPlus === '+1234567890';
       
+      let finalPhone = phoneWithPlus;
+      
+      if (isDummyPhone) {
+        // Generate a unique dummy phone number for users who skip verification
+        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+        finalPhone = `+1000000${timestamp}`; // Use +1000000XXXXXX format for dummy phones
+      } else {
+        // Check if real phone number already exists
+        const existingUserByPhone = await prisma.marketplaceUser.findUnique({ 
+          where: { phone: phoneWithPlus } 
+        });
+        
+        if (existingUserByPhone) {
+          return NextResponse.json(
+            { error: 'Phone number is already registered. Please log in or use a different phone number.' }, 
+            { status: 409, headers }
+          );
+        }
+      }
+          
       // Create new marketplace user with complete profile
       const hashedPassword = await hash(password, 12);
-      
-      // Extract phone number from the phone parameter (it includes country code)
-      // Store phone with + prefix for consistency
-      const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
       
       const user = await prisma.marketplaceUser.create({
         data: {
@@ -133,13 +170,17 @@ export async function POST(req: NextRequest) {
           password: hashedPassword,
           storeName: storeName?.trim() || null,
           bio: bio?.trim() || null,
-          phone: phoneWithPlus,
-          country: countryCode
+          phone: finalPhone, // Use the final phone (real or generated dummy)
+          country: isDummyPhone ? null : countryCode // Set country to null for dummy phones
         }
       });
       
-      // Return user data with token
-      const token = `mobile_token_${user.id}_${Date.now()}`;
+      // Generate JWT token
+      const { signAccessToken } = await import('../../../../../lib/jwt');
+      const token = signAccessToken({ 
+        sub: user.id, 
+        phone: user.phone || undefined // Handle null phone case
+      }, '30d');
       
       return NextResponse.json({
         token,
@@ -177,7 +218,12 @@ export async function POST(req: NextRequest) {
     }
     
     if (existingUser) {
-      const token = `mobile_token_${existingUser.id}_${Date.now()}`;
+      // Generate JWT token
+      const { signAccessToken } = await import('../../../../../lib/jwt');
+      const token = signAccessToken({ 
+        sub: existingUser.id, 
+        phone: existingUser.phone 
+      }, '30d');
       
       return NextResponse.json({
         token,

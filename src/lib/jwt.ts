@@ -12,8 +12,8 @@ export function signAccessToken(payload: AppJwtPayload, expiresIn: string = '30d
     throw new Error('JWT_SECRET is not set')
   }
   // jsonwebtoken types for expiresIn can be a special StringValue; cast to satisfy types
-  const options: SignOptions = { expiresIn: expiresIn as unknown as any }
-  return jwt.sign(payload as Record<string, unknown>, JWT_SECRET, options as any)
+  const options: SignOptions = { expiresIn: expiresIn as string | number }
+  return jwt.sign(payload as Record<string, unknown>, JWT_SECRET, options)
 }
 
 export function verifyAccessToken(token: string): AppJwtPayload {
@@ -28,7 +28,7 @@ export function verifyAccessToken(token: string): AppJwtPayload {
   if (typeof subValue !== 'number' || Number.isNaN(subValue)) {
     throw new Error('Invalid token subject')
   }
-  return { sub: subValue, phone: (decoded as any).phone }
+  return { sub: subValue, phone: (decoded as { phone?: string }).phone }
 }
 
 

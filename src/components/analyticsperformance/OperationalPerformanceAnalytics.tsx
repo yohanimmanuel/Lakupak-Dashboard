@@ -564,10 +564,10 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                     content={({ active, payload }) => {
                       if (!active || !payload || payload.length === 0) return null;
                       const entry = payload[0];
-                      const status = (entry as any)?.payload?.status as string;
-                      const count = (entry as any)?.value as number;
-                      const percentage = (entry as any)?.payload?.percentage as number;
-                      const color = (entry as any)?.payload?.color as string;
+                      const status = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.payload?.status as string;
+                      const count = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.value as number;
+                      const percentage = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.payload?.percentage as number;
+                      const color = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.payload?.color as string;
                       return (
                         <div className="bg-white border-none rounded-xl shadow-lg p-4">
                           <div className="flex items-center mb-2">
@@ -931,9 +931,9 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                     content={({ active, payload }) => {
                       if (!active || !payload || payload.length === 0) return null;
                       const p = payload[0];
-                      const method = (p as any)?.payload?.method as string;
+                      const method = (p as { payload: { method: string; percentage: number }; value: number })?.payload?.method as string;
                       const count = Number(p.value || 0);
-                      const percentage = (p as any)?.payload?.percentage as number;
+                      const percentage = (p as { payload: { method: string; percentage: number }; value: number })?.payload?.percentage as number;
                       const color = '#0a61d7';
                       return (
                         <div className="bg-white border-none rounded-xl shadow-lg p-4">
@@ -1047,7 +1047,7 @@ export const OrderStatusDistributionChart: React.FC<{
           <Tooltip 
             content={({ active, payload }) => {
               if (!active || !payload || payload.length === 0) return null;
-              const entry: any = payload[0];
+              const entry = payload[0] as { payload: { status: string }; value: number };
               const status = entry?.payload?.status as string;
               const count = entry?.value as number;
               const percentage = entry?.payload?.percentage as number;

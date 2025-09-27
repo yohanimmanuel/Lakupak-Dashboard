@@ -7,7 +7,14 @@ const prisma = new PrismaClient();
 
 // Create order item from product data with package information
 export const createOrderItemFromProduct = (
-  product: any, 
+  product: {
+    productId: string;
+    name: string;
+    category: string;
+    sellingPrice: string | number;
+    packageType?: string;
+    piecesPerPackage?: number;
+  }, 
   packageQuantity: number = 1
 ): OrderItem => {
   // Parse sellingPrice correctly handling IDR format with dots as thousands separators

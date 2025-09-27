@@ -57,12 +57,12 @@ export default function ProductCatalog({
     catalogType: product?.catalogType || 'Internal',
     catalogName: product?.catalogName || '',
     images: product?.images || [],
-    halalCertified: (product as any)?.halalCertified ?? false,
-    bpomApproved: (product as any)?.bpomApproved ?? false,
-    originalProduct: (product as any)?.originalProduct ?? true,
-    returnPolicyDays: (product as any)?.returnPolicyDays ?? 7,
-    packageType: (product as any)?.packageType ?? '',
-    piecesPerPackage: (product as any)?.piecesPerPackage ?? 1
+    halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
+    bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
+    originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
+    returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
+    packageType: (product as { packageType?: string })?.packageType ?? '',
+    piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
   });
 
 
@@ -193,7 +193,7 @@ export default function ProductCatalog({
     }
   };
 
-  const handleInputChange = (field: keyof ProductFormData, value: any) => {
+  const handleInputChange = (field: keyof ProductFormData, value: string | number | string[] | boolean) => {
     setFormData(prev => {
       const newFormData = {
         ...prev,
