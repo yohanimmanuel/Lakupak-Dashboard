@@ -17,7 +17,7 @@ Our goal is to digitize the traditional distributor-to-retailer supply chain whi
 
 ## Key Security & Trust Principles
 - **Buyer Restrictions**: Buyers can browse and purchase products from distributors but distributors have no ability to compare prices for the same product across different distributors, preventing destructive price wars and maintaining trust.
-- **Distributor Privacy**: Distributors can only access their own business data, customer list, and analytics — no competitor insight leakage.
+- **Distributor Privacy**: Distributors can only access their own business data, customer list, and analytics — no competitor insight leakage.This ensures fair competition while preserving the core value of marketplaces, buyer choice and price transparency.
 - **Verified Network**: Both buyers and distributors undergo verification to maintain a trusted marketplace ecosystem.
 
 ## Why Laku-Laku is Different
