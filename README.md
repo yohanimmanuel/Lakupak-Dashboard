@@ -16,7 +16,7 @@ The platform combines:
 Our goal is to digitize the traditional distributor-to-retailer supply chain while respecting the realities of competition, price sensitivity, and confidentiality in the Indonesian wholesale market.
 
 ## Key Security & Trust Principles
-- **Buyer Restrictions**: Buyers can browse and purchase products from distributors but will have limited ability to compare prices for the same product across different distributors, preventing destructive price wars and maintaining trust.
+- **Buyer Restrictions**: Buyers can browse and purchase products from distributors but distributors have no ability to compare prices for the same product across different distributors, preventing destructive price wars and maintaining trust.
 - **Distributor Privacy**: Distributors can only access their own business data, customer list, and analytics — no competitor insight leakage.
 - **Verified Network**: Both buyers and distributors undergo verification to maintain a trusted marketplace ecosystem.
 
