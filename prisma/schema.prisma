@@ -216,6 +216,10 @@ model Order {
   acceptedAt              DateTime?   @db.Timestamptz(3)
   userId                  Int?
   archivedAt              DateTime?   @db.Timestamptz(3)
+  cancelledAt             DateTime?   @db.Timestamptz(3)
+  cancelledBy             String?
+  cancellationReason      String?
+  isDeleted               Boolean    @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?
   contactPhoneSnapshot    String?

@@ -351,7 +351,6 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Error creating mobile order:', error);
     return NextResponse.json(
       { error: 'Failed to create order', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers }

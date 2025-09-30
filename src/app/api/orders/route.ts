@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
           where: {
             orderId: {
               in: orderIdArray
-            }
+            },
+            isDeleted: false
           },
           select: {
             orderId: true
@@ -57,10 +58,12 @@ export async function GET(request: NextRequest) {
     
     if (id) {
       // Get single order by ID
+      const includeDeleted = searchParams.get('includeDeleted') === 'true';
       const order = await prisma.order.findFirst({
         where: { 
           orderId: id,
-          ...userWhere
+          ...userWhere,
+          ...(includeDeleted ? {} : { isDeleted: false })
         },
         include: {
           buyer: true,
@@ -125,6 +128,13 @@ export async function GET(request: NextRequest) {
     } else {
       where.archivedAt = null;
     }
+    
+    // Exclude soft-deleted orders by default
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
+    if (!includeDeleted) {
+      where.isDeleted = false;
+    }
+    
     if (status && status !== 'All') where.orderStatus = status;
     if (buyerId) where.buyerId = buyerId;
     
@@ -547,16 +557,73 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: true }, { headers });
     }
 
-    // Skip orderId requirement for archive/unarchive operations
-    if (!body.orderId && !body.archive && !body.unarchive && !Array.isArray(body.archiveOrderIds)) {
+    // Cancel order functionality
+    if (body.cancel === true && (body.orderId || body.id)) {
+      // Find the order first
+      let whereClause: { orderId: string } | { id: number };
+      if (body.orderId) {
+        whereClause = { orderId: String(body.orderId).trim() };
+      } else if (body.id) {
+        whereClause = { id: Number(body.id) };
+      } else {
+        return NextResponse.json({ error: 'No orderId or id provided' }, { status: 400, headers });
+      }
+
+      // Check if order exists and is cancellable
+      const existingOrder = await prisma.order.findFirst({
+        where: whereClause
+      });
+
+      if (!existingOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+      }
+
+      // Check if order can be cancelled (only Pending or Confirmed orders)
+      const cancellableStatuses = ['Pending', 'Confirmed'];
+      if (!cancellableStatuses.includes(existingOrder.orderStatus)) {
+        return NextResponse.json({ 
+          error: `Order cannot be cancelled. Current status: ${existingOrder.orderStatus}` 
+        }, { status: 400, headers });
+      }
+
+      // Update order with cancellation data
+      const updateData = {
+        orderStatus: 'Cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: body.cancelledBy || body.userId?.toString() || 'User',
+        cancellationReason: body.reason || body.cancellationReason || 'User requested cancellation'
+      };
+
+      try {
+        const updatedOrder = await prisma.order.update({ 
+          where: whereClause, 
+          data: updateData 
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Order cancelled successfully',
+          order: {
+            orderId: updatedOrder.orderId,
+            orderStatus: updatedOrder.orderStatus,
+            cancelledAt: updatedOrder.cancelledAt
+          }
+        }, { headers });
+      } catch (e) {
+        return NextResponse.json({ error: 'Failed to cancel order' }, { status: 500, headers });
+      }
+    }
+
+    // Skip orderId requirement for archive/unarchive/cancel operations
+    if (!body.orderId && !body.archive && !body.unarchive && !body.cancel && !Array.isArray(body.archiveOrderIds)) {
       return NextResponse.json(
         { error: 'Missing orderId' },
         { status: 400, headers }
       );
     }
     
-    // Skip validation for archive operations  
-    if (!body.archive && !body.unarchive && !Array.isArray(body.archiveOrderIds)) {
+    // Skip validation for archive/unarchive/cancel operations  
+    if (!body.archive && !body.unarchive && !body.cancel && !Array.isArray(body.archiveOrderIds)) {
       // Validate update data
       const validation = validateOrderUpdate(body);
       if (!validation.valid) {
@@ -625,6 +692,14 @@ export async function PUT(request: NextRequest) {
           } else if (nextStatus === 'Cancelled' || nextStatus === 'Returned') {
             updateData.deliveryConfirmation = nextStatus.toLowerCase();
           }
+        }
+
+        // Clear cancellation fields when order status changes from 'Cancelled' to any other status
+        if (prevStatus === 'Cancelled' && nextStatus !== 'Cancelled') {
+          updateData.cancelledAt = null;
+          updateData.cancelledBy = null;
+          updateData.cancellationReason = null;
+          updateData.isDeleted = false; // Also reset the soft delete flag
         }
       }
     }
