@@ -19,14 +19,7 @@ const mainMenuItems = [
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
   { label: 'Analytics', href: '/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
-  {
-    label: 'Programs',
-    icon: <GiftIcon className="w-5 h-5" />,
-    submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Discounts', href: '/programs/discounts' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Promotions', href: '/programs/promotions' },
-    ],
-  },
+  { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
 ];
 
 const secondaryMenuItems = [

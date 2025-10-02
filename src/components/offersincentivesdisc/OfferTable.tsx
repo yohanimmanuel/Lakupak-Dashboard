@@ -1,0 +1,603 @@
+'use client';
+
+import React, { useState, useRef, useLayoutEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { format } from 'date-fns';
+
+interface Offer {
+  id: string;
+  offerId: string;
+  name: string;
+  description: string;
+  type: 'discount' | 'promotion';
+  status: 'active' | 'inactive' | 'expired';
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minOrderValue?: number;
+  minQuantity?: number;
+  startDate: string;
+  endDate: string;
+  maxUsage?: number;
+  perCustomerLimit?: number;
+  totalUsage: number;
+  totalDiscountGiven: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface OfferTableRow {
+  id: string;
+  offerId: string;
+  name: string;
+  type: string;
+  discount: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  usage: string;
+  totalDiscount: string;
+  actions: string;
+}
+
+const statusTabs = [
+  { label: "All" },
+  { label: "Active" },
+  { label: "Inactive" },
+  { label: "Expired" },
+];
+
+const dateRangeFilters = [
+  { label: "All Time", value: "all" },
+  { label: "Last 7 Days", value: "7days" },
+  { label: "Last 30 Days", value: "30days" },
+  { label: "Last 3 Months", value: "3months" },
+  { label: "This Year", value: "year" },
+];
+
+export default function OfferTable({ 
+  offers = [], 
+  setOffers, 
+  activeTab = 'all',
+  onSelectOffer
+}: { 
+  offers?: Offer[]; 
+  setOffers?: (fn: (prev: Offer[]) => Offer[]) => void; 
+  activeTab?: 'all' | 'discounts' | 'promotions';
+  onSelectOffer?: (offer: Offer) => void;
+}) {
+  const user = useUserStore(state => state.user);
+  const router = useRouter();
+  
+  const userCurrency = user?.currency || getDefaultCurrency();
+  
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [selectedTab, setSelectedTab] = useState("All");
+  const [filter, setFilter] = useState("All Time");
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [selectedOffers, setSelectedOffers] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [offerToDelete, setOfferToDelete] = useState<OfferTableRow | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const rowsPerPage = 6;
+
+  // Filter offers based on activeTab
+  const filteredOffers = React.useMemo(() => {
+    let filtered = offers;
+    
+    if (activeTab === 'discounts') {
+      filtered = offers.filter(offer => offer.type === 'discount');
+    } else if (activeTab === 'promotions') {
+      filtered = offers.filter(offer => offer.type === 'promotion');
+    }
+    
+    return filtered;
+  }, [offers, activeTab]);
+
+  const tableRows = filteredOffers.map(offerToTableRow);
+
+  // Filter products based on search, status, and type
+  let filteredRows = tableRows.filter((row: OfferTableRow) => 
+    row.name.toLowerCase().includes(search.toLowerCase())
+  );
+  
+  if (selectedTab !== "All") {
+    filteredRows = filteredRows.filter((row: OfferTableRow) => row.status === selectedTab);
+  }
+  
+  if (filter !== "All Time") {
+    filteredRows = filteredRows.filter((row: OfferTableRow) => {
+      const offer = offers.find(o => o.id === row.id);
+      if (!offer) return false;
+      
+      const offerDate = new Date(offer.createdAt);
+      const now = new Date();
+      
+      switch (filter) {
+        case "Last 7 Days":
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return offerDate >= sevenDaysAgo;
+        case "Last 30 Days":
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          return offerDate >= thirtyDaysAgo;
+        case "Last 3 Months":
+          const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          return offerDate >= threeMonthsAgo;
+        case "This Year":
+          const startOfYear = new Date(now.getFullYear(), 0, 1);
+          return offerDate >= startOfYear;
+        default:
+          return true;
+      }
+    });
+  }
+
+  const totalRows = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const pagedRows = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const toRow = Math.min(page * rowsPerPage, totalRows);
+
+  // Convert offer to table row
+  function offerToTableRow(offer: Offer): OfferTableRow {
+    const discountDisplay = offer.discountType === 'percentage' 
+      ? `${offer.discountValue}%` 
+      : formatCurrency(offer.discountValue, userCurrency);
+    
+    const usageDisplay = offer.maxUsage 
+      ? `${offer.totalUsage}/${offer.maxUsage}` 
+      : offer.totalUsage.toString();
+
+    return {
+      id: offer.id,
+      offerId: offer.offerId,
+      name: offer.name,
+      type: offer.type.charAt(0).toUpperCase() + offer.type.slice(1),
+      discount: discountDisplay,
+      status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
+      startDate: format(new Date(offer.startDate), 'MMM dd, yyyy'),
+      endDate: format(new Date(offer.endDate), 'MMM dd, yyyy'),
+      usage: usageDisplay,
+      totalDiscount: formatCurrency(offer.totalDiscountGiven, userCurrency),
+      actions: 'actions'
+    };
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!user?.id) return;
+    
+    if (isBulkDelete) {
+      // Bulk delete - delete all selected offers
+      if (setOffers) {
+        setOffers(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
+      }
+      setSelectedOffers([]);
+    } else {
+      // Single delete - delete one offer
+      if (!offerToDelete) return;
+      if (setOffers) {
+        setOffers(prev => prev.filter(offer => offer.id !== offerToDelete.id));
+      }
+      setOfferToDelete(null);
+    }
+    
+    setShowDeleteModal(false);
+    setIsBulkDelete(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setOfferToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  const handleOfferSelect = (offerId: string) => {
+    setSelectedOffers(prev => 
+      prev.includes(offerId) 
+        ? prev.filter(id => id !== offerId)
+        : [...prev, offerId]
+    );
+  };
+
+  const handleRowClick = (offerId: string, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleOfferSelect(offerId);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOffers.length === pagedRows.length) {
+      setSelectedOffers([]);
+    } else {
+      setSelectedOffers(pagedRows.map(offer => offer.id));
+    }
+  };
+
+  const handleBulkRemove = () => {
+    setIsBulkDelete(true);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = (offer: OfferTableRow) => {
+    setOfferToDelete(offer);
+    setShowDeleteModal(true);
+  };
+
+  const handleEdit = (offer: OfferTableRow) => {
+    // Navigate to edit page or open edit modal
+    router.push(`/offers/edit/${offer.id}`);
+  };
+
+  const handleView = (offer: OfferTableRow) => {
+    router.push(`/offers/details`);
+  };
+
+  // Tab indicator animation
+  useLayoutEffect(() => {
+    const idx = statusTabs.findIndex(tab => tab.label === selectedTab);
+    const node = tabRefs.current[idx];
+    if (node) {
+      setIndicatorStyle({
+        left: node.offsetLeft,
+        width: node.offsetWidth,
+      });
+    }
+  }, [selectedTab]);
+
+  return (
+    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        {/* Status Tabs - Segmented Control */}
+        <div className="relative w-full md:w-auto flex items-center">
+          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+            {/* Sliding Indicator */}
+            <div
+              className="absolute top-0 h-full transition-all duration-300"
+              style={{
+                left: indicatorStyle.left,
+                width: indicatorStyle.width,
+                background: '#0a61d7',
+                borderRadius: '0.75rem',
+                zIndex: 1,
+              }}
+            />
+            {statusTabs.map((tab, idx) => (
+              <button
+                key={tab.label}
+                ref={el => { tabRefs.current[idx] = el; }}
+                onClick={() => {
+                  setSelectedTab(tab.label);
+                  setSelectedOffers([]);
+                }}
+                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                  selectedTab === tab.label
+                    ? 'text-white'
+                    : 'text-gray-700 hover:text-[#0a61d7]'
+                } ${
+                  idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''
+                }`}
+                style={{
+                  background: 'transparent',
+                  boxShadow: 'none',
+                  minWidth: 0,
+                  flex: 'unset',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex gap-2 w-full md:w-auto items-center justify-end">
+          <div className="relative w-full md:w-64">
+            <input
+              type="text"
+              placeholder="Search offers..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            />
+            <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
+          </div>
+
+           {/* Date Range Filter Dropdown */}
+           <div className="relative">
+             <button
+               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+             >
+               <Filter className="w-4 h-4" />
+               {filter}
+               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+             </button>
+             {showFilterDropdown && (
+               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+                 {dateRangeFilters.map((filterOption) => (
+                   <button
+                     key={filterOption.value}
+                     onClick={() => {
+                       setFilter(filterOption.label);
+                       setShowFilterDropdown(false);
+                     }}
+                     className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                       filter === filterOption.label
+                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                         : 'text-gray-700 hover:bg-gray-100'
+                     }`}
+                   >
+                     {filterOption.label}
+                   </button>
+                 ))}
+               </div>
+             )}
+           </div>
+        </div>
+      </div>
+
+      {/* Bulk Action Bar */}
+      {selectedOffers.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+          {/* Mobile Layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <div className="text-white flex items-center justify-center text-sm font-semibold">
+                  {selectedOffers.length}
+                </div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedOffers.length === 1 ? 'offer' : 'offers'} selected
+                </span>
+              </div>
+            </div>
+            <div className="text-white text-xs font-semibold leading-relaxed">
+              Select offers to be removed from the system.
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkRemove}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash className="w-4 h-4 text-white" />
+                Remove
+              </button>
+            </div>
+          </div>
+          
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div className="text-white flex items-center justify-center text-sm font-semibold">
+                  {selectedOffers.length}
+                </div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedOffers.length === 1 ? 'offer' : 'offers'} selected
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-white text-xs md:text-sm font-semibold">
+                Select offers to remove from the system.
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleBulkRemove}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash className="w-4 h-4 text-white" />
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">
+                <button
+                  onClick={handleSelectAll}
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    selectedOffers.length === pagedRows.length && pagedRows.length > 0
+                      ? 'bg-green-500 border-green-500'
+                      : 'bg-white border-gray-300 hover:border-green-400'
+                  }`}
+                >
+                  {selectedOffers.length === pagedRows.length && pagedRows.length > 0 && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              </th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Name</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Usage</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Total Discount</th>
+              <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="text-xs whitespace-nowrap">
+            {pagedRows.map((row, index) => (
+              <tr 
+                key={row.id} 
+                className={`border-b border-gray-100 transition cursor-pointer ${
+                  selectedOffers.includes(row.id) 
+                    ? 'bg-blue-50' 
+                    : 'hover:bg-gray-50'
+                }`}
+                onClick={(e) => handleRowClick(row.id, e)}
+              >
+                <td className="py-4 px-4 text-xs">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOfferSelect(row.id);
+                    }}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      selectedOffers.includes(row.id)
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {selectedOffers.includes(row.id) && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-900 font-medium truncate">
+                  {row.name}
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-700">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    row.type === 'Discount' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {row.type}
+                  </span>
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-900">{row.discount}</td>
+                <td className="py-4 px-4 text-xs text-gray-700">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    row.status === 'Active' 
+                      ? 'bg-green-100 text-green-800'
+                      : row.status === 'Inactive'
+                      ? 'bg-gray-100 text-gray-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {row.status}
+                  </span>
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-700 truncate">
+                  {row.startDate} - {row.endDate}
+                </td>
+                <td className="py-4 px-4 text-xs text-gray-900">{row.usage}</td>
+                <td className="py-4 px-4 text-xs text-gray-900">{row.totalDiscount}</td>
+                <td className="py-4 px-4 text-xs text-gray-700">
+                  <div className="flex items-center gap-2 justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleView(row);
+                      }}
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
+                      title="View Offer"
+                    >
+                      <Eye className="w-4 h-4 text-[#0a61d7]" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-500">
+          Showing {fromRow} to {toRow} of {totalRows} results
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page === 1}
+            className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const pageNum = i + 1;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-2 text-sm rounded-lg ${
+                    page === pageNum
+                      ? 'bg-[#0a61d7] text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            {totalPages > 5 && (
+              <>
+                {totalPages > 6 && <span className="px-2 text-gray-500">...</span>}
+                <button
+                  onClick={() => setPage(totalPages)}
+                  className={`px-3 py-1 text-sm rounded ${
+                    page === totalPages
+                      ? 'bg-[#0a61d7] text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+          </div>
+          
+          <button
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-black mb-4">Delete Offer</h3>
+            <p className="text-gray-600 mb-6">
+              {isBulkDelete 
+                ? `Are you sure you want to delete ${selectedOffers.length} selected offers? This action cannot be undone.`
+                : `Are you sure you want to delete "${offerToDelete?.name}"? This action cannot be undone.`
+              }
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

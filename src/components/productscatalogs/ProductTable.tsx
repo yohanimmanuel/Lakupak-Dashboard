@@ -412,7 +412,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                       setSelectedStockFilter(filter.value);
                       setShowStockDropdown(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg"
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedStockFilter === filter.value
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
                     {filter.label}
                   </button>
@@ -444,7 +448,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                       setSelectedCategory(category);
                       setShowCategoryDropdown(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg"
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedCategory === category
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
                     {category}
                   </button>

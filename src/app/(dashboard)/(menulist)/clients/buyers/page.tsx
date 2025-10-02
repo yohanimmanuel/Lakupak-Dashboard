@@ -66,10 +66,6 @@ function generateBuyerId() {
   return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-function generateSecureBuyerId() {
-  return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
-}
-
 export default function BuyersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
