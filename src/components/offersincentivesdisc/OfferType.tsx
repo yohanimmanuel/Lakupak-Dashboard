@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2 } from 'lucide-react';
+import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
@@ -108,7 +108,7 @@ export default function OfferType() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -125,54 +125,75 @@ export default function OfferType() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3">
-            <Percent className="w-8 h-8 text-blue-600" />
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Percent className="w-6 h-6 text-[#0a61d7]" />
+            </div>
             <div>
-              <p className="text-sm text-blue-600 font-medium">Percentage Discounts</p>
-              <p className="text-2xl font-bold text-blue-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Percentage Discounts</div>
+              <div className="text-xl font-bold text-black">
                 {offerTypes.filter(t => t.discountType === 'percentage').length}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+3%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-green-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <DollarSign className="w-6 h-6 text-green-500" />
+            </div>
             <div>
-              <p className="text-sm text-green-600 font-medium">Fixed Discounts</p>
-              <p className="text-2xl font-bold text-green-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Fixed Discounts</div>
+              <div className="text-xl font-bold text-black">
                 {offerTypes.filter(t => t.discountType === 'fixed').length}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+1%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-          <div className="flex items-center gap-3">
-            <Gift className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Special Offers</p>
-              <p className="text-2xl font-bold text-purple-800">
-                {offerTypes.filter(t => t.discountType === 'buy_x_get_y').length}
-              </p>
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Gift className="w-6 h-6 text-purple-500" />
             </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Special Offers</div>
+              <div className="text-xl font-bold text-black">
+                {offerTypes.filter(t => t.discountType === 'buy_x_get_y').length}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+2%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
       </div>
 
       {/* Offer Types Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {offerTypes.map((type) => (
-          <div key={type.id} className={`p-6 rounded-lg border-2 ${getDiscountTypeColor(type.discountType)}`}>
+          <div key={type.id} className={`p-4 rounded-lg border-2 ${getDiscountTypeColor(type.discountType)}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 {getDiscountTypeIcon(type.discountType)}
                 <div>
-                  <h3 className="text-lg font-semibold text-black">{type.name}</h3>
-                  <p className="text-sm text-gray-600">{type.description}</p>
+                  <h3 className="text-md font-semibold text-black">{type.name}</h3>
+                  <p className="text-xs text-gray-600">{type.description}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -190,8 +211,8 @@ export default function OfferType() {
 
             <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Discount Value:</span>
-                <span className="font-medium text-black">
+                <span className="text-xs text-gray-600">Discount Value:</span>
+                <span className="font-medium text-black text-xs">
                   {type.discountType === 'percentage' 
                     ? `${type.discountValue}%` 
                     : type.discountType === 'fixed'
@@ -203,8 +224,8 @@ export default function OfferType() {
 
               {type.minOrderValue && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Min. Order:</span>
-                  <span className="font-medium text-black">
+                  <span className="text-xs text-gray-600">Min. Order:</span>
+                  <span className="font-medium text-black text-xs">
                     {formatCurrency(type.minOrderValue, userCurrency)}
                   </span>
                 </div>
@@ -212,22 +233,22 @@ export default function OfferType() {
 
               {type.minQuantity && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Min. Quantity:</span>
-                  <span className="font-medium text-black">{type.minQuantity} items</span>
+                  <span className="text-xs text-gray-600">Min. Quantity:</span>
+                  <span className="font-medium text-black text-xs">{type.minQuantity} items</span>
                 </div>
               )}
 
               {type.maxUsage && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Max Usage:</span>
-                  <span className="font-medium text-black">{type.maxUsage}</span>
+                  <span className="text-xs text-gray-600">Max Usage:</span>
+                  <span className="font-medium text-black text-xs">{type.maxUsage}</span>
                 </div>
               )}
 
               {type.perCustomerLimit && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Per Customer:</span>
-                  <span className="font-medium text-black">{type.perCustomerLimit} times</span>
+                  <span className="text-xs text-gray-600">Per Customer:</span>
+                  <span className="font-medium text-black text-xs">{type.perCustomerLimit} times</span>
                 </div>
               )}
             </div>
@@ -239,14 +260,14 @@ export default function OfferType() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleEdit(type)}
-                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs"
                   title="Edit Type"
                 >
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(type.id)}
-                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs"
                   title="Delete Type"
                 >
                   <Trash2 className="w-4 h-4" />

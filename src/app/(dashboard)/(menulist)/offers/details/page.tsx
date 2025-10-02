@@ -18,7 +18,7 @@ export default function OffersDetailsPage() {
       id: 'analytics', 
       label: 'Analytics', 
       icon: <BarChart3 className="w-5 h-5" />,
-      description: 'Performance metrics and insights'
+      description: 'Performance metrics analysis'
     },
     { 
       id: 'management', 
@@ -64,7 +64,7 @@ export default function OffersDetailsPage() {
   };
 
   return (
-    <div className="p-4 space-y-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -84,7 +84,7 @@ export default function OffersDetailsPage() {
 
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-1">
-        <div className="flex gap-1">
+        <div className="flex flex-col lg:flex-row gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List } from 'lucide-react';
+import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
@@ -29,11 +29,13 @@ export default function ProductIntegration() {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedBrand, setSelectedBrand] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedBrand, setSelectedBrand] = useState('All Brands');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
   // Mock data - replace with actual API calls
   const products: Product[] = [
@@ -95,15 +97,15 @@ export default function ProductIntegration() {
     },
   ];
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
-  const brands = ['All', ...Array.from(new Set(products.map(p => p.brand)))];
+  const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
+  const brands = ['All Brands', ...Array.from(new Set(products.map(p => p.brand)))];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    const matchesBrand = selectedBrand === 'All' || product.brand === selectedBrand;
+    const matchesCategory = selectedCategory === 'All Categories' || product.category === selectedCategory;
+    const matchesBrand = selectedBrand === 'All Brands' || product.brand === selectedBrand;
     
     return matchesSearch && matchesCategory && matchesBrand;
   });
@@ -114,6 +116,13 @@ export default function ProductIntegration() {
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
+  };
+
+  const handleRowClick = (productId: string, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleProductSelect(productId);
   };
 
   const handleSelectAll = () => {
@@ -142,7 +151,7 @@ export default function ProductIntegration() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -161,48 +170,88 @@ export default function ProductIntegration() {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <div className="flex gap-2 w-full md:w-auto items-center">
+            <div className="relative w-full md:w-150">
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
               />
+              <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
             </div>
-          </div>
 
-          {/* Category Filter */}
-          <div className="relative">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-            <Filter className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
+            {/* Category Filter Dropdown */}
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => {
+                  setShowCategoryDropdown(!showCategoryDropdown);
+                  setShowBrandDropdown(false); // Close brand dropdown when opening category dropdown
+                }}
+              >
+                {selectedCategory}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showCategoryDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setShowCategoryDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                        selectedCategory === category
+                          ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Brand Filter */}
-          <div className="relative">
-            <select
-              value={selectedBrand}
-              onChange={(e) => setSelectedBrand(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
-            >
-              {brands.map(brand => (
-                <option key={brand} value={brand}>{brand}</option>
-              ))}
-            </select>
-            <Tag className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+            {/* Brand Filter Dropdown */}
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => {
+                  setShowBrandDropdown(!showBrandDropdown);
+                  setShowCategoryDropdown(false); // Close category dropdown when opening brand dropdown
+                }}
+              >
+                {selectedBrand}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showBrandDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  {brands.map((brand) => (
+                    <button
+                      key={brand}
+                      onClick={() => {
+                        setSelectedBrand(brand);
+                        setShowBrandDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                        selectedBrand === brand
+                          ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* View Mode Toggle */}
@@ -246,7 +295,7 @@ export default function ProductIntegration() {
 
       {/* Products Display */}
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
               <div className="p-4">
@@ -307,30 +356,24 @@ export default function ProductIntegration() {
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSelectAll}
-                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                  selectedProducts.length === filteredProducts.length && filteredProducts.length > 0
-                    ? 'bg-green-500 border-green-500'
-                    : 'bg-white border-gray-300 hover:border-green-400'
-                }`}
-              >
-                {selectedProducts.length === filteredProducts.length && filteredProducts.length > 0 && (
-                  <Check className="w-3 h-3 text-white" />
-                )}
-              </button>
-              <span className="text-sm font-medium text-gray-700">
-                Select All ({filteredProducts.length} products)
-              </span>
-            </div>
-          </div>
-
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">
+                    <button
+                      onClick={handleSelectAll}
+                      className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                        selectedProducts.length === filteredProducts.length && filteredProducts.length > 0
+                          ? 'bg-green-500 border-green-500'
+                          : 'bg-white border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      {selectedProducts.length === filteredProducts.length && filteredProducts.length > 0 && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </button>
+                  </th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Product</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Category</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Brand</th>
@@ -342,8 +385,16 @@ export default function ProductIntegration() {
               </thead>
               <tbody>
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
+                  <tr 
+                    key={product.id} 
+                    className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer ${
+                      selectedProducts.includes(product.id) 
+                        ? 'bg-blue-50' 
+                        : ''
+                    }`}
+                    onClick={(e) => handleRowClick(product.id, e)}
+                  >
+                    <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handleProductSelect(product.id)}
@@ -362,22 +413,22 @@ export default function ProductIntegration() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-700">{product.category}</td>
-                    <td className="py-3 px-4 text-gray-700">{product.brand}</td>
-                    <td className="py-3 px-4 text-gray-700 font-medium">
+                    <td className="py-4 px-4 text-gray-700">{product.category}</td>
+                    <td className="py-4 px-4 text-gray-700">{product.brand}</td>
+                    <td className="py-4 px-4 text-gray-700 font-medium">
                       {formatCurrency(product.price, userCurrency)}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       <span className={`${getStockStatus(product.stock).color}`}>
                         {product.stock}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
                         {product.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       {product.hasOffer ? (
                         <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
                           {product.offerType === 'percentage' ? `${product.offerDiscount}%` : formatCurrency(product.offerDiscount!, userCurrency)}

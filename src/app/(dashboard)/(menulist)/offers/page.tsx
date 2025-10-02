@@ -90,9 +90,6 @@ export default function OffersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50">
-            <Gift className="w-6 h-6 text-[#0a61d7]" />
-          </div>
           <div>
             <h1 className="text-2xl font-bold text-black">Offers & Incentives</h1>
             <p className="text-gray-500 text-sm">Manage discounts and promotions for your products</p>
@@ -115,7 +112,7 @@ export default function OffersPage() {
 
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-1">
-        <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}

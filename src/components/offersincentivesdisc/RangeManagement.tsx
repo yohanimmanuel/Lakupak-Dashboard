@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 
 interface DateRange {
   id: string;
@@ -129,7 +129,7 @@ export default function RangeManagement() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -149,7 +149,7 @@ export default function RangeManagement() {
       <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
         <button
           onClick={() => setActiveTab('date')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
             activeTab === 'date'
               ? 'bg-[#0a61d7] text-white'
               : 'text-gray-600 hover:text-black hover:bg-gray-50'
@@ -160,7 +160,7 @@ export default function RangeManagement() {
         </button>
         <button
           onClick={() => setActiveTab('time')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
             activeTab === 'time'
               ? 'bg-[#0a61d7] text-white'
               : 'text-gray-600 hover:text-black hover:bg-gray-50'
@@ -172,49 +172,77 @@ export default function RangeManagement() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Date Ranges</p>
-              <p className="text-2xl font-bold text-blue-800">{dateRanges.length}</p>
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Calendar className="w-6 h-6 text-[#0a61d7]" />
             </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Date Ranges</div>
+              <div className="text-xl font-bold text-black">{dateRanges.length}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+2%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div className="flex items-center gap-3">
-            <Clock className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="text-sm text-green-600 font-medium">Time Slots</p>
-              <p className="text-2xl font-bold text-green-800">{timeSlots.length}</p>
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Clock className="w-6 h-6 text-green-500" />
             </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Time Slots</div>
+              <div className="text-xl font-bold text-black">{timeSlots.length}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+1%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-          <div className="flex items-center gap-3">
-            <Target className="w-8 h-8 text-orange-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Target className="w-6 h-6 text-orange-500" />
+            </div>
             <div>
-              <p className="text-sm text-orange-600 font-medium">Active Ranges</p>
-              <p className="text-2xl font-bold text-orange-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Active Ranges</div>
+              <div className="text-xl font-bold text-black">
                 {dateRanges.filter(r => r.isActive).length + timeSlots.filter(t => t.isActive).length}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">67%</span>
+            <span className="text-gray-400 text-xs">active rate</span>
           </div>
         </div>
 
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="w-8 h-8 text-purple-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <CheckCircle className="w-6 h-6 text-purple-500" />
+            </div>
             <div>
-              <p className="text-sm text-purple-600 font-medium">Total Offers</p>
-              <p className="text-2xl font-bold text-purple-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Offers</div>
+              <div className="text-xl font-bold text-black">
                 {dateRanges.reduce((sum, r) => sum + r.offerCount, 0) + 
                  timeSlots.reduce((sum, t) => sum + t.offerCount, 0)}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+12%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
       </div>
@@ -223,21 +251,21 @@ export default function RangeManagement() {
       {activeTab === 'date' ? (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-black">Date Ranges</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {dateRanges.map((range) => {
               const status = getDateRangeStatus(range.startDate, range.endDate, range.isActive);
               const daysRemaining = getDaysRemaining(range.endDate);
               const StatusIcon = status.icon;
 
               return (
-                <div key={range.id} className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div key={range.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-black mb-1">{range.name}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{range.description}</p>
+                      <h4 className="text-md font-semibold text-black mb-1">{range.name}</h4>
+                      <p className="text-xs text-gray-600 mb-2">{range.description}</p>
                       <div className="flex items-center gap-2">
                         <StatusIcon className={`w-4 h-4 ${status.color}`} />
-                        <span className={`text-sm font-medium ${status.color}`}>
+                        <span className={`text-xs font-medium ${status.color}`}>
                           {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
                         </span>
                         {status.status === 'active' && (
@@ -259,21 +287,21 @@ export default function RangeManagement() {
                   </div>
 
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600">Start Date:</span>
-                      <span className="font-medium text-black">
+                      <span className="font-medium text-black text-xs">
                         {new Date(range.startDate).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600">End Date:</span>
-                      <span className="font-medium text-black">
+                      <span className="font-medium text-black text-xs">
                         {new Date(range.endDate).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600">Associated Offers:</span>
-                      <span className="font-medium text-black">{range.offerCount}</span>
+                      <span className="font-medium text-black text-xs">{range.offerCount}</span>
                     </div>
                   </div>
 
@@ -284,14 +312,14 @@ export default function RangeManagement() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(range)}
-                        className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs"
                         title="Edit Range"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(range.id)}
-                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs"
                         title="Delete Range"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -306,15 +334,15 @@ export default function RangeManagement() {
       ) : (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-black">Time Slots</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {timeSlots.map((slot) => (
-              <div key={slot.id} className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div key={slot.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-black mb-1">{slot.name}</h4>
+                    <h4 className="text-md font-semibold text-black mb-1">{slot.name}</h4>
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-black">
+                      <span className="text-xs font-medium text-black">
                         {slot.startTime} - {slot.endTime}
                       </span>
                     </div>
@@ -324,7 +352,7 @@ export default function RangeManagement() {
                       ) : (
                         <AlertCircle className="w-4 h-4 text-gray-600" />
                       )}
-                      <span className={`text-sm font-medium ${slot.isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-gray-600'}`}>
                         {slot.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -341,13 +369,13 @@ export default function RangeManagement() {
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Days:</span>
-                    <span className="font-medium text-black">{slot.days.join(', ')}</span>
+                    <span className="font-medium text-black text-xs">{slot.days.join(', ')}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Associated Offers:</span>
-                    <span className="font-medium text-black">{slot.offerCount}</span>
+                    <span className="font-medium text-black text-xs">{slot.offerCount}</span>
                   </div>
                 </div>
 
@@ -355,14 +383,14 @@ export default function RangeManagement() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEdit(slot)}
-                      className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                      className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs"
                       title="Edit Time Slot"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(slot.id)}
-                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs"
                       title="Delete Time Slot"
                     >
                       <Trash2 className="w-4 h-4" />

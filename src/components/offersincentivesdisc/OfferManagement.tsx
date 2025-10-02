@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Copy, Calendar, Target, DollarSign, Users, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, Calendar, Target, DollarSign, Users, Settings, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
@@ -102,6 +102,13 @@ export default function OfferManagement() {
     );
   };
 
+  const handleRowClick = (offerId: string, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
+      return;
+    }
+    handleOfferSelect(offerId);
+  };
+
   const handleSelectAll = () => {
     if (selectedOffers.length === offers.length) {
       setSelectedOffers([]);
@@ -126,7 +133,7 @@ export default function OfferManagement() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -143,52 +150,80 @@ export default function OfferManagement() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-3">
-            <Target className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Total Offers</p>
-              <p className="text-2xl font-bold text-blue-800">{offers.length}</p>
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Target className="w-6 h-6 text-[#0a61d7]" />
             </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Offers</div>
+              <div className="text-xl font-bold text-black">{offers.length}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+8%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-green-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Calendar className="w-6 h-6 text-green-500" />
+            </div>
             <div>
-              <p className="text-sm text-green-600 font-medium">Active Offers</p>
-              <p className="text-2xl font-bold text-green-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Active Offers</div>
+              <div className="text-xl font-bold text-black">
                 {offers.filter(o => o.status === 'active').length}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">67%</span>
+            <span className="text-gray-400 text-xs">active rate</span>
           </div>
         </div>
 
-        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-          <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-orange-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <Users className="w-6 h-6 text-orange-500" />
+            </div>
             <div>
-              <p className="text-sm text-orange-600 font-medium">Total Usage</p>
-              <p className="text-2xl font-bold text-orange-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Usage</div>
+              <div className="text-xl font-bold text-black">
                 {offers.reduce((sum, offer) => sum + offer.totalUsage, 0)}
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+15%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
 
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-purple-600" />
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <DollarSign className="w-6 h-6 text-purple-500" />
+            </div>
             <div>
-              <p className="text-sm text-purple-600 font-medium">Avg. Discount</p>
-              <p className="text-2xl font-bold text-purple-800">
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Avg. Discount</div>
+              <div className="text-xl font-bold text-black">
                 {offers.length > 0 ? 
                   Math.round(offers.reduce((sum, offer) => sum + offer.discountValue, 0) / offers.length) : 0
                 }%
-              </p>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">+5%</span>
+            <span className="text-gray-400 text-xs">from last month</span>
           </div>
         </div>
       </div>
@@ -239,8 +274,16 @@ export default function OfferManagement() {
             </thead>
             <tbody>
               {offers.map((offer) => (
-                <tr key={offer.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
+                <tr 
+                  key={offer.id} 
+                  className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer ${
+                    selectedOffers.includes(offer.id) 
+                      ? 'bg-blue-50' 
+                      : ''
+                  }`}
+                  onClick={(e) => handleRowClick(offer.id, e)}
+                >
+                  <td className="py-4 px-4">
                     <button
                       onClick={() => handleOfferSelect(offer.id)}
                       className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
@@ -257,14 +300,14 @@ export default function OfferManagement() {
                     </button>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div>
                       <div className="font-medium text-black">{offer.name}</div>
                       <div className="text-xs text-gray-500">Created: {new Date(offer.createdAt).toLocaleDateString()}</div>
                     </div>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div className="flex flex-col gap-1">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeBadge(offer.type)}`}>
                         {offer.type}
@@ -275,7 +318,7 @@ export default function OfferManagement() {
                     </div>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div className="font-medium text-black">
                       {offer.discountType === 'percentage' 
                         ? `${offer.discountValue}%` 
@@ -284,7 +327,7 @@ export default function OfferManagement() {
                     </div>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div>
                       <div className="font-medium text-black">{offer.totalUsage}</div>
                       {offer.maxUsage && (
@@ -293,14 +336,14 @@ export default function OfferManagement() {
                     </div>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div className="text-xs text-gray-600">
                       <div>{new Date(offer.startDate).toLocaleDateString()}</div>
                       <div>to {new Date(offer.endDate).toLocaleDateString()}</div>
                     </div>
                   </td>
                   
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(offer)}
@@ -315,13 +358,6 @@ export default function OfferManagement() {
                         title="Duplicate Offer"
                       >
                         <Copy className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(offer.id)}
-                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                        title="Delete Offer"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
