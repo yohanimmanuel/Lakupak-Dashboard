@@ -925,7 +925,7 @@ const FinancialAnalytics: React.FC = () => {
                         {product.category}
                       </td>
                       <td className="py-3 px-4 text-center text-black">
-                        {product.packagesSold.toLocaleString()} pckg ({product.unitsSold.toLocaleString()})
+                        {product.packagesSold.toLocaleString()}
                       </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
                        {utilsFormatCurrency(product.revenue, userCurrency)}
@@ -1526,7 +1526,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                 </span>
               </td>
               <td className="py-3 px-4 text-center text-gray-600">{product.category}</td>
-              <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()} pckg ({product.unitsSold.toLocaleString()})</td>
+              <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>

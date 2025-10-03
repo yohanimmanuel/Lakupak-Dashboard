@@ -1,36 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, Settings, BarChart3, Target, Package, Calendar } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
-import OfferManagement from '@/components/offersincentivesdisc/OfferManagement';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'management' | 'type' | 'products' | 'range'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('analytics');
 
   const tabs = [
-    { 
-      id: 'analytics', 
-      label: 'Analytics', 
-      icon: <BarChart3 className="w-5 h-5" />,
-      description: 'Performance metrics analysis'
-    },
-    { 
-      id: 'management', 
-      label: 'Management', 
-      icon: <Settings className="w-5 h-5" />,
-      description: 'Offer configuration and settings'
-    },
     { 
       id: 'type', 
       label: 'Offer Type', 
       icon: <Target className="w-5 h-5" />,
       description: 'Discount types and rules'
+    },
+    { 
+      id: 'range', 
+      label: 'Date Range', 
+      icon: <Calendar className="w-5 h-5" />,
+      description: 'Time periods and scheduling'
     },
     { 
       id: 'products', 
@@ -39,10 +32,10 @@ export default function OffersDetailsPage() {
       description: 'Product selection and targeting'
     },
     { 
-      id: 'range', 
-      label: 'Date Range', 
-      icon: <Calendar className="w-5 h-5" />,
-      description: 'Time periods and scheduling'
+      id: 'analytics', 
+      label: 'Analytics', 
+      icon: <BarChart3 className="w-5 h-5" />,
+      description: 'Performance metrics analysis'
     },
   ];
 
@@ -50,8 +43,6 @@ export default function OffersDetailsPage() {
     switch (activeTab) {
       case 'analytics':
         return <OfferAnalytics />;
-      case 'management':
-        return <OfferManagement />;
       case 'type':
         return <OfferType />;
       case 'products':

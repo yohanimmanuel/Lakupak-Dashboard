@@ -44,7 +44,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const [selectedTab, setSelectedTab] = useState("All");
   const [selectedStockFilter, setSelectedStockFilter] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   
   // Get dynamic category filters based on current products
   const categoryFilters = getCategoryFilters(products);
@@ -464,17 +464,6 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
            {/* View Toggle - Desktop Only */}
            <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
              <button
-               onClick={() => setViewMode('list')}
-               className={`p-2 rounded-md transition-colors ${
-                 viewMode === 'list' 
-                   ? 'bg-white text-[#0a61d7] shadow-sm' 
-                   : 'text-gray-500 hover:text-gray-700'
-               }`}
-               title="List View"
-             >
-               <List className="w-4 h-4" />
-             </button>
-             <button
                onClick={() => setViewMode('grid')}
                className={`p-2 rounded-md transition-colors ${
                  viewMode === 'grid' 
@@ -484,6 +473,17 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                title="Grid View"
              >
                <Grid3X3 className="w-4 h-4" />
+             </button>
+             <button
+               onClick={() => setViewMode('list')}
+               className={`p-2 rounded-md transition-colors ${
+                 viewMode === 'list' 
+                   ? 'bg-white text-[#0a61d7] shadow-sm' 
+                   : 'text-gray-500 hover:text-gray-700'
+               }`}
+               title="List View"
+             >
+               <List className="w-4 h-4" />
              </button>
            </div>
         </div>
@@ -1004,9 +1004,28 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </button>
                </div>
                
-               {/* Product Image Placeholder */}
-               <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                 <div className="text-gray-400 text-sm">Product Image</div>
+               {/* Product Image */}
+               <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                 {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
+                   <img 
+                     src={originalProduct.images[0]} 
+                     alt={product.name || 'Product Image'}
+                     className="w-full h-full object-cover rounded-lg"
+                     onError={(e) => {
+                       // Fallback to placeholder if image fails to load
+                       const target = e.target as HTMLImageElement;
+                       target.style.display = 'none';
+                       const placeholder = target.nextElementSibling as HTMLElement;
+                       if (placeholder) placeholder.style.display = 'flex';
+                     }}
+                   />
+                 ) : null}
+                 <div 
+                   className="text-gray-400 text-sm items-center justify-center w-full h-full"
+                   style={{ display: originalProduct && originalProduct.images && originalProduct.images.length > 0 ? 'none' : 'flex' }}
+                 >
+                   Product Image
+                 </div>
                </div>
                
                {/* Product Info */}
@@ -1182,9 +1201,28 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </button>
                </div>
                
-               {/* Product Image Placeholder */}
-               <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                 <div className="text-gray-400 text-xs">Product Image</div>
+               {/* Product Image */}
+               <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                 {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
+                   <img 
+                     src={originalProduct.images[0]} 
+                     alt={product.name || 'Product Image'}
+                     className="w-full h-full object-cover rounded-lg"
+                     onError={(e) => {
+                       // Fallback to placeholder if image fails to load
+                       const target = e.target as HTMLImageElement;
+                       target.style.display = 'none';
+                       const placeholder = target.nextElementSibling as HTMLElement;
+                       if (placeholder) placeholder.style.display = 'flex';
+                     }}
+                   />
+                 ) : null}
+                 <div 
+                   className="text-gray-400 text-xs items-center justify-center w-full h-full"
+                   style={{ display: originalProduct && originalProduct.images && originalProduct.images.length > 0 ? 'none' : 'flex' }}
+                 >
+                   Product Image
+                 </div>
                </div>
                
                {/* Product Info */}

@@ -1,19 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { Product } from '@/types/product';
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  brand: string;
-  price: number;
-  stock: number;
-  status: 'published' | 'draft';
-  hasOffer: boolean;
+interface ProductWithOffer extends Product {
+  hasOffer?: boolean;
   offerDiscount?: number;
   offerType?: 'percentage' | 'fixed';
 }
@@ -36,66 +30,43 @@ export default function ProductIntegration() {
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+  const [products, setProducts] = useState<ProductWithOffer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with actual API calls
-  const products: Product[] = [
-    {
-      id: '1',
-      name: 'Premium Coffee Beans',
-      category: 'Beverages',
-      brand: 'CoffeeMaster',
-      price: 250000,
-      stock: 150,
-      status: 'published',
-      hasOffer: true,
-      offerDiscount: 15,
-      offerType: 'percentage',
-    },
-    {
-      id: '2',
-      name: 'Organic Tea Leaves',
-      category: 'Beverages',
-      brand: 'TeaGarden',
-      price: 180000,
-      stock: 89,
-      status: 'published',
-      hasOffer: false,
-    },
-    {
-      id: '3',
-      name: 'Energy Drink',
-      category: 'Beverages',
-      brand: 'PowerUp',
-      price: 45000,
-      stock: 200,
-      status: 'published',
-      hasOffer: true,
-      offerDiscount: 5000,
-      offerType: 'fixed',
-    },
-    {
-      id: '4',
-      name: 'Mineral Water',
-      category: 'Beverages',
-      brand: 'PureWater',
-      price: 15000,
-      stock: 500,
-      status: 'published',
-      hasOffer: false,
-    },
-    {
-      id: '5',
-      name: 'Chocolate Bar',
-      category: 'Snacks',
-      brand: 'SweetTreat',
-      price: 35000,
-      stock: 120,
-      status: 'published',
-      hasOffer: true,
-      offerDiscount: 20,
-      offerType: 'percentage',
-    },
-  ];
+  // Fetch products from API
+  const fetchProducts = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/products?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Handle both old format (array) and new format (with pagination)
+        const productsData = data.products || data;
+        
+        // Transform products to include offer information
+        const productsWithOffers: ProductWithOffer[] = productsData.map((product: Product) => ({
+          ...product,
+          hasOffer: false, // TODO: Check if product has active offers
+          offerDiscount: undefined,
+          offerType: undefined,
+        }));
+        
+        setProducts(productsWithOffers);
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
   const brands = ['All Brands', ...Array.from(new Set(products.map(p => p.brand)))];
@@ -129,12 +100,12 @@ export default function ProductIntegration() {
     if (selectedProducts.length === filteredProducts.length) {
       setSelectedProducts([]);
     } else {
-      setSelectedProducts(filteredProducts.map(product => product.id));
+      setSelectedProducts(filteredProducts.map(product => product.productId));
     }
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'published':
         return 'bg-green-100 text-green-800 border border-green-200';
       case 'draft':
@@ -144,11 +115,27 @@ export default function ProductIntegration() {
     }
   };
 
-  const getStockStatus = (stock: number) => {
+  const getStockStatus = (product: ProductWithOffer) => {
+    const stock = product.stockQuantity;
+    const threshold = product.lowStockThreshold || 30;
+    
     if (stock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
-    if (stock < 50) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
+    if (threshold > 0 && stock <= threshold) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
     return { color: 'text-green-600', bg: 'bg-green-50', label: 'In Stock' };
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">
@@ -294,7 +281,37 @@ export default function ProductIntegration() {
       </div>
 
       {/* Products Display */}
-      {viewMode === 'grid' ? (
+      {filteredProducts.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchTerm || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands'
+              ? 'No products match your current filters. Try adjusting your search criteria.'
+              : 'You don\'t have any products yet. Create your first product to get started.'
+            }
+          </p>
+          {searchTerm || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' ? (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCategory('All Categories');
+                setSelectedBrand('All Brands');
+              }}
+              className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+            >
+              Clear Filters
+            </button>
+          ) : (
+            <button
+              onClick={() => window.location.href = '/products/add'}
+              className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+            >
+              Add Product
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
@@ -302,14 +319,14 @@ export default function ProductIntegration() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleProductSelect(product.id)}
+                      onClick={() => handleProductSelect(product.productId)}
                       className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                        selectedProducts.includes(product.id)
+                        selectedProducts.includes(product.productId)
                           ? 'bg-green-500 border-green-500'
                           : 'bg-white border-gray-300 hover:border-green-400'
                       }`}
                     >
-                      {selectedProducts.includes(product.id) && (
+                      {selectedProducts.includes(product.productId) && (
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </button>
@@ -332,22 +349,22 @@ export default function ProductIntegration() {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Price:</span>
-                    <span className="text-black font-medium">{formatCurrency(product.price, userCurrency)}</span>
+                    <span className="text-black font-medium">{formatCurrency(parseFloat(product.sellingPrice), userCurrency)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Stock:</span>
-                    <span className={`${getStockStatus(product.stock).color}`}>
-                      {product.stock} units
+                    <span className={`${getStockStatus(product).color}`}>
+                      {product.stockQuantity} units
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
-                    {product.status}
+                    {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
                   </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatus(product.stock).bg} ${getStockStatus(product.stock).color}`}>
-                    {getStockStatus(product.stock).label}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatus(product).bg} ${getStockStatus(product).color}`}>
+                    {getStockStatus(product).label}
                   </span>
                 </div>
               </div>
@@ -388,23 +405,23 @@ export default function ProductIntegration() {
                   <tr 
                     key={product.id} 
                     className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer ${
-                      selectedProducts.includes(product.id) 
+                      selectedProducts.includes(product.productId) 
                         ? 'bg-blue-50' 
                         : ''
                     }`}
-                    onClick={(e) => handleRowClick(product.id, e)}
+                    onClick={(e) => handleRowClick(product.productId, e)}
                   >
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => handleProductSelect(product.id)}
+                          onClick={() => handleProductSelect(product.productId)}
                           className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                            selectedProducts.includes(product.id)
+                            selectedProducts.includes(product.productId)
                               ? 'bg-green-500 border-green-500'
                               : 'bg-white border-gray-300 hover:border-green-400'
                           }`}
                         >
-                          {selectedProducts.includes(product.id) && (
+                          {selectedProducts.includes(product.productId) && (
                             <Check className="w-3 h-3 text-white" />
                           )}
                         </button>
@@ -416,16 +433,16 @@ export default function ProductIntegration() {
                     <td className="py-4 px-4 text-gray-700">{product.category}</td>
                     <td className="py-4 px-4 text-gray-700">{product.brand}</td>
                     <td className="py-4 px-4 text-gray-700 font-medium">
-                      {formatCurrency(product.price, userCurrency)}
+                      {formatCurrency(parseFloat(product.sellingPrice), userCurrency)}
                     </td>
                     <td className="py-4 px-4">
-                      <span className={`${getStockStatus(product.stock).color}`}>
-                        {product.stock}
+                      <span className={`${getStockStatus(product).color}`}>
+                        {product.stockQuantity}
                       </span>
                     </td>
                     <td className="py-4 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
-                        {product.status}
+                        {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
                       </span>
                     </td>
                     <td className="py-4 px-4">

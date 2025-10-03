@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Archive } from "lucide-react";
+import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Archive, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong, formatNumber } from '@/utils/dateUtils';
@@ -89,6 +89,7 @@ export default function OrdersTable({
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // stores orderId values
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Handle tab indicator animation
   useLayoutEffect(() => {
@@ -196,6 +197,32 @@ export default function OrdersTable({
     } catch {}
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      // Only delete cancelled orders from the selection
+      const cancelledOrders = selectedOrders.filter(orderId => {
+        const order = pagedOrders.find(o => o.orderId === orderId);
+        return order?.orderStatus === 'Cancelled';
+      });
+      
+      const successes: string[] = [];
+      for (const orderId of cancelledOrders) {
+        const res = await fetch('/api/orders', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        if (res.ok) successes.push(orderId);
+      }
+      if (successes.length > 0 && setOrders) {
+        setOrders(prev => prev.filter(o => !successes.includes(o.orderId)));
+      }
+      setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
+      setShowDeleteModal(false);
+    } catch {}
+  };
+
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -299,6 +326,18 @@ export default function OrdersTable({
             >
               <Archive className="w-4 h-4" /> Archive Orders
             </button>
+            {/* Show delete button when cancelled orders are selected (even with mixed statuses) */}
+            {selectedOrders.some(orderId => {
+              const order = pagedOrders.find(o => o.orderId === orderId);
+              return order?.orderStatus === 'Cancelled';
+            }) && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash className="w-4 h-4" /> Delete Cancelled
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -513,6 +552,44 @@ export default function OrdersTable({
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (() => {
+        const cancelledCount = selectedOrders.filter(orderId => {
+          const order = pagedOrders.find(o => o.orderId === orderId);
+          return order?.orderStatus === 'Cancelled';
+        }).length;
+        
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+              <h2 className="text-lg font-bold mb-2 text-red-500">
+                Delete Cancelled Orders
+              </h2>
+              <p className="mb-4 text-gray-500">
+                Are you sure you want to permanently delete {cancelledCount} cancelled order{cancelledCount === 1 ? '' : 's'}? This action cannot be undone.
+              </p>
+            <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+              <strong>Warning:</strong> This will permanently remove the orders from the system.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                onClick={handleBulkDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }
