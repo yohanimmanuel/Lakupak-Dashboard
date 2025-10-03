@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
 import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 
 const statusTabs = [
   { label: "All" },
@@ -786,8 +787,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   )}
                 </td>
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
-                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(buyer.totalSpend)) || 0, userCurrency)}</td>
-                <td className="py-3 px-4 text-[#f65911] font-semibold">{formatCurrency(parseFloat(String(buyer.outstanding)) || 0, userCurrency)}</td>
+                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</td>
+                <td className="py-3 px-4 text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-black">{String(buyer.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>
@@ -965,8 +966,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
               <div className="text-xs text-gray-500">Business Type: <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : 'Missing Business Type'}</span></div>
             <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
-            <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(buyer.totalSpend)) || 0, userCurrency)}</span></div>
-            <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{formatCurrency(parseFloat(String(buyer.outstanding)) || 0, userCurrency)}</span></div>
+            <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</span></div>
+            <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>

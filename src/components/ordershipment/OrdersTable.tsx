@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
 
 const statusTabs = [
@@ -409,7 +410,7 @@ export default function OrdersTable({
                      {order.orderStatus}
                    </span>
                  </td>
-                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), userCurrency)}</td>
+                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
                  <td className="py-3 px-4 text-black">{order.deliveryMethod}</td>
                  <td className="py-3 px-4 text-black">{order.trackingNumber || 'N/A'}</td>
@@ -505,7 +506,7 @@ export default function OrdersTable({
               </div>
                              <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
                <div className="text-xs text-gray-500">Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{order.orderStatus}</span></div>
-                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(order.totalAmount), userCurrency)}</span></div>
+                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</span></div>
                <div className="text-xs text-gray-500">Items: <span className="text-black font-medium">{order.items}</span></div>
                <div className="text-xs text-gray-500">Delivery: <span className="text-black font-medium">{order.deliveryMethod}</span></div>
                <div className="text-xs text-gray-500">Tracking: <span className="text-black font-medium">{order.trackingNumber || 'N/A'}</span></div>

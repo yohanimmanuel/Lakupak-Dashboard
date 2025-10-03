@@ -83,7 +83,7 @@ export default function OffersDetailsPage() {
               className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-50'
+                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
               }`}
             >
               {tab.icon}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
 
@@ -142,13 +143,13 @@ export default function ProductIntegration() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">Product Integration</h2>
+          <h2 className="text-xl font-bold text-black">Your Products</h2>
           <p className="text-gray-500 text-sm">Select products for offers and discounts</p>
         </div>
         {selectedProducts.length > 0 && (
           <button
             onClick={() => setShowOfferModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
           >
             <Plus className="w-4 h-4" />
             Apply Offer ({selectedProducts.length})
@@ -349,7 +350,9 @@ export default function ProductIntegration() {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Price:</span>
-                    <span className="text-black font-medium">{formatCurrency(parseFloat(product.sellingPrice), userCurrency)}</span>
+                    <span className="text-black font-medium">
+                      {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Stock:</span>
@@ -377,7 +380,7 @@ export default function ProductIntegration() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">
+                  <th className="py-3 px-4 font-medium text-xs uppercase text-gray-500">
                     <button
                       onClick={handleSelectAll}
                       className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
@@ -394,25 +397,24 @@ export default function ProductIntegration() {
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Product</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Category</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Brand</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Price</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Stock</th>
+                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">Price</th>
+                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">Stock</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Offer</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.map((product) => (
                   <tr 
                     key={product.id} 
-                    className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer ${
+                    className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer whitespace-nowrap${
                       selectedProducts.includes(product.productId) 
                         ? 'bg-blue-50' 
                         : ''
                     }`}
                     onClick={(e) => handleRowClick(product.productId, e)}
                   >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
+                    <td className="w-12 py-4 px-4">
+                      <div className="flex items-center justify-center">
                         <button
                           onClick={() => handleProductSelect(product.productId)}
                           className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
@@ -425,34 +427,34 @@ export default function ProductIntegration() {
                             <Check className="w-3 h-3 text-white" />
                           )}
                         </button>
-                        <div>
-                          <div className="font-medium text-black">{product.name}</div>
-                        </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-gray-700">{product.category}</td>
-                    <td className="py-4 px-4 text-gray-700">{product.brand}</td>
-                    <td className="py-4 px-4 text-gray-700 font-medium">
-                      {formatCurrency(parseFloat(product.sellingPrice), userCurrency)}
+                    <td className="py-4 px-4 text-gray-700">
+                      <div className="font-medium text-black truncate">{product.name}</div>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 text-gray-700 truncate">{product.category}</td>
+                    <td className="py-4 px-4 text-gray-700 truncate">{product.brand}</td>
+                    <td className="py-4 px-4 text-gray-700 font-medium text-right">
+                      {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
+                    </td>
+                    <td className="py-4 px-4 text-right">
                       <span className={`${getStockStatus(product).color}`}>
                         {product.stockQuantity}
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
-                        {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      {product.hasOffer ? (
-                        <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
-                          {product.offerType === 'percentage' ? `${product.offerDiscount}%` : formatCurrency(product.offerDiscount!, userCurrency)}
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
+                          {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
                         </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No offer</span>
-                      )}
+                        {product.hasOffer ? (
+                          <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                            {product.offerType === 'percentage' ? `${product.offerDiscount}%` : formatCurrency(product.offerDiscount!, userCurrency)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">No offer</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

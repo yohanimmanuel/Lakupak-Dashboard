@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import OrdersCards from '@/components/ordershipment/OrdersCards';
 import OrdersGPS from '@/components/ordershipment/OrdersGPS';
 import OrdersTable from '@/components/ordershipment/OrdersTable';
@@ -106,7 +107,7 @@ export default function OrdersPage() {
       orderDate: new Date(order.orderDate).toISOString(), // Convert string to Date first
       orderStatus: order.orderStatus,
       paymentStatus: order.paymentStatus,
-      totalAmount: calculateOrderTotalAmount(order).toFixed(2),
+      totalAmount: order.totalAmount.toString(),
  // Use user's currency instead of order's
       items: `${order.orderItems.length} items`,
       deliveryMethod: order.deliveryMethod,
@@ -284,7 +285,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-sm font-semibold text-[#0a61d7]">
-                            {formatCurrency(Number(o.totalAmount), userCurrency)}
+                            {formatCurrency(parseNumberByCurrency(String(o.totalAmount), userCurrency), userCurrency)}
                           </div>
                           <button
                             onClick={() => window.location.href = `/orders/details/${o.orderId}`}

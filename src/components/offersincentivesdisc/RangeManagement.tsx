@@ -146,13 +146,13 @@ export default function RangeManagement() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 bg-white rounded-lg border border-gray-200 p-1">
+      <div className="flex gap-1">
         <button
           onClick={() => setActiveTab('date')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
             activeTab === 'date'
               ? 'bg-[#0a61d7] text-white'
-              : 'text-gray-600 hover:text-black hover:bg-gray-50'
+              : 'text-gray-600 hover:text-black hover:bg-gray-100'
           }`}
         >
           <Calendar className="w-4 h-4" />
@@ -163,7 +163,7 @@ export default function RangeManagement() {
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
             activeTab === 'time'
               ? 'bg-[#0a61d7] text-white'
-              : 'text-gray-600 hover:text-black hover:bg-gray-50'
+              : 'text-gray-600 hover:text-black hover:bg-gray-100'
           }`}
         >
           <Clock className="w-4 h-4" />

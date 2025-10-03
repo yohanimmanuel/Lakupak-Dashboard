@@ -338,10 +338,10 @@ export default function ProductMarketplacePubs({
             <div className="mb-3">
               <div className="flex items-center gap-3">
                 <span className="text-2xl font-bold text-[#0a61d7]">
-                  {formatCurrency(150000, userCurrency)}
+                  {formatCurrency(15000, userCurrency)}
                 </span>
                 <span className="text-lg text-gray-500 line-through">
-                  {formatCurrency(200000, userCurrency)}
+                  {formatCurrency(20000, userCurrency)}
                 </span>
                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded">
                   -25%
@@ -350,7 +350,7 @@ export default function ProductMarketplacePubs({
               
               
               <div className="text-xs text-gray-500 mt-1">
-                Free shipping for orders above {formatCurrency(500000, userCurrency)}
+                Free shipping for orders above {formatCurrency(50000, userCurrency)}
               </div>
             </div>
 
@@ -383,7 +383,7 @@ export default function ProductMarketplacePubs({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Price per Package:</span>
-                <span className="text-sm font-medium text-gray-900">{formatCurrency(1500000, userCurrency)}</span>
+                <span className="text-sm font-medium text-gray-900">{formatCurrency(150000, userCurrency)}</span>
               </div>
             </div>
 

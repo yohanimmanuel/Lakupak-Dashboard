@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
 import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -583,7 +584,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                       )}
                     </td>
                 <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
-                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supplier.totalPurchases)) || 0, userCurrency)}</td>
+                <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
@@ -751,7 +752,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 )}
               </span></div>
             <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
-            <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supplier.totalPurchases)) || 0, userCurrency)}</span></div>
+            <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>

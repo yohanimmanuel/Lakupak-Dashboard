@@ -1085,13 +1085,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Package Information */}
                  <div className="text-xs text-gray-500 mt-1">
                    <div className="flex items-center gap-1">
-                     <span>Per Carton:</span>
+                     <span>Per {product.packageType}:</span>
                      <span className="font-medium text-gray-700">
-                       {formatCurrency(1500000, userCurrency)}
+                       {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
                      </span>
                    </div>
                    <div className="text-xs text-gray-400">
-                     10 pieces
+                     {product.piecesPerPackage} pieces
                    </div>
                  </div>
                  
@@ -1282,13 +1282,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Package Information */}
                  <div className="text-xs text-gray-500 mt-1">
                    <div className="flex items-center gap-1">
-                     <span>Per Carton:</span>
+                     <span>Per {product.packageType}:</span>
                      <span className="font-medium text-gray-700">
-                       {formatCurrency(1500000, userCurrency)}
+                       {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
                      </span>
                    </div>
                    <div className="text-xs text-gray-400">
-                     10 pieces
+                     {product.piecesPerPackage} pieces
                    </div>
                  </div>
                  

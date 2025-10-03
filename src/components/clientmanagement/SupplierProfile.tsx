@@ -10,6 +10,7 @@ import ImportSuppliesModal from './ImportSuppliesModal';
 import { Supplier, SupplyDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 
 function getSupplierAnalytics(suppliesStr: string) {
@@ -30,7 +31,7 @@ function getSupplierAnalytics(suppliesStr: string) {
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const totalSupplied = Number(supply.totalSupplied) || 0;
       // Remove non-numeric from totalValue (e.g. 'Rp 60,000,000')
-      const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
+      const value = Number((supply.totalValue || '').toString().replace(/[^\d]/g, ''));
       
       if (!map[monthKey]) {
         map[monthKey] = { supplied: 0, value: 0, date: new Date(date.getFullYear(), date.getMonth(), 1) };
@@ -419,7 +420,7 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
                   <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.product)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(supply.totalValue).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supply.totalValue), userCurrency), userCurrency)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.lastDelivery)}</td>
                 </tr>
               ))}
@@ -610,10 +611,10 @@ export default function SupplierProfile({ supplier, onClose }: { supplier: Suppl
                   fontWeight={500}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => formatCurrency(value * 1000000, userCurrency)}
+                  tickFormatter={(value) => formatCurrency(value, userCurrency)}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [formatCurrency(Number(value) * 1000000, userCurrency), 'Value']}
+                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), 'Value']}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,

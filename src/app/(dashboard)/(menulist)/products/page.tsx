@@ -125,6 +125,8 @@ export default function ProductsPage() {
     lowStockThreshold: product.lowStockThreshold || 30,
     purchasePrice: product.purchasePrice,
     sellingPrice: product.sellingPrice,
+    packageType: product.packageType,
+    piecesPerPackage: product.piecesPerPackage,
     
     status: product.status,
     createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',

@@ -11,6 +11,7 @@ import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 
 function getBuyerAnalytics(orderDetailsStr: string) {
@@ -31,7 +32,7 @@ function getBuyerAnalytics(orderDetailsStr: string) {
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const totalOrders = Number(order.totalOrders) || 0;
       // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
-      const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, '')) / 1_000_000;
+      const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, ''));
       
       if (!map[monthKey]) {
         map[monthKey] = { orders: 0, spending: 0, date: new Date(date.getFullYear(), date.getMonth(), 1) };
@@ -521,9 +522,9 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">{order.product}</td>
                   <td className="py-4 px-4 text-black">{order.totalOrders}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseFloat(String(order.totalSpend).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalSpend), userCurrency), userCurrency)}</td>
                   <td className="py-4 px-4 text-black">{order.lastOrderDate}</td>
-                  <td className="py-4 px-4 text-[#f65911] font-semibold">{formatCurrency(parseFloat(String(order.outstanding).replace(/[^\d]/g, '')) || 0, userCurrency)}</td>
+                  <td className="py-4 px-4 text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.outstanding), userCurrency), userCurrency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -716,10 +717,10 @@ export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose
                   fontWeight={500}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => formatCurrency(value * 1000000, userCurrency)}
+                  tickFormatter={(value) => formatCurrency(value, userCurrency)}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [formatCurrency(Number(value) * 1000000, userCurrency), 'Spending']}
+                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), 'Spending']}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,
