@@ -5,6 +5,10 @@ import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, Trendi
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
+interface OfferTypeProps {
+  isNewOffer?: boolean;
+}
+
 interface OfferType {
   id: string;
   name: string;
@@ -19,7 +23,7 @@ interface OfferType {
   createdAt: string;
 }
 
-export default function OfferType() {
+export default function OfferType({ isNewOffer = false }: OfferTypeProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -106,6 +110,39 @@ export default function OfferType() {
     // Implement toggle active functionality
     console.log('Toggle active for type:', typeId);
   };
+
+  // New offer state - show create button and form
+  if (isNewOffer) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-black">Offer Type Configuration</h2>
+            <p className="text-gray-500 text-sm">Configure the discount or promotion type for your new offer</p>
+          </div>
+        </div>
+
+        {/* Empty State with Create Button */}
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Offer Type Configured</h3>
+          <p className="text-gray-500 text-sm mb-4">
+            Create an offer type to define the discount or promotion rules for your offer.
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Create Type
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">

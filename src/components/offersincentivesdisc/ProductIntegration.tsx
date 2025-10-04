@@ -7,6 +7,10 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
 
+interface ProductIntegrationProps {
+  isNewOffer?: boolean;
+}
+
 interface ProductWithOffer extends Product {
   hasOffer?: boolean;
   offerDiscount?: number;
@@ -20,7 +24,7 @@ interface OfferProduct {
   isActive: boolean;
 }
 
-export default function ProductIntegration() {
+export default function ProductIntegration({ isNewOffer = false }: ProductIntegrationProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,8 +147,12 @@ export default function ProductIntegration() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">Your Products</h2>
-          <p className="text-gray-500 text-sm">Select products for offers and discounts</p>
+          <h2 className="text-xl font-bold text-black">
+            {isNewOffer ? 'Select Products for Offer' : 'Your Products'}
+          </h2>
+          <p className="text-gray-500 text-sm">
+            {isNewOffer ? 'Choose which products to include in your new offer' : 'Select products for offers and discounts'}
+          </p>
         </div>
         {selectedProducts.length > 0 && (
           <button

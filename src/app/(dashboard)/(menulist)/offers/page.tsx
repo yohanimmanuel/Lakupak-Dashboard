@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Gift, Plus, Calendar } from 'lucide-react';
+import { Gift, Plus, Calendar, Download } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
+import { useRouter } from 'next/navigation';
 
 interface Offer {
   id: string;
@@ -27,6 +28,7 @@ interface Offer {
 }
 
 export default function OffersPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'discounts' | 'promotions'>('all');
   const [offers, setOffers] = useState<Offer[]>([]); // Will be populated from API
 
@@ -97,10 +99,13 @@ export default function OffersPage() {
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm">
-            <Calendar className="w-4 h-4" />
-            Export
+            <Download className="w-4 h-4" />
+            Export Data
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm">
+          <button 
+            onClick={() => router.push('/offers/new')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+          >
             <Plus className="w-4 h-4" />
             Create Offer
           </button>

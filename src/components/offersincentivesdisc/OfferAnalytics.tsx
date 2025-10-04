@@ -5,6 +5,10 @@ import { BarChart3, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Targe
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
+interface OfferAnalyticsProps {
+  isNewOffer?: boolean;
+}
+
 interface AnalyticsData {
   totalOffers: number;
   activeOffers: number;
@@ -28,7 +32,7 @@ interface AnalyticsData {
   };
 }
 
-export default function OfferAnalytics() {
+export default function OfferAnalytics({ isNewOffer = false }: OfferAnalyticsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
@@ -64,6 +68,35 @@ export default function OfferAnalytics() {
     { value: '90d', label: 'Last 90 Days' },
     { value: '1y', label: 'Last Year' },
   ];
+
+  // Empty state for new offers
+  if (isNewOffer) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-black">Offer Analytics</h2>
+            <p className="text-gray-500 text-sm">Analytics will be available after the offer is created and active</p>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Analytics Yet</h3>
+          <p className="text-gray-500 text-sm mb-4">
+            Analytics data will appear here once your offer is created and starts receiving redemptions.
+          </p>
+          <div className="text-xs text-gray-400">
+            You'll be able to track performance metrics, redemption trends, and offer effectiveness.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">

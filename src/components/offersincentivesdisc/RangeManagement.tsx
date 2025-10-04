@@ -3,6 +3,10 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 
+interface RangeManagementProps {
+  isNewOffer?: boolean;
+}
+
 interface DateRange {
   id: string;
   name: string;
@@ -24,7 +28,7 @@ interface TimeSlot {
   offerCount: number;
 }
 
-export default function RangeManagement() {
+export default function RangeManagement({ isNewOffer = false }: RangeManagementProps) {
   const [activeTab, setActiveTab] = useState<'date' | 'time'>('date');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -127,6 +131,74 @@ export default function RangeManagement() {
     // Implement toggle active functionality
     console.log('Toggle active for range:', id);
   };
+
+  // New offer state - show create button and form
+  if (isNewOffer) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-black">Date & Time Range</h2>
+            <p className="text-gray-500 text-sm">Set the active period for your new offer</p>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('date')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
+              activeTab === 'date'
+                ? 'bg-[#0a61d7] text-white'
+                : 'text-gray-600 hover:text-black hover:bg-gray-100'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            Date Ranges
+          </button>
+          <button
+            onClick={() => setActiveTab('time')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium transition-colors ${
+              activeTab === 'time'
+                ? 'bg-[#0a61d7] text-white'
+                : 'text-gray-600 hover:text-black hover:bg-gray-100'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Time Slots
+          </button>
+        </div>
+
+        {/* Empty State with Create Button */}
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            {activeTab === 'date' ? (
+              <Calendar className="w-8 h-8 text-gray-400" />
+            ) : (
+              <Clock className="w-8 h-8 text-gray-400" />
+            )}
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {activeTab === 'date' ? 'No Date Range Configured' : 'No Time Slots Configured'}
+          </h3>
+          <p className="text-gray-500 text-sm mb-4">
+            {activeTab === 'date' 
+              ? 'Create a date range to define when your offer will be active.'
+              : 'Create time slots to define specific hours when your offer will be available.'
+            }
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
+          >
+            <Plus className="w-4 h-4" />
+            {activeTab === 'date' ? 'Create Date Range' : 'Create Time Slot'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">
