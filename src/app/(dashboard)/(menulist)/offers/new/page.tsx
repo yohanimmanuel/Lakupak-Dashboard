@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
@@ -101,7 +101,7 @@ export default function CreateOfferPage() {
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4" />
                 Create Offer
               </>
             )}

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Trash } from 'lucide-react';
+import { Trash, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
@@ -232,10 +232,33 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative">
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2">{mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}</h2>
-        <form className="flex flex-col gap-2 overflow-y-auto max-h-[70vh] hide-scrollbar">
+      <div className="bg-white rounded-lg shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
+        <button
+          type="button"
+          className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-[#0a61d7] rounded-lg flex items-center justify-center">
+            <User className="w-5 h-5 text-white" />
+          </div>
           <div>
+            <h2 className="text-xl font-bold text-black">
+              {mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}
+            </h2>
+            <p className="text-gray-500 text-sm">
+              {mode === 'edit' ? 'Update supplier information and settings' : 'Create a new supplier profile'}
+            </p>
+          </div>
+        </div>
+        <div className="border-b border-gray-200 -mx-6"></div>
+        <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar">
+          <div className="mt-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id} onChange={e => setId(e.target.value)} required disabled />
           </div>
@@ -341,13 +364,17 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
               <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder="e.g. 97" />
             </div>
           </div>
-          <div>
+          <div className="mb-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span></label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Reliable partner, Quick response" />
           </div>
           {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
         </form>
-        <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
+        {/* Footer Border */}
+        <div className="border-t border-gray-200 -mx-6"></div>
+        
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 mt-4 text-sm">
             <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={onClose} disabled={saving}>Cancel</button>
             <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center" onClick={handleSubmit} disabled={saving}>
               {saving ? <span className="loader mr-2"></span> : null}Save

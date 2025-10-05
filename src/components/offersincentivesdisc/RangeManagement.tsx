@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import CreateDateRangeModal from './CreateDateRangeModal';
+import CreateTimeSlotModal from './CreateTimeSlotModal';
 
 interface RangeManagementProps {
   isNewOffer?: boolean;
@@ -475,31 +477,41 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
         </div>
       )}
 
-      {/* Create/Edit Modal Placeholder */}
-      {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-black">
-                {showCreateModal ? `Create New ${activeTab === 'date' ? 'Date Range' : 'Time Slot'}` : 
-                 `Edit ${activeTab === 'date' ? 'Date Range' : 'Time Slot'}`}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setShowEditModal(false);
-                  setEditingRange(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            <div className="text-gray-500 text-center py-8">
-              {activeTab === 'date' ? 'Date range' : 'Time slot'} creation/edit form will be implemented here
-            </div>
-          </div>
-        </div>
+      {/* Create/Edit Modals */}
+      {activeTab === 'date' && (showCreateModal || showEditModal) && (
+        <CreateDateRangeModal
+          isOpen={showCreateModal || showEditModal}
+          onClose={() => {
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
+          }}
+          editingRange={editingRange}
+          onSave={(rangeData) => {
+            console.log('Save date range:', rangeData);
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
+          }}
+        />
+      )}
+
+      {activeTab === 'time' && (showCreateModal || showEditModal) && (
+        <CreateTimeSlotModal
+          isOpen={showCreateModal || showEditModal}
+          onClose={() => {
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
+          }}
+          editingSlot={editingRange}
+          onSave={(slotData) => {
+            console.log('Save time slot:', slotData);
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
+          }}
+        />
       )}
     </div>
   );

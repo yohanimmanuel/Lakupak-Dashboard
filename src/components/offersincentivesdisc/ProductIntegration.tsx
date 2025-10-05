@@ -323,7 +323,19 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div 
+              key={product.id} 
+              className={`bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${
+                selectedProducts.includes(product.productId) 
+                  ? 'ring-2 ring-blue-500 border-blue-500' 
+                  : ''
+              }`}
+              onClick={(e) => {
+                if (!(e.target as HTMLElement).closest('button')) {
+                  handleProductSelect(product.productId);
+                }
+              }}
+            >
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">

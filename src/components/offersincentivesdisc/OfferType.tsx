@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface OfferTypeProps {
   isNewOffer?: boolean;
@@ -315,30 +316,23 @@ export default function OfferType({ isNewOffer = false }: OfferTypeProps) {
         ))}
       </div>
 
-      {/* Create/Edit Modal Placeholder */}
+      {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-black">
-                {showCreateModal ? 'Create New Offer Type' : 'Edit Offer Type'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setShowEditModal(false);
-                  setEditingType(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ×
-              </button>
-            </div>
-            <div className="text-gray-500 text-center py-8">
-              Offer type creation/edit form will be implemented here
-            </div>
-          </div>
-        </div>
+        <CreateOfferTypeModal
+          isOpen={showCreateModal || showEditModal}
+          onClose={() => {
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingType(null);
+          }}
+          editingType={editingType}
+          onSave={(typeData) => {
+            console.log('Save offer type:', typeData);
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingType(null);
+          }}
+        />
       )}
     </div>
   );
