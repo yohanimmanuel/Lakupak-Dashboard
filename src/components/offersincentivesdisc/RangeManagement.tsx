@@ -105,9 +105,8 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    if (!isActive) return { status: 'inactive', color: 'text-gray-600', bg: 'bg-gray-100', icon: AlertCircle };
+    if (!isActive || now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
     if (now < start) return { status: 'upcoming', color: 'text-blue-600', bg: 'bg-blue-100', icon: Clock };
-    if (now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
     return { status: 'active', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle };
   };
 
@@ -356,7 +355,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                           ? 'bg-green-500 border-green-500' 
                           : 'bg-white border-gray-300'
                       }`}
-                      title={range.isActive ? 'Active' : 'Inactive'}
+                      title={range.isActive ? 'Active' : 'Expired'}
                     />
                   </div>
 
@@ -424,10 +423,10 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                       {slot.isActive ? (
                         <CheckCircle className="w-4 h-4 text-green-600" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-gray-600" />
+                        <AlertCircle className="w-4 h-4 text-red-600" />
                       )}
-                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                        {slot.isActive ? 'Active' : 'Inactive'}
+                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                        {slot.isActive ? 'Active' : 'Expired'}
                       </span>
                     </div>
                   </div>
@@ -438,7 +437,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                         ? 'bg-green-500 border-green-500' 
                         : 'bg-white border-gray-300'
                     }`}
-                    title={slot.isActive ? 'Active' : 'Inactive'}
+                    title={slot.isActive ? 'Active' : 'Expired'}
                   />
                 </div>
 

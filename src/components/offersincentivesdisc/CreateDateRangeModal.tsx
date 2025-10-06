@@ -24,6 +24,7 @@ export default function CreateDateRangeModal({
   onSave 
 }: CreateDateRangeModalProps) {
   const [saving, setSaving] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [formData, setFormData] = useState<DateRangeData>({
     name: '',
     description: '',
@@ -59,6 +60,10 @@ export default function CreateDateRangeModal({
       ...prev,
       [field]: value
     }));
+    // Clear selected preset when manually changing dates
+    if (field === 'startDate' || field === 'endDate') {
+      setSelectedPreset(null);
+    }
   };
 
   const handleSave = async () => {
@@ -219,20 +224,28 @@ export default function CreateDateRangeModal({
                 { label: '2 Weeks', days: 14 },
                 { label: '1 Month', days: 30 },
                 { label: '3 Months', days: 90 }
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  onClick={() => {
-                    const start = new Date(formData.startDate);
-                    const end = new Date(start);
-                    end.setDate(start.getDate() + preset.days);
-                    handleInputChange('endDate', end.toISOString().split('T')[0]);
-                  }}
-                  className="px-3 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-black transition-colors"
-                >
-                  {preset.label}
-                </button>
-              ))}
+              ].map((preset) => {
+                const isSelected = selectedPreset === preset.label;
+                return (
+                  <button
+                    key={preset.label}
+                    onClick={() => {
+                      const start = new Date(formData.startDate);
+                      const end = new Date(start);
+                      end.setDate(start.getDate() + preset.days);
+                      handleInputChange('endDate', end.toISOString().split('T')[0]);
+                      setSelectedPreset(preset.label);
+                    }}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                      isSelected
+                        ? 'border-2 border-[#0a61d7] bg-blue-50 text-[#0a61d7]'
+                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-black'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

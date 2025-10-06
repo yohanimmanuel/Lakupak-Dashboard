@@ -13,7 +13,7 @@ interface Offer {
   name: string;
   description: string;
   type: 'discount' | 'promotion';
-  status: 'active' | 'inactive' | 'expired';
+  status: 'active' | 'expired';
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minOrderValue?: number;
@@ -45,7 +45,6 @@ interface OfferTableRow {
 const statusTabs = [
   { label: "All" },
   { label: "Active" },
-  { label: "Inactive" },
   { label: "Expired" },
 ];
 
@@ -480,8 +479,6 @@ export default function OfferTable({
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                     row.status === 'Active' 
                       ? 'bg-green-100 text-green-800'
-                      : row.status === 'Inactive'
-                      ? 'bg-gray-100 text-gray-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
                     {row.status}

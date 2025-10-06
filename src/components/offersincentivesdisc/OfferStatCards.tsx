@@ -9,7 +9,7 @@ interface Offer {
   id: string;
   name: string;
   type: 'discount' | 'promotion';
-  status: 'active' | 'inactive' | 'expired';
+  status: 'active' | 'expired';
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   startDate: string;

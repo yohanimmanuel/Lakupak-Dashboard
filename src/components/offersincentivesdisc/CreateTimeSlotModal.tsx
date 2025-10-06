@@ -43,6 +43,8 @@ export default function CreateTimeSlotModal({
   onSave 
 }: CreateTimeSlotModalProps) {
   const [saving, setSaving] = useState(false);
+  const [selectedTimePreset, setSelectedTimePreset] = useState<string | null>(null);
+  const [selectedDayPreset, setSelectedDayPreset] = useState<string | null>(null);
   const [formData, setFormData] = useState<TimeSlotData>({
     name: '',
     startTime: '09:00',
@@ -73,6 +75,13 @@ export default function CreateTimeSlotModal({
       ...prev,
       [field]: value
     }));
+    // Clear selected presets when manually changing time or days
+    if (field === 'startTime' || field === 'endTime') {
+      setSelectedTimePreset(null);
+    }
+    if (field === 'days') {
+      setSelectedDayPreset(null);
+    }
   };
 
   const handleDayToggle = (day: string) => {
@@ -218,18 +227,26 @@ export default function CreateTimeSlotModal({
           <div className="space-y-2">
             <h4 className="text-md font-semibold text-black">Quick Time Presets</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {TIME_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  onClick={() => {
-                    handleInputChange('startTime', preset.start);
-                    handleInputChange('endTime', preset.end);
-                  }}
-                  className="px-3 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-black transition-colors"
-                >
-                  {preset.label}
-                </button>
-              ))}
+              {TIME_PRESETS.map((preset) => {
+                const isSelected = selectedTimePreset === preset.label;
+                return (
+                  <button
+                    key={preset.label}
+                    onClick={() => {
+                      handleInputChange('startTime', preset.start);
+                      handleInputChange('endTime', preset.end);
+                      setSelectedTimePreset(preset.label);
+                    }}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                      isSelected
+                        ? 'border-2 border-[#0a61d7] bg-blue-50 text-[#0a61d7]'
+                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-black'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

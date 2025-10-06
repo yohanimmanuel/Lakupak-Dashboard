@@ -120,7 +120,7 @@ export default function CreateOfferTypeModal({
     {
       value: 'buy_x_get_y',
       label: 'Buy X Get Y',
-      description: 'Buy certain quantity, get items free',
+      description: 'Buy certain quantity, get packages free',
       icon: <Gift className="w-5 h-5" />,
       color: 'border-purple-200 bg-purple-50',
       textColor: 'text-purple-700'
@@ -228,7 +228,7 @@ export default function CreateOfferTypeModal({
               <label className="block text-xs font-medium text-black mb-1">
                 {formData.discountType === 'percentage' ? 'Discount Percentage' :
                  formData.discountType === 'fixed' ? 'Discount Amount' :
-                 'Free Items to Give'}
+                 'Free Packages to Give'}
               </label>
               <div className="relative">
                 <input
@@ -239,9 +239,9 @@ export default function CreateOfferTypeModal({
                              formData.discountType === 'fixed' ? '50000' : '1'}
                   className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
                 />
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
                   {formData.discountType === 'percentage' ? '%' :
-                   formData.discountType === 'fixed' ? userCurrency : 'items'}
+                   formData.discountType === 'fixed' ? userCurrency : 'packages'}
                 </div>
               </div>
               {formData.discountType === 'fixed' && formData.discountValue > 0 && (
@@ -254,18 +254,18 @@ export default function CreateOfferTypeModal({
             {/* Buy X Get Y specific field */}
             {formData.discountType === 'buy_x_get_y' && (
               <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Minimum Quantity to Buy
+                <label className="block text-xs font-medium text-black mb-1">
+                  Minimum Packages to Buy
                 </label>
                 <input
                   type="number"
                   value={formData.minQuantity || ''}
                   onChange={(e) => handleInputChange('minQuantity', parseInt(e.target.value) || undefined)}
-                  placeholder="5"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
+                  placeholder="3"
+                  className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
                 />
                 <div className="mt-2 text-xs text-gray-600">
-                  Customer must buy at least this many items to get free items
+                  Customer must buy at least this many packages to get free packages
                 </div>
               </div>
             )}
