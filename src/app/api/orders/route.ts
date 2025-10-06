@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         packageQuantity: oi.packageQuantity,
         pricePerPackage: oi.pricePerPackage,
         productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || (oi as { productCategorySnapshot?: string }).productCategorySnapshot || 'Uncategorized',
+        category: oi.product?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
         packageQuantity: oi.packageQuantity,
         pricePerPackage: oi.pricePerPackage,
         productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || (oi as { productCategorySnapshot?: string }).productCategorySnapshot || 'Uncategorized',
+        category: oi.product?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
             pricePerPackage: item.pricePerPackage || (product.piecesPerPackage ? consistentUnitPrice * product.piecesPerPackage : null),
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
-            productCategorySnapshot: product.category
+            productTypeSnapshot: product.productType
           };
           
           return prisma.orderItem.create({
@@ -461,7 +461,7 @@ export async function POST(request: NextRequest) {
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
-      category: oi.product?.category || 'Uncategorized',
+      category: (oi.product as any)?.productType || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],
@@ -753,7 +753,7 @@ export async function PUT(request: NextRequest) {
             subtotal: consistentSubtotal,
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
-            productCategorySnapshot: product.category,
+            productTypeSnapshot: product.productType,
             packageQuantity: (item as any).packageQuantity || 1,
             packageType: (item as any).packageType,
             piecesPerPackage: (item as any).piecesPerPackage || 1,
@@ -774,7 +774,7 @@ export async function PUT(request: NextRequest) {
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
-      category: oi.product?.category || 'Uncategorized',
+      category: (oi.product as any)?.productType || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],

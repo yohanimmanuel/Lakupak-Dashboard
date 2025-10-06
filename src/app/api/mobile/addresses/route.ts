@@ -9,19 +9,22 @@ function getToken(req: NextRequest): string | null {
   return token
 }
 
-function getUserIdFromToken(token: string): number | null {
-  // Extract user ID from mobile token format: mobile_token_{id}_{timestamp}
-  const tokenMatch = token.match(/^mobile_token_(\d+)_\d+$/)
-  if (!tokenMatch) return null
-  return parseInt(tokenMatch[1])
+async function getUserIdFromToken(token: string): Promise<number | null> {
+  try {
+    const { verifyAccessToken } = await import('../../../../lib/jwt')
+    const payload = verifyAccessToken(token)
+    return typeof payload.sub === 'number' ? payload.sub : null
+  } catch {
+    return null
+  }
 }
 
 export async function GET(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   
-  const userId = getUserIdFromToken(token)
-  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  const userId = await getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
   
   const list = await prisma.address.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } })
   return NextResponse.json(list)
@@ -31,8 +34,8 @@ export async function POST(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   
-  const userId = getUserIdFromToken(token)
-  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  const userId = await getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
   
   const body = await req.json()
   const created = await prisma.$transaction(async (tx) => {
@@ -59,8 +62,8 @@ export async function PATCH(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   
-  const userId = getUserIdFromToken(token)
-  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  const userId = await getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
   
   const body = await req.json()
   const updated = await prisma.$transaction(async (tx) => {
@@ -87,8 +90,8 @@ export async function DELETE(req: NextRequest) {
   const token = getToken(req)
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   
-  const userId = getUserIdFromToken(token)
-  if (!userId) return NextResponse.json({ error: 'Invalid token format' }, { status: 401 })
+  const userId = await getUserIdFromToken(token)
+  if (!userId) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
   
   const body = await req.json()
   const id: number | undefined = body?.id

@@ -40,8 +40,8 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.description === 'string') {
     sanitized.description = data.description.trim();
   }
-  if (typeof data.category === 'string') {
-    sanitized.category = data.category.trim();
+  if (typeof (data as any).productType === 'string') {
+    (sanitized as any).productType = (data as any).productType.trim();
   }
   if (typeof data.brand === 'string') {
     sanitized.brand = data.brand.trim();
@@ -58,8 +58,8 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.status === 'string') {
     sanitized.status = data.status.trim() as 'Draft' | 'Published';
   }
-  if (typeof data.catalogType === 'string') {
-    sanitized.catalogType = data.catalogType.trim() as 'Internal' | 'External';
+  if (typeof (data as any).productCategory === 'string') {
+    (sanitized as any).productCategory = (data as any).productCategory.trim();
   }
   if (typeof data.catalogName === 'string') {
     sanitized.catalogName = data.catalogName.trim();

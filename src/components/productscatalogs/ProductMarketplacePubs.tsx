@@ -224,7 +224,7 @@ export default function ProductMarketplacePubs({
                               if (!String(originalProduct.sku).trim()) missingFields.push('SKU');
                               if (!String(originalProduct.name).trim()) missingFields.push('Name');
                               if (!String(originalProduct.description).trim()) missingFields.push('Description');
-                              if (!String(originalProduct.category).trim()) missingFields.push('Category');
+                              if (!String(originalProduct.productType).trim()) missingFields.push('Type');
                               if (!String(originalProduct.brand).trim()) missingFields.push('Brand');
                               if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
                               if (!String(originalProduct.purchasePrice).trim()) missingFields.push('Purchase Price');
@@ -370,8 +370,8 @@ export default function ProductMarketplacePubs({
                 <span className="text-sm font-medium text-gray-900">Sample Brand</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Category:</span>
-                <span className="text-sm font-medium text-gray-900">Sample Category</span>
+                <span className="text-sm text-gray-600">Type:</span>
+                <span className="text-sm font-medium text-gray-900">Sample Type</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Package Type:</span>

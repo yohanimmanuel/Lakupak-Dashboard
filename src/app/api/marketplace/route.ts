@@ -21,17 +21,24 @@ export async function GET(request: NextRequest) {
       status: 'Published'
     };
     
+    // Build OR conditions for filtering
+    const orConditions: any[] = [];
+    
     if (category && category !== 'All') {
-      whereClause.category = category;
+      orConditions.push({ productType: category });
     }
     
     if (search) {
-      whereClause.OR = [
+      orConditions.push(
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { brand: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } }
-      ];
+        { productType: { contains: search, mode: 'insensitive' } },
+      );
+    }
+    
+    if (orConditions.length > 0) {
+      whereClause.OR = orConditions;
     }
     
     const skip = (page - 1) * limit;
@@ -101,7 +108,7 @@ export async function GET(request: NextRequest) {
         stock: product.stockQuantity,
         stockStatus: product.stockStatus || 'In Stock',
         images: product.images || [],
-        category: product.category,
+        category: product.productType || 'Uncategorized',
         brand: product.brand,
         unit: product.packageType || 'pcs',
         packageType: product.packageType || 'pcs',

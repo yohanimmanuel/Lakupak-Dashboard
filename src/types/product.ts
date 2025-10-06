@@ -4,7 +4,7 @@ export interface Product {
   sku: string;
   name: string;
   description: string;
-  category: string;
+  productType: string;
   brand: string;
   supplier: string;
   stockQuantity: number;
@@ -16,7 +16,7 @@ export interface Product {
   purchasePrice: string;
   sellingPrice: string;
   status: 'Draft' | 'Published';
-  catalogType: 'Internal' | 'External';
+  productCategory: string;
   catalogName: string;
   images: string[];
   // Product assurance
@@ -34,7 +34,7 @@ export interface ProductTableRow {
   productId: string;
   sku: string;
   name: string;
-  category: string;
+  productType: string;
   brand: string;
   supplier: string;
   stockQuantity: number;
@@ -55,7 +55,7 @@ export interface ProductImportRow {
   'SKU': string;
   'Product Name': string;
   'Description': string;
-  'Category': string;
+  'Product Type': string;
   'Brand': string;
   'Supplier': string;
   'Stock Quantity': string;
@@ -64,7 +64,7 @@ export interface ProductImportRow {
   'Purchase Price': string;
   'Selling Price': string;
   'Status': string;
-  'Catalog Type': string;
+  'Product Category': string;
   'Catalog Name': string;
   'Discount': string;
   'Discount Type': string;
@@ -76,7 +76,7 @@ export interface ProductFormData {
   sku: string;
   name: string;
   description: string;
-  category: string;
+  productType: string;
   brand: string;
   supplier: string;
   stockQuantity: number;
@@ -88,7 +88,7 @@ export interface ProductFormData {
   purchasePrice: string;
   sellingPrice: string;
   status: 'Draft' | 'Published';
-  catalogType: 'Internal' | 'External';
+  productCategory: string;
   catalogName: string;
   images: string[];
   // Product assurance
@@ -108,6 +108,6 @@ export interface ProductStats {
 export interface ProductFilters {
   search: string;
   status: string;
-  category: string;
+  productType: string;
   stockFilter: string;
 }

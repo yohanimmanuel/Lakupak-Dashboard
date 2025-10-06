@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50');
     const search = req.nextUrl.searchParams.get('search') || '';
     const status = req.nextUrl.searchParams.get('status') || '';
-    const category = req.nextUrl.searchParams.get('category') || '';
+    const productType = req.nextUrl.searchParams.get('productType') || req.nextUrl.searchParams.get('category') || '';
     
     // Validate pagination parameters
     if (page < 1 || limit < 1 || limit > 1000) {
@@ -75,19 +75,19 @@ export async function GET(req: NextRequest) {
       OR?: Array<{
         name?: { contains: string; mode: 'insensitive' };
         sku?: { contains: string; mode: 'insensitive' };
-        category?: { contains: string; mode: 'insensitive' };
+        productType?: { contains: string; mode: 'insensitive' };
         brand?: { contains: string; mode: 'insensitive' };
         supplier?: { contains: string; mode: 'insensitive' };
       }>;
       status?: string;
-      category?: string;
+      productType?: string;
     } = { userId: Number(userId) };
     
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { sku: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } },
+        { productType: { contains: search, mode: 'insensitive' } },
         { brand: { contains: search, mode: 'insensitive' } },
         { supplier: { contains: search, mode: 'insensitive' } }
       ];
@@ -97,8 +97,8 @@ export async function GET(req: NextRequest) {
       whereClause.status = status;
     }
     
-    if (category && category !== 'All Categories') {
-      whereClause.category = category;
+    if (productType && productType !== 'All Categories') {
+      whereClause.productType = productType;
     }
     
     // Get total count for pagination
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
       sku: data.sku || '',
       name: data.name || '',
       description: data.description || '',
-      category: data.category || '',
+      productType: data.productType || '',
       brand: data.brand || '',
       supplier: data.supplier || '',
       stockQuantity: Number(data.stockQuantity) || 0,
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
       purchasePrice: String(data.purchasePrice || ''),
       sellingPrice: String(data.sellingPrice || ''),
       status: data.status || 'Draft',
-      catalogType: data.catalogType || 'Internal',
+      productCategory: data.productCategory || '',
       catalogName: data.catalogName || '',
       images: Array.isArray(data.images) ? data.images : [],
       // Product assurance fields
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     }
     
     const product = await prisma.product.create({
-      data: productData
+      data: productData as any
     });
     
     return NextResponse.json(product, { status: 201, headers });
@@ -303,7 +303,7 @@ export async function PUT(req: NextRequest) {
       sku: string;
       name: string;
       description: string;
-      category: string;
+      productType: string;
       brand: string;
       supplier: string;
       stockQuantity: number;
@@ -315,7 +315,7 @@ export async function PUT(req: NextRequest) {
       purchasePrice: string;
       sellingPrice: string;
       status: string;
-      catalogType: string;
+      productCategory: string;
       catalogName: string;
       images: string[];
       halalCertified: boolean;
@@ -326,7 +326,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.sku !== undefined) cleanUpdateData.sku = String(updateData.sku);
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
     if (updateData.description !== undefined) cleanUpdateData.description = String(updateData.description);
-    if (updateData.category !== undefined) cleanUpdateData.category = String(updateData.category);
+    if ((updateData as any).productType !== undefined) (cleanUpdateData as any).productType = String((updateData as any).productType);
     if (updateData.brand !== undefined) cleanUpdateData.brand = String(updateData.brand);
     if (updateData.supplier !== undefined) cleanUpdateData.supplier = String(updateData.supplier);
     if (updateData.stockQuantity !== undefined) cleanUpdateData.stockQuantity = Number(updateData.stockQuantity);
@@ -338,7 +338,7 @@ export async function PUT(req: NextRequest) {
          if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(updateData.purchasePrice);
      if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(updateData.sellingPrice);
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
-    if (updateData.catalogType !== undefined) cleanUpdateData.catalogType = String(updateData.catalogType);
+    if ((updateData as any).productCategory !== undefined) (cleanUpdateData as any).productCategory = String((updateData as any).productCategory);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);
     if (updateData.images !== undefined) cleanUpdateData.images = Array.isArray(updateData.images) ? updateData.images : [];
     if (updateData.halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(updateData.halalCertified);

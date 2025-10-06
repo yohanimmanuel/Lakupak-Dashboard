@@ -117,7 +117,7 @@ model Product {
   sku               String
   name              String
   description       String
-  category          String
+  productType       String
   brand             String
   supplier          String
   stockQuantity     Int
@@ -126,7 +126,7 @@ model Product {
   purchasePrice     String
   sellingPrice      String
   status            String
-  catalogType       String
+  productCategory   String
   catalogName       String
   images            String[]
   createdAt         DateTime    @default(now()) @db.Timestamptz(3)
@@ -241,7 +241,8 @@ model OrderItem {
   updatedAt               DateTime @updatedAt @db.Timestamptz(3)
   productNameSnapshot     String?
   productSkuSnapshot      String?
-  productCategorySnapshot String?
+  productTypeSnapshot     String?
+  test                    String?
   packageQuantity         Int?     @default(1)
   packageType             String?
   piecesPerPackage        Int?     @default(1)

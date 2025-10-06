@@ -45,7 +45,7 @@ export default function ProductCatalog({
     sku: product?.sku || '',
     name: product?.name || '',
     description: product?.description || '',
-    category: product?.category || '',
+    productType: product?.productType || '',
     brand: product?.brand || '',
     supplier: product?.supplier || '',
     stockQuantity: product?.stockQuantity || 0,
@@ -54,7 +54,7 @@ export default function ProductCatalog({
     purchasePrice: product?.purchasePrice || '',
     sellingPrice: product?.sellingPrice || '',
     status: product?.status || 'Draft',
-    catalogType: product?.catalogType || 'Internal',
+    productCategory: product?.productCategory || '',
     catalogName: product?.catalogName || '',
     images: product?.images || [],
     halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
@@ -73,12 +73,10 @@ export default function ProductCatalog({
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
-  const [showCatalogTypeDropdown, setShowCatalogTypeDropdown] = useState(false);
   
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
   const catalogCategoryRef = useRef<HTMLDivElement>(null);
-  const catalogTypeRef = useRef<HTMLDivElement>(null);
 
   // Generate LKP product ID format: LKP-8 random numbers
   const generateLKPProductId = () => {
@@ -130,9 +128,7 @@ export default function ProductCatalog({
       if (catalogCategoryRef.current && !catalogCategoryRef.current.contains(event.target as Node)) {
         setShowCatalogCategoryDropdown(false);
       }
-      if (catalogTypeRef.current && !catalogTypeRef.current.contains(event.target as Node)) {
-        setShowCatalogTypeDropdown(false);
-      }
+      // no-op for catalog type (now plain input)
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -143,21 +139,17 @@ export default function ProductCatalog({
 
 
   const statusOptions = ['Draft', 'Published'];
-  const catalogTypes = ['Internal', 'External'];
 
   // Category helper functions
   const availableCategories = getAvailableCategories();
 
-  const handleCategorySelect = (categoryValue: string, field: 'category') => {
+  const handleCategorySelect = (categoryValue: string, field: 'productType') => {
     handleInputChange(field, categoryValue);
     setShowGeneralCategoryDropdown(false);
     setShowCatalogCategoryDropdown(false);
   };
 
-  const handleCatalogTypeSelect = (catalogType: string) => {
-    handleInputChange('catalogType', catalogType);
-    setShowCatalogTypeDropdown(false);
-  };
+  // catalog type is a plain text input now
 
   const getSelectedCategory = (categoryValue: string) => {
     return getCategoryByValue(categoryValue);
@@ -495,7 +487,7 @@ export default function ProductCatalog({
               { name: 'SKU Number', value: String(product.sku || '').trim() },
               { name: 'Product Name', value: String(product.name || '').trim() },
               { name: 'Description', value: String(product.description || '').trim() },
-              { name: 'Category', value: String(product.category || '').trim() },
+                { name: 'Category', value: String(product.productType || '').trim() },
               { name: 'Brand', value: String(product.brand || '').trim() },
               { name: 'Supplier', value: String(product.supplier || '').trim() },
               { name: 'Purchase Price', value: String(product.purchasePrice || '').trim() },
@@ -614,9 +606,9 @@ export default function ProductCatalog({
                    />
                 </div>
                                  <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Category
-                   </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Type
+                    </label>
                    <div className="relative" ref={generalCategoryRef}>
                      <button
                        type="button"
@@ -628,14 +620,18 @@ export default function ProductCatalog({
                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
                      >
                      <span className="flex items-center gap-2">
-                       {formData.category ? (
+                       {formData.productType ? (
                          <>
                            {(() => {
-                             const selectedCategory = getSelectedCategory(formData.category);
-                             const IconComponent = getCategoryIconComponent(formData.category);
-                             return <IconComponent className="w-4 h-4" style={{ color: selectedCategory?.color }} />;
+                             const selectedCategory = getSelectedCategory(formData.productType);
+                             const IconComponent = getCategoryIconComponent(formData.productType);
+                            return (
+                              <span style={{ color: selectedCategory?.color }}>
+                                <IconComponent className="w-4 h-4" />
+                              </span>
+                            );
                            })()}
-                           <span className="text-black">{getSelectedCategory(formData.category)?.label || formData.category}</span>
+                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
                          </>
                        ) : (
                          <span className="text-gray-500">Select category</span>
@@ -652,10 +648,12 @@ export default function ProductCatalog({
                            <button
                              key={category.value}
                              type="button"
-                             onClick={() => handleCategorySelect(category.value, 'category')}
+                              onClick={() => handleCategorySelect(category.value, 'productType')}
                              className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
                            >
-                             <IconComponent className="w-4 h-4" style={{ color: category.color }} />
+                             <span style={{ color: category.color }}>
+                               <IconComponent className="w-4 h-4" />
+                             </span>
                              <span className="text-black">{category.label}</span>
                            </button>
                          );
@@ -1004,7 +1002,7 @@ export default function ProductCatalog({
                  
                   <div className="flex items-center gap-2">
                      <p className="text-xs text-gray-500 italic">
-                       All Categories input will be added as a new category filter.
+                       All Product Types input will be added as a new filter.
                      </p>
                   </div>
              </div>
@@ -1012,7 +1010,7 @@ export default function ProductCatalog({
             <div className="space-y-4">
                              <div>
                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                   Product Category
+                  Product Type
                  </label>
                  <div className="relative" ref={catalogCategoryRef}>
                    <button
@@ -1025,14 +1023,18 @@ export default function ProductCatalog({
                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
                    >
                      <span className="flex items-center gap-2">
-                       {formData.category ? (
+                        {formData.productType ? (
                          <>
                            {(() => {
-                             const selectedCategory = getSelectedCategory(formData.category);
-                             const IconComponent = getCategoryIconComponent(formData.category);
-                             return <IconComponent className="w-4 h-4" style={{ color: selectedCategory?.color }} />;
+                             const selectedCategory = getSelectedCategory(formData.productType);
+                             const IconComponent = getCategoryIconComponent(formData.productType);
+                            return (
+                              <span style={{ color: selectedCategory?.color }}>
+                                <IconComponent className="w-4 h-4" />
+                              </span>
+                            );
                            })()}
-                           <span className="text-black">{getSelectedCategory(formData.category)?.label || formData.category}</span>
+                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
                          </>
                        ) : (
                          <span className="text-gray-500">Select category</span>
@@ -1049,10 +1051,12 @@ export default function ProductCatalog({
                            <button
                              key={category.value}
                              type="button"
-                             onClick={() => handleCategorySelect(category.value, 'category')}
+                              onClick={() => handleCategorySelect(category.value, 'productType')}
                              className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
                            >
-                             <IconComponent className="w-4 h-4" style={{ color: category.color }} />
+                             <span style={{ color: category.color }}>
+                               <IconComponent className="w-4 h-4" />
+                             </span>
                              <span className="text-black">{category.label}</span>
                            </button>
                          );
@@ -1064,38 +1068,16 @@ export default function ProductCatalog({
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Catalog Type
+                  Product Category
                 </label>
-                <div className="relative" ref={catalogTypeRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCatalogTypeDropdown(!showCatalogTypeDropdown);
-                      setShowGeneralCategoryDropdown(false);
-                      setShowCatalogCategoryDropdown(false);
-                    }}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
-                  >
-                    <span className="text-black">{formData.catalogType}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
-                  
-                  {showCatalogTypeDropdown && !isViewMode && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {catalogTypes.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleCatalogTypeSelect(type)}
-                          className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
-                        >
-                          <span className="text-black">{type}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  value={formData.productCategory}
+                  onChange={(e) => handleInputChange('productCategory', e.target.value)}
+                  disabled={isViewMode}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  placeholder="Distributor-specific rule (e.g, Wholesale, Retail)"
+                />
               </div>
               
                              <div>

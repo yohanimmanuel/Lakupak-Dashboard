@@ -2,28 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
-
-
-type ProductImportRow = {
-  [key: string]: string | undefined;
-  'Product ID': string;
-  'SKU': string;
-  'Product Name': string;
-  'Description': string;
-  'Category': string;
-  'Brand': string;
-  'Supplier': string;
-  'Stock Quantity': string;
-  'Low Stock Threshold': string;
-  'Stock Status': string;
-  'Purchase Price': string;
-  'Selling Price': string;
-  'Status': string;
-  'Catalog Type': string;
-  'Catalog Name': string;
-  'Discount': string;
-  'Discount Type': string;
-};
+import { ProductImportRow } from '@/types/product';
 
 type ProductImportProps = {
   open: boolean;
@@ -36,7 +15,7 @@ const productFields = [
   { key: 'SKU', label: 'SKU (Optional)' },
   { key: 'Product Name', label: 'Product Name (Optional)' },
   { key: 'Description', label: 'Description (Optional)' },
-  { key: 'Category', label: 'Category (Optional)' },
+  { key: 'Product Type', label: 'Product Type (Optional)' },
   { key: 'Brand', label: 'Brand (Optional)' },
   { key: 'Supplier', label: 'Supplier (Optional)' },
   { key: 'Stock Quantity', label: 'Stock Quantity (Optional)' },
@@ -45,7 +24,7 @@ const productFields = [
   { key: 'Purchase Price', label: 'Purchase Price (Optional)' },
   { key: 'Selling Price', label: 'Selling Price (Optional)' },
   { key: 'Status', label: 'Status (Always Draft)' },
-  { key: 'Catalog Type', label: 'Catalog Type (Optional)' },
+  { key: 'Product Category', label: 'Product Category (Optional)' },
   { key: 'Catalog Name', label: 'Catalog Name (Optional)' },
 ];
 
@@ -55,7 +34,7 @@ const productSynonyms: { [key: string]: string[] } = {
   'SKU': ['sku', 'stock keeping unit', 'kode barang'],
   'Product Name': ['name', 'product name', 'nama produk', 'nama barang', 'title'],
   'Description': ['description', 'desc', 'deskripsi', 'detail', 'product description'],
-  'Category': ['category', 'kategori', 'jenis', 'type', 'product type'],
+  'Product Type': ['category', 'kategori', 'jenis', 'type', 'product type'],
   'Brand': ['brand', 'merek', 'brand name'],
   'Supplier': ['supplier', 'vendor', 'pemasok', 'supplier name'],
   'Stock Quantity': ['stock', 'quantity', 'stock quantity', 'inventory', 'stok', 'jumlah'],
@@ -64,7 +43,7 @@ const productSynonyms: { [key: string]: string[] } = {
   'Purchase Price': ['purchase price', 'buy price', 'cost', 'harga beli', 'harga modal'],
   'Selling Price': ['selling price', 'sell price', 'price', 'harga jual', 'harga'],
   'Status': ['status', 'product status', 'state'],
-  'Catalog Type': ['catalog type', 'catalog', 'type', 'jenis katalog'],
+  'Product Category': ['catalog type', 'catalog', 'type', 'jenis katalog', 'category'],
   'Catalog Name': ['catalog name', 'catalog', 'nama katalog'],
   
   
@@ -167,8 +146,8 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
         mapped['Stock Status'] = 'In Stock';
       }
       
-      if (!mapped['Catalog Type']) {
-        mapped['Catalog Type'] = 'Internal';
+      if (!mapped['Product Category']) {
+        mapped['Product Category'] = '';
       }
       
       if (!mapped['Low Stock Threshold']) {

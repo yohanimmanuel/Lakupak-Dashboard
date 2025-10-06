@@ -23,10 +23,15 @@ const stockFilters = [
   { label: "Out of Stock", value: "out" },
 ];
 
-// Dynamic category filters based on existing products
-const getCategoryFilters = (products: Product[]) => {
-  const categories = new Set(products.map(product => product.category).filter(Boolean));
-  return ["All Categories", ...Array.from(categories)];
+// Dynamic filters based on existing products
+const getTypeFilters = (products: Product[]) => {
+  const categories = new Set(products.map(product => product.productType).filter(Boolean));
+  return ["All Types", ...Array.from(categories)];
+};
+
+const getProductCategoryFilters = (products: Product[]) => {
+  const cats = new Set(products.map(product => product.productCategory).filter(Boolean));
+  return ["All Categories", ...Array.from(cats)];
 };
 
 export default function ProductTable({ products = [], setProducts, onSelectProduct, onExportXLSX, profileToTableRow }: { 
@@ -43,13 +48,16 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
   const [selectedStockFilter, setSelectedStockFilter] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [selectedCategory, setSelectedCategory] = useState("All Types");
+  const [selectedProdCategory, setSelectedProdCategory] = useState("All Categories");
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   
-  // Get dynamic category filters based on current products
-  const categoryFilters = getCategoryFilters(products);
+  // Get dynamic filters based on current products
+  const categoryFilters = getTypeFilters(products);
+  const prodCategoryFilters = getProductCategoryFilters(products);
   const [showStockDropdown, setShowStockDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showProdCategoryDropdown, setShowProdCategoryDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -69,7 +77,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
   let filteredProducts = tableRows.filter((p: ProductTableRow) => String(p.name).toLowerCase().includes(search.toLowerCase()));
   
   if (selectedTab !== "All") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.status === selectedTab);
-  if (selectedCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.category === selectedCategory);
+  if (selectedCategory !== "All Types") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.productType === selectedCategory);
+  if (selectedProdCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => (products.find(x => x.productId === p.productId)?.productCategory) === selectedProdCategory);
   
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
@@ -137,7 +146,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
     const hasRequiredFields = Boolean(product.sku && 
                              product.name && 
                              product.description && 
-                             product.category && 
+                             product.productType && 
                              product.brand && 
                              product.supplier && 
                              product.purchasePrice && 
@@ -425,7 +434,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
             )}
           </div>
 
-          {/* Category Filter Dropdown */}
+          {/* Type Filter Dropdown */}
           <div className="relative">
             <button
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
@@ -433,6 +442,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 setShowCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
                 setShowFilterDropdown(false);
+                setShowProdCategoryDropdown(false);
               }}
             >
               <Filter className="w-4 h-4" />
@@ -455,6 +465,43 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     }`}
                   >
                     {category}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Category Filter Dropdown */}
+          <div className="relative">
+            <button
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              onClick={() => {
+                setShowProdCategoryDropdown(v => !v);
+                setShowStockDropdown(false);
+                setShowFilterDropdown(false);
+                setShowCategoryDropdown(false);
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedProdCategory}
+              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+            </button>
+            {showProdCategoryDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+                {prodCategoryFilters.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSelectedProdCategory(cat);
+                      setShowProdCategoryDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedProdCategory === cat
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {cat}
                   </button>
                 ))}
               </div>
@@ -492,14 +539,14 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
       {/* Data Completion Indicator */}
       {(() => {
         const currentPageProductIds = pagedProducts.map(p => p.productId);
-        const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
+          const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
         
         const missingDataCount = currentPageOriginalProducts.filter(product => {
           // Use the same logic as isProductComplete function
           const hasRequiredFields = Boolean(product.sku && 
                                    product.name && 
                                    product.description && 
-                                   product.category && 
+                                   product.productType && 
                                    product.brand && 
                                    product.supplier && 
                                    product.purchasePrice && 
@@ -767,7 +814,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                </th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">ID/SKU</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Product Name</th>
-               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Category</th>
+               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Brand</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Stock</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Purchase Price</th>
@@ -787,7 +834,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 const hasRequiredFields = Boolean(originalProduct.sku && 
                                          originalProduct.name && 
                                          originalProduct.description && 
-                                         originalProduct.category && 
+                                         originalProduct.productType && 
                                          originalProduct.brand && 
                                          originalProduct.supplier && 
                                          originalProduct.purchasePrice && 
@@ -849,8 +896,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    )}
                  </td>
                  <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
-                   {String(product.category).trim() ? (
-                     product.category
+                  {String((product as any).productType).trim() ? (
+                     (product as any).productType
                    ) : (
                      <span className="text-red-600 font-bold">Missing Category</span>
                    )}
@@ -957,11 +1004,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
              
              const hasIncompleteData = originalProduct ? (() => {
                // Check all profile fields for missing data
-               const basicFields = [
-                 !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
-                 !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
-                 !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
-               ];
+                const basicFields = [
+                !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
+                !String(originalProduct.description).trim(), !String((originalProduct.productType || '')).trim(),
+                !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
+                ];
                const hasMissingBasicFields = basicFields.some(field => field);
                
                const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
@@ -1038,8 +1085,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    )}
                  </h3>
                  <p className="text-xs text-gray-500">
-                   {String(product.category).trim() ? (
-                     product.category
+                   {String(product.productType).trim() ? (
+                    product.productType
                    ) : (
                      <span className="text-red-600 font-bold">Missing Category</span>
                    )}
@@ -1055,7 +1102,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
-                     {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
+                     Stock: {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
                        product.stockQuantity
                      ) : (
                        <span className="text-red-600 font-bold">Missing Stock</span>
@@ -1156,7 +1203,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                // Check all profile fields for missing data
                const basicFields = [
                  !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
-                 !String(originalProduct.description).trim(), !String(originalProduct.category).trim(),
+                !String(originalProduct.description).trim(), !String(originalProduct.productType).trim(),
                  !String(originalProduct.brand).trim(), !String(originalProduct.supplier).trim()
                ];
                const hasMissingBasicFields = basicFields.some(field => field);
@@ -1235,8 +1282,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    )}
                  </h3>
                  <p className="text-xs text-gray-500">
-                   {String(product.category).trim() ? (
-                     product.category
+                  {String(product.productType).trim() ? (
+                    product.productType
                    ) : (
                      <span className="text-red-600 font-bold">Missing Category</span>
                    )}

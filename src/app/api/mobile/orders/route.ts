@@ -120,14 +120,14 @@ export async function GET(request: NextRequest) {
         packageQuantity: oi.packageQuantity,
         pricePerPackage: oi.pricePerPackage,
         productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
-        category: oi.product?.category || oi.productCategorySnapshot || 'Uncategorized',
+        category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
         images: oi.product?.images || [],
         productDeleted: !oi.product,
         productNameSnapshot: oi.productNameSnapshot || null,
         productSkuSnapshot: oi.productSkuSnapshot || null,
-        productCategorySnapshot: oi.productCategorySnapshot || null
+        productTypeSnapshot: oi.productTypeSnapshot || null
       }));
       
       return {
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
             pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
             productNameSnapshot: String(item.productName || 'Unknown Product'),
             productSkuSnapshot: String(item.productSku || ''),
-            productCategorySnapshot: String(item.category || 'Uncategorized')
+            productTypeSnapshot: String(item.category || 'Uncategorized')
           }
         });
       });

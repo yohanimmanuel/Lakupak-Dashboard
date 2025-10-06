@@ -118,7 +118,7 @@ export default function ProductsPage() {
     productId: product.productId,
     sku: product.sku,
     name: product.name,
-    category: product.category,
+    productType: product.productType,
     brand: product.brand,
     supplier: product.supplier,
     stockQuantity: product.stockQuantity,
@@ -162,7 +162,7 @@ export default function ProductsPage() {
           sku: product['SKU'] || '',
           name: product['Product Name'] || '',
           description: product['Description'] || '',
-          category: product['Category'] || '',
+          productType: product['Product Type'] || '',
           brand: product['Brand'] || '',
           supplier: product['Supplier'] || '',
           stockQuantity: stockQuantity,
@@ -171,7 +171,7 @@ export default function ProductsPage() {
           purchasePrice: String(product['Purchase Price'] || ''),
           sellingPrice: String(product['Selling Price'] || ''),
           status: 'Draft', // Always overwrite status to Draft for imported products
-          catalogType: product['Catalog Type'] || 'Internal',
+          productCategory: product['Product Category'] || '',
           catalogName: product['Catalog Name'] || '',
           discount: parseFloat(product['Discount']) || 0,
           discountType: product['Discount Type'] || '',
@@ -240,12 +240,12 @@ export default function ProductsPage() {
 
   const handleExport = () => {
     // Export products data to XLSX
-    const headers = ['Product ID', 'SKU', 'Product Name', 'Category', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
+    const headers = ['Product ID', 'SKU', 'Product Name', 'Type', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
     const rows = products.map(product => [
       product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
       product.sku,
       product.name,
-      product.category,
+      product.productType,
       product.brand,
       product.supplier,
       product.stockQuantity,
