@@ -271,14 +271,14 @@ export default function CreateOfferTypeModal({
             )}
           </div>
 
-          {/* Optional Settings */}
+          {/* Limit Settings */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Optional Settings</h4>
+            <h4 className="text-md font-semibold text-black">Limit Settings</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  Minimum Order Value
+                  Minimum Order Value (Packages)
                 </label>
                 <input
                   type="number"
