@@ -5,27 +5,7 @@ import { Gift, Plus, Calendar, Download } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
 import { useRouter } from 'next/navigation';
-
-interface Offer {
-  id: string;
-  offerId: string;
-  name: string;
-  description: string;
-  type: 'discount' | 'promotion';
-  status: 'active' | 'inactive' | 'expired';
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  minOrderValue?: number;
-  minQuantity?: number;
-  startDate: string;
-  endDate: string;
-  maxUsage?: number;
-  perCustomerLimit?: number;
-  totalUsage: number;
-  totalDiscountGiven: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Offer } from '@/types/offer';
 
 export default function OffersPage() {
   const router = useRouter();
@@ -71,6 +51,44 @@ export default function OffersPage() {
         totalDiscountGiven: 445000,
         createdAt: '2024-01-15T00:00:00Z',
         updatedAt: '2024-01-20T00:00:00Z'
+      },
+      {
+        id: '3',
+        offerId: 'OFFER_003',
+        name: 'Holiday Special',
+        description: 'Holiday promotion for beverages',
+        type: 'promotion',
+        status: 'active',
+        discountType: 'buy_x_get_y',
+        discountValue: 1,
+        minQuantity: 3,
+        startDate: '2024-12-01',
+        endDate: '2024-12-31',
+        maxUsage: 200,
+        perCustomerLimit: 2,
+        totalUsage: 45,
+        totalDiscountGiven: 125000,
+        createdAt: '2024-11-15T00:00:00Z',
+        updatedAt: '2024-11-15T00:00:00Z'
+      },
+      {
+        id: '4',
+        offerId: 'OFFER_004',
+        name: 'New Year Sale',
+        description: 'Expired new year promotion',
+        type: 'discount',
+        status: 'expired',
+        discountType: 'percentage',
+        discountValue: 20,
+        minOrderValue: 50000,
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        maxUsage: 100,
+        perCustomerLimit: 1,
+        totalUsage: 78,
+        totalDiscountGiven: 2340000,
+        createdAt: '2023-12-20T00:00:00Z',
+        updatedAt: '2024-02-01T00:00:00Z'
       }
     ]);
   }, []);

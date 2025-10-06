@@ -1,19 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
+import CreateOfferTypeModal from '@/components/offersincentivesdisc/CreateOfferTypeModal';
+import CreateDateRangeModal from '@/components/offersincentivesdisc/CreateDateRangeModal';
+import CreateTimeSlotModal from '@/components/offersincentivesdisc/CreateTimeSlotModal';
 
 export default function CreateOfferPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
   const [isCreating, setIsCreating] = useState(false);
+  const [offerStatus, setOfferStatus] = useState<'active' | 'inactive'>('active');
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
+  const [showCreateRangeModal, setShowCreateRangeModal] = useState(false);
+  const [showCreateTimeSlotModal, setShowCreateTimeSlotModal] = useState(false);
 
   const tabs = [
     { 
@@ -45,6 +53,7 @@ export default function CreateOfferPage() {
   const handleSaveOffer = async () => {
     setIsCreating(true);
     // TODO: Implement offer creation logic
+    console.log('Creating offer with status:', offerStatus);
     setTimeout(() => {
       setIsCreating(false);
       router.push('/offers');
@@ -60,14 +69,32 @@ export default function CreateOfferPage() {
       case 'analytics':
         return <OfferAnalytics {...({ isNewOffer: true } as any)} />;
       case 'type':
-        return <OfferType {...({ isNewOffer: true } as any)} />;
+        return <OfferType {...({ isNewOffer: true, onOpenCreateModal: () => setShowCreateTypeModal(true) } as any)} />;
       case 'products':
         return <ProductIntegration {...({ isNewOffer: true } as any)} />;
       case 'range':
-        return <RangeManagement {...({ isNewOffer: true } as any)} />;
+        return <RangeManagement {...({ isNewOffer: true, onOpenDateModal: () => setShowCreateRangeModal(true), onOpenTimeModal: () => setShowCreateTimeSlotModal(true) } as any)} />;
       default:
         return <OfferAnalytics {...({ isNewOffer: true } as any)} />;
     }
+  };
+
+  const handleSaveOfferType = (typeData: any) => {
+    console.log('Saving offer type:', typeData);
+    setShowCreateTypeModal(false);
+    // TODO: Implement offer type saving logic
+  };
+
+  const handleSaveDateRange = (rangeData: any) => {
+    console.log('Saving date range:', rangeData);
+    setShowCreateRangeModal(false);
+    // TODO: Implement date range saving logic
+  };
+
+  const handleSaveTimeSlot = (slotData: any) => {
+    console.log('Saving time slot:', slotData);
+    setShowCreateTimeSlotModal(false);
+    // TODO: Implement time slot saving logic
   };
 
   return (
@@ -89,20 +116,64 @@ export default function CreateOfferPage() {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Status Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Status:</label>
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              >
+                {offerStatus.charAt(0).toUpperCase() + offerStatus.slice(1)}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showStatusDropdown && (
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  <button
+                    onClick={() => {
+                      setOfferStatus('active');
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      offerStatus === 'active'
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOfferStatus('inactive');
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      offerStatus === 'inactive'
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Inactive
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          
           <button
             onClick={handleSaveOffer}
             disabled={isCreating}
-            className="flex items-center gap-2 px-6 py-3 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
           >
             {isCreating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Creating...
+                {offerStatus === 'inactive' ? 'Saving...' : 'Creating...'}
               </>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                Create Offer
+                {offerStatus === 'inactive' ? 'Save as Inactive' : 'Create Offer'}
               </>
             )}
           </button>
@@ -140,6 +211,25 @@ export default function CreateOfferPage() {
       <div className="bg-white rounded-lg border border-[#e6e6e6] shadow-sm">
         {renderActiveComponent()}
       </div>
+
+      {/* Modals */}
+      <CreateOfferTypeModal
+        isOpen={showCreateTypeModal}
+        onClose={() => setShowCreateTypeModal(false)}
+        onSave={handleSaveOfferType}
+      />
+
+      <CreateDateRangeModal
+        isOpen={showCreateRangeModal}
+        onClose={() => setShowCreateRangeModal(false)}
+        onSave={handleSaveDateRange}
+      />
+
+      <CreateTimeSlotModal
+        isOpen={showCreateTimeSlotModal}
+        onClose={() => setShowCreateTimeSlotModal(false)}
+        onSave={handleSaveTimeSlot}
+      />
     </div>
   );
 }

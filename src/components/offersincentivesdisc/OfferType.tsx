@@ -8,6 +8,7 @@ import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface OfferTypeProps {
   isNewOffer?: boolean;
+  onOpenCreateModal?: () => void;
 }
 
 interface OfferType {
@@ -24,7 +25,7 @@ interface OfferType {
   createdAt: string;
 }
 
-export default function OfferType({ isNewOffer = false }: OfferTypeProps) {
+export default function OfferType({ isNewOffer = false, onOpenCreateModal }: OfferTypeProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -134,7 +135,7 @@ export default function OfferType({ isNewOffer = false }: OfferTypeProps) {
             Create an offer type to define the discount or promotion rules for your offer.
           </p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
             className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
           >
             <Plus className="w-4 h-4" />

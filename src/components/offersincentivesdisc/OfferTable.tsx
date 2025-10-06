@@ -6,45 +6,13 @@ import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Edi
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
+import { Offer, OfferTableRow } from '@/types/offer';
 
-interface Offer {
-  id: string;
-  offerId: string;
-  name: string;
-  description: string;
-  type: 'discount' | 'promotion';
-  status: 'active' | 'expired';
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  minOrderValue?: number;
-  minQuantity?: number;
-  startDate: string;
-  endDate: string;
-  maxUsage?: number;
-  perCustomerLimit?: number;
-  totalUsage: number;
-  totalDiscountGiven: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface OfferTableRow {
-  id: string;
-  offerId: string;
-  name: string;
-  type: string;
-  discount: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  usage: string;
-  totalDiscount: string;
-  actions: string;
-}
-
+// Status tabs for filtering offers by status
 const statusTabs = [
   { label: "All" },
   { label: "Active" },
+  { label: "Inactive" },
   { label: "Expired" },
 ];
 
@@ -479,6 +447,8 @@ export default function OfferTable({
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                     row.status === 'Active' 
                       ? 'bg-green-100 text-green-800'
+                      : row.status === 'Inactive'
+                      ? 'bg-gray-100 text-gray-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
                     {row.status}

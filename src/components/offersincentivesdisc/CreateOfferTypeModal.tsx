@@ -308,6 +308,9 @@ export default function CreateOfferTypeModal({
                   placeholder="1000"
                   className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  Total times this offer can be used across all customers
+                </div>
               </div>
 
               <div>
@@ -321,6 +324,9 @@ export default function CreateOfferTypeModal({
                   placeholder="5"
                   className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  How many times each individual customer can use this offer
+                </div>
               </div>
             </div>
           </div>

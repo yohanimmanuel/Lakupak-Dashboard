@@ -7,6 +7,8 @@ import CreateTimeSlotModal from './CreateTimeSlotModal';
 
 interface RangeManagementProps {
   isNewOffer?: boolean;
+  onOpenDateModal?: () => void;
+  onOpenTimeModal?: () => void;
 }
 
 interface DateRange {
@@ -28,9 +30,10 @@ interface TimeSlot {
   days: string[];
   isActive: boolean;
   offerCount: number;
+  createdAt: string;
 }
 
-export default function RangeManagement({ isNewOffer = false }: RangeManagementProps) {
+export default function RangeManagement({ isNewOffer = false, onOpenDateModal, onOpenTimeModal }: RangeManagementProps) {
   const [activeTab, setActiveTab] = useState<'date' | 'time'>('date');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -79,6 +82,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
       days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
       isActive: true,
       offerCount: 5,
+      createdAt: '2024-01-15',
     },
     {
       id: '2',
@@ -88,6 +92,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
       days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
       isActive: true,
       offerCount: 3,
+      createdAt: '2024-01-20',
     },
     {
       id: '3',
@@ -97,6 +102,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
       days: ['Saturday', 'Sunday'],
       isActive: false,
       offerCount: 7,
+      createdAt: '2024-02-01',
     },
   ];
 
@@ -105,7 +111,11 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    if (!isActive || now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
+    if (!isActive) {
+      if (now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
+      return { status: 'inactive', color: 'text-gray-600', bg: 'bg-gray-100', icon: AlertCircle };
+    }
+    if (now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
     if (now < start) return { status: 'upcoming', color: 'text-blue-600', bg: 'bg-blue-100', icon: Clock };
     return { status: 'active', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle };
   };
@@ -190,7 +200,15 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
             }
           </p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              if (activeTab === 'date' && onOpenDateModal) {
+                onOpenDateModal();
+              } else if (activeTab === 'time' && onOpenTimeModal) {
+                onOpenTimeModal();
+              } else {
+                setShowCreateModal(true);
+              }
+            }}
             className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
           >
             <Plus className="w-4 h-4" />
@@ -355,7 +373,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                           ? 'bg-green-500 border-green-500' 
                           : 'bg-white border-gray-300'
                       }`}
-                      title={range.isActive ? 'Active' : 'Expired'}
+                      title={range.isActive ? 'Active' : (new Date() > new Date(range.endDate) ? 'Expired' : 'Inactive')}
                     />
                   </div>
 
@@ -423,10 +441,10 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                       {slot.isActive ? (
                         <CheckCircle className="w-4 h-4 text-green-600" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-red-600" />
+                        <AlertCircle className="w-4 h-4 text-gray-600" />
                       )}
-                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                        {slot.isActive ? 'Active' : 'Expired'}
+                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                        {slot.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
@@ -437,7 +455,7 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                         ? 'bg-green-500 border-green-500' 
                         : 'bg-white border-gray-300'
                     }`}
-                    title={slot.isActive ? 'Active' : 'Expired'}
+                    title={slot.isActive ? 'Active' : 'Inactive'}
                   />
                 </div>
 
@@ -452,7 +470,10 @@ export default function RangeManagement({ isNewOffer = false }: RangeManagementP
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    Created: {new Date(slot.createdAt).toLocaleDateString()}
+                  </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEdit(slot)}

@@ -4,21 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Gift, Percent, TrendingUp, TrendingDown, Users, DollarSign } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-
-interface Offer {
-  id: string;
-  name: string;
-  type: 'discount' | 'promotion';
-  status: 'active' | 'expired';
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  startDate: string;
-  endDate: string;
-  totalUsage: number;
-  totalDiscountGiven: number;
-  maxUsage?: number;
-  perCustomerLimit?: number;
-}
+import { Offer } from '@/types/offer';
 
 interface OfferStatCardsProps {
   offers: Offer[];
