@@ -278,15 +278,23 @@ export default function CreateOfferTypeModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  Minimum Order Value (Packages)
+                  Minimum Order Value
                 </label>
-                <input
-                  type="number"
-                  value={formData.minOrderValue || ''}
-                  onChange={(e) => handleInputChange('minOrderValue', parseFloat(e.target.value) || undefined)}
-                  placeholder="100000"
-                  className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
-                />
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
+                    {userCurrency === 'IDR' ? 'Rp' : userCurrency}
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.minOrderValue ? formatCurrency(formData.minOrderValue, userCurrency).replace(userCurrency === 'IDR' ? 'Rp' : userCurrency, '').trim() : ''}
+                    onChange={(e) => {
+                      const numericValue = e.target.value.replace(/[^\d]/g, '');
+                      handleInputChange('minOrderValue', numericValue ? parseFloat(numericValue) : undefined);
+                    }}
+                    placeholder="100000"
+                    className="w-full text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-black"
+                  />
+                </div>
               </div>
 
               <div>
