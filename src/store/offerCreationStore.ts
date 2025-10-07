@@ -70,6 +70,8 @@ export interface OfferCreationState {
   
   // Selected Products
   selectedProducts: SelectedProduct[];
+  // Persisted offer badges per productId
+  productOfferBadges: Record<string, string>;
   
   // UI State
   isOfferTypeConfigured: boolean;
@@ -115,6 +117,9 @@ interface OfferCreationActions {
   removeProduct: (productId: string) => void;
   updateProductDiscount: (productId: string, discountType: 'percentage' | 'fixed', discountValue: number) => void;
   clearProducts: () => void;
+  // Product badges (offers applied in UI before final save)
+  setProductOfferBadge: (productId: string, badge: string) => void;
+  clearProductOfferBadge: (productId: string) => void;
   
   // UI State
   setOfferTypeConfigured: (configured: boolean) => void;
@@ -154,6 +159,7 @@ const initialState: OfferCreationState = {
   
   // Selected Products
   selectedProducts: [],
+  productOfferBadges: {},
   
   // UI State
   isOfferTypeConfigured: false,
@@ -357,6 +363,22 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         set({ selectedProducts: [], areProductsSelected: false });
         get().updateReadyToCreate();
       },
+
+      // Product badges
+      setProductOfferBadge: (productId, badge) => {
+        set((state) => ({
+          productOfferBadges: { ...state.productOfferBadges, [productId]: badge },
+        }));
+        get().updateReadyToCreate();
+      },
+
+      clearProductOfferBadge: (productId) => {
+        set((state) => {
+          const { [productId]: _removed, ...rest } = state.productOfferBadges;
+          return { productOfferBadges: rest };
+        });
+        get().updateReadyToCreate();
+      },
       
       // UI State
       setOfferTypeConfigured: (configured) => {
@@ -376,11 +398,15 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
       
       updateReadyToCreate: () => {
         const state = get();
+        const hasDateRange = Boolean(state.selectedDateRange && state.selectedDateRange.startDate && state.selectedDateRange.endDate);
+        const hasTimeSlot = Boolean(state.selectedTimeSlot && state.selectedTimeSlot.startTime && state.selectedTimeSlot.endTime);
+        const hasLegacyDates = Boolean(state.startDate && state.endDate && state.startDate !== '' && state.endDate !== '');
+        
         const isReady = 
           state.name.trim() !== '' &&
           state.discountTypes.length > 0 &&
-          ((state.startDate !== '' && state.endDate !== '') || state.selectedTimeSlot !== null) &&
-          state.selectedProducts.length > 0;
+          (hasDateRange || hasTimeSlot || hasLegacyDates) &&
+          Object.keys(state.productOfferBadges || {}).length > 0;
         
         set({ isReadyToCreate: isReady });
       },
@@ -415,7 +441,14 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         maxUsage: state.maxUsage,
         perCustomerLimit: state.perCustomerLimit,
         selectedProducts: state.selectedProducts,
+        productOfferBadges: state.productOfferBadges,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Recalculate isReadyToCreate when store is hydrated
+        if (state) {
+          state.updateReadyToCreate();
+        }
+      },
     }
   )
 );

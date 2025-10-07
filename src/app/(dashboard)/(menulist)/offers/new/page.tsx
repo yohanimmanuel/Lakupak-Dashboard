@@ -41,6 +41,7 @@ export default function CreateOfferPage() {
     maxUsage,
     perCustomerLimit,
     selectedProducts,
+    productOfferBadges,
     isDateRangeConfigured,
     areProductsSelected,
     isReadyToCreate,
@@ -77,6 +78,7 @@ export default function CreateOfferPage() {
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
   const isDateRangeConfiguredComputed = Boolean(selectedDateRange || selectedTimeSlot);
+  const isProductsConfigured = Object.keys(productOfferBadges || {}).length > 0;
 
   const tabs = [
     { 
@@ -114,6 +116,21 @@ export default function CreateOfferPage() {
     setIsCreating(true);
     
     try {
+      // Get dates from selected range or time slot
+      let offerStartDate = startDate;
+      let offerEndDate = endDate;
+      
+      if (selectedDateRange) {
+        offerStartDate = selectedDateRange.startDate;
+        offerEndDate = selectedDateRange.endDate;
+      } else if (selectedTimeSlot) {
+        // For time slots, we need to set a date range
+        // You might want to adjust this logic based on your requirements
+        const today = new Date();
+        offerStartDate = today.toISOString().split('T')[0];
+        offerEndDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
+      }
+
       const offerData = {
         name,
         description,
@@ -121,11 +138,11 @@ export default function CreateOfferPage() {
         discountTypes,
         minOrderValue: minOrderValue ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : undefined,
         minQuantity,
-        startDate,
-        endDate,
+        startDate: offerStartDate,
+        endDate: offerEndDate,
         maxUsage: maxUsage || undefined,
         perCustomerLimit: perCustomerLimit || undefined,
-        productIds: selectedProducts.map(p => p.productId),
+        productIds: Object.keys(productOfferBadges || {}), // Use products with offer badges
         status: offerStatus,
       };
 
@@ -285,7 +302,7 @@ export default function CreateOfferPage() {
                 <span className="text-xs text-gray-600">Date Range</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${areProductsSelected ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`w-2 h-2 rounded-full ${isProductsConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className="text-xs text-gray-600">Products</span>
               </div>
               {!isReadyToCreate && (

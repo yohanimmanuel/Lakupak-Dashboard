@@ -19,6 +19,7 @@ interface ProductWithOffer extends Product {
   hasOffer?: boolean;
   offerDiscount?: number;
   offerType?: 'percentage' | 'fixed';
+  offerBadge?: string;
 }
 
 interface OfferProduct {
@@ -51,32 +52,63 @@ export default function ProductIntegration({
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
   
-  // Ranges/time slots come from centralized offer creation store
-  const { dateRanges, timeSlots } = useOfferCreationStore();
+  // Ranges/time slots and configured offer types come from centralized offer creation store
+  const { dateRanges, timeSlots, discountTypes, productOfferBadges, setProductOfferBadge, clearProductOfferBadge } = useOfferCreationStore();
   
   // Modal states
   const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
   const [showMoreOfferTypes, setShowMoreOfferTypes] = useState(false);
   const [showMoreRanges, setShowMoreRanges] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
-  // Offer types will be fetched from API or defined as constants
-  const offerTypes = [
-    {
-      id: 'percentage',
-      name: 'Percentage Discount',
-      type: 'percentage'
-    },
-    {
-      id: 'fixed', 
-      name: 'Fixed Amount Discount',
-      type: 'fixed'
-    },
-    {
-      id: 'buy_x_get_y',
-      name: 'Buy X Get Y',
-      type: 'buy_x_get_y'
+  // Map real discount types from store to display-friendly items
+  const getTypeLabel = (t: 'percentage' | 'fixed' | 'buy_x_get_y') => {
+    switch (t) {
+      case 'percentage':
+        return 'Percentage Discount';
+      case 'fixed':
+        return 'Fixed Amount Discount';
+      case 'buy_x_get_y':
+        return 'Buy X Get Y';
+      default:
+        return 'Discount';
     }
-  ];
+  };
+
+  const offerTypes = (discountTypes || []).map((dt) => ({
+    id: dt.id,
+    name: dt.name && dt.name.trim().length > 0 ? dt.name : getTypeLabel(dt.discountType),
+    type: dt.discountType,
+  }));
+
+  // Determine badge label to apply to selected products
+  const computeOfferBadge = (): string => {
+    const hasDiscount = (discountTypes || []).some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+    const hasPromotion = (discountTypes || []).some((dt) => dt.discountType === 'buy_x_get_y');
+    if (hasDiscount && hasPromotion) return 'All Offers';
+    if (hasPromotion) return 'Promotion';
+    if (hasDiscount) return 'Discount';
+    return 'Offer';
+  };
+
+  // Calculate discount amount for a product based on configured discount types
+  const calculateDiscountAmount = (product: ProductWithOffer): number => {
+    if (!discountTypes || discountTypes.length === 0) return 0;
+    
+    const productPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+    let totalDiscount = 0;
+    
+    discountTypes.forEach((dt) => {
+      if (dt.discountType === 'percentage') {
+        totalDiscount += (productPrice * dt.discountValue) / 100;
+      } else if (dt.discountType === 'fixed') {
+        totalDiscount += dt.discountValue;
+      }
+      // buy_x_get_y doesn't affect individual product discount calculation
+    });
+    
+    return totalDiscount;
+  };
 
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
@@ -91,12 +123,18 @@ export default function ProductIntegration({
         const productsData = data.products || data;
         
         // Transform products to include offer information
-        const productsWithOffers: ProductWithOffer[] = productsData.map((product: Product) => ({
-          ...product,
-          hasOffer: false, // TODO: Check if product has active offers
-          offerDiscount: undefined,
-          offerType: undefined,
-        }));
+        const productsWithOffers: ProductWithOffer[] = productsData.map((product: Product) => {
+          const hasOffer = Boolean(productOfferBadges[product.productId]);
+          const discountAmount = hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0;
+          
+          return {
+            ...product,
+            hasOffer,
+            offerDiscount: discountAmount,
+            offerType: hasOffer ? 'percentage' : undefined, // Default to percentage for display
+            offerBadge: productOfferBadges[product.productId],
+          };
+        });
         
         setProducts(productsWithOffers);
       } else {
@@ -140,6 +178,12 @@ export default function ProductIntegration({
   useEffect(() => {
     setPage(1);
   }, [searchTerm, selectedType, selectedCategory, selectedBrand]);
+
+  // Show bulk 'Remove Offer' only if any selected product currently has an offer
+  const canRemoveOffer = selectedProducts.some((productId) => {
+    const product = products.find((p) => p.productId === productId);
+    return Boolean(product?.hasOffer);
+  });
 
   const handleProductSelect = (productId: string) => {
     setSelectedProducts(prev => 
@@ -391,12 +435,22 @@ export default function ProductIntegration({
               <span className="text-sm text-blue-700">
                 {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
               </span>
-              <button
-                onClick={() => setSelectedProducts([])}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                Clear Selection
-              </button>
+              <div className="flex items-center gap-3">
+                {canRemoveOffer && (
+                  <button
+                    onClick={() => setShowRemoveConfirm(true)}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Remove Offer
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedProducts([])}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Clear Selection
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -465,16 +519,16 @@ export default function ProductIntegration({
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </button>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-black text-sm line-clamp-2">{product.name}</h3>
-                      <p className="text-xs text-gray-500">{product.brand}</p>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-black text-sm line-clamp-2">{product.name}</h3>
+                        <p className="text-xs text-gray-500">{product.brand}</p>
+                      </div>
                     </div>
-                  </div>
-                  {product.hasOffer && (
-                    <div className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
-                      {product.offerType === 'percentage' ? `${product.offerDiscount}%` : formatCurrency(product.offerDiscount!, userCurrency)}
-                    </div>
-                  )}
+                    {product.hasOffer && product.offerBadge && (
+                      <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                        {product.offerBadge}
+                      </div>
+                    )}
                 </div>
 
                 <div className="space-y-2 mb-3">
@@ -587,10 +641,8 @@ export default function ProductIntegration({
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
                           {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
                         </span>
-                        {product.hasOffer ? (
-                          <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
-                            {product.offerType === 'percentage' ? `${product.offerDiscount}%` : formatCurrency(product.offerDiscount!, userCurrency)}
-                          </span>
+                        {product.hasOffer && product.offerBadge ? (
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full border border-blue-200">{product.offerBadge}</span>
                         ) : (
                           <span className="text-gray-400 text-xs">No offer</span>
                         )}
@@ -725,18 +777,20 @@ export default function ProductIntegration({
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="space-y-3">
                       {/* Show first offer type */}
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Offer Type:</span>
-                          <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
+                      {offerTypes && offerTypes.length > 0 ? (
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Offer Name:</span>
+                            <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Type:</span>
+                            <span className="text-xs font-medium text-black">{getTypeLabel(offerTypes[0].type as any)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Type:</span>
-                          <span className="text-xs font-medium text-black">
-                            {offerTypes[0]?.name || 'Select Offer Type'}
-                          </span>
-                        </div>
-                      </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">No offer types configured.</div>
+                      )}
 
                       {/* Show expanded offer types when dropdown is open */}
                       {showMoreOfferTypes && (
@@ -745,14 +799,12 @@ export default function ProductIntegration({
                             <div key={offerType.id}>
                               {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">Offer Type:</span>
+                                <span className="text-xs text-gray-600">Offer Name:</span>
                                 <span className="text-xs font-medium text-black">{offerType.name}</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-600">Type:</span>
-                                <span className="text-xs font-medium text-black">
-                                  {offerType.name}
-                                </span>
+                                <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as any)}</span>
                               </div>
                               {index < offerTypes.slice(1).length - 1 && (
                                 <div className="border-t border-gray-300 mt-3"></div>
@@ -934,20 +986,6 @@ export default function ProductIntegration({
                     )}
                   </div>
                 </div>
-
-                {/* Status Selection */}
-                <div>
-                  <label className="block text-xs font-medium text-black mb-1">
-                    Apply Status *
-                  </label>
-                  <select className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                  <div className="mt-1 text-xs text-gray-500">
-                    Active: Apply immediately, Inactive: Save as disabled
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -961,13 +999,72 @@ export default function ProductIntegration({
               </button>
               <button
                 onClick={() => {
+                  const badge = computeOfferBadge();
+                  setProducts((prev) => prev.map((p) => {
+                    if (selectedProducts.includes(p.productId)) {
+                      const discountAmount = calculateDiscountAmount(p);
+                      return { 
+                        ...p, 
+                        hasOffer: true, 
+                        offerBadge: badge,
+                        offerDiscount: discountAmount,
+                        offerType: 'percentage' // Default to percentage for display
+                      };
+                    }
+                    return p;
+                  }));
+                  selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
                   setShowOfferModal(false);
                   setSelectedProducts([]);
                 }}
                 className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
               >
-                <Plus className="w-4 h-4" />
                 Apply Offer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Remove Offer Modal */}
+      {showRemoveConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-black">Remove Offer</h3>
+            </div>
+            <div className="p-4 space-y-2">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to remove offers from {selectedProducts.filter(id => {
+                  const p = products.find(pp => pp.productId === id);
+                  return p?.hasOffer;
+                }).length} selected product{selectedProducts.filter(id => {
+                  const p = products.find(pp => pp.productId === id);
+                  return p?.hasOffer;
+                }).length !== 1 ? 's' : ''}?
+              </p>
+              <p className="text-xs text-gray-500">This action only affects products that currently have an offer.</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowRemoveConfirm(false)}
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setProducts((prev) => prev.map((p) => (
+                    selectedProducts.includes(p.productId) && p.hasOffer
+                      ? { ...p, hasOffer: false, offerBadge: undefined }
+                      : p
+                  )));
+                  selectedProducts.forEach((id) => clearProductOfferBadge(id));
+                  setShowRemoveConfirm(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
+              >
+                Remove
               </button>
             </div>
           </div>

@@ -169,7 +169,9 @@ export async function POST(request: NextRequest) {
           const end = new Date(endDate);
           
           // Parse minOrderValue from string to number
-          const parsedMinOrderValue = minOrderValue ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : undefined;
+          const parsedMinOrderValue = minOrderValue ? 
+            (typeof minOrderValue === 'string' ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : minOrderValue) : 
+            undefined;
     if (start >= end) {
       return NextResponse.json(
         { error: 'End date must be after start date' },
