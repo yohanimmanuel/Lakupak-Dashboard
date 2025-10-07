@@ -29,9 +29,9 @@ export default function SalesAnalyticsPage() {
 	}, []);
 
 	// ===== Types for export calculations (explicit, no any) =====
-	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string }
+	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string; productTypeSnapshot?: string }
 	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
-	interface ExportProduct { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string }
+	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string }
 	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
 
 	const parseCurrencyToNumber = (currencyString: string | undefined): number => {
@@ -119,7 +119,7 @@ export default function SalesAnalyticsPage() {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
 				const prod = productIndex.get(String(it.productId));
-				const category = it.category || prod?.category || 'Uncategorized';
+				const category = it.productTypeSnapshot || prod?.productType || 'Uncategorized';
 				// Calculate units using package-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
 				const packageQuantity = it.packageQuantity || 1;

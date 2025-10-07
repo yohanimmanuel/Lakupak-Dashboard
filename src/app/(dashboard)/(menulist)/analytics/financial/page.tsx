@@ -44,9 +44,9 @@ export default function FinancialAnalyticsPage() {
   };
 
   // Types for export generation (explicit, no any)
-  type ExportOrderItem = { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string };
+  type ExportOrderItem = { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; productTypeSnapshot?: string };
   type ExportOrder = { buyerId: string; orderDate: string | Date; totalAmount?: number; orderItems?: ExportOrderItem[] };
-  type ExportProduct = { productId: string; name: string; category?: string; sellingPrice?: string; purchasePrice?: string };
+  type ExportProduct = { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string };
 
   // Helper function to create Word document content
   const createWordDocument = (orders: ExportOrder[], products: ExportProduct[], timeRange: string): string => {
@@ -221,7 +221,7 @@ export default function FinancialAnalyticsPage() {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
-          const category = product?.category || 'Uncategorized';
+          const category = product?.productType || 'Uncategorized';
           const sellingPrice = parseCurrencyToNumber(product?.sellingPrice || '0');
           const purchasePrice = parseCurrencyToNumber(product?.purchasePrice || '0');
           
@@ -268,7 +268,7 @@ export default function FinancialAnalyticsPage() {
               productStats[item.productId] = {
                 revenue: 0,
                 unitsSold: 0,
-                category: product.category || 'Uncategorized',
+                category: product.productType || 'Uncategorized',
                 name: product.name,
                 profit: 0
               };
@@ -310,7 +310,7 @@ export default function FinancialAnalyticsPage() {
         const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
         return {
           name: stats.name,
-          category: stats.category,
+          productType: stats.category,
           revenue: stats.revenue,
           profit: stats.profit,
           margin,
@@ -538,7 +538,7 @@ export default function FinancialAnalyticsPage() {
                     <tr>
                       <td>${index + 1}</td>
                       <td>${product.name}</td>
-                      <td>${product.category}</td>
+                      <td>${product.productType}</td>
                       <td>$${product.revenue.toLocaleString()}</td>
                       <td>${product.unitsSold}</td>
                       <td>${product.margin.toFixed(1)}%</td>

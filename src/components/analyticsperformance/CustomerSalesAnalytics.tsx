@@ -299,7 +299,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
 				const prod = products.find(p => p.productId === it.productId);
-				const category = it.productTypeSnapshot || prod?.productType || 'Uncategorized';
+				const category = prod?.productCategory || 'Uncategorized';
 				// Calculate units using package-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
 				const packageQuantity = it.packageQuantity || 1;
@@ -441,7 +441,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 				{/* Units by Category (Pie) */}
 				<div className="lg:col-span-5">
 					<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-						<h3 className="text-lg font-semibold text-gray-900 mb-6">Units by Category</h3>
+						<h3 className="text-lg font-semibold text-gray-900 mb-6">Units by Product Category</h3>
 						<ResponsiveContainer width="100%" height={284}>
 							<PieChart>
 								<Pie data={unitsByCategory} dataKey="units" nameKey="category" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2} stroke="white" strokeWidth={2} cornerRadius={8}>

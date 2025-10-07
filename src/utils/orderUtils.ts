@@ -10,7 +10,7 @@ export const createOrderItemFromProduct = (
   product: {
     productId: string;
     name: string;
-    category: string;
+    productType: string;
     sellingPrice: string | number;
     packageType?: string;
     piecesPerPackage?: number;
@@ -34,7 +34,7 @@ export const createOrderItemFromProduct = (
   return {
     productId: product.productId,
     productName: product.name,
-    category: product.category,
+    category: product.productType,
     subtotal: subtotal,
     packageType: product.packageType,
     piecesPerPackage: piecesPerPackage,
