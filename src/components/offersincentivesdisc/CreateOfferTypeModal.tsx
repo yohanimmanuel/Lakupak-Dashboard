@@ -10,7 +10,7 @@ interface OfferTypeData {
   description: string;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue?: number;
+  minOrderValue?: string;
   minQuantity?: number;
   maxUsage?: number;
   perCustomerLimit?: number;
@@ -37,7 +37,7 @@ export default function CreateOfferTypeModal({
     description: '',
     discountType: 'percentage',
     discountValue: 0,
-    minOrderValue: undefined,
+    minOrderValue: '',
     minQuantity: undefined,
     maxUsage: undefined,
     perCustomerLimit: undefined,
@@ -50,7 +50,7 @@ export default function CreateOfferTypeModal({
         description: editingType.description || '',
         discountType: editingType.discountType || 'percentage',
         discountValue: editingType.discountValue || 0,
-        minOrderValue: editingType.minOrderValue || undefined,
+        minOrderValue: editingType.minOrderValue || '',
         minQuantity: editingType.minQuantity || undefined,
         maxUsage: editingType.maxUsage || undefined,
         perCustomerLimit: editingType.perCustomerLimit || undefined,
@@ -61,7 +61,7 @@ export default function CreateOfferTypeModal({
         description: '',
         discountType: 'percentage',
         discountValue: 0,
-        minOrderValue: undefined,
+        minOrderValue: '',
         minQuantity: undefined,
         maxUsage: undefined,
         perCustomerLimit: undefined,
@@ -286,12 +286,11 @@ export default function CreateOfferTypeModal({
                   </div>
                   <input
                     type="text"
-                    value={formData.minOrderValue ? formatCurrency(formData.minOrderValue, userCurrency).replace(userCurrency === 'IDR' ? 'Rp' : userCurrency, '').trim() : ''}
+                    value={formData.minOrderValue || ''}
                     onChange={(e) => {
-                      const numericValue = e.target.value.replace(/[^\d]/g, '');
-                      handleInputChange('minOrderValue', numericValue ? parseFloat(numericValue) : undefined);
+                      handleInputChange('minOrderValue', e.target.value);
                     }}
-                    placeholder="100000"
+                    placeholder="100,000 or 100.000"
                     className="w-full text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-black"
                   />
                 </div>

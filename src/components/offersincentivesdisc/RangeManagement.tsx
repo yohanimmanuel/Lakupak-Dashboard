@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import CreateDateRangeModal from './CreateDateRangeModal';
 import CreateTimeSlotModal from './CreateTimeSlotModal';
@@ -39,72 +39,34 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRange, setEditingRange] = useState<DateRange | TimeSlot | null>(null);
 
-  // Mock data - replace with actual API calls
-  const dateRanges: DateRange[] = [
-    {
-      id: '1',
-      name: 'Summer Sale 2024',
-      description: 'Annual summer promotion period',
-      startDate: '2024-06-01',
-      endDate: '2024-08-31',
-      isActive: true,
-      offerCount: 12,
-      createdAt: '2024-05-15',
-    },
-    {
-      id: '2',
-      name: 'Back to School',
-      description: 'Educational products promotion',
-      startDate: '2024-07-15',
-      endDate: '2024-09-15',
-      isActive: true,
-      offerCount: 8,
-      createdAt: '2024-06-20',
-    },
-    {
-      id: '3',
-      name: 'Holiday Season',
-      description: 'Year-end holiday promotions',
-      startDate: '2024-12-01',
-      endDate: '2024-12-31',
-      isActive: false,
-      offerCount: 15,
-      createdAt: '2024-11-10',
-    },
-  ];
+  // State for date ranges and time slots - will be populated from API
+  const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const timeSlots: TimeSlot[] = [
-    {
-      id: '1',
-      name: 'Morning Rush',
-      startTime: '07:00',
-      endTime: '10:00',
-      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      isActive: true,
-      offerCount: 5,
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Lunch Break',
-      startTime: '12:00',
-      endTime: '14:00',
-      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      isActive: true,
-      offerCount: 3,
-      createdAt: '2024-01-20',
-    },
-    {
-      id: '3',
-      name: 'Weekend Special',
-      startTime: '09:00',
-      endTime: '18:00',
-      days: ['Saturday', 'Sunday'],
-      isActive: false,
-      offerCount: 7,
-      createdAt: '2024-02-01',
-    },
-  ];
+  // Fetch date ranges and time slots from API
+  useEffect(() => {
+    fetchRanges();
+  }, []);
+
+  const fetchRanges = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/offers/ranges');
+      if (!response.ok) {
+        throw new Error('Failed to fetch ranges');
+      }
+      const data = await response.json();
+      setDateRanges(data.dateRanges || []);
+      setTimeSlots(data.timeSlots || []);
+    } catch (error) {
+      console.error('Error fetching ranges:', error);
+      setDateRanges([]);
+      setTimeSlots([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDateRangeStatus = (startDate: string, endDate: string, isActive: boolean) => {
     const now = new Date();
@@ -507,11 +469,33 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
             setEditingRange(null);
           }}
           editingRange={editingRange}
-          onSave={(rangeData) => {
-            console.log('Save date range:', rangeData);
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setEditingRange(null);
+          onSave={async (rangeData) => {
+            try {
+              const response = await fetch('/api/offers/ranges', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  type: 'date',
+                  ...rangeData,
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to save date range');
+              }
+
+              // Refresh the ranges list
+              await fetchRanges();
+              
+              setShowCreateModal(false);
+              setShowEditModal(false);
+              setEditingRange(null);
+            } catch (error) {
+              console.error('Error saving date range:', error);
+              // TODO: Show error message to user
+            }
           }}
         />
       )}
@@ -525,11 +509,33 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
             setEditingRange(null);
           }}
           editingSlot={editingRange}
-          onSave={(slotData) => {
-            console.log('Save time slot:', slotData);
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setEditingRange(null);
+          onSave={async (slotData) => {
+            try {
+              const response = await fetch('/api/offers/ranges', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  type: 'time',
+                  ...slotData,
+                }),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to save time slot');
+              }
+
+              // Refresh the ranges list
+              await fetchRanges();
+              
+              setShowCreateModal(false);
+              setShowEditModal(false);
+              setEditingRange(null);
+            } catch (error) {
+              console.error('Error saving time slot:', error);
+              // TODO: Show error message to user
+            }
           }}
         />
       )}

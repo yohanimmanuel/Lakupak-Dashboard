@@ -1,13 +1,22 @@
+export interface OfferProduct {
+  id: string;
+  productId: string;
+  name: string;
+  productType: string;
+  productCategory: string;
+  sellingPrice: number;
+}
+
 export interface Offer {
   id: string;
   offerId: string;
   name: string;
-  description: string;
+  description?: string;
   type: 'discount' | 'promotion';
   status: 'active' | 'expired' | 'inactive';
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue?: number;
+  minOrderValue?: string;
   minQuantity?: number;
   startDate: string;
   endDate: string;
@@ -15,8 +24,24 @@ export interface Offer {
   perCustomerLimit?: number;
   totalUsage: number;
   totalDiscountGiven: number;
+  products: OfferProduct[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OfferFormData {
+  name: string;
+  description?: string;
+  type: 'discount' | 'promotion';
+  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
+  discountValue: number;
+  minOrderValue?: string;
+  minQuantity?: number;
+  startDate: string;
+  endDate: string;
+  maxUsage?: number;
+  perCustomerLimit?: number;
+  productIds: string[];
 }
 
 export interface OfferTableRow {
@@ -31,4 +56,14 @@ export interface OfferTableRow {
   usage: string;
   totalDiscount: string;
   actions: string;
+}
+
+export interface OffersResponse {
+  offers: Offer[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
 }

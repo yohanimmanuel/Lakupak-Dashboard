@@ -42,78 +42,31 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
   
+  // State for ranges - will be populated from API
+  const [dateRanges, setDateRanges] = useState<any[]>([]);
+  const [timeSlots, setTimeSlots] = useState<any[]>([]);
+  
   // Modal states
   const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
   const [showMoreOfferTypes, setShowMoreOfferTypes] = useState(false);
   const [showMoreRanges, setShowMoreRanges] = useState(false);
 
-  // Mock data for offer information
+  // Offer types will be fetched from API or defined as constants
   const offerTypes = [
     {
-      id: '1',
+      id: 'percentage',
       name: 'Percentage Discount',
-      discountValue: 15,
-      minOrderValue: 100000,
       type: 'percentage'
     },
     {
-      id: '2', 
+      id: 'fixed', 
       name: 'Fixed Amount Discount',
-      discountValue: 50000,
-      minOrderValue: 200000,
       type: 'fixed'
     },
     {
-      id: '3',
+      id: 'buy_x_get_y',
       name: 'Buy X Get Y',
-      discountValue: 1,
-      minQuantity: 3,
       type: 'buy_x_get_y'
-    }
-  ];
-
-  const dateRanges = [
-    {
-      id: '1',
-      name: 'Summer Sale 2024',
-      startDate: '2024-06-01',
-      endDate: '2024-08-31'
-    },
-    {
-      id: '2',
-      name: 'Back to School',
-      startDate: '2024-07-15', 
-      endDate: '2024-09-15'
-    },
-    {
-      id: '3',
-      name: 'Holiday Season',
-      startDate: '2024-12-01',
-      endDate: '2024-12-31'
-    }
-  ];
-
-  const timeSlots = [
-    {
-      id: '1',
-      name: 'Morning Rush',
-      startTime: '07:00',
-      endTime: '10:00',
-      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-    },
-    {
-      id: '2',
-      name: 'Lunch Break', 
-      startTime: '12:00',
-      endTime: '14:00',
-      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-    },
-    {
-      id: '3',
-      name: 'Weekend Special',
-      startTime: '09:00',
-      endTime: '18:00',
-      days: ['Saturday', 'Sunday']
     }
   ];
 
@@ -770,18 +723,9 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
                           <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Discount Value:</span>
+                          <span className="text-xs text-gray-600">Type:</span>
                           <span className="text-xs font-medium text-black">
-                            {offerTypes[0].type === 'percentage' ? `${offerTypes[0].discountValue}%` :
-                             offerTypes[0].type === 'fixed' ? formatCurrency(offerTypes[0].discountValue, userCurrency) :
-                             `Get ${offerTypes[0].discountValue} free`}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Minimum Order:</span>
-                          <span className="text-xs font-medium text-black">
-                            {offerTypes[0].minOrderValue ? formatCurrency(offerTypes[0].minOrderValue, userCurrency) : 
-                             offerTypes[0].minQuantity ? `${offerTypes[0].minQuantity} packages` : 'None'}
+                            {offerTypes[0]?.name || 'Select Offer Type'}
                           </span>
                         </div>
                       </div>
@@ -797,18 +741,9 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
                                 <span className="text-xs font-medium text-black">{offerType.name}</span>
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">Discount Value:</span>
+                                <span className="text-xs text-gray-600">Type:</span>
                                 <span className="text-xs font-medium text-black">
-                                  {offerType.type === 'percentage' ? `${offerType.discountValue}%` :
-                                   offerType.type === 'fixed' ? formatCurrency(offerType.discountValue, userCurrency) :
-                                   `Get ${offerType.discountValue} free`}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">Minimum Order:</span>
-                                <span className="text-xs font-medium text-black">
-                                  {offerType.minOrderValue ? formatCurrency(offerType.minOrderValue, userCurrency) : 
-                                   offerType.minQuantity ? `${offerType.minQuantity} packages` : 'None'}
+                                  {offerType.name}
                                 </span>
                               </div>
                               {index < offerTypes.slice(1).length - 1 && (

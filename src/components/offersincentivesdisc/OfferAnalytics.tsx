@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Target, PieChart } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
 interface OfferAnalyticsProps {
+  offers?: any[];
   isNewOffer?: boolean;
 }
 
@@ -32,35 +33,102 @@ interface AnalyticsData {
   };
 }
 
-export default function OfferAnalytics({ isNewOffer = false }: OfferAnalyticsProps) {
+export default function OfferAnalytics({ offers = [], isNewOffer = false }: OfferAnalyticsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
-  // Mock data - replace with actual API calls
-  const analyticsData: AnalyticsData = {
-    totalOffers: 24,
-    activeOffers: 18,
-    totalDiscountGiven: 12500000,
-    totalRedemptions: 456,
-    avgDiscountPerOrder: 27412,
-    topPerformingOffers: [
-      { name: 'Summer Sale 2024', redemptions: 89, discountGiven: 1250000, performance: 95 },
-      { name: 'Bulk Discount', redemptions: 67, discountGiven: 890000, performance: 87 },
-      { name: 'New Customer Special', redemptions: 45, discountGiven: 675000, performance: 78 },
-      { name: 'Volume Incentive', redemptions: 34, discountGiven: 520000, performance: 72 },
-    ],
-    redemptionTrends: [
-      { period: 'Week 1', redemptions: 45, discountGiven: 1250000 },
-      { period: 'Week 2', redemptions: 52, discountGiven: 1450000 },
-      { period: 'Week 3', redemptions: 38, discountGiven: 980000 },
-      { period: 'Week 4', redemptions: 61, discountGiven: 1670000 },
-    ],
-    offerTypeBreakdown: {
-      discounts: 65,
-      promotions: 35,
+  // Calculate analytics data from offers
+  const analyticsData = React.useMemo(() => {
+    if (!offers || offers.length === 0) {
+      return null;
     }
-  };
+
+    // Filter offers based on selected period
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (selectedPeriod) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const filteredOffers = offers.filter(offer => 
+      new Date(offer.createdAt) >= startDate && new Date(offer.createdAt) <= now
+    );
+
+    const totalOffers = filteredOffers.length;
+    const activeOffers = filteredOffers.filter(offer => offer.status === 'active').length;
+    const totalDiscountGiven = filteredOffers.reduce((sum, offer) => sum + (offer.totalDiscountGiven || 0), 0);
+    const totalUsage = filteredOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
+    const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
+
+    // Get top performing offers
+    const topPerformingOffers = filteredOffers
+      .map(offer => ({
+        name: offer.name,
+        redemptions: offer.totalUsage || 0,
+        discountGiven: offer.totalDiscountGiven || 0,
+        performance: offer.maxUsage ? ((offer.totalUsage || 0) / offer.maxUsage) * 100 : 0,
+      }))
+      .sort((a, b) => b.redemptions - a.redemptions)
+      .slice(0, 4);
+
+    // Calculate redemption trends (weekly data)
+    const weeklyTrends = [];
+    const weeksBack = selectedPeriod === '7d' ? 1 : selectedPeriod === '30d' ? 4 : selectedPeriod === '90d' ? 12 : 52;
+    
+    for (let i = 0; i < weeksBack; i++) {
+      const weekStart = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      const weekOffers = filteredOffers.filter(offer => 
+        new Date(offer.createdAt) >= weekStart && new Date(offer.createdAt) < weekEnd
+      );
+      
+      const weekUsage = weekOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
+      const weekDiscount = weekOffers.reduce((sum, offer) => sum + (offer.totalDiscountGiven || 0), 0);
+      
+      weeklyTrends.push({
+        period: `Week ${i + 1}`,
+        redemptions: weekUsage,
+        discountGiven: weekDiscount,
+      });
+    }
+
+    // Calculate offer type breakdown
+    const discountOffers = filteredOffers.filter(offer => offer.type === 'discount').length;
+    const promotionOffers = filteredOffers.filter(offer => offer.type === 'promotion').length;
+    const total = discountOffers + promotionOffers;
+    
+    const offerTypeBreakdown = {
+      discounts: total > 0 ? Math.round((discountOffers / total) * 100) : 0,
+      promotions: total > 0 ? Math.round((promotionOffers / total) * 100) : 0,
+    };
+
+    return {
+      totalOffers,
+      activeOffers,
+      totalDiscountGiven,
+      totalRedemptions: totalUsage,
+      avgDiscountPerOrder,
+      topPerformingOffers,
+      redemptionTrends: weeklyTrends,
+      offerTypeBreakdown,
+    };
+  }, [offers, selectedPeriod]);
 
   const periodOptions = [
     { value: '7d', label: 'Last 7 Days' },
@@ -69,8 +137,8 @@ export default function OfferAnalytics({ isNewOffer = false }: OfferAnalyticsPro
     { value: '1y', label: 'Last Year' },
   ];
 
-  // Empty state for new offers
-  if (isNewOffer) {
+  // Empty state for new offers or no data
+  if (isNewOffer || !analyticsData) {
     return (
       <div className="p-4 space-y-4">
         {/* Header */}

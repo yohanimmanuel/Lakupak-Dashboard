@@ -33,6 +33,7 @@ model User {
   products      Product[]
   sessions      Session[]
   suppliers     Supplier[]
+  offers        Offer[]
   company       Company?   @relation(fields: [companyId], references: [id])
 }
 
@@ -142,6 +143,7 @@ model Product {
   marketplaceStatus String?     @default("Not Published")
   publishedAt       DateTime?
   orderItems        OrderItem[]
+  offerProducts     OfferProduct[]
   user              User?       @relation(fields: [userId], references: [id])
 }
 
@@ -316,4 +318,49 @@ model UserActivity {
   @@index([userId, activityType])
   @@index([productId])
   @@index([activityType])
+}
+
+model Offer {
+  id                String      @id @default(cuid())
+  offerId           String      @unique
+  name              String
+  description       String?
+  type              String      // 'discount' | 'promotion'
+  status            String      // 'active' | 'expired' | 'inactive'
+  discountType      String      // 'percentage' | 'fixed' | 'buy_x_get_y'
+  discountValue     Float
+  minOrderValue     Float?
+  minQuantity       Int?
+  startDate         DateTime
+  endDate           DateTime
+  maxUsage          Int?
+  perCustomerLimit  Int?
+  totalUsage        Int         @default(0)
+  totalDiscountGiven Float      @default(0)
+  userId            Int?
+  createdAt         DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
+  
+  // Relations
+  user              User?       @relation(fields: [userId], references: [id])
+  offerProducts     OfferProduct[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([startDate, endDate])
+}
+
+model OfferProduct {
+  id        String  @id @default(cuid())
+  offerId   String
+  productId String
+  
+  // Relations
+  offer     Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  
+  @@unique([offerId, productId])
+  @@index([offerId])
+  @@index([productId])
 }

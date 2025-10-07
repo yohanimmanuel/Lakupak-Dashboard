@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
@@ -32,45 +32,31 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingType, setEditingType] = useState<OfferType | null>(null);
 
-  // Mock data - replace with actual API calls
-  const offerTypes: OfferType[] = [
-    {
-      id: '1',
-      name: 'Percentage Discount',
-      description: 'Standard percentage-based discount on products',
-      discountType: 'percentage',
-      discountValue: 15,
-      minOrderValue: 100000,
-      maxUsage: 1000,
-      perCustomerLimit: 5,
-      isActive: true,
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Fixed Amount Discount',
-      description: 'Fixed monetary discount on orders',
-      discountType: 'fixed',
-      discountValue: 50000,
-      minOrderValue: 200000,
-      maxUsage: 500,
-      perCustomerLimit: 3,
-      isActive: true,
-      createdAt: '2024-01-20',
-    },
-    {
-      id: '3',
-      name: 'Buy X Get Y',
-      description: 'Buy certain quantity, get additional items free',
-      discountType: 'buy_x_get_y',
-      discountValue: 1, // Get 1 free when buying X
-      minQuantity: 5,
-      maxUsage: 200,
-      perCustomerLimit: 2,
-      isActive: false,
-      createdAt: '2024-02-01',
-    },
-  ];
+  // State for offer types - will be populated from API
+  const [offerTypes, setOfferTypes] = useState<OfferType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch offer types from API
+  useEffect(() => {
+    fetchOfferTypes();
+  }, []);
+
+  const fetchOfferTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/offers/types');
+      if (!response.ok) {
+        throw new Error('Failed to fetch offer types');
+      }
+      const data = await response.json();
+      setOfferTypes(data.offerTypes || []);
+    } catch (error) {
+      console.error('Error fetching offer types:', error);
+      setOfferTypes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDiscountTypeIcon = (type: string) => {
     switch (type) {
@@ -327,11 +313,30 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
             setEditingType(null);
           }}
           editingType={editingType}
-          onSave={(typeData) => {
-            console.log('Save offer type:', typeData);
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setEditingType(null);
+          onSave={async (typeData) => {
+            try {
+              const response = await fetch('/api/offers/types', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(typeData),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to save offer type');
+              }
+
+              // Refresh the offer types list
+              await fetchOfferTypes();
+              
+              setShowCreateModal(false);
+              setShowEditModal(false);
+              setEditingType(null);
+            } catch (error) {
+              console.error('Error saving offer type:', error);
+              // TODO: Show error message to user
+            }
           }}
         />
       )}

@@ -1,16 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, BarChart3, Target, Package, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
+import { Offer } from '@/types/offer';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('analytics');
+  const [offers, setOffers] = useState<Offer[]>([]);
+
+  // Fetch offers from API
+  useEffect(() => {
+    fetchOffers();
+  }, []);
+
+  const fetchOffers = async () => {
+    try {
+      const response = await fetch('/api/offers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch offers');
+      }
+      const data = await response.json();
+      setOffers(data.offers || []);
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      setOffers([]);
+    }
+  };
 
   const tabs = [
     { 
@@ -42,7 +63,7 @@ export default function OffersDetailsPage() {
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'analytics':
-        return <OfferAnalytics />;
+        return <OfferAnalytics offers={offers} />;
       case 'type':
         return <OfferType />;
       case 'products':
@@ -50,7 +71,7 @@ export default function OffersDetailsPage() {
       case 'range':
         return <RangeManagement />;
       default:
-        return <OfferAnalytics />;
+        return <OfferAnalytics offers={offers} />;
     }
   };
 

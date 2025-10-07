@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gift, Plus, Calendar, Download } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
@@ -10,88 +10,30 @@ import { Offer } from '@/types/offer';
 export default function OffersPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'discounts' | 'promotions'>('all');
-  const [offers, setOffers] = useState<Offer[]>([]); // Will be populated from API
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data for demonstration
-  React.useEffect(() => {
-    setOffers([
-      {
-        id: '1',
-        offerId: 'OFFER_001',
-        name: 'Summer Sale 2024',
-        description: 'Summer promotion for all beverages',
-        type: 'promotion',
-        status: 'active',
-        discountType: 'percentage',
-        discountValue: 15,
-        minOrderValue: 100000,
-        startDate: '2024-01-01',
-        endDate: '2024-03-31',
-        maxUsage: 1000,
-        perCustomerLimit: 3,
-        totalUsage: 245,
-        totalDiscountGiven: 12500000,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-15T00:00:00Z'
-      },
-      {
-        id: '2',
-        offerId: 'OFFER_002',
-        name: 'Bulk Discount',
-        description: 'Volume discount for snacks category',
-        type: 'discount',
-        status: 'active',
-        discountType: 'fixed',
-        discountValue: 5000,
-        minQuantity: 10,
-        startDate: '2024-01-15',
-        endDate: '2024-06-30',
-        maxUsage: 500,
-        totalUsage: 89,
-        totalDiscountGiven: 445000,
-        createdAt: '2024-01-15T00:00:00Z',
-        updatedAt: '2024-01-20T00:00:00Z'
-      },
-      {
-        id: '3',
-        offerId: 'OFFER_003',
-        name: 'Holiday Special',
-        description: 'Holiday promotion for beverages',
-        type: 'promotion',
-        status: 'active',
-        discountType: 'buy_x_get_y',
-        discountValue: 1,
-        minQuantity: 3,
-        startDate: '2024-12-01',
-        endDate: '2024-12-31',
-        maxUsage: 200,
-        perCustomerLimit: 2,
-        totalUsage: 45,
-        totalDiscountGiven: 125000,
-        createdAt: '2024-11-15T00:00:00Z',
-        updatedAt: '2024-11-15T00:00:00Z'
-      },
-      {
-        id: '4',
-        offerId: 'OFFER_004',
-        name: 'New Year Sale',
-        description: 'Expired new year promotion',
-        type: 'discount',
-        status: 'expired',
-        discountType: 'percentage',
-        discountValue: 20,
-        minOrderValue: 50000,
-        startDate: '2024-01-01',
-        endDate: '2024-01-31',
-        maxUsage: 100,
-        perCustomerLimit: 1,
-        totalUsage: 78,
-        totalDiscountGiven: 2340000,
-        createdAt: '2023-12-20T00:00:00Z',
-        updatedAt: '2024-02-01T00:00:00Z'
-      }
-    ]);
+  // Fetch offers from API
+  useEffect(() => {
+    fetchOffers();
   }, []);
+
+  const fetchOffers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/offers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch offers');
+      }
+      const data = await response.json();
+      setOffers(data.offers || []);
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      setOffers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabs = [
     { id: 'all', label: 'All Offers', count: offers.length },
@@ -104,6 +46,18 @@ export default function OffersPage() {
     console.log('Selected offer:', offer);
   };
 
+  const handleCreateOffer = () => {
+    router.push('/offers/new');
+  };
+
+  const handleExportData = async () => {
+    try {
+      // TODO: Implement export functionality
+      console.log('Exporting offers data...');
+    } catch (error) {
+      console.error('Error exporting data:', error);
+    }
+  };
 
   return (
     <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
@@ -116,12 +70,15 @@ export default function OffersPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm">
+          <button 
+            onClick={handleExportData}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+          >
             <Download className="w-4 h-4" />
             Export Data
           </button>
           <button 
-            onClick={() => router.push('/offers/new')}
+            onClick={handleCreateOffer}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
           >
             <Plus className="w-4 h-4" />
@@ -159,13 +116,23 @@ export default function OffersPage() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-8 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading offers...</p>
+        </div>
+      )}
+
       {/* Table */}
-      <OfferTable 
-        offers={offers}
-        setOffers={setOffers}
-        activeTab={activeTab}
-        onSelectOffer={handleSelectOffer}
-      />
+      {!loading && (
+        <OfferTable 
+          offers={offers}
+          setOffers={setOffers}
+          activeTab={activeTab}
+          onSelectOffer={handleSelectOffer}
+        />
+      )}
     </div>
   );
 }

@@ -44,21 +44,21 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
         value: totalOffers,
         icon: <Gift className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
-        trend: { percent: '+12%', label: 'from last month', up: true }
+        trend: { percent: '0%', label: 'from last month', up: true }
       },
       {
         label: 'Active Offers',
         value: activeOffers,
         icon: <TrendingUp className="w-6 h-6 text-green-500" />,
         color: 'bg-[#e6f7ec]',
-        trend: { percent: '+8%', label: 'from last month', up: true }
+        trend: { percent: '0%', label: 'from last month', up: true }
       },
       {
         label: 'Total Discount Given',
         value: formatCurrency(totalDiscountGiven, userCurrency),
         icon: <DollarSign className="w-6 h-6 text-orange-500" />,
         color: 'bg-[#fff7ed]',
-        trend: { percent: '+15%', label: 'from last month', up: true }
+        trend: { percent: '0%', label: 'from last month', up: true }
       },
       {
         label: 'Total Redemptions',
