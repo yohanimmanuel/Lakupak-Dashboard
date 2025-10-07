@@ -59,6 +59,8 @@ export interface OfferCreationState {
   // Date Range
   selectedDateRange: DateRange | null;
   selectedTimeSlot: TimeSlot | null;
+  dateRanges: DateRange[];
+  timeSlots: TimeSlot[];
   startDate: string;
   endDate: string;
   
@@ -95,6 +97,12 @@ interface OfferCreationActions {
   // Date Range
   setSelectedDateRange: (dateRange: DateRange | null) => void;
   setSelectedTimeSlot: (timeSlot: TimeSlot | null) => void;
+  addDateRange: (dateRange: DateRange) => void;
+  updateDateRange: (id: string, updates: Partial<DateRange>) => void;
+  removeDateRange: (id: string) => void;
+  addTimeSlot: (timeSlot: TimeSlot) => void;
+  updateTimeSlot: (id: string, updates: Partial<TimeSlot>) => void;
+  removeTimeSlot: (id: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
   
@@ -135,6 +143,8 @@ const initialState: OfferCreationState = {
   // Date Range
   selectedDateRange: null,
   selectedTimeSlot: null,
+  dateRanges: [],
+  timeSlots: [],
   startDate: '',
   endDate: '',
   
@@ -236,6 +246,68 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         set({ selectedTimeSlot: timeSlot });
         get().updateReadyToCreate();
       },
+
+      addDateRange: (dateRange) => {
+        set((state) => ({
+          dateRanges: [...state.dateRanges, dateRange],
+          selectedDateRange: dateRange,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          isDateRangeConfigured: true,
+        }));
+        get().updateReadyToCreate();
+      },
+
+      updateDateRange: (id, updates) => {
+        set((state) => ({
+          dateRanges: state.dateRanges.map((dr) => (dr.id === id ? { ...dr, ...updates } : dr)),
+          selectedDateRange: state.selectedDateRange && state.selectedDateRange.id === id ? { ...state.selectedDateRange, ...updates } : state.selectedDateRange,
+        }));
+        get().updateReadyToCreate();
+      },
+
+      removeDateRange: (id) => {
+        set((state) => {
+          const filtered = state.dateRanges.filter((dr) => dr.id !== id);
+          const selectedRemoved = state.selectedDateRange?.id === id;
+          return {
+            dateRanges: filtered,
+            selectedDateRange: selectedRemoved ? null : state.selectedDateRange,
+            isDateRangeConfigured: filtered.length > 0 || Boolean(state.selectedTimeSlot),
+          };
+        });
+        get().updateReadyToCreate();
+      },
+
+      addTimeSlot: (timeSlot) => {
+        set((state) => ({
+          timeSlots: [...state.timeSlots, timeSlot],
+          selectedTimeSlot: timeSlot,
+          isDateRangeConfigured: true,
+        }));
+        get().updateReadyToCreate();
+      },
+
+      updateTimeSlot: (id, updates) => {
+        set((state) => ({
+          timeSlots: state.timeSlots.map((ts) => (ts.id === id ? { ...ts, ...updates } : ts)),
+          selectedTimeSlot: state.selectedTimeSlot && state.selectedTimeSlot.id === id ? { ...state.selectedTimeSlot, ...updates } : state.selectedTimeSlot,
+        }));
+        get().updateReadyToCreate();
+      },
+
+      removeTimeSlot: (id) => {
+        set((state) => {
+          const filtered = state.timeSlots.filter((ts) => ts.id !== id);
+          const selectedRemoved = state.selectedTimeSlot?.id === id;
+          return {
+            timeSlots: filtered,
+            selectedTimeSlot: selectedRemoved ? null : state.selectedTimeSlot,
+            isDateRangeConfigured: filtered.length > 0 || Boolean(state.selectedDateRange),
+          };
+        });
+        get().updateReadyToCreate();
+      },
       
       setStartDate: (date) => {
         set({ startDate: date });
@@ -307,8 +379,7 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         const isReady = 
           state.name.trim() !== '' &&
           state.discountTypes.length > 0 &&
-          state.startDate !== '' &&
-          state.endDate !== '' &&
+          ((state.startDate !== '' && state.endDate !== '') || state.selectedTimeSlot !== null) &&
           state.selectedProducts.length > 0;
         
         set({ isReadyToCreate: isReady });
@@ -335,6 +406,8 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         discountTypes: state.discountTypes,
         minOrderValue: state.minOrderValue,
         minQuantity: state.minQuantity,
+        dateRanges: state.dateRanges,
+        timeSlots: state.timeSlots,
         selectedDateRange: state.selectedDateRange,
         selectedTimeSlot: state.selectedTimeSlot,
         startDate: state.startDate,

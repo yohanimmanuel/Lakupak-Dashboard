@@ -34,6 +34,8 @@ export default function CreateOfferPage() {
     minQuantity,
     selectedDateRange,
     selectedTimeSlot,
+    dateRanges,
+    timeSlots,
     startDate,
     endDate,
     maxUsage,
@@ -52,6 +54,12 @@ export default function CreateOfferPage() {
     setMinQuantity,
     setSelectedDateRange,
     setSelectedTimeSlot,
+    addDateRange,
+    updateDateRange,
+    removeDateRange,
+    addTimeSlot,
+    updateTimeSlot,
+    removeTimeSlot,
     setStartDate,
     setEndDate,
     setMaxUsage,
@@ -66,8 +74,9 @@ export default function CreateOfferPage() {
     reset,
   } = useOfferCreationStore();
 
-  // Compute isOfferTypeConfigured based on discountTypes length
+  // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
+  const isDateRangeConfiguredComputed = Boolean(selectedDateRange || selectedTimeSlot);
 
   const tabs = [
     { 
@@ -153,7 +162,7 @@ export default function CreateOfferPage() {
       discountTypes,
       selectedProducts,
       isOfferTypeConfigured,
-      isDateRangeConfigured,
+      isDateRangeConfigured: isDateRangeConfiguredComputed,
       areProductsSelected,
     };
 
@@ -224,32 +233,28 @@ export default function CreateOfferPage() {
   };
 
   const handleSaveDateRange = (rangeData: any) => {
-    // Create a date range object and set it
-    const dateRange = {
-      id: `range_${Date.now()}`,
+    const id = `range_${Date.now()}`;
+    addDateRange({
+      id,
       name: rangeData.name,
       description: rangeData.description,
       startDate: rangeData.startDate,
       endDate: rangeData.endDate,
       isActive: true,
-    };
-    
-    setSelectedDateRange(dateRange);
+    });
     setShowCreateRangeModal(false);
   };
 
   const handleSaveTimeSlot = (slotData: any) => {
-    // Create a time slot object and set it
-    const timeSlot = {
-      id: `slot_${Date.now()}`,
+    const id = `slot_${Date.now()}`;
+    addTimeSlot({
+      id,
       name: slotData.name,
       startTime: slotData.startTime,
       endTime: slotData.endTime,
       days: slotData.days || [],
       isActive: true,
-    };
-    
-    setSelectedTimeSlot(timeSlot);
+    });
     setShowCreateTimeSlotModal(false);
   };
 
@@ -276,7 +281,7 @@ export default function CreateOfferPage() {
                 <span className="text-xs text-gray-600">Offer Type</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isDateRangeConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`w-2 h-2 rounded-full ${isDateRangeConfiguredComputed ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className="text-xs text-gray-600">Date Range</span>
               </div>
               <div className="flex items-center gap-2">

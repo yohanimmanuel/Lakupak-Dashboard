@@ -6,7 +6,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
-import { SelectedProduct } from '@/store/offerCreationStore';
+import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationStore';
 
 interface ProductIntegrationProps {
   isNewOffer?: boolean;
@@ -51,9 +51,8 @@ export default function ProductIntegration({
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
   
-  // State for ranges - will be populated from API
-  const [dateRanges, setDateRanges] = useState<any[]>([]);
-  const [timeSlots, setTimeSlots] = useState<any[]>([]);
+  // Ranges/time slots come from centralized offer creation store
+  const { dateRanges, timeSlots } = useOfferCreationStore();
   
   // Modal states
   const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
@@ -813,18 +812,22 @@ export default function ProductIntegration({
                     {rangeTab === 'date' ? (
                       <div className="space-y-3">
                         {/* Show first date range */}
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Active Period:</span>
-                            <span className="text-xs font-medium text-black">{dateRanges[0].name}</span>
+                        {dateRanges && dateRanges.length > 0 ? (
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">Active Period:</span>
+                              <span className="text-xs font-medium text-black">{dateRanges[0].name}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">Duration:</span>
+                              <span className="text-xs font-medium text-black">
+                                {new Date(dateRanges[0].startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRanges[0].endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Duration:</span>
-                            <span className="text-xs font-medium text-black">
-                              {new Date(dateRanges[0].startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRanges[0].endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </span>
-                          </div>
-                        </div>
+                        ) : (
+                          <div className="text-xs text-gray-500">No date ranges configured.</div>
+                        )}
 
                         {/* Show expanded date ranges when dropdown is open */}
                         {showMoreRanges && (
@@ -851,7 +854,7 @@ export default function ProductIntegration({
                         )}
 
                         {/* Dropdown button at the bottom */}
-                        {dateRanges.length > 1 && (
+                        {dateRanges && dateRanges.length > 1 && (
                           <div className="pt-2 border-t border-gray-200">
                             <button
                               onClick={() => setShowMoreRanges(!showMoreRanges)}
@@ -866,29 +869,33 @@ export default function ProductIntegration({
                     ) : (
                       <div className="space-y-3">
                         {/* Show first time slot */}
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Time Slot:</span>
-                            <span className="text-xs font-medium text-black">{timeSlots[0].name}</span>
+                        {timeSlots && timeSlots.length > 0 ? (
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">Time Slot:</span>
+                              <span className="text-xs font-medium text-black">{timeSlots[0].name}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">Schedule:</span>
+                              <span className="text-xs font-medium text-black">
+                                {timeSlots[0].startTime} - {timeSlots[0].endTime}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">Days:</span>
+                              <span className="text-xs font-medium text-black">{timeSlots[0].days.join(', ')}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Schedule:</span>
-                            <span className="text-xs font-medium text-black">
-                              {timeSlots[0].startTime} - {timeSlots[0].endTime}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Days:</span>
-                            <span className="text-xs font-medium text-black">{timeSlots[0].days.join(', ')}</span>
-                          </div>
-                        </div>
+                        ) : (
+                          <div className="text-xs text-gray-500">No time slots configured.</div>
+                        )}
 
                         {/* Show expanded time slots when dropdown is open */}
                         {showMoreRanges && (
                           <div className="space-y-3">
                             {timeSlots.slice(1).map((slot, index) => (
                               <div key={slot.id}>
-                                {index === 0 && <div className="border-t border-gray-300 mt-3"></div>}
+                                {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-gray-600">Time Slot:</span>
                                   <span className="text-xs font-medium text-black">{slot.name}</span>
@@ -912,7 +919,7 @@ export default function ProductIntegration({
                         )}
 
                         {/* Dropdown button at the bottom */}
-                        {timeSlots.length > 1 && (
+                        {timeSlots && timeSlots.length > 1 && (
                           <div className="pt-2 border-t border-gray-200">
                             <button
                               onClick={() => setShowMoreRanges(!showMoreRanges)}
@@ -954,8 +961,6 @@ export default function ProductIntegration({
               </button>
               <button
                 onClick={() => {
-                  // TODO: Implement bulk offer application
-                  console.log('Apply offer to products:', selectedProducts);
                   setShowOfferModal(false);
                   setSelectedProducts([]);
                 }}
