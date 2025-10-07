@@ -28,7 +28,6 @@ export default function OffersDetailsPage() {
       const data = await response.json();
       setOffers(data.offers || []);
     } catch (error) {
-      console.error('Error fetching offers:', error);
       setOffers([]);
     }
   };
@@ -67,7 +66,14 @@ export default function OffersDetailsPage() {
       case 'type':
         return <OfferType />;
       case 'products':
-        return <ProductIntegration />;
+        // Provide no-op handlers to satisfy props; details page is read-only
+        return (
+          <ProductIntegration 
+            onAddProduct={() => {}}
+            onRemoveProduct={() => {}}
+            onUpdateProductDiscount={() => {}}
+          />
+        );
       case 'range':
         return <RangeManagement />;
       default:

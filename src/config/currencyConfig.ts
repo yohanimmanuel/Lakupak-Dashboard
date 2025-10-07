@@ -196,7 +196,12 @@ export const formatCurrencyWithLocale = (amount: number | string, currencyCode?:
   const config = getCurrencyConfig(currencyCode);
   
   // Ensure amount is a number
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : (amount || 0);
+  
+  // Validate that we have a valid number
+  if (isNaN(numericAmount) || !isFinite(numericAmount)) {
+    return `${config.symbol}0`;
+  }
   
   try {
     // For currencies with custom symbols, use custom formatting

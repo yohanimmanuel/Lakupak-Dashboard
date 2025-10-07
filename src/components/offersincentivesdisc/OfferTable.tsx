@@ -24,6 +24,7 @@ const dateRangeFilters = [
   { label: "This Year", value: "year" },
 ];
 
+
 export default function OfferTable({ 
   offers = [], 
   setOffers, 
@@ -113,9 +114,11 @@ export default function OfferTable({
 
   // Convert offer to table row
   function offerToTableRow(offer: Offer): OfferTableRow {
-    const discountDisplay = offer.discountType === 'percentage' 
-      ? `${offer.discountValue}%` 
-      : formatCurrency(offer.discountValue, userCurrency);
+    // Get the primary discount type (highest priority)
+    const primaryDiscount = offer.discountTypes?.find(dt => dt.isActive) || offer.discountTypes?.[0];
+    const discountDisplay = primaryDiscount?.discountType === 'percentage' 
+      ? `${primaryDiscount.discountValue}%` 
+      : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : 'N/A';
     
     const usageDisplay = offer.maxUsage 
       ? `${offer.totalUsage}/${offer.maxUsage}` 

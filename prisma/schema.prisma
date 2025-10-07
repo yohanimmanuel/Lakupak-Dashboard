@@ -327,8 +327,6 @@ model Offer {
   description       String?
   type              String      // 'discount' | 'promotion'
   status            String      // 'active' | 'expired' | 'inactive'
-  discountType      String      // 'percentage' | 'fixed' | 'buy_x_get_y'
-  discountValue     Float
   minOrderValue     Float?
   minQuantity       Int?
   startDate         DateTime
@@ -344,11 +342,30 @@ model Offer {
   // Relations
   user              User?       @relation(fields: [userId], references: [id])
   offerProducts     OfferProduct[]
+  offerDiscountTypes OfferDiscountType[]
   
   @@index([userId])
   @@index([status])
   @@index([type])
   @@index([startDate, endDate])
+}
+
+model OfferDiscountType {
+  id            String  @id @default(cuid())
+  offerId       String
+  discountType  String  // 'percentage' | 'fixed' | 'buy_x_get_y'
+  discountValue Float
+  isActive      Boolean @default(true)
+  priority      Int     @default(1) // Higher number = higher priority
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  
+  // Relations
+  offer         Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  @@index([offerId])
+  @@index([discountType])
+  @@index([priority])
 }
 
 model OfferProduct {

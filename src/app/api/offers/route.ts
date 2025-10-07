@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        offerDiscountTypes: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -80,8 +81,13 @@ export async function GET(request: NextRequest) {
       description: offer.description,
       type: offer.type,
       status: offer.status,
-      discountType: offer.discountType,
-      discountValue: offer.discountValue,
+      discountTypes: offer.offerDiscountTypes.map((dt: any) => ({
+        id: dt.id,
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        isActive: dt.isActive,
+        priority: dt.priority,
+      })),
       minOrderValue: offer.minOrderValue?.toString(),
       minQuantity: offer.minQuantity,
       startDate: offer.startDate,
@@ -135,23 +141,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      name,
-      description,
-      type,
-      discountType,
-      discountValue,
-      minOrderValue,
-      minQuantity,
-      startDate,
-      endDate,
-      maxUsage,
-      perCustomerLimit,
-      productIds,
-    } = body;
+          const {
+            name,
+            description,
+            type,
+            discountTypes,
+            minOrderValue,
+            minQuantity,
+            startDate,
+            endDate,
+            maxUsage,
+            perCustomerLimit,
+            productIds,
+            status = 'active',
+          } = body;
 
     // Validate required fields
-    if (!name || !type || !discountType || !discountValue || !startDate || !endDate || !productIds?.length) {
+    if (!name || !type || !discountTypes?.length || !startDate || !endDate || !productIds?.length) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -171,20 +177,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate discount value
-    if (discountValue <= 0) {
-      return NextResponse.json(
-        { error: 'Discount value must be greater than 0' },
-        { status: 400 }
-      );
-    }
-
-    // Validate discount type and value combination
-    if (discountType === 'percentage' && discountValue > 100) {
-      return NextResponse.json(
-        { error: 'Percentage discount cannot exceed 100%' },
-        { status: 400 }
-      );
+    // Validate discount types
+    for (const discountType of discountTypes) {
+      if (discountType.discountValue <= 0) {
+        return NextResponse.json(
+          { error: 'Discount value must be greater than 0' },
+          { status: 400 }
+        );
+      }
+      if (discountType.discountType === 'percentage' && discountType.discountValue > 100) {
+        return NextResponse.json(
+          { error: 'Percentage discount cannot exceed 100%' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if products exist and belong to user
@@ -219,9 +225,7 @@ export async function POST(request: NextRequest) {
           name,
           description,
           type,
-          status: 'active',
-          discountType,
-          discountValue,
+          status,
           minOrderValue: parsedMinOrderValue,
           minQuantity,
           startDate: start,
@@ -232,6 +236,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Create discount types
+      const offerDiscountTypes = await tx.offerDiscountType.createMany({
+        data: discountTypes.map((dt: any) => ({
+          offerId: offer.id,
+          discountType: dt.discountType,
+          discountValue: dt.discountValue,
+          isActive: dt.isActive,
+          priority: dt.priority,
+        })),
+      });
+
       // Create offer-product relationships
       const offerProducts = await tx.offerProduct.createMany({
         data: productIds.map((productId: string) => ({
@@ -240,12 +255,12 @@ export async function POST(request: NextRequest) {
         })),
       });
 
-      return { offer, offerProducts };
+      return offer;
     });
 
-    // Fetch the created offer with products
+    // Fetch the created offer with products and discount types
     const createdOffer = await prisma.offer.findUnique({
-      where: { id: result.offer.id },
+      where: { id: result.id },
       include: {
         offerProducts: {
           include: {
@@ -260,6 +275,7 @@ export async function POST(request: NextRequest) {
             },
           },
         },
+        offerDiscountTypes: true,
       },
     });
 
@@ -271,8 +287,13 @@ export async function POST(request: NextRequest) {
       description: createdOffer!.description,
       type: createdOffer!.type,
       status: createdOffer!.status,
-      discountType: createdOffer!.discountType,
-      discountValue: createdOffer!.discountValue,
+      discountTypes: createdOffer!.offerDiscountTypes.map((dt: any) => ({
+        id: dt.id,
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        isActive: dt.isActive,
+        priority: dt.priority,
+      })),
       minOrderValue: createdOffer!.minOrderValue?.toString(),
       minQuantity: createdOffer!.minQuantity,
       startDate: createdOffer!.startDate,

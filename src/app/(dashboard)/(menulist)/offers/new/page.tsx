@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle, ChevronDown, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
+import { useOfferCreationStore } from '@/store/offerCreationStore';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
@@ -22,6 +23,51 @@ export default function CreateOfferPage() {
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
   const [showCreateRangeModal, setShowCreateRangeModal] = useState(false);
   const [showCreateTimeSlotModal, setShowCreateTimeSlotModal] = useState(false);
+
+  // Get state from the centralized store
+  const {
+    name,
+    description,
+    type,
+    discountTypes,
+    minOrderValue,
+    minQuantity,
+    selectedDateRange,
+    selectedTimeSlot,
+    startDate,
+    endDate,
+    maxUsage,
+    perCustomerLimit,
+    selectedProducts,
+    isDateRangeConfigured,
+    areProductsSelected,
+    isReadyToCreate,
+    setName,
+    setDescription,
+    setType,
+    addDiscountType,
+    updateDiscountType,
+    removeDiscountType,
+    setMinOrderValue,
+    setMinQuantity,
+    setSelectedDateRange,
+    setSelectedTimeSlot,
+    setStartDate,
+    setEndDate,
+    setMaxUsage,
+    setPerCustomerLimit,
+    addProduct,
+    removeProduct,
+    updateProductDiscount,
+    clearProducts,
+    setOfferTypeConfigured,
+    setDateRangeConfigured,
+    setProductsSelected,
+    reset,
+  } = useOfferCreationStore();
+
+  // Compute isOfferTypeConfigured based on discountTypes length
+  const isOfferTypeConfigured = discountTypes.length > 0;
 
   const tabs = [
     { 
@@ -51,13 +97,50 @@ export default function CreateOfferPage() {
   ];
 
   const handleSaveOffer = async () => {
+    if (!isReadyToCreate) {
+      alert('Please complete all required fields before creating the offer.');
+      return;
+    }
+
     setIsCreating(true);
-    // TODO: Implement offer creation logic
-    console.log('Creating offer with status:', offerStatus);
-    setTimeout(() => {
-      setIsCreating(false);
+    
+    try {
+      const offerData = {
+        name,
+        description,
+        type,
+        discountTypes,
+        minOrderValue: minOrderValue ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : undefined,
+        minQuantity,
+        startDate,
+        endDate,
+        maxUsage: maxUsage || undefined,
+        perCustomerLimit: perCustomerLimit || undefined,
+        productIds: selectedProducts.map(p => p.productId),
+        status: offerStatus,
+      };
+
+      const response = await fetch('/api/offers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(offerData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create offer');
+      }
+
+      // Reset the store and redirect
+      reset();
       router.push('/offers');
-    }, 2000);
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      alert('Failed to create offer. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleCancel = () => {
@@ -65,36 +148,109 @@ export default function CreateOfferPage() {
   };
 
   const renderActiveComponent = () => {
+    const commonProps = {
+      isNewOffer: true,
+      discountTypes,
+      selectedProducts,
+      isOfferTypeConfigured,
+      isDateRangeConfigured,
+      areProductsSelected,
+    };
+
     switch (activeTab) {
       case 'analytics':
-        return <OfferAnalytics {...({ isNewOffer: true } as any)} />;
+        return <OfferAnalytics {...commonProps} />;
       case 'type':
-        return <OfferType {...({ isNewOffer: true, onOpenCreateModal: () => setShowCreateTypeModal(true) } as any)} />;
+        return (
+          <OfferType 
+            {...commonProps}
+            onOpenCreateModal={() => setShowCreateTypeModal(true)}
+            onAddDiscountType={addDiscountType}
+            onUpdateDiscountType={updateDiscountType}
+            onRemoveDiscountType={removeDiscountType}
+          />
+        );
       case 'products':
-        return <ProductIntegration {...({ isNewOffer: true } as any)} />;
+        return (
+          <ProductIntegration 
+            {...commonProps}
+            onAddProduct={addProduct}
+            onRemoveProduct={removeProduct}
+            onUpdateProductDiscount={updateProductDiscount}
+          />
+        );
       case 'range':
-        return <RangeManagement {...({ isNewOffer: true, onOpenDateModal: () => setShowCreateRangeModal(true), onOpenTimeModal: () => setShowCreateTimeSlotModal(true) } as any)} />;
+        return (
+          <RangeManagement 
+            {...commonProps}
+            selectedDateRange={selectedDateRange}
+            selectedTimeSlot={selectedTimeSlot}
+            onOpenDateModal={() => setShowCreateRangeModal(true)}
+            onOpenTimeModal={() => setShowCreateTimeSlotModal(true)}
+            onSelectDateRange={setSelectedDateRange}
+            onSelectTimeSlot={setSelectedTimeSlot}
+          />
+        );
       default:
-        return <OfferAnalytics {...({ isNewOffer: true } as any)} />;
+        return <OfferAnalytics {...commonProps} />;
     }
   };
 
   const handleSaveOfferType = (typeData: any) => {
-    console.log('Saving offer type:', typeData);
+    // Add the discount type to the store with full fields so UI reflects user input
+    addDiscountType({
+      name: typeData.name,
+      description: typeData.description,
+      discountType: typeData.discountType,
+      discountValue: typeData.discountValue,
+      minOrderValue: typeData.minOrderValue,
+      minQuantity: typeData.minQuantity,
+      maxUsage: typeData.maxUsage,
+      perCustomerLimit: typeData.perCustomerLimit,
+      isActive: true,
+      priority: discountTypes.length + 1,
+    });
+    
+    // Also update basic info (optional) for create-offer flow
+    if (typeData.name) setName(typeData.name);
+    if (typeData.description) setDescription(typeData.description);
+    if (typeData.minOrderValue) setMinOrderValue(typeData.minOrderValue);
+    if (typeData.minQuantity) setMinQuantity(typeData.minQuantity);
+    if (typeData.maxUsage) setMaxUsage(typeData.maxUsage);
+    if (typeData.perCustomerLimit) setPerCustomerLimit(typeData.perCustomerLimit);
+    
+    setOfferTypeConfigured(true);
     setShowCreateTypeModal(false);
-    // TODO: Implement offer type saving logic
   };
 
   const handleSaveDateRange = (rangeData: any) => {
-    console.log('Saving date range:', rangeData);
+    // Create a date range object and set it
+    const dateRange = {
+      id: `range_${Date.now()}`,
+      name: rangeData.name,
+      description: rangeData.description,
+      startDate: rangeData.startDate,
+      endDate: rangeData.endDate,
+      isActive: true,
+    };
+    
+    setSelectedDateRange(dateRange);
     setShowCreateRangeModal(false);
-    // TODO: Implement date range saving logic
   };
 
   const handleSaveTimeSlot = (slotData: any) => {
-    console.log('Saving time slot:', slotData);
+    // Create a time slot object and set it
+    const timeSlot = {
+      id: `slot_${Date.now()}`,
+      name: slotData.name,
+      startTime: slotData.startTime,
+      endTime: slotData.endTime,
+      days: slotData.days || [],
+      isActive: true,
+    };
+    
+    setSelectedTimeSlot(timeSlot);
     setShowCreateTimeSlotModal(false);
-    // TODO: Implement time slot saving logic
   };
 
   return (
@@ -112,6 +268,28 @@ export default function CreateOfferPage() {
           <div>
             <h1 className="text-2xl font-bold text-black">Create New Offer</h1>
             <p className="text-gray-500 text-sm">Advanced offer management and analytics</p>
+            
+            {/* Status Indicator */}
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isOfferTypeConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-xs text-gray-600">Offer Type</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isDateRangeConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-xs text-gray-600">Date Range</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${areProductsSelected ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-xs text-gray-600">Products</span>
+              </div>
+              {!isReadyToCreate && (
+                <div className="flex items-center gap-1 text-amber-600">
+                  <AlertCircle className="w-3 h-3" />
+                  <span className="text-xs">Complete all steps to create offer</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
@@ -162,8 +340,12 @@ export default function CreateOfferPage() {
           
           <button
             onClick={handleSaveOffer}
-            disabled={isCreating}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+            disabled={isCreating || !isReadyToCreate}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-semibold transition text-sm ${
+              isReadyToCreate && !isCreating
+                ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
             {isCreating ? (
               <>

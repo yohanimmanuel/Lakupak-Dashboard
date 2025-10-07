@@ -3,12 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
+import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface OfferTypeProps {
   isNewOffer?: boolean;
   onOpenCreateModal?: () => void;
+  onAddDiscountType?: (discountType: any) => void;
+  onUpdateDiscountType?: (id: string, updates: any) => void;
+  onRemoveDiscountType?: (id: string) => void;
 }
 
 interface OfferType {
@@ -17,7 +22,7 @@ interface OfferType {
   description: string;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue?: number;
+  minOrderValue?: string;
   minQuantity?: number;
   maxUsage?: number;
   perCustomerLimit?: number;
@@ -25,38 +30,45 @@ interface OfferType {
   createdAt: string;
 }
 
-export default function OfferType({ isNewOffer = false, onOpenCreateModal }: OfferTypeProps) {
+export default function OfferType({ 
+  isNewOffer = false, 
+  onOpenCreateModal,
+  onAddDiscountType,
+  onUpdateDiscountType,
+  onRemoveDiscountType
+}: OfferTypeProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingType, setEditingType] = useState<OfferType | null>(null);
 
-  // State for offer types - will be populated from API
-  const [offerTypes, setOfferTypes] = useState<OfferType[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use store for offer types instead of API
+  const { 
+    discountTypes, 
+    addDiscountType: storeAddDiscountType,
+    updateDiscountType: storeUpdateDiscountType,
+    removeDiscountType: storeRemoveDiscountType
+  } = useOfferCreationStore();
+  
+  // Convert store discount types to display format
+  const offerTypes: OfferType[] = discountTypes.map((dt, index) => {
+    return {
+      id: dt.id,
+      name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
+      description: dt.description || `${dt.discountType === 'percentage' ? `${dt.discountValue}% off` : dt.discountType === 'fixed' ? `${formatCurrency(dt.discountValue, userCurrency)} off` : `Buy ${dt.discountValue} get 1 free`}`,
+      discountType: dt.discountType,
+      discountValue: dt.discountValue,
+      minOrderValue: dt.minOrderValue,
+      minQuantity: dt.minQuantity,
+      maxUsage: dt.maxUsage,
+      perCustomerLimit: dt.perCustomerLimit,
+      isActive: dt.isActive,
+      createdAt: new Date().toISOString(),
+    };
+  });
 
-  // Fetch offer types from API
-  useEffect(() => {
-    fetchOfferTypes();
-  }, []);
-
-  const fetchOfferTypes = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/offers/types');
-      if (!response.ok) {
-        throw new Error('Failed to fetch offer types');
-      }
-      const data = await response.json();
-      setOfferTypes(data.offerTypes || []);
-    } catch (error) {
-      console.error('Error fetching offer types:', error);
-      setOfferTypes([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // No API calls needed - data comes from store
 
   const getDiscountTypeIcon = (type: string) => {
     switch (type) {
@@ -69,6 +81,15 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
       default:
         return <Target className="w-5 h-5 text-gray-600" />;
     }
+  };
+
+  // Display currency exactly as user entered when a string was provided
+  const renderCurrency = (value: string | number | undefined) => {
+    if (typeof value === 'string') {
+      const numeric = parseNumberByCurrency(value, userCurrency);
+      return formatCurrency(numeric || 0, userCurrency);
+    }
+    return formatCurrency((value as number) || 0, userCurrency);
   };
 
   const getDiscountTypeColor = (type: string) => {
@@ -90,47 +111,26 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
   };
 
   const handleDelete = (typeId: string) => {
-    // Implement delete functionality
-    console.log('Delete offer type:', typeId);
+    // Remove from store
+    if (onRemoveDiscountType) {
+      onRemoveDiscountType(typeId);
+    } else {
+      storeRemoveDiscountType(typeId);
+    }
   };
 
   const handleToggleActive = (typeId: string) => {
-    // Implement toggle active functionality
-    console.log('Toggle active for type:', typeId);
+    // Find the discount type and toggle its active state
+    const discountType = discountTypes.find(dt => dt.id === typeId);
+    if (discountType) {
+      if (onUpdateDiscountType) {
+        onUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+      } else {
+        storeUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+      }
+    }
   };
 
-  // New offer state - show create button and form
-  if (isNewOffer) {
-    return (
-      <div className="p-4 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-black">Offer Type Configuration</h2>
-            <p className="text-gray-500 text-sm">Configure the discount or promotion type for your new offer</p>
-          </div>
-        </div>
-
-        {/* Empty State with Create Button */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Target className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Offer Type Configured</h3>
-          <p className="text-gray-500 text-sm mb-4">
-            Create an offer type to define the discount or promotion rules for your offer.
-          </p>
-          <button
-            onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Create Type
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-4 space-y-4">
@@ -140,76 +140,39 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
           <h2 className="text-xl font-bold text-black">Offer Types</h2>
           <p className="text-gray-500 text-sm">Configure different types of discounts and promotions</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Create Type
-        </button>
+        {offerTypes.length > 0 && offerTypes.length < 3 && (
+          <button
+            onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Create Type
+          </button>
+        )}
       </div>
 
-      {/* Quick Stats */}
-      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <Percent className="w-6 h-6 text-[#0a61d7]" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Percentage Discounts</div>
-              <div className="text-xl font-bold text-black">
-                {offerTypes.filter(t => t.discountType === 'percentage').length}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+3%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
-        </div>
+      {/* Quick Stats removed per requirement */}
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <DollarSign className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Fixed Discounts</div>
-              <div className="text-xl font-bold text-black">
-                {offerTypes.filter(t => t.discountType === 'fixed').length}
-              </div>
-            </div>
+      {/* Empty state */}
+      {offerTypes.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-gray-400" />
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+1%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Offer Type Configured</h3>
+          <p className="text-gray-500 text-sm mb-6">
+            Create an offer type to define the discount or promotion rules for your offer.
+          </p>
+          <button
+            onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create Type
+          </button>
         </div>
-
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <Gift className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Special Offers</div>
-              <div className="text-xl font-bold text-black">
-                {offerTypes.filter(t => t.discountType === 'buy_x_get_y').length}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+2%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Offer Types Grid */}
+      ) : (
+      /* Offer Types Grid */
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {offerTypes.map((type) => (
           <div key={type.id} className={`p-4 rounded-lg border-2 ${getDiscountTypeColor(type.discountType)}`}>
@@ -247,11 +210,11 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
                 </span>
               </div>
 
-              {type.minOrderValue && (
+              {type.minOrderValue && type.discountType !== 'buy_x_get_y' && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-600">Min. Order:</span>
                   <span className="font-medium text-black text-xs">
-                    {formatCurrency(type.minOrderValue, userCurrency)}
+                    {renderCurrency(type.minOrderValue)}
                   </span>
                 </div>
               )}
@@ -302,6 +265,7 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
           </div>
         ))}
       </div>
+      )}
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
@@ -314,29 +278,39 @@ export default function OfferType({ isNewOffer = false, onOpenCreateModal }: Off
           }}
           editingType={editingType}
           onSave={async (typeData) => {
-            try {
-              const response = await fetch('/api/offers/types', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(typeData),
-              });
-
-              if (!response.ok) {
-                throw new Error('Failed to save offer type');
+            // Enforce single offer per type: update if exists, else add
+            const discountTypeData = {
+              name: typeData.name,
+              description: typeData.description,
+              discountType: typeData.discountType,
+              discountValue: typeData.discountValue,
+              minOrderValue: typeData.minOrderValue,
+              minQuantity: typeData.minQuantity,
+              maxUsage: typeData.maxUsage,
+              perCustomerLimit: typeData.perCustomerLimit,
+              isActive: true,
+              priority: 1,
+            };
+            
+            // find existing by type
+            const existing = discountTypes.find(dt => dt.discountType === typeData.discountType);
+            if (existing) {
+              if (onUpdateDiscountType) {
+                onUpdateDiscountType(existing.id, discountTypeData);
+              } else {
+                storeUpdateDiscountType(existing.id, discountTypeData);
               }
-
-              // Refresh the offer types list
-              await fetchOfferTypes();
-              
-              setShowCreateModal(false);
-              setShowEditModal(false);
-              setEditingType(null);
-            } catch (error) {
-              console.error('Error saving offer type:', error);
-              // TODO: Show error message to user
+            } else {
+              if (onAddDiscountType) {
+                onAddDiscountType(discountTypeData);
+              } else {
+                storeAddDiscountType(discountTypeData);
+              }
             }
+            
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingType(null);
           }}
         />
       )}

@@ -13,6 +13,7 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
+
   // Fetch offers from API
   useEffect(() => {
     fetchOffers();
@@ -28,7 +29,6 @@ export default function OffersPage() {
       const data = await response.json();
       setOffers(data.offers || []);
     } catch (error) {
-      console.error('Error fetching offers:', error);
       setOffers([]);
     } finally {
       setLoading(false);

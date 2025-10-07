@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Edit, Trash2, Target, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, Plus, Edit, Trash2, Target, TrendingUp, CheckCircle } from 'lucide-react';
+import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateDateRangeModal from './CreateDateRangeModal';
 import CreateTimeSlotModal from './CreateTimeSlotModal';
 
@@ -9,6 +10,10 @@ interface RangeManagementProps {
   isNewOffer?: boolean;
   onOpenDateModal?: () => void;
   onOpenTimeModal?: () => void;
+  selectedDateRange?: any;
+  selectedTimeSlot?: any;
+  onSelectDateRange?: (dateRange: any) => void;
+  onSelectTimeSlot?: (timeSlot: any) => void;
 }
 
 interface DateRange {
@@ -33,62 +38,46 @@ interface TimeSlot {
   createdAt: string;
 }
 
-export default function RangeManagement({ isNewOffer = false, onOpenDateModal, onOpenTimeModal }: RangeManagementProps) {
+export default function RangeManagement({ 
+  isNewOffer = false, 
+  onOpenDateModal, 
+  onOpenTimeModal,
+  selectedDateRange,
+  selectedTimeSlot,
+  onSelectDateRange,
+  onSelectTimeSlot
+}: RangeManagementProps) {
   const [activeTab, setActiveTab] = useState<'date' | 'time'>('date');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRange, setEditingRange] = useState<DateRange | TimeSlot | null>(null);
 
-  // State for date ranges and time slots - will be populated from API
-  const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Convert store data to display format
+  const dateRanges: DateRange[] = selectedDateRange ? [{
+    id: selectedDateRange.id,
+    name: selectedDateRange.name,
+    description: `From ${new Date(selectedDateRange.startDate).toLocaleDateString()} to ${new Date(selectedDateRange.endDate).toLocaleDateString()}`,
+    startDate: selectedDateRange.startDate,
+    endDate: selectedDateRange.endDate,
+    isActive: true,
+    offerCount: 0,
+    createdAt: new Date().toISOString(),
+  }] : [];
 
-  // Fetch date ranges and time slots from API
-  useEffect(() => {
-    fetchRanges();
-  }, []);
+  const timeSlots: TimeSlot[] = selectedTimeSlot ? [{
+    id: selectedTimeSlot.id,
+    name: selectedTimeSlot.name,
+    startTime: selectedTimeSlot.startTime,
+    endTime: selectedTimeSlot.endTime,
+    days: selectedTimeSlot.days,
+    isActive: true,
+    offerCount: 0,
+    createdAt: new Date().toISOString(),
+  }] : [];
 
-  const fetchRanges = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/offers/ranges');
-      if (!response.ok) {
-        throw new Error('Failed to fetch ranges');
-      }
-      const data = await response.json();
-      setDateRanges(data.dateRanges || []);
-      setTimeSlots(data.timeSlots || []);
-    } catch (error) {
-      console.error('Error fetching ranges:', error);
-      setDateRanges([]);
-      setTimeSlots([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // No API calls needed - data comes from store
 
-  const getDateRangeStatus = (startDate: string, endDate: string, isActive: boolean) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
 
-    if (!isActive) {
-      if (now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
-      return { status: 'inactive', color: 'text-gray-600', bg: 'bg-gray-100', icon: AlertCircle };
-    }
-    if (now > end) return { status: 'expired', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
-    if (now < start) return { status: 'upcoming', color: 'text-blue-600', bg: 'bg-blue-100', icon: Clock };
-    return { status: 'active', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle };
-  };
-
-  const getDaysRemaining = (endDate: string) => {
-    const now = new Date();
-    const end = new Date(endDate);
-    const diffTime = end.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
 
   const handleEdit = (range: DateRange | TimeSlot) => {
     setEditingRange(range);
@@ -96,16 +85,20 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
   };
 
   const handleDelete = (id: string) => {
-    // Implement delete functionality
-    console.log('Delete range:', id);
+    // Clear from store
+    if (activeTab === 'date' && onSelectDateRange) {
+      onSelectDateRange(null);
+    } else if (activeTab === 'time' && onSelectTimeSlot) {
+      onSelectTimeSlot(null);
+    }
   };
 
   const handleToggleActive = (id: string) => {
-    // Implement toggle active functionality
+    // For now, just log - could implement active/inactive state in store if needed
     console.log('Toggle active for range:', id);
   };
 
-  // New offer state - show create button and form
+  // New offer state - mirror OfferType behavior: render inputs immediately
   if (isNewOffer) {
     return (
       <div className="p-4 space-y-4">
@@ -115,6 +108,15 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
             <h2 className="text-xl font-bold text-black">Date & Time Range</h2>
             <p className="text-gray-500 text-sm">Set the active period for your new offer</p>
           </div>
+          {(dateRanges.length + timeSlots.length) > 0 && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              {activeTab === 'date' ? 'Create Date Range' : 'Create Time Slot'}
+            </button>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -143,40 +145,111 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
           </button>
         </div>
 
-        {/* Empty State with Create Button */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {activeTab === 'date' ? (
-              <Calendar className="w-8 h-8 text-gray-400" />
-            ) : (
-              <Clock className="w-8 h-8 text-gray-400" />
-            )}
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {activeTab === 'date' ? 'No Date Range Configured' : 'No Time Slots Configured'}
-          </h3>
-          <p className="text-gray-500 text-sm mb-4">
-            {activeTab === 'date' 
-              ? 'Create a date range to define when your offer will be active.'
-              : 'Create time slots to define specific hours when your offer will be available.'
-            }
-          </p>
-          <button
-            onClick={() => {
-              if (activeTab === 'date' && onOpenDateModal) {
-                onOpenDateModal();
-              } else if (activeTab === 'time' && onOpenTimeModal) {
-                onOpenTimeModal();
-              } else {
-                setShowCreateModal(true);
-              }
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto"
-          >
-            <Plus className="w-4 h-4" />
-            {activeTab === 'date' ? 'Create Date Range' : 'Create Time Slot'}
-          </button>
-        </div>
+        {/* If user has provided inputs, display them immediately; otherwise show CTA */}
+        {activeTab === 'date' ? (
+          dateRanges.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {dateRanges.map((range) => (
+                <div key={range.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="text-md font-semibold text-black mb-1">{range.name}</h4>
+                      <p className="text-xs text-gray-600 mb-2">{range.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleActive(range.id)}
+                      className={`w-3 h-3 rounded-full border-2 transition-colors ${
+                        range.isActive ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
+                      }`}
+                      title={range.isActive ? 'Active' : 'Inactive'}
+                    />
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">Start Date:</span>
+                      <span className="font-medium text-black text-xs">{new Date(range.startDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">End Date:</span>
+                      <span className="font-medium text-black text-xs">{new Date(range.endDate).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="text-xs text-gray-500">Created: {new Date(range.createdAt).toLocaleDateString()}</div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleEdit(range)} className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs" title="Edit Range">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(range.id)} className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs" title="Delete Range">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Date Range Configured</h3>
+              <p className="text-gray-500 text-sm mb-4">Create a date range to define when your offer will be active.</p>
+              <button onClick={() => (onOpenDateModal ? onOpenDateModal() : setShowCreateModal(true))} className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto">
+                <Plus className="w-4 h-4" />
+                Create Date Range
+              </button>
+            </div>
+          )
+        ) : (
+          timeSlots.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {timeSlots.map((slot) => (
+                <div key={slot.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="text-md font-semibold text-black mb-1">{slot.name}</h4>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="text-xs font-medium text-black">{slot.startTime} - {slot.endTime}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => handleToggleActive(slot.id)} className={`w-3 h-3 rounded-full border-2 transition-colors ${slot.isActive ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`} title={slot.isActive ? 'Active' : 'Inactive'} />
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">Days:</span>
+                      <span className="font-medium text-black text-xs">{slot.days.join(', ')}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="text-xs text-gray-500">Created: {new Date(slot.createdAt).toLocaleDateString()}</div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleEdit(slot)} className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs" title="Edit Time Slot">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(slot.id)} className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs" title="Delete Time Slot">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Time Slots Configured</h3>
+              <p className="text-gray-500 text-sm mb-4">Create time slots to define specific hours when your offer will be available.</p>
+              <button onClick={() => (onOpenTimeModal ? onOpenTimeModal() : setShowCreateModal(true))} className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto">
+                <Plus className="w-4 h-4" />
+                Create Time Slot
+              </button>
+            </div>
+          )
+        )}
       </div>
     );
   }
@@ -184,18 +257,20 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">Range Management</h2>
           <p className="text-gray-500 text-sm">Manage date ranges and time slots for offers</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Create Range
-        </button>
+        {(dateRanges.length + timeSlots.length) > 0 && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Create Range
+          </button>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -224,109 +299,33 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
         </button>
       </div>
 
-      {/* Quick Stats */}
-      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <Calendar className="w-6 h-6 text-[#0a61d7]" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Date Ranges</div>
-              <div className="text-xl font-bold text-black">{dateRanges.length}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+2%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
-        </div>
+      {/* Quick Stats removed for simplicity */}
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <Clock className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Time Slots</div>
-              <div className="text-xl font-bold text-black">{timeSlots.length}</div>
-            </div>
+      {/* Empty state for non-new when no ranges/slots */}
+      {dateRanges.length === 0 && timeSlots.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-8 h-8 text-gray-400" />
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+1%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Date Range Configured</h3>
+          <p className="text-gray-500 text-sm mb-4">Create a date range to define when your offer will be active.</p>
+          <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto">
+            <Plus className="w-4 h-4" />
+            Create Date Range
+          </button>
         </div>
-
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <Target className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Active Ranges</div>
-              <div className="text-xl font-bold text-black">
-                {dateRanges.filter(r => r.isActive).length + timeSlots.filter(t => t.isActive).length}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">67%</span>
-            <span className="text-gray-400 text-xs">active rate</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <CheckCircle className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Offers</div>
-              <div className="text-xl font-bold text-black">
-                {dateRanges.reduce((sum, r) => sum + r.offerCount, 0) + 
-                 timeSlots.reduce((sum, t) => sum + t.offerCount, 0)}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+12%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Content based on active tab */}
-      {activeTab === 'date' ? (
+      ) : activeTab === 'date' ? (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-black">Date Ranges</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {dateRanges.map((range) => {
-              const status = getDateRangeStatus(range.startDate, range.endDate, range.isActive);
-              const daysRemaining = getDaysRemaining(range.endDate);
-              const StatusIcon = status.icon;
 
               return (
                 <div key={range.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h4 className="text-md font-semibold text-black mb-1">{range.name}</h4>
                       <p className="text-xs text-gray-600 mb-2">{range.description}</p>
-                      <div className="flex items-center gap-2">
-                        <StatusIcon className={`w-4 h-4 ${status.color}`} />
-                        <span className={`text-xs font-medium ${status.color}`}>
-                          {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
-                        </span>
-                        {status.status === 'active' && (
-                          <span className="text-xs text-gray-500">
-                            ({daysRemaining} days remaining)
-                          </span>
-                        )}
-                      </div>
                     </div>
                     <button
                       onClick={() => handleToggleActive(range.id)}
@@ -390,23 +389,13 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {timeSlots.map((slot) => (
               <div key={slot.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <h4 className="text-md font-semibold text-black mb-1">{slot.name}</h4>
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="w-4 h-4 text-gray-500" />
                       <span className="text-xs font-medium text-black">
                         {slot.startTime} - {slot.endTime}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {slot.isActive ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-gray-600" />
-                      )}
-                      <span className={`text-xs font-medium ${slot.isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                        {slot.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
@@ -469,33 +458,21 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
             setEditingRange(null);
           }}
           editingRange={editingRange}
-          onSave={async (rangeData) => {
-            try {
-              const response = await fetch('/api/offers/ranges', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  type: 'date',
-                  ...rangeData,
-                }),
+          onSave={(rangeData) => {
+            // Save to store instead of API call
+            if (onSelectDateRange) {
+              onSelectDateRange({
+                id: `temp-${Date.now()}`,
+                name: rangeData.name,
+                description: `From ${new Date(rangeData.startDate).toLocaleDateString()} to ${new Date(rangeData.endDate).toLocaleDateString()}`,
+                startDate: rangeData.startDate,
+                endDate: rangeData.endDate,
+                isActive: true,
               });
-
-              if (!response.ok) {
-                throw new Error('Failed to save date range');
-              }
-
-              // Refresh the ranges list
-              await fetchRanges();
-              
-              setShowCreateModal(false);
-              setShowEditModal(false);
-              setEditingRange(null);
-            } catch (error) {
-              console.error('Error saving date range:', error);
-              // TODO: Show error message to user
             }
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
           }}
         />
       )}
@@ -509,33 +486,21 @@ export default function RangeManagement({ isNewOffer = false, onOpenDateModal, o
             setEditingRange(null);
           }}
           editingSlot={editingRange}
-          onSave={async (slotData) => {
-            try {
-              const response = await fetch('/api/offers/ranges', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  type: 'time',
-                  ...slotData,
-                }),
+          onSave={(slotData) => {
+            // Save to store instead of API call
+            if (onSelectTimeSlot) {
+              onSelectTimeSlot({
+                id: `temp-${Date.now()}`,
+                name: slotData.name,
+                startTime: slotData.startTime,
+                endTime: slotData.endTime,
+                days: slotData.days,
+                isActive: true,
               });
-
-              if (!response.ok) {
-                throw new Error('Failed to save time slot');
-              }
-
-              // Refresh the ranges list
-              await fetchRanges();
-              
-              setShowCreateModal(false);
-              setShowEditModal(false);
-              setEditingRange(null);
-            } catch (error) {
-              console.error('Error saving time slot:', error);
-              // TODO: Show error message to user
             }
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
           }}
         />
       )}

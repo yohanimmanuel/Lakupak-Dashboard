@@ -7,6 +7,17 @@ export interface OfferProduct {
   sellingPrice: number;
 }
 
+export interface OfferDiscountType {
+  id: string;
+  offerId: string;
+  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
+  discountValue: number;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Offer {
   id: string;
   offerId: string;
@@ -14,9 +25,7 @@ export interface Offer {
   description?: string;
   type: 'discount' | 'promotion';
   status: 'active' | 'expired' | 'inactive';
-  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
-  discountValue: number;
-  minOrderValue?: string;
+  minOrderValue?: number;
   minQuantity?: number;
   startDate: string;
   endDate: string;
@@ -25,6 +34,7 @@ export interface Offer {
   totalUsage: number;
   totalDiscountGiven: number;
   products: OfferProduct[];
+  discountTypes: OfferDiscountType[];
   createdAt: string;
   updatedAt: string;
 }
@@ -33,8 +43,12 @@ export interface OfferFormData {
   name: string;
   description?: string;
   type: 'discount' | 'promotion';
-  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
-  discountValue: number;
+  discountTypes: {
+    discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
+    discountValue: number;
+    isActive: boolean;
+    priority: number;
+  }[];
   minOrderValue?: string;
   minQuantity?: number;
   startDate: string;

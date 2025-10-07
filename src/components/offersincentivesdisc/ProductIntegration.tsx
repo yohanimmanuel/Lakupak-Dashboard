@@ -6,9 +6,13 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
+import { SelectedProduct } from '@/store/offerCreationStore';
 
 interface ProductIntegrationProps {
   isNewOffer?: boolean;
+  onAddProduct: (product: SelectedProduct) => void;
+  onRemoveProduct: (productId: string) => void;
+  onUpdateProductDiscount: (productId: string, discountType: 'percentage' | 'fixed', discountValue: number) => void;
 }
 
 interface ProductWithOffer extends Product {
@@ -24,7 +28,12 @@ interface OfferProduct {
   isActive: boolean;
 }
 
-export default function ProductIntegration({ isNewOffer = false }: ProductIntegrationProps) {
+export default function ProductIntegration({ 
+  isNewOffer = false, 
+  onAddProduct, 
+  onRemoveProduct, 
+  onUpdateProductDiscount 
+}: ProductIntegrationProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [searchTerm, setSearchTerm] = useState('');
