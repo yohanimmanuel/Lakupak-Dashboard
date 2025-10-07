@@ -67,6 +67,7 @@ export interface OrderItem {
   productDeleted?: boolean;
   productNameSnapshot?: string;
   productSkuSnapshot?: string;
+  productTypeSnapshot?: string;
 }
 
 export interface OrderTableRow {

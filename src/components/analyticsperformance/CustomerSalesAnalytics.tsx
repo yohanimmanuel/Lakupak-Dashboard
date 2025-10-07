@@ -299,7 +299,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
 				const prod = products.find(p => p.productId === it.productId);
-				const category = it.category || prod?.category || 'Uncategorized';
+				const category = it.productTypeSnapshot || prod?.productType || 'Uncategorized';
 				// Calculate units using package-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
 				const packageQuantity = it.packageQuantity || 1;

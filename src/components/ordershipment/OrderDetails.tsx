@@ -378,7 +378,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       {item.productName}
                     </h3>
                     <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
-                    <p className="text-xs text-gray-600">Category: {item.category || 'Uncategorized'}</p>
+                    <p className="text-xs text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
                   </div>
                   
                   {/* Package Information */}
@@ -536,7 +536,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         {item.productName}
                       </h3>
                       <p className="text-sm text-gray-600">SKU: {item.productId}</p>
-                      <p className="text-sm text-gray-600">Category: {item.category || 'Uncategorized'}</p>
+                      <p className="text-sm text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
                     </div>
                     
                     {/* Package Information */}

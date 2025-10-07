@@ -338,7 +338,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     const categoryData: { [key: string]: { total: number; lowStock: number; stockout: number } } = {};
     
     products.forEach(product => {
-      const category = product.category || 'Uncategorized';
+      const category = product.productType || 'Uncategorized';
       if (!categoryData[category]) {
         categoryData[category] = { total: 0, lowStock: 0, stockout: 0 };
       }
@@ -1047,7 +1047,7 @@ export const OrderStatusDistributionChart: React.FC<{
           <Tooltip 
             content={({ active, payload }) => {
               if (!active || !payload || payload.length === 0) return null;
-              const entry = payload[0] as { payload: { status: string }; value: number };
+              const entry = payload[0] as { payload: { status: string; percentage: number; color: string }; value: number };
               const status = entry?.payload?.status as string;
               const count = entry?.value as number;
               const percentage = entry?.payload?.percentage as number;

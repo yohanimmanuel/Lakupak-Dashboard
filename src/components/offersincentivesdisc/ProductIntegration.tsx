@@ -28,11 +28,13 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('All Types');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedBrand, setSelectedBrand] = useState('All Brands');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   const [products, setProducts] = useState<ProductWithOffer[]>([]);
@@ -150,17 +152,20 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
     fetchProducts();
   }, [fetchProducts]);
 
-  const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
+  const productTypes = ['All Types', ...Array.from(new Set(products.map(p => p.productType).filter(Boolean)))];
+  const productCategories = ['All Categories', ...Array.from(new Set(products.map(p => p.productCategory).filter(Boolean)))];
   const brands = ['All Brands', ...Array.from(new Set(products.map(p => p.brand)))];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.productType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.productCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || product.category === selectedCategory;
+    const matchesType = selectedType === 'All Types' || product.productType === selectedType;
+    const matchesCategory = selectedCategory === 'All Categories' || product.productCategory === selectedCategory;
     const matchesBrand = selectedBrand === 'All Brands' || product.brand === selectedBrand;
     
-    return matchesSearch && matchesCategory && matchesBrand;
+    return matchesSearch && matchesType && matchesCategory && matchesBrand;
   });
 
   // Pagination logic
@@ -173,7 +178,7 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, selectedCategory, selectedBrand]);
+  }, [searchTerm, selectedType, selectedCategory, selectedBrand]);
 
   const handleProductSelect = (productId: string) => {
     setSelectedProducts(prev => 
@@ -270,13 +275,49 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
               <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
             </div>
 
-            {/* Category Filter Dropdown */}
+            {/* Product Type Filter Dropdown */}
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => {
+                  setShowTypeDropdown(!showTypeDropdown);
+                  setShowCategoryDropdown(false);
+                  setShowBrandDropdown(false); // Close other dropdowns when opening type dropdown
+                }}
+              >
+                {selectedType}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showTypeDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  {productTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setSelectedType(type);
+                        setShowTypeDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                        selectedType === type
+                          ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Product Category Filter Dropdown */}
             <div className="relative">
               <button
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => {
                   setShowCategoryDropdown(!showCategoryDropdown);
-                  setShowBrandDropdown(false); // Close brand dropdown when opening category dropdown
+                  setShowTypeDropdown(false);
+                  setShowBrandDropdown(false); // Close other dropdowns when opening category dropdown
                 }}
               >
                 {selectedCategory}
@@ -284,7 +325,7 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
               </button>
               {showCategoryDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
-                  {categories.map((category) => (
+                  {productCategories.map((category) => (
                     <button
                       key={category}
                       onClick={() => {
@@ -310,7 +351,8 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => {
                   setShowBrandDropdown(!showBrandDropdown);
-                  setShowCategoryDropdown(false); // Close category dropdown when opening brand dropdown
+                  setShowTypeDropdown(false);
+                  setShowCategoryDropdown(false); // Close other dropdowns when opening brand dropdown
                 }}
               >
                 {selectedBrand}
@@ -405,15 +447,16 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
           <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
           <p className="text-gray-500 mb-4">
-            {searchTerm || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands'
+            {searchTerm || selectedType !== 'All Types' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands'
               ? 'No products match your current filters. Try adjusting your search criteria.'
               : 'You don\'t have any products yet. Create your first product to get started.'
             }
           </p>
-          {searchTerm || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' ? (
+          {searchTerm || selectedType !== 'All Types' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' ? (
             <button
               onClick={() => {
                 setSearchTerm('');
+                setSelectedType('All Types');
                 setSelectedCategory('All Categories');
                 setSelectedBrand('All Brands');
               }}
@@ -475,8 +518,12 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
 
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Type:</span>
+                    <span className="text-black">{product.productType}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Category:</span>
-                    <span className="text-black">{product.category}</span>
+                    <span className="text-black">{product.productCategory}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Price:</span>
@@ -525,6 +572,7 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
                     </button>
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Product</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Type</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Category</th>
                   <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Brand</th>
                   <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">Price</th>
@@ -562,7 +610,8 @@ export default function ProductIntegration({ isNewOffer = false }: ProductIntegr
                     <td className="py-4 px-4 text-gray-700">
                       <div className="font-medium text-black truncate">{product.name}</div>
                     </td>
-                    <td className="py-4 px-4 text-gray-700 truncate">{product.category}</td>
+                    <td className="py-4 px-4 text-gray-700 truncate">{product.productType}</td>
+                    <td className="py-4 px-4 text-gray-700 truncate">{product.productCategory}</td>
                     <td className="py-4 px-4 text-gray-700 truncate">{product.brand}</td>
                     <td className="py-4 px-4 text-gray-700 font-medium text-right">
                       {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}

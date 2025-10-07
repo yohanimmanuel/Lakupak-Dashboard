@@ -997,7 +997,7 @@ export default function ProductCatalog({
              <div className="flex items-center justify-between mb-2">
                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                  <Tag className="w-5 h-5 text-gray-500" />
-                 Catalog Settings
+                 Product Settings
                </h2>
                  
                   <div className="flex items-center gap-2">

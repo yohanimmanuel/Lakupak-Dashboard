@@ -70,7 +70,8 @@ interface CategoryData {
 
 interface TopProduct {
   name: string;
-  category: string;
+  productType: string;
+  productCategory: string;
   revenue: number;
   profit: number;
   margin: number;
@@ -279,13 +280,13 @@ const FinancialAnalytics: React.FC = () => {
           let category = 'Uncategorized';
           
           // First try to get category from order item (if it exists)
-          if (item.category) {
-            category = item.category;
+          if (item.productTypeSnapshot) {
+            category = item.productTypeSnapshot;
           } else {
             // Fallback to product data
             const product = products.find(p => p.productId === item.productId);
-            if (product?.category) {
-              category = product.category;
+            if (product?.productType) {
+              category = product.productType;
             }
           }
           
@@ -365,7 +366,7 @@ const FinancialAnalytics: React.FC = () => {
       return [];
     }
 
-    const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
@@ -391,10 +392,10 @@ const FinancialAnalytics: React.FC = () => {
             
             // Handle missing category field gracefully
             let category = 'Uncategorized';
-            if (item.category) {
-              category = item.category;
-            } else if (product?.category) {
-              category = product.category;
+            if (item.productTypeSnapshot) {
+              category = item.productTypeSnapshot;
+            } else if (product?.productType) {
+              category = product.productType;
             }
             
             productStats[productId] = {
@@ -402,6 +403,7 @@ const FinancialAnalytics: React.FC = () => {
               unitsSold: 0,
               packagesSold: 0,
               category: category,
+              productCategory: product?.productCategory || 'Uncategorized',
               name: product?.name || `Product ${productId}`,
               profit: 0
             };
@@ -473,7 +475,8 @@ const FinancialAnalytics: React.FC = () => {
         unitsSold: stats.unitsSold,
         packagesSold: stats.packagesSold,
         margin,
-        category: stats.category,
+        productType: stats.category,
+        productCategory: stats.productCategory,
         profit: stats.profit,
         productId: productId
       };
@@ -900,6 +903,7 @@ const FinancialAnalytics: React.FC = () => {
                   <tr>
                     <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
                     <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Type</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
@@ -922,7 +926,10 @@ const FinancialAnalytics: React.FC = () => {
                           </span>
                       </td>
                       <td className="py-3 px-4 text-center text-gray-600">
-                        {product.category}
+                        {product.productType}
+                      </td>
+                      <td className="py-3 px-4 text-center text-gray-600">
+                        {product.productCategory}
                       </td>
                       <td className="py-3 px-4 text-center text-black">
                         {product.packagesSold.toLocaleString()}
@@ -1370,7 +1377,8 @@ export default FinancialAnalytics;
 
 export type TopProductRow = {
   name: string;
-  category: string;
+  productType: string;
+  productCategory: string;
   revenue: number;
   profit: number;
   margin: number;
@@ -1389,7 +1397,7 @@ export const calculateTopProducts = (
     return [];
   }
 
-  const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; name: string; profit: number } } = {};
+  const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
@@ -1410,12 +1418,13 @@ export const calculateTopProducts = (
         const product = products.find(p => p.productId === productId);
         if (!product) { return; }
         if (!productStats[productId]) {
-          const category = item.category || product?.category || 'Uncategorized';
+          const category = item.productTypeSnapshot || product?.productType || 'Uncategorized';
           productStats[productId] = {
             revenue: 0,
             unitsSold: 0,
             packagesSold: 0,
             category,
+            productCategory: product?.productCategory || 'Uncategorized',
             name: product?.name || `Product ${productId}`,
             profit: 0
           };
@@ -1475,7 +1484,8 @@ export const calculateTopProducts = (
       unitsSold: stats.unitsSold,
       packagesSold: stats.packagesSold,
       margin,
-      category: stats.category,
+      productType: stats.category,
+      productCategory: stats.productCategory,
       profit: stats.profit,
       productId
     };
@@ -1506,6 +1516,7 @@ export const AnalyticsTopProductsTable: React.FC<{
           <tr>
             <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
             <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Type</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
@@ -1525,7 +1536,8 @@ export const AnalyticsTopProductsTable: React.FC<{
                   {product.name}
                 </span>
               </td>
-              <td className="py-3 px-4 text-center text-gray-600">{product.category}</td>
+              <td className="py-3 px-4 text-center text-gray-600">{product.productType}</td>
+              <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
               <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
