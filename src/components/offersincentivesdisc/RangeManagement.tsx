@@ -301,10 +301,6 @@ export default function RangeManagement({
                         {new Date(range.endDate).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">Associated Offers:</span>
-                      <span className="font-medium text-black text-xs">{range.offerCount}</span>
-                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
@@ -366,8 +362,25 @@ export default function RangeManagement({
                     <span className="font-medium text-black text-xs">{(slot.days || []).join(', ') || 'All days'}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600">Associated Offers:</span>
-                    <span className="font-medium text-black text-xs">{slot.offerCount}</span>
+                    <span className="text-gray-600">Slot Duration:</span>
+                    <span className="font-medium text-black text-xs">
+                      {(() => {
+                        const start = slot.startTime;
+                        const end = slot.endTime;
+                        const startTime = new Date(`2000-01-01T${start}:00`);
+                        const endTime = new Date(`2000-01-01T${end}:00`);
+                        const diffMs = endTime.getTime() - startTime.getTime();
+                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        if (diffHours > 0 && diffMinutes > 0) {
+                          return `${diffHours}h ${diffMinutes}m from ${start} to ${end}`;
+                        } else if (diffHours > 0) {
+                          return `${diffHours} hours from ${start} to ${end}`;
+                        } else {
+                          return `${diffMinutes} minutes from ${start} to ${end}`;
+                        }
+                      })()}
+                    </span>
                   </div>
                 </div>
 
@@ -409,10 +422,14 @@ export default function RangeManagement({
           }}
           editingRange={editingRange}
           onSave={async (rangeData) => {
-            if (offerData && editingRange) {
-              // In details view, update via API
+            if (offerData) {
+              // In details view, make API call
               try {
-                const response = await fetch(`/api/offers/${offerData.id}?type=date-range&itemId=${editingRange.id}`, {
+                const url = editingRange 
+                  ? `/api/offers/${offerData.id}?type=date-range&itemId=${editingRange.id}`
+                  : `/api/offers/${offerData.id}?type=date-range`;
+                
+                const response = await fetch(url, {
                   method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
@@ -427,13 +444,12 @@ export default function RangeManagement({
                 });
                 
                 if (response.ok) {
-                  // Refresh the page to show updated data
                   window.location.reload();
                 } else {
-                  alert('Failed to update date range');
+                  alert(editingRange ? 'Failed to update date range' : 'Failed to create date range');
                 }
               } catch (error) {
-                alert('Failed to update date range');
+                alert(editingRange ? 'Failed to update date range' : 'Failed to create date range');
               }
             } else {
               // In create view, update store
@@ -451,9 +467,9 @@ export default function RangeManagement({
               } else {
                 store.addDateRange(payload);
               }
-              setShowCreateModal(false);
-              setShowEditModal(false);
-              setEditingRange(null);
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
             }
           }}
         />
@@ -469,31 +485,34 @@ export default function RangeManagement({
           }}
           editingSlot={editingRange}
           onSave={async (slotData) => {
-            if (offerData && editingRange) {
-              // In details view, update via API
+            if (offerData) {
+              // In details view, make API call
               try {
-                const response = await fetch(`/api/offers/${offerData.id}?type=time-slot&itemId=${editingRange.id}`, {
+                const url = editingRange 
+                  ? `/api/offers/${offerData.id}?type=time-slot&itemId=${editingRange.id}`
+                  : `/api/offers/${offerData.id}?type=time-slot`;
+                
+                const response = await fetch(url, {
                   method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
                     name: slotData.name,
-                    description: '',
                     startTime: slotData.startTime,
                     endTime: slotData.endTime,
+                    days: slotData.days || [],
                     isActive: true,
                   }),
                 });
                 
                 if (response.ok) {
-                  // Refresh the page to show updated data
                   window.location.reload();
                 } else {
-                  alert('Failed to update time slot');
+                  alert(editingRange ? 'Failed to update time slot' : 'Failed to create time slot');
                 }
               } catch (error) {
-                alert('Failed to update time slot');
+                alert(editingRange ? 'Failed to update time slot' : 'Failed to create time slot');
               }
             } else {
               // In create view, update store
@@ -511,9 +530,9 @@ export default function RangeManagement({
               } else {
                 store.addTimeSlot(payload);
               }
-              setShowCreateModal(false);
-              setShowEditModal(false);
-              setEditingRange(null);
+            setShowCreateModal(false);
+            setShowEditModal(false);
+            setEditingRange(null);
             }
           }}
         />

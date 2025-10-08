@@ -411,6 +411,7 @@ model TimeSlot {
   description String?
   startTime   String  // Format: "HH:MM"
   endTime     String  // Format: "HH:MM"
+  days        String[] // Array of days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
   isActive    Boolean @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)

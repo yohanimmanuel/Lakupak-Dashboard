@@ -114,7 +114,10 @@ export async function GET(
         description: ts.description,
         startTime: ts.startTime,
         endTime: ts.endTime,
+        days: ts.days || [],
         isActive: ts.isActive,
+        createdAt: ts.createdAt,
+        updatedAt: ts.updatedAt,
       })) || [],
     };
 
@@ -150,21 +153,39 @@ export async function PUT(
 
     const body = await request.json();
 
-    if (type === 'discount-type' && itemId) {
-      // Update a specific discount type
-      return await updateDiscountType(itemId, user.id, body);
-    } else if (type === 'date-range' && itemId) {
-      // Update a specific date range
-      return await updateDateRange(itemId, user.id, body);
-    } else if (type === 'time-slot' && itemId) {
-      // Update a specific time slot
-      return await updateTimeSlot(itemId, user.id, body);
+    if (type === 'discount-type') {
+      if (itemId) {
+        // Update a specific discount type
+        return await updateDiscountType(itemId, user.id, body);
+      } else {
+        // Create a new discount type
+        return await createDiscountType(params.id, user.id, body);
+      }
+    } else if (type === 'date-range') {
+      if (itemId) {
+        // Update a specific date range
+        return await updateDateRange(itemId, user.id, body);
+      } else {
+        // Create a new date range
+        return await createDateRange(params.id, user.id, body);
+      }
+    } else if (type === 'time-slot') {
+      if (itemId) {
+        // Update a specific time slot
+        return await updateTimeSlot(itemId, user.id, body);
+      } else {
+        // Create a new time slot
+        return await createTimeSlot(params.id, user.id, body);
+      }
     } else if (type === 'offer') {
       // Update the main offer
       return await updateOffer(params.id, user.id, body);
     } else if (type === 'remove-products') {
       // Remove products from offer
       return await removeProductsFromOffer(params.id, user.id, body);
+    } else if (type === 'add-products') {
+      // Add products to offer
+      return await addProductsToOffer(params.id, user.id, body);
     } else {
       return NextResponse.json(
         { error: 'Invalid request parameters' },
@@ -330,6 +351,7 @@ async function updateTimeSlot(timeSlotId: string, userId: number, data: any) {
       description: data.description,
       startTime: data.startTime,
       endTime: data.endTime,
+      days: data.days || [],
       isActive: data.isActive,
     },
   });
@@ -517,4 +539,148 @@ async function removeProductsFromOffer(offerId: string, userId: number, data: an
   return NextResponse.json({ 
     message: `Removed ${productIds.length} products from offer successfully` 
   });
+}
+
+// Helper function to create a new discount type for an existing offer
+async function createDiscountType(offerId: string, userId: number, data: any) {
+  // Check if offer exists and belongs to user
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      id: offerId,
+      userId: userId,
+    },
+  });
+
+  if (!existingOffer) {
+    return NextResponse.json(
+      { error: 'Offer not found or you do not have permission to modify it' },
+      { status: 404 }
+    );
+  }
+
+  // Parse minOrderValue if it's a string
+  let parsedMinOrderValue = data.minOrderValue;
+  if (typeof data.minOrderValue === 'string' && data.minOrderValue) {
+    parsedMinOrderValue = parseFloat(data.minOrderValue.replace(/\./g, ''));
+  }
+
+  // Create the discount type
+  const discountType = await prisma.offerDiscountType.create({
+    data: {
+      offerId: offerId,
+      name: data.name,
+      description: data.description || '',
+      discountType: data.discountType,
+      discountValue: data.discountValue || 0,
+      minOrderValue: parsedMinOrderValue || 0,
+      minQuantity: data.minQuantity || 0,
+      maxUsage: data.maxUsage || 0,
+      perCustomerLimit: data.perCustomerLimit || 0,
+      isActive: data.isActive ?? true,
+      priority: data.priority || 1,
+    },
+  });
+
+  return NextResponse.json({ discountType, message: 'Discount type created successfully' });
+}
+
+// Helper function to create a new date range for an existing offer
+async function createDateRange(offerId: string, userId: number, data: any) {
+  // Check if offer exists and belongs to user
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      id: offerId,
+      userId: userId,
+    },
+  });
+
+  if (!existingOffer) {
+    return NextResponse.json(
+      { error: 'Offer not found or you do not have permission to modify it' },
+      { status: 404 }
+    );
+  }
+
+  // Create the date range
+  const dateRange = await prisma.dateRange.create({
+    data: {
+      offerId: offerId,
+      name: data.name,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      isActive: data.isActive ?? true,
+    },
+  });
+
+  return NextResponse.json({ dateRange, message: 'Date range created successfully' });
+}
+
+// Helper function to create a new time slot for an existing offer
+async function createTimeSlot(offerId: string, userId: number, data: any) {
+  // Check if offer exists and belongs to user
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      id: offerId,
+      userId: userId,
+    },
+  });
+
+  if (!existingOffer) {
+    return NextResponse.json(
+      { error: 'Offer not found or you do not have permission to modify it' },
+      { status: 404 }
+    );
+  }
+
+  // Create the time slot
+  const timeSlot = await prisma.timeSlot.create({
+    data: {
+      offerId: offerId,
+      name: data.name,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      days: data.days || [],
+      isActive: data.isActive ?? true,
+    },
+  });
+
+  return NextResponse.json({ timeSlot, message: 'Time slot created successfully' });
+}
+
+// Helper function to add products to an existing offer
+async function addProductsToOffer(offerId: string, userId: number, data: any) {
+  // Check if offer exists and belongs to user
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      id: offerId,
+      userId: userId,
+    },
+  });
+
+  if (!existingOffer) {
+    return NextResponse.json(
+      { error: 'Offer not found or you do not have permission to modify it' },
+      { status: 404 }
+    );
+  }
+
+  const { productIds } = data; // Array of product IDs to add
+
+  if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+    return NextResponse.json(
+      { error: 'No product IDs provided' },
+      { status: 400 }
+    );
+  }
+
+  // Create OfferProduct records for each product
+  const offerProducts = await prisma.offerProduct.createMany({
+    data: productIds.map((productId: string) => ({
+      offerId: offerId,
+      productId: productId,
+    })),
+    skipDuplicates: true, // Skip if already exists
+  });
+
+  return NextResponse.json({ message: 'Products added to offer successfully', count: offerProducts.count });
 }

@@ -1008,26 +1008,48 @@ export default function ProductIntegration({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  const badge = computeOfferBadge();
-                  setProducts((prev) => prev.map((p) => {
-                    if (selectedProducts.includes(p.productId)) {
-                      const discountAmount = calculateDiscountAmount(p);
-                      return { 
-                        ...p, 
-                        hasOffer: true, 
-                        offerBadge: badge,
-                        offerDiscount: discountAmount,
-                        offerType: 'percentage' // Default to percentage for display
-                      };
+                onClick={async () => {
+                  if (isDetailsView && offerData) {
+                    // In details view, make API call to add products to offer
+                    try {
+                      const response = await fetch(`/api/offers/${offerData.id}?type=add-products`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          productIds: selectedProducts,
+                        }),
+                      });
+                      
+                      if (response.ok) {
+                        window.location.reload();
+                      } else {
+                        alert('Failed to apply offer to products');
+                      }
+                    } catch (error) {
+                      alert('Failed to apply offer to products');
                     }
-                    return p;
-                  }));
-                  if (!isDetailsView) {
+                  } else {
+                    // In create view, update local state
+                    const badge = computeOfferBadge();
+                    setProducts((prev) => prev.map((p) => {
+                      if (selectedProducts.includes(p.productId)) {
+                        const discountAmount = calculateDiscountAmount(p);
+                        return { 
+                          ...p, 
+                          hasOffer: true, 
+                          offerBadge: badge,
+                          offerDiscount: discountAmount,
+                          offerType: 'percentage' // Default to percentage for display
+                        };
+                      }
+                      return p;
+                    }));
                     selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
+                    setShowOfferModal(false);
+                    setSelectedProducts([]);
                   }
-                  setShowOfferModal(false);
-                  setSelectedProducts([]);
                 }}
                 className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
               >

@@ -211,13 +211,13 @@ export default function OfferType({
           <p className="text-gray-500 text-sm">Configure different types of discounts and promotions</p>
         </div>
         {offerTypes.length > 0 && offerTypes.length < 3 && (
-          <button
+        <button
             onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Create Type
-          </button>
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+        >
+          <Plus className="w-4 h-4" />
+          Create Type
+        </button>
         )}
       </div>
 
@@ -364,17 +364,58 @@ export default function OfferType({
             
             // find existing by type
             const existing = displayDiscountTypes.find((dt: any) => dt.discountType === typeData.discountType);
-            if (existing) {
-              if (onUpdateDiscountType) {
-                onUpdateDiscountType(existing.id, discountTypeData);
-              } else {
-                storeUpdateDiscountType(existing.id, discountTypeData);
+            
+            if (offerData) {
+              // In details view, make API call
+              try {
+                if (existing) {
+                  // Update existing discount type
+                  const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${existing.id}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(discountTypeData),
+                  });
+                  
+                  if (response.ok) {
+                    window.location.reload();
+                  } else {
+                    alert('Failed to update discount type');
+                  }
+                } else {
+                  // Create new discount type
+                  const response = await fetch(`/api/offers/${offerData.id}?type=discount-type`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(discountTypeData),
+                  });
+                  
+                  if (response.ok) {
+                    window.location.reload();
+                  } else {
+                    alert('Failed to create discount type');
+                  }
+                }
+              } catch (error) {
+                alert('Failed to save discount type');
               }
             } else {
-              if (onAddDiscountType) {
-                onAddDiscountType(discountTypeData);
+              // In create view, use store or callbacks
+              if (existing) {
+                if (onUpdateDiscountType) {
+                  onUpdateDiscountType(existing.id, discountTypeData);
+                } else {
+                  storeUpdateDiscountType(existing.id, discountTypeData);
+                }
               } else {
-                storeAddDiscountType(discountTypeData);
+                if (onAddDiscountType) {
+                  onAddDiscountType(discountTypeData);
+                } else {
+                  storeAddDiscountType(discountTypeData);
+                }
               }
             }
             
