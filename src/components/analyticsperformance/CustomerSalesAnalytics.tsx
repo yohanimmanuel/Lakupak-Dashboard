@@ -230,23 +230,21 @@ const CustomerSalesAnalytics: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				setLoading(true);
-				let ordersResponse: Response | undefined;
-				let productsResponse: Response | undefined;
-				let buyersResponse: Response | undefined;
-
-				if (user?.id) {
-					[ordersResponse, productsResponse, buyersResponse] = await Promise.all([
-						fetch(`/api/orders?userId=${user.id}&limit=1000`),
-						fetch(`/api/products?userId=${user.id}&limit=1000`),
-						fetch(`/api/buyers?userId=${user.id}&limit=100`)
-					]);
-				} else {
-					[ordersResponse, productsResponse, buyersResponse] = await Promise.all([
-						fetch(`/api/orders?limit=1000`),
-						fetch(`/api/products?userId=1&limit=1000`),
-						fetch(`/api/buyers?userId=1&limit=100`)
-					]);
+				
+				// Only fetch data if user is authenticated
+				if (!user?.id) {
+					setOrders([]);
+					setProducts([]);
+					setBuyers([]);
+					setHasData(false);
+					return;
 				}
+
+				const [ordersResponse, productsResponse, buyersResponse] = await Promise.all([
+					fetch(`/api/orders?userId=${user.id}&limit=1000`),
+					fetch(`/api/products?userId=${user.id}&limit=1000`),
+					fetch(`/api/buyers?userId=${user.id}&limit=100`)
+				]);
 
 				let ordersList: Order[] = [];
 				let productsList: Product[] = [];
@@ -263,15 +261,6 @@ const CustomerSalesAnalytics: React.FC = () => {
 				if (buyersResponse && buyersResponse.ok) {
 					const buyersData = await buyersResponse.json();
 					buyersList = buyersData.buyers || buyersData || [];
-				}
-				if ((!buyersList || buyersList.length === 0)) {
-					try {
-						const alt = await fetch(`/api/buyers?userId=1&limit=100`);
-						if (alt.ok) {
-							const altData = await alt.json();
-							buyersList = altData.buyers || altData || [];
-						}
-					} catch {}
 				}
 
 				setOrders(ordersList);

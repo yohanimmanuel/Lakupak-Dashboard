@@ -137,10 +137,26 @@ export default function CreateOfferPage() {
         offerEndDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
       }
 
+      // Determine offer types based on discount types
+      const activeDiscountTypes = discountTypes.filter(dt => dt.isActive);
+      const offerTypes: ('discount' | 'promotion')[] = [];
+      
+      if (activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed')) {
+        offerTypes.push('discount');
+      }
+      if (activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y')) {
+        offerTypes.push('promotion');
+      }
+      
+      // Fallback to default if no types determined
+      if (offerTypes.length === 0) {
+        offerTypes.push('discount');
+      }
+
       const offerData = {
         name,
         description,
-        type,
+        type: offerTypes,
         discountTypes,
         startDate: offerStartDate,
         endDate: offerEndDate,

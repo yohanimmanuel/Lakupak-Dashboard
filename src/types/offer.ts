@@ -48,7 +48,7 @@ export interface Offer {
   offerId: string;
   name: string;
   description?: string;
-  type: 'discount' | 'promotion';
+  type: ('discount' | 'promotion')[];
   status: 'active' | 'expired' | 'inactive';
   minOrderValue?: number;
   minQuantity?: number;
@@ -70,7 +70,7 @@ export interface Offer {
 export interface OfferFormData {
   name: string;
   description?: string;
-  type: 'discount' | 'promotion';
+  type: ('discount' | 'promotion')[];
   discountTypes: {
     discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
     discountValue: number;

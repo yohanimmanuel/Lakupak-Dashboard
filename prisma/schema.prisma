@@ -325,7 +325,7 @@ model Offer {
   offerId           String      @unique
   name              String
   description       String?
-  type              String      // 'discount' | 'promotion'
+  type              String[]    // ['discount', 'promotion'] - can contain multiple types
   status            String      // 'active' | 'expired' | 'inactive'
   startDate         DateTime
   endDate           DateTime

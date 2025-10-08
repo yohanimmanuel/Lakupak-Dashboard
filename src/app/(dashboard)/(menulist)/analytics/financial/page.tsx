@@ -2,8 +2,10 @@
 import FinancialAnalytics from '@/components/analyticsperformance/FinancialAnalytics';
 import { Calendar, ChevronDown, Download, Filter } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useUserStore } from '@/store/userStore';
 
 export default function FinancialAnalyticsPage() {
+  const { user } = useUserStore();
   const [timeRange, setTimeRange] = useState('1M');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -11,9 +13,17 @@ export default function FinancialAnalyticsPage() {
   // Export function to download financial data as Word document
   const handleExport = async () => {
     try {
+      // Get user ID from Zustand store - NO FALLBACK
+      if (!user?.id) {
+        alert('Please log in to export data.');
+        return;
+      }
+
+      const userId = user.id;
+
       // Fetch the data from the FinancialAnalytics component
-      const ordersResponse = await fetch('/api/orders?userId=1&limit=1000');
-      const productsResponse = await fetch('/api/products?userId=1&limit=1000');
+      const ordersResponse = await fetch(`/api/orders?userId=${userId}&limit=1000`);
+      const productsResponse = await fetch(`/api/products?userId=${userId}&limit=1000`);
       
       if (!ordersResponse.ok || !productsResponse.ok) {
         throw new Error('Failed to fetch data');

@@ -55,14 +55,26 @@ export default function OfferTable({
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = 6;
 
+  // Helper function to check if offer has discount types
+  const hasDiscountType = (offer: Offer) => {
+    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
+    return activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+  };
+
+  // Helper function to check if offer has promotion types
+  const hasPromotionType = (offer: Offer) => {
+    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
+    return activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
+  };
+
   // Filter offers based on activeTab
   const filteredOffers = React.useMemo(() => {
     let filtered = offers;
     
     if (activeTab === 'discounts') {
-      filtered = offers.filter(offer => offer.type === 'discount');
+      filtered = offers.filter(offer => offer.type.includes('discount') || hasDiscountType(offer));
     } else if (activeTab === 'promotions') {
-      filtered = offers.filter(offer => offer.type === 'promotion');
+      filtered = offers.filter(offer => offer.type.includes('promotion') || hasPromotionType(offer));
     }
     
     return filtered;
@@ -128,7 +140,7 @@ export default function OfferTable({
       id: offer.id,
       offerId: offer.offerId,
       name: offer.name,
-      type: offer.type.charAt(0).toUpperCase() + offer.type.slice(1),
+      type: offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown',
       discount: discountDisplay,
       status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
       startDate: format(new Date(offer.startDate), 'MMM dd, yyyy'),
@@ -137,6 +149,46 @@ export default function OfferTable({
       totalDiscount: formatCurrency(offer.totalDiscountGiven, userCurrency),
       actions: 'actions'
     };
+  }
+
+  // Helper function to render type badges
+  function renderTypeBadges(offer: Offer) {
+    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
+    const hasDiscount = activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+    const hasPromotion = activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
+    
+    const badges = [];
+    
+    if (hasDiscount) {
+      badges.push(
+        <span key="discount" className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mr-1">
+          Discount
+        </span>
+      );
+    }
+    
+    if (hasPromotion) {
+      badges.push(
+        <span key="promotion" className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+          Promotion
+        </span>
+      );
+    }
+    
+    // If no badges, show the original type
+    if (badges.length === 0) {
+      return (
+        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+          offer.type.includes('discount')
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-purple-100 text-purple-800'
+        }`}>
+          {offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown'}
+        </span>
+      );
+    }
+    
+    return <div className="flex flex-wrap gap-1">{badges}</div>;
   }
 
   const handleDeleteConfirm = async () => {
@@ -232,7 +284,7 @@ export default function OfferTable({
   };
 
   const handleView = (offer: OfferTableRow) => {
-    router.push(`/offers/details`);
+    router.push(`/offers/details?id=${offer.id}`);
   };
 
   // Tab indicator animation
@@ -463,13 +515,18 @@ export default function OfferTable({
                   {row.name}
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-700">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    row.type === 'Discount' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-purple-100 text-purple-800'
-                  }`}>
-                    {row.type}
-                  </span>
+                  {(() => {
+                    const offer = offers.find(o => o.id === row.id);
+                    return offer ? renderTypeBadges(offer) : (
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        row.type === 'Discount' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {row.type}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-900">{row.discount}</td>
                 <td className="py-4 px-4 text-xs text-gray-700">

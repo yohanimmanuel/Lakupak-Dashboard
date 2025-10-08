@@ -35,10 +35,22 @@ export default function OffersPage() {
     }
   };
 
+  // Helper function to check if offer has discount types
+  const hasDiscountType = (offer: Offer) => {
+    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
+    return activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+  };
+
+  // Helper function to check if offer has promotion types
+  const hasPromotionType = (offer: Offer) => {
+    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
+    return activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
+  };
+
   const tabs = [
     { id: 'all', label: 'All Offers', count: offers.length },
-    { id: 'discounts', label: 'Discounts', count: offers.filter(offer => offer.type === 'discount').length },
-    { id: 'promotions', label: 'Promotions', count: offers.filter(offer => offer.type === 'promotion').length },
+    { id: 'discounts', label: 'Discounts', count: offers.filter(offer => offer.type.includes('discount') || hasDiscountType(offer)).length },
+    { id: 'promotions', label: 'Promotions', count: offers.filter(offer => offer.type.includes('promotion') || hasPromotionType(offer)).length },
   ];
 
   const handleSelectOffer = (offer: Offer) => {

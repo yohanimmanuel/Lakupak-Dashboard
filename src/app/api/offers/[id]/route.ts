@@ -711,8 +711,35 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
   const { discountTypes, dateRanges, timeSlots, products } = data;
 
   try {
+    // Determine offer types based on discount types
+    let offerTypes: string[] = [];
+    if (discountTypes && discountTypes.length > 0) {
+      const activeDiscountTypes = discountTypes.filter((dt: any) => dt.isActive !== false);
+      
+      if (activeDiscountTypes.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed')) {
+        offerTypes.push('discount');
+      }
+      if (activeDiscountTypes.some((dt: any) => dt.discountType === 'buy_x_get_y')) {
+        offerTypes.push('promotion');
+      }
+      
+      // Fallback to existing type if no types determined
+      if (offerTypes.length === 0) {
+        offerTypes = existingOffer.type || ['discount'];
+      }
+    } else {
+      // Keep existing type if no discount types provided
+      offerTypes = existingOffer.type || ['discount'];
+    }
+
     // Use a transaction to update all data atomically
     await prisma.$transaction(async (tx) => {
+      // 0. Update the offer's type field based on discount types
+      await tx.offer.update({
+        where: { id: offerId },
+        data: { type: offerTypes },
+      });
+
       // 1. Update discount types
       if (discountTypes) {
         // Delete existing discount types

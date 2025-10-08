@@ -129,21 +129,18 @@ const FinancialAnalytics: React.FC = () => {
     try {
       setLoading(true);
       
-      // Try to fetch with userId first, then fallback to without userId for existing data
-      let ordersResponse, productsResponse;
-      
-      if (user?.id) {
-        [ordersResponse, productsResponse] = await Promise.all([
-          fetch(`/api/orders?userId=${user.id}&limit=1000`),
-          fetch(`/api/products?userId=${user.id}&limit=1000`)
-        ]);
-      } else {
-        // Fallback: fetch existing data without userId filter
-        [ordersResponse, productsResponse] = await Promise.all([
-          fetch(`/api/orders?limit=1000`),
-          fetch(`/api/products?userId=1&limit=1000`) // Products still need userId
-        ]);
+      // Only fetch data if user is authenticated
+      if (!user?.id) {
+        setOrders([]);
+        setProducts([]);
+        setHasData(false);
+        return;
       }
+
+      const [ordersResponse, productsResponse] = await Promise.all([
+        fetch(`/api/orders?userId=${user.id}&limit=1000`),
+        fetch(`/api/products?userId=${user.id}&limit=1000`)
+      ]);
 
       if (ordersResponse.ok && productsResponse.ok) {
         const ordersData = await ordersResponse.json();

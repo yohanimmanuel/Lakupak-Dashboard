@@ -127,19 +127,18 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     try {
       setLoading(true);
       
-      let ordersResponse, productsResponse;
-      
-      if (user?.id) {
-        [ordersResponse, productsResponse] = await Promise.all([
-          fetch(`/api/orders?userId=${user.id}&limit=1000`),
-          fetch(`/api/products?userId=${user.id}&limit=1000`)
-        ]);
-      } else {
-        [ordersResponse, productsResponse] = await Promise.all([
-          fetch(`/api/orders?limit=1000`),
-          fetch(`/api/products?userId=1&limit=1000`)
-        ]);
+      // Only fetch data if user is authenticated
+      if (!user?.id) {
+        setOrders([]);
+        setProducts([]);
+        setHasData(false);
+        return;
       }
+
+      const [ordersResponse, productsResponse] = await Promise.all([
+        fetch(`/api/orders?userId=${user.id}&limit=1000`),
+        fetch(`/api/products?userId=${user.id}&limit=1000`)
+      ]);
 
       if (ordersResponse.ok && productsResponse.ok) {
         const ordersData = await ordersResponse.json();

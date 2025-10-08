@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import CustomerSalesAnalytics from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { Calendar, ChevronDown, Download } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
 
 export default function SalesAnalyticsPage() {
+	const { user } = useUserStore();
 	const [timeRange, setTimeRange] = useState('1M');
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
@@ -262,10 +264,18 @@ export default function SalesAnalyticsPage() {
 
 	const handleExport = async () => {
 		try {
+			// Get user ID from Zustand store - NO FALLBACK
+			if (!user?.id) {
+				alert('Please log in to export data.');
+				return;
+			}
+
+			const userId = user.id;
+
 			const [ordersResponse, productsResponse, buyersResponse] = await Promise.all([
-				fetch('/api/orders?userId=1&limit=1000'),
-				fetch('/api/products?userId=1&limit=1000'),
-				fetch('/api/buyers?userId=1&limit=100')
+				fetch(`/api/orders?userId=${userId}&limit=1000`),
+				fetch(`/api/products?userId=${userId}&limit=1000`),
+				fetch(`/api/buyers?userId=${userId}&limit=100`)
 			]);
 			if (!ordersResponse.ok || !productsResponse.ok || !buyersResponse.ok) throw new Error('Failed to fetch data');
 			const ordersJson = await ordersResponse.json();

@@ -47,7 +47,7 @@ export interface OfferCreationState {
   // Basic Information
   name: string;
   description: string;
-  type: 'discount' | 'promotion';
+  type: ('discount' | 'promotion')[];
   
   // Multiple Discount Types
   discountTypes: OfferDiscountType[];
@@ -84,7 +84,7 @@ interface OfferCreationActions {
   // Basic Information
   setName: (name: string) => void;
   setDescription: (description: string) => void;
-  setType: (type: 'discount' | 'promotion') => void;
+  setType: (type: ('discount' | 'promotion')[]) => void;
   
   // Discount Types
   addDiscountType: (discountType: Omit<OfferDiscountType, 'id'>) => void;
@@ -136,7 +136,7 @@ const initialState: OfferCreationState = {
   // Basic Information
   name: '',
   description: '',
-  type: 'discount',
+  type: ['discount'],
   
   // Multiple Discount Types
   discountTypes: [],
@@ -417,7 +417,7 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
       resetToDefaults: () => {
         set({
           ...initialState,
-          type: 'discount',
+          type: ['discount'],
           minQuantity: 1,
         });
       },
