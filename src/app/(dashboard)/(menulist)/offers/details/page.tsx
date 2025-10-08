@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BarChart3, Target, Package, Calendar } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
@@ -15,7 +15,11 @@ export default function OffersDetailsPage() {
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
+  const [originalOffer, setOriginalOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Get offer ID from URL params
   const offerId = searchParams.get('id');
@@ -55,8 +59,10 @@ export default function OffersDetailsPage() {
         };
         
         setCurrentOffer(offerWithBadges);
+        setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
       } else {
         setCurrentOffer(null);
+        setOriginalOffer(null);
       }
       setLoading(false);
     } else if (offers.length > 0 && !offerId) {
@@ -88,6 +94,7 @@ export default function OffersDetailsPage() {
       };
       
       setCurrentOffer(offerWithBadges);
+      setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
       setLoading(false);
     }
   }, [offers, offerId]);
@@ -105,6 +112,75 @@ export default function OffersDetailsPage() {
       setLoading(false);
     }
   };
+
+  // Handle changes from child components
+  const handleOfferChange = (updatedData: Partial<Offer>) => {
+    if (currentOffer) {
+      setCurrentOffer({ ...currentOffer, ...updatedData });
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  // Save all changes
+  const handleSave = async () => {
+    if (!currentOffer || !hasUnsavedChanges) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        discountTypes: currentOffer.discountTypes,
+        dateRanges: currentOffer.dateRanges,
+        timeSlots: currentOffer.timeSlots,
+        products: currentOffer.products,
+      };
+      
+      const response = await fetch(`/api/offers/${currentOffer.id}?type=batch-update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to save changes');
+      }
+
+      // Refresh offers from server
+      await fetchOffers();
+      setHasUnsavedChanges(false);
+      
+      // Show success modal for 3 seconds
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    } catch (error) {
+      alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Cancel changes
+  const handleCancel = () => {
+    if (originalOffer) {
+      setCurrentOffer(JSON.parse(JSON.stringify(originalOffer)));
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const tabs = [
     { 
@@ -162,21 +238,21 @@ export default function OffersDetailsPage() {
       case 'analytics':
         return <OfferAnalytics offers={[currentOffer]} />;
       case 'type':
-        return <OfferType offerData={currentOffer} />;
+        return <OfferType offerData={currentOffer} onOfferChange={handleOfferChange} />;
       case 'products':
-        // Provide no-op handlers to satisfy props; details page is read-only
         return (
           <ProductIntegration 
             offerData={currentOffer}
+            onOfferChange={handleOfferChange}
             onAddProduct={() => {}}
             onRemoveProduct={() => {}}
             onUpdateProductDiscount={() => {}}
           />
         );
       case 'range':
-        return <RangeManagement offerData={currentOffer} />;
+        return <RangeManagement offerData={currentOffer} onOfferChange={handleOfferChange} />;
       default:
-        return <OfferType offerData={currentOffer} />;
+        return <OfferType offerData={currentOffer} onOfferChange={handleOfferChange} />;
     }
   };
 
@@ -186,7 +262,15 @@ export default function OffersDetailsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.back()}
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                  router.back();
+                }
+              } else {
+                router.back();
+              }
+            }}
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -194,8 +278,31 @@ export default function OffersDetailsPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-black">Offers & Incentives</h1>
-            <p className="text-gray-500 text-sm">Advanced offer management and analytics</p>
+            <p className="text-gray-500 text-sm">
+              Advanced offer management and analytics
+              {hasUnsavedChanges && <span className="ml-2 text-orange-600 font-medium">• Unsaved changes</span>}
+            </p>
           </div>
+        </div>
+        
+        {/* Save/Cancel Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCancel}
+            disabled={!hasUnsavedChanges || isSaving}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!hasUnsavedChanges || isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
       </div>
 
@@ -230,6 +337,21 @@ export default function OffersDetailsPage() {
       <div className="bg-white rounded-lg border border-[#e6e6e6] shadow-sm">
         {renderActiveComponent()}
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <p className="text-xs text-white/90">All your changes have been saved to the database.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

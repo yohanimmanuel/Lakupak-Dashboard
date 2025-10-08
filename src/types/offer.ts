@@ -18,6 +18,31 @@ export interface OfferDiscountType {
   updatedAt: string;
 }
 
+export interface DateRange {
+  id: string;
+  name: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  offerCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TimeSlot {
+  id: string;
+  name: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  days: string[];
+  isActive: boolean;
+  offerCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface Offer {
   id: string;
   offerId: string;
@@ -35,6 +60,9 @@ export interface Offer {
   totalDiscountGiven: number;
   products: OfferProduct[];
   discountTypes: OfferDiscountType[];
+  dateRanges?: DateRange[];
+  timeSlots?: TimeSlot[];
+  productOfferBadges?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }

@@ -11,6 +11,7 @@ import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationSto
 interface ProductIntegrationProps {
   isNewOffer?: boolean;
   offerData?: any; // Offer data from database for details view
+  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
   onAddProduct: (product: SelectedProduct) => void;
   onRemoveProduct: (productId: string) => void;
   onUpdateProductDiscount: (productId: string, discountType: 'percentage' | 'fixed', discountValue: number) => void;
@@ -33,6 +34,7 @@ interface OfferProduct {
 export default function ProductIntegration({ 
   isNewOffer = false, 
   offerData,
+  onOfferChange,
   onAddProduct, 
   onRemoveProduct, 
   onUpdateProductDiscount 
@@ -64,6 +66,7 @@ export default function ProductIntegration({
   const discountTypes = offerData?.discountTypes || storeDiscountTypes;
   const productOfferBadges = offerData?.productOfferBadges || storeProductOfferBadges;
   const isDetailsView = Boolean(offerData); // Flag to determine if we're in details view
+  const isBatchEditMode = Boolean(offerData && onOfferChange);
   
   // Modal states
   const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
@@ -1008,28 +1011,46 @@ export default function ProductIntegration({
                 Cancel
               </button>
               <button
-                onClick={async () => {
-                  if (isDetailsView && offerData) {
-                    // In details view, make API call to add products to offer
-                    try {
-                      const response = await fetch(`/api/offers/${offerData.id}?type=add-products`, {
-                        method: 'PUT',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          productIds: selectedProducts,
-                        }),
-                      });
-                      
-                      if (response.ok) {
-                        window.location.reload();
-                      } else {
-                        alert('Failed to apply offer to products');
+                onClick={() => {
+                  if (isBatchEditMode) {
+                    // In batch edit mode, update parent state
+                    const existingProducts = offerData.products || [];
+                    const newProducts = selectedProducts.map(productId => ({
+                      id: `po-${Date.now()}-${productId}`,
+                      productId,
+                      offerId: offerData.id,
+                      discountType: 'percentage' as const,
+                      discountValue: 0,
+                      isActive: true,
+                    }));
+                    const updatedProducts = [...existingProducts, ...newProducts];
+                    
+                    // Update product offer badges
+                    const badge = computeOfferBadge();
+                    const updatedBadges = { ...productOfferBadges };
+                    selectedProducts.forEach(id => {
+                      updatedBadges[id] = badge;
+                    });
+                    
+                    onOfferChange!({ 
+                      products: updatedProducts,
+                      productOfferBadges: updatedBadges
+                    });
+                    
+                    // Update local UI
+                    setProducts((prev) => prev.map((p) => {
+                      if (selectedProducts.includes(p.productId)) {
+                        const discountAmount = calculateDiscountAmount(p);
+                        return { 
+                          ...p, 
+                          hasOffer: true, 
+                          offerBadge: badge,
+                          offerDiscount: discountAmount,
+                          offerType: 'percentage'
+                        };
                       }
-                    } catch (error) {
-                      alert('Failed to apply offer to products');
-                    }
+                      return p;
+                    }));
                   } else {
                     // In create view, update local state
                     const badge = computeOfferBadge();
@@ -1041,15 +1062,15 @@ export default function ProductIntegration({
                           hasOffer: true, 
                           offerBadge: badge,
                           offerDiscount: discountAmount,
-                          offerType: 'percentage' // Default to percentage for display
+                          offerType: 'percentage'
                         };
                       }
                       return p;
                     }));
                     selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
-                    setShowOfferModal(false);
-                    setSelectedProducts([]);
                   }
+                  setShowOfferModal(false);
+                  setSelectedProducts([]);
                 }}
                 className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
               >
@@ -1087,36 +1108,36 @@ export default function ProductIntegration({
                 Cancel
               </button>
               <button
-                onClick={async () => {
-                  if (offerData) {
-                    // In details view, remove via API
-                    try {
-                      const productsWithOffers = selectedProducts.filter(id => {
-                        const p = products.find(pp => pp.productId === id);
-                        return p?.hasOffer;
-                      });
-                      
-                      if (productsWithOffers.length > 0) {
-                        const response = await fetch(`/api/offers/${offerData.id}?type=remove-products`, {
-                          method: 'PUT',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            productIds: productsWithOffers,
-                          }),
-                        });
-                        
-                        if (response.ok) {
-                          // Refresh the page to show updated data
-                          window.location.reload();
-                        } else {
-                          alert('Failed to remove offers from products');
-                        }
-                      }
-                    } catch (error) {
-                      alert('Failed to remove offers from products');
-                    }
+                onClick={() => {
+                  if (isBatchEditMode) {
+                    // In batch edit mode, update parent state
+                    const productsWithOffers = selectedProducts.filter(id => {
+                      const p = products.find(pp => pp.productId === id);
+                      return p?.hasOffer;
+                    });
+                    
+                    const existingProducts = offerData.products || [];
+                    const updatedProducts = existingProducts.filter((p: any) => 
+                      !productsWithOffers.includes(p.productId)
+                    );
+                    
+                    // Update product offer badges
+                    const updatedBadges = { ...productOfferBadges };
+                    productsWithOffers.forEach(id => {
+                      delete updatedBadges[id];
+                    });
+                    
+                    onOfferChange!({ 
+                      products: updatedProducts,
+                      productOfferBadges: updatedBadges
+                    });
+                    
+                    // Update local UI
+                    setProducts((prev) => prev.map((p) => (
+                      selectedProducts.includes(p.productId) && p.hasOffer
+                        ? { ...p, hasOffer: false, offerBadge: undefined }
+                        : p
+                    )));
                   } else {
                     // In create view, update local state
                     setProducts((prev) => prev.map((p) => (
@@ -1127,6 +1148,7 @@ export default function ProductIntegration({
                     selectedProducts.forEach((id) => clearProductOfferBadge(id));
                   }
                   setShowRemoveConfirm(false);
+                  setSelectedProducts([]);
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
               >

@@ -9,6 +9,7 @@ import CreateTimeSlotModal from './CreateTimeSlotModal';
 interface RangeManagementProps {
   isNewOffer?: boolean;
   offerData?: any; // Offer data from database for details view
+  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
   onOpenDateModal?: () => void;
   onOpenTimeModal?: () => void;
   selectedDateRange?: any;
@@ -42,6 +43,7 @@ interface TimeSlot {
 export default function RangeManagement({ 
   isNewOffer = false, 
   offerData,
+  onOfferChange,
   onOpenDateModal, 
   onOpenTimeModal,
   selectedDateRange,
@@ -58,6 +60,7 @@ export default function RangeManagement({
 
   // Use offerData if provided (details view), otherwise use store data (create view)
   const store = useOfferCreationStore();
+  const isBatchEditMode = Boolean(offerData && onOfferChange);
   
   let dateRanges: DateRange[] = [];
   let timeSlots: TimeSlot[] = [];
@@ -142,27 +145,17 @@ export default function RangeManagement({
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!itemToDelete) return;
 
-    if (offerData) {
-      // In details view, delete via API
-      try {
-        const type = activeTab === 'date' ? 'date-range' : 'time-slot';
-        const response = await fetch(`/api/offers/${offerData.id}?type=${type}&itemId=${itemToDelete.id}`, {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          setShowDeleteModal(false);
-          setItemToDelete(null);
-          // Refresh the page to show updated data
-          window.location.reload();
-        } else {
-          alert('Failed to delete item');
-        }
-      } catch (error) {
-        alert('Failed to delete item');
+    if (isBatchEditMode) {
+      // In batch edit mode, update parent state
+      if (activeTab === 'date') {
+        const updatedDateRanges = dateRanges.filter(dr => dr.id !== itemToDelete.id);
+        onOfferChange!({ dateRanges: updatedDateRanges });
+      } else {
+        const updatedTimeSlots = timeSlots.filter(ts => ts.id !== itemToDelete.id);
+        onOfferChange!({ timeSlots: updatedTimeSlots });
       }
     } else {
       // In create view, remove from store
@@ -171,9 +164,9 @@ export default function RangeManagement({
       } else {
         store.removeTimeSlot(itemToDelete.id);
       }
-      setShowDeleteModal(false);
-      setItemToDelete(null);
     }
+    setShowDeleteModal(false);
+    setItemToDelete(null);
   };
 
   const handleDeleteCancel = () => {
@@ -421,56 +414,41 @@ export default function RangeManagement({
             setEditingRange(null);
           }}
           editingRange={editingRange}
-          onSave={async (rangeData) => {
-            if (offerData) {
-              // In details view, make API call
-              try {
-                const url = editingRange 
-                  ? `/api/offers/${offerData.id}?type=date-range&itemId=${editingRange.id}`
-                  : `/api/offers/${offerData.id}?type=date-range`;
-                
-                const response = await fetch(url, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    name: rangeData.name,
-                    description: rangeData.description,
-                    startDate: rangeData.startDate,
-                    endDate: rangeData.endDate,
-                    isActive: true,
-                  }),
-                });
-                
-                if (response.ok) {
-                  window.location.reload();
-                } else {
-                  alert(editingRange ? 'Failed to update date range' : 'Failed to create date range');
-                }
-              } catch (error) {
-                alert(editingRange ? 'Failed to update date range' : 'Failed to create date range');
+          onSave={(rangeData) => {
+            const preserveId = (editingRange as any)?.id || `dr-${Date.now()}`;
+            const payload = {
+              id: preserveId,
+              name: rangeData.name,
+              description: rangeData.description,
+              startDate: rangeData.startDate,
+              endDate: rangeData.endDate,
+              isActive: true,
+              offerCount: 0,
+              createdAt: new Date().toISOString(),
+            };
+
+            if (isBatchEditMode) {
+              // In batch edit mode, update parent state
+              let updatedDateRanges;
+              if (editingRange) {
+                updatedDateRanges = dateRanges.map(dr => 
+                  dr.id === preserveId ? payload : dr
+                );
+              } else {
+                updatedDateRanges = [...dateRanges, payload];
               }
+              onOfferChange!({ dateRanges: updatedDateRanges });
             } else {
               // In create view, update store
-              const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
-              const payload = {
-                id: preserveId,
-                name: rangeData.name,
-                description: rangeData.description,
-                startDate: rangeData.startDate,
-                endDate: rangeData.endDate,
-                isActive: true,
-              } as any;
               if (editingRange) {
                 store.updateDateRange(preserveId, payload);
               } else {
                 store.addDateRange(payload);
               }
+            }
             setShowCreateModal(false);
             setShowEditModal(false);
             setEditingRange(null);
-            }
           }}
         />
       )}
@@ -484,56 +462,41 @@ export default function RangeManagement({
             setEditingRange(null);
           }}
           editingSlot={editingRange}
-          onSave={async (slotData) => {
-            if (offerData) {
-              // In details view, make API call
-              try {
-                const url = editingRange 
-                  ? `/api/offers/${offerData.id}?type=time-slot&itemId=${editingRange.id}`
-                  : `/api/offers/${offerData.id}?type=time-slot`;
-                
-                const response = await fetch(url, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    name: slotData.name,
-                    startTime: slotData.startTime,
-                    endTime: slotData.endTime,
-                    days: slotData.days || [],
-                    isActive: true,
-                  }),
-                });
-                
-                if (response.ok) {
-                  window.location.reload();
-                } else {
-                  alert(editingRange ? 'Failed to update time slot' : 'Failed to create time slot');
-                }
-              } catch (error) {
-                alert(editingRange ? 'Failed to update time slot' : 'Failed to create time slot');
+          onSave={(slotData) => {
+            const preserveId = (editingRange as any)?.id || `ts-${Date.now()}`;
+            const payload = {
+              id: preserveId,
+              name: slotData.name,
+              startTime: slotData.startTime,
+              endTime: slotData.endTime,
+              days: slotData.days || [],
+              isActive: true,
+              offerCount: 0,
+              createdAt: new Date().toISOString(),
+            };
+
+            if (isBatchEditMode) {
+              // In batch edit mode, update parent state
+              let updatedTimeSlots;
+              if (editingRange) {
+                updatedTimeSlots = timeSlots.map(ts => 
+                  ts.id === preserveId ? payload : ts
+                );
+              } else {
+                updatedTimeSlots = [...timeSlots, payload];
               }
+              onOfferChange!({ timeSlots: updatedTimeSlots });
             } else {
               // In create view, update store
-              const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
-              const payload = {
-                id: preserveId,
-                name: slotData.name,
-                startTime: slotData.startTime,
-                endTime: slotData.endTime,
-                days: slotData.days,
-                isActive: true,
-              } as any;
               if (editingRange) {
                 store.updateTimeSlot(preserveId, payload);
               } else {
                 store.addTimeSlot(payload);
               }
+            }
             setShowCreateModal(false);
             setShowEditModal(false);
             setEditingRange(null);
-            }
           }}
         />
       )}

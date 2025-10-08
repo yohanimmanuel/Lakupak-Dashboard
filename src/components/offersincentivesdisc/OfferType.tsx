@@ -11,6 +11,7 @@ import CreateOfferTypeModal from './CreateOfferTypeModal';
 interface OfferTypeProps {
   isNewOffer?: boolean;
   offerData?: any; // Offer data from database for details view
+  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
   onOpenCreateModal?: () => void;
   onAddDiscountType?: (discountType: any) => void;
   onUpdateDiscountType?: (id: string, updates: any) => void;
@@ -34,6 +35,7 @@ interface OfferType {
 export default function OfferType({ 
   isNewOffer = false, 
   offerData,
+  onOfferChange,
   onOpenCreateModal,
   onAddDiscountType,
   onUpdateDiscountType,
@@ -57,6 +59,7 @@ export default function OfferType({
   
   // Use offerData if provided (details view), otherwise use store data (create view)
   const displayDiscountTypes = offerData?.discountTypes || discountTypes;
+  const isBatchEditMode = Boolean(offerData && onOfferChange);
   
   // Convert discount types to display format
   const offerTypes: OfferType[] = displayDiscountTypes.map((dt: any, index: number) => {
@@ -125,27 +128,13 @@ export default function OfferType({
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!typeToDelete) return;
 
-    if (offerData) {
-      // In details view, delete via API
-      try {
-        const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${typeToDelete.id}`, {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          setShowDeleteModal(false);
-          setTypeToDelete(null);
-          // Refresh the page to show updated data
-          window.location.reload();
-        } else {
-          alert('Failed to delete discount type');
-        }
-      } catch (error) {
-        alert('Failed to delete discount type');
-      }
+    if (isBatchEditMode) {
+      // In batch edit mode, update parent state
+      const updatedDiscountTypes = displayDiscountTypes.filter((dt: any) => dt.id !== typeToDelete.id);
+      onOfferChange!({ discountTypes: updatedDiscountTypes });
     } else {
       // In create view, remove from store
       if (onRemoveDiscountType) {
@@ -153,9 +142,9 @@ export default function OfferType({
       } else {
         storeRemoveDiscountType(typeToDelete.id);
       }
-      setShowDeleteModal(false);
-      setTypeToDelete(null);
     }
+    setShowDeleteModal(false);
+    setTypeToDelete(null);
   };
 
   const handleDeleteCancel = () => {
@@ -163,33 +152,16 @@ export default function OfferType({
     setTypeToDelete(null);
   };
 
-  const handleToggleActive = async (typeId: string) => {
+  const handleToggleActive = (typeId: string) => {
     // Find the discount type and toggle its active state
     const discountType = displayDiscountTypes.find((dt: any) => dt.id === typeId);
     if (discountType) {
-      if (offerData) {
-        // In details view, update via API
-        try {
-          const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${typeId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...discountType,
-              isActive: !discountType.isActive,
-            }),
-          });
-          
-          if (response.ok) {
-            // Refresh the page to show updated data
-            window.location.reload();
-          } else {
-            alert('Failed to update discount type');
-          }
-        } catch (error) {
-          alert('Failed to update discount type');
-        }
+      if (isBatchEditMode) {
+        // In batch edit mode, update parent state
+        const updatedDiscountTypes = displayDiscountTypes.map((dt: any) =>
+          dt.id === typeId ? { ...dt, isActive: !dt.isActive } : dt
+        );
+        onOfferChange!({ discountTypes: updatedDiscountTypes });
       } else {
         // In create view, update store
         if (onUpdateDiscountType) {
@@ -347,9 +319,10 @@ export default function OfferType({
             setEditingType(null);
           }}
           editingType={editingType}
-          onSave={async (typeData) => {
+          onSave={(typeData) => {
             // Enforce single offer per type: update if exists, else add
             const discountTypeData = {
+              id: editingType?.id || `dt-${Date.now()}`,
               name: typeData.name,
               description: typeData.description,
               discountType: typeData.discountType,
@@ -365,43 +338,19 @@ export default function OfferType({
             // find existing by type
             const existing = displayDiscountTypes.find((dt: any) => dt.discountType === typeData.discountType);
             
-            if (offerData) {
-              // In details view, make API call
-              try {
-                if (existing) {
-                  // Update existing discount type
-                  const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${existing.id}`, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(discountTypeData),
-                  });
-                  
-                  if (response.ok) {
-                    window.location.reload();
-                  } else {
-                    alert('Failed to update discount type');
-                  }
-                } else {
-                  // Create new discount type
-                  const response = await fetch(`/api/offers/${offerData.id}?type=discount-type`, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(discountTypeData),
-                  });
-                  
-                  if (response.ok) {
-                    window.location.reload();
-                  } else {
-                    alert('Failed to create discount type');
-                  }
-                }
-              } catch (error) {
-                alert('Failed to save discount type');
+            if (isBatchEditMode) {
+              // In batch edit mode, update parent state
+              let updatedDiscountTypes;
+              if (existing) {
+                // Update existing discount type
+                updatedDiscountTypes = displayDiscountTypes.map((dt: any) =>
+                  dt.id === existing.id ? { ...dt, ...discountTypeData } : dt
+                );
+              } else {
+                // Add new discount type
+                updatedDiscountTypes = [...displayDiscountTypes, discountTypeData];
               }
+              onOfferChange!({ discountTypes: updatedDiscountTypes });
             } else {
               // In create view, use store or callbacks
               if (existing) {

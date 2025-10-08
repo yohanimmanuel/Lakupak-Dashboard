@@ -69,6 +69,9 @@ export default function ProductCatalog({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
@@ -76,6 +79,61 @@ export default function ProductCatalog({
   
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
+
+  // Store original form data on mount for edit mode
+  useEffect(() => {
+    if (mode === 'edit' && product) {
+      const initial = {
+        id: product?.id,
+        productId: product?.productId || '',
+        sku: product?.sku || '',
+        name: product?.name || '',
+        description: product?.description || '',
+        productType: product?.productType || '',
+        brand: product?.brand || '',
+        supplier: product?.supplier || '',
+        stockQuantity: product?.stockQuantity || 0,
+        lowStockThreshold: product?.lowStockThreshold || 0,
+        stockStatus: product?.stockStatus || 'In Stock',
+        purchasePrice: product?.purchasePrice || '',
+        sellingPrice: product?.sellingPrice || '',
+        status: product?.status || 'Draft',
+        productCategory: product?.productCategory || '',
+        catalogName: product?.catalogName || '',
+        images: product?.images || [],
+        halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
+        bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
+        originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
+        returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
+        packageType: (product as { packageType?: string })?.packageType ?? '',
+        piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
+      };
+      setOriginalFormData(JSON.parse(JSON.stringify(initial)));
+    }
+  }, [mode, product]);
+
+  // Track changes
+  useEffect(() => {
+    if (mode === 'edit' && originalFormData) {
+      const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalFormData);
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [formData, originalFormData, mode]);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (mode !== 'edit') return;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, mode]);
   const catalogCategoryRef = useRef<HTMLDivElement>(null);
 
   // Generate LKP product ID format: LKP-8 random numbers
@@ -327,18 +385,15 @@ export default function ProductCatalog({
         finalData.productId = generateLKPProductId();
       }
 
-             // Submit the full text values including currency symbols
-       const payload = {
-         ...finalData,
-         id: formData.id,
-         productId: formData.productId,
-         purchasePrice: formData.purchasePrice,
-         sellingPrice: formData.sellingPrice,
-   
-         userId: user.id
-       };
-
-             // Submitting payload
+      // Submit the full text values including currency symbols
+      const payload = {
+        ...finalData,
+        id: formData.id,
+        productId: formData.productId,
+        purchasePrice: formData.purchasePrice,
+        sellingPrice: formData.sellingPrice,
+        userId: user.id
+      };
 
       let response;
       if (mode === 'add') {
@@ -361,10 +416,18 @@ export default function ProductCatalog({
       if (response?.ok) {
         const savedProduct = await response.json();
         
-        if (onSave) {
+        if (mode === 'edit') {
+          // Show success modal for edit mode
+          setHasUnsavedChanges(false);
+          setOriginalFormData(JSON.parse(JSON.stringify(formData)));
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
+        } else if (onSave) {
           onSave(savedProduct);
         } else {
-          // Navigate back to products page
+          // Navigate back to products page for add mode
           router.push('/products');
         }
       } else {
@@ -378,6 +441,13 @@ export default function ProductCatalog({
     }
   };
 
+  const handleCancel = () => {
+    if (originalFormData) {
+      setFormData(JSON.parse(JSON.stringify(originalFormData)));
+      setHasUnsavedChanges(false);
+    }
+  };
+
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
@@ -385,37 +455,48 @@ export default function ProductCatalog({
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                 <div className="flex items-center gap-4">
-           <button
-             onClick={() => router.push('/products')}
-             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-           >
-             <ArrowLeft className="w-4 h-4" />
-             Back to Products
-           </button>
-           <div className="flex items-center gap-3">
-             <h1 className="text-2xl font-bold text-gray-900">
-               {mode === 'add' && 'Add New Product'}
-               {mode === 'view' && 'Product Details'}
-               {mode === 'edit' && 'Edit Product'}
-             </h1>
-             {mode === 'view' && formData.status === 'Published' && (
-               <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
-                 Published
-               </span>
-             )}
-           </div>
-           {mode === 'view' && formData.status === 'Published' && (
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              if (mode === 'edit' && hasUnsavedChanges) {
+                if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                  router.push('/products');
+                }
+              } else {
+                router.push('/products');
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Products
+          </button>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {mode === 'add' && 'Add New Product'}
+              {mode === 'view' && 'Product Details'}
+              {mode === 'edit' && 'Edit Product'}
+            </h1>
+            {mode === 'view' && formData.status === 'Published' && (
+              <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
+                Published
+              </span>
+            )}
+            {mode === 'edit' && hasUnsavedChanges && (
+              <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
+            )}
+          </div>
+          {mode === 'view' && formData.status === 'Published' && (
             <div className="flex items-center justify-end gap-3">
-             <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
-               <Info className="w-4 h-4 text-orange-600" />
-               <span className="text-sm text-orange-700 font-medium">
-                 To edit, you need to unpublish this product in the marketplace.
-               </span>
-             </div>
-             </div>
-           )}
-         </div>
+              <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                <Info className="w-4 h-4 text-orange-600" />
+                <span className="text-sm text-orange-700 font-medium">
+                  To edit, you need to unpublish this product in the marketplace.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           {mode === 'add' && (
             <>
@@ -440,21 +521,35 @@ export default function ProductCatalog({
             </>
           )}
           {mode === 'edit' && (
-            <button
-              type="submit"
-              form="product-form"
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Updating...
-                </>
-              ) : (
-                'Update Product'
-              )}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={!hasUnsavedChanges || saving}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="product-form"
+                disabled={!hasUnsavedChanges || saving}
+                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1179,6 +1274,21 @@ export default function ProductCatalog({
           </div>
         </div>
       </form>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <p className="text-xs text-white/90">Product has been updated successfully.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

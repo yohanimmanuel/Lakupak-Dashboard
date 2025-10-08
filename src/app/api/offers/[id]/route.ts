@@ -14,7 +14,7 @@ interface ExtendedUser {
 // GET /api/offers/[id] - Get a specific offer
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -27,7 +27,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const offerId = params.id;
+    const { id } = await params;
+    const offerId = id;
 
     const offer = await prisma.offer.findFirst({
       where: {
@@ -134,7 +135,7 @@ export async function GET(
 // PUT /api/offers/[id] - Update offer, discount types, date ranges, or time slots
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -147,6 +148,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'discount-type', 'date-range', 'time-slot', or 'offer'
     const itemId = searchParams.get('itemId'); // For specific items like discount-type-123
@@ -159,7 +161,7 @@ export async function PUT(
         return await updateDiscountType(itemId, user.id, body);
       } else {
         // Create a new discount type
-        return await createDiscountType(params.id, user.id, body);
+        return await createDiscountType(id, user.id, body);
       }
     } else if (type === 'date-range') {
       if (itemId) {
@@ -167,7 +169,7 @@ export async function PUT(
         return await updateDateRange(itemId, user.id, body);
       } else {
         // Create a new date range
-        return await createDateRange(params.id, user.id, body);
+        return await createDateRange(id, user.id, body);
       }
     } else if (type === 'time-slot') {
       if (itemId) {
@@ -175,17 +177,20 @@ export async function PUT(
         return await updateTimeSlot(itemId, user.id, body);
       } else {
         // Create a new time slot
-        return await createTimeSlot(params.id, user.id, body);
+        return await createTimeSlot(id, user.id, body);
       }
     } else if (type === 'offer') {
       // Update the main offer
-      return await updateOffer(params.id, user.id, body);
+      return await updateOffer(id, user.id, body);
     } else if (type === 'remove-products') {
       // Remove products from offer
-      return await removeProductsFromOffer(params.id, user.id, body);
+      return await removeProductsFromOffer(id, user.id, body);
     } else if (type === 'add-products') {
       // Add products to offer
-      return await addProductsToOffer(params.id, user.id, body);
+      return await addProductsToOffer(id, user.id, body);
+    } else if (type === 'batch-update') {
+      // Batch update all offer data at once
+      return await batchUpdateOffer(id, user.id, body);
     } else {
       return NextResponse.json(
         { error: 'Invalid request parameters' },
@@ -204,7 +209,7 @@ export async function PUT(
 // DELETE /api/offers/[id] - Delete offer, discount types, date ranges, or time slots
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -217,6 +222,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'discount-type', 'date-range', 'time-slot', or 'offer'
     const itemId = searchParams.get('itemId'); // For specific items like discount-type-123
@@ -232,7 +238,7 @@ export async function DELETE(
       return await deleteTimeSlot(itemId, user.id);
     } else if (type === 'offer' || !type) {
       // Delete the main offer
-      return await deleteOffer(params.id, user.id);
+      return await deleteOffer(id, user.id);
     } else {
       return NextResponse.json(
         { error: 'Invalid request parameters' },
@@ -683,4 +689,127 @@ async function addProductsToOffer(offerId: string, userId: number, data: any) {
   });
 
   return NextResponse.json({ message: 'Products added to offer successfully', count: offerProducts.count });
+}
+
+// Helper function to batch update all offer data at once
+async function batchUpdateOffer(offerId: string, userId: number, data: any) {
+  // Check if offer exists and belongs to user
+  const existingOffer = await prisma.offer.findFirst({
+    where: {
+      id: offerId,
+      userId: userId,
+    },
+  });
+
+  if (!existingOffer) {
+    return NextResponse.json(
+      { error: 'Offer not found or you do not have permission to modify it' },
+      { status: 404 }
+    );
+  }
+
+  const { discountTypes, dateRanges, timeSlots, products } = data;
+
+  try {
+    // Use a transaction to update all data atomically
+    await prisma.$transaction(async (tx) => {
+      // 1. Update discount types
+      if (discountTypes) {
+        // Delete existing discount types
+        await tx.offerDiscountType.deleteMany({
+          where: { offerId },
+        });
+        
+        // Create new discount types
+        if (discountTypes.length > 0) {
+          await tx.offerDiscountType.createMany({
+            data: discountTypes.map((dt: any) => ({
+              offerId,
+              discountType: dt.discountType,
+              discountValue: dt.discountValue,
+              name: dt.name,
+              description: dt.description,
+              minOrderValue: dt.minOrderValue ? (typeof dt.minOrderValue === 'string' ? parseFloat(dt.minOrderValue.replace(/\./g, '')) : dt.minOrderValue) : null,
+              minQuantity: dt.minQuantity,
+              maxUsage: dt.maxUsage,
+              perCustomerLimit: dt.perCustomerLimit,
+              isActive: dt.isActive ?? true,
+              priority: dt.priority ?? 1,
+            })),
+          });
+        }
+      }
+
+      // 2. Update date ranges
+      if (dateRanges) {
+        // Delete existing date ranges
+        await tx.dateRange.deleteMany({
+          where: { offerId },
+        });
+        
+        // Create new date ranges
+        if (dateRanges.length > 0) {
+          await tx.dateRange.createMany({
+            data: dateRanges.map((dr: any) => ({
+              offerId,
+              name: dr.name,
+              description: dr.description,
+              startDate: new Date(dr.startDate),
+              endDate: new Date(dr.endDate),
+              isActive: dr.isActive ?? true,
+            })),
+          });
+        }
+      }
+
+      // 3. Update time slots
+      if (timeSlots) {
+        // Delete existing time slots
+        await tx.timeSlot.deleteMany({
+          where: { offerId },
+        });
+        
+        // Create new time slots
+        if (timeSlots.length > 0) {
+          await tx.timeSlot.createMany({
+            data: timeSlots.map((ts: any) => ({
+              offerId,
+              name: ts.name,
+              description: ts.description,
+              startTime: ts.startTime,
+              endTime: ts.endTime,
+              days: ts.days || [],
+              isActive: ts.isActive ?? true,
+            })),
+          });
+        }
+      }
+
+      // 4. Update products
+      if (products) {
+        // Delete existing offer products
+        await tx.offerProduct.deleteMany({
+          where: { offerId },
+        });
+        
+        // Create new offer products
+        if (products.length > 0) {
+          await tx.offerProduct.createMany({
+            data: products.map((p: any) => ({
+              offerId,
+              productId: p.productId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+
+    return NextResponse.json({ message: 'Offer updated successfully' });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to batch update offer', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
