@@ -43,7 +43,6 @@ export default function OffersPage() {
 
   const handleSelectOffer = (offer: Offer) => {
     // Handle offer selection - could open a modal or navigate to details
-    console.log('Selected offer:', offer);
   };
 
   const handleCreateOffer = () => {
@@ -53,9 +52,7 @@ export default function OffersPage() {
   const handleExportData = async () => {
     try {
       // TODO: Implement export functionality
-      console.log('Exporting offers data...');
     } catch (error) {
-      console.error('Error exporting data:', error);
     }
   };
 

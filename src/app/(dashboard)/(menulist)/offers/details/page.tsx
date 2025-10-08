@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, BarChart3, Target, Package, Calendar } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
@@ -11,13 +11,86 @@ import { Offer } from '@/types/offer';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('analytics');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch offers from API
+  // Get offer ID from URL params
+  const offerId = searchParams.get('id');
+
+  // Fetch offers and current offer from API
   useEffect(() => {
     fetchOffers();
   }, []);
+
+  useEffect(() => {
+    if (offerId && offers.length > 0) {
+      const offer = offers.find(o => o.id === offerId);
+      if (offer) {
+        // Extract product offer badges from offerProducts
+        const productOfferBadges: Record<string, string> = {};
+        offer.products?.forEach((product: any) => {
+          if (product.productId) {
+            // Determine badge based on discount types
+            const hasDiscount = offer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+            const hasPromotion = offer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
+            if (hasDiscount && hasPromotion) {
+              productOfferBadges[product.productId] = 'All Offers';
+            } else if (hasPromotion) {
+              productOfferBadges[product.productId] = 'Promotion';
+            } else if (hasDiscount) {
+              productOfferBadges[product.productId] = 'Discount';
+            } else {
+              productOfferBadges[product.productId] = 'Offer';
+            }
+          }
+        });
+        
+        // Add productOfferBadges to the offer data
+        const offerWithBadges = {
+          ...offer,
+          productOfferBadges
+        };
+        
+        setCurrentOffer(offerWithBadges);
+      } else {
+        setCurrentOffer(null);
+      }
+      setLoading(false);
+    } else if (offers.length > 0 && !offerId) {
+      // If no specific offer ID, show the first offer
+      const firstOffer = offers[0];
+      // Extract product offer badges from offerProducts
+      const productOfferBadges: Record<string, string> = {};
+      firstOffer.products?.forEach((product: any) => {
+        if (product.productId) {
+          // Determine badge based on discount types
+          const hasDiscount = firstOffer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+          const hasPromotion = firstOffer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
+          if (hasDiscount && hasPromotion) {
+            productOfferBadges[product.productId] = 'All Offers';
+          } else if (hasPromotion) {
+            productOfferBadges[product.productId] = 'Promotion';
+          } else if (hasDiscount) {
+            productOfferBadges[product.productId] = 'Discount';
+          } else {
+            productOfferBadges[product.productId] = 'Offer';
+          }
+        }
+      });
+      
+      // Add productOfferBadges to the offer data
+      const offerWithBadges = {
+        ...firstOffer,
+        productOfferBadges
+      };
+      
+      setCurrentOffer(offerWithBadges);
+      setLoading(false);
+    }
+  }, [offers, offerId]);
 
   const fetchOffers = async () => {
     try {
@@ -29,6 +102,7 @@ export default function OffersDetailsPage() {
       setOffers(data.offers || []);
     } catch (error) {
       setOffers([]);
+      setLoading(false);
     }
   };
 
@@ -60,24 +134,49 @@ export default function OffersDetailsPage() {
   ];
 
   const renderActiveComponent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    if (!currentOffer) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-gray-500">No offer selected or found.</p>
+            <button
+              onClick={() => router.push('/offers')}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Back to Offers
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'analytics':
-        return <OfferAnalytics offers={offers} />;
+        return <OfferAnalytics offers={[currentOffer]} />;
       case 'type':
-        return <OfferType />;
+        return <OfferType offerData={currentOffer} />;
       case 'products':
         // Provide no-op handlers to satisfy props; details page is read-only
         return (
           <ProductIntegration 
+            offerData={currentOffer}
             onAddProduct={() => {}}
             onRemoveProduct={() => {}}
             onUpdateProductDiscount={() => {}}
           />
         );
       case 'range':
-        return <RangeManagement />;
+        return <RangeManagement offerData={currentOffer} />;
       default:
-        return <OfferAnalytics offers={offers} />;
+        return <OfferType offerData={currentOffer} />;
     }
   };
 

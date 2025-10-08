@@ -10,6 +10,7 @@ import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface OfferTypeProps {
   isNewOffer?: boolean;
+  offerData?: any; // Offer data from database for details view
   onOpenCreateModal?: () => void;
   onAddDiscountType?: (discountType: any) => void;
   onUpdateDiscountType?: (id: string, updates: any) => void;
@@ -32,6 +33,7 @@ interface OfferType {
 
 export default function OfferType({ 
   isNewOffer = false, 
+  offerData,
   onOpenCreateModal,
   onAddDiscountType,
   onUpdateDiscountType,
@@ -42,6 +44,8 @@ export default function OfferType({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingType, setEditingType] = useState<OfferType | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [typeToDelete, setTypeToDelete] = useState<OfferType | null>(null);
 
   // Use store for offer types instead of API
   const { 
@@ -51,8 +55,11 @@ export default function OfferType({
     removeDiscountType: storeRemoveDiscountType
   } = useOfferCreationStore();
   
-  // Convert store discount types to display format
-  const offerTypes: OfferType[] = discountTypes.map((dt, index) => {
+  // Use offerData if provided (details view), otherwise use store data (create view)
+  const displayDiscountTypes = offerData?.discountTypes || discountTypes;
+  
+  // Convert discount types to display format
+  const offerTypes: OfferType[] = displayDiscountTypes.map((dt: any, index: number) => {
     return {
       id: dt.id,
       name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
@@ -111,22 +118,85 @@ export default function OfferType({
   };
 
   const handleDelete = (typeId: string) => {
-    // Remove from store
-    if (onRemoveDiscountType) {
-      onRemoveDiscountType(typeId);
-    } else {
-      storeRemoveDiscountType(typeId);
+    const discountType = displayDiscountTypes.find((dt: any) => dt.id === typeId);
+    if (discountType) {
+      setTypeToDelete(discountType);
+      setShowDeleteModal(true);
     }
   };
 
-  const handleToggleActive = (typeId: string) => {
-    // Find the discount type and toggle its active state
-    const discountType = discountTypes.find(dt => dt.id === typeId);
-    if (discountType) {
-      if (onUpdateDiscountType) {
-        onUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+  const handleDeleteConfirm = async () => {
+    if (!typeToDelete) return;
+
+    if (offerData) {
+      // In details view, delete via API
+      try {
+        const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${typeToDelete.id}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setShowDeleteModal(false);
+          setTypeToDelete(null);
+          // Refresh the page to show updated data
+          window.location.reload();
+        } else {
+          alert('Failed to delete discount type');
+        }
+      } catch (error) {
+        alert('Failed to delete discount type');
+      }
+    } else {
+      // In create view, remove from store
+      if (onRemoveDiscountType) {
+        onRemoveDiscountType(typeToDelete.id);
       } else {
-        storeUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+        storeRemoveDiscountType(typeToDelete.id);
+      }
+      setShowDeleteModal(false);
+      setTypeToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setTypeToDelete(null);
+  };
+
+  const handleToggleActive = async (typeId: string) => {
+    // Find the discount type and toggle its active state
+    const discountType = displayDiscountTypes.find((dt: any) => dt.id === typeId);
+    if (discountType) {
+      if (offerData) {
+        // In details view, update via API
+        try {
+          const response = await fetch(`/api/offers/${offerData.id}?type=discount-type&itemId=${typeId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...discountType,
+              isActive: !discountType.isActive,
+            }),
+          });
+          
+          if (response.ok) {
+            // Refresh the page to show updated data
+            window.location.reload();
+          } else {
+            alert('Failed to update discount type');
+          }
+        } catch (error) {
+          alert('Failed to update discount type');
+        }
+      } else {
+        // In create view, update store
+        if (onUpdateDiscountType) {
+          onUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+        } else {
+          storeUpdateDiscountType(typeId, { isActive: !discountType.isActive });
+        }
       }
     }
   };
@@ -293,7 +363,7 @@ export default function OfferType({
             };
             
             // find existing by type
-            const existing = discountTypes.find(dt => dt.discountType === typeData.discountType);
+            const existing = displayDiscountTypes.find((dt: any) => dt.discountType === typeData.discountType);
             if (existing) {
               if (onUpdateDiscountType) {
                 onUpdateDiscountType(existing.id, discountTypeData);
@@ -313,6 +383,32 @@ export default function OfferType({
             setEditingType(null);
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-black mb-4">Delete Discount Type</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete &quot;{typeToDelete?.name}&quot;? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

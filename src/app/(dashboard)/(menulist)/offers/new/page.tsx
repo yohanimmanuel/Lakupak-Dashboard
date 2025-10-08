@@ -73,7 +73,13 @@ export default function CreateOfferPage() {
     setDateRangeConfigured,
     setProductsSelected,
     reset,
+    resetToDefaults,
   } = useOfferCreationStore();
+
+  // Reset store to fresh state when component mounts (for new offer creation)
+  useEffect(() => {
+    resetToDefaults();
+  }, [resetToDefaults]);
 
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
@@ -136,13 +142,11 @@ export default function CreateOfferPage() {
         description,
         type,
         discountTypes,
-        minOrderValue: minOrderValue ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : undefined,
-        minQuantity,
         startDate: offerStartDate,
         endDate: offerEndDate,
-        maxUsage: maxUsage || undefined,
-        perCustomerLimit: perCustomerLimit || undefined,
         productIds: Object.keys(productOfferBadges || {}), // Use products with offer badges
+        dateRanges: dateRanges || [],
+        timeSlots: timeSlots || [],
         status: offerStatus,
       };
 
@@ -162,7 +166,6 @@ export default function CreateOfferPage() {
       reset();
       router.push('/offers');
     } catch (error) {
-      console.error('Error creating offer:', error);
       alert('Failed to create offer. Please try again.');
     } finally {
       setIsCreating(false);
@@ -170,6 +173,7 @@ export default function CreateOfferPage() {
   };
 
   const handleCancel = () => {
+    resetToDefaults(); // Clear store data
     router.push('/offers');
   };
 

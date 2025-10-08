@@ -11,25 +11,28 @@ export function AuthSync() {
     if (status === "loading" || !isHydrated) return;
 
     if (status === "authenticated" && session?.user) {
-      // Only sync if there's no current user in the store
-      // This prevents NextAuth from overwriting existing sessions on page reload
-      const { user } = useUserStore.getState();
-      if (!user) {
-        const sessionUser = session.user as {
-          id?: number;
-          firstName?: string;
-          lastName?: string;
-          email?: string;
-          phone?: string;
-          bio?: string;
-          location?: string;
-          avatar?: string;
-          companyId?: number;
-          company?: unknown;
-          region?: string;
-          currency?: string;
-          language?: string;
-        };
+      const { user: currentUser } = useUserStore.getState();
+      const sessionUser = session.user as {
+        id?: number;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+        bio?: string;
+        location?: string;
+        avatar?: string;
+        companyId?: number | null;
+        company?: any;
+        region?: string;
+        currency?: string;
+        language?: string;
+        name?: string;
+        image?: string;
+      };
+
+      // Only sync if there's no current user (initial login)
+      // Don't force sync if user is already logged in to prevent switching between users
+      if (!currentUser) {
         setUser({
           id: sessionUser.id || 0,
           firstName: sessionUser.firstName || sessionUser.name?.split(' ')[0] || '',
@@ -39,16 +42,23 @@ export function AuthSync() {
           bio: sessionUser.bio || '',
           location: sessionUser.location || '',
           avatar: sessionUser.avatar || sessionUser.image || '',
-          companyId: sessionUser.companyId || null,
-          company: sessionUser.company || null,
+          companyId: sessionUser.companyId ?? undefined,
+          company: sessionUser.company ?? undefined,
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
           language: sessionUser.language || 'en',
         });
       }
     } else if (status === "unauthenticated") {
-      // Don't clear user store on NextAuth unauthenticated
-      // Let the dashboard handle authentication checks
+      // Only clear user store if we don't have a valid user session
+      // This prevents clearing user data when NextAuth is unauthenticated but user is logged in via custom auth
+      const { user: currentUser, sessionExpiry } = useUserStore.getState();
+      const now = Date.now();
+      
+      // Only clear if no user or session expired
+      if (!currentUser || (sessionExpiry && now >= sessionExpiry)) {
+        clearUser();
+      }
     }
   }, [session, status, setUser, clearUser, isHydrated]);
 

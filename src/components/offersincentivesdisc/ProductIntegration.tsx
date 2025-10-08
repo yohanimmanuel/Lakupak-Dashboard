@@ -10,6 +10,7 @@ import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationSto
 
 interface ProductIntegrationProps {
   isNewOffer?: boolean;
+  offerData?: any; // Offer data from database for details view
   onAddProduct: (product: SelectedProduct) => void;
   onRemoveProduct: (productId: string) => void;
   onUpdateProductDiscount: (productId: string, discountType: 'percentage' | 'fixed', discountValue: number) => void;
@@ -31,6 +32,7 @@ interface OfferProduct {
 
 export default function ProductIntegration({ 
   isNewOffer = false, 
+  offerData,
   onAddProduct, 
   onRemoveProduct, 
   onUpdateProductDiscount 
@@ -53,7 +55,15 @@ export default function ProductIntegration({
   const rowsPerPage = 8;
   
   // Ranges/time slots and configured offer types come from centralized offer creation store
-  const { dateRanges, timeSlots, discountTypes, productOfferBadges, setProductOfferBadge, clearProductOfferBadge } = useOfferCreationStore();
+  const store = useOfferCreationStore();
+  const { dateRanges: storeDateRanges, timeSlots: storeTimeSlots, discountTypes: storeDiscountTypes, productOfferBadges: storeProductOfferBadges, setProductOfferBadge, clearProductOfferBadge } = store;
+  
+  // Use offerData if provided (details view), otherwise use store data (create view)
+  const dateRanges = offerData?.dateRanges || storeDateRanges;
+  const timeSlots = offerData?.timeSlots || storeTimeSlots;
+  const discountTypes = offerData?.discountTypes || storeDiscountTypes;
+  const productOfferBadges = offerData?.productOfferBadges || storeProductOfferBadges;
+  const isDetailsView = Boolean(offerData); // Flag to determine if we're in details view
   
   // Modal states
   const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
@@ -75,7 +85,7 @@ export default function ProductIntegration({
     }
   };
 
-  const offerTypes = (discountTypes || []).map((dt) => ({
+  const offerTypes = (discountTypes || []).map((dt: any) => ({
     id: dt.id,
     name: dt.name && dt.name.trim().length > 0 ? dt.name : getTypeLabel(dt.discountType),
     type: dt.discountType,
@@ -83,8 +93,8 @@ export default function ProductIntegration({
 
   // Determine badge label to apply to selected products
   const computeOfferBadge = (): string => {
-    const hasDiscount = (discountTypes || []).some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-    const hasPromotion = (discountTypes || []).some((dt) => dt.discountType === 'buy_x_get_y');
+    const hasDiscount = (discountTypes || []).some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+    const hasPromotion = (discountTypes || []).some((dt: any) => dt.discountType === 'buy_x_get_y');
     if (hasDiscount && hasPromotion) return 'All Offers';
     if (hasPromotion) return 'Promotion';
     if (hasDiscount) return 'Discount';
@@ -98,7 +108,7 @@ export default function ProductIntegration({
     const productPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
     let totalDiscount = 0;
     
-    discountTypes.forEach((dt) => {
+    discountTypes.forEach((dt: any) => {
       if (dt.discountType === 'percentage') {
         totalDiscount += (productPrice * dt.discountValue) / 100;
       } else if (dt.discountType === 'fixed') {
@@ -128,7 +138,7 @@ export default function ProductIntegration({
           const discountAmount = hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0;
           
           return {
-            ...product,
+          ...product,
             hasOffer,
             offerDiscount: discountAmount,
             offerType: hasOffer ? 'percentage' : undefined, // Default to percentage for display
@@ -444,12 +454,12 @@ export default function ProductIntegration({
                     Remove Offer
                   </button>
                 )}
-                <button
-                  onClick={() => setSelectedProducts([])}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Clear Selection
-                </button>
+              <button
+                onClick={() => setSelectedProducts([])}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Clear Selection
+              </button>
               </div>
             </div>
           </div>
@@ -519,16 +529,16 @@ export default function ProductIntegration({
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </button>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-black text-sm line-clamp-2">{product.name}</h3>
-                        <p className="text-xs text-gray-500">{product.brand}</p>
-                      </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-black text-sm line-clamp-2">{product.name}</h3>
+                      <p className="text-xs text-gray-500">{product.brand}</p>
                     </div>
+                  </div>
                     {product.hasOffer && product.offerBadge && (
                       <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                         {product.offerBadge}
-                      </div>
-                    )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 mb-3">
@@ -778,15 +788,15 @@ export default function ProductIntegration({
                     <div className="space-y-3">
                       {/* Show first offer type */}
                       {offerTypes && offerTypes.length > 0 ? (
-                        <div>
-                          <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-600">Offer Name:</span>
-                            <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-600">Type:</span>
                             <span className="text-xs font-medium text-black">{getTypeLabel(offerTypes[0].type as any)}</span>
-                          </div>
+                        </div>
                         </div>
                       ) : (
                         <div className="text-xs text-gray-500">No offer types configured.</div>
@@ -795,7 +805,7 @@ export default function ProductIntegration({
                       {/* Show expanded offer types when dropdown is open */}
                       {showMoreOfferTypes && (
                         <div className="space-y-3">
-                          {offerTypes.slice(1).map((offerType, index) => (
+                          {offerTypes.slice(1).map((offerType: any, index: number) => (
                             <div key={offerType.id}>
                               {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
                               <div className="flex items-center justify-between">
@@ -865,18 +875,18 @@ export default function ProductIntegration({
                       <div className="space-y-3">
                         {/* Show first date range */}
                         {dateRanges && dateRanges.length > 0 ? (
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Active Period:</span>
-                              <span className="text-xs font-medium text-black">{dateRanges[0].name}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Duration:</span>
-                              <span className="text-xs font-medium text-black">
-                                {new Date(dateRanges[0].startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRanges[0].endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
-                            </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Active Period:</span>
+                            <span className="text-xs font-medium text-black">{dateRanges[0].name}</span>
                           </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Duration:</span>
+                            <span className="text-xs font-medium text-black">
+                              {new Date(dateRanges[0].startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRanges[0].endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
                         ) : (
                           <div className="text-xs text-gray-500">No date ranges configured.</div>
                         )}
@@ -884,7 +894,7 @@ export default function ProductIntegration({
                         {/* Show expanded date ranges when dropdown is open */}
                         {showMoreRanges && (
                           <div className="space-y-3">
-                            {dateRanges.slice(1).map((range, index) => (
+                            {dateRanges.slice(1).map((range: any, index: number) => (
                               <div key={range.id}>
                                 {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
                                 <div className="flex items-center justify-between">
@@ -922,22 +932,22 @@ export default function ProductIntegration({
                       <div className="space-y-3">
                         {/* Show first time slot */}
                         {timeSlots && timeSlots.length > 0 ? (
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Time Slot:</span>
-                              <span className="text-xs font-medium text-black">{timeSlots[0].name}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Schedule:</span>
-                              <span className="text-xs font-medium text-black">
-                                {timeSlots[0].startTime} - {timeSlots[0].endTime}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Days:</span>
-                              <span className="text-xs font-medium text-black">{timeSlots[0].days.join(', ')}</span>
-                            </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Time Slot:</span>
+                            <span className="text-xs font-medium text-black">{timeSlots[0].name}</span>
                           </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Schedule:</span>
+                            <span className="text-xs font-medium text-black">
+                              {timeSlots[0].startTime} - {timeSlots[0].endTime}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">Days:</span>
+                            <span className="text-xs font-medium text-black">{timeSlots[0].days.join(', ')}</span>
+                          </div>
+                        </div>
                         ) : (
                           <div className="text-xs text-gray-500">No time slots configured.</div>
                         )}
@@ -945,7 +955,7 @@ export default function ProductIntegration({
                         {/* Show expanded time slots when dropdown is open */}
                         {showMoreRanges && (
                           <div className="space-y-3">
-                            {timeSlots.slice(1).map((slot, index) => (
+                            {timeSlots.slice(1).map((slot: any, index: number) => (
                               <div key={slot.id}>
                                 {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
                                 <div className="flex items-center justify-between">
@@ -1013,7 +1023,9 @@ export default function ProductIntegration({
                     }
                     return p;
                   }));
-                  selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
+                  if (!isDetailsView) {
+                    selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
+                  }
                   setShowOfferModal(false);
                   setSelectedProducts([]);
                 }}
@@ -1053,13 +1065,45 @@ export default function ProductIntegration({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  setProducts((prev) => prev.map((p) => (
-                    selectedProducts.includes(p.productId) && p.hasOffer
-                      ? { ...p, hasOffer: false, offerBadge: undefined }
-                      : p
-                  )));
-                  selectedProducts.forEach((id) => clearProductOfferBadge(id));
+                onClick={async () => {
+                  if (offerData) {
+                    // In details view, remove via API
+                    try {
+                      const productsWithOffers = selectedProducts.filter(id => {
+                        const p = products.find(pp => pp.productId === id);
+                        return p?.hasOffer;
+                      });
+                      
+                      if (productsWithOffers.length > 0) {
+                        const response = await fetch(`/api/offers/${offerData.id}?type=remove-products`, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            productIds: productsWithOffers,
+                          }),
+                        });
+                        
+                        if (response.ok) {
+                          // Refresh the page to show updated data
+                          window.location.reload();
+                        } else {
+                          alert('Failed to remove offers from products');
+                        }
+                      }
+                    } catch (error) {
+                      alert('Failed to remove offers from products');
+                    }
+                  } else {
+                    // In create view, update local state
+                    setProducts((prev) => prev.map((p) => (
+                      selectedProducts.includes(p.productId) && p.hasOffer
+                        ? { ...p, hasOffer: false, offerBadge: undefined }
+                        : p
+                    )));
+                    selectedProducts.forEach((id) => clearProductOfferBadge(id));
+                  }
                   setShowRemoveConfirm(false);
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"

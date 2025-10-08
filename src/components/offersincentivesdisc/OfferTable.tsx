@@ -142,23 +142,49 @@ export default function OfferTable({
   const handleDeleteConfirm = async () => {
     if (!user?.id) return;
     
-    if (isBulkDelete) {
-      // Bulk delete - delete all selected offers
-      if (setOffers) {
-        setOffers(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
+    try {
+      if (isBulkDelete) {
+        // Bulk delete - delete all selected offers
+        const deletePromises = selectedOffers.map(offerId => 
+          fetch(`/api/offers/${offerId}`, { method: 'DELETE' })
+        );
+        
+        const responses = await Promise.all(deletePromises);
+        const failedDeletes = responses.filter(response => !response.ok);
+        
+        if (failedDeletes.length > 0) {
+          alert(`Failed to delete ${failedDeletes.length} offers. Please try again.`);
+          return;
+        }
+        
+        // Update UI state
+        if (setOffers) {
+          setOffers(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
+        }
+        setSelectedOffers([]);
+      } else {
+        // Single delete - delete one offer
+        if (!offerToDelete) return;
+        
+        const response = await fetch(`/api/offers/${offerToDelete.id}`, { method: 'DELETE' });
+        
+        if (!response.ok) {
+          alert('Failed to delete offer. Please try again.');
+          return;
+        }
+        
+        // Update UI state
+        if (setOffers) {
+          setOffers(prev => prev.filter(offer => offer.id !== offerToDelete.id));
+        }
+        setOfferToDelete(null);
       }
-      setSelectedOffers([]);
-    } else {
-      // Single delete - delete one offer
-      if (!offerToDelete) return;
-      if (setOffers) {
-        setOffers(prev => prev.filter(offer => offer.id !== offerToDelete.id));
-      }
-      setOfferToDelete(null);
+      
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+    } catch (error) {
+      alert('Failed to delete offers. Please try again.');
     }
-    
-    setShowDeleteModal(false);
-    setIsBulkDelete(false);
   };
 
   const handleDeleteCancel = () => {

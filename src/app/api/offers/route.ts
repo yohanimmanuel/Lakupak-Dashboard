@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
           },
         },
         offerDiscountTypes: true,
+        dateRanges: true,
+        timeSlots: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -85,15 +87,17 @@ export async function GET(request: NextRequest) {
         id: dt.id,
         discountType: dt.discountType,
         discountValue: dt.discountValue,
+        name: dt.name,
+        description: dt.description,
+        minOrderValue: dt.minOrderValue,
+        minQuantity: dt.minQuantity,
+        maxUsage: dt.maxUsage,
+        perCustomerLimit: dt.perCustomerLimit,
         isActive: dt.isActive,
         priority: dt.priority,
       })),
-      minOrderValue: offer.minOrderValue?.toString(),
-      minQuantity: offer.minQuantity,
       startDate: offer.startDate,
       endDate: offer.endDate,
-      maxUsage: offer.maxUsage,
-      perCustomerLimit: offer.perCustomerLimit,
       totalUsage: offer.totalUsage,
       totalDiscountGiven: offer.totalDiscountGiven,
       products: offer.offerProducts.map((op: any) => ({
@@ -104,6 +108,22 @@ export async function GET(request: NextRequest) {
         productCategory: op.product.productCategory,
         sellingPrice: op.product.sellingPrice,
       })),
+      dateRanges: offer.dateRanges?.map((dr: any) => ({
+        id: dr.id,
+        name: dr.name,
+        description: dr.description,
+        startDate: dr.startDate,
+        endDate: dr.endDate,
+        isActive: dr.isActive,
+      })) || [],
+      timeSlots: offer.timeSlots?.map((ts: any) => ({
+        id: ts.id,
+        name: ts.name,
+        description: ts.description,
+        startTime: ts.startTime,
+        endTime: ts.endTime,
+        isActive: ts.isActive,
+      })) || [],
       createdAt: offer.createdAt,
       updatedAt: offer.updatedAt,
     }));
@@ -119,7 +139,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching offers:', error);
     return NextResponse.json(
       { error: 'Failed to fetch offers' },
       { status: 500 }
@@ -146,13 +165,11 @@ export async function POST(request: NextRequest) {
             description,
             type,
             discountTypes,
-            minOrderValue,
-            minQuantity,
             startDate,
             endDate,
-            maxUsage,
-            perCustomerLimit,
             productIds,
+            dateRanges = [],
+            timeSlots = [],
             status = 'active',
           } = body;
 
@@ -167,11 +184,6 @@ export async function POST(request: NextRequest) {
     // Validate date range
           const start = new Date(startDate);
           const end = new Date(endDate);
-          
-          // Parse minOrderValue from string to number
-          const parsedMinOrderValue = minOrderValue ? 
-            (typeof minOrderValue === 'string' ? parseFloat(minOrderValue.replace(/[^\d.-]/g, '')) : minOrderValue) : 
-            undefined;
     if (start >= end) {
       return NextResponse.json(
         { error: 'End date must be after start date' },
@@ -228,12 +240,8 @@ export async function POST(request: NextRequest) {
           description,
           type,
           status,
-          minOrderValue: parsedMinOrderValue,
-          minQuantity,
           startDate: start,
           endDate: end,
-          maxUsage,
-          perCustomerLimit,
           userId: user.id,
         },
       });
@@ -244,6 +252,14 @@ export async function POST(request: NextRequest) {
           offerId: offer.id,
           discountType: dt.discountType,
           discountValue: dt.discountValue,
+          name: dt.name,
+          description: dt.description,
+          minOrderValue: dt.minOrderValue ? 
+            (typeof dt.minOrderValue === 'string' ? parseFloat(dt.minOrderValue.replace(/\./g, '')) : dt.minOrderValue) : 
+            undefined,
+          minQuantity: dt.minQuantity,
+          maxUsage: dt.maxUsage,
+          perCustomerLimit: dt.perCustomerLimit,
           isActive: dt.isActive,
           priority: dt.priority,
         })),
@@ -256,6 +272,34 @@ export async function POST(request: NextRequest) {
           productId,
         })),
       });
+
+      // Create date ranges
+      if (dateRanges.length > 0) {
+        await tx.dateRange.createMany({
+          data: dateRanges.map((dr: any) => ({
+            offerId: offer.id,
+            name: dr.name,
+            description: dr.description,
+            startDate: new Date(dr.startDate),
+            endDate: new Date(dr.endDate),
+            isActive: dr.isActive ?? true,
+          })),
+        });
+      }
+
+      // Create time slots
+      if (timeSlots.length > 0) {
+        await tx.timeSlot.createMany({
+          data: timeSlots.map((ts: any) => ({
+            offerId: offer.id,
+            name: ts.name,
+            description: ts.description,
+            startTime: ts.startTime,
+            endTime: ts.endTime,
+            isActive: ts.isActive ?? true,
+          })),
+        });
+      }
 
       return offer;
     });
@@ -278,6 +322,8 @@ export async function POST(request: NextRequest) {
           },
         },
         offerDiscountTypes: true,
+        dateRanges: true,
+        timeSlots: true,
       },
     });
 
@@ -293,15 +339,17 @@ export async function POST(request: NextRequest) {
         id: dt.id,
         discountType: dt.discountType,
         discountValue: dt.discountValue,
+        name: dt.name,
+        description: dt.description,
+        minOrderValue: dt.minOrderValue,
+        minQuantity: dt.minQuantity,
+        maxUsage: dt.maxUsage,
+        perCustomerLimit: dt.perCustomerLimit,
         isActive: dt.isActive,
         priority: dt.priority,
       })),
-      minOrderValue: createdOffer!.minOrderValue?.toString(),
-      minQuantity: createdOffer!.minQuantity,
       startDate: createdOffer!.startDate,
       endDate: createdOffer!.endDate,
-      maxUsage: createdOffer!.maxUsage,
-      perCustomerLimit: createdOffer!.perCustomerLimit,
       totalUsage: createdOffer!.totalUsage,
       totalDiscountGiven: createdOffer!.totalDiscountGiven,
       products: createdOffer!.offerProducts.map((op: any) => ({
@@ -312,6 +360,22 @@ export async function POST(request: NextRequest) {
         productCategory: op.product.productCategory,
         sellingPrice: op.product.sellingPrice,
       })),
+      dateRanges: createdOffer!.dateRanges?.map((dr: any) => ({
+        id: dr.id,
+        name: dr.name,
+        description: dr.description,
+        startDate: dr.startDate,
+        endDate: dr.endDate,
+        isActive: dr.isActive,
+      })) || [],
+      timeSlots: createdOffer!.timeSlots?.map((ts: any) => ({
+        id: ts.id,
+        name: ts.name,
+        description: ts.description,
+        startTime: ts.startTime,
+        endTime: ts.endTime,
+        isActive: ts.isActive,
+      })) || [],
       createdAt: createdOffer!.createdAt,
       updatedAt: createdOffer!.updatedAt,
     };
@@ -319,7 +383,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(transformedOffer, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating offer:', error);
     return NextResponse.json(
       { error: 'Failed to create offer' },
       { status: 500 }

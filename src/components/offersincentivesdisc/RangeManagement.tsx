@@ -8,6 +8,7 @@ import CreateTimeSlotModal from './CreateTimeSlotModal';
 
 interface RangeManagementProps {
   isNewOffer?: boolean;
+  offerData?: any; // Offer data from database for details view
   onOpenDateModal?: () => void;
   onOpenTimeModal?: () => void;
   selectedDateRange?: any;
@@ -40,6 +41,7 @@ interface TimeSlot {
 
 export default function RangeManagement({ 
   isNewOffer = false, 
+  offerData,
   onOpenDateModal, 
   onOpenTimeModal,
   selectedDateRange,
@@ -51,9 +53,32 @@ export default function RangeManagement({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRange, setEditingRange] = useState<DateRange | TimeSlot | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<DateRange | TimeSlot | null>(null);
 
-  // Use arrays from store to allow multiple entries
+  // Use offerData if provided (details view), otherwise use store data (create view)
   const store = useOfferCreationStore();
+  
+  let dateRanges: DateRange[] = [];
+  let timeSlots: TimeSlot[] = [];
+  
+  if (offerData) {
+    // Use data from database for details view
+    dateRanges = (offerData.dateRanges || []).map((dr: any) => ({
+      ...dr,
+      offerCount: 0,
+      createdAt: dr.createdAt || new Date().toISOString(),
+      // Convert ISO dates to yyyy-MM-dd format for HTML date inputs
+      startDate: dr.startDate ? new Date(dr.startDate).toISOString().split('T')[0] : dr.startDate,
+      endDate: dr.endDate ? new Date(dr.endDate).toISOString().split('T')[0] : dr.endDate,
+    }));
+    timeSlots = (offerData.timeSlots || []).map((ts: any) => ({
+      ...ts,
+      offerCount: 0,
+      createdAt: ts.createdAt || new Date().toISOString(),
+      days: ts.days || [], // Add fallback for days property
+    }));
+  } else {
   const dateRangesFromStore: DateRange[] = (store.dateRanges || []).map((dr) => ({
     ...dr,
     offerCount: 0,
@@ -70,7 +95,7 @@ export default function RangeManagement({
   }));
 
   // Fallback: if arrays are empty but a selection exists (older persisted state), render the selection
-  const dateRanges: DateRange[] = dateRangesFromStore.length > 0
+    dateRanges = dateRangesFromStore.length > 0
     ? dateRangesFromStore
     : (selectedDateRange ? [{
         id: selectedDateRange.id,
@@ -83,7 +108,7 @@ export default function RangeManagement({
         createdAt: new Date().toISOString(),
       }] : []);
 
-  const timeSlots: TimeSlot[] = timeSlotsFromStore.length > 0
+    timeSlots = timeSlotsFromStore.length > 0
     ? timeSlotsFromStore
     : (selectedTimeSlot ? [{
         id: selectedTimeSlot.id,
@@ -95,6 +120,7 @@ export default function RangeManagement({
         offerCount: 0,
         createdAt: new Date().toISOString(),
       }] : []);
+  }
 
   // No API calls needed - data comes from store
 
@@ -106,25 +132,66 @@ export default function RangeManagement({
   };
 
   const handleDelete = (id: string) => {
-    if (activeTab === 'date') {
-      store.removeDateRange(id);
-    } else {
-      store.removeTimeSlot(id);
+    const item = activeTab === 'date' 
+      ? dateRanges.find(dr => dr.id === id)
+      : timeSlots.find(ts => ts.id === id);
+    
+    if (item) {
+      setItemToDelete(item);
+      setShowDeleteModal(true);
     }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+
+    if (offerData) {
+      // In details view, delete via API
+      try {
+        const type = activeTab === 'date' ? 'date-range' : 'time-slot';
+        const response = await fetch(`/api/offers/${offerData.id}?type=${type}&itemId=${itemToDelete.id}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+          // Refresh the page to show updated data
+          window.location.reload();
+        } else {
+          alert('Failed to delete item');
+        }
+      } catch (error) {
+        alert('Failed to delete item');
+      }
+    } else {
+      // In create view, remove from store
+      if (activeTab === 'date') {
+        store.removeDateRange(itemToDelete.id);
+      } else {
+        store.removeTimeSlot(itemToDelete.id);
+      }
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setItemToDelete(null);
   };
 
   const handleToggleActive = (id: string) => {
     // For now, just log - could implement active/inactive state in store if needed
-    console.log('Toggle active for range:', id);
   };
 
   // Unified single return below (mirrors OfferType approach)
 
-  return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header */}
         <div className="flex items-center justify-between">
-        <div>
+          <div>
           <h2 className="text-xl font-bold text-black">{isNewOffer ? 'Date & Time Range' : 'Range Management'}</h2>
           <p className="text-gray-500 text-sm">{isNewOffer ? 'Set the active period for your new offer' : 'Manage date ranges and time slots for offers'}</p>
         </div>
@@ -296,7 +363,7 @@ export default function RangeManagement({
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Days:</span>
-                    <span className="font-medium text-black text-xs">{slot.days.join(', ')}</span>
+                    <span className="font-medium text-black text-xs">{(slot.days || []).join(', ') || 'All days'}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-600">Associated Offers:</span>
@@ -341,24 +408,53 @@ export default function RangeManagement({
             setEditingRange(null);
           }}
           editingRange={editingRange}
-          onSave={(rangeData) => {
-            const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
-            const payload = {
-              id: preserveId,
-              name: rangeData.name,
-              description: rangeData.description,
-              startDate: rangeData.startDate,
-              endDate: rangeData.endDate,
-              isActive: true,
-            } as any;
-            if (editingRange) {
-              store.updateDateRange(preserveId, payload);
+          onSave={async (rangeData) => {
+            if (offerData && editingRange) {
+              // In details view, update via API
+              try {
+                const response = await fetch(`/api/offers/${offerData.id}?type=date-range&itemId=${editingRange.id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name: rangeData.name,
+                    description: rangeData.description,
+                    startDate: rangeData.startDate,
+                    endDate: rangeData.endDate,
+                    isActive: true,
+                  }),
+                });
+                
+                if (response.ok) {
+                  // Refresh the page to show updated data
+                  window.location.reload();
+                } else {
+                  alert('Failed to update date range');
+                }
+              } catch (error) {
+                alert('Failed to update date range');
+              }
             } else {
-              store.addDateRange(payload);
+              // In create view, update store
+              const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
+              const payload = {
+                id: preserveId,
+                name: rangeData.name,
+                description: rangeData.description,
+                startDate: rangeData.startDate,
+                endDate: rangeData.endDate,
+                isActive: true,
+              } as any;
+              if (editingRange) {
+                store.updateDateRange(preserveId, payload);
+              } else {
+                store.addDateRange(payload);
+              }
+              setShowCreateModal(false);
+              setShowEditModal(false);
+              setEditingRange(null);
             }
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setEditingRange(null);
           }}
         />
       )}
@@ -372,26 +468,83 @@ export default function RangeManagement({
             setEditingRange(null);
           }}
           editingSlot={editingRange}
-          onSave={(slotData) => {
-            const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
-            const payload = {
-              id: preserveId,
-              name: slotData.name,
-              startTime: slotData.startTime,
-              endTime: slotData.endTime,
-              days: slotData.days,
-              isActive: true,
-            } as any;
-            if (editingRange) {
-              store.updateTimeSlot(preserveId, payload);
+          onSave={async (slotData) => {
+            if (offerData && editingRange) {
+              // In details view, update via API
+              try {
+                const response = await fetch(`/api/offers/${offerData.id}?type=time-slot&itemId=${editingRange.id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name: slotData.name,
+                    description: '',
+                    startTime: slotData.startTime,
+                    endTime: slotData.endTime,
+                    isActive: true,
+                  }),
+                });
+                
+                if (response.ok) {
+                  // Refresh the page to show updated data
+                  window.location.reload();
+                } else {
+                  alert('Failed to update time slot');
+                }
+              } catch (error) {
+                alert('Failed to update time slot');
+              }
             } else {
-              store.addTimeSlot(payload);
+              // In create view, update store
+              const preserveId = (editingRange as any)?.id || `temp-${Date.now()}`;
+              const payload = {
+                id: preserveId,
+                name: slotData.name,
+                startTime: slotData.startTime,
+                endTime: slotData.endTime,
+                days: slotData.days,
+                isActive: true,
+              } as any;
+              if (editingRange) {
+                store.updateTimeSlot(preserveId, payload);
+              } else {
+                store.addTimeSlot(payload);
+              }
+              setShowCreateModal(false);
+              setShowEditModal(false);
+              setEditingRange(null);
             }
-            setShowCreateModal(false);
-            setShowEditModal(false);
-            setEditingRange(null);
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-black mb-4">
+              Delete {activeTab === 'date' ? 'Date Range' : 'Time Slot'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete &quot;{itemToDelete?.name}&quot;? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

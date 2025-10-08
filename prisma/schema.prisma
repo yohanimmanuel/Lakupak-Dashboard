@@ -327,12 +327,8 @@ model Offer {
   description       String?
   type              String      // 'discount' | 'promotion'
   status            String      // 'active' | 'expired' | 'inactive'
-  minOrderValue     Float?
-  minQuantity       Int?
   startDate         DateTime
   endDate           DateTime
-  maxUsage          Int?
-  perCustomerLimit  Int?
   totalUsage        Int         @default(0)
   totalDiscountGiven Float      @default(0)
   userId            Int?
@@ -343,6 +339,8 @@ model Offer {
   user              User?       @relation(fields: [userId], references: [id])
   offerProducts     OfferProduct[]
   offerDiscountTypes OfferDiscountType[]
+  dateRanges        DateRange[]
+  timeSlots         TimeSlot[]
   
   @@index([userId])
   @@index([status])
@@ -351,17 +349,23 @@ model Offer {
 }
 
 model OfferDiscountType {
-  id            String  @id @default(cuid())
-  offerId       String
-  discountType  String  // 'percentage' | 'fixed' | 'buy_x_get_y'
-  discountValue Float
-  isActive      Boolean @default(true)
-  priority      Int     @default(1) // Higher number = higher priority
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  id              String  @id @default(cuid())
+  offerId         String
+  discountType    String  // 'percentage' | 'fixed' | 'buy_x_get_y'
+  discountValue   Float
+  name            String? // e.g., "Summer Sale Discount"
+  description     String? // e.g., "4% discount on all items"
+  minOrderValue   Float?   // minimum order value for this discount type
+  minQuantity     Int?    // minimum quantity required
+  maxUsage        Int?    // maximum usage limit for this discount type
+  perCustomerLimit Int?   // per customer usage limit
+  isActive        Boolean @default(true)
+  priority        Int     @default(1) // Higher number = higher priority
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
   
   // Relations
-  offer         Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer           Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
   
   @@index([offerId])
   @@index([discountType])
@@ -380,4 +384,39 @@ model OfferProduct {
   @@unique([offerId, productId])
   @@index([offerId])
   @@index([productId])
+}
+
+model DateRange {
+  id          String  @id @default(cuid())
+  offerId     String
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  
+  // Relations
+  offer       Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  @@index([offerId])
+  @@index([startDate, endDate])
+}
+
+model TimeSlot {
+  id          String  @id @default(cuid())
+  offerId     String
+  name        String
+  description String?
+  startTime   String  // Format: "HH:MM"
+  endTime     String  // Format: "HH:MM"
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  
+  // Relations
+  offer       Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  
+  @@index([offerId])
 }

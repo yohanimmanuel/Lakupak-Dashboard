@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import ReactDOM from 'react-dom';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 const DROPDOWN_WIDTH = 300;
 
@@ -87,7 +88,10 @@ const Navbar = () => {
     };
   }, [showDropdown]);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    // Clear NextAuth session first
+    await signOut({ redirect: false });
+    // Then clear user store
     clearUser();
     router.push('/login');
   };

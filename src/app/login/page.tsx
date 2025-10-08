@@ -74,6 +74,9 @@ export default function LoginPage() {
       const clearUser = useUserStore.getState().clearUser;
       clearUser();
       
+      // Clear any existing NextAuth session to prevent session conflicts
+      await signOut({ redirect: false });
+      
       // Set new user session
       const userData = {
         id: data.id,
