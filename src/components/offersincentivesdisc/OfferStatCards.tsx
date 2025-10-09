@@ -6,6 +6,31 @@ import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Offer } from '@/types/offer';
 
+// Calculate total discount from all active discount types
+function calculateTotalDiscountFromOffer(offer: Offer): number {
+  if (!offer.discountTypes || offer.discountTypes.length === 0) {
+    return 0;
+  }
+
+  const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
+  let totalDiscount = 0;
+
+  activeDiscountTypes.forEach(dt => {
+    if (dt.discountType === 'percentage') {
+      // For percentage discounts, calculate based on minOrderValue
+      const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
+      const discountAmount = (minOrderValue * dt.discountValue) / 100;
+      totalDiscount += discountAmount;
+    } else if (dt.discountType === 'fixed') {
+      // For fixed discounts, add the fixed amount
+      totalDiscount += dt.discountValue;
+    }
+    // Note: buy_x_get_y discounts are more complex and would need order context
+  });
+
+  return totalDiscount;
+}
+
 interface OfferStatCardsProps {
   offers: Offer[];
 }
@@ -26,7 +51,11 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
     const expiredOffers = offers.filter(offer => offer.status === 'expired').length;
     
     // Calculate total discount given
-    const totalDiscountGiven = offers.reduce((sum, offer) => sum + (offer.totalDiscountGiven || 0), 0);
+    // Calculate total discount from all offers based on their discount types
+    const totalDiscountGiven = offers.reduce((sum, offer) => {
+      const calculatedDiscount = calculateTotalDiscountFromOffer(offer);
+      return sum + calculatedDiscount;
+    }, 0);
     
     // Calculate total usage
     const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);

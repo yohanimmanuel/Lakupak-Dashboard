@@ -12,6 +12,12 @@ export interface OfferDiscountType {
   offerId: string;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
+  name?: string;
+  description?: string;
+  minOrderValue?: number;
+  minQuantity?: number;
+  maxUsage?: number;
+  perCustomerLimit?: number;
   isActive: boolean;
   priority: number;
   createdAt: string;
@@ -95,7 +101,7 @@ export interface OfferTableRow {
   status: string;
   startDate: string;
   endDate: string;
-  usage: string;
+  usage: string | React.ReactNode;
   totalDiscount: string;
   actions: string;
 }

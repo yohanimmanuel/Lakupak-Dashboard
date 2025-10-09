@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
@@ -20,6 +20,7 @@ export default function OffersDetailsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // Get offer ID from URL params
   const offerId = searchParams.get('id');
@@ -132,6 +133,7 @@ export default function OffersDetailsPage() {
         dateRanges: currentOffer.dateRanges,
         timeSlots: currentOffer.timeSlots,
         products: currentOffer.products,
+        status: currentOffer.status,
       };
       
       const response = await fetch(`/api/offers/${currentOffer.id}?type=batch-update`, {
@@ -277,7 +279,9 @@ export default function OffersDetailsPage() {
             Back
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Offers & Incentives</h1>
+            <h1 className="text-2xl font-bold text-black">
+              {currentOffer?.name || 'Offers & Incentives'}
+            </h1>
             <p className="text-gray-500 text-sm">
               Advanced offer management and analytics
               {hasUnsavedChanges && <span className="ml-2 text-orange-600 font-medium">• Unsaved changes</span>}
@@ -285,12 +289,54 @@ export default function OffersDetailsPage() {
           </div>
         </div>
         
-        {/* Save/Cancel Buttons */}
+        {/* Save/Cancel Buttons with Status Toggle */}
         <div className="flex items-center gap-2">
+          {/* Status Toggle */}
+          {currentOffer && (
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              >
+                {currentOffer.status.charAt(0).toUpperCase() + currentOffer.status.slice(1)}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showStatusDropdown && (
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  <button
+                    onClick={() => {
+                      handleOfferChange({ status: 'active' });
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      currentOffer.status === 'active'
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleOfferChange({ status: 'inactive' });
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      currentOffer.status === 'inactive'
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Inactive
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button
             onClick={handleCancel}
             disabled={!hasUnsavedChanges || isSaving}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+            className="flex items-center gap-2 text-sm px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
           >
             <X className="w-4 h-4" />
             Cancel
@@ -298,7 +344,7 @@ export default function OffersDetailsPage() {
           <button
             onClick={handleSave}
             disabled={!hasUnsavedChanges || isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 text-sm px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Saving...' : 'Save Changes'}

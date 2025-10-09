@@ -6,7 +6,7 @@ import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Edi
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
-import { Offer, OfferTableRow } from '@/types/offer';
+import { Offer, OfferTableRow, OfferDiscountType } from '@/types/offer';
 
 // Status tabs for filtering offers by status
 const statusTabs = [
@@ -132,9 +132,11 @@ export default function OfferTable({
       ? `${primaryDiscount.discountValue}%` 
       : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : 'N/A';
     
-    const usageDisplay = offer.maxUsage 
-      ? `${offer.totalUsage}/${offer.maxUsage}` 
-      : offer.totalUsage.toString();
+    // Calculate total discount based on all active discount types
+    const calculatedTotalDiscount = calculateTotalDiscountFromOffer(offer);
+    
+    // Create color-coded usage display for each discount type
+    const usageDisplay = createUsageDisplay(offer);
 
     return {
       id: offer.id,
@@ -145,10 +147,90 @@ export default function OfferTable({
       status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
       startDate: format(new Date(offer.startDate), 'MMM dd, yyyy'),
       endDate: format(new Date(offer.endDate), 'MMM dd, yyyy'),
-      usage: usageDisplay,
-      totalDiscount: formatCurrency(offer.totalDiscountGiven, userCurrency),
+      usage: usageDisplay as string, // Cast to string for the table row
+      totalDiscount: formatCurrency(calculatedTotalDiscount, userCurrency),
       actions: 'actions'
     };
+  }
+
+  // Calculate total discount from all active discount types
+  function calculateTotalDiscountFromOffer(offer: Offer): number {
+    if (!offer.discountTypes || offer.discountTypes.length === 0) {
+      return 0;
+    }
+
+    const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
+    let totalDiscount = 0;
+
+    activeDiscountTypes.forEach(dt => {
+      if (dt.discountType === 'percentage') {
+        // For percentage discounts, calculate based on minOrderValue
+        const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
+        const discountAmount = (minOrderValue * dt.discountValue) / 100;
+        totalDiscount += discountAmount;
+      } else if (dt.discountType === 'fixed') {
+        // For fixed discounts, add the fixed amount
+        totalDiscount += dt.discountValue;
+      }
+      // Note: buy_x_get_y discounts are more complex and would need order context
+    });
+
+    return totalDiscount;
+  }
+
+  // Create color-coded usage display for each discount type
+  function createUsageDisplay(offer: Offer): React.ReactNode {
+    if (!offer.discountTypes || offer.discountTypes.length === 0) {
+      return `${offer.totalUsage}/∞`;
+    }
+
+    const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
+    const usageElements: React.ReactNode[] = [];
+
+    activeDiscountTypes.forEach(dt => {
+      if (dt.maxUsage && dt.maxUsage > 0) {
+        const usageText = `${offer.totalUsage}/${dt.maxUsage}`;
+        let colorClass = '';
+        
+        switch (dt.discountType) {
+          case 'percentage':
+            colorClass = 'text-blue-600 p-1 bg-blue-100 rounded-lg';
+            break;
+          case 'fixed':
+            colorClass = 'text-green-600 p-1 bg-green-100 rounded-lg';
+            break;
+          case 'buy_x_get_y':
+            colorClass = 'text-purple-600 p-1 bg-purple-100 rounded-lg';
+            break;
+          default:
+            colorClass = 'text-gray-600 p-1 bg-gray-100 rounded-lg';
+        }
+        
+        usageElements.push(
+          <span key={dt.id} className={colorClass}>
+            {usageText}
+          </span>
+        );
+      }
+    });
+
+    // If no maxUsage limits, show unlimited
+    if (usageElements.length === 0) {
+      return `${offer.totalUsage}/∞`;
+    }
+
+    // Display multiple usage displays inline with spacing
+    if (usageElements.length === 1) {
+      return usageElements[0];
+    }
+    
+    return (
+      <div className="flex flex-wrap gap-1">
+        {usageElements.map((element, index) => (
+          <span key={index}>{element}</span>
+        ))}
+      </div>
+    );
   }
 
   // Helper function to render type badges
@@ -543,7 +625,12 @@ export default function OfferTable({
                 <td className="py-4 px-4 text-xs text-gray-700 truncate">
                   {row.startDate} - {row.endDate}
                 </td>
-                <td className="py-4 px-4 text-xs text-gray-900">{row.usage}</td>
+                <td className="py-4 px-4 text-xs text-gray-900">
+                  {(() => {
+                    const offer = offers.find(o => o.id === row.id);
+                    return offer ? createUsageDisplay(offer) : row.usage;
+                  })()}
+                </td>
                 <td className="py-4 px-4 text-xs text-gray-900">{row.totalDiscount}</td>
                 <td className="py-4 px-4 text-xs text-gray-700">
                   <div className="flex items-center gap-2 justify-center">

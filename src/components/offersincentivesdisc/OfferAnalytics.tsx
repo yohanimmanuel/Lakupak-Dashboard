@@ -4,9 +4,35 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Target, PieChart } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { Offer } from '@/types/offer';
+
+// Calculate total discount from all active discount types
+function calculateTotalDiscountFromOffer(offer: Offer): number {
+  if (!offer.discountTypes || offer.discountTypes.length === 0) {
+    return 0;
+  }
+
+  const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
+  let totalDiscount = 0;
+
+  activeDiscountTypes.forEach(dt => {
+    if (dt.discountType === 'percentage') {
+      // For percentage discounts, calculate based on minOrderValue
+      const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
+      const discountAmount = (minOrderValue * dt.discountValue) / 100;
+      totalDiscount += discountAmount;
+    } else if (dt.discountType === 'fixed') {
+      // For fixed discounts, add the fixed amount
+      totalDiscount += dt.discountValue;
+    }
+    // Note: buy_x_get_y discounts are more complex and would need order context
+  });
+
+  return totalDiscount;
+}
 
 interface OfferAnalyticsProps {
-  offers?: any[];
+  offers?: Offer[];
   isNewOffer?: boolean;
 }
 
@@ -16,12 +42,6 @@ interface AnalyticsData {
   totalDiscountGiven: number;
   totalRedemptions: number;
   avgDiscountPerOrder: number;
-  topPerformingOffers: Array<{
-    name: string;
-    redemptions: number;
-    discountGiven: number;
-    performance: number;
-  }>;
   redemptionTrends: Array<{
     period: string;
     redemptions: number;
@@ -71,20 +91,14 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
 
     const totalOffers = filteredOffers.length;
     const activeOffers = filteredOffers.filter(offer => offer.status === 'active').length;
-    const totalDiscountGiven = filteredOffers.reduce((sum, offer) => sum + (offer.totalDiscountGiven || 0), 0);
+    // Calculate total discount from all offers based on their discount types
+    const totalDiscountGiven = filteredOffers.reduce((sum, offer) => {
+      const calculatedDiscount = calculateTotalDiscountFromOffer(offer);
+      return sum + calculatedDiscount;
+    }, 0);
     const totalUsage = filteredOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
     const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
 
-    // Get top performing offers
-    const topPerformingOffers = filteredOffers
-      .map(offer => ({
-        name: offer.name,
-        redemptions: offer.totalUsage || 0,
-        discountGiven: offer.totalDiscountGiven || 0,
-        performance: offer.maxUsage ? ((offer.totalUsage || 0) / offer.maxUsage) * 100 : 0,
-      }))
-      .sort((a, b) => b.redemptions - a.redemptions)
-      .slice(0, 4);
 
     // Calculate redemption trends (weekly data)
     const weeklyTrends = [];
@@ -109,8 +123,8 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
     }
 
     // Calculate offer type breakdown
-    const discountOffers = filteredOffers.filter(offer => offer.type === 'discount').length;
-    const promotionOffers = filteredOffers.filter(offer => offer.type === 'promotion').length;
+    const discountOffers = filteredOffers.filter(offer => offer.type.includes('discount')).length;
+    const promotionOffers = filteredOffers.filter(offer => offer.type.includes('promotion')).length;
     const total = discountOffers + promotionOffers;
     
     const offerTypeBreakdown = {
@@ -124,7 +138,6 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
       totalDiscountGiven,
       totalRedemptions: totalUsage,
       avgDiscountPerOrder,
-      topPerformingOffers,
       redemptionTrends: weeklyTrends,
       offerTypeBreakdown,
     };
@@ -315,57 +328,6 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
         </div>
       </div>
 
-      {/* Top Performing Offers */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-black">Top Performing Offers</h3>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Calendar className="w-4 h-4" />
-            Last 30 days
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Offer Name</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Redemptions</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Discount Given</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Performance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analyticsData.topPerformingOffers.map((offer, index) => (
-                <tr key={index} className="text-xs border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 px-4">
-                    <div className="font-medium text-black">{offer.name}</div>
-                  </td>
-                  <td className="py-4 px-4 text-gray-700">{offer.redemptions}</td>
-                  <td className="py-4 px-4 text-gray-700">
-                    {formatCurrency(offer.discountGiven, userCurrency)}
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            offer.performance >= 90 ? 'bg-green-500' :
-                            offer.performance >= 80 ? 'bg-blue-500' :
-                            offer.performance >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${offer.performance}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">{offer.performance}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

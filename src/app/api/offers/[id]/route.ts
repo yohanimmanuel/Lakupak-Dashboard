@@ -708,7 +708,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
     );
   }
 
-  const { discountTypes, dateRanges, timeSlots, products } = data;
+  const { discountTypes, dateRanges, timeSlots, products, status } = data;
 
   try {
     // Determine offer types based on discount types
@@ -734,10 +734,13 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
 
     // Use a transaction to update all data atomically
     await prisma.$transaction(async (tx) => {
-      // 0. Update the offer's type field based on discount types
+      // 0. Update the offer's type and status fields
       await tx.offer.update({
         where: { id: offerId },
-        data: { type: offerTypes },
+        data: { 
+          type: offerTypes,
+          ...(status && { status })
+        },
       });
 
       // 1. Update discount types
