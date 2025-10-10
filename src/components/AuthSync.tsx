@@ -31,7 +31,7 @@ export function AuthSync() {
       };
 
       // Only sync if there's no current user (initial login)
-      // Don't force sync if user is already logged in to prevent switching between users
+      // Don't force sync if user is already logged in to prevent cross-browser contamination
       if (!currentUser) {
         setUser({
           id: sessionUser.id || 0,

@@ -14,17 +14,20 @@ interface ExtendedUser {
 // GET /api/offers - Get all offers for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
     
-    const user = session.user as ExtendedUser;
-    if (!user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
     }
+    
+    const user = { id: parseInt(userId) };
 
-    const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const type = searchParams.get('type');
     const page = parseInt(searchParams.get('page') || '1');
@@ -152,17 +155,18 @@ export async function GET(request: NextRequest) {
 // POST /api/offers - Create a new offer
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    
+    if (!body.userId) {
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
     
-    const user = session.user as ExtendedUser;
-    if (!user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId format
+    if (!/^\d+$/.test(String(body.userId))) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
     }
-
-    const body = await request.json();
+    
+    const user = { id: parseInt(body.userId) };
           const {
             name,
             description,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Target, Percent, DollarSign, Gift, Save } from 'lucide-react';
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 
 interface OfferTypeData {
@@ -31,6 +31,7 @@ export default function CreateOfferTypeModal({
 }: CreateOfferTypeModalProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<OfferTypeData>({
     name: '',
@@ -241,7 +242,7 @@ export default function CreateOfferTypeModal({
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
                   {formData.discountType === 'percentage' ? '%' :
-                   formData.discountType === 'fixed' ? userCurrency : 'packages'}
+                   formData.discountType === 'fixed' ? currencySymbol : 'packages'}
                 </div>
               </div>
               {formData.discountType === 'fixed' && formData.discountValue > 0 && (
@@ -282,7 +283,7 @@ export default function CreateOfferTypeModal({
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
-                    {userCurrency === 'IDR' ? 'Rp' : userCurrency}
+                    {currencySymbol}
                   </div>
                   <input
                     type="text"

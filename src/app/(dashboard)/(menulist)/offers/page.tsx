@@ -6,9 +6,11 @@ import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
 import { useRouter } from 'next/navigation';
 import { Offer } from '@/types/offer';
+import { useUserStore } from '@/store/userStore';
 
 export default function OffersPage() {
   const router = useRouter();
+  const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<'all' | 'discounts' | 'promotions'>('all');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,12 +19,17 @@ export default function OffersPage() {
   // Fetch offers from API
   useEffect(() => {
     fetchOffers();
-  }, []);
+  }, [user?.id]);
 
   const fetchOffers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/offers');
+      if (!user?.id) {
+        setOffers([]);
+        return;
+      }
+      
+      const response = await fetch(`/api/offers?userId=${user.id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch offers');
       }

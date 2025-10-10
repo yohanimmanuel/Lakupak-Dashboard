@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, BarChart3, Target, Package, Calendar, Save, X, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useUserStore } from '@/store/userStore';
 import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
@@ -12,11 +13,12 @@ import { Offer } from '@/types/offer';
 export default function OffersDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
-  const [offers, setOffers] = useState<Offer[]>([]);
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
   const [originalOffer, setOriginalOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -25,15 +27,72 @@ export default function OffersDetailsPage() {
   // Get offer ID from URL params
   const offerId = searchParams.get('id');
 
-  // Fetch offers and current offer from API
+  // Fetch specific offer by ID (following products module pattern)
   useEffect(() => {
-    fetchOffers();
-  }, []);
+    const fetchOffer = async () => {
+      if (!user?.id || !offerId) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await fetch(`/api/offers/${offerId}?userId=${user.id}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const offer = data.offer; // Extract the offer from the response wrapper
+          
+          // Extract product offer badges from offerProducts
+          const productOfferBadges: Record<string, string> = {};
+          offer.products?.forEach((product: any) => {
+            if (product.productId) {
+              // Determine badge based on discount types
+              const hasDiscount = offer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+              const hasPromotion = offer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
+              if (hasDiscount && hasPromotion) {
+                productOfferBadges[product.productId] = 'All Offers';
+              } else if (hasPromotion) {
+                productOfferBadges[product.productId] = 'Promotion';
+              } else if (hasDiscount) {
+                productOfferBadges[product.productId] = 'Discount';
+              } else {
+                productOfferBadges[product.productId] = 'Offer';
+              }
+            }
+          });
+          
+          // Add productOfferBadges to the offer data
+          const offerWithBadges = {
+            ...offer,
+            productOfferBadges
+          };
+          
+          setCurrentOffer(offerWithBadges);
+          setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
+        } else if (response.status === 404) {
+          setError('Offer not found');
+        } else {
+          setError('Failed to load offer');
+        }
+      } catch (error) {
+        setError('Failed to load offer');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    if (offerId && offers.length > 0) {
-      const offer = offers.find(o => o.id === offerId);
-      if (offer) {
+    fetchOffer();
+  }, [user?.id, offerId]);
+
+  // Helper function to refresh the current offer after saving
+  const refreshOffer = async () => {
+    if (!user?.id || !offerId) return;
+    
+    try {
+      const response = await fetch(`/api/offers/${offerId}?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        const offer = data.offer; // Extract the offer from the response wrapper
+        
         // Extract product offer badges from offerProducts
         const productOfferBadges: Record<string, string> = {};
         offer.products?.forEach((product: any) => {
@@ -61,56 +120,9 @@ export default function OffersDetailsPage() {
         
         setCurrentOffer(offerWithBadges);
         setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
-      } else {
-        setCurrentOffer(null);
-        setOriginalOffer(null);
       }
-      setLoading(false);
-    } else if (offers.length > 0 && !offerId) {
-      // If no specific offer ID, show the first offer
-      const firstOffer = offers[0];
-      // Extract product offer badges from offerProducts
-      const productOfferBadges: Record<string, string> = {};
-      firstOffer.products?.forEach((product: any) => {
-        if (product.productId) {
-          // Determine badge based on discount types
-          const hasDiscount = firstOffer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-          const hasPromotion = firstOffer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
-          if (hasDiscount && hasPromotion) {
-            productOfferBadges[product.productId] = 'All Offers';
-          } else if (hasPromotion) {
-            productOfferBadges[product.productId] = 'Promotion';
-          } else if (hasDiscount) {
-            productOfferBadges[product.productId] = 'Discount';
-          } else {
-            productOfferBadges[product.productId] = 'Offer';
-          }
-        }
-      });
-      
-      // Add productOfferBadges to the offer data
-      const offerWithBadges = {
-        ...firstOffer,
-        productOfferBadges
-      };
-      
-      setCurrentOffer(offerWithBadges);
-      setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
-      setLoading(false);
-    }
-  }, [offers, offerId]);
-
-  const fetchOffers = async () => {
-    try {
-      const response = await fetch('/api/offers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch offers');
-      }
-      const data = await response.json();
-      setOffers(data.offers || []);
     } catch (error) {
-      setOffers([]);
-      setLoading(false);
+      // Ignore refresh errors
     }
   };
 
@@ -133,10 +145,10 @@ export default function OffersDetailsPage() {
         dateRanges: currentOffer.dateRanges,
         timeSlots: currentOffer.timeSlots,
         products: currentOffer.products,
-        status: currentOffer.status,
+        status: currentOffer.status || 'active',
       };
       
-      const response = await fetch(`/api/offers/${currentOffer.id}?type=batch-update`, {
+      const response = await fetch(`/api/offers/${currentOffer.id}?type=batch-update&userId=${user?.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -147,8 +159,8 @@ export default function OffersDetailsPage() {
         throw new Error(errorData.details || errorData.error || 'Failed to save changes');
       }
 
-      // Refresh offers from server
-      await fetchOffers();
+      // Refresh the current offer from server
+      await refreshOffer();
       setHasUnsavedChanges(false);
       
       // Show success modal for 3 seconds
@@ -211,30 +223,36 @@ export default function OffersDetailsPage() {
     },
   ];
 
-  const renderActiveComponent = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  // Show loading state (following products module pattern)
+  if (loading) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading offer...</p>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (!currentOffer) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-gray-500">No offer selected or found.</p>
-            <button
-              onClick={() => router.push('/offers')}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Back to Offers
-            </button>
-          </div>
+  // Show error state (following products module pattern)
+  if (error || !currentOffer) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Offer not found'}</p>
+          <button 
+            onClick={() => router.push('/offers')}
+            className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+          >
+            Back to Offers
+          </button>
         </div>
-      );
-    }
+      </div>
+    );
+  }
+
+  const renderActiveComponent = () => {
 
     switch (activeTab) {
       case 'analytics':
@@ -298,7 +316,7 @@ export default function OffersDetailsPage() {
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
               >
-                {currentOffer.status.charAt(0).toUpperCase() + currentOffer.status.slice(1)}
+                {(currentOffer.status || 'active').charAt(0).toUpperCase() + (currentOffer.status || 'active').slice(1)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showStatusDropdown && (
@@ -309,7 +327,7 @@ export default function OffersDetailsPage() {
                       setShowStatusDropdown(false);
                     }}
                     className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      currentOffer.status === 'active'
+                      (currentOffer.status || 'active') === 'active'
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
@@ -322,7 +340,7 @@ export default function OffersDetailsPage() {
                       setShowStatusDropdown(false);
                     }}
                     className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      currentOffer.status === 'inactive'
+                      (currentOffer.status || 'active') === 'inactive'
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}

@@ -154,6 +154,7 @@ export default function CreateOfferPage() {
       }
 
       const offerData = {
+        userId: user?.id,
         name,
         description,
         type: offerTypes,

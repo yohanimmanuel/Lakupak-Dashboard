@@ -280,7 +280,7 @@ export default function OfferTable({
       if (isBulkDelete) {
         // Bulk delete - delete all selected offers
         const deletePromises = selectedOffers.map(offerId => 
-          fetch(`/api/offers/${offerId}`, { method: 'DELETE' })
+          fetch(`/api/offers/${offerId}?userId=${user?.id}`, { method: 'DELETE' })
         );
         
         const responses = await Promise.all(deletePromises);
@@ -300,7 +300,7 @@ export default function OfferTable({
         // Single delete - delete one offer
         if (!offerToDelete) return;
         
-        const response = await fetch(`/api/offers/${offerToDelete.id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/offers/${offerToDelete.id}?userId=${user?.id}`, { method: 'DELETE' });
         
         if (!response.ok) {
           alert('Failed to delete offer. Please try again.');

@@ -17,18 +17,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
     
-    const user = session.user as ExtendedUser;
-    if (!user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
     }
 
     const { id } = await params;
     const offerId = id;
+    const user = { id: parseInt(userId) };
 
     const offer = await prisma.offer.findFirst({
       where: {
@@ -138,18 +141,20 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
     
-    const user = session.user as ExtendedUser;
-    if (!user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
     }
 
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
+    const user = { id: parseInt(userId) };
     const type = searchParams.get('type'); // 'discount-type', 'date-range', 'time-slot', or 'offer'
     const itemId = searchParams.get('itemId'); // For specific items like discount-type-123
 
@@ -212,18 +217,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
     
-    const user = session.user as ExtendedUser;
-    if (!user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate userId format
+    if (!/^\d+$/.test(userId)) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
     }
 
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
+    const user = { id: parseInt(userId) };
     const type = searchParams.get('type'); // 'discount-type', 'date-range', 'time-slot', or 'offer'
     const itemId = searchParams.get('itemId'); // For specific items like discount-type-123
 
