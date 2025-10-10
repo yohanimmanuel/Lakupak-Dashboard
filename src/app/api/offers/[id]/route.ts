@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
 
 // Extended session user type to include the id property
 interface ExtendedUser {
@@ -511,6 +512,9 @@ async function deleteOffer(offerId: string, userId: number) {
     },
   });
 
+  // Update product prices after deleting the offer
+  await updateProductPricesFromOffers(prisma, userId);
+
   return NextResponse.json({ message: 'Offer deleted successfully' });
 }
 
@@ -840,6 +844,9 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
           });
         }
       }
+
+      // 5. Update product prices based on active offers
+      await updateProductPricesFromOffers(tx, userId);
     });
 
     return NextResponse.json({ message: 'Offer updated successfully' });
@@ -848,5 +855,126 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
       { error: 'Failed to batch update offer', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to update product prices based on active offers
+async function updateProductPricesFromOffers(tx: any, userId: number) {
+  try {
+    // Get all products for this user
+    const allProducts = await tx.product.findMany({
+      where: { userId: userId },
+      select: {
+        productId: true,
+        sellingPrice: true,
+        originalSellingPrice: true,
+      },
+    });
+
+    // Get all active offers for this user
+    const activeOffers = await tx.offer.findMany({
+      where: {
+        userId: userId,
+        status: 'active',
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+      },
+      include: {
+        offerProducts: {
+          include: {
+            product: {
+              select: {
+                productId: true,
+                sellingPrice: true,
+                originalSellingPrice: true,
+              },
+            },
+          },
+        },
+        offerDiscountTypes: {
+          where: {
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    // Create a map of products with offers
+    const productsWithOffers = new Map<string, any>();
+
+    for (const offer of activeOffers) {
+      for (const offerProduct of offer.offerProducts) {
+        const productId = offerProduct.product.productId;
+        const product = offerProduct.product;
+        
+        // Use originalSellingPrice if it exists, otherwise use current sellingPrice
+        const originalPrice = product.originalSellingPrice 
+          ? parseNumberByCurrency(product.originalSellingPrice, 'IDR')
+          : parseNumberByCurrency(product.sellingPrice, 'IDR');
+        
+        if (!productsWithOffers.has(productId)) {
+          productsWithOffers.set(productId, {
+            productId,
+            originalPrice,
+            bestDiscount: null,
+          });
+        }
+
+        // Calculate discount for this offer
+        for (const discountType of offer.offerDiscountTypes) {
+          let discountedPrice = originalPrice;
+          
+          if (discountType.discountType === 'percentage') {
+            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
+          } else if (discountType.discountType === 'fixed') {
+            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
+          }
+          // Skip buy_x_get_y for price calculation as it's a promotion, not a discount
+
+          // Keep the best discount (lowest price)
+          const productData = productsWithOffers.get(productId);
+          if (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price) {
+            productData.bestDiscount = {
+              price: discountedPrice,
+              offerId: offer.id,
+              discountType: discountType.discountType,
+              discountValue: discountType.discountValue,
+            };
+          }
+        }
+      }
+    }
+
+    // Update products with offers
+    for (const [productId, productData] of productsWithOffers) {
+      if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
+        const newPrice = String(productData.bestDiscount.price);
+        await tx.product.update({
+          where: { productId: productId },
+          data: { 
+            sellingPrice: newPrice,
+            originalSellingPrice: String(productData.originalPrice), // Store original price
+          },
+        });
+      }
+    }
+
+    // Restore original prices for products that no longer have active offers
+    const productIdsWithOffers = new Set(productsWithOffers.keys());
+    for (const product of allProducts) {
+      if (!productIdsWithOffers.has(product.productId) && product.originalSellingPrice) {
+        // This product had an offer before but doesn't anymore, restore original price
+        await tx.product.update({
+          where: { productId: product.productId },
+          data: { 
+            sellingPrice: product.originalSellingPrice,
+            originalSellingPrice: null, // Clear the original price field
+          },
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error updating product prices from offers:', error);
+    // Don't throw error to avoid breaking the main transaction
   }
 }

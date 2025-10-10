@@ -27,6 +27,12 @@ export interface Product {
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
+  // Offer integration
+  offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
+  originalPrice?: string;
+  hasActiveOffer?: boolean;
+  offerId?: string;
+  offerName?: string;
 }
 
 export interface ProductTableRow {

@@ -937,12 +937,33 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     <span className="text-red-600 font-bold">Missing Purchase Price</span>
                   )}
                 </td>
-                <td className="py-3 px-4 text-xs text-[#0a61d7] font-semibold">
-                  {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                    formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
-                  ) : (
-                    <span className="text-red-600 font-bold">Missing Selling Price</span>
-                  )}
+                <td className="py-3 px-4 text-xs">
+                  <div className="flex flex-col gap-1">
+                    {originalProduct?.offerBadge && (
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium w-fit ${
+                        originalProduct.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
+                        originalProduct.offerBadge === 'Promotion' ? 'bg-green-100 text-green-700' :
+                        originalProduct.offerBadge === 'All Offers' ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {originalProduct.offerBadge}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2">
+                      {originalProduct?.originalPrice && (
+                        <span className="text-gray-400 line-through text-xs">
+                          {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
+                        </span>
+                      )}
+                      <span className="text-[#0a61d7] font-semibold">
+                        {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                          formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                        ) : (
+                          <span className="text-red-600 font-bold">Missing Selling Price</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
                 </td>
                 <td className="py-3 px-4 text-xs">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
@@ -999,7 +1020,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
            
            <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
            {pagedProducts.map((product) => {
-             // Get the original product data to check for missing data
+             // Get the original product data to check for missing data and offers
              const originalProduct = products.find(p => p.productId === product.productId);
              
              const hasIncompleteData = originalProduct ? (() => {
@@ -1052,7 +1073,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                </div>
                
                {/* Product Image */}
-               <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+               <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
                  {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
                    <img 
                      src={originalProduct.images[0]} 
@@ -1073,6 +1094,19 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  >
                    Product Image
                  </div>
+                 {/* Offer Badge on Image */}
+                 {originalProduct?.offerBadge && (
+                   <div className="absolute top-2 left-2">
+                     <span className={`px-2 py-1 rounded text-xs font-semibold shadow-md ${
+                       originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
+                       originalProduct.offerBadge === 'Promotion' ? 'bg-green-500 text-white' :
+                       originalProduct.offerBadge === 'All Offers' ? 'bg-purple-500 text-white' :
+                       'bg-blue-500 text-white'
+                     }`}>
+                       {originalProduct.offerBadge}
+                     </span>
+                   </div>
+                 )}
                </div>
                
                {/* Product Info */}
@@ -1121,12 +1155,19 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-[#0a61d7]">
-                   {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                     formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
-                   ) : (
-                     <span className="text-red-600 font-bold">Missing Selling Price</span>
+                 <div className="flex flex-col gap-1">
+                   {originalProduct?.originalPrice && (
+                     <span className="text-xs text-gray-400 line-through">
+                       {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
+                     </span>
                    )}
+                   <div className="text-sm font-semibold text-[#0a61d7]">
+                     {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                       formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Selling Price</span>
+                     )}
+                   </div>
                  </div>
                  
                  {/* Package Information */}
@@ -1249,7 +1290,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                </div>
                
                {/* Product Image */}
-               <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+               <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
                  {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
                    <img 
                      src={originalProduct.images[0]} 
@@ -1270,6 +1311,19 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  >
                    Product Image
                  </div>
+                 {/* Offer Badge on Image */}
+                 {originalProduct?.offerBadge && (
+                   <div className="absolute top-1 left-1">
+                     <span className={`px-1.5 py-0.5 rounded text-xs font-semibold shadow-md ${
+                       originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
+                       originalProduct.offerBadge === 'Promotion' ? 'bg-green-500 text-white' :
+                       originalProduct.offerBadge === 'All Offers' ? 'bg-purple-500 text-white' :
+                       'bg-blue-500 text-white'
+                     }`}>
+                       {originalProduct.offerBadge}
+                     </span>
+                   </div>
+                 )}
                </div>
                
                {/* Product Info */}
@@ -1318,12 +1372,19 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  </div>
                  
                  {/* Price */}
-                 <div className="text-sm font-semibold text-[#0a61d7]">
-                   {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                     formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
-                   ) : (
-                     <span className="text-red-600 font-bold">Missing Selling Price</span>
+                 <div className="flex flex-col gap-1">
+                   {originalProduct?.originalPrice && (
+                     <span className="text-xs text-gray-400 line-through">
+                       {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
+                     </span>
                    )}
+                   <div className="text-sm font-semibold text-[#0a61d7]">
+                     {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                       formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Selling Price</span>
+                     )}
+                   </div>
                  </div>
                  
                  {/* Package Information */}

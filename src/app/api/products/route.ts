@@ -7,6 +7,7 @@ import {
   validateProductUpdate,
   generateUniqueProductId
 } from '../../../utils/product-security';
+import { parseNumberByCurrency } from '../../../config/currencyConfig';
 
 
 const prisma = new PrismaClient();
@@ -49,6 +50,57 @@ export async function GET(req: NextRequest) {
           { error: 'Product not found' }, 
           { status: 404, headers }
         );
+      }
+      
+      // Check if product has active offers for badge display
+      const activeOffers = await prisma.offer.findMany({
+        where: {
+          status: 'active',
+          userId: Number(userId),
+          startDate: { lte: new Date() },
+          endDate: { gte: new Date() },
+          offerProducts: {
+            some: {
+              productId: product.productId
+            }
+          }
+        },
+        include: {
+          offerDiscountTypes: {
+            where: {
+              isActive: true
+            }
+          }
+        }
+      });
+      
+      if (activeOffers.length > 0) {
+        const primaryOffer = activeOffers[0] as any;
+        const discountTypes = primaryOffer.offerDiscountTypes;
+        
+        const hasDiscount = discountTypes.some((dt: any) => 
+          dt.discountType === 'percentage' || dt.discountType === 'fixed'
+        );
+        const hasPromotion = discountTypes.some((dt: any) => 
+          dt.discountType === 'buy_x_get_y'
+        );
+        
+        let offerBadge = 'Offer';
+        if (hasDiscount && hasPromotion) {
+          offerBadge = 'All Offers';
+        } else if (hasPromotion) {
+          offerBadge = 'Promotion';
+        } else if (hasDiscount) {
+          offerBadge = 'Discount';
+        }
+        
+        return NextResponse.json({
+          ...product,
+          offerBadge,
+          hasActiveOffer: true,
+          offerId: primaryOffer.id,
+          offerName: primaryOffer.name
+        }, { headers });
       }
       
       return NextResponse.json(product, { headers });
@@ -112,8 +164,79 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
     
+    // Fetch active offers for all products
+    const productIds = products.map(p => p.productId);
+    const activeOffers = await prisma.offer.findMany({
+      where: {
+        status: 'active',
+        userId: Number(userId),
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+        offerProducts: {
+          some: {
+            productId: { in: productIds }
+          }
+        }
+      },
+      include: {
+        offerProducts: {
+          where: {
+            productId: { in: productIds }
+          }
+        },
+        offerDiscountTypes: {
+          where: {
+            isActive: true
+          },
+          orderBy: {
+            priority: 'desc'
+          }
+        }
+      }
+    });
+    
+    // Map offers to products
+    const productsWithOffers = products.map(product => {
+      const productOffers = activeOffers.filter((offer: any) => 
+        offer.offerProducts.some((p: any) => p.productId === product.productId)
+      );
+      
+      if (productOffers.length === 0) {
+        return product;
+      }
+      
+      // Get the highest priority offer
+      const primaryOffer = productOffers[0] as any;
+      const discountTypes = primaryOffer.offerDiscountTypes;
+      
+      // Determine badge type
+      const hasDiscount = discountTypes.some((dt: any) => 
+        dt.discountType === 'percentage' || dt.discountType === 'fixed'
+      );
+      const hasPromotion = discountTypes.some((dt: any) => 
+        dt.discountType === 'buy_x_get_y'
+      );
+      
+      let offerBadge = 'Offer';
+      if (hasDiscount && hasPromotion) {
+        offerBadge = 'All Offers';
+      } else if (hasPromotion) {
+        offerBadge = 'Promotion';
+      } else if (hasDiscount) {
+        offerBadge = 'Discount';
+      }
+      
+      return {
+        ...product,
+        offerBadge,
+        hasActiveOffer: true,
+        offerId: primaryOffer.id,
+        offerName: primaryOffer.name
+      };
+    });
+    
     return NextResponse.json({
-      products,
+      products: productsWithOffers,
       pagination: {
         page,
         limit,
@@ -165,8 +288,8 @@ export async function POST(req: NextRequest) {
       // Package information
       packageType: data.packageType || null,
       piecesPerPackage: data.piecesPerPackage ? Number(data.piecesPerPackage) : 1,
-      purchasePrice: String(data.purchasePrice || ''),
-      sellingPrice: String(data.sellingPrice || ''),
+      purchasePrice: String(parseNumberByCurrency(String(data.purchasePrice || ''), data.currency || 'IDR')),
+      sellingPrice: String(parseNumberByCurrency(String(data.sellingPrice || ''), data.currency || 'IDR')),
       status: data.status || 'Draft',
       productCategory: data.productCategory || '',
       catalogName: data.catalogName || '',
@@ -335,8 +458,8 @@ export async function PUT(req: NextRequest) {
     // Package information
     if (updateData.packageType !== undefined) cleanUpdateData.packageType = updateData.packageType ? String(updateData.packageType) : null;
     if (updateData.piecesPerPackage !== undefined) cleanUpdateData.piecesPerPackage = updateData.piecesPerPackage ? Number(updateData.piecesPerPackage) : 1;
-         if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(updateData.purchasePrice);
-     if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(updateData.sellingPrice);
+         if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(parseNumberByCurrency(String(updateData.purchasePrice), data.currency || 'IDR'));
+     if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(parseNumberByCurrency(String(updateData.sellingPrice), data.currency || 'IDR'));
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
     if ((updateData as any).productCategory !== undefined) (cleanUpdateData as any).productCategory = String((updateData as any).productCategory);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);

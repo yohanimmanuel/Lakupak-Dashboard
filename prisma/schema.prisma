@@ -126,6 +126,7 @@ model Product {
   stockStatus       String?
   purchasePrice     String
   sellingPrice      String
+  originalSellingPrice String? // Store original price before any discounts
   status            String
   productCategory   String
   catalogName       String

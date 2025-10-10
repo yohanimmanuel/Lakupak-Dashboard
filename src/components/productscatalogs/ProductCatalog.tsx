@@ -482,6 +482,16 @@ export default function ProductCatalog({
                 Published
               </span>
             )}
+            {(product as any)?.offerBadge && (
+              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                (product as any).offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
+                (product as any).offerBadge === 'Promotion' ? 'bg-green-100 text-green-700' :
+                (product as any).offerBadge === 'All Offers' ? 'bg-purple-100 text-purple-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+                {(product as any).offerBadge}
+              </span>
+            )}
             {mode === 'edit' && hasUnsavedChanges && (
               <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
             )}
@@ -1205,6 +1215,11 @@ export default function ProductCatalog({
                    <label className="block text-xs font-medium text-gray-700 mb-2">
                      Base/Selling Price 
                    </label>
+                   {(product as any)?.originalPrice && mode === 'view' && (
+                     <div className="mb-1 text-xs text-gray-400 line-through">
+                       Original: {formatCurrencyAmount(parseNumberByCurrency((product as any).originalPrice, userCurrency), userCurrency)}
+                     </div>
+                   )}
                    <div className="relative">
                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                        {currencySymbol}
@@ -1219,6 +1234,11 @@ export default function ProductCatalog({
                        placeholder={getPricePlaceholder(userCurrency)}
                      />
                    </div>
+                   {(product as any)?.offerName && mode === 'view' && (
+                     <div className="mt-1 text-xs text-green-600">
+                       Applied Offer: {(product as any).offerName}
+                     </div>
+                   )}
                  </div>
                  <div>
                    <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -1266,7 +1286,7 @@ export default function ProductCatalog({
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formData.sellingPrice || '0'} per {formData.packageType || 'piece'}
+                    {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formatNumberByCurrency(parseNumberByCurrency(formData.sellingPrice, userCurrency), userCurrency)} per {formData.packageType || 'piece'}
                   </p>
                 </div>
               </div>

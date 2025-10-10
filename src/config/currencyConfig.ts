@@ -249,9 +249,20 @@ export const formatNumberByCurrency = (value: string | number, currencyCode?: st
   if (isNaN(num)) return '0';
   
   try {
+    // For IDR, explicitly use Indonesian locale with dots as thousands separators
+    if (currencyCode === 'IDR' || config.locale === 'id-ID') {
+      return num.toLocaleString('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+        useGrouping: true
+      });
+    }
+    
+    // For other currencies, use commas as thousands separators
     return num.toLocaleString(config.locale, {
       minimumFractionDigits: config.formatOptions.minimumFractionDigits,
-      maximumFractionDigits: config.formatOptions.maximumFractionDigits
+      maximumFractionDigits: config.formatOptions.maximumFractionDigits,
+      useGrouping: true
     });
   } catch (error) {
     return num.toLocaleString(config.locale);
