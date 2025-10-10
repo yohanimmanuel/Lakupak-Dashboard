@@ -30,6 +30,7 @@ export interface Product {
   // Offer integration
   offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
   originalPrice?: string;
+  originalSellingPrice?: string; // Database field for original price before discounts
   hasActiveOffer?: boolean;
   offerId?: string;
   offerName?: string;

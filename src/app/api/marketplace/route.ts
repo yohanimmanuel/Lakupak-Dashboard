@@ -74,6 +74,43 @@ export async function GET(request: NextRequest) {
       orderBy: { publishedAt: 'desc' }
     });
     
+    // Get active offers for all products
+    const productIds = products.map(p => p.productId);
+    const userIds = [...new Set(products.map(p => p.userId).filter((id): id is number => id !== null))];
+    
+    const activeOffers = await prisma.offer.findMany({
+      where: {
+        userId: { in: userIds },
+        status: 'active',
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+        offerProducts: {
+          some: {
+            productId: { in: productIds }
+          }
+        }
+      },
+      include: {
+        offerProducts: true,
+        offerDiscountTypes: {
+          where: {
+            isActive: true
+          }
+        }
+      }
+    });
+    
+    // Create a map of product offers
+    const productOffersMap = new Map();
+    activeOffers.forEach((offer: any) => {
+      offer.offerProducts.forEach((op: any) => {
+        if (!productOffersMap.has(op.productId)) {
+          productOffersMap.set(op.productId, []);
+        }
+        productOffersMap.get(op.productId).push(offer);
+      });
+    });
+    
     // Transform products for marketplace format
     const marketplaceProducts = products.map(product => {
       // Convert price strings to numbers, handling IDR format with dots as thousands separators
@@ -96,12 +133,59 @@ export async function GET(request: NextRequest) {
         purchasePrice = parseInt(product.purchasePrice.replace(/[^\d]/g, '')) || 0;
       }
       
+      // Check if product has active offers
+      const productOffers = productOffersMap.get(product.productId) || [];
+      let offerBadge = undefined;
+      let hasActiveOffer = false;
+      let offerId = undefined;
+      let offerName = undefined;
+      let originalSellingPrice = undefined;
+      
+      if (productOffers.length > 0) {
+        const primaryOffer = productOffers[0];
+        const discountTypes = primaryOffer.offerDiscountTypes;
+        
+        const hasDiscount = discountTypes.some((dt: any) => 
+          dt.discountType === 'percentage' || dt.discountType === 'fixed'
+        );
+        const hasPromotion = discountTypes.some((dt: any) => 
+          dt.discountType === 'buy_x_get_y'
+        );
+        
+        if (hasDiscount && hasPromotion) {
+          offerBadge = 'All Offers';
+        } else if (hasPromotion) {
+          offerBadge = 'Promotion';
+        } else if (hasDiscount) {
+          offerBadge = 'Discount';
+        } else {
+          offerBadge = 'Offer';
+        }
+        
+        hasActiveOffer = true;
+        offerId = primaryOffer.id;
+        offerName = primaryOffer.name;
+        originalSellingPrice = product.originalSellingPrice ? 
+          (typeof product.originalSellingPrice === 'string' 
+            ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
+            : product.originalSellingPrice) 
+          : undefined;
+      }
+      
       return {
         id: product.productId,
         name: product.name,
         description: product.description,
+        sellingPrice: sellingPrice,
+        originalSellingPrice: originalSellingPrice,
+        // Keep old field names for backward compatibility
         price: sellingPrice,
         originalPrice: purchasePrice,
+        // Offer integration
+        offerBadge,
+        hasActiveOffer,
+        offerId,
+        offerName,
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: "0", // Will be calculated from actual orders

@@ -1215,11 +1215,6 @@ export default function ProductCatalog({
                    <label className="block text-xs font-medium text-gray-700 mb-2">
                      Base/Selling Price 
                    </label>
-                   {(product as any)?.originalPrice && mode === 'view' && (
-                     <div className="mb-1 text-xs text-gray-400 line-through">
-                       Original: {formatCurrencyAmount(parseNumberByCurrency((product as any).originalPrice, userCurrency), userCurrency)}
-                     </div>
-                   )}
                    <div className="relative">
                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                        {currencySymbol}
@@ -1234,6 +1229,11 @@ export default function ProductCatalog({
                        placeholder={getPricePlaceholder(userCurrency)}
                      />
                    </div>
+                   {(product as any)?.originalPrice && mode === 'view' && (
+                     <div className="mt-1 text-xs text-gray-400 line-through">
+                       Original: {formatCurrencyAmount(parseNumberByCurrency((product as any).originalPrice, userCurrency), userCurrency)}
+                     </div>
+                   )}
                    {(product as any)?.offerName && mode === 'view' && (
                      <div className="mt-1 text-xs text-green-600">
                        Applied Offer: {(product as any).offerName}

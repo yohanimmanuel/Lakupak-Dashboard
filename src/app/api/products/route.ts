@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           ...product,
           offerBadge,
+          originalPrice: product.originalSellingPrice || undefined,
           hasActiveOffer: true,
           offerId: primaryOffer.id,
           offerName: primaryOffer.name
@@ -229,6 +230,7 @@ export async function GET(req: NextRequest) {
       return {
         ...product,
         offerBadge,
+        originalPrice: product.originalSellingPrice || undefined,
         hasActiveOffer: true,
         offerId: primaryOffer.id,
         offerName: primaryOffer.name

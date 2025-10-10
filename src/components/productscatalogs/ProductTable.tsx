@@ -949,20 +949,13 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                         {originalProduct.offerBadge}
                       </span>
                     )}
-                    <div className="flex items-center gap-2">
-                      {originalProduct?.originalPrice && (
-                        <span className="text-gray-400 line-through text-xs">
-                          {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
-                        </span>
+                    <span className="text-[#0a61d7] font-semibold">
+                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                        formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                      ) : (
+                        <span className="text-red-600 font-bold">Missing Selling Price</span>
                       )}
-                      <span className="text-[#0a61d7] font-semibold">
-                        {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                          formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
-                        ) : (
-                          <span className="text-red-600 font-bold">Missing Selling Price</span>
-                        )}
-                      </span>
-                    </div>
+                    </span>
                   </div>
                 </td>
                 <td className="py-3 px-4 text-xs">
