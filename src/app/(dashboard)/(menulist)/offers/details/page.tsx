@@ -41,13 +41,20 @@ export default function OffersDetailsPage() {
           const data = await response.json();
           const offer = data.offer; // Extract the offer from the response wrapper
           
-          // Extract product offer badges from offerProducts
+          // Extract product offer badges from offerProducts based on ACTIVE discount types
           const productOfferBadges: Record<string, string> = {};
+          
+          // Get only active discount types
+          const activeDiscountTypes = (offer.discountTypes || [])
+            .filter((dt: any) => dt.isActive !== false)
+            .map((dt: any) => dt.discountType);
+          
           offer.products?.forEach((product: any) => {
             if (product.productId) {
-              // Determine badge based on discount types
-              const hasDiscount = offer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-              const hasPromotion = offer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
+              // Determine badge based on active discount types
+              const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
+              const hasPromotion = activeDiscountTypes.some((type: string) => type === 'buy_x_get_y');
+              
               if (hasDiscount && hasPromotion) {
                 productOfferBadges[product.productId] = 'All Offers';
               } else if (hasPromotion) {
@@ -93,13 +100,20 @@ export default function OffersDetailsPage() {
         const data = await response.json();
         const offer = data.offer; // Extract the offer from the response wrapper
         
-        // Extract product offer badges from offerProducts
+        // Extract product offer badges from offerProducts based on ACTIVE discount types
         const productOfferBadges: Record<string, string> = {};
+        
+        // Get only active discount types
+        const activeDiscountTypes = (offer.discountTypes || [])
+          .filter((dt: any) => dt.isActive !== false)
+          .map((dt: any) => dt.discountType);
+        
         offer.products?.forEach((product: any) => {
           if (product.productId) {
-            // Determine badge based on discount types
-            const hasDiscount = offer.discountTypes?.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-            const hasPromotion = offer.discountTypes?.some((dt: any) => dt.discountType === 'buy_x_get_y');
+            // Determine badge based on active discount types
+            const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
+            const hasPromotion = activeDiscountTypes.some((type: string) => type === 'buy_x_get_y');
+            
             if (hasDiscount && hasPromotion) {
               productOfferBadges[product.productId] = 'All Offers';
             } else if (hasPromotion) {

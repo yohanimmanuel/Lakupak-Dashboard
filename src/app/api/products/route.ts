@@ -66,6 +66,11 @@ export async function GET(req: NextRequest) {
           }
         },
         include: {
+          offerProducts: {
+            where: {
+              productId: product.productId
+            }
+          },
           offerDiscountTypes: {
             where: {
               isActive: true
@@ -76,7 +81,9 @@ export async function GET(req: NextRequest) {
       
       if (activeOffers.length > 0) {
         const primaryOffer = activeOffers[0] as any;
-        const discountTypes = primaryOffer.offerDiscountTypes;
+        
+        // Filter to only ACTIVE discount types
+        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
         
         const hasDiscount = discountTypes.some((dt: any) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
@@ -94,13 +101,22 @@ export async function GET(req: NextRequest) {
           offerBadge = 'Discount';
         }
         
+        // Get Buy X Get Y promotion details
+        const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+        const promotionDetails = buyXGetYPromo ? {
+          minQuantity: buyXGetYPromo.minQuantity,
+          freeQuantity: buyXGetYPromo.discountValue,
+          description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+        } : undefined;
+        
         return NextResponse.json({
           ...product,
           offerBadge,
           originalPrice: product.originalSellingPrice || undefined,
           hasActiveOffer: true,
           offerId: primaryOffer.id,
-          offerName: primaryOffer.name
+          offerName: primaryOffer.name,
+          promotionDetails
         }, { headers });
       }
       
@@ -208,9 +224,11 @@ export async function GET(req: NextRequest) {
       
       // Get the highest priority offer
       const primaryOffer = productOffers[0] as any;
-      const discountTypes = primaryOffer.offerDiscountTypes;
       
-      // Determine badge type
+      // Filter to only ACTIVE discount types
+      const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+      
+      // Determine badge type based on applied discount types
       const hasDiscount = discountTypes.some((dt: any) => 
         dt.discountType === 'percentage' || dt.discountType === 'fixed'
       );
@@ -227,13 +245,22 @@ export async function GET(req: NextRequest) {
         offerBadge = 'Discount';
       }
       
+      // Get Buy X Get Y promotion details
+      const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+      const promotionDetails = buyXGetYPromo ? {
+        minQuantity: buyXGetYPromo.minQuantity,
+        freeQuantity: buyXGetYPromo.discountValue,
+        description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+      } : undefined;
+      
       return {
         ...product,
         offerBadge,
         originalPrice: product.originalSellingPrice || undefined,
         hasActiveOffer: true,
         offerId: primaryOffer.id,
-        offerName: primaryOffer.name
+        offerName: primaryOffer.name,
+        promotionDetails
       };
     });
     

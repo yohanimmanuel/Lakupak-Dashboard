@@ -34,6 +34,11 @@ export interface Product {
   hasActiveOffer?: boolean;
   offerId?: string;
   offerName?: string;
+  promotionDetails?: {
+    minQuantity: number;
+    freeQuantity: number;
+    description: string;
+  };
 }
 
 export interface ProductTableRow {

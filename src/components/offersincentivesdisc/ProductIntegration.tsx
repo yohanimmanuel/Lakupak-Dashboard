@@ -21,14 +21,7 @@ interface ProductWithOffer extends Product {
   hasOffer?: boolean;
   offerDiscount?: number;
   offerType?: 'percentage' | 'fixed';
-  offerBadge?: string;
-}
-
-interface OfferProduct {
-  productId: string;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  isActive: boolean;
+  offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
 }
 
 export default function ProductIntegration({ 
@@ -73,6 +66,11 @@ export default function ProductIntegration({
   const [showMoreOfferTypes, setShowMoreOfferTypes] = useState(false);
   const [showMoreRanges, setShowMoreRanges] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  
+  // Selection states for flexible offer/period application
+  const [selectedOfferTypes, setSelectedOfferTypes] = useState<string[]>([]);
+  const [selectedDateRanges, setSelectedDateRanges] = useState<string[]>([]);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
 
   // Map real discount types from store to display-friendly items
   const getTypeLabel = (t: 'percentage' | 'fixed' | 'buy_x_get_y') => {
@@ -94,13 +92,70 @@ export default function ProductIntegration({
     type: dt.discountType,
   }));
 
+
+  // Handlers for toggling selections
+  const toggleOfferType = (discountType: string) => {
+    setSelectedOfferTypes(prev =>
+      prev.includes(discountType)
+        ? prev.filter(type => type !== discountType)
+        : [...prev, discountType]
+    );
+  };
+
+  const toggleDateRange = (rangeId: string) => {
+    setSelectedDateRanges(prev =>
+      prev.includes(rangeId)
+        ? prev.filter(id => id !== rangeId)
+        : [...prev, rangeId]
+    );
+  };
+
+  const toggleTimeSlot = (slotId: string) => {
+    setSelectedTimeSlots(prev =>
+      prev.includes(slotId)
+        ? prev.filter(id => id !== slotId)
+        : [...prev, slotId]
+    );
+  };
+
+  const selectAllOfferTypes = () => {
+    if (selectedOfferTypes.length === offerTypes.length) {
+      setSelectedOfferTypes([]);
+    } else {
+      setSelectedOfferTypes(offerTypes.map((ot: any) => ot.type));
+    }
+  };
+
+  const selectAllDateRanges = () => {
+    if (selectedDateRanges.length === dateRanges.length) {
+      setSelectedDateRanges([]);
+    } else {
+      setSelectedDateRanges(dateRanges.map((dr: any) => dr.id));
+    }
+  };
+
+  const selectAllTimeSlots = () => {
+    if (selectedTimeSlots.length === timeSlots.length) {
+      setSelectedTimeSlots([]);
+    } else {
+      setSelectedTimeSlots(timeSlots.map((ts: any) => ts.id));
+    }
+  };
+
   // Determine badge label to apply to selected products
   const computeOfferBadge = (): string => {
-    const hasDiscount = (discountTypes || []).some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-    const hasPromotion = (discountTypes || []).some((dt: any) => dt.discountType === 'buy_x_get_y');
-    if (hasDiscount && hasPromotion) return 'All Offers';
+    // Use selectedOfferTypes if available (when user is actively selecting)
+    const typesToCheck = selectedOfferTypes.length > 0 
+      ? selectedOfferTypes 
+      : (discountTypes || []).filter((dt: any) => dt.isActive !== false).map((dt: any) => dt.discountType);
+    
+    const hasDiscount = typesToCheck.some((type: string) => type === 'percentage' || type === 'fixed');
+    const hasPromotion = typesToCheck.some((type: string) => type === 'buy_x_get_y');
+    const hasFreeShipping = typesToCheck.some((type: string) => type === 'free_shipping');
+    
+    if ((hasDiscount || hasFreeShipping) && hasPromotion) return 'All Offers';
     if (hasPromotion) return 'Promotion';
-    if (hasDiscount) return 'Discount';
+    if (hasDiscount || hasFreeShipping) return 'Discount';
     return 'Offer';
   };
 
@@ -111,13 +166,18 @@ export default function ProductIntegration({
     const productPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
     let totalDiscount = 0;
     
-    discountTypes.forEach((dt: any) => {
+    // Filter discount types based on selected offer types (if any are selected)
+    const typesToApply = selectedOfferTypes.length > 0 
+      ? discountTypes.filter((dt: any) => selectedOfferTypes.includes(dt.discountType))
+      : discountTypes;
+    
+    typesToApply.forEach((dt: any) => {
       if (dt.discountType === 'percentage') {
         totalDiscount += (productPrice * dt.discountValue) / 100;
       } else if (dt.discountType === 'fixed') {
         totalDiscount += dt.discountValue;
       }
-      // buy_x_get_y doesn't affect individual product discount calculation
+      // buy_x_get_y and free_shipping don't affect individual product discount calculation
     });
     
     return totalDiscount;
@@ -140,12 +200,15 @@ export default function ProductIntegration({
           const hasOffer = Boolean(productOfferBadges[product.productId]);
           const discountAmount = hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0;
           
+          // Compute badge based on active discount types
+          const productBadge = hasOffer ? computeOfferBadge() : undefined;
+          
           return {
           ...product,
             hasOffer,
             offerDiscount: discountAmount,
             offerType: hasOffer ? 'percentage' : undefined, // Default to percentage for display
-            offerBadge: productOfferBadges[product.productId],
+            offerBadge: productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined,
           };
         });
         
@@ -786,66 +849,82 @@ export default function ProductIntegration({
                 
                 {/* Offer Types Section */}
                 <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-700">Offer Types</h5>
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-medium text-gray-700">Offer Types</h5>
+                    {offerTypes && offerTypes.length > 0 && (
+                      <button
+                        onClick={selectAllOfferTypes}
+                        className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
+                      >
+                        {selectedOfferTypes.length === offerTypes.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="space-y-3">
-                      {/* Show first offer type */}
+                      {/* Show all offer types with checkboxes */}
                       {offerTypes && offerTypes.length > 0 ? (
-                      <div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Offer Name:</span>
-                          <span className="text-xs font-medium text-black">{offerTypes[0].name}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Type:</span>
-                            <span className="text-xs font-medium text-black">{getTypeLabel(offerTypes[0].type as any)}</span>
-                        </div>
-                        </div>
+                        offerTypes.map((offerType: any, index: number) => (
+                          <div key={offerType.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggleOfferType(offerType.type)}
+                                className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
+                                  selectedOfferTypes.includes(offerType.type)
+                                    ? 'bg-[#0a61d7] border-[#0a61d7]'
+                                    : 'bg-white border-gray-300 hover:border-[#0a61d7]'
+                                }`}
+                              >
+                                {selectedOfferTypes.includes(offerType.type) && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </button>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">Offer Name:</span>
+                                  <span className="text-xs font-medium text-black">{offerType.name}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">Type:</span>
+                                  <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as any)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
                       ) : (
                         <div className="text-xs text-gray-500">No offer types configured.</div>
                       )}
-
-                      {/* Show expanded offer types when dropdown is open */}
-                      {showMoreOfferTypes && (
-                        <div className="space-y-3">
-                          {offerTypes.slice(1).map((offerType: any, index: number) => (
-                            <div key={offerType.id}>
-                              {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">Offer Name:</span>
-                                <span className="text-xs font-medium text-black">{offerType.name}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">Type:</span>
-                                <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as any)}</span>
-                              </div>
-                              {index < offerTypes.slice(1).length - 1 && (
-                                <div className="border-t border-gray-300 mt-3"></div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Dropdown button at the bottom */}
-                      {offerTypes.length > 1 && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <button
-                            onClick={() => setShowMoreOfferTypes(!showMoreOfferTypes)}
-                            className="flex items-center justify-center gap-1 w-full text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                          >
-                            {showMoreOfferTypes ? 'Show less' : `and ${offerTypes.length - 1} more offer types`}
-                            {showMoreOfferTypes ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
+                  {selectedOfferTypes.length > 0 && (
+                    <div className="text-xs text-[#0a61d7] font-medium">
+                      {selectedOfferTypes.length} offer type{selectedOfferTypes.length !== 1 ? 's' : ''} selected
+                    </div>
+                  )}
                 </div>
 
                 {/* Date & Time Ranges Section */}
                 <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-gray-700">Active Periods</h5>
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-medium text-gray-700">Active Periods</h5>
+                    {rangeTab === 'date' && dateRanges && dateRanges.length > 0 && (
+                      <button
+                        onClick={selectAllDateRanges}
+                        className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
+                      >
+                        {selectedDateRanges.length === dateRanges.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                    {rangeTab === 'time' && timeSlots && timeSlots.length > 0 && (
+                      <button
+                        onClick={selectAllTimeSlots}
+                        className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
+                      >
+                        {selectedTimeSlots.length === timeSlots.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
                   
                   {/* Range Tabs */}
                   <div className="flex gap-1">
@@ -876,142 +955,134 @@ export default function ProductIntegration({
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     {rangeTab === 'date' ? (
                       <div className="space-y-3">
-                        {/* Show first date range */}
+                        {/* Show all date ranges with checkboxes */}
                         {dateRanges && dateRanges.length > 0 ? (
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Active Period:</span>
-                            <span className="text-xs font-medium text-black">{dateRanges[0].name}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Duration:</span>
-                            <span className="text-xs font-medium text-black">
-                              {new Date(dateRanges[0].startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dateRanges[0].endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </span>
-                          </div>
-                        </div>
+                          dateRanges.map((range: any, index: number) => (
+                            <div key={range.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
+                              <div className="flex items-start gap-3">
+                                <button
+                                  onClick={() => toggleDateRange(range.id)}
+                                  className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
+                                    selectedDateRanges.includes(range.id)
+                                      ? 'bg-[#0a61d7] border-[#0a61d7]'
+                                      : 'bg-white border-gray-300 hover:border-[#0a61d7]'
+                                  }`}
+                                >
+                                  {selectedDateRanges.includes(range.id) && (
+                                    <Check className="w-3 h-3 text-white" />
+                                  )}
+                                </button>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-600">Active Period:</span>
+                                    <span className="text-xs font-medium text-black">{range.name}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-600">Duration:</span>
+                                    <span className="text-xs font-medium text-black">
+                                      {new Date(range.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(range.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
                         ) : (
                           <div className="text-xs text-gray-500">No date ranges configured.</div>
-                        )}
-
-                        {/* Show expanded date ranges when dropdown is open */}
-                        {showMoreRanges && (
-                          <div className="space-y-3">
-                            {dateRanges.slice(1).map((range: any, index: number) => (
-                              <div key={range.id}>
-                                {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Active Period:</span>
-                                  <span className="text-xs font-medium text-black">{range.name}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Duration:</span>
-                                  <span className="text-xs font-medium text-black">
-                                    {new Date(range.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(range.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  </span>
-                                </div>
-                                {index < dateRanges.slice(1).length - 1 && (
-                                  <div className="border-t border-gray-300 mt-3"></div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Dropdown button at the bottom */}
-                        {dateRanges && dateRanges.length > 1 && (
-                          <div className="pt-2 border-t border-gray-200">
-                            <button
-                              onClick={() => setShowMoreRanges(!showMoreRanges)}
-                              className="flex items-center justify-center gap-1 w-full text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                            >
-                              {showMoreRanges ? 'Show less' : `and ${dateRanges.length - 1} more date ranges`}
-                              {showMoreRanges ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-                          </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {/* Show first time slot */}
+                        {/* Show all time slots with checkboxes */}
                         {timeSlots && timeSlots.length > 0 ? (
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Time Slot:</span>
-                            <span className="text-xs font-medium text-black">{timeSlots[0].name}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Schedule:</span>
-                            <span className="text-xs font-medium text-black">
-                              {timeSlots[0].startTime} - {timeSlots[0].endTime}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Days:</span>
-                            <span className="text-xs font-medium text-black">{timeSlots[0].days.join(', ')}</span>
-                          </div>
-                        </div>
+                          timeSlots.map((slot: any, index: number) => (
+                            <div key={slot.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
+                              <div className="flex items-start gap-3">
+                                <button
+                                  onClick={() => toggleTimeSlot(slot.id)}
+                                  className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
+                                    selectedTimeSlots.includes(slot.id)
+                                      ? 'bg-[#0a61d7] border-[#0a61d7]'
+                                      : 'bg-white border-gray-300 hover:border-[#0a61d7]'
+                                  }`}
+                                >
+                                  {selectedTimeSlots.includes(slot.id) && (
+                                    <Check className="w-3 h-3 text-white" />
+                                  )}
+                                </button>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-600">Time Slot:</span>
+                                    <span className="text-xs font-medium text-black">{slot.name}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-600">Schedule:</span>
+                                    <span className="text-xs font-medium text-black">
+                                      {slot.startTime} - {slot.endTime}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-600">Days:</span>
+                                    <span className="text-xs font-medium text-black">{slot.days.join(', ')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
                         ) : (
                           <div className="text-xs text-gray-500">No time slots configured.</div>
-                        )}
-
-                        {/* Show expanded time slots when dropdown is open */}
-                        {showMoreRanges && (
-                          <div className="space-y-3">
-                            {timeSlots.slice(1).map((slot: any, index: number) => (
-                              <div key={slot.id}>
-                                {index === 0 && <div className="border-t border-gray-300 mt-3 pb-3"></div>}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Time Slot:</span>
-                                  <span className="text-xs font-medium text-black">{slot.name}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Schedule:</span>
-                                  <span className="text-xs font-medium text-black">
-                                    {slot.startTime} - {slot.endTime}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Days:</span>
-                                  <span className="text-xs font-medium text-black">{slot.days.join(', ')}</span>
-                                </div>
-                                {index < timeSlots.slice(1).length - 1 && (
-                                  <div className="border-t border-gray-300 mt-3"></div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Dropdown button at the bottom */}
-                        {timeSlots && timeSlots.length > 1 && (
-                          <div className="pt-2 border-t border-gray-200">
-                            <button
-                              onClick={() => setShowMoreRanges(!showMoreRanges)}
-                              className="flex items-center justify-center gap-1 w-full text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                            >
-                              {showMoreRanges ? 'Show less' : `and ${timeSlots.length - 1} more time slots`}
-                              {showMoreRanges ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
-                          </div>
                         )}
                       </div>
                     )}
                   </div>
+                  {rangeTab === 'date' && selectedDateRanges.length > 0 && (
+                    <div className="text-xs text-[#0a61d7] font-medium">
+                      {selectedDateRanges.length} date range{selectedDateRanges.length !== 1 ? 's' : ''} selected
+                    </div>
+                  )}
+                  {rangeTab === 'time' && selectedTimeSlots.length > 0 && (
+                    <div className="text-xs text-[#0a61d7] font-medium">
+                      {selectedTimeSlots.length} time slot{selectedTimeSlots.length !== 1 ? 's' : ''} selected
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 text-sm flex-shrink-0 rounded-b-lg">
-              <button
-                onClick={() => setShowOfferModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
+            <div className="flex flex-col gap-3 p-4 border-t border-gray-200 text-sm flex-shrink-0 rounded-b-lg">
+              {/* Validation Message */}
+              {(selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)) && (
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  ⚠️ Please select at least one offer type and one active period (date range or time slot)
+                </div>
+              )}
+              
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowOfferModal(false);
+                    // Reset selections
+                    setSelectedOfferTypes([]);
+                    setSelectedDateRanges([]);
+                    setSelectedTimeSlots([]);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)}
+                  onClick={() => {
+                    // Validate selections
+                    if (selectedOfferTypes.length === 0) {
+                      alert('Please select at least one offer type');
+                      return;
+                    }
+                    if (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0) {
+                      alert('Please select at least one active period (date range or time slot)');
+                      return;
+                    }
                   if (isBatchEditMode) {
                     // In batch edit mode, update parent state
                     const existingProducts = offerData.products || [];
@@ -1021,20 +1092,27 @@ export default function ProductIntegration({
                       offerId: offerData.id,
                       discountType: 'percentage' as const,
                       discountValue: 0,
-                      isActive: true,
+                      isActive: true
                     }));
                     const updatedProducts = [...existingProducts, ...newProducts];
                     
-                    // Update product offer badges
+                    // Update product offer badges based on selected types
                     const badge = computeOfferBadge();
                     const updatedBadges = { ...productOfferBadges };
                     selectedProducts.forEach(id => {
                       updatedBadges[id] = badge;
                     });
                     
+                    // Filter discount types to only include selected ones
+                    const filteredDiscountTypes = (offerData.discountTypes || []).map((dt: any) => ({
+                      ...dt,
+                      isActive: selectedOfferTypes.includes(dt.discountType) // Mark as active only if selected
+                    }));
+                    
                     onOfferChange!({ 
                       products: updatedProducts,
-                      productOfferBadges: updatedBadges
+                      productOfferBadges: updatedBadges,
+                      discountTypes: filteredDiscountTypes // Update which discount types are active
                     });
                     
                     // Update local UI
@@ -1044,9 +1122,9 @@ export default function ProductIntegration({
                         return { 
                           ...p, 
                           hasOffer: true, 
-                          offerBadge: badge,
+                          offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
                           offerDiscount: discountAmount,
-                          offerType: 'percentage'
+                          offerType: 'percentage' as const
                         };
                       }
                       return p;
@@ -1060,9 +1138,9 @@ export default function ProductIntegration({
                         return { 
                           ...p, 
                           hasOffer: true, 
-                          offerBadge: badge,
+                          offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
                           offerDiscount: discountAmount,
-                          offerType: 'percentage'
+                          offerType: 'percentage' as const
                         };
                       }
                       return p;
@@ -1071,11 +1149,20 @@ export default function ProductIntegration({
                   }
                   setShowOfferModal(false);
                   setSelectedProducts([]);
+                  // Reset selections
+                  setSelectedOfferTypes([]);
+                  setSelectedDateRanges([]);
+                  setSelectedTimeSlots([]);
                 }}
-                className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
+                  selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                }`}
               >
                 Apply Offer
               </button>
+              </div>
             </div>
           </div>
         </div>

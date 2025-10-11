@@ -68,6 +68,10 @@ export interface OrderItem {
   productNameSnapshot?: string;
   productSkuSnapshot?: string;
   productTypeSnapshot?: string;
+  // Product images
+  images?: string[];
+  brand?: string;
+  description?: string;
 }
 
 export interface OrderTableRow {

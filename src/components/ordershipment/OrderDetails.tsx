@@ -360,9 +360,34 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="space-y-2">
               {order.orderItems.slice(0, 4).map((item, index) => (
                 <div key={index} className="flex items-center gap-3 p-3">
-                  {/* Image Placeholder */}
-                  <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Package className="w-6 h-6 text-gray-400" />
+                  {/* Product Image or Placeholder */}
+                  <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {item.images && item.images.length > 0 ? (
+                      <img 
+                        src={item.images[0]} 
+                        alt={item.productName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to package icon if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const packageIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                            packageIcon.setAttribute("class", "w-6 h-6 text-gray-400");
+                            packageIcon.setAttribute("width", "24");
+                            packageIcon.setAttribute("height", "24");
+                            packageIcon.setAttribute("viewBox", "0 0 24 24");
+                            packageIcon.setAttribute("fill", "none");
+                            packageIcon.setAttribute("stroke", "currentColor");
+                            packageIcon.innerHTML = '<path d="M16 16l3-8 3 8c-1.3-1.3-4.7-1.3-6 0z"/><path d="M2 16l3-8 3 8c-1.3-1.3-4.7-1.3-6 0z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>';
+                            parent.appendChild(packageIcon);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Package className="w-6 h-6 text-gray-400" />
+                    )}
                   </div>
                   
                   {/* Item Details */}

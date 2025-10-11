@@ -141,9 +141,13 @@ export async function GET(request: NextRequest) {
       let offerName = undefined;
       let originalSellingPrice = undefined;
       
+      let promotionDetails = undefined;
+      
       if (productOffers.length > 0) {
         const primaryOffer = productOffers[0];
-        const discountTypes = primaryOffer.offerDiscountTypes;
+        
+        // Filter to only ACTIVE discount types
+        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
         
         const hasDiscount = discountTypes.some((dt: any) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
@@ -160,6 +164,16 @@ export async function GET(request: NextRequest) {
           offerBadge = 'Discount';
         } else {
           offerBadge = 'Offer';
+        }
+        
+        // Get Buy X Get Y promotion details
+        const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+        if (buyXGetYPromo) {
+          promotionDetails = {
+            minQuantity: buyXGetYPromo.minQuantity,
+            freeQuantity: buyXGetYPromo.discountValue,
+            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+          };
         }
         
         hasActiveOffer = true;
@@ -186,6 +200,7 @@ export async function GET(request: NextRequest) {
         hasActiveOffer,
         offerId,
         offerName,
+        promotionDetails,
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: "0", // Will be calculated from actual orders

@@ -920,8 +920,10 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
           });
         }
 
-        // Calculate discount for this offer
-        for (const discountType of offer.offerDiscountTypes) {
+        // Calculate discount for this offer using only ACTIVE discount types
+        const activeDiscountTypes = offer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+        
+        for (const discountType of activeDiscountTypes) {
           let discountedPrice = originalPrice;
           
           if (discountType.discountType === 'percentage') {

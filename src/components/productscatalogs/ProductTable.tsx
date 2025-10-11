@@ -940,14 +940,26 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                 <td className="py-3 px-4 text-xs">
                   <div className="flex flex-col gap-1">
                     {originalProduct?.offerBadge && (
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium w-fit ${
-                        originalProduct.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
-                        originalProduct.offerBadge === 'Promotion' ? 'bg-green-100 text-green-700' :
-                        originalProduct.offerBadge === 'All Offers' ? 'bg-purple-100 text-purple-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {originalProduct.offerBadge}
-                      </span>
+                      <>
+                        {originalProduct.offerBadge === 'All Offers' ? (
+                          <div className="flex flex-wrap gap-1">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium w-fit bg-red-100 text-red-700">
+                              Discount
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-xs font-medium w-fit bg-purple-100 text-purple-700">
+                              Promotion
+                            </span>
+                          </div>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium w-fit ${
+                            originalProduct.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
+                            originalProduct.offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {originalProduct.offerBadge}
+                          </span>
+                        )}
+                      </>
                     )}
                     <span className="text-[#0a61d7] font-semibold">
                       {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
@@ -1090,14 +1102,24 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Offer Badge on Image */}
                  {originalProduct?.offerBadge && (
                    <div className="absolute top-2 left-2">
-                     <span className={`px-2 py-1 rounded text-xs font-semibold shadow-md ${
-                       originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
-                       originalProduct.offerBadge === 'Promotion' ? 'bg-green-500 text-white' :
-                       originalProduct.offerBadge === 'All Offers' ? 'bg-purple-500 text-white' :
-                       'bg-blue-500 text-white'
-                     }`}>
-                       {originalProduct.offerBadge}
-                     </span>
+                     {originalProduct.offerBadge === 'All Offers' ? (
+                       <div className="flex flex-col gap-1">
+                         <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-red-500 text-white">
+                           Discount
+                         </span>
+                         <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-purple-500 text-white">
+                           Promotion
+                         </span>
+                       </div>
+                     ) : (
+                       <span className={`px-2 py-1 rounded text-xs font-semibold shadow-md ${
+                         originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
+                         originalProduct.offerBadge === 'Promotion' ? 'bg-purple-500 text-white' :
+                         'bg-blue-500 text-white'
+                       }`}>
+                         {originalProduct.offerBadge}
+                       </span>
+                     )}
                    </div>
                  )}
                </div>
@@ -1307,14 +1329,24 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {/* Offer Badge on Image */}
                  {originalProduct?.offerBadge && (
                    <div className="absolute top-1 left-1">
-                     <span className={`px-1.5 py-0.5 rounded text-xs font-semibold shadow-md ${
-                       originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
-                       originalProduct.offerBadge === 'Promotion' ? 'bg-green-500 text-white' :
-                       originalProduct.offerBadge === 'All Offers' ? 'bg-purple-500 text-white' :
-                       'bg-blue-500 text-white'
-                     }`}>
-                       {originalProduct.offerBadge}
-                     </span>
+                     {originalProduct.offerBadge === 'All Offers' ? (
+                       <div className="flex flex-col gap-1">
+                         <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-red-500 text-white">
+                           Discount
+                         </span>
+                         <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-purple-500 text-white">
+                           Promotion
+                         </span>
+                       </div>
+                     ) : (
+                       <span className={`px-1.5 py-0.5 rounded text-xs font-semibold shadow-md ${
+                         originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
+                         originalProduct.offerBadge === 'Promotion' ? 'bg-purple-500 text-white' :
+                         'bg-blue-500 text-white'
+                       }`}>
+                         {originalProduct.offerBadge}
+                       </span>
+                     )}
                    </div>
                  )}
                </div>
