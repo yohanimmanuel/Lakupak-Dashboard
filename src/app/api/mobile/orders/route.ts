@@ -276,6 +276,70 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    // Validate stock availability BEFORE creating order
+    if (Array.isArray(orderItems) && orderItems.length > 0) {
+      for (const item of orderItems) {
+        const product = await prisma.product.findFirst({
+          where: { productId: String(item.productId || '') }
+        });
+        
+        if (!product) {
+          return NextResponse.json(
+            { error: `Product not found: ${item.productId}` },
+            { status: 404, headers }
+          );
+        }
+        
+        // Calculate total quantity needed (including promotion free items)
+        const orderedQty = parseInt(String(item.packageQuantity || 1));
+        let totalQtyNeeded = orderedQty;
+        
+        // Check if product has Buy X Get Y promotion
+        const productOffers = await prisma.offer.findMany({
+          where: {
+            userId: product.userId || undefined,
+            status: 'active',
+            offerProducts: {
+              some: {
+                productId: product.productId
+              }
+            }
+          },
+          include: {
+            offerDiscountTypes: {
+              where: { isActive: true, discountType: 'buy_x_get_y' }
+            }
+          }
+        });
+        
+        if (productOffers.length > 0) {
+          const buyXGetYPromo = productOffers[0].offerDiscountTypes.find(
+            (dt: any) => dt.discountType === 'buy_x_get_y'
+          );
+          
+          if (buyXGetYPromo) {
+            const minQty = buyXGetYPromo.minQuantity || 1;
+            const freeQty = buyXGetYPromo.discountValue || 0;
+            
+            // Calculate how many free items they get
+            const qualifyingSets = Math.floor(orderedQty / minQty);
+            const totalFreeItems = qualifyingSets * freeQty;
+            totalQtyNeeded = orderedQty + totalFreeItems;
+          }
+        }
+        
+        // Check if sufficient stock
+        if (product.stockQuantity < totalQtyNeeded) {
+          return NextResponse.json(
+            { 
+              error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+            },
+            { status: 400, headers }
+          );
+        }
+      }
+    }
+    
     // For mobile orders, we'll create them in the main Order table
     // and link them to the buyer record for proper data collection
     const orderData = {

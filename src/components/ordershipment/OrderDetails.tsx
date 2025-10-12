@@ -88,6 +88,33 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     
     return badges;
   };
+  
+  // Calculate promotion free items for an order item
+  const calculatePromotionGift = (item: any) => {
+    if (!item.promotionDetailsSnapshot) return null;
+    
+    try {
+      const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+      const orderedQty = item.packageQuantity || 1;
+      const minQty = promoDetails.minQuantity || 1;
+      const freeQty = promoDetails.freeQuantity || 0;
+      
+      // Calculate how many free items they get
+      const qualifyingSets = Math.floor(orderedQty / minQty);
+      const totalFreeItems = qualifyingSets * freeQty;
+      const totalReceived = orderedQty + totalFreeItems;
+      
+      return {
+        orderedQty,
+        freeQty: totalFreeItems,
+        totalReceived,
+        minQty: promoDetails.minQuantity,
+        freePerSet: promoDetails.freeQuantity
+      };
+    } catch (e) {
+      return null;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -449,16 +476,26 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   
                   {/* Item Details */}
                   <div className="flex-1">
-                    <h3 
-                      className="text-sm font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
-                      onClick={() => {
-                        const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
-                        window.location.href = href;
-                      }}
-                      title="Click to view product details"
-                    >
-                      {item.productName}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 
+                        className="text-sm font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
+                        onClick={() => {
+                          const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
+                          window.location.href = href;
+                        }}
+                        title="Click to view product details"
+                      >
+                        {item.productName}
+                      </h3>
+                      
+                      {/* Promotion Gift Badge - Inline with product name */}
+                      {calculatePromotionGift(item) && (
+                        <div className="flex items-center gap-1 px-1 py-0.5 bg-purple-50 border border-purple-200 rounded text-xs font-semibold text-purple-600">
+                          <Gift className="w-3 h-3" />
+                          <span>+{calculatePromotionGift(item)!.freeQty} Free</span>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
                     <p className="text-xs text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
                   </div>

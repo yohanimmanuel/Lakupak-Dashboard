@@ -816,6 +816,140 @@ export async function PUT(request: NextRequest) {
           updateData.cancellationReason = null;
           updateData.isDeleted = false; // Also reset the soft delete flag
         }
+        
+        // STOCK MANAGEMENT: Deduct stock when confirmed, restore when cancelled
+        const orderWithItems = await prisma.order.findUnique({
+          where: { orderId: String(sanitizedData.orderId) },
+          include: {
+            orderItemsRel: true
+          }
+        });
+        
+        console.log('🔍 Stock Management Check:', {
+          prevStatus,
+          nextStatus,
+          hasOrderItems: !!orderWithItems,
+          itemCount: orderWithItems?.orderItemsRel?.length || 0
+        });
+        
+        // Deduct stock when order is confirmed
+        if (prevStatus === 'Pending' && nextStatus === 'Confirmed' && orderWithItems) {
+          console.log('✅ Deducting stock for order:', sanitizedData.orderId);
+          for (const orderItem of orderWithItems.orderItemsRel) {
+            if (!orderItem.productId) continue;
+            
+            const product = await prisma.product.findFirst({
+              where: { productId: orderItem.productId }
+            });
+            
+            if (!product) continue;
+            
+            // Calculate total quantity to deduct (including free items from promotion)
+            const orderedQty = orderItem.packageQuantity || 1;
+            let totalQtyToDeduct = orderedQty;
+            
+            // Check if there's a Buy X Get Y promotion
+            if (orderItem.promotionDetailsSnapshot) {
+              try {
+                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
+                const minQty = promoDetails.minQuantity || 1;
+                const freeQty = promoDetails.freeQuantity || 0;
+                
+                // Calculate free items
+                const qualifyingSets = Math.floor(orderedQty / minQty);
+                const totalFreeItems = qualifyingSets * freeQty;
+                totalQtyToDeduct = orderedQty + totalFreeItems;
+              } catch (e) {
+                // Invalid JSON, just use ordered quantity
+              }
+            }
+            
+            // Deduct stock
+            const newStock = product.stockQuantity - totalQtyToDeduct;
+            let newStockStatus = product.stockStatus;
+            
+            console.log(`📦 Deducting stock for ${product.name}:`, {
+              currentStock: product.stockQuantity,
+              orderedQty,
+              totalQtyToDeduct,
+              newStock,
+              promotionDetailsSnapshot: orderItem.promotionDetailsSnapshot
+            });
+            
+            // Update stock status based on threshold
+            if (newStock <= 0) {
+              newStockStatus = 'Out of Stock';
+            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
+              newStockStatus = 'Low Stock';
+            } else {
+              newStockStatus = 'In Stock';
+            }
+            
+            await prisma.product.update({
+              where: { productId: orderItem.productId },
+              data: {
+                stockQuantity: Math.max(0, newStock),
+                stockStatus: newStockStatus
+              }
+            });
+            
+            console.log(`✅ Stock updated for ${product.name}: ${product.stockQuantity} → ${newStock}`);
+          }
+        }
+        
+        // Restore stock when order is cancelled
+        if (prevStatus === 'Confirmed' && nextStatus === 'Cancelled' && orderWithItems) {
+          for (const orderItem of orderWithItems.orderItemsRel) {
+            if (!orderItem.productId) continue;
+            
+            const product = await prisma.product.findFirst({
+              where: { productId: orderItem.productId }
+            });
+            
+            if (!product) continue;
+            
+            // Calculate total quantity to restore (including free items from promotion)
+            const orderedQty = orderItem.packageQuantity || 1;
+            let totalQtyToRestore = orderedQty;
+            
+            // Check if there's a Buy X Get Y promotion
+            if (orderItem.promotionDetailsSnapshot) {
+              try {
+                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
+                const minQty = promoDetails.minQuantity || 1;
+                const freeQty = promoDetails.freeQuantity || 0;
+                
+                // Calculate free items
+                const qualifyingSets = Math.floor(orderedQty / minQty);
+                const totalFreeItems = qualifyingSets * freeQty;
+                totalQtyToRestore = orderedQty + totalFreeItems;
+              } catch (e) {
+                // Invalid JSON, just use ordered quantity
+              }
+            }
+            
+            // Restore stock
+            const newStock = product.stockQuantity + totalQtyToRestore;
+            let newStockStatus = product.stockStatus;
+            
+            // Update stock status based on threshold
+            if (newStock <= 0) {
+              newStockStatus = 'Out of Stock';
+            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
+              newStockStatus = 'Low Stock';
+            } else {
+              newStockStatus = 'In Stock';
+            }
+            
+            await prisma.product.update({
+              where: { productId: orderItem.productId },
+              data: {
+                stockQuantity: newStock,
+                stockStatus: newStockStatus
+              }
+            });
+          }
+        }
       }
     }
     
