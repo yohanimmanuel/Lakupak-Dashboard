@@ -72,6 +72,13 @@ export interface OrderItem {
   images?: string[];
   brand?: string;
   description?: string;
+  // Offer snapshots - preserve offer status at time of purchase
+  offerApplied?: boolean;
+  offerBadgeSnapshot?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
+  offerNameSnapshot?: string;
+  originalPriceSnapshot?: string;
+  discountPercentage?: number;
+  promotionDetailsSnapshot?: string; // JSON string
 }
 
 export interface OrderTableRow {

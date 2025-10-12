@@ -99,7 +99,14 @@ export async function GET(request: NextRequest) {
         productDeleted: !oi.product,
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null
+        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null,
+        // Offer snapshots from time of purchase
+        offerApplied: (oi as any).offerApplied || false,
+        offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
+        offerNameSnapshot: (oi as any).offerNameSnapshot || null,
+        originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
+        discountPercentage: (oi as any).discountPercentage || null,
+        promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
       }));
 
       return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
@@ -174,7 +181,14 @@ export async function GET(request: NextRequest) {
         productDeleted: !oi.product,
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null
+        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null,
+        // Offer snapshots from time of purchase
+        offerApplied: (oi as any).offerApplied || false,
+        offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
+        offerNameSnapshot: (oi as any).offerNameSnapshot || null,
+        originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
+        discountPercentage: (oi as any).discountPercentage || null,
+        promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
     });
@@ -401,7 +415,7 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
       try {
         const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-          // Fetch the product to ensure price consistency
+          // Fetch the product WITH offer information
           const product = await prisma.product.findFirst({
             where: { productId: String(item.productId) }
           });
@@ -410,35 +424,129 @@ export async function POST(request: NextRequest) {
             throw new Error(`Product not found: ${item.productId}. Cannot create OrderItem without valid product.`);
           }
           
+          // Fetch active offers for this product
+          const productOffers = await prisma.offer.findMany({
+            where: {
+              userId: product.userId || undefined,
+              status: 'active',
+              offerProducts: {
+                some: {
+                  productId: product.productId
+                }
+              }
+            },
+            include: {
+              offerDiscountTypes: {
+                where: { isActive: true }
+              },
+              offerProducts: true
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
+          });
+          
+          // Enrich product with offer data
+          let enrichedProduct: any = { ...product };
+          if (productOffers.length > 0) {
+            const primaryOffer = productOffers[0];
+            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+            
+            const hasDiscount = activeDiscountTypes.some((dt: any) => 
+              dt.discountType === 'percentage' || dt.discountType === 'fixed'
+            );
+            const hasPromotion = activeDiscountTypes.some((dt: any) => 
+              dt.discountType === 'buy_x_get_y'
+            );
+            
+            let offerBadge = 'Offer';
+            if (hasDiscount && hasPromotion) {
+              offerBadge = 'All Offers';
+            } else if (hasPromotion) {
+              offerBadge = 'Promotion';
+            } else if (hasDiscount) {
+              offerBadge = 'Discount';
+            }
+            
+            // Get Buy X Get Y promotion details
+            const buyXGetYPromo = activeDiscountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+            const promotionDetails = buyXGetYPromo ? {
+              minQuantity: buyXGetYPromo.minQuantity,
+              freeQuantity: buyXGetYPromo.discountValue,
+              description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+            } : undefined;
+            
+            enrichedProduct = {
+              ...product,
+              hasActiveOffer: true,
+              offerBadge,
+              offerName: primaryOffer.name,
+              originalSellingPrice: product.originalSellingPrice,
+              promotionDetails
+            };
+          }
+          
+          
+          // Use the enriched product data
           // Use the product's sellingPrice as the unitPrice to ensure consistency
           // Parse sellingPrice correctly handling IDR format with dots as thousands separators
-          let consistentUnitPrice = typeof product.sellingPrice === 'string' 
-            ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-            : product.sellingPrice || 0;
+          let consistentUnitPrice = typeof enrichedProduct.sellingPrice === 'string' 
+            ? parseFloat(enrichedProduct.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+            : enrichedProduct.sellingPrice || 0;
           
           // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-          if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+          if (typeof enrichedProduct.sellingPrice === 'string' && enrichedProduct.sellingPrice.includes('.')) {
             // Remove dots and parse as integer (dots are thousands separators in IDR)
-            consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+            consistentUnitPrice = parseInt(enrichedProduct.sellingPrice.replace(/[^\d]/g, '')) || 0;
           }
           
           // Calculate package-based pricing
-          const piecesPerPackage = product.piecesPerPackage || 1;
+          const piecesPerPackage = enrichedProduct.piecesPerPackage || 1;
           const packageQuantity = item.packageQuantity || 1;
           const pricePerPackage = consistentUnitPrice * piecesPerPackage;
           const consistentSubtotal = packageQuantity * pricePerPackage;
+          
+          // Capture offer snapshots at time of purchase
+          const offerApplied = Boolean(enrichedProduct.hasActiveOffer);
+          const offerBadgeSnapshot = offerApplied ? enrichedProduct.offerBadge : null;
+          const offerNameSnapshot = offerApplied ? enrichedProduct.offerName : null;
+          const originalPriceSnapshot = offerApplied ? enrichedProduct.originalSellingPrice : null;
+          
+          // Calculate discount percentage
+          let discountPercentage = null;
+          if (offerApplied && originalPriceSnapshot && enrichedProduct.offerBadge !== 'Promotion') {
+            const originalPrice = typeof originalPriceSnapshot === 'string' 
+              ? parseInt(originalPriceSnapshot.replace(/[^\d]/g, '')) || 0
+              : originalPriceSnapshot;
+            const currentPrice = consistentUnitPrice;
+            if (originalPrice > 0 && currentPrice > 0 && currentPrice < originalPrice) {
+              discountPercentage = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+            }
+          }
+          
+          // Capture promotion details as JSON string
+          const promotionDetailsSnapshot = enrichedProduct.promotionDetails 
+            ? JSON.stringify(enrichedProduct.promotionDetails)
+            : null;
           
           const orderItemData = {
             orderId: sanitizedData.orderId as string,
             productId: item.productId as string,
             subtotal: consistentSubtotal,
-            packageType: item.packageType || product.packageType || null,
-            piecesPerPackage: item.piecesPerPackage || product.piecesPerPackage || 1,
+            packageType: item.packageType || enrichedProduct.packageType || null,
+            piecesPerPackage: item.piecesPerPackage || enrichedProduct.piecesPerPackage || 1,
             packageQuantity: item.packageQuantity || 1,
-            pricePerPackage: item.pricePerPackage || (product.piecesPerPackage ? consistentUnitPrice * product.piecesPerPackage : null),
-            productNameSnapshot: product.name,
-            productSkuSnapshot: product.sku,
-            productTypeSnapshot: product.productType
+            pricePerPackage: item.pricePerPackage || (enrichedProduct.piecesPerPackage ? consistentUnitPrice * enrichedProduct.piecesPerPackage : null),
+            productNameSnapshot: enrichedProduct.name,
+            productSkuSnapshot: enrichedProduct.sku,
+            productTypeSnapshot: enrichedProduct.productType,
+            // Offer snapshots
+            offerApplied,
+            offerBadgeSnapshot,
+            offerNameSnapshot,
+            originalPriceSnapshot,
+            discountPercentage,
+            promotionDetailsSnapshot
           };
           
           return prisma.orderItem.create({
@@ -467,7 +575,14 @@ export async function POST(request: NextRequest) {
       images: oi.product?.images || [],
       productDeleted: !oi.product,
       productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
-      productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null
+      productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
+      // Offer snapshots from time of purchase
+      offerApplied: (oi as any).offerApplied || false,
+      offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
+      offerNameSnapshot: (oi as any).offerNameSnapshot || null,
+      originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
+      discountPercentage: (oi as any).discountPercentage || null,
+      promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });

@@ -127,7 +127,14 @@ export async function GET(request: NextRequest) {
         productDeleted: !oi.product,
         productNameSnapshot: oi.productNameSnapshot || null,
         productSkuSnapshot: oi.productSkuSnapshot || null,
-        productTypeSnapshot: oi.productTypeSnapshot || null
+        productTypeSnapshot: oi.productTypeSnapshot || null,
+        // Offer snapshots from time of purchase
+        offerApplied: oi.offerApplied || false,
+        offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
+        offerNameSnapshot: oi.offerNameSnapshot || null,
+        originalPriceSnapshot: oi.originalPriceSnapshot || null,
+        discountPercentage: oi.discountPercentage || null,
+        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null
       }));
       
       return {
@@ -308,6 +315,90 @@ export async function POST(request: NextRequest) {
     // Create order items if provided
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       const orderItemPromises = orderItems.map(async (item: any) => {
+        // Fetch product to get offer information
+        const product = await prisma.product.findFirst({
+          where: { productId: String(item.productId || '') }
+        });
+        
+        // Fetch active offers for this product
+        let offerApplied = false;
+        let offerBadgeSnapshot = null;
+        let offerNameSnapshot = null;
+        let originalPriceSnapshot = null;
+        let discountPercentage = null;
+        let promotionDetailsSnapshot = null;
+        
+        if (product) {
+          const productOffers = await prisma.offer.findMany({
+            where: {
+              userId: product.userId || undefined,
+              status: 'active',
+              offerProducts: {
+                some: {
+                  productId: product.productId
+                }
+              }
+            },
+            include: {
+              offerDiscountTypes: {
+                where: { isActive: true }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
+          });
+          
+          if (productOffers.length > 0) {
+            const primaryOffer = productOffers[0];
+            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+            
+            const hasDiscount = activeDiscountTypes.some((dt: any) => 
+              dt.discountType === 'percentage' || dt.discountType === 'fixed'
+            );
+            const hasPromotion = activeDiscountTypes.some((dt: any) => 
+              dt.discountType === 'buy_x_get_y'
+            );
+            
+            let offerBadge = 'Offer';
+            if (hasDiscount && hasPromotion) {
+              offerBadge = 'All Offers';
+            } else if (hasPromotion) {
+              offerBadge = 'Promotion';
+            } else if (hasDiscount) {
+              offerBadge = 'Discount';
+            }
+            
+            offerApplied = true;
+            offerBadgeSnapshot = offerBadge;
+            offerNameSnapshot = primaryOffer.name;
+            originalPriceSnapshot = product.originalSellingPrice;
+            
+            // Calculate discount percentage
+            if (offerBadge !== 'Promotion' && product.originalSellingPrice && product.sellingPrice) {
+              const originalPrice = typeof product.originalSellingPrice === 'string' 
+                ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
+                : product.originalSellingPrice;
+              const currentPrice = typeof product.sellingPrice === 'string'
+                ? parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0
+                : product.sellingPrice;
+              if (originalPrice > 0 && currentPrice > 0 && currentPrice < originalPrice) {
+                discountPercentage = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+              }
+            }
+            
+            // Get Buy X Get Y promotion details
+            const buyXGetYPromo = activeDiscountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+            if (buyXGetYPromo) {
+              promotionDetailsSnapshot = JSON.stringify({
+                minQuantity: buyXGetYPromo.minQuantity,
+                freeQuantity: buyXGetYPromo.discountValue,
+                description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+              });
+            }
+          }
+        }
+        
         return prisma.orderItem.create({
           data: {
             orderId: order.orderId,
@@ -319,7 +410,14 @@ export async function POST(request: NextRequest) {
             pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
             productNameSnapshot: String(item.productName || 'Unknown Product'),
             productSkuSnapshot: String(item.productSku || ''),
-            productTypeSnapshot: String(item.category || 'Uncategorized')
+            productTypeSnapshot: String(item.category || 'Uncategorized'),
+            // Offer snapshots
+            offerApplied,
+            offerBadgeSnapshot,
+            offerNameSnapshot,
+            originalPriceSnapshot,
+            discountPercentage,
+            promotionDetailsSnapshot
           }
         });
       });

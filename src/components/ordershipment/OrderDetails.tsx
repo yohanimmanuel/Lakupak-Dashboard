@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
@@ -47,6 +47,48 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const orderDateDisplay = order.buyerId ? order.orderDate : (order.orderDateSnapshot || order.orderDate);
   const deliveryAddressDisplay = order.buyerId ? order.deliveryAddress : (order.deliveryAddressSnapshot || order.deliveryAddress);
    
+  // Extract unique offer badges from order items
+  const getOrderOfferBadges = () => {
+    const badges: Array<{ type: string; details?: any }> = [];
+    const seenTypes = new Set<string>();
+    
+    order.orderItems?.forEach(item => {
+      if (item.offerApplied && item.offerBadgeSnapshot) {
+        const badge = item.offerBadgeSnapshot;
+        
+        if (badge === 'All Offers') {
+          // Show both discount and promotion if "All Offers"
+          if (!seenTypes.has('Discount') && item.discountPercentage) {
+            badges.push({ type: 'Discount', details: { percentage: item.discountPercentage } });
+            seenTypes.add('Discount');
+          }
+          if (!seenTypes.has('Promotion') && item.promotionDetailsSnapshot) {
+            try {
+              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+              badges.push({ type: 'Promotion', details: promoDetails });
+              seenTypes.add('Promotion');
+            } catch (e) {
+              // Invalid JSON, skip
+            }
+          }
+        } else if (badge === 'Discount' && !seenTypes.has('Discount') && item.discountPercentage) {
+          badges.push({ type: 'Discount', details: { percentage: item.discountPercentage } });
+          seenTypes.add('Discount');
+        } else if (badge === 'Promotion' && !seenTypes.has('Promotion') && item.promotionDetailsSnapshot) {
+          try {
+            const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+            badges.push({ type: 'Promotion', details: promoDetails });
+            seenTypes.add('Promotion');
+          } catch (e) {
+            // Invalid JSON, skip
+          }
+        }
+      }
+    });
+    
+    return badges;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending': return 'bg-yellow-100 text-yellow-800 font-semibold';
@@ -95,7 +137,25 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </button>
           
           {/* Status Buttons - Top Right */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {/* Offer Badges - Show if products were ordered with active offers */}
+            {getOrderOfferBadges().map((badge, index) => (
+              <div
+                key={index}
+                className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${
+                  badge.type === 'Discount' 
+                    ? 'bg-red-50 text-red-600 border border-red-200' 
+                    : 'bg-purple-50 text-purple-600 border border-purple-200'
+                }`}
+              >
+                {badge.type === 'Promotion' && <Gift className="w-3 h-3" />}
+                {badge.type === 'Discount' && badge.details?.percentage 
+                  ? `${badge.details.percentage}% OFF`
+                  : badge.type === 'Promotion' && badge.details?.minQuantity && badge.details?.freeQuantity
+                    ? `Buy ${badge.details.minQuantity} Get ${badge.details.freeQuantity}`
+                    : badge.type}
+              </div>
+            ))}
             {/* Order Status Dropdown */}
             <div className="relative group">
               <button
@@ -167,6 +227,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getPaymentStatusColor(order.paymentStatus)}`}>
               {order.paymentStatus}
             </button>
+            
             
             {/* Edit Button */}
             <button
@@ -260,10 +321,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Service price:</span>
                   <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Discounts:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(order.discounts, user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping fee:</span>
