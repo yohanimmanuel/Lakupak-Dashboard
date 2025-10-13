@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff } from "lucide-react";
+import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff, Gift } from "lucide-react";
 
 import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
@@ -943,19 +943,51 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                       <>
                         {originalProduct.offerBadge === 'All Offers' ? (
                           <div className="flex flex-wrap gap-1">
-                            <span className="px-2 py-0.5 rounded text-xs font-medium w-fit bg-red-100 text-red-700">
-                              Discount
-                            </span>
-                            <span className="px-2 py-0.5 rounded text-xs font-medium w-fit bg-purple-100 text-purple-700">
-                              Promotion
-                            </span>
+                            {/* Calculate and show real discount percentage */}
+                            {originalProduct.originalSellingPrice && (
+                              <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
+                                {(() => {
+                                  const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                                  const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                                  if (originalPrice > currentPrice && originalPrice > 0) {
+                                    const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                    return `-${discountPercent}%`;
+                                  }
+                                  return 'Discount';
+                                })()}
+                              </span>
+                            )}
+                            {/* Show promotion details if available */}
+                            {originalProduct.promotionDetails && (
+                              <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
+                                <Gift className="w-4 h-4" />
+                                Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                              </span>
+                            )}
                           </div>
+                        ) : originalProduct.offerBadge === 'Discount' ? (
+                          <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
+                            {(() => {
+                              if (originalProduct.originalSellingPrice) {
+                                const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                                if (originalPrice > currentPrice && originalPrice > 0) {
+                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                  return `-${discountPercent}%`;
+                                }
+                              }
+                              return 'Discount';
+                            })()}
+                          </span>
+                        ) : originalProduct.offerBadge === 'Promotion' ? (
+                          <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
+                            {originalProduct.promotionDetails 
+                              ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
+                              : 'Promotion'
+                            }
+                          </span>
                         ) : (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium w-fit ${
-                            originalProduct.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
-                            originalProduct.offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
+                          <span className="px-2 py-0.5 rounded text-xs font-medium w-fit bg-blue-100 text-blue-700">
                             {originalProduct.offerBadge}
                           </span>
                         )}
@@ -1103,20 +1135,52 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {originalProduct?.offerBadge && (
                    <div className="absolute top-2 left-2">
                      {originalProduct.offerBadge === 'All Offers' ? (
-                       <div className="flex flex-col gap-1">
-                         <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-red-500 text-white">
-                           Discount
-                         </span>
-                         <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-purple-500 text-white">
-                           Promotion
-                         </span>
+                       <div className="flex flex-wrap gap-1">
+                         {/* Calculate and show real discount percentage */}
+                         {originalProduct.originalSellingPrice && (
+                           <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                             {(() => {
+                               const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                               const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                               if (originalPrice > currentPrice && originalPrice > 0) {
+                                 const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                 return `-${discountPercent}%`;
+                               }
+                               return 'Discount';
+                             })()}
+                           </span>
+                         )}
+                         {/* Show promotion details if available */}
+                         {originalProduct.promotionDetails && (
+                           <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                             <Gift className="w-4 h-4" />
+                             Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                           </span>
+                         )}
                        </div>
+                     ) : originalProduct.offerBadge === 'Discount' ? (
+                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                         {(() => {
+                           if (originalProduct.originalSellingPrice) {
+                             const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                             const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                             if (originalPrice > currentPrice && originalPrice > 0) {
+                               const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                               return `-${discountPercent}%`;
+                             }
+                           }
+                           return 'Discount';
+                         })()}
+                       </span>
+                     ) : originalProduct.offerBadge === 'Promotion' ? (
+                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                         {originalProduct.promotionDetails 
+                           ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
+                           : 'Promotion'
+                         }
+                       </span>
                      ) : (
-                       <span className={`px-2 py-1 rounded text-xs font-semibold shadow-md ${
-                         originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
-                         originalProduct.offerBadge === 'Promotion' ? 'bg-purple-500 text-white' :
-                         'bg-blue-500 text-white'
-                       }`}>
+                       <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
                          {originalProduct.offerBadge}
                        </span>
                      )}
@@ -1330,20 +1394,51 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {originalProduct?.offerBadge && (
                    <div className="absolute top-1 left-1">
                      {originalProduct.offerBadge === 'All Offers' ? (
-                       <div className="flex flex-col gap-1">
-                         <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-red-500 text-white">
-                           Discount
-                         </span>
-                         <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-purple-500 text-white">
-                           Promotion
-                         </span>
+                       <div className="flex flex-wrap gap-1">
+                         {/* Calculate and show real discount percentage */}
+                         {originalProduct.originalSellingPrice && (
+                           <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                             {(() => {
+                               const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                               const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                               if (originalPrice > currentPrice && originalPrice > 0) {
+                                 const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                 return `-${discountPercent}%`;
+                               }
+                               return 'Discount';
+                             })()}
+                           </span>
+                         )}
+                         {/* Show promotion details if available */}
+                         {originalProduct.promotionDetails && (
+                           <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                             <Gift className="w-4 h-4" /> Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                           </span>
+                         )}
                        </div>
+                     ) : originalProduct.offerBadge === 'Discount' ? (
+                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                         {(() => {
+                           if (originalProduct.originalSellingPrice) {
+                             const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                             const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                             if (originalPrice > currentPrice && originalPrice > 0) {
+                               const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                               return `-${discountPercent}%`;
+                             }
+                           }
+                           return 'Discount';
+                         })()}
+                       </span>
+                     ) : originalProduct.offerBadge === 'Promotion' ? (
+                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                         {originalProduct.promotionDetails 
+                           ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
+                           : 'Promotion'
+                         }
+                       </span>
                      ) : (
-                       <span className={`px-1.5 py-0.5 rounded text-xs font-semibold shadow-md ${
-                         originalProduct.offerBadge === 'Discount' ? 'bg-red-500 text-white' :
-                         originalProduct.offerBadge === 'Promotion' ? 'bg-purple-500 text-white' :
-                         'bg-blue-500 text-white'
-                       }`}>
+                       <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
                          {originalProduct.offerBadge}
                        </span>
                      )}
