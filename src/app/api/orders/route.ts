@@ -897,8 +897,15 @@ export async function PUT(request: NextRequest) {
           }
         }
         
-        // Restore stock when order is cancelled
-        if (prevStatus === 'Confirmed' && nextStatus === 'Cancelled' && orderWithItems) {
+        // Restore stock when order moves away from 'Confirmed' status
+        const shouldRestoreStock = (
+          prevStatus === 'Confirmed' && 
+          (nextStatus === 'Cancelled' || nextStatus === 'Pending' || nextStatus === 'Returned')
+        ) && orderWithItems;
+        
+        if (shouldRestoreStock) {
+          console.log(`🔄 Restoring stock for order ${sanitizedData.orderId}: ${prevStatus} → ${nextStatus}`);
+          
           for (const orderItem of orderWithItems.orderItemsRel) {
             if (!orderItem.productId) continue;
             
@@ -932,6 +939,14 @@ export async function PUT(request: NextRequest) {
             const newStock = product.stockQuantity + totalQtyToRestore;
             let newStockStatus = product.stockStatus;
             
+            console.log(`📦 Restoring stock for ${product.name}:`, {
+              currentStock: product.stockQuantity,
+              orderedQty,
+              totalQtyToRestore,
+              newStock,
+              promotionDetailsSnapshot: orderItem.promotionDetailsSnapshot
+            });
+            
             // Update stock status based on threshold
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
@@ -948,6 +963,8 @@ export async function PUT(request: NextRequest) {
                 stockStatus: newStockStatus
               }
             });
+            
+            console.log(`✅ Stock restored for ${product.name}: ${product.stockQuantity} → ${newStock}`);
           }
         }
       }
