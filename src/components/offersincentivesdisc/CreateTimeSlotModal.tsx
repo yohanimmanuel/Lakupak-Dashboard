@@ -13,7 +13,7 @@ interface TimeSlotData {
 interface CreateTimeSlotModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingSlot?: any;
+  editingSlot?: Partial<TimeSlotData>;
   onSave: (slotData: TimeSlotData) => void;
 }
 
@@ -70,7 +70,7 @@ export default function CreateTimeSlotModal({
     }
   }, [editingSlot]);
 
-  const handleInputChange = (field: keyof TimeSlotData, value: any) => {
+  const handleInputChange = (field: keyof TimeSlotData, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

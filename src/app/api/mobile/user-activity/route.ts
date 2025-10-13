@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user activities by type
-    let whereClause: any = { 
+    let whereClause: Record<string, unknown> = { 
       userId: userIdNum,
       activityType: activityType
     };

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Upload, X, Edit3, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
 interface GeneralInfoData {
   firstName: string;
@@ -64,7 +65,7 @@ export default function GeneralInfo() {
     setError(null);
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     if (!file) return;
 
     // Validate file size (2MB limit)
@@ -84,23 +85,18 @@ export default function GeneralInfo() {
       setIsLoading(true);
       setError(null);
 
-      // Use FileReader to convert to base64 data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result;
-        if (result) {
-          setFormData(prev => ({ ...prev, avatar: result as string }));
-        }
-        setIsLoading(false);
-      };
-      reader.onerror = () => {
-        setError('Failed to read image file');
-        setIsLoading(false);
-      };
-      reader.readAsDataURL(file);
+      // Direct upload to Cloudinary (faster, no base64 conversion)
+      const result = await uploadToCloudinaryDirect(file, 'users/avatars');
 
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, avatar: result.url || null }));
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      setIsLoading(false);
     } catch (err) {
-      setError('Failed to process image. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
       setIsLoading(false);
     }
   };

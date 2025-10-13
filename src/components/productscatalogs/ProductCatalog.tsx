@@ -273,11 +273,9 @@ export default function ProductCatalog({
   };
 
 
-  const handleImageUpload = (files: FileList) => {
+  const handleImageUpload = async (files: FileList) => {
     setUploadingImages(true);
     
-    // Convert files to data URLs for preview
-    const newImages: string[] = [];
     const maxFileSize = 5 * 1024 * 1024; // 5MB
     const maxImages = 10;
     
@@ -288,34 +286,76 @@ export default function ProductCatalog({
       return;
     }
     
-    Array.from(files).forEach((file) => {
+    const uploadedImages: string[] = [];
+    
+    for (const file of Array.from(files)) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         alert(`File "${file.name}" is not an image. Please select only image files.`);
-        return;
+        continue;
       }
       
       // Validate file size
       if (file.size > maxFileSize) {
         alert(`File "${file.name}" is too large. Maximum size is 5MB.`);
-        return;
+        continue;
       }
       
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          newImages.push(e.target.result as string);
-          if (newImages.length === files.length) {
-            setFormData(prev => ({
-              ...prev,
-              images: [...prev.images, ...newImages]
-            }));
-            setUploadingImages(false);
-          }
+      try {
+        // Step 1: Get upload signature from our API
+        const signatureResponse = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            getSignature: true,
+            folder: 'products',
+          }),
+        });
+
+        if (!signatureResponse.ok) {
+          throw new Error('Failed to get upload signature');
         }
-      };
-      reader.readAsDataURL(file);
-    });
+
+        const signatureData = await signatureResponse.json();
+
+        // Step 2: Upload directly to Cloudinary
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', file);
+        formDataUpload.append('signature', signatureData.signature);
+        formDataUpload.append('timestamp', signatureData.timestamp.toString());
+        formDataUpload.append('api_key', signatureData.apiKey);
+        formDataUpload.append('folder', signatureData.folder);
+
+        const uploadResponse = await fetch(
+          `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
+          {
+            method: 'POST',
+            body: formDataUpload,
+          }
+        );
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error?.message || 'Upload to Cloudinary failed');
+        }
+
+        const result = await uploadResponse.json();
+        uploadedImages.push(result.secure_url);
+      } catch (error) {
+        alert(`Failed to upload "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    if (uploadedImages.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...uploadedImages]
+      }));
+    }
+    
+    setUploadingImages(false);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

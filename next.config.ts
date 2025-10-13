@@ -16,7 +16,17 @@ const nextConfig: NextConfig = {
     ];
   },
   // Allow external connections for mobile development
-  serverExternalPackages: ['@prisma/client']
+  serverExternalPackages: ['@prisma/client'],
+  // Configure Cloudinary images
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default withNextIntl(nextConfig);

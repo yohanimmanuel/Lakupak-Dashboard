@@ -8,10 +8,69 @@ import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
 import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationStore';
 
+interface DiscountType {
+  id: string;
+  name: string | null;
+  description: string | null;
+  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
+  discountValue: number;
+  minOrderValue: number | null;
+  minQuantity: number | null;
+  freeQuantity?: number | null;
+  maxUsage: number | null;
+  perCustomerLimit: number | null;
+  isActive: boolean;
+  priority: number;
+}
+
+interface DateRange {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: Date;
+  endDate: Date;
+  isActive: boolean;
+}
+
+interface TimeSlot {
+  id: string;
+  name: string;
+  description: string | null;
+  startTime: string;
+  endTime: string;
+  days: string[];
+  isActive: boolean;
+}
+
+interface OfferProduct {
+  id: string;
+  productId: string;
+  name?: string;
+  productType?: string;
+  productCategory?: string;
+  sellingPrice?: string;
+}
+
+interface OfferData {
+  id: string;
+  offerId: string;
+  name: string;
+  description: string;
+  type: string;
+  status: string;
+  discountTypes: DiscountType[];
+  dateRanges?: DateRange[];
+  timeSlots?: TimeSlot[];
+  products: OfferProduct[];
+  startDate: Date;
+  endDate: Date;
+  productOfferBadges?: Record<string, string>;
+}
+
 interface ProductIntegrationProps {
   isNewOffer?: boolean;
-  offerData?: any; // Offer data from database for details view
-  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
+  offerData?: OfferData;
+  onOfferChange?: (updatedData: Partial<OfferData>) => void;
   onAddProduct: (product: SelectedProduct) => void;
   onRemoveProduct: (productId: string) => void;
   onUpdateProductDiscount: (productId: string, discountType: 'percentage' | 'fixed', discountValue: number) => void;
@@ -122,7 +181,7 @@ export default function ProductIntegration({
     if (selectedOfferTypes.length === offerTypes.length) {
       setSelectedOfferTypes([]);
     } else {
-      setSelectedOfferTypes(offerTypes.map((ot: any) => ot.type));
+      setSelectedOfferTypes(offerTypes.map((ot) => ot.type));
     }
   };
 
@@ -130,7 +189,7 @@ export default function ProductIntegration({
     if (selectedDateRanges.length === dateRanges.length) {
       setSelectedDateRanges([]);
     } else {
-      setSelectedDateRanges(dateRanges.map((dr: any) => dr.id));
+      setSelectedDateRanges(dateRanges.map((dr) => dr.id));
     }
   };
 
@@ -138,7 +197,7 @@ export default function ProductIntegration({
     if (selectedTimeSlots.length === timeSlots.length) {
       setSelectedTimeSlots([]);
     } else {
-      setSelectedTimeSlots(timeSlots.map((ts: any) => ts.id));
+      setSelectedTimeSlots(timeSlots.map((ts) => ts.id));
     }
   };
 
@@ -147,7 +206,7 @@ export default function ProductIntegration({
     // Use selectedOfferTypes if available (when user is actively selecting)
     const typesToCheck = selectedOfferTypes.length > 0 
       ? selectedOfferTypes 
-      : (discountTypes || []).filter((dt: any) => dt.isActive !== false).map((dt: any) => dt.discountType);
+      : (discountTypes || []).filter((dt) => dt.isActive !== false).map((dt) => dt.discountType);
     
     const hasDiscount = typesToCheck.some((type: string) => type === 'percentage' || type === 'fixed');
     const hasPromotion = typesToCheck.some((type: string) => type === 'buy_x_get_y');
@@ -168,10 +227,10 @@ export default function ProductIntegration({
     
     // Filter discount types based on selected offer types (if any are selected)
     const typesToApply = selectedOfferTypes.length > 0 
-      ? discountTypes.filter((dt: any) => selectedOfferTypes.includes(dt.discountType))
+      ? discountTypes.filter((dt) => selectedOfferTypes.includes(dt.discountType))
       : discountTypes;
     
-    typesToApply.forEach((dt: any) => {
+    typesToApply.forEach((dt) => {
       if (dt.discountType === 'percentage') {
         totalDiscount += (productPrice * dt.discountValue) / 100;
       } else if (dt.discountType === 'fixed') {
@@ -864,7 +923,7 @@ export default function ProductIntegration({
                     <div className="space-y-3">
                       {/* Show all offer types with checkboxes */}
                       {offerTypes && offerTypes.length > 0 ? (
-                        offerTypes.map((offerType: any, index: number) => (
+                        offerTypes.map((offerType, index: number) => (
                           <div key={offerType.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
                             <div className="flex items-start gap-3">
                               <button
@@ -957,7 +1016,7 @@ export default function ProductIntegration({
                       <div className="space-y-3">
                         {/* Show all date ranges with checkboxes */}
                         {dateRanges && dateRanges.length > 0 ? (
-                          dateRanges.map((range: any, index: number) => (
+                          dateRanges.map((range, index: number) => (
                             <div key={range.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
                               <div className="flex items-start gap-3">
                                 <button
@@ -995,7 +1054,7 @@ export default function ProductIntegration({
                       <div className="space-y-3">
                         {/* Show all time slots with checkboxes */}
                         {timeSlots && timeSlots.length > 0 ? (
-                          timeSlots.map((slot: any, index: number) => (
+                          timeSlots.map((slot, index: number) => (
                             <div key={slot.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
                               <div className="flex items-start gap-3">
                                 <button
@@ -1083,7 +1142,7 @@ export default function ProductIntegration({
                       alert('Please select at least one active period (date range or time slot)');
                       return;
                     }
-                  if (isBatchEditMode) {
+                  if (isBatchEditMode && offerData) {
                     // In batch edit mode, update parent state
                     const existingProducts = offerData.products || [];
                     const newProducts = selectedProducts.map(productId => ({
@@ -1104,10 +1163,10 @@ export default function ProductIntegration({
                     });
                     
                     // Filter discount types to only include selected ones
-                    const filteredDiscountTypes = (offerData.discountTypes || []).map((dt: any) => ({
+                    const filteredDiscountTypes = offerData?.discountTypes?.map((dt) => ({
                       ...dt,
                       isActive: selectedOfferTypes.includes(dt.discountType) // Mark as active only if selected
-                    }));
+                    })) || [];
                     
                     onOfferChange!({ 
                       products: updatedProducts,
@@ -1203,8 +1262,8 @@ export default function ProductIntegration({
                       return p?.hasOffer;
                     });
                     
-                    const existingProducts = offerData.products || [];
-                    const updatedProducts = existingProducts.filter((p: any) => 
+                    const existingProducts = offerData?.products || [];
+                    const updatedProducts = existingProducts.filter((p) => 
                       !productsWithOffers.includes(p.productId)
                     );
                     

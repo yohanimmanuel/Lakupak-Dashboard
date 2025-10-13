@@ -19,7 +19,7 @@ interface OfferTypeData {
 interface CreateOfferTypeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingType?: any;
+  editingType?: Partial<OfferTypeData>;
   onSave: (typeData: OfferTypeData) => void;
 }
 
@@ -70,7 +70,7 @@ export default function CreateOfferTypeModal({
     }
   }, [editingType]);
 
-  const handleInputChange = (field: keyof OfferTypeData, value: any) => {
+  const handleInputChange = (field: keyof OfferTypeData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

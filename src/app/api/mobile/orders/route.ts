@@ -5,6 +5,30 @@ import {
   validateAuthInput 
 } from '../../../../utils/auth-security';
 
+interface OfferDiscountType {
+  id: string;
+  discountType: string;
+  discountValue: number;
+  minQuantity: number | null;
+  freeQuantity: number | null;
+  isActive: boolean;
+  description: string | null;
+}
+
+interface OrderItemInput {
+  productId: string;
+  quantity: number;
+  priceAtPurchase: string;
+  subtotal: string;
+  packageType?: string;
+  piecesPerPackage?: number;
+  packageQuantity?: number;
+  pricePerPackage?: string;
+  productName?: string;
+  productSku?: string;
+  category?: string;
+}
+
 const prisma = new PrismaClient();
 
 // GET /api/mobile/orders - Get mobile marketplace user's orders
@@ -112,7 +136,7 @@ export async function GET(request: NextRequest) {
     
     // Transform orders to include order items
     const ordersWithItems = orders.map(order => {
-      const orderItems = (order.orderItemsRel || []).map((oi: any) => ({
+      const orderItems = (order.orderItemsRel || []).map((oi) => ({
         productId: oi.productId ?? null,
         subtotal: oi.subtotal,
         packageType: oi.packageType,
@@ -314,7 +338,7 @@ export async function POST(request: NextRequest) {
         
         if (productOffers.length > 0) {
           const buyXGetYPromo = productOffers[0].offerDiscountTypes.find(
-            (dt: any) => dt.discountType === 'buy_x_get_y'
+            (dt) => dt.discountType === 'buy_x_get_y'
           );
           
           if (buyXGetYPromo) {
@@ -378,7 +402,7 @@ export async function POST(request: NextRequest) {
     
     // Create order items if provided
     if (Array.isArray(orderItems) && orderItems.length > 0) {
-      const orderItemPromises = orderItems.map(async (item: any) => {
+      const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
         // Fetch product to get offer information
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') }
@@ -415,12 +439,12 @@ export async function POST(request: NextRequest) {
           
           if (productOffers.length > 0) {
             const primaryOffer = productOffers[0];
-            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
             
-            const hasDiscount = activeDiscountTypes.some((dt: any) => 
+            const hasDiscount = activeDiscountTypes.some((dt) => 
               dt.discountType === 'percentage' || dt.discountType === 'fixed'
             );
-            const hasPromotion = activeDiscountTypes.some((dt: any) => 
+            const hasPromotion = activeDiscountTypes.some((dt) => 
               dt.discountType === 'buy_x_get_y'
             );
             
@@ -452,7 +476,7 @@ export async function POST(request: NextRequest) {
             }
             
             // Get Buy X Get Y promotion details
-            const buyXGetYPromo = activeDiscountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+            const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
             if (buyXGetYPromo) {
               promotionDetailsSnapshot = JSON.stringify({
                 minQuantity: buyXGetYPromo.minQuantity,

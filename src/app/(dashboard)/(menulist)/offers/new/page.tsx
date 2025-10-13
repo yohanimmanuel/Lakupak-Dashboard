@@ -243,7 +243,16 @@ export default function CreateOfferPage() {
     }
   };
 
-  const handleSaveOfferType = (typeData: any) => {
+  const handleSaveOfferType = (typeData: {
+    name?: string;
+    discountType: string;
+    discountValue: number;
+    description?: string;
+    minOrderValue?: number;
+    minQuantity?: number;
+    maxUsage?: number;
+    perCustomerLimit?: number;
+  }) => {
     // Add the discount type to the store with full fields so UI reflects user input
     addDiscountType({
       name: typeData.name,
@@ -270,7 +279,12 @@ export default function CreateOfferPage() {
     setShowCreateTypeModal(false);
   };
 
-  const handleSaveDateRange = (rangeData: any) => {
+  const handleSaveDateRange = (rangeData: {
+    name: string;
+    description?: string;
+    startDate: string | Date;
+    endDate: string | Date;
+  }) => {
     const id = `range_${Date.now()}`;
     addDateRange({
       id,
@@ -283,7 +297,13 @@ export default function CreateOfferPage() {
     setShowCreateRangeModal(false);
   };
 
-  const handleSaveTimeSlot = (slotData: any) => {
+  const handleSaveTimeSlot = (slotData: {
+    name: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    days: string[];
+  }) => {
     const id = `slot_${Date.now()}`;
     addTimeSlot({
       id,

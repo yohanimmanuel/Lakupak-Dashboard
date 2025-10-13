@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
 import { getProductSecurityHeaders } from '../../../utils/product-security';
 
+interface OfferDiscountType {
+  id: string;
+  discountType: string;
+  discountValue: number;
+  minQuantity: number | null;
+  freeQuantity?: number | null;
+  isActive: boolean;
+  description: string | null;
+}
+
+interface OfferProduct {
+  productId: string;
+}
+
+interface ActiveOffer {
+  id: string;
+  offerDiscountTypes: OfferDiscountType[];
+  offerProducts: OfferProduct[];
+}
+
 const prisma = new PrismaClient();
 
 // GET /api/marketplace - Get published products for marketplace
@@ -22,7 +42,7 @@ export async function GET(request: NextRequest) {
     };
     
     // Build OR conditions for filtering
-    const orConditions: any[] = [];
+    const orConditions: Record<string, unknown>[] = [];
     
     if (category && category !== 'All') {
       orConditions.push({ productType: category });
@@ -102,8 +122,8 @@ export async function GET(request: NextRequest) {
     
     // Create a map of product offers
     const productOffersMap = new Map();
-    activeOffers.forEach((offer: any) => {
-      offer.offerProducts.forEach((op: any) => {
+    activeOffers.forEach((offer) => {
+      offer.offerProducts.forEach((op) => {
         if (!productOffersMap.has(op.productId)) {
           productOffersMap.set(op.productId, []);
         }
@@ -147,12 +167,12 @@ export async function GET(request: NextRequest) {
         const primaryOffer = productOffers[0];
         
         // Filter to only ACTIVE discount types
-        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: OfferDiscountType) => dt.isActive !== false);
         
-        const hasDiscount = discountTypes.some((dt: any) => 
+        const hasDiscount = discountTypes.some((dt: OfferDiscountType) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
         );
-        const hasPromotion = discountTypes.some((dt: any) => 
+        const hasPromotion = discountTypes.some((dt: OfferDiscountType) => 
           dt.discountType === 'buy_x_get_y'
         );
         
@@ -167,7 +187,7 @@ export async function GET(request: NextRequest) {
         }
         
         // Get Buy X Get Y promotion details
-        const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+        const buyXGetYPromo = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
         if (buyXGetYPromo) {
           promotionDetails = {
             minQuantity: buyXGetYPromo.minQuantity,

@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-security';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -242,7 +243,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   }, [form, avatar, id, orderRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess]);
 
   // Enhanced file handling
-  const handleFileUpload = useCallback((file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
       handleError('File size must be less than 5MB');
       return;
@@ -253,10 +254,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       return;
     }
     
-    const reader = new FileReader();
-    reader.onload = (ev) => setAvatar(ev.target?.result as string);
-    reader.onerror = () => handleError('Failed to read image file');
-    reader.readAsDataURL(file);
+    try {
+      // Direct upload to Cloudinary (faster, no base64 conversion)
+      const result = await uploadToCloudinaryDirect(file, 'buyers');
+
+      if (result.success && result.url) {
+        setAvatar(result.url);
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      handleError(error instanceof Error ? error.message : 'Failed to upload image');
+    }
   }, [handleError]);
 
   // Enhanced accessibility

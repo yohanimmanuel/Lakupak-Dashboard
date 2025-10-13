@@ -13,7 +13,7 @@ interface DateRangeData {
 interface CreateDateRangeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingRange?: any;
+  editingRange?: Partial<DateRangeData>;
   onSave: (rangeData: DateRangeData) => void;
 }
 

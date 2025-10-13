@@ -8,13 +8,34 @@ import { useUserStore } from '@/store/userStore';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateOfferTypeModal from './CreateOfferTypeModal';
 
+interface DiscountTypeData {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
+  discountValue: number;
+  minOrderValue?: string | number | null;
+  minQuantity?: number | null;
+  freeQuantity?: number | null;
+  maxUsage?: number | null;
+  perCustomerLimit?: number | null;
+  isActive: boolean;
+  priority?: number;
+}
+
+interface OfferData {
+  id: string;
+  discountTypes: DiscountTypeData[];
+  [key: string]: unknown;
+}
+
 interface OfferTypeProps {
   isNewOffer?: boolean;
-  offerData?: any; // Offer data from database for details view
-  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
+  offerData?: OfferData;
+  onOfferChange?: (updatedData: Partial<OfferData>) => void;
   onOpenCreateModal?: () => void;
-  onAddDiscountType?: (discountType: any) => void;
-  onUpdateDiscountType?: (id: string, updates: any) => void;
+  onAddDiscountType?: (discountType: DiscountTypeData) => void;
+  onUpdateDiscountType?: (id: string, updates: Partial<DiscountTypeData>) => void;
   onRemoveDiscountType?: (id: string) => void;
 }
 
@@ -24,10 +45,10 @@ interface OfferType {
   description: string;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue?: string;
-  minQuantity?: number;
-  maxUsage?: number;
-  perCustomerLimit?: number;
+  minOrderValue?: string | number | null;
+  minQuantity?: number | null;
+  maxUsage?: number | null;
+  perCustomerLimit?: number | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -45,9 +66,9 @@ export default function OfferType({
   const userCurrency = user?.currency || getDefaultCurrency();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingType, setEditingType] = useState<OfferType | null>(null);
+  const [editingType, setEditingType] = useState<Partial<DiscountTypeData> | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [typeToDelete, setTypeToDelete] = useState<OfferType | null>(null);
+  const [typeToDelete, setTypeToDelete] = useState<DiscountTypeData | null>(null);
 
   // Use store for offer types instead of API
   const { 
@@ -62,7 +83,7 @@ export default function OfferType({
   const isBatchEditMode = Boolean(offerData && onOfferChange);
   
   // Convert discount types to display format
-  const offerTypes: OfferType[] = displayDiscountTypes.map((dt: any, index: number) => {
+  const offerTypes: OfferType[] = displayDiscountTypes.map((dt: DiscountTypeData, index: number) => {
     return {
       id: dt.id,
       name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
@@ -121,7 +142,7 @@ export default function OfferType({
   };
 
   const handleDelete = (typeId: string) => {
-    const discountType = displayDiscountTypes.find((dt: any) => dt.id === typeId);
+    const discountType = displayDiscountTypes.find((dt) => dt.id === typeId);
     if (discountType) {
       setTypeToDelete(discountType);
       setShowDeleteModal(true);
@@ -133,7 +154,7 @@ export default function OfferType({
 
     if (isBatchEditMode) {
       // In batch edit mode, update parent state
-      const updatedDiscountTypes = displayDiscountTypes.filter((dt: any) => dt.id !== typeToDelete.id);
+      const updatedDiscountTypes = displayDiscountTypes.filter((dt) => dt.id !== typeToDelete.id);
       onOfferChange!({ discountTypes: updatedDiscountTypes });
     } else {
       // In create view, remove from store
@@ -154,11 +175,11 @@ export default function OfferType({
 
   const handleToggleActive = (typeId: string) => {
     // Find the discount type and toggle its active state
-    const discountType = displayDiscountTypes.find((dt: any) => dt.id === typeId);
+    const discountType = displayDiscountTypes.find((dt) => dt.id === typeId);
     if (discountType) {
       if (isBatchEditMode) {
         // In batch edit mode, update parent state
-        const updatedDiscountTypes = displayDiscountTypes.map((dt: any) =>
+        const updatedDiscountTypes = displayDiscountTypes.map((dt) =>
           dt.id === typeId ? { ...dt, isActive: !dt.isActive } : dt
         );
         onOfferChange!({ discountTypes: updatedDiscountTypes });
@@ -318,7 +339,7 @@ export default function OfferType({
             setShowEditModal(false);
             setEditingType(null);
           }}
-          editingType={editingType}
+          editingType={editingType as any}
           onSave={(typeData) => {
             // Enforce single offer per type: update if exists, else add
             const discountTypeData = {
@@ -336,14 +357,14 @@ export default function OfferType({
             };
             
             // find existing by type
-            const existing = displayDiscountTypes.find((dt: any) => dt.discountType === typeData.discountType);
+            const existing = displayDiscountTypes.find((dt) => dt.discountType === typeData.discountType);
             
             if (isBatchEditMode) {
               // In batch edit mode, update parent state
               let updatedDiscountTypes;
               if (existing) {
                 // Update existing discount type
-                updatedDiscountTypes = displayDiscountTypes.map((dt: any) =>
+                updatedDiscountTypes = displayDiscountTypes.map((dt) =>
                   dt.id === existing.id ? { ...dt, ...discountTypeData } : dt
                 );
               } else {

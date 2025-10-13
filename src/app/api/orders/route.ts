@@ -12,6 +12,15 @@ import {
 import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { Order } from '@/generated/prisma';
 
+interface OfferDiscountType {
+  id: string;
+  discountType: string;
+  discountValue: number;
+  minQuantity: number | null;
+  freeQuantity: number | null;
+  isActive: boolean;
+  description: string | null;
+}
 
 const prisma = new PrismaClient();
 
@@ -99,7 +108,7 @@ export async function GET(request: NextRequest) {
         productDeleted: !oi.product,
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null,
+        productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
         // Offer snapshots from time of purchase
         offerApplied: (oi as any).offerApplied || false,
         offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
@@ -181,7 +190,7 @@ export async function GET(request: NextRequest) {
         productDeleted: !oi.product,
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
-        productCategorySnapshot: (oi as { productCategorySnapshot?: string }).productCategorySnapshot || null,
+        productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
         // Offer snapshots from time of purchase
         offerApplied: (oi as any).offerApplied || false,
         offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
@@ -450,12 +459,12 @@ export async function POST(request: NextRequest) {
           let enrichedProduct: any = { ...product };
           if (productOffers.length > 0) {
             const primaryOffer = productOffers[0];
-            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
             
-            const hasDiscount = activeDiscountTypes.some((dt: any) => 
+            const hasDiscount = activeDiscountTypes.some((dt) => 
               dt.discountType === 'percentage' || dt.discountType === 'fixed'
             );
-            const hasPromotion = activeDiscountTypes.some((dt: any) => 
+            const hasPromotion = activeDiscountTypes.some((dt) => 
               dt.discountType === 'buy_x_get_y'
             );
             
@@ -469,7 +478,7 @@ export async function POST(request: NextRequest) {
             }
             
             // Get Buy X Get Y promotion details
-            const buyXGetYPromo = activeDiscountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+            const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
             const promotionDetails = buyXGetYPromo ? {
               minQuantity: buyXGetYPromo.minQuantity,
               freeQuantity: buyXGetYPromo.discountValue,
@@ -569,13 +578,14 @@ export async function POST(request: NextRequest) {
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
-      category: (oi.product as any)?.productType || 'Uncategorized',
+      category: (oi.product as any)?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],
       productDeleted: !oi.product,
       productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
       productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
+      productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
       // Offer snapshots from time of purchase
       offerApplied: (oi as any).offerApplied || false,
       offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
@@ -817,7 +827,7 @@ export async function PUT(request: NextRequest) {
           updateData.isDeleted = false; // Also reset the soft delete flag
         }
         
-        // STOCK MANAGEMENT: Deduct stock when confirmed, restore when cancelled
+        // STOCK MANAGEMENT: Simple logic based on status
         const orderWithItems = await prisma.order.findUnique({
           where: { orderId: String(sanitizedData.orderId) },
           include: {
@@ -825,87 +835,12 @@ export async function PUT(request: NextRequest) {
           }
         });
         
-        console.log('🔍 Stock Management Check:', {
-          prevStatus,
-          nextStatus,
-          hasOrderItems: !!orderWithItems,
-          itemCount: orderWithItems?.orderItemsRel?.length || 0
-        });
+        const noDeductStatuses = ['Pending', 'Cancelled', 'Returned'];
+        const prevStatusNoDeduct = noDeductStatuses.includes(prevStatus);
+        const nextStatusNoDeduct = noDeductStatuses.includes(nextStatus);
         
-        // Deduct stock when order is confirmed
-        if (prevStatus === 'Pending' && nextStatus === 'Confirmed' && orderWithItems) {
-          console.log('✅ Deducting stock for order:', sanitizedData.orderId);
-          for (const orderItem of orderWithItems.orderItemsRel) {
-            if (!orderItem.productId) continue;
-            
-            const product = await prisma.product.findFirst({
-              where: { productId: orderItem.productId }
-            });
-            
-            if (!product) continue;
-            
-            // Calculate total quantity to deduct (including free items from promotion)
-            const orderedQty = orderItem.packageQuantity || 1;
-            let totalQtyToDeduct = orderedQty;
-            
-            // Check if there's a Buy X Get Y promotion
-            if (orderItem.promotionDetailsSnapshot) {
-              try {
-                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
-                const minQty = promoDetails.minQuantity || 1;
-                const freeQty = promoDetails.freeQuantity || 0;
-                
-                // Calculate free items
-                const qualifyingSets = Math.floor(orderedQty / minQty);
-                const totalFreeItems = qualifyingSets * freeQty;
-                totalQtyToDeduct = orderedQty + totalFreeItems;
-              } catch (e) {
-                // Invalid JSON, just use ordered quantity
-              }
-            }
-            
-            // Deduct stock
-            const newStock = product.stockQuantity - totalQtyToDeduct;
-            let newStockStatus = product.stockStatus;
-            
-            console.log(`📦 Deducting stock for ${product.name}:`, {
-              currentStock: product.stockQuantity,
-              orderedQty,
-              totalQtyToDeduct,
-              newStock,
-              promotionDetailsSnapshot: orderItem.promotionDetailsSnapshot
-            });
-            
-            // Update stock status based on threshold
-            if (newStock <= 0) {
-              newStockStatus = 'Out of Stock';
-            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
-              newStockStatus = 'Low Stock';
-            } else {
-              newStockStatus = 'In Stock';
-            }
-            
-            await prisma.product.update({
-              where: { productId: orderItem.productId },
-              data: {
-                stockQuantity: Math.max(0, newStock),
-                stockStatus: newStockStatus
-              }
-            });
-            
-            console.log(`✅ Stock updated for ${product.name}: ${product.stockQuantity} → ${newStock}`);
-          }
-        }
-        
-        // Restore stock when order moves away from 'Confirmed' status
-        const shouldRestoreStock = (
-          prevStatus === 'Confirmed' && 
-          (nextStatus === 'Cancelled' || nextStatus === 'Pending' || nextStatus === 'Returned')
-        ) && orderWithItems;
-        
-        if (shouldRestoreStock) {
-          console.log(`🔄 Restoring stock for order ${sanitizedData.orderId}: ${prevStatus} → ${nextStatus}`);
-          
+        // RESTORE STOCK: Moving TO Pending, Cancelled, or Returned from any other status
+        if (!prevStatusNoDeduct && nextStatusNoDeduct && orderWithItems) {
           for (const orderItem of orderWithItems.orderItemsRel) {
             if (!orderItem.productId) continue;
             
@@ -939,14 +874,6 @@ export async function PUT(request: NextRequest) {
             const newStock = product.stockQuantity + totalQtyToRestore;
             let newStockStatus = product.stockStatus;
             
-            console.log(`📦 Restoring stock for ${product.name}:`, {
-              currentStock: product.stockQuantity,
-              orderedQty,
-              totalQtyToRestore,
-              newStock,
-              promotionDetailsSnapshot: orderItem.promotionDetailsSnapshot
-            });
-            
             // Update stock status based on threshold
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
@@ -963,8 +890,60 @@ export async function PUT(request: NextRequest) {
                 stockStatus: newStockStatus
               }
             });
+          }
+        }
+        
+        // DEDUCT STOCK: Moving FROM Pending, Cancelled, or Returned TO any other status
+        if (prevStatusNoDeduct && !nextStatusNoDeduct && orderWithItems) {
+          for (const orderItem of orderWithItems.orderItemsRel) {
+            if (!orderItem.productId) continue;
             
-            console.log(`✅ Stock restored for ${product.name}: ${product.stockQuantity} → ${newStock}`);
+            const product = await prisma.product.findFirst({
+              where: { productId: orderItem.productId }
+            });
+            
+            if (!product) continue;
+            
+            // Calculate total quantity to deduct (including free items from promotion)
+            const orderedQty = orderItem.packageQuantity || 1;
+            let totalQtyToDeduct = orderedQty;
+            
+            // Check if there's a Buy X Get Y promotion
+            if (orderItem.promotionDetailsSnapshot) {
+              try {
+                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
+                const minQty = promoDetails.minQuantity || 1;
+                const freeQty = promoDetails.freeQuantity || 0;
+                
+                // Calculate free items
+                const qualifyingSets = Math.floor(orderedQty / minQty);
+                const totalFreeItems = qualifyingSets * freeQty;
+                totalQtyToDeduct = orderedQty + totalFreeItems;
+              } catch (e) {
+                // Invalid JSON, just use ordered quantity
+              }
+            }
+            
+            // Deduct stock
+            const newStock = product.stockQuantity - totalQtyToDeduct;
+            let newStockStatus = product.stockStatus;
+            
+            // Update stock status based on threshold
+            if (newStock <= 0) {
+              newStockStatus = 'Out of Stock';
+            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
+              newStockStatus = 'Low Stock';
+            } else {
+              newStockStatus = 'In Stock';
+            }
+            
+            await prisma.product.update({
+              where: { productId: orderItem.productId },
+              data: {
+                stockQuantity: Math.max(0, newStock),
+                stockStatus: newStockStatus
+              }
+            });
           }
         }
       }
@@ -1032,7 +1011,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build items from relational rows for response
-    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; category: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productCategorySnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
+    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
       productId: oi.productId ?? null,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
@@ -1040,13 +1019,14 @@ export async function PUT(request: NextRequest) {
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
-      category: (oi.product as any)?.productType || 'Uncategorized',
+      category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],
       productDeleted: !oi.product,
       productNameSnapshot: oi.productNameSnapshot || null,
-      productSkuSnapshot: oi.productSkuSnapshot || null
+      productSkuSnapshot: oi.productSkuSnapshot || null,
+      productTypeSnapshot: oi.productTypeSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });

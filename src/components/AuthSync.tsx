@@ -22,7 +22,7 @@ export function AuthSync() {
         location?: string;
         avatar?: string;
         companyId?: number | null;
-        company?: any;
+        company?: Record<string, unknown> | null;
         region?: string;
         currency?: string;
         language?: string;
@@ -43,7 +43,7 @@ export function AuthSync() {
           location: sessionUser.location || '',
           avatar: sessionUser.avatar || sessionUser.image || '',
           companyId: sessionUser.companyId ?? undefined,
-          company: sessionUser.company ?? undefined,
+          company: sessionUser.company as any,
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
           language: sessionUser.language || 'en',

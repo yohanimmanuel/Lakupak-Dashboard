@@ -46,10 +46,10 @@ export default function OffersDetailsPage() {
           
           // Get only active discount types
           const activeDiscountTypes = (offer.discountTypes || [])
-            .filter((dt: any) => dt.isActive !== false)
-            .map((dt: any) => dt.discountType);
+            .filter((dt) => dt.isActive !== false)
+            .map((dt) => dt.discountType);
           
-          offer.products?.forEach((product: any) => {
+          offer.products?.forEach((product) => {
             if (product.productId) {
               // Determine badge based on active discount types
               const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
@@ -105,10 +105,10 @@ export default function OffersDetailsPage() {
         
         // Get only active discount types
         const activeDiscountTypes = (offer.discountTypes || [])
-          .filter((dt: any) => dt.isActive !== false)
-          .map((dt: any) => dt.discountType);
+          .filter((dt) => dt.isActive !== false)
+          .map((dt) => dt.discountType);
         
-        offer.products?.forEach((product: any) => {
+        offer.products?.forEach((product) => {
           if (product.productId) {
             // Determine badge based on active discount types
             const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');

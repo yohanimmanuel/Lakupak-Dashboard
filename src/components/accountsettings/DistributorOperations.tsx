@@ -5,6 +5,7 @@ import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Ph
 import { useUserStore } from '@/store/userStore';
 import { getCurrencySymbol, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatNumberByCurrency } from '@/config/currencyConfig';
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
 interface CompanyProfileData {
   // Company Information
@@ -280,7 +281,7 @@ export default function DistributorOperations() {
     }
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
@@ -298,28 +299,23 @@ export default function DistributorOperations() {
       setIsLoading(true);
       setError(null);
 
-      // Use FileReader to convert to base64 data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result;
-        if (result) {
-          setFormData(prev => ({ ...prev, companyLogo: result as string }));
-        }
-        setIsLoading(false);
-      };
-      reader.onerror = () => {
-        setError('Failed to read image file');
-        setIsLoading(false);
-      };
-      reader.readAsDataURL(file);
+      // Direct upload to Cloudinary (faster, no base64 conversion)
+      const result = await uploadToCloudinaryDirect(file, 'company/logos');
 
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, companyLogo: result.url || null }));
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      setIsLoading(false);
     } catch (err) {
-      setError('Failed to process image. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
       setIsLoading(false);
     }
   };
 
-  const handleBannerUpload = (file: File) => {
+  const handleBannerUpload = async (file: File) => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
@@ -337,23 +333,18 @@ export default function DistributorOperations() {
       setIsLoading(true);
       setError(null);
 
-      // Use FileReader to convert to base64 data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result;
-        if (result) {
-          setFormData(prev => ({ ...prev, companyBanner: result as string }));
-        }
-        setIsLoading(false);
-      };
-      reader.onerror = () => {
-        setError('Failed to read image file');
-        setIsLoading(false);
-      };
-      reader.readAsDataURL(file);
+      // Direct upload to Cloudinary (faster, no base64 conversion)
+      const result = await uploadToCloudinaryDirect(file, 'company/banners');
 
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, companyBanner: result.url || null }));
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      setIsLoading(false);
     } catch (err) {
-      setError('Failed to process image. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
       setIsLoading(false);
     }
   };

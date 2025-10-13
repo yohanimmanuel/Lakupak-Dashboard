@@ -3,6 +3,16 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
+import type { Prisma } from '@prisma/client';
+import type {
+  OfferDiscountTypeResult,
+  OfferProductResult,
+  DateRangeResult,
+  TimeSlotResult,
+  DiscountTypeInput,
+  DateRangeInput,
+  TimeSlotInput,
+} from '@/types/offer-api';
 
 // Extended session user type to include the id property
 interface ExtendedUser {
@@ -36,7 +46,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {
+    const where: Record<string, unknown> = {
       userId: user.id,
     };
 
@@ -80,14 +90,14 @@ export async function GET(request: NextRequest) {
     const totalCount = await prisma.offer.count({ where });
 
     // Transform the response
-    const transformedOffers = offers.map((offer: any) => ({
+    const transformedOffers = offers.map((offer) => ({
       id: offer.id,
       offerId: offer.offerId,
       name: offer.name,
       description: offer.description,
       type: offer.type,
       status: offer.status,
-      discountTypes: offer.offerDiscountTypes.map((dt: any) => ({
+      discountTypes: offer.offerDiscountTypes.map((dt) => ({
         id: dt.id,
         discountType: dt.discountType,
         discountValue: dt.discountValue,
@@ -104,7 +114,7 @@ export async function GET(request: NextRequest) {
       endDate: offer.endDate,
       totalUsage: offer.totalUsage,
       totalDiscountGiven: offer.totalDiscountGiven,
-      products: offer.offerProducts.map((op: any) => ({
+      products: offer.offerProducts.map((op) => ({
         id: op.id,
         productId: op.product.productId,
         name: op.product.name,
@@ -112,7 +122,7 @@ export async function GET(request: NextRequest) {
         productCategory: op.product.productCategory,
         sellingPrice: op.product.sellingPrice,
       })),
-      dateRanges: offer.dateRanges?.map((dr: any) => ({
+      dateRanges: offer.dateRanges?.map((dr) => ({
         id: dr.id,
         name: dr.name,
         description: dr.description,
@@ -120,7 +130,7 @@ export async function GET(request: NextRequest) {
         endDate: dr.endDate,
         isActive: dr.isActive,
       })) || [],
-      timeSlots: offer.timeSlots?.map((ts: any) => ({
+      timeSlots: offer.timeSlots?.map((ts) => ({
         id: ts.id,
         name: ts.name,
         description: ts.description,
@@ -239,7 +249,7 @@ export async function POST(request: NextRequest) {
     const offerId = `OFF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Create offer with products in a transaction
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the offer
       const offer = await tx.offer.create({
         data: {
@@ -256,7 +266,7 @@ export async function POST(request: NextRequest) {
 
       // Create discount types
       const offerDiscountTypes = await tx.offerDiscountType.createMany({
-        data: discountTypes.map((dt: any) => ({
+        data: discountTypes.map((dt: DiscountTypeInput) => ({
           offerId: offer.id,
           discountType: dt.discountType,
           discountValue: dt.discountValue,
@@ -284,12 +294,12 @@ export async function POST(request: NextRequest) {
       // Create date ranges
       if (dateRanges.length > 0) {
         await tx.dateRange.createMany({
-          data: dateRanges.map((dr: any) => ({
+          data: dateRanges.map((dr: DateRangeInput) => ({
             offerId: offer.id,
             name: dr.name,
             description: dr.description,
-            startDate: new Date(dr.startDate),
-            endDate: new Date(dr.endDate),
+            startDate: dr.startDate ? new Date(dr.startDate) : new Date(),
+            endDate: dr.endDate ? new Date(dr.endDate) : new Date(),
             isActive: dr.isActive ?? true,
           })),
         });
@@ -298,7 +308,7 @@ export async function POST(request: NextRequest) {
       // Create time slots
       if (timeSlots.length > 0) {
         await tx.timeSlot.createMany({
-          data: timeSlots.map((ts: any) => ({
+          data: timeSlots.map((ts: TimeSlotInput) => ({
             offerId: offer.id,
             name: ts.name,
             description: ts.description,
@@ -346,7 +356,7 @@ export async function POST(request: NextRequest) {
       description: createdOffer!.description,
       type: createdOffer!.type,
       status: createdOffer!.status,
-      discountTypes: createdOffer!.offerDiscountTypes.map((dt: any) => ({
+      discountTypes: createdOffer!.offerDiscountTypes.map((dt) => ({
         id: dt.id,
         discountType: dt.discountType,
         discountValue: dt.discountValue,
@@ -363,7 +373,7 @@ export async function POST(request: NextRequest) {
       endDate: createdOffer!.endDate,
       totalUsage: createdOffer!.totalUsage,
       totalDiscountGiven: createdOffer!.totalDiscountGiven,
-      products: createdOffer!.offerProducts.map((op: any) => ({
+      products: createdOffer!.offerProducts.map((op) => ({
         id: op.id,
         productId: op.product.productId,
         name: op.product.name,
@@ -371,7 +381,7 @@ export async function POST(request: NextRequest) {
         productCategory: op.product.productCategory,
         sellingPrice: op.product.sellingPrice,
       })),
-      dateRanges: createdOffer!.dateRanges?.map((dr: any) => ({
+      dateRanges: createdOffer!.dateRanges?.map((dr) => ({
         id: dr.id,
         name: dr.name,
         description: dr.description,
@@ -379,7 +389,7 @@ export async function POST(request: NextRequest) {
         endDate: dr.endDate,
         isActive: dr.isActive,
       })) || [],
-      timeSlots: createdOffer!.timeSlots?.map((ts: any) => ({
+      timeSlots: createdOffer!.timeSlots?.map((ts) => ({
         id: ts.id,
         name: ts.name,
         description: ts.description,
@@ -402,7 +412,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to update product prices based on active offers
-async function updateProductPricesFromOffers(tx: any, userId: number) {
+async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
     // Get all products for this user
     const allProducts = await tx.product.findMany({
@@ -443,7 +453,13 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
     });
 
     // Create a map of products with offers
-    const productsWithOffers = new Map<string, any>();
+    const productsWithOffers = new Map<string, { 
+      productId: string;
+      offerId: string; 
+      offerBadge: string;
+      originalPrice: number;
+      bestDiscount: { price: number; offerName: string } | null;
+    }>();
 
     for (const offer of activeOffers) {
       for (const offerProduct of offer.offerProducts) {
@@ -458,6 +474,8 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
         if (!productsWithOffers.has(productId)) {
           productsWithOffers.set(productId, {
             productId,
+            offerId: offer.id,
+            offerBadge: '',
             originalPrice,
             bestDiscount: null,
           });
@@ -476,12 +494,10 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
 
           // Keep the best discount (lowest price)
           const productData = productsWithOffers.get(productId);
-          if (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price) {
+          if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
             productData.bestDiscount = {
               price: discountedPrice,
-              offerId: offer.id,
-              discountType: discountType.discountType,
-              discountValue: discountType.discountValue,
+              offerName: offer.name,
             };
           }
         }
@@ -517,7 +533,5 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
       }
     }
   } catch (error) {
-    console.error('Error updating product prices from offers:', error);
-    // Don't throw error to avoid breaking the main transaction
   }
 }

@@ -5,6 +5,7 @@ import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
@@ -33,6 +34,26 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
   
+  // POD file upload handler
+  const handlePodUpload = async (file: File) => {
+    if (!file) return;
+    
+    setPodFileName(file.name);
+    
+    try {
+      // Direct upload to Cloudinary (faster, no base64 conversion)
+      const result = await uploadToCloudinaryDirect(file, 'orders/pod');
+
+      if (result.success && result.url) {
+        setFormFields({ ...formFields, pod: result.url });
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      alert(`Failed to upload POD: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+  
   // Use buyerId snapshot when buyer is deleted (FK set null)
   const buyerIdDisplay = order.buyerId || order.buyerIdSnapshot || '';
   const buyerHref = order.buyerId
@@ -49,7 +70,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
    
   // Extract unique offer badges from order items
   const getOrderOfferBadges = () => {
-    const badges: Array<{ type: string; details?: any }> = [];
+    const badges: Array<{ type: string; details?: Record<string, unknown> }> = [];
     const seenTypes = new Set<string>();
     
     order.orderItems?.forEach(item => {
@@ -90,7 +111,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   };
   
   // Calculate promotion free items for an order item
-  const calculatePromotionGift = (item: any) => {
+  const calculatePromotionGift = (item: { 
+    promotionDetailsSnapshot?: string | null;
+    packageQuantity?: number;
+  }) => {
     if (!item.promotionDetailsSnapshot) return null;
     
     try {
@@ -478,7 +502,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 
-                        className="text-sm font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
+                        className="text-xs font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
                         onClick={() => {
                           const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
                           window.location.href = href;
@@ -497,12 +521,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       )}
                     </div>
                     <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
-                    <p className="text-xs text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
                   </div>
                   
                   {/* Package Information */}
                   <div className="text-right">
-                    <p className="text-xs text-gray-600 mb-1">
+                    <p className="text-xs text-gray-600">
                       Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -784,13 +807,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         e.preventDefault();
                         e.stopPropagation();
                         const file = e.dataTransfer.files?.[0];
-                        if (!file) return;
-                        setPodFileName(file.name);
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          setFormFields({ ...formFields, pod: String(reader.result || '') });
-                        };
-                        reader.readAsDataURL(file);
+                        if (file) handlePodUpload(file);
                       }}
                       onClick={() => document.getElementById('pod-file-input')?.click()}
                       role="button"
@@ -803,13 +820,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (!file) return;
-                          setPodFileName(file.name);
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            setFormFields({ ...formFields, pod: String(reader.result || '') });
-                          };
-                          reader.readAsDataURL(file);
+                          if (file) handlePodUpload(file);
                         }}
                       />
                       <div className="text-xs text-gray-600">

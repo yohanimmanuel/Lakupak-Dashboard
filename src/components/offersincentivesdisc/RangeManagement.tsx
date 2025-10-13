@@ -6,16 +6,43 @@ import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateDateRangeModal from './CreateDateRangeModal';
 import CreateTimeSlotModal from './CreateTimeSlotModal';
 
+interface DatabaseDateRange {
+  id: string;
+  name: string;
+  description?: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  isActive: boolean;
+  createdAt?: Date | string;
+}
+
+interface DatabaseTimeSlot {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  days?: string[];
+  isActive: boolean;
+  createdAt?: Date | string;
+}
+
+interface OfferData {
+  id: string;
+  dateRanges?: DatabaseDateRange[];
+  timeSlots?: DatabaseTimeSlot[];
+  [key: string]: unknown;
+}
+
 interface RangeManagementProps {
   isNewOffer?: boolean;
-  offerData?: any; // Offer data from database for details view
-  onOfferChange?: (updatedData: any) => void; // Callback for batch edit mode
+  offerData?: OfferData;
+  onOfferChange?: (updatedData: Partial<OfferData>) => void;
   onOpenDateModal?: () => void;
   onOpenTimeModal?: () => void;
-  selectedDateRange?: any;
-  selectedTimeSlot?: any;
-  onSelectDateRange?: (dateRange: any) => void;
-  onSelectTimeSlot?: (timeSlot: any) => void;
+  selectedDateRange?: DateRange;
+  selectedTimeSlot?: TimeSlot;
+  onSelectDateRange?: (dateRange: DateRange) => void;
+  onSelectTimeSlot?: (timeSlot: TimeSlot) => void;
 }
 
 interface DateRange {
@@ -67,15 +94,16 @@ export default function RangeManagement({
   
   if (offerData) {
     // Use data from database for details view
-    dateRanges = (offerData.dateRanges || []).map((dr: any) => ({
+    dateRanges = (offerData.dateRanges || []).map((dr) => ({
       ...dr,
+      description: dr.description || '',
       offerCount: 0,
-      createdAt: dr.createdAt || new Date().toISOString(),
+      createdAt: dr.createdAt ? new Date(dr.createdAt).toISOString() : new Date().toISOString(),
       // Convert ISO dates to yyyy-MM-dd format for HTML date inputs
-      startDate: dr.startDate ? new Date(dr.startDate).toISOString().split('T')[0] : dr.startDate,
-      endDate: dr.endDate ? new Date(dr.endDate).toISOString().split('T')[0] : dr.endDate,
+      startDate: dr.startDate ? new Date(dr.startDate).toISOString().split('T')[0] : '',
+      endDate: dr.endDate ? new Date(dr.endDate).toISOString().split('T')[0] : '',
     }));
-    timeSlots = (offerData.timeSlots || []).map((ts: any) => ({
+    timeSlots = (offerData.timeSlots || []).map((ts) => ({
       ...ts,
       offerCount: 0,
       createdAt: ts.createdAt || new Date().toISOString(),

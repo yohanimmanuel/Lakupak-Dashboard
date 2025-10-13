@@ -3,6 +3,25 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
+import type {
+  DiscountTypeInput,
+  DiscountTypeUpdate,
+  DateRangeInput,
+  DateRangeUpdate,
+  TimeSlotInput,
+  TimeSlotUpdate,
+  ProductInput,
+  OfferUpdateInput,
+  BatchOfferUpdate,
+  RemoveProductsInput,
+  AddProductsInput,
+  OfferDiscountTypeResult,
+  OfferProductResult,
+  DateRangeResult,
+  TimeSlotResult,
+  OfferWithRelations,
+} from '@/types/offer-api';
+import type { Prisma } from '@prisma/client';
 
 // Extended session user type to include the id property
 interface ExtendedUser {
@@ -81,7 +100,7 @@ export async function GET(
       endDate: offer.endDate,
       totalUsage: offer.totalUsage,
       totalDiscountGiven: offer.totalDiscountGiven,
-      discountTypes: offer.offerDiscountTypes.map((dt: any) => ({
+      discountTypes: offer.offerDiscountTypes.map((dt) => ({
         id: dt.id,
         discountType: dt.discountType,
         discountValue: dt.discountValue,
@@ -94,7 +113,7 @@ export async function GET(
         isActive: dt.isActive,
         priority: dt.priority,
       })),
-      products: offer.offerProducts.map((op: any) => ({
+      products: offer.offerProducts.map((op) => ({
         id: op.id,
         productId: op.product.productId,
         name: op.product.name,
@@ -105,7 +124,7 @@ export async function GET(
         status: op.product.status,
         stock: op.product.stockQuantity,
       })),
-      dateRanges: offer.dateRanges?.map((dr: any) => ({
+      dateRanges: offer.dateRanges?.map((dr) => ({
         id: dr.id,
         name: dr.name,
         description: dr.description,
@@ -113,7 +132,7 @@ export async function GET(
         endDate: dr.endDate,
         isActive: dr.isActive,
       })) || [],
-      timeSlots: offer.timeSlots?.map((ts: any) => ({
+      timeSlots: offer.timeSlots?.map((ts) => ({
         id: ts.id,
         name: ts.name,
         description: ts.description,
@@ -263,7 +282,7 @@ export async function DELETE(
 }
 
 // Helper functions for different operations
-async function updateDiscountType(discountTypeId: string, userId: number, data: any) {
+async function updateDiscountType(discountTypeId: string, userId: number, data: DiscountTypeUpdate) {
   // Check if discount type exists and belongs to user's offer
   const existingDiscountType = await prisma.offerDiscountType.findFirst({
     where: {
@@ -303,7 +322,7 @@ async function updateDiscountType(discountTypeId: string, userId: number, data: 
   });
 }
 
-async function updateDateRange(dateRangeId: string, userId: number, data: any) {
+async function updateDateRange(dateRangeId: string, userId: number, data: DateRangeUpdate) {
   // Check if date range exists and belongs to user's offer
   const existingDateRange = await prisma.dateRange.findFirst({
     where: {
@@ -327,8 +346,8 @@ async function updateDateRange(dateRangeId: string, userId: number, data: any) {
     data: {
       name: data.name,
       description: data.description,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
+      endDate: data.endDate ? new Date(data.endDate) : undefined,
       isActive: data.isActive,
     },
   });
@@ -339,7 +358,7 @@ async function updateDateRange(dateRangeId: string, userId: number, data: any) {
   });
 }
 
-async function updateTimeSlot(timeSlotId: string, userId: number, data: any) {
+async function updateTimeSlot(timeSlotId: string, userId: number, data: TimeSlotUpdate) {
   // Check if time slot exists and belongs to user's offer
   const existingTimeSlot = await prisma.timeSlot.findFirst({
     where: {
@@ -365,7 +384,7 @@ async function updateTimeSlot(timeSlotId: string, userId: number, data: any) {
       description: data.description,
       startTime: data.startTime,
       endTime: data.endTime,
-      days: data.days || [],
+      days: (data.days as unknown) as string[],
       isActive: data.isActive,
     },
   });
@@ -376,7 +395,7 @@ async function updateTimeSlot(timeSlotId: string, userId: number, data: any) {
   });
 }
 
-async function updateOffer(offerId: string, userId: number, data: any) {
+async function updateOffer(offerId: string, userId: number, data: OfferUpdateInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -398,7 +417,7 @@ async function updateOffer(offerId: string, userId: number, data: any) {
     data: {
       name: data.name,
       description: data.description,
-      type: data.type,
+      type: (data.type as unknown) as string[],
       status: data.status,
       startDate: data.startDate ? new Date(data.startDate) : undefined,
       endDate: data.endDate ? new Date(data.endDate) : undefined,
@@ -518,7 +537,7 @@ async function deleteOffer(offerId: string, userId: number) {
   return NextResponse.json({ message: 'Offer deleted successfully' });
 }
 
-async function removeProductsFromOffer(offerId: string, userId: number, data: any) {
+async function removeProductsFromOffer(offerId: string, userId: number, data: RemoveProductsInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -559,7 +578,7 @@ async function removeProductsFromOffer(offerId: string, userId: number, data: an
 }
 
 // Helper function to create a new discount type for an existing offer
-async function createDiscountType(offerId: string, userId: number, data: any) {
+async function createDiscountType(offerId: string, userId: number, data: DiscountTypeInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -576,20 +595,22 @@ async function createDiscountType(offerId: string, userId: number, data: any) {
   }
 
   // Parse minOrderValue if it's a string
-  let parsedMinOrderValue = data.minOrderValue;
+  let parsedMinOrderValue: number = 0;
   if (typeof data.minOrderValue === 'string' && data.minOrderValue) {
     parsedMinOrderValue = parseFloat(data.minOrderValue.replace(/\./g, ''));
+  } else if (typeof data.minOrderValue === 'number') {
+    parsedMinOrderValue = data.minOrderValue;
   }
 
   // Create the discount type
   const discountType = await prisma.offerDiscountType.create({
     data: {
       offerId: offerId,
-      name: data.name,
+      name: data.name || '',
       description: data.description || '',
-      discountType: data.discountType,
+      discountType: data.discountType || '',
       discountValue: data.discountValue || 0,
-      minOrderValue: parsedMinOrderValue || 0,
+      minOrderValue: parsedMinOrderValue,
       minQuantity: data.minQuantity || 0,
       maxUsage: data.maxUsage || 0,
       perCustomerLimit: data.perCustomerLimit || 0,
@@ -602,7 +623,7 @@ async function createDiscountType(offerId: string, userId: number, data: any) {
 }
 
 // Helper function to create a new date range for an existing offer
-async function createDateRange(offerId: string, userId: number, data: any) {
+async function createDateRange(offerId: string, userId: number, data: DateRangeInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -622,9 +643,10 @@ async function createDateRange(offerId: string, userId: number, data: any) {
   const dateRange = await prisma.dateRange.create({
     data: {
       offerId: offerId,
-      name: data.name,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      name: data.name || '',
+      description: data.description,
+      startDate: data.startDate ? new Date(data.startDate) : new Date(),
+      endDate: data.endDate ? new Date(data.endDate) : new Date(),
       isActive: data.isActive ?? true,
     },
   });
@@ -633,7 +655,7 @@ async function createDateRange(offerId: string, userId: number, data: any) {
 }
 
 // Helper function to create a new time slot for an existing offer
-async function createTimeSlot(offerId: string, userId: number, data: any) {
+async function createTimeSlot(offerId: string, userId: number, data: TimeSlotInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -653,10 +675,11 @@ async function createTimeSlot(offerId: string, userId: number, data: any) {
   const timeSlot = await prisma.timeSlot.create({
     data: {
       offerId: offerId,
-      name: data.name,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      days: data.days || [],
+      name: data.name || '',
+      description: data.description,
+      startTime: data.startTime || '',
+      endTime: data.endTime || '',
+      days: (data.days as unknown) as string[],
       isActive: data.isActive ?? true,
     },
   });
@@ -665,7 +688,7 @@ async function createTimeSlot(offerId: string, userId: number, data: any) {
 }
 
 // Helper function to add products to an existing offer
-async function addProductsToOffer(offerId: string, userId: number, data: any) {
+async function addProductsToOffer(offerId: string, userId: number, data: AddProductsInput) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -703,7 +726,7 @@ async function addProductsToOffer(offerId: string, userId: number, data: any) {
 }
 
 // Helper function to batch update all offer data at once
-async function batchUpdateOffer(offerId: string, userId: number, data: any) {
+async function batchUpdateOffer(offerId: string, userId: number, data: BatchOfferUpdate) {
   // Check if offer exists and belongs to user
   const existingOffer = await prisma.offer.findFirst({
     where: {
@@ -725,12 +748,12 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
     // Determine offer types based on discount types
     let offerTypes: string[] = [];
     if (discountTypes && discountTypes.length > 0) {
-      const activeDiscountTypes = discountTypes.filter((dt: any) => dt.isActive !== false);
+      const activeDiscountTypes = discountTypes.filter((dt) => dt.isActive !== false);
       
-      if (activeDiscountTypes.some((dt: any) => dt.discountType === 'percentage' || dt.discountType === 'fixed')) {
+      if (activeDiscountTypes.some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed')) {
         offerTypes.push('discount');
       }
-      if (activeDiscountTypes.some((dt: any) => dt.discountType === 'buy_x_get_y')) {
+      if (activeDiscountTypes.some((dt) => dt.discountType === 'buy_x_get_y')) {
         offerTypes.push('promotion');
       }
       
@@ -764,12 +787,12 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
         // Create new discount types
         if (discountTypes.length > 0) {
           await tx.offerDiscountType.createMany({
-            data: discountTypes.map((dt: any) => ({
+            data: discountTypes.map((dt) => ({
               offerId,
-              discountType: dt.discountType,
-              discountValue: dt.discountValue,
-              name: dt.name,
-              description: dt.description,
+              discountType: dt.discountType || 'percentage',
+              discountValue: dt.discountValue || 0,
+              name: dt.name || '',
+              description: dt.description || '',
               minOrderValue: dt.minOrderValue ? (typeof dt.minOrderValue === 'string' ? parseFloat(dt.minOrderValue.replace(/\./g, '')) : dt.minOrderValue) : null,
               minQuantity: dt.minQuantity,
               maxUsage: dt.maxUsage,
@@ -791,12 +814,12 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
         // Create new date ranges
         if (dateRanges.length > 0) {
           await tx.dateRange.createMany({
-            data: dateRanges.map((dr: any) => ({
+            data: dateRanges.map((dr) => ({
               offerId,
-              name: dr.name,
-              description: dr.description,
-              startDate: new Date(dr.startDate),
-              endDate: new Date(dr.endDate),
+              name: dr.name || '',
+              description: dr.description || '',
+              startDate: dr.startDate ? new Date(dr.startDate) : new Date(),
+              endDate: dr.endDate ? new Date(dr.endDate) : new Date(),
               isActive: dr.isActive ?? true,
             })),
           });
@@ -813,13 +836,13 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
         // Create new time slots
         if (timeSlots.length > 0) {
           await tx.timeSlot.createMany({
-            data: timeSlots.map((ts: any) => ({
+            data: timeSlots.map((ts) => ({
               offerId,
-              name: ts.name,
-              description: ts.description,
-              startTime: ts.startTime,
-              endTime: ts.endTime,
-              days: ts.days || [],
+              name: ts.name || '',
+              description: ts.description || '',
+              startTime: ts.startTime || '00:00',
+              endTime: ts.endTime || '23:59',
+              days: (typeof ts.days === 'string' ? [ts.days] : ts.days) || [],
               isActive: ts.isActive ?? true,
             })),
           });
@@ -836,7 +859,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
         // Create new offer products
         if (products.length > 0) {
           await tx.offerProduct.createMany({
-            data: products.map((p: any) => ({
+            data: products.map((p) => ({
               offerId,
               productId: p.productId,
             })),
@@ -859,7 +882,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: any) {
 }
 
 // Helper function to update product prices based on active offers
-async function updateProductPricesFromOffers(tx: any, userId: number) {
+async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
     // Get all products for this user
     const allProducts = await tx.product.findMany({
@@ -900,7 +923,13 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
     });
 
     // Create a map of products with offers
-    const productsWithOffers = new Map<string, any>();
+    const productsWithOffers = new Map<string, { 
+      productId: string;
+      offerId: string; 
+      offerBadge: string;
+      originalPrice: number;
+      bestDiscount: { price: number; offerName: string } | null;
+    }>();
 
     for (const offer of activeOffers) {
       for (const offerProduct of offer.offerProducts) {
@@ -915,13 +944,15 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
         if (!productsWithOffers.has(productId)) {
           productsWithOffers.set(productId, {
             productId,
+            offerId: offer.id,
+            offerBadge: '',
             originalPrice,
             bestDiscount: null,
           });
         }
 
         // Calculate discount for this offer using only ACTIVE discount types
-        const activeDiscountTypes = offer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+        const activeDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean }) => dt.isActive !== false);
         
         for (const discountType of activeDiscountTypes) {
           let discountedPrice = originalPrice;
@@ -935,12 +966,10 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
 
           // Keep the best discount (lowest price)
           const productData = productsWithOffers.get(productId);
-          if (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price) {
+          if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
             productData.bestDiscount = {
               price: discountedPrice,
-              offerId: offer.id,
-              discountType: discountType.discountType,
-              discountValue: discountType.discountValue,
+              offerName: offer.name,
             };
           }
         }
@@ -976,7 +1005,5 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
       }
     }
   } catch (error) {
-    console.error('Error updating product prices from offers:', error);
-    // Don't throw error to avoid breaking the main transaction
   }
 }

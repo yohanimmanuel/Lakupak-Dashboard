@@ -9,6 +9,25 @@ import {
 } from '../../../utils/product-security';
 import { parseNumberByCurrency } from '../../../config/currencyConfig';
 
+interface OfferDiscountType {
+  id: string;
+  discountType: string;
+  discountValue: number;
+  minQuantity: number | null;
+  freeQuantity: number | null;
+  isActive: boolean;
+}
+
+interface OfferProduct {
+  productId: string;
+}
+
+interface ActiveOffer {
+  id: string;
+  offerDiscountTypes: OfferDiscountType[];
+  offerProducts: OfferProduct[];
+}
+
 
 const prisma = new PrismaClient();
 
@@ -80,15 +99,15 @@ export async function GET(req: NextRequest) {
       });
       
       if (activeOffers.length > 0) {
-        const primaryOffer = activeOffers[0] as any;
+        const primaryOffer = activeOffers[0];
         
         // Filter to only ACTIVE discount types
-        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
         
-        const hasDiscount = discountTypes.some((dt: any) => 
+        const hasDiscount = discountTypes.some((dt) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
         );
-        const hasPromotion = discountTypes.some((dt: any) => 
+        const hasPromotion = discountTypes.some((dt) => 
           dt.discountType === 'buy_x_get_y'
         );
         
@@ -102,7 +121,7 @@ export async function GET(req: NextRequest) {
         }
         
         // Get Buy X Get Y promotion details
-        const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+        const buyXGetYPromo = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
         const promotionDetails = buyXGetYPromo ? {
           minQuantity: buyXGetYPromo.minQuantity,
           freeQuantity: buyXGetYPromo.discountValue,
@@ -214,8 +233,8 @@ export async function GET(req: NextRequest) {
     
     // Map offers to products
     const productsWithOffers = products.map(product => {
-      const productOffers = activeOffers.filter((offer: any) => 
-        offer.offerProducts.some((p: any) => p.productId === product.productId)
+      const productOffers = activeOffers.filter((offer: ActiveOffer) => 
+        offer.offerProducts.some((p) => p.productId === product.productId)
       );
       
       if (productOffers.length === 0) {
@@ -223,16 +242,16 @@ export async function GET(req: NextRequest) {
       }
       
       // Get the highest priority offer
-      const primaryOffer = productOffers[0] as any;
+      const primaryOffer = productOffers[0];
       
       // Filter to only ACTIVE discount types
-      const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: any) => dt.isActive !== false);
+      const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
       
       // Determine badge type based on applied discount types
-      const hasDiscount = discountTypes.some((dt: any) => 
+      const hasDiscount = discountTypes.some((dt) => 
         dt.discountType === 'percentage' || dt.discountType === 'fixed'
       );
-      const hasPromotion = discountTypes.some((dt: any) => 
+      const hasPromotion = discountTypes.some((dt) => 
         dt.discountType === 'buy_x_get_y'
       );
       
@@ -246,7 +265,7 @@ export async function GET(req: NextRequest) {
       }
       
       // Get Buy X Get Y promotion details
-      const buyXGetYPromo = discountTypes.find((dt: any) => dt.discountType === 'buy_x_get_y');
+      const buyXGetYPromo = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
       const promotionDetails = buyXGetYPromo ? {
         minQuantity: buyXGetYPromo.minQuantity,
         freeQuantity: buyXGetYPromo.discountValue,
@@ -344,7 +363,7 @@ export async function POST(req: NextRequest) {
     }
     
     const product = await prisma.product.create({
-      data: productData as any
+      data: productData
     });
     
     return NextResponse.json(product, { status: 201, headers });
@@ -478,7 +497,7 @@ export async function PUT(req: NextRequest) {
     if (updateData.sku !== undefined) cleanUpdateData.sku = String(updateData.sku);
     if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
     if (updateData.description !== undefined) cleanUpdateData.description = String(updateData.description);
-    if ((updateData as any).productType !== undefined) (cleanUpdateData as any).productType = String((updateData as any).productType);
+    if ('productType' in updateData && updateData.productType !== undefined) cleanUpdateData.productType = String(updateData.productType);
     if (updateData.brand !== undefined) cleanUpdateData.brand = String(updateData.brand);
     if (updateData.supplier !== undefined) cleanUpdateData.supplier = String(updateData.supplier);
     if (updateData.stockQuantity !== undefined) cleanUpdateData.stockQuantity = Number(updateData.stockQuantity);
@@ -490,7 +509,7 @@ export async function PUT(req: NextRequest) {
          if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(parseNumberByCurrency(String(updateData.purchasePrice), data.currency || 'IDR'));
      if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(parseNumberByCurrency(String(updateData.sellingPrice), data.currency || 'IDR'));
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
-    if ((updateData as any).productCategory !== undefined) (cleanUpdateData as any).productCategory = String((updateData as any).productCategory);
+    if ('productCategory' in updateData && updateData.productCategory !== undefined) cleanUpdateData.productCategory = String(updateData.productCategory);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);
     if (updateData.images !== undefined) cleanUpdateData.images = Array.isArray(updateData.images) ? updateData.images : [];
     if (updateData.halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(updateData.halalCertified);
