@@ -896,8 +896,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    )}
                  </td>
                  <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
-                  {String((product as any).productType).trim() ? (
-                     (product as any).productType
+                  {String(product.productType).trim() ? (
+                     product.productType
                    ) : (
                      <span className="text-red-600 font-bold">Missing Category</span>
                    )}

@@ -2,6 +2,7 @@
 import { useSession } from "next-auth/react";
 import { useUserStore } from "@/store/userStore";
 import { useEffect } from "react";
+import type { Company as PrismaCompany } from "@/generated/prisma";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
@@ -43,7 +44,7 @@ export function AuthSync() {
           location: sessionUser.location || '',
           avatar: sessionUser.avatar || sessionUser.image || '',
           companyId: sessionUser.companyId ?? undefined,
-          company: sessionUser.company as any,
+          company: sessionUser.company as unknown as PrismaCompany & { createdAt: string; updatedAt: string },
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
           language: sessionUser.language || 'en',

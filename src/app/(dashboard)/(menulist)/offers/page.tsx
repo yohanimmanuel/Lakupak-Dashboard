@@ -112,7 +112,7 @@ export default function OffersPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'active' | 'inactive' | 'archived')}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'

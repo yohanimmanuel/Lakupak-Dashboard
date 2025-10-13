@@ -523,9 +523,9 @@ export default function ProductCatalog({
                 Published
               </span>
             )}
-            {(product as any)?.offerBadge && (
+            {product?.offerBadge && (
               <>
-                {(product as any).offerBadge === 'All Offers' ? (
+                {product.offerBadge === 'All Offers' ? (
                   <>
                     <span className="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700">
                       Discount
@@ -536,11 +536,11 @@ export default function ProductCatalog({
                   </>
                 ) : (
                   <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                    (product as any).offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
-                    (product as any).offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
+                    product.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
+                    product.offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
                     'bg-blue-100 text-blue-700'
                   }`}>
-                    {(product as any).offerBadge}
+                    {product.offerBadge}
                   </span>
                 )}
               </>
@@ -1007,7 +1007,7 @@ export default function ProductCatalog({
               </div>
 
               {/* Buy X Get Y Promotion Notice */}
-              {(product as any)?.promotionDetails && (
+              {product?.promotionDetails && (
                 <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
@@ -1020,24 +1020,24 @@ export default function ProductCatalog({
                         Active Promotion: Buy X Get Y
                       </h4>
                       <p className="text-xs text-green-800 mb-2">
-                        {(product as any).promotionDetails.description}
+                        {product.promotionDetails.description}
                       </p>
                       <div className="flex items-center gap-4 text-xs">
                         <div className="flex items-center gap-1">
                           <span className="font-medium text-green-900">Buy:</span>
                           <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {(product as any).promotionDetails.minQuantity} items
+                            {product.promotionDetails.minQuantity} items
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="font-medium text-green-900">Get Free:</span>
                           <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {(product as any).promotionDetails.freeQuantity} item{(product as any).promotionDetails.freeQuantity > 1 ? 's' : ''}
+                            {product.promotionDetails.freeQuantity} item{product.promotionDetails.freeQuantity > 1 ? 's' : ''}
                           </span>
                         </div>
                       </div>
                       <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
-                        <Info className="w-4 h-4 text-green-500" /> <span className="italic">Customers must purchase at least {(product as any).promotionDetails.minQuantity} items to receive {(product as any).promotionDetails.freeQuantity} free item{(product as any).promotionDetails.freeQuantity > 1 ? 's' : ''}.</span>
+                        <Info className="w-4 h-4 text-green-500" /> <span className="italic">Customers must purchase at least {product.promotionDetails.minQuantity} items to receive {product.promotionDetails.freeQuantity} free item{product.promotionDetails.freeQuantity > 1 ? 's' : ''}.</span>
                       </p>
                     </div>
                   </div>
@@ -1321,14 +1321,14 @@ export default function ProductCatalog({
                      />
                    </div>
                    {/* Only show original price and offer name if there's a DISCOUNT (not just promotion) */}
-                   {(product as any)?.originalPrice && mode === 'view' && (product as any)?.offerBadge !== 'Promotion' && (
+                   {product?.originalPrice && mode === 'view' && product?.offerBadge !== 'Promotion' && (
                      <div className="mt-1 text-xs text-gray-400 line-through">
-                       Original: {formatCurrencyAmount(parseNumberByCurrency((product as any).originalPrice, userCurrency), userCurrency)}
+                       Original: {formatCurrencyAmount(parseNumberByCurrency(product.originalPrice, userCurrency), userCurrency)}
                      </div>
                    )}
-                   {(product as any)?.offerName && mode === 'view' && (product as any)?.offerBadge !== 'Promotion' && (
+                   {product?.offerName && mode === 'view' && product?.offerBadge !== 'Promotion' && (
                      <div className="mt-1 text-xs text-green-600">
-                       Applied Offer: {(product as any).offerName}
+                       Applied Offer: {product.offerName}
                      </div>
                    )}
                  </div>

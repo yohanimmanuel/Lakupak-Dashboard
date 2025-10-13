@@ -40,8 +40,8 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.description === 'string') {
     sanitized.description = data.description.trim();
   }
-  if (typeof (data as any).productType === 'string') {
-    (sanitized as any).productType = (data as any).productType.trim();
+  if (typeof (data as { productType?: string }).productType === 'string') {
+    (sanitized as { productType?: string }).productType = (data as { productType: string }).productType.trim();
   }
   if (typeof data.brand === 'string') {
     sanitized.brand = data.brand.trim();
@@ -58,8 +58,8 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.status === 'string') {
     sanitized.status = data.status.trim() as 'Draft' | 'Published';
   }
-  if (typeof (data as any).productCategory === 'string') {
-    (sanitized as any).productCategory = (data as any).productCategory.trim();
+  if (typeof (data as { productCategory?: string }).productCategory === 'string') {
+    (sanitized as { productCategory?: string }).productCategory = (data as { productCategory: string }).productCategory.trim();
   }
   if (typeof data.catalogName === 'string') {
     sanitized.catalogName = data.catalogName.trim();

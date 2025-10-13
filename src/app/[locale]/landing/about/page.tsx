@@ -188,7 +188,7 @@ export default function AboutPage() {
           ].map((text, idx) => (
             <p key={idx} className="animate-fade-in-up" style={{ animationDelay: `${0.1 + idx * 0.1}s` }} dangerouslySetInnerHTML={{ __html: text }} />
           ))}
-          <blockquote className="border-l-4 border-blue-400 pl-4 italic text-gray-700 bg-blue-50 py-2 rounded animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+          <blockquote className="border-l-4 border-blue-400 pl-4 italic text-gray-700 font-bold bg-blue-50 py-2 rounded animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
             {t.raw("story.vision")}
           </blockquote>
           {[

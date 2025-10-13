@@ -6,7 +6,7 @@ import { PrismaClient } from "@/generated/prisma";
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as unknown as any,
+  adapter: PrismaAdapter(prisma) as ReturnType<typeof PrismaAdapter>,
   session: { strategy: "jwt" },
   providers: [
     GoogleProvider({

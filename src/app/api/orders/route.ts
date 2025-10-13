@@ -110,12 +110,12 @@ export async function GET(request: NextRequest) {
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
         productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
         // Offer snapshots from time of purchase
-        offerApplied: (oi as any).offerApplied || false,
-        offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
-        offerNameSnapshot: (oi as any).offerNameSnapshot || null,
-        originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
-        discountPercentage: (oi as any).discountPercentage || null,
-        promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
+        offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
+        offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
+        offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
+        originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
+        discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
+        promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
 
       return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
@@ -192,12 +192,12 @@ export async function GET(request: NextRequest) {
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
         productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
         // Offer snapshots from time of purchase
-        offerApplied: (oi as any).offerApplied || false,
-        offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
-        offerNameSnapshot: (oi as any).offerNameSnapshot || null,
-        originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
-        discountPercentage: (oi as any).discountPercentage || null,
-        promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
+        offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
+        offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
+        offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
+        originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
+        discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
+        promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
     });
@@ -456,7 +456,12 @@ export async function POST(request: NextRequest) {
           });
           
           // Enrich product with offer data
-          let enrichedProduct: any = { ...product };
+          let enrichedProduct: typeof product & { 
+            hasActiveOffer?: boolean; 
+            offerBadge?: string; 
+            offerName?: string; 
+            promotionDetails?: { minQuantity?: number | null; freeQuantity?: number; description?: string }; 
+          } = { ...product };
           if (productOffers.length > 0) {
             const primaryOffer = productOffers[0];
             const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
@@ -578,7 +583,7 @@ export async function POST(request: NextRequest) {
       packageQuantity: oi.packageQuantity,
       pricePerPackage: oi.pricePerPackage,
       productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
-      category: (oi.product as any)?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
+      category: (oi.product as { productType?: string })?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
       images: oi.product?.images || [],
@@ -587,12 +592,12 @@ export async function POST(request: NextRequest) {
       productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
       productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
       // Offer snapshots from time of purchase
-      offerApplied: (oi as any).offerApplied || false,
-      offerBadgeSnapshot: (oi as any).offerBadgeSnapshot || null,
-      offerNameSnapshot: (oi as any).offerNameSnapshot || null,
-      originalPriceSnapshot: (oi as any).originalPriceSnapshot || null,
-      discountPercentage: (oi as any).discountPercentage || null,
-      promotionDetailsSnapshot: (oi as any).promotionDetailsSnapshot || null
+      offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
+      offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
+      offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
+      originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
+      discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
+      promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
     }));
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
@@ -999,10 +1004,10 @@ export async function PUT(request: NextRequest) {
             productNameSnapshot: product.name,
             productSkuSnapshot: product.sku,
             productTypeSnapshot: product.productType,
-            packageQuantity: (item as any).packageQuantity || 1,
-            packageType: (item as any).packageType,
-            piecesPerPackage: (item as any).piecesPerPackage || 1,
-            pricePerPackage: (item as any).pricePerPackage || consistentUnitPrice
+            packageQuantity: (item as { packageQuantity?: number }).packageQuantity || 1,
+            packageType: (item as { packageType?: string }).packageType,
+            piecesPerPackage: (item as { piecesPerPackage?: number }).piecesPerPackage || 1,
+            pricePerPackage: (item as { pricePerPackage?: number }).pricePerPackage || consistentUnitPrice
           }
         });
       });

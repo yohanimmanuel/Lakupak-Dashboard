@@ -106,22 +106,22 @@ export default function RangeManagement({
     timeSlots = (offerData.timeSlots || []).map((ts) => ({
       ...ts,
       offerCount: 0,
-      createdAt: ts.createdAt || new Date().toISOString(),
+      createdAt: ts.createdAt instanceof Date ? ts.createdAt.toISOString() : (typeof ts.createdAt === 'string' ? ts.createdAt : new Date().toISOString()),
       days: ts.days || [], // Add fallback for days property
     }));
   } else {
   const dateRangesFromStore: DateRange[] = (store.dateRanges || []).map((dr) => ({
     ...dr,
     offerCount: 0,
-    createdAt: (dr as any).createdAt || new Date().toISOString(),
+    createdAt: (dr as { createdAt?: string }).createdAt || new Date().toISOString(),
     description: dr.description || `From ${new Date(dr.startDate).toLocaleDateString()} to ${new Date(dr.endDate).toLocaleDateString()}`,
     isActive: dr.isActive ?? true,
   }));
 
-  const timeSlotsFromStore: TimeSlot[] = (store.timeSlots || []).map((ts) => ({
+  const timeSlotsFromStore = (store.timeSlots || []).map((ts) => ({
     ...ts,
     offerCount: 0,
-    createdAt: (ts as any).createdAt || new Date().toISOString(),
+    createdAt: ('createdAt' in ts && typeof ts.createdAt === 'string') ? ts.createdAt : new Date().toISOString(),
     isActive: ts.isActive ?? true,
   }));
 
@@ -441,9 +441,9 @@ export default function RangeManagement({
             setShowEditModal(false);
             setEditingRange(null);
           }}
-          editingRange={editingRange}
+          editingRange={editingRange || undefined}
           onSave={(rangeData) => {
-            const preserveId = (editingRange as any)?.id || `dr-${Date.now()}`;
+            const preserveId = (editingRange as { id?: string })?.id || `dr-${Date.now()}`;
             const payload = {
               id: preserveId,
               name: rangeData.name,
@@ -489,9 +489,9 @@ export default function RangeManagement({
             setShowEditModal(false);
             setEditingRange(null);
           }}
-          editingSlot={editingRange}
+          editingSlot={editingRange || undefined}
           onSave={(slotData) => {
-            const preserveId = (editingRange as any)?.id || `ts-${Date.now()}`;
+            const preserveId = (editingRange as { id?: string })?.id || `ts-${Date.now()}`;
             const payload = {
               id: preserveId,
               name: slotData.name,

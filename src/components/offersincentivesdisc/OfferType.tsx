@@ -339,7 +339,16 @@ export default function OfferType({
             setShowEditModal(false);
             setEditingType(null);
           }}
-          editingType={editingType as any}
+          editingType={editingType ? { 
+            name: editingType.name || undefined, 
+            description: editingType.description || undefined,
+            discountType: editingType.discountType,
+            discountValue: editingType.discountValue || 0,
+            minOrderValue: editingType.minOrderValue ? String(editingType.minOrderValue) : undefined,
+            minQuantity: editingType.minQuantity ?? undefined,
+            maxUsage: editingType.maxUsage ?? undefined,
+            perCustomerLimit: editingType.perCustomerLimit ?? undefined
+          } : undefined}
           onSave={(typeData) => {
             // Enforce single offer per type: update if exists, else add
             const discountTypeData = {

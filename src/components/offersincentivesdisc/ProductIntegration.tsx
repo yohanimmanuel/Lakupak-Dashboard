@@ -145,7 +145,7 @@ export default function ProductIntegration({
     }
   };
 
-  const offerTypes = (discountTypes || []).map((dt: any) => ({
+  const offerTypes = (discountTypes || []).map((dt) => ({
     id: dt.id,
     name: dt.name && dt.name.trim().length > 0 ? dt.name : getTypeLabel(dt.discountType),
     type: dt.discountType,
@@ -945,7 +945,7 @@ export default function ProductIntegration({
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-gray-600">Type:</span>
-                                  <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as any)}</span>
+                                  <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as 'percentage' | 'fixed' | 'buy_x_get_y')}</span>
                                 </div>
                               </div>
                             </div>

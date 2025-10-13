@@ -390,7 +390,7 @@ export default function OffersDetailsPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'products' | 'discounts' | 'dateranges' | 'timeslots')}
               className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'
