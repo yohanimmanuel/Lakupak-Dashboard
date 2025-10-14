@@ -10,13 +10,15 @@ import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
-export default function BuyerModal({ open, onClose, onSave, initialData, mode }: {
+interface BuyerModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: BuyerFormData) => void;
   initialData?: Buyer;
   mode?: 'edit';
-}) {
+}
+
+export default function BuyerModal({ open, onClose, onSave, initialData, mode }: BuyerModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);

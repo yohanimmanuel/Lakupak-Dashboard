@@ -5,44 +5,23 @@ import { BarChart3, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Targe
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 import { Offer } from '@/types/offer';
+import { Order } from '@/types/order';
 
-// Calculate total discount from all active discount types
-function calculateTotalDiscountFromOffer(offer: Offer): number {
-  if (!offer.discountTypes || offer.discountTypes.length === 0) {
-    return 0;
-  }
-
-  const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
-  let totalDiscount = 0;
-
-  activeDiscountTypes.forEach(dt => {
-    if (dt.discountType === 'percentage') {
-      // For percentage discounts, calculate based on minOrderValue
-      const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
-      const numericMinOrderValue = typeof minOrderValue === 'string' ? parseFloat(minOrderValue) || 0 : minOrderValue;
-      const discountAmount = (numericMinOrderValue * dt.discountValue) / 100;
-      totalDiscount += discountAmount;
-    } else if (dt.discountType === 'fixed') {
-      // For fixed discounts, add the fixed amount
-      totalDiscount += dt.discountValue;
-    }
-    // Note: buy_x_get_y discounts are more complex and would need order context
-  });
-
-  return totalDiscount;
-}
+// This function is no longer needed - we use actual data from offer.totalDiscountGiven
 
 interface OfferAnalyticsProps {
   offers?: Offer[];
+  orders?: Order[];
   isNewOffer?: boolean;
 }
 
 interface AnalyticsData {
   totalOffers: number;
-  activeOffers: number;
   totalDiscountGiven: number;
   totalRedemptions: number;
   avgDiscountPerOrder: number;
+  redemptionRate: number;
+  conversionRate: number;
   redemptionTrends: Array<{
     period: string;
     redemptions: number;
@@ -54,77 +33,68 @@ interface AnalyticsData {
   };
 }
 
-export default function OfferAnalytics({ offers = [], isNewOffer = false }: OfferAnalyticsProps) {
+export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = false }: OfferAnalyticsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
-  // Calculate analytics data from offers
+  // Calculate analytics data from offers and orders (following the same pattern as other analytics components)
   const analyticsData = React.useMemo(() => {
     if (!offers || offers.length === 0) {
       return null;
     }
 
-    // Filter offers based on selected period
-    const now = new Date();
-    let startDate: Date;
+    const totalOffers = offers.length;
     
-    switch (selectedPeriod) {
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case '1y':
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
-
-    const filteredOffers = offers.filter(offer => 
-      new Date(offer.createdAt) >= startDate && new Date(offer.createdAt) <= now
-    );
-
-    const totalOffers = filteredOffers.length;
-    const activeOffers = filteredOffers.filter(offer => offer.status === 'active').length;
-    // Use real totalDiscountGiven from offers (tracked from actual orders)
-    const totalDiscountGiven = filteredOffers.reduce((sum, offer) => {
+    // Calculate from offer data (already aggregated in database)
+    const totalDiscountGiven = offers.reduce((sum, offer) => {
       return sum + (offer.totalDiscountGiven || 0);
     }, 0);
-    const totalUsage = filteredOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
-    const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
-
-
-    // Calculate redemption trends (weekly data)
-    const weeklyTrends = [];
-    const weeksBack = selectedPeriod === '7d' ? 1 : selectedPeriod === '30d' ? 4 : selectedPeriod === '90d' ? 12 : 52;
     
-    for (let i = 0; i < weeksBack; i++) {
-      const weekStart = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
+    const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
+    
+    // Calculate redemption rate (actual usage vs max usage from discount types)
+    const totalMaxUsage = offers.reduce((sum, offer) => {
+      // Sum maxUsage from all active discount types in this offer
+      const offerMaxUsage = offer.discountTypes?.reduce((discountSum, discountType) => {
+        return discountSum + (discountType.maxUsage || 0);
+      }, 0) || 0;
+      return sum + offerMaxUsage;
+    }, 0);
+    const redemptionRate = totalMaxUsage > 0 ? (totalUsage / totalMaxUsage) * 100 : 0;
+    
+    // Calculate conversion rate (offers that have been used vs total offers)
+    const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;
+    const conversionRate = totalOffers > 0 ? (usedOffers / totalOffers) * 100 : 0;
+
+
+    // Calculate redemption trends (show current month and future months)
+    const now = new Date();
+    const monthlyTrends = [];
+    
+    // Generate current month and next 3 months
+    for (let i = 0; i <= 3; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      const year = date.getFullYear();
+      const periodLabel = `${monthName} ${year}`;
       
-      const weekOffers = filteredOffers.filter(offer => 
-        new Date(offer.createdAt) >= weekStart && new Date(offer.createdAt) < weekEnd
-      );
+      // For current month (i=0), show actual data; for future months, show 0
+      const isCurrentMonth = i === 0;
+      const redemptions = isCurrentMonth ? totalUsage : 0;
+      const discountGiven = isCurrentMonth ? totalDiscountGiven : 0;
       
-      const weekUsage = weekOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
-      const weekDiscount = weekOffers.reduce((sum, offer) => sum + (offer.totalDiscountGiven || 0), 0);
-      
-      weeklyTrends.push({
-        period: `Week ${i + 1}`,
-        redemptions: weekUsage,
-        discountGiven: weekDiscount,
+      monthlyTrends.push({
+        period: periodLabel,
+        redemptions,
+        discountGiven,
       });
     }
 
     // Calculate offer type breakdown
-    const discountOffers = filteredOffers.filter(offer => offer.type.includes('discount')).length;
-    const promotionOffers = filteredOffers.filter(offer => offer.type.includes('promotion')).length;
+    const discountOffers = offers.filter(offer => offer.type.includes('discount')).length;
+    const promotionOffers = offers.filter(offer => offer.type.includes('promotion')).length;
     const total = discountOffers + promotionOffers;
     
     const offerTypeBreakdown = {
@@ -134,11 +104,12 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
 
     return {
       totalOffers,
-      activeOffers,
       totalDiscountGiven,
       totalRedemptions: totalUsage,
       avgDiscountPerOrder,
-      redemptionTrends: weeklyTrends,
+      redemptionRate,
+      conversionRate,
+      redemptionTrends: monthlyTrends,
       offerTypeBreakdown,
     };
   }, [offers, selectedPeriod]);
@@ -190,7 +161,7 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
       </div>
 
       {/* Key Metrics Cards */}
-      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
           <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
@@ -203,27 +174,13 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+12%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
+            <span className="text-[#3ea73b] text-xs font-semibold">
+              {analyticsData.totalOffers > 0 ? 'Active' : '0'}
+            </span>
+            <span className="text-gray-400 text-xs">offers created</span>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <TrendingUp className="w-6 h-6 text-green-500" />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Active Offers</div>
-              <div className="text-xl font-bold text-black">{analyticsData.activeOffers}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">75%</span>
-            <span className="text-gray-400 text-xs">active rate</span>
-          </div>
-        </div>
 
         <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
           <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
@@ -239,8 +196,10 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+18%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
+            <span className="text-[#3ea73b] text-xs font-semibold">
+              {analyticsData.totalRedemptions > 0 ? 'Growing' : 'No usage'}
+            </span>
+            <span className="text-gray-400 text-xs">discount impact</span>
           </div>
         </div>
 
@@ -256,18 +215,20 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">+23%</span>
-            <span className="text-gray-400 text-xs">from last month</span>
+            <span className="text-[#3ea73b] text-xs font-semibold">
+              {analyticsData.redemptionRate.toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-xs">redemption rate</span>
           </div>
         </div>
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Redemption Trends Chart */}
+        {/* Monthly Redemption Trends Chart */}
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-black">Redemption Trends</h3>
+            <h3 className="text-lg font-semibold text-black">Monthly Redemption Trends</h3>
             <BarChart3 className="w-5 h-5 text-gray-400" />
           </div>
           <div className="space-y-3">
@@ -352,7 +313,7 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
             </div>
             <div>
               <p className="text-sm text-gray-600">Redemption Rate</p>
-              <p className="text-lg font-semibold text-black">78.5%</p>
+              <p className="text-lg font-semibold text-black">{analyticsData.redemptionRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>
@@ -364,7 +325,7 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
             </div>
             <div>
               <p className="text-sm text-gray-600">Conversion Rate</p>
-              <p className="text-lg font-semibold text-black">24.3%</p>
+              <p className="text-lg font-semibold text-black">{analyticsData.conversionRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>

@@ -55,7 +55,12 @@ function getSupplierAnalytics(suppliesStr: string) {
   }
 }
 
-export default function SupplierProfile({ supplier, onClose }: { supplier: Supplier; onClose?: () => void }) {
+interface SupplierProfileProps {
+  supplier: Supplier;
+  onClose?: () => void;
+}
+
+export default function SupplierProfile({ supplier, onClose }: SupplierProfileProps) {
   const user = useUserStore(state => state.user);
   
   // Get user currency for display

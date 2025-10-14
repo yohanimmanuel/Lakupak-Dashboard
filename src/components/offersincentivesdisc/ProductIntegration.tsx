@@ -116,6 +116,7 @@ export default function ProductIntegration({
   const [products, setProducts] = useState<ProductWithOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [forceRender, setForceRender] = useState(0);
   const rowsPerPage = 8;
   
   // Ranges/time slots and configured offer types come from centralized offer creation store
@@ -252,6 +253,11 @@ export default function ProductIntegration({
     return totalDiscount;
   };
 
+  // Track products that are currently part of the offer being edited
+  const [currentOfferProductIds, setCurrentOfferProductIds] = useState<Set<string>>(
+    new Set(offerData?.products?.map(p => p.productId) || [])
+  );
+
   // Fetch products from API
   const fetchProducts = useCallback(async () => {
     if (!user?.id) return;
@@ -273,10 +279,15 @@ export default function ProductIntegration({
         const offers = offersData.offers || [];
         
         // Get all product IDs that already have active offers
+        // Exclude products from the CURRENT offer being edited (if in edit mode)
+        const currentOfferId = offerData?.offerId;
         const productsWithOffers = new Set<string>();
-        offers.forEach((offer: any) => {
+        offers.forEach((offer: OfferData) => {
+          // Skip the current offer being edited
+          if (offer.offerId === currentOfferId) return;
+          
           if (offer.status === 'active' && offer.products) {
-            offer.products.forEach((product: any) => {
+            offer.products.forEach((product: OfferProduct) => {
               productsWithOffers.add(product.productId);
             });
           }
@@ -286,10 +297,14 @@ export default function ProductIntegration({
         const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
           const storeHasOffer = Boolean(productOfferBadges[product.productId]);
           const apiHasOffer = productsWithOffers.has(product.productId);
-          const hasOffer = storeHasOffer || apiHasOffer;
           
-          // Check if product is in current offer (for editing mode)
-          const isInCurrentOffer = currentOfferProductIds.has(product.productId);
+            // Check if product is in current offer (for editing mode)
+            const isInCurrentOffer = currentOfferProductIds.has(product.productId);
+            
+            // Determine hasOffer based on whether product is in current offer or not:
+            // - If in current offer: use ONLY store data (ignore API)
+            // - If not in current offer: use API data (store should be empty anyway)
+            const hasOffer = isInCurrentOffer ? storeHasOffer : apiHasOffer;
           const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
           
           return {
@@ -310,7 +325,7 @@ export default function ProductIntegration({
     } finally {
       setLoading(false);
     }
-  }, [user?.id, productOfferBadges]);
+  }, [user?.id, productOfferBadges, currentOfferProductIds]);
 
   useEffect(() => {
     fetchProducts();
@@ -346,16 +361,28 @@ export default function ProductIntegration({
 
   // Determine if we're editing an existing offer
   const isEditingOffer = Boolean(offerData?.id);
-  
-  // Track products that are currently part of the offer being edited
-  const [currentOfferProductIds, setCurrentOfferProductIds] = useState<Set<string>>(
-    new Set(offerData?.products?.map(p => p.productId) || [])
-  );
 
   // Update currentOfferProductIds when offerData changes
   useEffect(() => {
     setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
   }, [offerData?.products]);
+
+  // Sync local products state with parent offerData changes
+  useEffect(() => {
+    if (offerData?.productOfferBadges) {
+      setProducts((prev) => prev.map((p) => {
+        const hasOfferFromParent = Boolean(offerData.productOfferBadges![p.productId]);
+        const isInCurrentOffer = Boolean(offerData.products?.find(op => op.productId === p.productId));
+        
+        // Update hasOffer based on parent state
+        return {
+          ...p,
+          hasOffer: hasOfferFromParent || isInCurrentOffer,
+          offerBadge: (offerData.productOfferBadges![p.productId] || (isInCurrentOffer ? 'Offer' : undefined)) as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined
+        };
+      }));
+    }
+  }, [offerData?.productOfferBadges, offerData?.products]);
   
   // Check if product can be selected
   const canSelectProduct = (productId: string) => {
@@ -363,11 +390,8 @@ export default function ProductIntegration({
     if (!product) return false;
     
     // If product has an offer from a DIFFERENT offer, it cannot be selected
-    if (product.hasOffer && !currentOfferProductIds.has(productId)) {
-      return false;
-    }
-    
-    return true;
+    const hasOfferFromOtherOffers = product.hasOffer && !currentOfferProductIds.has(productId);
+    return !hasOfferFromOtherOffers;
   };
 
   // Helper function to check if product should show as disabled in UI
@@ -375,8 +399,13 @@ export default function ProductIntegration({
     const product = products.find(p => p.productId === productId);
     if (!product) return false;
     
-    // Only show as disabled if product has offer from OTHER offers (not current offer)
-    return product.hasOffer && !currentOfferProductIds.has(productId);
+    // Check if product has offers from OTHER offers (not the current offer being edited)
+    // If product is in current offer, it should NOT be disabled
+    // If product has offers from API but is NOT in current offer, it should be disabled
+    const hasOfferFromOtherOffers = product.hasOffer && !currentOfferProductIds.has(productId);
+    
+    // Only show as disabled if product has offers from OTHER offers (not current offer)
+    return hasOfferFromOtherOffers;
   };
 
   const handleProductSelect = (productId: string) => {
@@ -394,6 +423,69 @@ export default function ProductIntegration({
         return [...prev, productId];
       }
     });
+  };
+
+  // Handle removing a product from the current offer
+  const handleRemoveFromOffer = (productId: string) => {
+    if (!currentOfferProductIds.has(productId)) {
+      return; // Product is not in current offer
+    }
+
+    if (isBatchEditMode && offerData) {
+      // In batch edit mode, update parent state
+      const existingProducts = offerData.products || [];
+      const updatedProducts = existingProducts.filter((p) => p.productId !== productId);
+      
+      // Update product offer badges
+      const updatedBadges = { ...productOfferBadges };
+      delete updatedBadges[productId];
+      
+      onOfferChange!({ 
+        products: updatedProducts,
+        productOfferBadges: updatedBadges
+      });
+      
+      // Update local UI - only remove the offer badge, keep hasOffer as is
+      // Don't change hasOffer globally as product might have offers from other offers
+      setProducts((prev) => prev.map((p) => 
+        p.productId === productId
+          ? { 
+              ...p, 
+              offerBadge: undefined,
+              // Keep hasOffer as is - don't change it globally
+              // Only remove the offer badge for this specific offer
+            }
+          : p
+      ));
+      
+      // Update currentOfferProductIds to remove the product
+      setCurrentOfferProductIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    } else {
+      // In create view, update local state - only remove the offer badge
+      // Don't change hasOffer globally as product might have offers from other offers
+      setProducts((prev) => prev.map((p) => 
+        p.productId === productId
+          ? { 
+              ...p, 
+              offerBadge: undefined,
+              // Keep hasOffer as is - don't change it globally
+              // Only remove the offer badge for this specific offer
+            }
+          : p
+      ));
+      clearProductOfferBadge(productId);
+      
+      // Update currentOfferProductIds to remove the product
+      setCurrentOfferProductIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
   };
 
   const handleRowClick = (productId: string, event: React.MouseEvent) => {
@@ -1400,34 +1492,67 @@ export default function ProductIntegration({
                       productOfferBadges: updatedBadges
                     });
                     
-                    // Update local UI - remove badges and hasOffer flag
-                    setProducts((prev) => prev.map((p) => (
-                      selectedProducts.includes(p.productId) && p.hasOffer
-                        ? { ...p, offerBadge: undefined, hasOffer: false }
-                        : p
-                    )));
+                    // First, clear the store badges for products in current offer
+                    selectedProducts.forEach((productId) => {
+                      if (currentOfferProductIds.has(productId)) {
+                        clearProductOfferBadge(productId);
+                      }
+                    });
                     
-                    // Update currentOfferProductIds to remove the selected products
+                    // Update local UI - remove the offer badge for products in current offer
+                    // Don't change hasOffer globally as product might have offers from other offers
+                    setProducts((prev) => prev.map((p) => {
+                      // If this product was in selectedProducts and is in current offer, remove only the badge
+                      if (selectedProducts.includes(p.productId) && currentOfferProductIds.has(p.productId)) {
+                        return { 
+                          ...p, 
+                          offerBadge: undefined,
+                        };
+                      }
+                      return p;
+                    }));
+                    
+                    // Update currentOfferProductIds to remove only the products that had offers
                     setCurrentOfferProductIds(prev => {
                       const newSet = new Set(prev);
-                      selectedProducts.forEach(id => newSet.delete(id));
+                      productsWithOffers.forEach(id => newSet.delete(id));
                       return newSet;
                     });
+                    
+                    // Force re-render to ensure UI updates
+                    setForceRender(prev => prev + 1);
                   } else {
-                    // In create view, update local state - remove badges and hasOffer flag
-                    setProducts((prev) => prev.map((p) => (
-                      selectedProducts.includes(p.productId) && p.hasOffer
-                        ? { ...p, offerBadge: undefined, hasOffer: false }
-                        : p
-                    )));
-                    selectedProducts.forEach((id) => clearProductOfferBadge(id));
+                    // In create view, update local state - only remove the offer badge
+                    // Don't change hasOffer globally as product might have offers from other offers
+                    setProducts((prev) => prev.map((p) => {
+                      // If this product was in selectedProducts and is in current offer, remove only the badge
+                      if (selectedProducts.includes(p.productId) && currentOfferProductIds.has(p.productId)) {
+                        return { 
+                          ...p, 
+                          offerBadge: undefined,
+                          // Keep hasOffer as is - don't change it globally
+                          // Only remove the offer badge for this specific offer
+                        };
+                      }
+                      return p;
+                    }));
                     
-                    // Update currentOfferProductIds to remove the selected products
+                    // Only clear badges for products that actually had offers
+                    const productsWithOffersInCreate = selectedProducts.filter(id => {
+                      const p = products.find(pp => pp.productId === id);
+                      return p?.hasOffer;
+                    });
+                    productsWithOffersInCreate.forEach((id) => clearProductOfferBadge(id));
+                    
+                    // Update currentOfferProductIds to remove only the products that had offers
                     setCurrentOfferProductIds(prev => {
                       const newSet = new Set(prev);
-                      selectedProducts.forEach(id => newSet.delete(id));
+                      productsWithOffersInCreate.forEach(id => newSet.delete(id));
                       return newSet;
                     });
+                    
+                    // Force re-render to ensure UI updates
+                    setForceRender(prev => prev + 1);
                   }
                   setShowRemoveConfirm(false);
                   setSelectedProducts([]);

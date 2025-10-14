@@ -56,7 +56,12 @@ function getBuyerAnalytics(orderDetailsStr: string) {
   }
 }
 
-export default function BuyerProfile({ buyer, onClose }: { buyer: Buyer; onClose?: () => void }) {
+interface BuyerProfileProps {
+  buyer: Buyer;
+  onClose?: () => void;
+}
+
+export default function BuyerProfile({ buyer, onClose }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);
   

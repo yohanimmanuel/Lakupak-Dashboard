@@ -19,7 +19,15 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: { suppliers?: Supplier[]; setSuppliers?: (fn: (prev: Supplier[]) => Supplier[]) => void; onSelectSupplier?: (supplier: Supplier) => void; onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; profileToTableRow: (supplier: Supplier) => SupplierTableRow }) {
+interface SupplierTableProps {
+  suppliers?: Supplier[];
+  setSuppliers?: (fn: (prev: Supplier[]) => Supplier[]) => void;
+  onSelectSupplier?: (supplier: Supplier) => void;
+  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void;
+  profileToTableRow: (supplier: Supplier) => SupplierTableRow;
+}
+
+export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: SupplierTableProps) {
   const user = useUserStore(state => state.user);
   
   // Get user currency for display

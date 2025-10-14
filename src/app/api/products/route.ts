@@ -14,7 +14,7 @@ interface OfferDiscountType {
   discountType: string;
   discountValue: number;
   minQuantity: number | null;
-  freeQuantity: number | null;
+  freeQuantity?: number | null;
   isActive: boolean;
 }
 
@@ -120,6 +120,12 @@ export async function GET(req: NextRequest) {
           offerBadge = 'Discount';
         }
         
+        // Get discount type and value (prioritize fixed over percentage)
+        const fixedDiscount = discountTypes.find((dt) => dt.discountType === 'fixed');
+        const percentageDiscount = discountTypes.find((dt) => dt.discountType === 'percentage');
+        const discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
+        const discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+        
         // Get Buy X Get Y promotion details
         const buyXGetYPromo = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
         const promotionDetails = buyXGetYPromo ? {
@@ -135,6 +141,8 @@ export async function GET(req: NextRequest) {
           hasActiveOffer: true,
           offerId: primaryOffer.id,
           offerName: primaryOffer.name,
+          discountType,
+          discountValue,
           promotionDetails
         }, { headers });
       }
@@ -264,6 +272,12 @@ export async function GET(req: NextRequest) {
         offerBadge = 'Discount';
       }
       
+      // Get discount type and value (prioritize fixed over percentage)
+      const fixedDiscount = discountTypes.find((dt) => dt.discountType === 'fixed');
+      const percentageDiscount = discountTypes.find((dt) => dt.discountType === 'percentage');
+      const discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
+      const discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+      
       // Get Buy X Get Y promotion details
       const buyXGetYPromo = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
       const promotionDetails = buyXGetYPromo ? {
@@ -279,6 +293,8 @@ export async function GET(req: NextRequest) {
         hasActiveOffer: true,
         offerId: primaryOffer.id,
         offerName: primaryOffer.name,
+        discountType,
+        discountValue,
         promotionDetails
       };
     });

@@ -78,6 +78,7 @@ export interface OrderItem {
   offerNameSnapshot?: string;
   originalPriceSnapshot?: string;
   discountPercentage?: number;
+  discountAmount?: number | null;
   promotionDetailsSnapshot?: string; // JSON string
 }
 

@@ -160,6 +160,8 @@ export async function GET(request: NextRequest) {
       let offerId = undefined;
       let offerName = undefined;
       let originalSellingPrice = undefined;
+      let discountType = undefined;
+      let discountValue = undefined;
       
       let promotionDetails = undefined;
       
@@ -185,6 +187,12 @@ export async function GET(request: NextRequest) {
         } else {
           offerBadge = 'Offer';
         }
+        
+        // Get discount type and value (prioritize fixed over percentage)
+        const fixedDiscount = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
+        const percentageDiscount = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
+        discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
+        discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
         
         // Get Buy X Get Y promotion details
         const buyXGetYPromo = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
@@ -220,6 +228,8 @@ export async function GET(request: NextRequest) {
         hasActiveOffer,
         offerId,
         offerName,
+        discountType: discountType,
+        discountValue: discountValue,
         promotionDetails,
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews

@@ -361,9 +361,9 @@ export default function ProductsPage() {
         />
         <ProductTable 
           products={products}
-          setProducts={setProducts}
-          profileToTableRow={profileToTableRow}
-          onExportXLSX={downloadXLSX}
+          setProductsAction={setProducts}
+          profileToTableRowAction={profileToTableRow}
+          onExportXLSXAction={downloadXLSX}
         />
       </div>
     </div>

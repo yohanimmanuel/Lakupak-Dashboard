@@ -132,8 +132,8 @@ export default function OfferTable({
       ? `${primaryDiscount.discountValue}%` 
       : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : 'N/A';
     
-    // Calculate total discount based on all active discount types
-    const calculatedTotalDiscount = calculateTotalDiscountFromOffer(offer);
+    // Get actual total discount given to customers (from database)
+    const calculatedTotalDiscount = getTotalDiscountGiven(offer);
     
     // Create color-coded usage display for each discount type
     const usageDisplay = createUsageDisplay(offer);
@@ -153,29 +153,11 @@ export default function OfferTable({
     };
   }
 
-  // Calculate total discount from all active discount types
-  function calculateTotalDiscountFromOffer(offer: Offer): number {
-    if (!offer.discountTypes || offer.discountTypes.length === 0) {
-      return 0;
-    }
-
-    const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
-    let totalDiscount = 0;
-
-    activeDiscountTypes.forEach(dt => {
-      if (dt.discountType === 'percentage') {
-        // For percentage discounts, calculate based on minOrderValue
-        const minOrderValue = Number(dt.minOrderValue) || Number(offer.minOrderValue) || 0;
-        const discountAmount = (minOrderValue * dt.discountValue) / 100;
-        totalDiscount += discountAmount;
-      } else if (dt.discountType === 'fixed') {
-        // For fixed discounts, add the fixed amount
-        totalDiscount += dt.discountValue;
-      }
-      // Note: buy_x_get_y discounts are more complex and would need order context
-    });
-
-    return totalDiscount;
+  // Get actual total discount given to customers (from database)
+  function getTotalDiscountGiven(offer: Offer): number {
+    // Use the actual totalDiscountGiven field from the database
+    // This represents the real cumulative discount amount given to customers
+    return offer.totalDiscountGiven || 0;
   }
 
   // Create color-coded usage display for each discount type

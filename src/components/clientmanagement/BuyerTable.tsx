@@ -16,14 +16,16 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow, onRefresh }: { 
-  buyers?: Buyer[]; 
-  setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void; 
-  onSelectBuyer?: (buyer: Buyer) => void; 
-  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
+interface BuyerTableProps {
+  buyers?: Buyer[];
+  setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void;
+  onSelectBuyer?: (buyer: Buyer) => void;
+  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void;
   profileToTableRow: (buyer: Buyer) => BuyerTableRow;
   onRefresh?: () => void;
-}) {
+}
+
+export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow, onRefresh }: BuyerTableProps) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);

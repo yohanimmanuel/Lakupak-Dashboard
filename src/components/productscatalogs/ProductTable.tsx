@@ -34,16 +34,16 @@ const getProductCategoryFilters = (products: Product[]) => {
   return ["All Categories", ...Array.from(cats)];
 };
 
-export default function ProductTable({ products = [], setProducts, onSelectProduct, onExportXLSX, profileToTableRow }: { 
+export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction }: { 
   products?: Product[]; 
-  setProducts?: (fn: (prev: Product[]) => Product[]) => void; 
-  onSelectProduct?: (product: Product) => void; 
-  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
-  profileToTableRow: (product: Product) => ProductTableRow 
+  setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
+  onSelectProductAction?: (product: Product) => void; 
+  onExportXLSXAction?: (wb: XLSX.WorkBook, filename: string) => void; 
+  profileToTableRowAction: (product: Product) => ProductTableRow 
 }) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
-  const tableRows = products.map(profileToTableRow);
+  const tableRows = products.map(profileToTableRowAction);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState("All");
@@ -106,8 +106,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         const product = pagedProducts.find(p => String(p.id) === productId);
         if (product) {
           const res = await fetch(`/api/products?id=${product.productId}&userId=${user.id}`, { method: 'DELETE' });
-          if (res.ok && setProducts) {
-            setProducts(prev => prev.filter(p => p.productId !== product.productId));
+          if (res.ok && setProductsAction) {
+            setProductsAction?.(prev => prev.filter(p => p.productId !== product.productId));
           }
         }
       }
@@ -116,8 +116,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
       // Single delete - delete one product
       if (!productToDelete) return;
       const res = await fetch(`/api/products?id=${productToDelete.productId}&userId=${user.id}`, { method: 'DELETE' });
-      if (res.ok && setProducts) {
-        setProducts(prev => prev.filter(p => p.productId !== productToDelete.productId));
+      if (res.ok && setProductsAction) {
+        setProductsAction?.(prev => prev.filter(p => p.productId !== productToDelete.productId));
       }
       setProductToDelete(null);
     }
@@ -177,8 +177,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
         
         if (response.ok) {
           // Update local state
-          if (setProducts) {
-            setProducts(prev => prev.map(p => 
+          if (setProductsAction) {
+            setProductsAction?.(prev => prev.map(p => 
               p.productId === productToPublish.productId 
                 ? { ...p, status: 'Published' }
                 : p
@@ -208,8 +208,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
               }),
             });
             
-            if (response.ok && setProducts) {
-              setProducts(prev => prev.map(p => 
+            if (response.ok && setProductsAction) {
+              setProductsAction?.(prev => prev.map(p => 
                 p.productId === product.productId 
                   ? { ...p, status: 'Published' }
                   : p
@@ -245,8 +245,8 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
             }),
           });
           
-          if (response.ok && setProducts) {
-            setProducts(prev => prev.map(p => 
+          if (response.ok && setProductsAction) {
+            setProductsAction?.(prev => prev.map(p => 
               p.productId === product.productId 
                 ? { ...p, status: 'Draft' }
                 : p
@@ -888,7 +888,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     <div className="text-gray-500 text-xs truncate">{product.productId}</div>
                   </div>
                 </td>
-                 <td className="max-w-30 py-3 px-4 text-xs text-gray-900 font-medium truncate">
+                 <td className="max-w-20 py-3 px-4 text-xs text-gray-900 font-medium truncate">
                    {String(product.name).trim() ? (
                      product.name
                    ) : (
@@ -902,7 +902,7 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                      <span className="text-red-600 font-bold">Missing Category</span>
                    )}
                  </td>
-                 <td className="py-3 px-4 text-xs text-gray-700">
+                 <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
                    {String(product.brand).trim() ? (
                      product.brand
                    ) : (
@@ -942,24 +942,29 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                     {originalProduct?.offerBadge && (
                       <>
                         {originalProduct.offerBadge === 'All Offers' ? (
-                          <div className="flex flex-wrap gap-1">
-                            {/* Calculate and show real discount percentage */}
-                            {originalProduct.originalSellingPrice && (
-                              <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
-                                {(() => {
+                          <div className="flex items-center gap-1">
+                            {/* Show fixed discount amount if available, otherwise calculate percentage */}
+                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                              {(() => {
+                                // Show fixed discount amount if available
+                                if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                                  return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                                }
+                                // Fallback to percentage calculation
+                                if (originalProduct.originalSellingPrice) {
                                   const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                                   const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                   if (originalPrice > currentPrice && originalPrice > 0) {
                                     const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                     return `-${discountPercent}%`;
                                   }
-                                  return 'Discount';
-                                })()}
-                              </span>
-                            )}
+                                }
+                                return 'Discount';
+                              })()}
+                            </span>
                             {/* Show promotion details if available */}
                             {originalProduct.promotionDetails && (
-                              <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
+                              <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-200">
                                 <Gift className="w-4 h-4" />
                                 Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
                               </span>
@@ -968,6 +973,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                         ) : originalProduct.offerBadge === 'Discount' ? (
                           <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
                             {(() => {
+                              // Show fixed discount amount if available
+                              if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                                return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                              }
+                              // Fallback to percentage calculation
                               if (originalProduct.originalSellingPrice) {
                                 const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                                 const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
@@ -1135,21 +1145,26 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                  {originalProduct?.offerBadge && (
                    <div className="absolute top-2 left-2">
                      {originalProduct.offerBadge === 'All Offers' ? (
-                       <div className="flex flex-wrap gap-1">
-                         {/* Calculate and show real discount percentage */}
-                         {originalProduct.originalSellingPrice && (
-                           <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                             {(() => {
+                       <div className="flex items-center gap-1">
+                         {/* Show fixed discount amount if available, otherwise calculate percentage */}
+                         <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                           {(() => {
+                             // Show fixed discount amount if available
+                             if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                               return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                             }
+                             // Fallback to percentage calculation
+                             if (originalProduct.originalSellingPrice) {
                                const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                  return `-${discountPercent}%`;
                                }
-                               return 'Discount';
-                             })()}
-                           </span>
-                         )}
+                             }
+                             return 'Discount';
+                           })()}
+                         </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
                            <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
@@ -1161,6 +1176,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                      ) : originalProduct.offerBadge === 'Discount' ? (
                        <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                          {(() => {
+                           // Show fixed discount amount if available
+                           if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                             return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                           }
+                           // Fallback to percentage calculation
                            if (originalProduct.originalSellingPrice) {
                              const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
@@ -1395,20 +1415,25 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                    <div className="absolute top-1 left-1">
                      {originalProduct.offerBadge === 'All Offers' ? (
                        <div className="flex flex-wrap gap-1">
-                         {/* Calculate and show real discount percentage */}
-                         {originalProduct.originalSellingPrice && (
-                           <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                             {(() => {
+                         {/* Show fixed discount amount if available, otherwise calculate percentage */}
+                         <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                           {(() => {
+                             // Show fixed discount amount if available
+                             if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                               return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                             }
+                             // Fallback to percentage calculation
+                             if (originalProduct.originalSellingPrice) {
                                const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                  return `-${discountPercent}%`;
                                }
-                               return 'Discount';
-                             })()}
-                           </span>
-                         )}
+                             }
+                             return 'Discount';
+                           })()}
+                         </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
                            <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
@@ -1419,6 +1444,11 @@ export default function ProductTable({ products = [], setProducts, onSelectProdu
                      ) : originalProduct.offerBadge === 'Discount' ? (
                        <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                          {(() => {
+                           // Show fixed discount amount if available
+                           if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
+                             return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
+                           }
+                           // Fallback to percentage calculation
                            if (originalProduct.originalSellingPrice) {
                              const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);

@@ -521,13 +521,51 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       )}
                     </div>
                     <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
+                    
+                    {/* Quantity with promotion details under SKU */}
+                    <p className="text-xs text-gray-600">
+                      Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                      {item.offerApplied && (() => {
+                        // Show promotion details if available
+                        if (item.promotionDetailsSnapshot) {
+                          try {
+                            const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                              return freeQty > 0 ? ` + ${freeQty} free items` : '';
+                            }
+                          } catch {
+                            // Invalid JSON, skip
+                          }
+                        }
+                        // Show discount if available (even without promotion details)
+                        if (item.discountPercentage) {
+                          return ` (${item.discountPercentage}% OFF)`;
+                        }
+                        if (item.discountAmount) {
+                          return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                        }
+                        return '';
+                      })()}
+                    </p>
                   </div>
                   
                   {/* Package Information */}
                   <div className="text-right">
-                    <p className="text-xs text-gray-600">
-                      Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
-                    </p>
+                    {/* Discount badge above per Box price */}
+                    {item.offerApplied && (item.discountPercentage || item.discountAmount) && (
+                      <div className="mb-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                          {item.discountPercentage 
+                            ? `${item.discountPercentage}% OFF`
+                            : item.discountAmount 
+                            ? `${formatCurrency(item.discountAmount, user?.currency)} OFF`
+                            : 'OFF'
+                          }
+                        </span>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500">
                       {formatCurrency(item.pricePerPackage || 0, user?.currency)} per {item.packageType || 'package'}
                     </p>
@@ -555,20 +593,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           {/* Order Summary Section (4 columns) */}
           <div className="lg:col-span-4 bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
-            
-            {/* Top Summary Cards */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="text-2xl font-bold text-green-600">{calculateTotalQuantity()}</div>
-                <div className="text-sm text-gray-600">Total Items Quantity</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="text-2xl font-bold text-blue-600">
-                  {order.orderItems.reduce((sum, item) => sum + (item.packageQuantity || 1), 0)}
-                </div>
-                <div className="text-sm text-gray-600">Total Packages</div>
-              </div>
-            </div>
 
             {/* Detailed Breakdown Table */}
             <div className="overflow-x-auto">
@@ -600,7 +624,31 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       </td>
                       <td className="py-2">{item.packageType || 'Package'}</td>
                       <td className="py-2">{item.piecesPerPackage || 1}</td>
-                      <td className="py-2">{item.packageQuantity || 1}</td>
+                      <td className="py-2">
+                        {item.packageQuantity || 1}
+                        {item.offerApplied && (() => {
+                          // Show promotion details if available
+                          if (item.promotionDetailsSnapshot) {
+                            try {
+                              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                                return freeQty > 0 ? ` + ${freeQty} free` : '';
+                              }
+                            } catch {
+                              // Invalid JSON, skip
+                            }
+                          }
+                          // Show discount if available (even without promotion details)
+                          if (item.discountPercentage) {
+                            return ` (${item.discountPercentage}% OFF)`;
+                          }
+                          if (item.discountAmount) {
+                            return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                          }
+                          return '';
+                        })()}
+                      </td>
                       <td className="py-2">{formatCurrency(item.pricePerPackage || 0, user?.currency)}</td>
                       <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
                     </tr>
@@ -678,14 +726,53 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         {item.productName}
                       </h3>
                       <p className="text-sm text-gray-600">SKU: {item.productId}</p>
+                      
+                      {/* Quantity with promotion details under SKU */}
+                      <p className="text-sm text-gray-600">
+                        Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                        {item.offerApplied && (() => {
+                          // Show promotion details if available
+                          if (item.promotionDetailsSnapshot) {
+                            try {
+                              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                                return freeQty > 0 ? ` + ${freeQty} free items` : '';
+                              }
+                            } catch {
+                              // Invalid JSON, skip
+                            }
+                          }
+                          // Show discount if available (even without promotion details)
+                          if (item.discountPercentage) {
+                            return ` (${item.discountPercentage}% OFF)`;
+                          }
+                          if (item.discountAmount) {
+                            return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                          }
+                          return '';
+                        })()}
+                      </p>
+                      
                       <p className="text-sm text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
                     </div>
                     
                     {/* Package Information */}
                     <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">
-                        Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
-                      </p>
+                      {/* Discount badge above per package price */}
+                      {item.offerApplied && (item.discountPercentage || item.discountAmount) && (
+                        <div className="mb-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                            {item.discountPercentage 
+                              ? `${item.discountPercentage}% OFF`
+                              : item.discountAmount 
+                              ? `${formatCurrency(item.discountAmount, user?.currency)} OFF`
+                              : 'OFF'
+                            }
+                          </span>
+                        </div>
+                      )}
                       <p className="text-sm text-gray-500">
                         {item.piecesPerPackage || 1} pieces per {item.packageType || 'package'}
                       </p>

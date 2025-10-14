@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../../generated/prisma';
+import { PrismaClient, Prisma } from '../../../../generated/prisma';
 import { 
   getSecurityHeaders, 
   validateAuthInput 
 } from '../../../../utils/auth-security';
+import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil } from '../../../../utils/offerValidation';
 
 interface OfferDiscountType {
   id: string;
@@ -400,120 +401,88 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    // Create order items if provided
+    // Create order items if provided with offer validation and tracking
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-        // Fetch product to get offer information
-        const product = await prisma.product.findFirst({
-          where: { productId: String(item.productId || '') }
-        });
-        
-        // Fetch active offers for this product
-        let offerApplied = false;
-        let offerBadgeSnapshot = null;
-        let offerNameSnapshot = null;
-        let originalPriceSnapshot = null;
-        let discountPercentage = null;
-        let promotionDetailsSnapshot = null;
-        
-        if (product) {
-          const productOffers = await prisma.offer.findMany({
-            where: {
-              userId: product.userId || undefined,
-              status: 'active',
-              offerProducts: {
-                some: {
-                  productId: product.productId
-                }
-              }
-            },
-            include: {
-              offerDiscountTypes: {
-                where: { isActive: true }
-              }
-            },
-            orderBy: {
-              createdAt: 'desc'
-            }
+        return await prisma.$transaction(async (tx) => {
+          // Fetch product
+          const product = await tx.product.findFirst({
+            where: { productId: String(item.productId || '') }
           });
           
-          if (productOffers.length > 0) {
-            const primaryOffer = productOffers[0];
-            const activeDiscountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
-            
-            const hasDiscount = activeDiscountTypes.some((dt) => 
-              dt.discountType === 'percentage' || dt.discountType === 'fixed'
-            );
-            const hasPromotion = activeDiscountTypes.some((dt) => 
-              dt.discountType === 'buy_x_get_y'
-            );
-            
-            let offerBadge = 'Offer';
-            if (hasDiscount && hasPromotion) {
-              offerBadge = 'All Offers';
-            } else if (hasPromotion) {
-              offerBadge = 'Promotion';
-            } else if (hasDiscount) {
-              offerBadge = 'Discount';
-            }
-            
-            offerApplied = true;
-            offerBadgeSnapshot = offerBadge;
-            offerNameSnapshot = primaryOffer.name;
-            originalPriceSnapshot = product.originalSellingPrice;
-            
-            // Calculate discount percentage
-            if (offerBadge !== 'Promotion' && product.originalSellingPrice && product.sellingPrice) {
-              const originalPrice = typeof product.originalSellingPrice === 'string' 
-                ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
-                : product.originalSellingPrice;
-              const currentPrice = typeof product.sellingPrice === 'string'
-                ? parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0
-                : product.sellingPrice;
-              if (originalPrice > 0 && currentPrice > 0 && currentPrice < originalPrice) {
-                discountPercentage = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-              }
-            }
-            
-            // Get Buy X Get Y promotion details
-            const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
-            if (buyXGetYPromo) {
-              promotionDetailsSnapshot = JSON.stringify({
-                minQuantity: buyXGetYPromo.minQuantity,
-                freeQuantity: buyXGetYPromo.discountValue,
-                description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
-              });
-            }
+          if (!product) {
+            throw new Error(`Product not found: ${item.productId}`);
           }
-        }
-        
-        return prisma.orderItem.create({
-          data: {
+          
+          // Calculate total amount and quantity for validation
+          const packageQuantity = parseInt(String(item.packageQuantity || 1));
+          const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
+          const totalQuantity = packageQuantity * piecesPerPackage;
+          const orderTotal = parseFloat(String(totalAmount || 0));
+          
+          // Validate and get offer information with usage limits check
+          const offerValidation = await validateOfferForProduct(
+            product.productId,
+            userIdNum, // marketplace user ID
+            orderTotal,
+            totalQuantity,
+            tx
+          );
+          
+          // Initialize order item data
+          let orderItemData = {
             orderId: order.orderId,
             productId: String(item.productId || ''),
             subtotal: parseFloat(String(item.subtotal || 0)),
             packageType: String(item.packageType || 'Box'),
-            piecesPerPackage: parseInt(String(item.piecesPerPackage || 1)),
-            packageQuantity: parseInt(String(item.packageQuantity || 1)),
+            piecesPerPackage: piecesPerPackage,
+            packageQuantity: packageQuantity,
             pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
             productNameSnapshot: String(item.productName || 'Unknown Product'),
             productSkuSnapshot: String(item.productSku || ''),
             productTypeSnapshot: String(item.category || 'Uncategorized'),
-            // Offer snapshots
-            offerApplied,
-            offerBadgeSnapshot,
-            offerNameSnapshot,
-            originalPriceSnapshot,
-            discountPercentage,
-            promotionDetailsSnapshot
+            offerApplied: false,
+            offerBadgeSnapshot: null as string | null,
+            offerNameSnapshot: null as string | null,
+            originalPriceSnapshot: null as string | null,
+            discountPercentage: null as number | null,
+            discountAmount: null as number | null,
+            promotionDetailsSnapshot: null as string | null
+          };
+          
+          // If offer is valid, track usage and add snapshot data
+          if (offerValidation.isValid && offerValidation.offerId && offerValidation.discountTypeId) {
+            // Track offer usage and update analytics
+            await trackOfferUsageUtil(
+              offerValidation.offerId,
+              offerValidation.discountTypeId,
+              userIdNum,
+              offerValidation.discountAmount || 0,
+              tx
+            );
+            
+            // Add offer snapshot data
+            orderItemData = {
+              ...orderItemData,
+              offerApplied: true,
+              offerBadgeSnapshot: offerValidation.offerBadge || null,
+              offerNameSnapshot: offerValidation.offerName || null,
+              originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
+              discountPercentage: offerValidation.discountPercentage || null,
+              discountAmount: offerValidation.discountAmount || null,
+              promotionDetailsSnapshot: offerValidation.promotionDetails 
+                ? JSON.stringify(offerValidation.promotionDetails)
+                : null
+            };
           }
+          
+          return tx.orderItem.create({
+            data: orderItemData
+          });
         });
       });
       
       await Promise.all(orderItemPromises);
-      
-      // Track offer usage and discount given
-      await trackOfferUsage(orderItems, distributorUserId, mobileBuyerId, userIdNum);
     }
     
     // Return the created order with items
@@ -544,263 +513,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create order', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers }
     );
-  }
-}
-
-// Helper function to track offer usage and discount given
-async function trackOfferUsage(
-  orderItems: Array<{
-    productId: string;
-    quantity?: number;
-    subtotal: number;
-    packageQuantity?: number;
-    piecesPerPackage?: number;
-  }>, 
-  distributorUserId: number | null,
-  buyerId?: string,
-  marketplaceUserId?: number
-) {
-  if (!distributorUserId) return;
-  
-  try {
-    // Get all products from the order
-    const productIds = orderItems.map(item => String(item.productId));
-    
-    // Find products with active offers
-    const products = await prisma.product.findMany({
-      where: {
-        productId: { in: productIds },
-        userId: distributorUserId
-      },
-      select: {
-        productId: true,
-        sellingPrice: true,
-        originalSellingPrice: true
-      }
-    });
-    
-    // Get active offers for these products
-    const activeOffers = await prisma.offer.findMany({
-      where: {
-        userId: distributorUserId,
-        status: 'active',
-        offerProducts: {
-          some: {
-            productId: { in: productIds }
-          }
-        }
-      },
-      include: {
-        offerDiscountTypes: {
-          where: { isActive: true }
-        },
-        offerProducts: true
-      }
-    });
-    
-    // Track usage and discount for each offer
-    for (const offer of activeOffers) {
-      const activeDiscountTypes = offer.offerDiscountTypes.filter(dt => dt.isActive);
-      let totalDiscountForOffer = 0;
-      let usageCount = 0;
-      let hasValidDiscountType = false;
-      
-      // Process each discount type separately
-      for (const discountType of activeDiscountTypes) {
-        // Check perCustomerLimit for this specific discount type
-        let canUseDiscountType = true;
-        
-        if ((buyerId || marketplaceUserId) && discountType.perCustomerLimit && discountType.perCustomerLimit > 0) {
-          // Check existing usage for this customer and this specific discount type
-          let existingUsage = null;
-          if (buyerId) {
-            existingUsage = await prisma.offerUsageTracking.findUnique({
-              where: { 
-                offerId_discountTypeId_buyerId: { 
-                  offerId: offer.id, 
-                  discountTypeId: discountType.id,
-                  buyerId: buyerId 
-                } 
-              }
-            });
-          } else if (marketplaceUserId) {
-            existingUsage = await prisma.offerUsageTracking.findUnique({
-              where: { 
-                offerId_discountTypeId_marketplaceUserId: { 
-                  offerId: offer.id, 
-                  discountTypeId: discountType.id,
-                  marketplaceUserId: marketplaceUserId 
-                } 
-              }
-            });
-          }
-          
-          if (existingUsage && existingUsage.usageCount >= discountType.perCustomerLimit) {
-            // Customer has reached their limit for this discount type
-            console.log(`Customer ${buyerId || marketplaceUserId} has reached perCustomerLimit (${discountType.perCustomerLimit}) for discount type ${discountType.discountType} in offer ${offer.id}`);
-            canUseDiscountType = false;
-          }
-        }
-        
-        if (canUseDiscountType) {
-          hasValidDiscountType = true;
-          
-          // Calculate discount for this specific discount type
-          for (const orderItem of orderItems) {
-            const product = products.find(p => p.productId === String(orderItem.productId));
-            if (!product) continue;
-            
-            // Check if this product is part of the offer
-            const isInOffer = offer.offerProducts.some(op => op.productId === product.productId);
-            if (!isInOffer) continue;
-            
-            // Calculate discount based on discount type
-            if (discountType.discountType === 'percentage' || discountType.discountType === 'fixed') {
-              if (product.originalSellingPrice) {
-                const originalPrice = typeof product.originalSellingPrice === 'string'
-                  ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
-                  : product.originalSellingPrice;
-                
-                const currentPrice = typeof product.sellingPrice === 'string'
-                  ? parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0
-                  : product.sellingPrice;
-                
-                if (originalPrice > currentPrice) {
-                  const discountPerUnit = originalPrice - currentPrice;
-                  const packageQuantity = orderItem.packageQuantity || 1;
-                  const piecesPerPackage = orderItem.piecesPerPackage || 1;
-                  const totalQuantity = packageQuantity * piecesPerPackage;
-                  
-                  totalDiscountForOffer += discountPerUnit * totalQuantity;
-                  usageCount += 1;
-                }
-              }
-            } else if (discountType.discountType === 'buy_x_get_y') {
-              // For buy X get Y, we count the usage but don't calculate monetary discount
-              const packageQuantity = orderItem.packageQuantity || 1;
-              const piecesPerPackage = orderItem.piecesPerPackage || 1;
-              const totalQuantity = packageQuantity * piecesPerPackage;
-              
-              // Check if customer qualifies for the promotion
-              const minQuantity = discountType.minQuantity || 1;
-              if (totalQuantity >= minQuantity) {
-                usageCount += 1;
-                // Note: For buy X get Y, the discount is in free items, not monetary value
-                // We could track this separately if needed
-              }
-            }
-          }
-        }
-      }
-      
-      // Only update offer statistics if at least one discount type was valid
-      if (hasValidDiscountType && usageCount > 0) {
-        const updatedOffer = await prisma.offer.update({
-          where: { id: offer.id },
-          data: {
-            totalUsage: { increment: usageCount },
-            totalDiscountGiven: { increment: totalDiscountForOffer }
-          }
-        });
-        
-        // Track per-customer usage for each discount type that was used
-        for (const discountType of activeDiscountTypes) {
-          // Check if this discount type was actually used (simplified check)
-          let canUseDiscountType = true;
-          if ((buyerId || marketplaceUserId) && discountType.perCustomerLimit && discountType.perCustomerLimit > 0) {
-            let existingUsage = null;
-            if (buyerId) {
-              existingUsage = await prisma.offerUsageTracking.findUnique({
-                where: { 
-                  offerId_discountTypeId_buyerId: { 
-                    offerId: offer.id, 
-                    discountTypeId: discountType.id,
-                    buyerId: buyerId 
-                  } 
-                }
-              });
-            } else if (marketplaceUserId) {
-              existingUsage = await prisma.offerUsageTracking.findUnique({
-                where: { 
-                  offerId_discountTypeId_marketplaceUserId: { 
-                    offerId: offer.id, 
-                    discountTypeId: discountType.id,
-                    marketplaceUserId: marketplaceUserId 
-                  } 
-                }
-              });
-            }
-            
-            if (existingUsage && existingUsage.usageCount >= discountType.perCustomerLimit) {
-              canUseDiscountType = false;
-            }
-          }
-          
-          if (canUseDiscountType) {
-            if (buyerId) {
-              await prisma.offerUsageTracking.upsert({
-                where: { 
-                  offerId_discountTypeId_buyerId: { 
-                    offerId: offer.id, 
-                    discountTypeId: discountType.id,
-                    buyerId: buyerId 
-                  } 
-                },
-                update: {
-                  usageCount: { increment: 1 },
-                  lastUsedAt: new Date()
-                },
-                create: {
-                  offerId: offer.id,
-                  discountTypeId: discountType.id,
-                  buyerId: buyerId,
-                  usageCount: 1,
-                  lastUsedAt: new Date()
-                }
-              });
-            } else if (marketplaceUserId) {
-              await prisma.offerUsageTracking.upsert({
-                where: { 
-                  offerId_discountTypeId_marketplaceUserId: { 
-                    offerId: offer.id, 
-                    discountTypeId: discountType.id,
-                    marketplaceUserId: marketplaceUserId 
-                  } 
-                },
-                update: {
-                  usageCount: { increment: 1 },
-                  lastUsedAt: new Date()
-                },
-                create: {
-                  offerId: offer.id,
-                  discountTypeId: discountType.id,
-                  marketplaceUserId: marketplaceUserId,
-                  usageCount: 1,
-                  lastUsedAt: new Date()
-                }
-              });
-            }
-          }
-        }
-        
-        // Check if maxUsage is reached and deactivate offer automatically
-        for (const discountType of activeDiscountTypes) {
-          if (discountType.maxUsage && discountType.maxUsage > 0) {
-            if (updatedOffer.totalUsage >= discountType.maxUsage) {
-              // Deactivate the offer
-              await prisma.offer.update({
-                where: { id: offer.id },
-                data: { status: 'inactive' }
-              });
-              console.log(`Offer ${offer.id} (${offer.name}) deactivated - maxUsage reached: ${updatedOffer.totalUsage}/${discountType.maxUsage}`);
-              break;
-            }
-          }
-        }
-      }
-    }
-  } catch (error) {
-    // Silently fail - don't break order creation if tracking fails
-    console.error('Failed to track offer usage:', error);
   }
 }

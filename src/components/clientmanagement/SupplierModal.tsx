@@ -14,13 +14,15 @@ function generateSupplierId() {
   return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-export default function SupplierModal({ open, onClose, onSave, initialData, mode }: {
+interface SupplierModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: SupplierFormData) => void;
   initialData?: Supplier;
   mode?: 'edit';
-}) {
+}
+
+export default function SupplierModal({ open, onClose, onSave, initialData, mode }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   

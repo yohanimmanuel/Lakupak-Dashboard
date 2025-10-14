@@ -255,7 +255,8 @@ model OrderItem {
   offerBadgeSnapshot      String?  // 'Discount', 'Promotion', 'All Offers', 'Offer'
   offerNameSnapshot       String?  // Name of the offer at time of purchase
   originalPriceSnapshot   String?  // Original price before discount (for display)
-  discountPercentage      Float?   // Calculated discount % at time of purchase
+  discountPercentage      Float?   // Calculated discount % at time of purchase (for percentage discounts)
+  discountAmount          Float?   // Fixed discount amount at time of purchase (for fixed discounts)
   promotionDetailsSnapshot String? // JSON string of promotion details {minQuantity, freeQuantity, description}
   order                   Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   product                 Product? @relation(fields: [productId], references: [productId])
@@ -434,17 +435,14 @@ model OfferUsageTracking {
   id              String   @id @default(cuid())
   offerId         String
   discountTypeId  String?  // Track per discount type, null for overall offer usage
-  buyerId         String?   // LKB-XXX format
   marketplaceUserId Int?    // For marketplace users
   usageCount      Int      @default(1)
   lastUsedAt      DateTime @default(now()) @db.Timestamptz(3)
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
   
-  @@unique([offerId, discountTypeId, buyerId])
   @@unique([offerId, discountTypeId, marketplaceUserId])
   @@index([offerId])
   @@index([discountTypeId])
-  @@index([buyerId])
   @@index([marketplaceUserId])
 }
