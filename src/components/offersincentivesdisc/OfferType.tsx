@@ -10,22 +10,30 @@ import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface DiscountTypeData {
   id: string;
-  name?: string | null;
-  description?: string | null;
+  name?: string | null | undefined;
+  description?: string | null | undefined;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue?: string | number | null;
-  minQuantity?: number | null;
-  freeQuantity?: number | null;
-  maxUsage?: number | null;
-  perCustomerLimit?: number | null;
+  minOrderValue?: string | number | null | undefined;
+  minQuantity?: number | null | undefined;
+  freeQuantity?: number | null | undefined;
+  maxUsage?: number | null | undefined;
+  perCustomerLimit?: number | null | undefined;
   isActive: boolean;
   priority?: number;
+  offerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface OfferData {
   id: string;
+  description?: string;
+  type?: string | string[];
   discountTypes: DiscountTypeData[];
+  dateRanges?: unknown[];
+  timeSlots?: unknown[];
+  products?: unknown[];
   [key: string]: unknown;
 }
 
@@ -289,19 +297,19 @@ export default function OfferType({
                 </div>
               )}
 
-              {type.maxUsage && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Max Usage:</span>
-                  <span className="font-medium text-black text-xs">{type.maxUsage}</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600">Max Usage:</span>
+                <span className="font-medium text-black text-xs">
+                  {type.maxUsage ? type.maxUsage : 'No limit'}
+                </span>
+              </div>
 
-              {type.perCustomerLimit && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Per Customer:</span>
-                  <span className="font-medium text-black text-xs">{type.perCustomerLimit} times</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600">Per Customer:</span>
+                <span className="font-medium text-black text-xs">
+                  {type.perCustomerLimit ? `${type.perCustomerLimit} times` : 'No limit'}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-gray-200">

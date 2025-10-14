@@ -23,6 +23,7 @@ export default function CreateOfferPage() {
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
   const [showCreateRangeModal, setShowCreateRangeModal] = useState(false);
   const [showCreateTimeSlotModal, setShowCreateTimeSlotModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Get state from the centralized store
   const {
@@ -212,8 +213,34 @@ export default function CreateOfferPage() {
           <OfferType 
             {...commonProps}
             onOpenCreateModal={() => setShowCreateTypeModal(true)}
-            onAddDiscountType={addDiscountType}
-            onUpdateDiscountType={updateDiscountType}
+            onAddDiscountType={(dt) => {
+              addDiscountType({
+                name: dt.name ?? undefined,
+                description: dt.description ?? undefined,
+                discountType: dt.discountType,
+                discountValue: dt.discountValue,
+                minOrderValue: typeof dt.minOrderValue === 'number' ? String(dt.minOrderValue) : dt.minOrderValue ?? undefined,
+                minQuantity: dt.minQuantity ?? undefined,
+                maxUsage: dt.maxUsage ?? undefined,
+                perCustomerLimit: dt.perCustomerLimit ?? undefined,
+                isActive: dt.isActive,
+                priority: dt.priority ?? discountTypes.length + 1,
+              });
+            }}
+            onUpdateDiscountType={(id, updates) => {
+              updateDiscountType(id, {
+                name: updates.name ?? undefined,
+                description: updates.description ?? undefined,
+                discountType: updates.discountType,
+                discountValue: updates.discountValue,
+                minOrderValue: typeof updates.minOrderValue === 'number' ? String(updates.minOrderValue) : updates.minOrderValue ?? undefined,
+                minQuantity: updates.minQuantity ?? undefined,
+                maxUsage: updates.maxUsage ?? undefined,
+                perCustomerLimit: updates.perCustomerLimit ?? undefined,
+                isActive: updates.isActive,
+                priority: updates.priority,
+              });
+            }}
             onRemoveDiscountType={removeDiscountType}
           />
         );
@@ -230,12 +257,39 @@ export default function CreateOfferPage() {
         return (
           <RangeManagement 
             {...commonProps}
-            selectedDateRange={selectedDateRange}
-            selectedTimeSlot={selectedTimeSlot}
+            selectedDateRange={selectedDateRange ? {
+              ...selectedDateRange,
+              offerCount: 0,
+              createdAt: new Date().toISOString()
+            } : undefined}
+            selectedTimeSlot={selectedTimeSlot ? {
+              id: selectedTimeSlot.id,
+              name: selectedTimeSlot.name,
+              startTime: selectedTimeSlot.startTime,
+              endTime: selectedTimeSlot.endTime,
+              days: selectedTimeSlot.days,
+              isActive: selectedTimeSlot.isActive,
+              offerCount: 0,
+              createdAt: new Date().toISOString()
+            } : undefined}
             onOpenDateModal={() => setShowCreateRangeModal(true)}
             onOpenTimeModal={() => setShowCreateTimeSlotModal(true)}
-            onSelectDateRange={setSelectedDateRange}
-            onSelectTimeSlot={setSelectedTimeSlot}
+            onSelectDateRange={(dr) => setSelectedDateRange({
+              id: dr.id,
+              name: dr.name,
+              description: dr.description,
+              startDate: dr.startDate,
+              endDate: dr.endDate,
+              isActive: dr.isActive
+            })}
+            onSelectTimeSlot={(ts) => setSelectedTimeSlot({
+              id: ts.id,
+              name: ts.name,
+              startTime: ts.startTime,
+              endTime: ts.endTime,
+              days: ts.days,
+              isActive: ts.isActive
+            })}
           />
         );
       default:
@@ -248,24 +302,25 @@ export default function CreateOfferPage() {
     discountType: string;
     discountValue: number;
     description?: string;
-    minOrderValue?: number;
+    minOrderValue?: string;
     minQuantity?: number;
     maxUsage?: number;
     perCustomerLimit?: number;
   }) => {
     // Add the discount type to the store with full fields so UI reflects user input
-    addDiscountType({
-      name: typeData.name,
-      description: typeData.description,
-      discountType: typeData.discountType,
+    const discountTypeToAdd: Omit<typeof discountTypes[0], 'id'> = {
+      name: typeData.name ?? undefined,
+      description: typeData.description ?? undefined,
+      discountType: typeData.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
       discountValue: typeData.discountValue,
-      minOrderValue: typeData.minOrderValue,
-      minQuantity: typeData.minQuantity,
-      maxUsage: typeData.maxUsage,
-      perCustomerLimit: typeData.perCustomerLimit,
+      minOrderValue: typeData.minOrderValue ?? undefined,
+      minQuantity: typeData.minQuantity ?? undefined,
+      maxUsage: typeData.maxUsage ?? undefined,
+      perCustomerLimit: typeData.perCustomerLimit ?? undefined,
       isActive: true,
       priority: discountTypes.length + 1,
-    });
+    };
+    addDiscountType(discountTypeToAdd);
     
     // Also update basic info (optional) for create-offer flow
     if (typeData.name) setName(typeData.name);
@@ -286,14 +341,15 @@ export default function CreateOfferPage() {
     endDate: string | Date;
   }) => {
     const id = `range_${Date.now()}`;
-    addDateRange({
+    const dateRangeToAdd = {
       id,
       name: rangeData.name,
-      description: rangeData.description,
-      startDate: rangeData.startDate,
-      endDate: rangeData.endDate,
+      description: rangeData.description ?? '',
+      startDate: typeof rangeData.startDate === 'string' ? rangeData.startDate : rangeData.startDate.toISOString(),
+      endDate: typeof rangeData.endDate === 'string' ? rangeData.endDate : rangeData.endDate.toISOString(),
       isActive: true,
-    });
+    };
+    addDateRange(dateRangeToAdd);
     setShowCreateRangeModal(false);
   };
 
@@ -357,6 +413,20 @@ export default function CreateOfferPage() {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Preview Button */}
+          {isReadyToCreate && (
+            <button
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Preview
+            </button>
+          )}
+          
           {/* Status Selector */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Status:</label>
@@ -431,7 +501,7 @@ export default function CreateOfferPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'products' | 'discounts' | 'dateranges' | 'timeslots')}
+              onClick={() => setActiveTab(tab.id as 'analytics' | 'type' | 'products' | 'range')}
               className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'
@@ -475,6 +545,111 @@ export default function CreateOfferPage() {
         onClose={() => setShowCreateTimeSlotModal(false)}
         onSave={handleSaveTimeSlot}
       />
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-black">Offer Preview</h3>
+                <p className="text-sm text-gray-500">How customers will see this offer</p>
+              </div>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div className="p-4 space-y-4">
+              {/* Offer Details */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="text-lg font-bold text-gray-900 mb-2">{name || 'Offer Name'}</h4>
+                <p className="text-sm text-gray-600 mb-3">{description || 'Offer description will appear here'}</p>
+                
+                {/* Discount Types Preview */}
+                <div className="space-y-2">
+                  {discountTypes.filter(dt => dt.isActive).map((dt, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-white/80 rounded-md p-2">
+                      {dt.discountType === 'percentage' && (
+                        <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                          -{dt.discountValue}% OFF
+                        </span>
+                      )}
+                      {dt.discountType === 'fixed' && (
+                        <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                          -{dt.discountValue} OFF
+                        </span>
+                      )}
+                      {dt.discountType === 'buy_x_get_y' && (
+                        <span className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-200">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                          </svg>
+                          Buy {dt.minQuantity} Get {dt.discountValue} Free
+                        </span>
+                      )}
+                      {dt.name && <span className="text-xs text-gray-600">{dt.name}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Applied Products */}
+              {Object.keys(productOfferBadges || {}).length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Applied to:</h5>
+                  <div className="text-sm text-gray-600">
+                    {Object.keys(productOfferBadges || {}).length} product(s) selected
+                  </div>
+                </div>
+              )}
+
+              {/* Offer Validity */}
+              {(selectedDateRange || selectedTimeSlot) && (
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Valid Period:</h5>
+                  {selectedDateRange && (
+                    <div className="text-sm text-gray-600 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>{selectedDateRange.name}</span>
+                    </div>
+                  )}
+                  {selectedTimeSlot && (
+                    <div className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>{selectedTimeSlot.name}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Terms & Conditions */}
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <p className="text-xs text-amber-800">
+                  <strong>Note:</strong> This is a preview. The actual offer will be live once you create it.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="w-full px-4 py-2 bg-[#0a61d7] text-white font-semibold rounded-lg hover:bg-[#084ba6] transition"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,36 +10,45 @@ import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationSto
 
 interface DiscountType {
   id: string;
-  name: string | null;
-  description: string | null;
+  name?: string | null | undefined;
+  description?: string | null | undefined;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  minOrderValue: number | null;
-  minQuantity: number | null;
-  freeQuantity?: number | null;
-  maxUsage: number | null;
-  perCustomerLimit: number | null;
+  minOrderValue?: number | string | null | undefined;
+  minQuantity?: number | null | undefined;
+  freeQuantity?: number | null | undefined;
+  maxUsage?: number | null | undefined;
+  perCustomerLimit?: number | null | undefined;
   isActive: boolean;
   priority: number;
+  offerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface DateRange {
   id: string;
   name: string;
-  description: string | null;
-  startDate: Date;
-  endDate: Date;
+  description?: string | null | undefined;
+  startDate: Date | string;
+  endDate: Date | string;
   isActive: boolean;
+  offerCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface TimeSlot {
   id: string;
   name: string;
-  description: string | null;
+  description?: string | null | undefined;
   startTime: string;
   endTime: string;
   days: string[];
   isActive: boolean;
+  offerCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface OfferProduct {
@@ -48,22 +57,23 @@ interface OfferProduct {
   name?: string;
   productType?: string;
   productCategory?: string;
-  sellingPrice?: string;
+  sellingPrice?: string | number;
 }
 
 interface OfferData {
   id: string;
   offerId: string;
   name: string;
-  description: string;
-  type: string;
+  description?: string;
+  type: string | string[];
   status: string;
   discountTypes: DiscountType[];
   dateRanges?: DateRange[];
   timeSlots?: TimeSlot[];
   products: OfferProduct[];
-  startDate: Date;
-  endDate: Date;
+  [key: string]: unknown;
+  startDate: Date | string;
+  endDate: Date | string;
   productOfferBadges?: Record<string, string>;
 }
 
@@ -248,30 +258,50 @@ export default function ProductIntegration({
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/products?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
+      // Fetch products and active offers
+      const [productsResponse, offersResponse] = await Promise.all([
+        fetch(`/api/products?userId=${user.id}`),
+        fetch(`/api/offers?userId=${user.id}`)
+      ]);
+      
+      if (productsResponse.ok && offersResponse.ok) {
+        const productsData = await productsResponse.json();
+        const offersData = await offersResponse.json();
+        
         // Handle both old format (array) and new format (with pagination)
-        const productsData = data.products || data;
+        const products = productsData.products || productsData;
+        const offers = offersData.offers || [];
+        
+        // Get all product IDs that already have active offers
+        const productsWithOffers = new Set<string>();
+        offers.forEach((offer: any) => {
+          if (offer.status === 'active' && offer.products) {
+            offer.products.forEach((product: any) => {
+              productsWithOffers.add(product.productId);
+            });
+          }
+        });
         
         // Transform products to include offer information
-        const productsWithOffers: ProductWithOffer[] = productsData.map((product: Product) => {
-          const hasOffer = Boolean(productOfferBadges[product.productId]);
-          const discountAmount = hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0;
+        const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
+          const storeHasOffer = Boolean(productOfferBadges[product.productId]);
+          const apiHasOffer = productsWithOffers.has(product.productId);
+          const hasOffer = storeHasOffer || apiHasOffer;
           
-          // Compute badge based on active discount types
-          const productBadge = hasOffer ? computeOfferBadge() : undefined;
+          // Check if product is in current offer (for editing mode)
+          const isInCurrentOffer = currentOfferProductIds.has(product.productId);
+          const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
           
           return {
-          ...product,
+            ...product,
             hasOffer,
-            offerDiscount: discountAmount,
-            offerType: hasOffer ? 'percentage' : undefined, // Default to percentage for display
-            offerBadge: productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined,
+            offerDiscount: hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0,
+            offerType: hasOffer ? 'percentage' : undefined,
+            offerBadge: (isInCurrentOffer || storeHasOffer) ? productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' : undefined,
           };
         });
         
-        setProducts(productsWithOffers);
+        setProducts(productsWithOfferInfo);
       } else {
         setProducts([]);
       }
@@ -280,7 +310,7 @@ export default function ProductIntegration({
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, productOfferBadges]);
 
   useEffect(() => {
     fetchProducts();
@@ -314,18 +344,56 @@ export default function ProductIntegration({
     setPage(1);
   }, [searchTerm, selectedType, selectedCategory, selectedBrand]);
 
-  // Show bulk 'Remove Offer' only if any selected product currently has an offer
-  const canRemoveOffer = selectedProducts.some((productId) => {
-    const product = products.find((p) => p.productId === productId);
-    return Boolean(product?.hasOffer);
-  });
+  // Determine if we're editing an existing offer
+  const isEditingOffer = Boolean(offerData?.id);
+  
+  // Track products that are currently part of the offer being edited
+  const [currentOfferProductIds, setCurrentOfferProductIds] = useState<Set<string>>(
+    new Set(offerData?.products?.map(p => p.productId) || [])
+  );
+
+  // Update currentOfferProductIds when offerData changes
+  useEffect(() => {
+    setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
+  }, [offerData?.products]);
+  
+  // Check if product can be selected
+  const canSelectProduct = (productId: string) => {
+    const product = products.find(p => p.productId === productId);
+    if (!product) return false;
+    
+    // If product has an offer from a DIFFERENT offer, it cannot be selected
+    if (product.hasOffer && !currentOfferProductIds.has(productId)) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Helper function to check if product should show as disabled in UI
+  const shouldShowAsDisabled = (productId: string) => {
+    const product = products.find(p => p.productId === productId);
+    if (!product) return false;
+    
+    // Only show as disabled if product has offer from OTHER offers (not current offer)
+    return product.hasOffer && !currentOfferProductIds.has(productId);
+  };
 
   const handleProductSelect = (productId: string) => {
-    setSelectedProducts(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
+    // Check if product can be selected
+    if (!canSelectProduct(productId)) {
+      return;
+    }
+    
+    setSelectedProducts(prev => {
+      if (prev.includes(productId)) {
+        // Deselect the product
+        return prev.filter(id => id !== productId);
+      } else {
+        // Add the product to selection
+        return [...prev, productId];
+      }
+    });
   };
 
   const handleRowClick = (productId: string, event: React.MouseEvent) => {
@@ -336,10 +404,14 @@ export default function ProductIntegration({
   };
 
   const handleSelectAll = () => {
-    if (selectedProducts.length === pagedProducts.length) {
+    const availableProducts = pagedProducts.filter(p => canSelectProduct(p.productId));
+    if (selectedProducts.length === availableProducts.length && availableProducts.length > 0) {
+      // Deselect all
       setSelectedProducts([]);
     } else {
-      setSelectedProducts(pagedProducts.map(product => product.productId));
+      // Select all available products on current page
+      const availableProductIds = availableProducts.map(product => product.productId);
+      setSelectedProducts(availableProductIds);
     }
   };
 
@@ -385,7 +457,7 @@ export default function ProductIntegration({
             {isNewOffer ? 'Select Products for Offer' : 'Your Products'}
           </h2>
           <p className="text-gray-500 text-sm">
-            {isNewOffer ? 'Choose which products to include in your new offer' : 'Select products for offers and discounts'}
+            {isNewOffer ? 'Choose which products to include in your new offer' : 'Select products for this offer (one offer per product)'}
           </p>
         </div>
         {selectedProducts.length > 0 && (
@@ -548,17 +620,17 @@ export default function ProductIntegration({
             <button
               onClick={handleSelectAll}
               className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                selectedProducts.length === pagedProducts.length && pagedProducts.length > 0
+                selectedProducts.length === pagedProducts.filter(p => canSelectProduct(p.productId)).length && pagedProducts.filter(p => canSelectProduct(p.productId)).length > 0
                   ? 'bg-green-500 border-green-500'
                   : 'bg-white border-gray-300 hover:border-green-400'
               }`}
             >
-              {selectedProducts.length === pagedProducts.length && pagedProducts.length > 0 && (
+              {selectedProducts.length === pagedProducts.filter(p => canSelectProduct(p.productId)).length && pagedProducts.filter(p => canSelectProduct(p.productId)).length > 0 && (
                 <Check className="w-3 h-3 text-white" />
               )}
             </button>
             <span className="text-sm text-gray-700">
-              Select All ({selectedProducts.length}/{pagedProducts.length})
+              Select All Available ({selectedProducts.length}/{pagedProducts.filter(p => canSelectProduct(p.productId)).length})
             </span>
           </div>
         )}
@@ -569,9 +641,10 @@ export default function ProductIntegration({
             <div className="flex items-center justify-between">
               <span className="text-sm text-blue-700">
                 {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
+                {selectedProducts.some(productId => currentOfferProductIds.has(productId)) && ' (some have offers)'}
               </span>
               <div className="flex items-center gap-3">
-                {canRemoveOffer && (
+                {selectedProducts.some(productId => currentOfferProductIds.has(productId)) && (
                   <button
                     onClick={() => setShowRemoveConfirm(true)}
                     className="text-xs text-red-600 hover:text-red-800 font-medium"
@@ -579,12 +652,12 @@ export default function ProductIntegration({
                     Remove Offer
                   </button>
                 )}
-              <button
-                onClick={() => setSelectedProducts([])}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                Clear Selection
-              </button>
+                <button
+                  onClick={() => setSelectedProducts([])}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Clear Selection
+                </button>
               </div>
             </div>
           </div>
@@ -626,44 +699,59 @@ export default function ProductIntegration({
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {pagedProducts.map((product) => (
-            <div 
-              key={product.id} 
-              className={`bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${
-                selectedProducts.includes(product.productId) 
-                  ? 'ring-2 ring-blue-500 border-blue-500' 
+            <div
+              key={product.id}
+              className={`bg-white rounded-lg border border-gray-200 overflow-hidden transition-shadow ${
+                shouldShowAsDisabled(product.productId)
+                  ? 'bg-gray-100 opacity-60 cursor-not-allowed'
+                  : 'hover:shadow-md cursor-pointer'
+              } ${
+                selectedProducts.includes(product.productId)
+                  ? 'ring-2 ring-blue-500 border-blue-500'
                   : ''
               }`}
               onClick={(e) => {
-                if (!(e.target as HTMLElement).closest('button')) {
+                if (!(e.target as HTMLElement).closest('button') && canSelectProduct(product.productId)) {
                   handleProductSelect(product.productId);
                 }
               }}
             >
               <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleProductSelect(product.productId)}
-                      className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                        selectedProducts.includes(product.productId)
-                          ? 'bg-green-500 border-green-500'
-                          : 'bg-white border-gray-300 hover:border-green-400'
-                      }`}
-                    >
-                      {selectedProducts.includes(product.productId) && (
-                        <Check className="w-3 h-3 text-white" />
-                      )}
-                    </button>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleProductSelect(product.productId)}
+                        disabled={!canSelectProduct(product.productId)}
+                        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                          shouldShowAsDisabled(product.productId)
+                            ? 'bg-gray-200 border-gray-300 cursor-not-allowed'
+                            : selectedProducts.includes(product.productId)
+                            ? 'bg-green-500 border-green-500'
+                            : 'bg-white border-gray-300 hover:border-green-400'
+                        }`}
+                      >
+                        {selectedProducts.includes(product.productId) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
+                      </button>
+                      
                     <div className="flex-1">
                       <h3 className="font-medium text-black text-sm line-clamp-2">{product.name}</h3>
                       <p className="text-xs text-gray-500">{product.brand}</p>
+                      {shouldShowAsDisabled(product.productId) && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Has Active Offer
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                     {product.hasOffer && product.offerBadge && (
                       <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                         {product.offerBadge}
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </div>
 
                 <div className="space-y-2 mb-3">
@@ -711,12 +799,12 @@ export default function ProductIntegration({
                     <button
                       onClick={handleSelectAll}
                       className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                        selectedProducts.length === pagedProducts.length && pagedProducts.length > 0
+                        selectedProducts.length === pagedProducts.filter(p => canSelectProduct(p.productId)).length && pagedProducts.filter(p => canSelectProduct(p.productId)).length > 0
                           ? 'bg-green-500 border-green-500'
                           : 'bg-white border-gray-300 hover:border-green-400'
                       }`}
                     >
-                      {selectedProducts.length === pagedProducts.length && pagedProducts.length > 0 && (
+                      {selectedProducts.length === pagedProducts.filter(p => canSelectProduct(p.productId)).length && pagedProducts.filter(p => canSelectProduct(p.productId)).length > 0 && (
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </button>
@@ -734,19 +822,30 @@ export default function ProductIntegration({
                 {pagedProducts.map((product) => (
                   <tr 
                     key={product.id} 
-                    className={`border-b border-gray-100 hover:bg-gray-50 text-xs transition cursor-pointer whitespace-nowrap${
+                    className={`border-b border-gray-100 text-xs transition whitespace-nowrap ${
+                      shouldShowAsDisabled(product.productId)
+                        ? 'bg-gray-100 opacity-60 cursor-not-allowed' 
+                        : 'hover:bg-gray-50 cursor-pointer'
+                    } ${
                       selectedProducts.includes(product.productId) 
-                        ? 'bg-blue-50' 
+                        ? 'bg-blue-50'
                         : ''
                     }`}
-                    onClick={(e) => handleRowClick(product.productId, e)}
+                    onClick={(e) => {
+                      if (canSelectProduct(product.productId)) {
+                        handleRowClick(product.productId, e);
+                      }
+                    }}
                   >
                     <td className="w-12 py-4 px-4">
-                      <div className="flex items-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleProductSelect(product.productId)}
+                          disabled={!canSelectProduct(product.productId)}
                           className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                            selectedProducts.includes(product.productId)
+                            shouldShowAsDisabled(product.productId)
+                              ? 'bg-gray-200 border-gray-300 cursor-not-allowed'
+                              : selectedProducts.includes(product.productId)
                               ? 'bg-green-500 border-green-500'
                               : 'bg-white border-gray-300 hover:border-green-400'
                           }`}
@@ -755,10 +854,18 @@ export default function ProductIntegration({
                             <Check className="w-3 h-3 text-white" />
                           )}
                         </button>
+                        
                       </div>
                     </td>
                     <td className="py-4 px-4 text-gray-700">
                       <div className="font-medium text-black truncate">{product.name}</div>
+                      {shouldShowAsDisabled(product.productId) && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Has Active Offer
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-gray-700 truncate">{product.productType}</td>
                     <td className="py-4 px-4 text-gray-700 truncate">{product.productCategory}</td>
@@ -1175,36 +1282,51 @@ export default function ProductIntegration({
                     });
                     
                     // Update local UI
+                    const badgeForUI = computeOfferBadge();
                     setProducts((prev) => prev.map((p) => {
                       if (selectedProducts.includes(p.productId)) {
                         const discountAmount = calculateDiscountAmount(p);
                         return { 
                           ...p, 
                           hasOffer: true, 
-                          offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
+                          offerBadge: badgeForUI as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
                           offerDiscount: discountAmount,
                           offerType: 'percentage' as const
                         };
                       }
                       return p;
                     }));
+                    
+                    // Update currentOfferProductIds to add the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.add(id));
+                      return newSet;
+                    });
                   } else {
                     // In create view, update local state
-                    const badge = computeOfferBadge();
+                    const badgeForCreate = computeOfferBadge();
                     setProducts((prev) => prev.map((p) => {
                       if (selectedProducts.includes(p.productId)) {
                         const discountAmount = calculateDiscountAmount(p);
                         return { 
                           ...p, 
                           hasOffer: true, 
-                          offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
+                          offerBadge: badgeForCreate as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
                           offerDiscount: discountAmount,
                           offerType: 'percentage' as const
                         };
                       }
                       return p;
                     }));
-                    selectedProducts.forEach((id) => setProductOfferBadge(id, badge));
+                    selectedProducts.forEach((id) => setProductOfferBadge(id, badgeForCreate));
+                    
+                    // Update currentOfferProductIds to add the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.add(id));
+                      return newSet;
+                    });
                   }
                   setShowOfferModal(false);
                   setSelectedProducts([]);
@@ -1278,20 +1400,34 @@ export default function ProductIntegration({
                       productOfferBadges: updatedBadges
                     });
                     
-                    // Update local UI
+                    // Update local UI - remove badges and hasOffer flag
                     setProducts((prev) => prev.map((p) => (
                       selectedProducts.includes(p.productId) && p.hasOffer
-                        ? { ...p, hasOffer: false, offerBadge: undefined }
+                        ? { ...p, offerBadge: undefined, hasOffer: false }
                         : p
                     )));
+                    
+                    // Update currentOfferProductIds to remove the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.delete(id));
+                      return newSet;
+                    });
                   } else {
-                    // In create view, update local state
+                    // In create view, update local state - remove badges and hasOffer flag
                     setProducts((prev) => prev.map((p) => (
                       selectedProducts.includes(p.productId) && p.hasOffer
-                        ? { ...p, hasOffer: false, offerBadge: undefined }
+                        ? { ...p, offerBadge: undefined, hasOffer: false }
                         : p
                     )));
                     selectedProducts.forEach((id) => clearProductOfferBadge(id));
+                    
+                    // Update currentOfferProductIds to remove the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.delete(id));
+                      return newSet;
+                    });
                   }
                   setShowRemoveConfirm(false);
                   setSelectedProducts([]);

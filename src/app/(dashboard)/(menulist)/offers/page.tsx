@@ -70,8 +70,62 @@ export default function OffersPage() {
 
   const handleExportData = async () => {
     try {
-      // TODO: Implement export functionality
+      if (offers.length === 0) {
+        alert('No offers to export');
+        return;
+      }
+
+      // Import xlsx library dynamically
+      const XLSX = await import('xlsx');
+
+      // Prepare data for Excel
+      const exportData = offers.map(offer => {
+        const discountTypesSummary = offer.discountTypes
+          ?.map(dt => `${dt.discountType}(${dt.discountValue}${dt.discountType === 'percentage' ? '%' : ''})`)
+          .join('; ') || 'N/A';
+
+        return {
+          'Offer ID': offer.offerId || offer.id,
+          'Name': offer.name || 'N/A',
+          'Type': Array.isArray(offer.type) ? offer.type.join(', ') : offer.type || 'N/A',
+          'Status': offer.status || 'N/A',
+          'Start Date': offer.startDate ? new Date(offer.startDate).toLocaleDateString() : 'N/A',
+          'End Date': offer.endDate ? new Date(offer.endDate).toLocaleDateString() : 'N/A',
+          'Products Count': offer.products?.length || 0,
+          'Total Usage': offer.totalUsage || 0,
+          'Total Discount Given': offer.totalDiscountGiven || 0,
+          'Discount Types': discountTypesSummary,
+          'Created At': offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : 'N/A'
+        };
+      });
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 }, // Offer ID
+        { wch: 30 }, // Name
+        { wch: 15 }, // Type
+        { wch: 10 }, // Status
+        { wch: 15 }, // Start Date
+        { wch: 15 }, // End Date
+        { wch: 15 }, // Products Count
+        { wch: 12 }, // Total Usage
+        { wch: 20 }, // Total Discount Given
+        { wch: 40 }, // Discount Types
+        { wch: 15 }  // Created At
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Offers');
+
+      // Generate Excel file and download
+      XLSX.writeFile(workbook, `offers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
+      alert('Failed to export data. Please try again.');
     }
   };
 
@@ -112,7 +166,7 @@ export default function OffersPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'active' | 'inactive' | 'archived')}
+              onClick={() => setActiveTab(tab.id as 'all' | 'discounts' | 'promotions')}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'
@@ -144,9 +198,9 @@ export default function OffersPage() {
       {!loading && (
         <OfferTable 
           offers={offers}
-          setOffers={setOffers}
+          setOffersAction={setOffers}
           activeTab={activeTab}
-          onSelectOffer={handleSelectOffer}
+          onSelectOfferAction={handleSelectOffer}
         />
       )}
     </div>

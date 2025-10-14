@@ -9,6 +9,8 @@ import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 import { Offer } from '@/types/offer';
+import { OfferDiscountType } from '@/types/offer';
+import { OfferProduct } from '@/types/offer';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
@@ -46,10 +48,10 @@ export default function OffersDetailsPage() {
           
           // Get only active discount types
           const activeDiscountTypes = (offer.discountTypes || [])
-            .filter((dt) => dt.isActive !== false)
-            .map((dt) => dt.discountType);
+            .filter((dt: OfferDiscountType) => dt.isActive !== false)
+            .map((dt: OfferDiscountType) => dt.discountType);
           
-          offer.products?.forEach((product) => {
+          offer.products?.forEach((product: OfferProduct) => {
             if (product.productId) {
               // Determine badge based on active discount types
               const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
@@ -105,10 +107,10 @@ export default function OffersDetailsPage() {
         
         // Get only active discount types
         const activeDiscountTypes = (offer.discountTypes || [])
-          .filter((dt) => dt.isActive !== false)
-          .map((dt) => dt.discountType);
+          .filter((dt: OfferDiscountType) => dt.isActive !== false)
+          .map((dt: OfferDiscountType) => dt.discountType);
         
-        offer.products?.forEach((product) => {
+        offer.products?.forEach((product: OfferProduct) => {
           if (product.productId) {
             // Determine badge based on active discount types
             const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
@@ -267,26 +269,31 @@ export default function OffersDetailsPage() {
   }
 
   const renderActiveComponent = () => {
+    if (!currentOffer) return null;
+
+    const safeHandleChange = (updates: Record<string, unknown>) => {
+      handleOfferChange(updates);
+    };
 
     switch (activeTab) {
       case 'analytics':
         return <OfferAnalytics offers={[currentOffer]} />;
       case 'type':
-        return <OfferType offerData={currentOffer} onOfferChange={handleOfferChange} />;
+        return <OfferType offerData={currentOffer} onOfferChange={safeHandleChange} />;
       case 'products':
         return (
           <ProductIntegration 
             offerData={currentOffer}
-            onOfferChange={handleOfferChange}
+            onOfferChange={safeHandleChange}
             onAddProduct={() => {}}
             onRemoveProduct={() => {}}
             onUpdateProductDiscount={() => {}}
           />
         );
       case 'range':
-        return <RangeManagement offerData={currentOffer} onOfferChange={handleOfferChange} />;
+        return <RangeManagement offerData={currentOffer} onOfferChange={safeHandleChange} />;
       default:
-        return <OfferType offerData={currentOffer} onOfferChange={handleOfferChange} />;
+        return <OfferType offerData={currentOffer} onOfferChange={safeHandleChange} />;
     }
   };
 
@@ -390,7 +397,7 @@ export default function OffersDetailsPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'products' | 'discounts' | 'dateranges' | 'timeslots')}
+              onClick={() => setActiveTab(tab.id as 'analytics' | 'type' | 'products' | 'range')}
               className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'

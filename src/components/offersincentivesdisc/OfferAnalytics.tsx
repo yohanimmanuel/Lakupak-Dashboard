@@ -19,7 +19,8 @@ function calculateTotalDiscountFromOffer(offer: Offer): number {
     if (dt.discountType === 'percentage') {
       // For percentage discounts, calculate based on minOrderValue
       const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
-      const discountAmount = (minOrderValue * dt.discountValue) / 100;
+      const numericMinOrderValue = typeof minOrderValue === 'string' ? parseFloat(minOrderValue) || 0 : minOrderValue;
+      const discountAmount = (numericMinOrderValue * dt.discountValue) / 100;
       totalDiscount += discountAmount;
     } else if (dt.discountType === 'fixed') {
       // For fixed discounts, add the fixed amount
@@ -91,10 +92,9 @@ export default function OfferAnalytics({ offers = [], isNewOffer = false }: Offe
 
     const totalOffers = filteredOffers.length;
     const activeOffers = filteredOffers.filter(offer => offer.status === 'active').length;
-    // Calculate total discount from all offers based on their discount types
+    // Use real totalDiscountGiven from offers (tracked from actual orders)
     const totalDiscountGiven = filteredOffers.reduce((sum, offer) => {
-      const calculatedDiscount = calculateTotalDiscountFromOffer(offer);
-      return sum + calculatedDiscount;
+      return sum + (offer.totalDiscountGiven || 0);
     }, 0);
     const totalUsage = filteredOffers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
     const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;

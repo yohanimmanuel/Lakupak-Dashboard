@@ -9,25 +9,26 @@ export interface OfferProduct {
 
 export interface OfferDiscountType {
   id: string;
-  offerId: string;
+  offerId?: string;
   discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
   discountValue: number;
-  name?: string;
-  description?: string;
-  minOrderValue?: number;
-  minQuantity?: number;
-  maxUsage?: number;
-  perCustomerLimit?: number;
+  name?: string | null;
+  description?: string | null;
+  minOrderValue?: number | string | null;
+  minQuantity?: number | null;
+  freeQuantity?: number | null;
+  maxUsage?: number | null;
+  perCustomerLimit?: number | null;
   isActive: boolean;
   priority: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DateRange {
   id: string;
   name: string;
-  description?: string;
+  description?: string | null;
   startDate: string;
   endDate: string;
   isActive: boolean;
@@ -71,6 +72,7 @@ export interface Offer {
   productOfferBadges?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
+  [key: string]: unknown;
 }
 
 export interface OfferFormData {

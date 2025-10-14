@@ -429,3 +429,22 @@ model TimeSlot {
   
   @@index([offerId])
 }
+
+model OfferUsageTracking {
+  id              String   @id @default(cuid())
+  offerId         String
+  discountTypeId  String?  // Track per discount type, null for overall offer usage
+  buyerId         String?   // LKB-XXX format
+  marketplaceUserId Int?    // For marketplace users
+  usageCount      Int      @default(1)
+  lastUsedAt      DateTime @default(now()) @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  
+  @@unique([offerId, discountTypeId, buyerId])
+  @@unique([offerId, discountTypeId, marketplaceUserId])
+  @@index([offerId])
+  @@index([discountTypeId])
+  @@index([buyerId])
+  @@index([marketplaceUserId])
+}

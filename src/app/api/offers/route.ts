@@ -208,6 +208,58 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Check for overlapping active offers on the same products
+    if (productIds && productIds.length > 0) {
+      const overlappingOffers = await prisma.offer.findMany({
+        where: {
+          userId: user.id,
+          status: 'active',
+          OR: [
+            {
+              AND: [
+                { startDate: { lte: end } },
+                { endDate: { gte: start } }
+              ]
+            }
+          ],
+          offerProducts: {
+            some: {
+              productId: { in: productIds }
+            }
+          }
+        },
+        include: {
+          offerProducts: {
+            where: {
+              productId: { in: productIds }
+            },
+            include: {
+              product: {
+                select: { name: true }
+              }
+            }
+          }
+        }
+      });
+      
+      if (overlappingOffers.length > 0) {
+        const overlappingProductNames = overlappingOffers
+          .flatMap(o => o.offerProducts.map(op => op.product.name))
+          .filter((name, index, arr) => arr.indexOf(name) === index)
+          .slice(0, 3)
+          .join(', ');
+        
+        return NextResponse.json(
+          { 
+            error: 'Date range conflict detected',
+            message: `Some products already have active offers in this date range: ${overlappingProductNames}${overlappingOffers.flatMap(o => o.offerProducts).length > 3 ? '...' : ''}`,
+            warning: true // This allows the frontend to show as a warning instead of error
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     // Validate discount types
     for (const discountType of discountTypes) {

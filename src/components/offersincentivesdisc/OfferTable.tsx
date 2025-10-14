@@ -27,14 +27,14 @@ const dateRangeFilters = [
 
 export default function OfferTable({ 
   offers = [], 
-  setOffers, 
+  setOffersAction, 
   activeTab = 'all',
-  onSelectOffer
+  onSelectOfferAction
 }: { 
   offers?: Offer[]; 
-  setOffers?: (fn: (prev: Offer[]) => Offer[]) => void; 
+  setOffersAction?: (fn: (prev: Offer[]) => Offer[]) => void; 
   activeTab?: 'all' | 'discounts' | 'promotions';
-  onSelectOffer?: (offer: Offer) => void;
+  onSelectOfferAction?: (offer: Offer) => void;
 }) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
@@ -165,7 +165,7 @@ export default function OfferTable({
     activeDiscountTypes.forEach(dt => {
       if (dt.discountType === 'percentage') {
         // For percentage discounts, calculate based on minOrderValue
-        const minOrderValue = dt.minOrderValue || offer.minOrderValue || 0;
+        const minOrderValue = Number(dt.minOrderValue) || Number(offer.minOrderValue) || 0;
         const discountAmount = (minOrderValue * dt.discountValue) / 100;
         totalDiscount += discountAmount;
       } else if (dt.discountType === 'fixed') {
@@ -292,8 +292,8 @@ export default function OfferTable({
         }
         
         // Update UI state
-        if (setOffers) {
-          setOffers(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
+        if (setOffersAction) {
+          setOffersAction(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
         }
         setSelectedOffers([]);
       } else {
@@ -308,8 +308,8 @@ export default function OfferTable({
         }
         
         // Update UI state
-        if (setOffers) {
-          setOffers(prev => prev.filter(offer => offer.id !== offerToDelete.id));
+        if (setOffersAction) {
+          setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
         }
         setOfferToDelete(null);
       }
@@ -347,6 +347,60 @@ export default function OfferTable({
       setSelectedOffers([]);
     } else {
       setSelectedOffers(pagedRows.map(offer => offer.id));
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedOffers.length === 0) return;
+    
+    try {
+      const updatePromises = selectedOffers.map(offerId =>
+        fetch(`/api/offers/${offerId}?type=offer&userId=${user?.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'active' })
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Update UI state
+      if (setOffersAction) {
+        setOffersAction(prev => prev.map(offer => 
+          selectedOffers.includes(offer.id) ? { ...offer, status: 'active' } : offer
+        ));
+      }
+      
+      setSelectedOffers([]);
+    } catch (error) {
+      alert('Failed to activate offers. Please try again.');
+    }
+  };
+  
+  const handleBulkDeactivate = async () => {
+    if (selectedOffers.length === 0) return;
+    
+    try {
+      const updatePromises = selectedOffers.map(offerId =>
+        fetch(`/api/offers/${offerId}?type=offer&userId=${user?.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'inactive' })
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Update UI state
+      if (setOffersAction) {
+        setOffersAction(prev => prev.map(offer => 
+          selectedOffers.includes(offer.id) ? { ...offer, status: 'inactive' } : offer
+        ));
+      }
+      
+      setSelectedOffers([]);
+    } catch (error) {
+      alert('Failed to deactivate offers. Please try again.');
     }
   };
 
@@ -493,6 +547,18 @@ export default function OfferTable({
             </div>
             <div className="flex gap-2">
               <button
+                onClick={handleBulkActivate}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Activate
+              </button>
+              <button
+                onClick={handleBulkDeactivate}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-yellow-600 text-white font-semibold text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+              >
+                Deactivate
+              </button>
+              <button
                 onClick={handleBulkRemove}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
               >
@@ -519,6 +585,18 @@ export default function OfferTable({
                 Select offers to remove from the system.
               </span>
               <div className="flex gap-2">
+                <button
+                  onClick={handleBulkActivate}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Activate
+                </button>
+                <button
+                  onClick={handleBulkDeactivate}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white font-semibold text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+                >
+                  Deactivate
+                </button>
                 <button
                   onClick={handleBulkRemove}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
