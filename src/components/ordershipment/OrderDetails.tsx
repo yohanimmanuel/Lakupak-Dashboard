@@ -525,25 +525,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     {/* Quantity with promotion details under SKU */}
                     <p className="text-xs text-gray-600">
                       Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
-                      {item.offerApplied && (() => {
-                        // Show promotion details if available
-                        if (item.promotionDetailsSnapshot) {
-                          try {
-                            const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                              return freeQty > 0 ? ` + ${freeQty} free items` : '';
-                            }
-                          } catch {
-                            // Invalid JSON, skip
+                      {item.offerApplied && item.promotionDetailsSnapshot && (() => {
+                        // Only show promotion details if available
+                        try {
+                          const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                          if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                            const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                            return freeQty > 0 ? ` (+ ${freeQty} free items)` : '';
                           }
-                        }
-                        // Show discount if available (even without promotion details)
-                        if (item.discountPercentage) {
-                          return ` (${item.discountPercentage}% OFF)`;
-                        }
-                        if (item.discountAmount) {
-                          return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                        } catch {
+                          // Invalid JSON, skip
                         }
                         return '';
                       })()}
@@ -626,25 +617,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <td className="py-2">{item.piecesPerPackage || 1}</td>
                       <td className="py-2">
                         {item.packageQuantity || 1}
-                        {item.offerApplied && (() => {
-                          // Show promotion details if available
-                          if (item.promotionDetailsSnapshot) {
-                            try {
-                              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                                return freeQty > 0 ? ` + ${freeQty} free` : '';
-                              }
-                            } catch {
-                              // Invalid JSON, skip
+                        {item.offerApplied && item.promotionDetailsSnapshot && (() => {
+                          // Only show promotion details if available
+                          try {
+                            const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                              return freeQty > 0 ? ` (+ ${freeQty} free)` : '';
                             }
-                          }
-                          // Show discount if available (even without promotion details)
-                          if (item.discountPercentage) {
-                            return ` (${item.discountPercentage}% OFF)`;
-                          }
-                          if (item.discountAmount) {
-                            return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                          } catch {
+                            // Invalid JSON, skip
                           }
                           return '';
                         })()}
@@ -730,25 +712,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       {/* Quantity with promotion details under SKU */}
                       <p className="text-sm text-gray-600">
                         Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
-                        {item.offerApplied && (() => {
-                          // Show promotion details if available
-                          if (item.promotionDetailsSnapshot) {
-                            try {
-                              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                                return freeQty > 0 ? ` + ${freeQty} free items` : '';
-                              }
-                            } catch {
-                              // Invalid JSON, skip
+                        {item.offerApplied && item.promotionDetailsSnapshot && (() => {
+                          // Only show promotion details if available
+                          try {
+                            const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                              return freeQty > 0 ? ` (+ ${freeQty} free items)` : '';
                             }
-                          }
-                          // Show discount if available (even without promotion details)
-                          if (item.discountPercentage) {
-                            return ` (${item.discountPercentage}% OFF)`;
-                          }
-                          if (item.discountAmount) {
-                            return ` (${formatCurrency(item.discountAmount, user?.currency)} OFF)`;
+                          } catch {
+                            // Invalid JSON, skip
                           }
                           return '';
                         })()}

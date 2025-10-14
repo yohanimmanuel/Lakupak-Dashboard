@@ -159,6 +159,7 @@ export async function GET(request: NextRequest) {
         offerNameSnapshot: oi.offerNameSnapshot || null,
         originalPriceSnapshot: oi.originalPriceSnapshot || null,
         discountPercentage: oi.discountPercentage || null,
+        discountAmount: oi.discountAmount || null,
         promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null
       }));
       

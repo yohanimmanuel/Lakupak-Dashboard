@@ -127,11 +127,11 @@ export async function validateOfferForProduct(
       } else if (discountType.discountType === 'buy_x_get_y') {
         // For buy_x_get_y, we don't change the price but provide promotion details
         const minQuantity = discountType.minQuantity || 1;
-        const freeQuantity = Math.floor(orderQuantity / minQuantity) * (discountType.freeQuantity || 1);
+        const freeQuantity = Math.floor(orderQuantity / minQuantity) * (discountType.discountValue || 1);
         promotionDetails = {
           minQuantity: minQuantity,
           freeQuantity: freeQuantity,
-          description: discountType.description || `Buy ${minQuantity}, get ${discountType.freeQuantity || 1} free`
+          description: discountType.description || `Buy ${minQuantity}, get ${discountType.discountValue || 1} free`
         };
       }
 

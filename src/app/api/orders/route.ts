@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
         offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
         originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
         discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
+        discountAmount: (oi as { discountAmount?: number | null }).discountAmount || null,
         promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
 
@@ -198,6 +199,7 @@ export async function GET(request: NextRequest) {
         offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
         originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
         discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
+        discountAmount: (oi as { discountAmount?: number | null }).discountAmount || null,
         promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
       return { ...order, orderItems: enrichedOrderItems };
