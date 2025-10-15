@@ -50,7 +50,8 @@ export async function validateOfferForProduct(
   marketplaceUserId: number | null,
   orderTotal: number,
   orderQuantity: number,
-  tx: Prisma.TransactionClient
+  tx: Prisma.TransactionClient,
+  packageQuantity?: number // Add package quantity for buy_x_get_y calculations
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
@@ -94,7 +95,13 @@ export async function validateOfferForProduct(
     const product = offer.offerProducts[0].product;
     const originalPrice = parseFloat(product.originalSellingPrice || product.sellingPrice);
 
-    // Try each discount type in priority order
+    // Try each discount type in priority order and collect all applicable discounts/promotions
+    let bestDiscountAmount = 0;
+    let bestDiscountPercentage = 0;
+    let bestDiscountTypeId = '';
+    let promotionDetails = undefined;
+    let hasValidDiscount = false;
+
     for (const discountType of offer.offerDiscountTypes) {
       // Check usage limits
       const usageValidation = await validateUsageLimits(
@@ -109,31 +116,57 @@ export async function validateOfferForProduct(
         continue; // Try next discount type
       }
 
-
       // Calculate discount based on type
       let discountAmount = 0;
       let discountPercentage = 0;
-      let finalPrice = originalPrice;
-      let promotionDetails = undefined;
 
       if (discountType.discountType === 'percentage') {
         discountPercentage = discountType.discountValue;
         discountAmount = (originalPrice * discountPercentage) / 100;
-        finalPrice = originalPrice - discountAmount;
+        
+        // Keep the best discount
+        if (discountAmount > bestDiscountAmount) {
+          bestDiscountAmount = discountAmount;
+          bestDiscountPercentage = discountPercentage;
+          bestDiscountTypeId = discountType.id;
+          hasValidDiscount = true;
+        }
       } else if (discountType.discountType === 'fixed') {
         discountAmount = discountType.discountValue;
-        discountPercentage = 0; // Don't set percentage for fixed discounts
-        finalPrice = Math.max(0, originalPrice - discountAmount);
+        
+        // Keep the best discount
+        if (discountAmount > bestDiscountAmount) {
+          bestDiscountAmount = discountAmount;
+          bestDiscountPercentage = 0;
+          bestDiscountTypeId = discountType.id;
+          hasValidDiscount = true;
+        }
       } else if (discountType.discountType === 'buy_x_get_y') {
         // For buy_x_get_y, we don't change the price but provide promotion details
-        const minQuantity = discountType.minQuantity || 1;
-        const freeQuantity = Math.floor(orderQuantity / minQuantity) * (discountType.discountValue || 1);
-        promotionDetails = {
-          minQuantity: minQuantity,
-          freeQuantity: freeQuantity,
-          description: discountType.description || `Buy ${minQuantity}, get ${discountType.discountValue || 1} free`
-        };
+        const minQuantity = discountType.minQuantity;
+        const freeItemsPerSet = discountType.discountValue || 1; // Number of free items per qualifying set
+        
+        // Use package quantity for buy_x_get_y calculations, not total pieces
+        const quantityForCalculation = packageQuantity || Math.floor(orderQuantity / 100) || 1; // Fallback to approximate packages
+        
+        // Only apply promotion if minQuantity is properly set and package quantity meets the requirement
+        if (minQuantity && minQuantity > 0 && quantityForCalculation >= minQuantity) {
+          // Simple calculation: if you buy X and qualify, you get X free items
+          // For "buy 2 get 2": if you buy 4, you get 4 free
+          const totalFreeItems = freeItemsPerSet;
+          
+          promotionDetails = {
+            minQuantity: minQuantity,
+            freeQuantity: totalFreeItems,
+            description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`
+          };
+        }
       }
+    }
+
+    // If we found any valid discount or promotion, return the result
+    if (hasValidDiscount || promotionDetails) {
+      const finalPrice = originalPrice - bestDiscountAmount;
 
       // Determine offer badge
       const offerBadge = getOfferBadge(offer.offerDiscountTypes);
@@ -142,9 +175,9 @@ export async function validateOfferForProduct(
         isValid: true,
         offerId: offer.id,
         offerName: offer.name,
-        discountTypeId: discountType.id,
-        discountAmount,
-        discountPercentage,
+        discountTypeId: bestDiscountTypeId || offer.offerDiscountTypes[0].id,
+        discountAmount: bestDiscountAmount,
+        discountPercentage: bestDiscountPercentage,
         offerBadge,
         originalPrice,
         finalPrice,

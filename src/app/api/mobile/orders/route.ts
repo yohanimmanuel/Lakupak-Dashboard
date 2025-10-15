@@ -427,7 +427,8 @@ export async function POST(request: NextRequest) {
             userIdNum, // marketplace user ID
             orderTotal,
             totalQuantity,
-            tx
+            tx,
+            packageQuantity // Pass package quantity for buy_x_get_y calculations
           );
           
           // Initialize order item data
@@ -475,6 +476,7 @@ export async function POST(request: NextRequest) {
                 ? JSON.stringify(offerValidation.promotionDetails)
                 : null
             };
+            
           }
           
           return tx.orderItem.create({

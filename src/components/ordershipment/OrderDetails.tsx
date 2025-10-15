@@ -512,13 +512,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         {item.productName}
                       </h3>
                       
-                      {/* Promotion Gift Badge - Inline with product name */}
-                      {calculatePromotionGift(item) && (
-                        <div className="flex items-center gap-1 px-1 py-0.5 bg-purple-50 border border-purple-200 rounded text-xs font-semibold text-purple-600">
-                          <Gift className="w-3 h-3" />
-                          <span>+{calculatePromotionGift(item)!.freeQty} Free</span>
-                        </div>
-                      )}
                     </div>
                     <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
                     
@@ -531,7 +524,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
                           if (promoDetails.minQuantity && promoDetails.freeQuantity) {
                             const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                            return freeQty > 0 ? ` (+ ${freeQty} free items)` : '';
+                            return freeQty > 0 ? (
+                              <span className="font-bold text-purple-600"> (+ {freeQty} free items)</span>
+                            ) : '';
                           }
                         } catch {
                           // Invalid JSON, skip
@@ -623,7 +618,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                             const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
                             if (promoDetails.minQuantity && promoDetails.freeQuantity) {
                               const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                              return freeQty > 0 ? ` (+ ${freeQty} free)` : '';
+                              return freeQty > 0 ? (
+                                <span className="font-bold text-purple-600"> (+ {freeQty} free)</span>
+                              ) : '';
                             }
                           } catch {
                             // Invalid JSON, skip

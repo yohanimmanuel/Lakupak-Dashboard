@@ -459,7 +459,8 @@ export async function POST(request: NextRequest) {
               null, // marketplaceUserId will be handled in mobile orders API
               totalAmountCalc,
               packageQuantity * piecesPerPackage,
-              tx
+              tx,
+              packageQuantity // Pass package quantity for buy_x_get_y calculations
             );
             
             
@@ -526,6 +527,7 @@ export async function POST(request: NextRequest) {
                   ? JSON.stringify(offerValidation.promotionDetails)
                   : null
               };
+              
             }
             
             return tx.orderItem.create({
