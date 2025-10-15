@@ -5,6 +5,129 @@ import {
   validateAuthInput 
 } from '../../../../utils/auth-security';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil } from '../../../../utils/offerValidation';
+import { parseNumberByCurrency } from '../../../../config/currencyConfig';
+// Inline function to avoid circular imports
+async function updateProductPricesFromOffers(tx: any, userId: number) {
+  try {
+    // Get all products for this user
+    const allProducts = await tx.product.findMany({
+      where: { userId: userId },
+      select: {
+        productId: true,
+        sellingPrice: true,
+        originalSellingPrice: true
+      }
+    });
+
+    // Get all active offers for this user
+    const allOffers = await tx.offer.findMany({
+      where: {
+        status: 'active',
+        userId: userId,
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() }
+      },
+      include: {
+        offerProducts: {
+          include: {
+            product: {
+              select: {
+                productId: true,
+                sellingPrice: true,
+                originalSellingPrice: true
+              }
+            }
+          }
+        },
+        offerDiscountTypes: {
+          where: {
+            isActive: true,
+            discountType: { in: ['percentage', 'fixed'] }
+          }
+        }
+      }
+    });
+
+    // Process each offer and update product prices
+    for (const offer of allOffers) {
+      if (offer.status !== 'active') {
+        continue;
+      }
+
+      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: any) => 
+        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
+      );
+      
+      if (activePriceDiscountTypes.length === 0) {
+        continue;
+      }
+
+      for (const offerProduct of offer.offerProducts) {
+        const productId = offerProduct.product.productId;
+        const product = offerProduct.product;
+        
+        let bestDiscount = { price: parseNumberByCurrency(String(product.sellingPrice), 'IDR'), offerName: offer.name };
+        
+        for (const discountType of activePriceDiscountTypes) {
+          const originalPrice = product.originalSellingPrice ? 
+            parseNumberByCurrency(String(product.originalSellingPrice), 'IDR') : 
+            parseNumberByCurrency(String(product.sellingPrice), 'IDR');
+          
+          let discountedPrice = originalPrice;
+          
+          if (discountType.discountType === 'percentage') {
+            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
+          } else if (discountType.discountType === 'fixed') {
+            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
+          }
+          
+          if (discountedPrice < bestDiscount.price) {
+            bestDiscount = { price: discountedPrice, offerName: offer.name };
+          }
+        }
+        
+        if (bestDiscount.price < parseNumberByCurrency(String(product.sellingPrice), 'IDR')) {
+          await tx.product.update({
+            where: { productId: productId },
+            data: { 
+              sellingPrice: bestDiscount.price,
+              originalSellingPrice: product.originalSellingPrice || product.sellingPrice
+            }
+          });
+        }
+      }
+    }
+
+    // Restore original prices for products that should not have active discounts
+    const productIdsWithActiveDiscounts = new Set();
+    for (const offer of allOffers) {
+      if (offer.status === 'active' && offer.offerDiscountTypes.length > 0) {
+        for (const offerProduct of offer.offerProducts) {
+          productIdsWithActiveDiscounts.add(offerProduct.product.productId);
+        }
+      }
+    }
+    
+    for (const product of allProducts) {
+      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
+      
+      if (!shouldHaveDiscount) {
+        if (product.originalSellingPrice) {
+          await tx.product.update({
+            where: { productId: product.productId },
+            data: { 
+              sellingPrice: product.originalSellingPrice,
+              originalSellingPrice: null
+            }
+          });
+        }
+      }
+    }
+    
+  } catch (error) {
+    // Error handled silently
+  }
+}
 
 interface OfferDiscountType {
   id: string;
@@ -404,8 +527,8 @@ export async function POST(request: NextRequest) {
     
     // Create order items if provided with offer validation and tracking
     if (Array.isArray(orderItems) && orderItems.length > 0) {
-      const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-        return await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
+        const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
           // Fetch product
           const product = await tx.product.findFirst({
             where: { productId: String(item.productId || '') }
@@ -483,9 +606,13 @@ export async function POST(request: NextRequest) {
             data: orderItemData
           });
         });
+        
+        await Promise.all(orderItemPromises);
+        
+        // Update product prices after all offer usage tracking is complete
+        // This ensures prices are recalculated when offers reach their limits
+        await updateProductPricesFromOffers(tx, distributorUserId);
       });
-      
-      await Promise.all(orderItemPromises);
     }
     
     // Return the created order with items

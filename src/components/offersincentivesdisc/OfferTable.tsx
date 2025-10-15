@@ -167,6 +167,19 @@ export default function OfferTable({
     }
 
     const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
+    
+    // Check if all offer types have reached their maximum usage
+    const typesWithLimits = activeDiscountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
+    const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => offer.totalUsage >= (dt.maxUsage || 0));
+    
+    if (allLimitsReached) {
+      return (
+        <span className="text-red-600 p-1 bg-red-100 rounded-lg font-medium">
+          Limit Reached
+        </span>
+      );
+    }
+
     const usageElements: React.ReactNode[] = [];
 
     activeDiscountTypes.forEach(dt => {

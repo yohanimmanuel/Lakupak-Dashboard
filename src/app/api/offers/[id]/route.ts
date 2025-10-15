@@ -961,7 +961,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
       
     } catch (priceUpdateError) {
       // Log the error but don't fail the entire operation
-      console.error('Price update error:', priceUpdateError);
+      // Error handled silently
     }
 
     return NextResponse.json({ 
@@ -979,7 +979,6 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
 // Helper function to update product prices based on active offers
 async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
-    console.log(`[Price Update] Starting price recalculation for user ${userId}`);
     // Get all products for this user
     const allProducts = await tx.product.findMany({
       where: { userId: userId },
@@ -1025,7 +1024,6 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     for (const offer of allOffers) {
       // Only process offers that are currently active
       if (offer.status !== 'active') {
-        console.log(`[Price Update] Skipping offer ${offer.id} - status: ${offer.status}`);
         continue;
       }
 
@@ -1034,11 +1032,8 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
       );
       
-      console.log(`[Price Update] Offer ${offer.id} has ${activePriceDiscountTypes.length} active price discount types out of ${offer.offerDiscountTypes.length} total`);
-      
       // If no active price discount types, skip this offer for price calculation
       if (activePriceDiscountTypes.length === 0) {
-        console.log(`[Price Update] Skipping offer ${offer.id} - no active price discount types`);
         continue;
       }
 
@@ -1105,15 +1100,12 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     // This includes products with no offers AND products with offers but no active discount types
     const productIdsWithActiveDiscounts = new Set(productsWithOffers.keys());
     
-    console.log(`[Price Update] Found ${productIdsWithActiveDiscounts.size} products with active discounts out of ${allProducts.length} total products`);
-    
     for (const product of allProducts) {
       const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
       
       if (!shouldHaveDiscount) {
         // This product should NOT have a discount - restore original price
         if (product.originalSellingPrice) {
-          console.log(`[Price Update] Restoring original price for product ${product.productId}: ${product.originalSellingPrice}`);
           // Product had a discount before, restore original price
           await tx.product.update({
             where: { productId: product.productId },
@@ -1129,7 +1121,6 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       }
     }
     
-    console.log(`[Price Update] Price recalculation completed for user ${userId}`);
   } catch (error) {
   }
 }

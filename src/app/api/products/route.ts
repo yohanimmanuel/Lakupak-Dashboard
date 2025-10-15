@@ -82,6 +82,12 @@ export async function GET(req: NextRequest) {
             some: {
               productId: product.productId
             }
+          },
+          // Only fetch offers that have at least one active discount type
+          offerDiscountTypes: {
+            some: {
+              isActive: true
+            }
           }
         },
         include: {
@@ -103,6 +109,15 @@ export async function GET(req: NextRequest) {
         
         // Filter to only ACTIVE discount types
         const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
+        
+        // Check if all offer types have reached their maximum usage (same logic as OfferTable)
+        const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
+        const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => primaryOffer.totalUsage >= (dt.maxUsage || 0));
+        
+        // If all limits are reached or no active discount types, don't show offer badge
+        if (discountTypes.length === 0 || allLimitsReached) {
+          return NextResponse.json(product, { headers });
+        }
         
         const hasDiscount = discountTypes.some((dt) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
@@ -220,6 +235,12 @@ export async function GET(req: NextRequest) {
           some: {
             productId: { in: productIds }
           }
+        },
+        // Only fetch offers that have at least one active discount type
+        offerDiscountTypes: {
+          some: {
+            isActive: true
+          }
         }
       },
       include: {
@@ -254,6 +275,15 @@ export async function GET(req: NextRequest) {
       
       // Filter to only ACTIVE discount types
       const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
+      
+      // Check if all offer types have reached their maximum usage (same logic as OfferTable)
+      const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
+      const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => primaryOffer.totalUsage >= (dt.maxUsage || 0));
+      
+      // If all limits are reached or no active discount types, don't show offer badge
+      if (discountTypes.length === 0 || allLimitsReached) {
+        return product;
+      }
       
       // Determine badge type based on applied discount types
       const hasDiscount = discountTypes.some((dt) => 

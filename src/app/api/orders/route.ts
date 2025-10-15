@@ -11,6 +11,136 @@ import {
 } from '@/utils/order-security';
 import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage } from '@/utils/offerValidation';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
+// Import the function from the offers API
+async function updateProductPricesFromOffers(tx: any, userId: number) {
+  // This function will be implemented inline to avoid circular imports
+  try {
+    // Get all products for this user
+    const allProducts = await tx.product.findMany({
+      where: { userId: userId },
+      select: {
+        productId: true,
+        sellingPrice: true,
+        originalSellingPrice: true
+      }
+    });
+
+    // Get all active offers for this user
+    const allOffers = await tx.offer.findMany({
+      where: {
+        status: 'active',
+        userId: userId,
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() }
+      },
+      include: {
+        offerProducts: {
+          include: {
+            product: {
+              select: {
+                productId: true,
+                sellingPrice: true,
+                originalSellingPrice: true
+              }
+            }
+          }
+        },
+        offerDiscountTypes: {
+          where: {
+            isActive: true,
+            discountType: { in: ['percentage', 'fixed'] }
+          }
+        }
+      }
+    });
+
+    // Process each offer and update product prices
+    for (const offer of allOffers) {
+      // Only process offers that are currently active
+      if (offer.status !== 'active') {
+        continue;
+      }
+
+      // Check if this offer has any active discount types that can apply price discounts
+      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: any) => 
+        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
+      );
+      
+      // If no active price discount types, skip this offer for price calculation
+      if (activePriceDiscountTypes.length === 0) {
+        continue;
+      }
+
+      for (const offerProduct of offer.offerProducts) {
+        const productId = offerProduct.product.productId;
+        const product = offerProduct.product;
+        
+        // Calculate the best discount for this product
+        let bestDiscount = { price: parseNumberByCurrency(String(product.sellingPrice), 'IDR'), offerName: offer.name };
+        
+        for (const discountType of activePriceDiscountTypes) {
+          const originalPrice = product.originalSellingPrice ? 
+            parseNumberByCurrency(String(product.originalSellingPrice), 'IDR') : 
+            parseNumberByCurrency(String(product.sellingPrice), 'IDR');
+          
+          let discountedPrice = originalPrice;
+          
+          if (discountType.discountType === 'percentage') {
+            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
+          } else if (discountType.discountType === 'fixed') {
+            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
+          }
+          
+          if (discountedPrice < bestDiscount.price) {
+            bestDiscount = { price: discountedPrice, offerName: offer.name };
+          }
+        }
+        
+        // Update product price if we found a better discount
+        if (bestDiscount.price < parseNumberByCurrency(String(product.sellingPrice), 'IDR')) {
+          await tx.product.update({
+            where: { productId: productId },
+            data: { 
+              sellingPrice: bestDiscount.price,
+              originalSellingPrice: product.originalSellingPrice || product.sellingPrice
+            }
+          });
+        }
+      }
+    }
+
+    // Restore original prices for products that should not have active discounts
+    const productIdsWithActiveDiscounts = new Set();
+    for (const offer of allOffers) {
+      if (offer.status === 'active' && offer.offerDiscountTypes.length > 0) {
+        for (const offerProduct of offer.offerProducts) {
+          productIdsWithActiveDiscounts.add(offerProduct.product.productId);
+        }
+      }
+    }
+    
+    for (const product of allProducts) {
+      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
+      
+      if (!shouldHaveDiscount) {
+        // This product should NOT have a discount - restore original price
+        if (product.originalSellingPrice) {
+          await tx.product.update({
+            where: { productId: product.productId },
+            data: { 
+              sellingPrice: product.originalSellingPrice,
+              originalSellingPrice: null
+            }
+          });
+        }
+      }
+    }
+    
+  } catch (error) {
+    // Error handled silently
+  }
+}
 import { Order } from '@/generated/prisma';
 
 interface OfferDiscountType {
@@ -426,9 +556,10 @@ export async function POST(request: NextRequest) {
     
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
       try {
-        // Use transaction for offer validation and tracking
-        const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-          return await prisma.$transaction(async (tx) => {
+        // Use a single transaction for all offer validation, tracking, and price updates
+        await prisma.$transaction(async (tx) => {
+          // Process all order items
+          const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
             // Fetch the product
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId) }
@@ -534,9 +665,14 @@ export async function POST(request: NextRequest) {
               data: orderItemData
             });
           });
+          
+          await Promise.all(orderItemPromises);
+          
+          // Update product prices after all offer usage tracking is complete
+          // This ensures prices are recalculated when offers reach their limits
+          await updateProductPricesFromOffers(tx, sanitizedData.userId as number);
         });
         
-        await Promise.all(orderItemPromises);
       } catch (orderItemError) {
         // Don't throw here, just log the error and continue
       }

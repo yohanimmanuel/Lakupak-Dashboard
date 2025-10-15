@@ -103,7 +103,7 @@ export async function validateOfferForProduct(
     let hasValidDiscount = false;
 
     for (const discountType of offer.offerDiscountTypes) {
-      // Check usage limits
+        // Check usage limits - this will prevent the offer from being applied if limit is reached
       const usageValidation = await validateUsageLimits(
         offer.id,
         discountType.id,
@@ -224,6 +224,8 @@ async function validateUsageLimits(
     });
 
     const currentUsage = totalUsage._sum.usageCount || 0;
+    console.log(`[DEBUG] validateUsageLimits - offerId: ${offerId}, discountTypeId: ${discountTypeId}, currentUsage: ${currentUsage}, maxUsage: ${discountType.maxUsage}`);
+    // Check if the current usage has already reached or exceeded the limit
     if (currentUsage >= discountType.maxUsage) {
       // Deactivate only this specific discount type, not the entire offer
       await tx.offerDiscountType.update({
@@ -248,7 +250,7 @@ async function validateUsageLimits(
       
       return { 
         isValid: false, 
-        error: `This offer has reached its maximum usage limit of ${discountType.maxUsage}` 
+        error: `This offer has reached its maximum usage limit of ${discountType.maxUsage} (current usage: ${currentUsage})` 
       };
     }
   }
@@ -318,7 +320,7 @@ export async function updateOfferStatusesBasedOnLimits(): Promise<void> {
     });
   } catch (error) {
     // Log error but don't throw - this is a maintenance function
-    console.error('Error updating offer statuses:', error);
+    // Error handled silently
   }
 }
 
@@ -333,7 +335,8 @@ export async function trackOfferUsage(
   tx: Prisma.TransactionClient
 ): Promise<void> {
   try {
-    // Track usage for marketplace user
+    console.log(`[DEBUG] trackOfferUsage - offerId: ${offerId}, discountTypeId: ${discountTypeId}, marketplaceUserId: ${marketplaceUserId}`);
+    // Track usage for marketplace user (or general usage if no marketplaceUserId)
     if (marketplaceUserId) {
       await tx.offerUsageTracking.upsert({
         where: {
@@ -355,6 +358,40 @@ export async function trackOfferUsage(
           lastUsedAt: new Date()
         }
       });
+    } else {
+      // Track general usage when no marketplaceUserId (for admin orders)
+      // First check if record exists
+      const existingUsage = await tx.offerUsageTracking.findUnique({
+        where: {
+          offerId_discountTypeId_marketplaceUserId: {
+            offerId: offerId,
+            discountTypeId: discountTypeId,
+            marketplaceUserId: null
+          }
+        }
+      });
+
+      if (existingUsage) {
+        // Update existing record
+        await tx.offerUsageTracking.update({
+          where: { id: existingUsage.id },
+          data: {
+            usageCount: { increment: 1 },
+            lastUsedAt: new Date()
+          }
+        });
+      } else {
+        // Create new record
+        await tx.offerUsageTracking.create({
+          data: {
+            offerId: offerId,
+            discountTypeId: discountTypeId,
+            marketplaceUserId: null,
+            usageCount: 1,
+            lastUsedAt: new Date()
+          }
+        });
+      }
     }
 
     // Update offer totals
@@ -386,6 +423,8 @@ export async function trackOfferUsage(
         });
 
         const currentUsage = totalUsage._sum.usageCount || 0;
+        console.log(`[DEBUG] trackOfferUsage - After tracking, currentUsage: ${currentUsage}, maxUsage: ${discountType.maxUsage}`);
+        
         if (currentUsage >= discountType.maxUsage) {
           // Deactivate only this specific discount type
           await tx.offerDiscountType.update({
@@ -413,7 +452,7 @@ export async function trackOfferUsage(
 
   } catch (error) {
     // Don't fail the order if tracking fails, just log it
-    console.error('Error tracking offer usage:', error);
+    // Error handled silently
   }
 }
 
