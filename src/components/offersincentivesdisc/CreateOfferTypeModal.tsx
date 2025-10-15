@@ -13,7 +13,6 @@ interface OfferTypeData {
   minOrderValue?: string;
   minQuantity?: number;
   maxUsage?: number;
-  perCustomerLimit?: number;
 }
 
 interface CreateOfferTypeModalProps {
@@ -41,10 +40,8 @@ export default function CreateOfferTypeModal({
     minOrderValue: '',
     minQuantity: undefined,
     maxUsage: undefined,
-    perCustomerLimit: undefined,
   });
   const [noMaxUsage, setNoMaxUsage] = useState(false);
-  const [noPerCustomerLimit, setNoPerCustomerLimit] = useState(false);
 
   useEffect(() => {
     if (editingType) {
@@ -56,10 +53,8 @@ export default function CreateOfferTypeModal({
         minOrderValue: editingType.minOrderValue || '',
         minQuantity: editingType.minQuantity || undefined,
         maxUsage: editingType.maxUsage || undefined,
-        perCustomerLimit: editingType.perCustomerLimit || undefined,
       });
       setNoMaxUsage(!editingType.maxUsage);
-      setNoPerCustomerLimit(!editingType.perCustomerLimit);
     } else {
       setFormData({
         name: '',
@@ -69,10 +64,8 @@ export default function CreateOfferTypeModal({
         minOrderValue: '',
         minQuantity: undefined,
         maxUsage: undefined,
-        perCustomerLimit: undefined,
       });
       setNoMaxUsage(false);
-      setNoPerCustomerLimit(false);
     }
   }, [editingType]);
 
@@ -91,7 +84,6 @@ export default function CreateOfferTypeModal({
       const dataToSave = {
         ...formData,
         maxUsage: noMaxUsage ? undefined : formData.maxUsage,
-        perCustomerLimit: noPerCustomerLimit ? undefined : formData.perCustomerLimit,
       };
       await onSave(dataToSave);
     } finally {
@@ -354,51 +346,6 @@ export default function CreateOfferTypeModal({
                 )}
               </div>
 
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <button
-                    onClick={() => {
-                      setNoPerCustomerLimit(!noPerCustomerLimit);
-                      if (!noPerCustomerLimit) {
-                        handleInputChange('perCustomerLimit', undefined);
-                      }
-                    }}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                      noPerCustomerLimit
-                        ? 'bg-green-500 border-green-500'
-                        : 'bg-white border-gray-300 hover:border-green-400'
-                    }`}
-                  >
-                    {noPerCustomerLimit && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                  <label className="text-xs font-medium text-black cursor-pointer" onClick={() => {
-                    setNoPerCustomerLimit(!noPerCustomerLimit);
-                    if (!noPerCustomerLimit) {
-                      handleInputChange('perCustomerLimit', undefined);
-                    }
-                  }}>
-                    No Per Customer Limit
-                  </label>
-                </div>
-                {!noPerCustomerLimit && (
-                  <>
-                    <input
-                      type="number"
-                      value={formData.perCustomerLimit || ''}
-                      onChange={(e) => handleInputChange('perCustomerLimit', parseInt(e.target.value) || undefined)}
-                      placeholder="5"
-                      className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
-                    />
-                    <div className="mt-1 text-xs text-gray-500">
-                      How many times each individual customer can use this offer
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         </div>

@@ -18,7 +18,6 @@ export interface OfferDiscountType {
   minQuantity?: number | null;
   freeQuantity?: number | null;
   maxUsage?: number | null;
-  perCustomerLimit?: number | null;
   isActive: boolean;
   priority: number;
   createdAt?: string;
@@ -62,7 +61,6 @@ export interface Offer {
   startDate: string;
   endDate: string;
   maxUsage?: number;
-  perCustomerLimit?: number;
   totalUsage: number;
   totalDiscountGiven: number;
   products: OfferProduct[];
@@ -90,7 +88,6 @@ export interface OfferFormData {
   startDate: string;
   endDate: string;
   maxUsage?: number;
-  perCustomerLimit?: number;
   productIds: string[];
 }
 

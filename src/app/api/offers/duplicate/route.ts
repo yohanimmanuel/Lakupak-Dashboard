@@ -79,7 +79,6 @@ export async function POST(request: NextRequest) {
             minOrderValue: dt.minOrderValue,
             minQuantity: dt.minQuantity,
             maxUsage: dt.maxUsage,
-            perCustomerLimit: dt.perCustomerLimit,
             isActive: dt.isActive,
             priority: dt.priority
           }))
@@ -168,7 +167,6 @@ export async function POST(request: NextRequest) {
         minOrderValue: dt.minOrderValue,
         minQuantity: dt.minQuantity,
         maxUsage: dt.maxUsage,
-        perCustomerLimit: dt.perCustomerLimit,
         isActive: dt.isActive,
         priority: dt.priority
       })),

@@ -207,7 +207,7 @@ async function validateUsageLimits(
   marketplaceUserId: number | null,
   discountType: {
     maxUsage?: number | null;
-    perCustomerLimit?: number | null;
+    // perCustomerLimit removed
   },
   tx: Prisma.TransactionClient
 ): Promise<{ isValid: boolean; error?: string }> {
@@ -253,25 +253,7 @@ async function validateUsageLimits(
     }
   }
 
-  // Check per-customer usage limit
-  if (discountType.perCustomerLimit && discountType.perCustomerLimit > 0 && marketplaceUserId) {
-    const customerUsage = await tx.offerUsageTracking.findUnique({
-      where: {
-        offerId_discountTypeId_marketplaceUserId: {
-          offerId: offerId,
-          discountTypeId: discountTypeId,
-          marketplaceUserId: marketplaceUserId
-        }
-      }
-    });
-
-    if (customerUsage && customerUsage.usageCount >= discountType.perCustomerLimit) {
-      return { 
-        isValid: false, 
-        error: `You have reached the usage limit for this offer (${discountType.perCustomerLimit} uses per customer)` 
-      };
-    }
-  }
+  // Per-customer usage limit check removed
 
   return { isValid: true };
 }
@@ -387,7 +369,7 @@ export async function trackOfferUsage(
     // Check if this usage pushes the offer over its limits and deactivate if needed
     const discountType = await tx.offerDiscountType.findUnique({
       where: { id: discountTypeId },
-      select: { maxUsage: true, perCustomerLimit: true }
+      select: { maxUsage: true }
     });
 
     if (discountType) {

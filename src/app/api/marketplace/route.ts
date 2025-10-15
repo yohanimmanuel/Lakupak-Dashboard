@@ -151,23 +151,8 @@ export async function GET(request: NextRequest) {
             isDiscountTypeValid = false;
           }
         }
-
-        // Check per-customer usage limit if marketplaceUserId is provided
-        if (isDiscountTypeValid && marketplaceUserId && discountType.perCustomerLimit && discountType.perCustomerLimit > 0) {
-          const customerUsage = await prisma.offerUsageTracking.findUnique({
-            where: {
-              offerId_discountTypeId_marketplaceUserId: {
-                offerId: offer.id,
-                discountTypeId: discountType.id,
-                marketplaceUserId: parseInt(marketplaceUserId)
-              }
-            }
-          });
-
-          if (customerUsage && customerUsage.usageCount >= discountType.perCustomerLimit) {
-            isDiscountTypeValid = false;
-          }
-        }
+        
+        // Per-customer usage limit removed
         
         // If this discount type is valid, the offer is valid
         if (isDiscountTypeValid) {
@@ -270,22 +255,7 @@ export async function GET(request: NextRequest) {
             }
           }
           
-          // Check per-customer usage limit if marketplaceUserId is provided
-          if (isDiscountTypeUsable && marketplaceUserId && dt.perCustomerLimit && dt.perCustomerLimit > 0) {
-            const customerUsage = await prisma.offerUsageTracking.findUnique({
-              where: {
-                offerId_discountTypeId_marketplaceUserId: {
-                  offerId: primaryOffer.id,
-                  discountTypeId: dt.id,
-                  marketplaceUserId: parseInt(marketplaceUserId)
-                }
-              }
-            });
-
-            if (customerUsage && customerUsage.usageCount >= dt.perCustomerLimit) {
-              isDiscountTypeUsable = false;
-            }
-          }
+          // Per-customer usage limit removed
           
           if (isDiscountTypeUsable) {
             activeDiscountTypes.push(dt);

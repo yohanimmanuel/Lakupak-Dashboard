@@ -11,7 +11,6 @@ export interface DiscountTypeInput {
   minOrderValue?: number | string;
   minQuantity?: number;
   maxUsage?: number;
-  perCustomerLimit?: number;
   isActive?: boolean;
   priority?: number;
 }

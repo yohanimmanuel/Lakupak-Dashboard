@@ -367,7 +367,7 @@ model OfferDiscountType {
   minOrderValue   Float?   // minimum order value for this discount type
   minQuantity     Int?    // minimum quantity required
   maxUsage        Int?    // maximum usage limit for this discount type
-  perCustomerLimit Int?   // per customer usage limit
+  // per-customer usage limit removed
   isActive        Boolean @default(true)
   priority        Int     @default(1) // Higher number = higher priority
   createdAt       DateTime @default(now()) @db.Timestamptz(3)

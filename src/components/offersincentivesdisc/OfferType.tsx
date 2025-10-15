@@ -18,7 +18,6 @@ interface DiscountTypeData {
   minQuantity?: number | null | undefined;
   freeQuantity?: number | null | undefined;
   maxUsage?: number | null | undefined;
-  perCustomerLimit?: number | null | undefined;
   isActive: boolean;
   priority?: number;
   offerId?: string;
@@ -56,7 +55,6 @@ interface OfferType {
   minOrderValue?: string | number | null;
   minQuantity?: number | null;
   maxUsage?: number | null;
-  perCustomerLimit?: number | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -101,7 +99,6 @@ export default function OfferType({
       minOrderValue: dt.minOrderValue,
       minQuantity: dt.minQuantity,
       maxUsage: dt.maxUsage,
-      perCustomerLimit: dt.perCustomerLimit,
       isActive: dt.isActive,
       createdAt: new Date().toISOString(),
     };
@@ -304,12 +301,6 @@ export default function OfferType({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600">Per Customer:</span>
-                <span className="font-medium text-black text-xs">
-                  {type.perCustomerLimit ? `${type.perCustomerLimit} times` : 'No limit'}
-                </span>
-              </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-gray-200">
@@ -355,7 +346,6 @@ export default function OfferType({
             minOrderValue: editingType.minOrderValue ? String(editingType.minOrderValue) : undefined,
             minQuantity: editingType.minQuantity ?? undefined,
             maxUsage: editingType.maxUsage ?? undefined,
-            perCustomerLimit: editingType.perCustomerLimit ?? undefined
           } : undefined}
           onSave={(typeData) => {
             // Enforce single offer per type: update if exists, else add
@@ -368,7 +358,6 @@ export default function OfferType({
               minOrderValue: typeData.minOrderValue,
               minQuantity: typeData.minQuantity,
               maxUsage: typeData.maxUsage,
-              perCustomerLimit: typeData.perCustomerLimit,
               isActive: true,
               priority: 1,
             };
