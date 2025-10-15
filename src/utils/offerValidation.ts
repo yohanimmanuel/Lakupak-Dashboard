@@ -225,6 +225,27 @@ async function validateUsageLimits(
 
     const currentUsage = totalUsage._sum.usageCount || 0;
     if (currentUsage >= discountType.maxUsage) {
+      // Deactivate only this specific discount type, not the entire offer
+      await tx.offerDiscountType.update({
+        where: { id: discountTypeId },
+        data: { isActive: false }
+      });
+      
+      // Check if ALL discount types are now inactive, then deactivate the entire offer
+      const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
+        where: {
+          offerId: offerId,
+          isActive: true
+        }
+      });
+      
+      if (remainingActiveDiscountTypes === 0) {
+        await tx.offer.update({
+          where: { id: offerId },
+          data: { status: 'inactive' }
+        });
+      }
+      
       return { 
         isValid: false, 
         error: `This offer has reached its maximum usage limit of ${discountType.maxUsage}` 
@@ -253,6 +274,70 @@ async function validateUsageLimits(
   }
 
   return { isValid: true };
+}
+
+/**
+ * Check and update offer statuses based on usage limits
+ * This function should be called periodically to ensure offers are properly deactivated
+ */
+export async function updateOfferStatusesBasedOnLimits(): Promise<void> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Get all active offers
+      const activeOffers = await tx.offer.findMany({
+        where: { status: 'active' },
+        include: {
+          offerDiscountTypes: {
+            where: { isActive: true }
+          }
+        }
+      });
+
+      for (const offer of activeOffers) {
+        for (const discountType of offer.offerDiscountTypes) {
+          // Check if max usage limit is reached
+          if (discountType.maxUsage && discountType.maxUsage > 0) {
+            const totalUsage = await tx.offerUsageTracking.aggregate({
+              where: {
+                offerId: offer.id,
+                discountTypeId: discountType.id
+              },
+              _sum: {
+                usageCount: true
+              }
+            });
+
+            const currentUsage = totalUsage._sum.usageCount || 0;
+            if (currentUsage >= discountType.maxUsage) {
+              // Deactivate only this specific discount type
+              await tx.offerDiscountType.update({
+                where: { id: discountType.id },
+                data: { isActive: false }
+              });
+              
+              // Check if ALL discount types are now inactive, then deactivate the entire offer
+              const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
+                where: {
+                  offerId: offer.id,
+                  isActive: true
+                }
+              });
+              
+              if (remainingActiveDiscountTypes === 0) {
+                await tx.offer.update({
+                  where: { id: offer.id },
+                  data: { status: 'inactive' }
+                });
+              }
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    // Log error but don't throw - this is a maintenance function
+    console.error('Error updating offer statuses:', error);
+  }
 }
 
 /**
@@ -299,8 +384,54 @@ export async function trackOfferUsage(
       }
     });
 
+    // Check if this usage pushes the offer over its limits and deactivate if needed
+    const discountType = await tx.offerDiscountType.findUnique({
+      where: { id: discountTypeId },
+      select: { maxUsage: true, perCustomerLimit: true }
+    });
+
+    if (discountType) {
+      // Check max usage limit
+      if (discountType.maxUsage && discountType.maxUsage > 0) {
+        const totalUsage = await tx.offerUsageTracking.aggregate({
+          where: {
+            offerId: offerId,
+            discountTypeId: discountTypeId
+          },
+          _sum: {
+            usageCount: true
+          }
+        });
+
+        const currentUsage = totalUsage._sum.usageCount || 0;
+        if (currentUsage >= discountType.maxUsage) {
+          // Deactivate only this specific discount type
+          await tx.offerDiscountType.update({
+            where: { id: discountTypeId },
+            data: { isActive: false }
+          });
+          
+          // Check if ALL discount types are now inactive, then deactivate the entire offer
+          const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
+            where: {
+              offerId: offerId,
+              isActive: true
+            }
+          });
+          
+          if (remainingActiveDiscountTypes === 0) {
+            await tx.offer.update({
+              where: { id: offerId },
+              data: { status: 'inactive' }
+            });
+          }
+        }
+      }
+    }
+
   } catch (error) {
     // Don't fail the order if tracking fails, just log it
+    console.error('Error tracking offer usage:', error);
   }
 }
 
@@ -382,13 +513,21 @@ export async function reverseOfferUsage(
 
       if (!discountTypeId) continue;
 
-      // Only decrement the total discount given, keep totalUsage as cumulative
-      await tx.offer.update({
+      // Only decrement the total discount given, but never below 0
+      const currentOffer = await tx.offer.findUnique({
         where: { id: offer.id },
-        data: {
-          totalDiscountGiven: { decrement: discountAmount }
-        }
+        select: { totalDiscountGiven: true }
       });
+      
+      if (currentOffer) {
+        const newTotalDiscount = Math.max(0, currentOffer.totalDiscountGiven - discountAmount);
+        await tx.offer.update({
+          where: { id: offer.id },
+          data: {
+            totalDiscountGiven: newTotalDiscount
+          }
+        });
+      }
 
       // Note: We don't decrement individual usage tracking since we can't identify
       // which specific marketplace user made the original purchase

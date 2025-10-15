@@ -944,7 +944,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         {originalProduct.offerBadge === 'All Offers' ? (
                           <div className="flex items-center gap-1">
                             {/* Show fixed discount amount if available, otherwise calculate percentage */}
-                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                            <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
                               {(() => {
                                 // Show fixed discount amount if available
                                 if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -964,14 +964,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             </span>
                             {/* Show promotion details if available */}
                             {originalProduct.promotionDetails && (
-                              <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-200">
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-200">
                                 <Gift className="w-4 h-4" />
                                 Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
                               </span>
                             )}
                           </div>
                         ) : originalProduct.offerBadge === 'Discount' ? (
-                          <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
+                          <span className="px-2 py-0.5 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
                             {(() => {
                               // Show fixed discount amount if available
                               if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -990,7 +990,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             })()}
                           </span>
                         ) : originalProduct.offerBadge === 'Promotion' ? (
-                          <span className="px-2 py-1 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
+                          <span className="px-2 py-0.5 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
                             {originalProduct.promotionDetails 
                               ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
                               : 'Promotion'
@@ -1147,7 +1147,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      {originalProduct.offerBadge === 'All Offers' ? (
                        <div className="flex items-center gap-1">
                          {/* Show fixed discount amount if available, otherwise calculate percentage */}
-                         <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                         <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                            {(() => {
                              // Show fixed discount amount if available
                              if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -1167,14 +1167,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
-                           <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                              <Gift className="w-4 h-4" />
                              Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
                            </span>
                          )}
                        </div>
                      ) : originalProduct.offerBadge === 'Discount' ? (
-                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                       <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                          {(() => {
                            // Show fixed discount amount if available
                            if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -1193,14 +1193,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          })()}
                        </span>
                      ) : originalProduct.offerBadge === 'Promotion' ? (
-                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                       <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                          {originalProduct.promotionDetails 
                            ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
                            : 'Promotion'
                          }
                        </span>
                      ) : (
-                       <span className="px-2 py-1 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
+                       <span className="px-2 py-0.5 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
                          {originalProduct.offerBadge}
                        </span>
                      )}
@@ -1416,7 +1416,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      {originalProduct.offerBadge === 'All Offers' ? (
                        <div className="flex flex-wrap gap-1">
                          {/* Show fixed discount amount if available, otherwise calculate percentage */}
-                         <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                         <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                            {(() => {
                              // Show fixed discount amount if available
                              if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -1436,13 +1436,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
-                           <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                              <Gift className="w-4 h-4" /> Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
                            </span>
                          )}
                        </div>
                      ) : originalProduct.offerBadge === 'Discount' ? (
-                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
+                       <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                          {(() => {
                            // Show fixed discount amount if available
                            if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
@@ -1461,14 +1461,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          })()}
                        </span>
                      ) : originalProduct.offerBadge === 'Promotion' ? (
-                       <span className="px-2 py-1 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
+                       <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                          {originalProduct.promotionDetails 
                            ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
                            : 'Promotion'
                          }
                        </span>
                      ) : (
-                       <span className="px-1.5 py-0.5 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
+                       <span className="px-2 py-0.5 rounded text-xs font-semibold shadow-md bg-blue-500 text-white">
                          {originalProduct.offerBadge}
                        </span>
                      )}

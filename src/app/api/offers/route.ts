@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
+import { updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import type { Prisma } from '@prisma/client';
 import type {
   OfferDiscountTypeResult,
@@ -163,10 +164,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/offers - Create a new offer
+// POST /api/offers - Create a new offer or handle special actions
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    
+    // Handle special actions
+    if (body.action === 'update-status') {
+      await updateOfferStatusesBasedOnLimits();
+      return NextResponse.json({
+        success: true,
+        message: 'Offer statuses updated successfully'
+      });
+    }
     
     if (!body.userId) {
       return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
@@ -376,6 +386,21 @@ export async function POST(request: NextRequest) {
 
     // Update product prices based on all active offers for this user
     await updateProductPricesFromOffers(prisma, user.id);
+
+    // Update lastSyncAt for marketplace sync
+    await prisma.product.updateMany({
+      where: {
+        userId: user.id,
+        offerProducts: {
+          some: {
+            offerId: result.id
+          }
+        }
+      },
+      data: {
+        lastSyncAt: new Date()
+      }
+    });
 
     // Fetch the created offer with products and discount types
     const createdOffer = await prisma.offer.findUnique({

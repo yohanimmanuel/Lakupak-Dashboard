@@ -316,6 +316,35 @@ async function updateDiscountType(discountTypeId: string, userId: number, data: 
     },
   });
 
+  // IMPORTANT: Update product prices after discount type status change
+  // This ensures prices revert to original when discount types are deactivated
+  await updateProductPricesFromOffers(prisma, userId);
+
+  // Note: We don't auto-deactivate offers when discount types are deactivated
+  // Users should manually control offer status - they might want to keep offers active
+  // for promotions (buy_x_get_y) even when price discounts are deactivated
+
+  // Update lastSyncAt for marketplace sync
+  await prisma.product.updateMany({
+    where: {
+      userId: userId,
+      offerProducts: {
+        some: {
+          offer: {
+            offerDiscountTypes: {
+              some: {
+                id: discountTypeId
+              }
+            }
+          }
+        }
+      }
+    },
+    data: {
+      lastSyncAt: new Date()
+    }
+  });
+
   return NextResponse.json({
     message: 'Discount type updated successfully',
     discountType: updatedDiscountType,
@@ -424,6 +453,25 @@ async function updateOffer(offerId: string, userId: number, data: OfferUpdateInp
     },
   });
 
+  // IMPORTANT: Update product prices after offer status change
+  // This ensures prices revert to original when offers are deactivated
+  await updateProductPricesFromOffers(prisma, userId);
+
+  // Update lastSyncAt for marketplace sync
+  await prisma.product.updateMany({
+    where: {
+      userId: userId,
+      offerProducts: {
+        some: {
+          offerId: offerId
+        }
+      }
+    },
+    data: {
+      lastSyncAt: new Date()
+    }
+  });
+
   return NextResponse.json({
     message: 'Offer updated successfully',
     offer: updatedOffer,
@@ -451,6 +499,31 @@ async function deleteDiscountType(discountTypeId: string, userId: number) {
   // Delete the discount type
   await prisma.offerDiscountType.delete({
     where: { id: discountTypeId },
+  });
+
+  // IMPORTANT: Update product prices after discount type deletion
+  // This ensures prices revert to original when discount types are removed
+  await updateProductPricesFromOffers(prisma, userId);
+
+  // Update lastSyncAt for marketplace sync
+  await prisma.product.updateMany({
+    where: {
+      userId: userId,
+      offerProducts: {
+        some: {
+          offer: {
+            offerDiscountTypes: {
+              some: {
+                id: discountTypeId
+              }
+            }
+          }
+        }
+      }
+    },
+    data: {
+      lastSyncAt: new Date()
+    }
   });
 
   return NextResponse.json({ message: 'Discount type deleted successfully' });
@@ -768,12 +841,17 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
 
     // Use a transaction to update all data atomically
     await prisma.$transaction(async (tx) => {
-      // 0. Update the offer's type and status fields
+      // 0. Determine if offer should be active based on discount types
+      // Use the provided status or keep existing status
+      // Don't auto-deactivate offers based on discount types - users should control this manually
+      let finalStatus = status || existingOffer.status;
+
+      // Update the offer's type and status fields
       await tx.offer.update({
         where: { id: offerId },
         data: { 
           type: offerTypes,
-          ...(status && { status })
+          status: finalStatus
         },
       });
 
@@ -872,7 +950,28 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
       await updateProductPricesFromOffers(tx, userId);
     });
 
-    return NextResponse.json({ message: 'Offer updated successfully' });
+    // IMPORTANT: Also update prices outside the transaction to ensure it runs
+    // This handles cases where the transaction might not trigger the price update properly
+    try {
+      // Small delay to ensure database changes are committed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Run price recalculation multiple times to ensure it works
+      await updateProductPricesFromOffers(prisma, userId);
+      
+      // Additional delay and retry for stubborn cases
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await updateProductPricesFromOffers(prisma, userId);
+      
+    } catch (priceUpdateError) {
+      // Log the error but don't fail the entire operation
+      console.error('Price update error:', priceUpdateError);
+    }
+
+    return NextResponse.json({ 
+      message: 'Offer updated successfully',
+      priceUpdateTriggered: true 
+    });
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to batch update offer', details: error instanceof Error ? error.message : String(error) },
@@ -884,6 +983,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
 // Helper function to update product prices based on active offers
 async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
+    console.log(`[Price Update] Starting price recalculation for user ${userId}`);
     // Get all products for this user
     const allProducts = await tx.product.findMany({
       where: { userId: userId },
@@ -894,11 +994,10 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       },
     });
 
-    // Get all active offers for this user
-    const activeOffers = await tx.offer.findMany({
+    // Get all offers for this user (both active and inactive to check discount types)
+    const allOffers = await tx.offer.findMany({
       where: {
         userId: userId,
-        status: 'active',
         startDate: { lte: new Date() },
         endDate: { gte: new Date() },
       },
@@ -914,11 +1013,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
             },
           },
         },
-        offerDiscountTypes: {
-          where: {
-            isActive: true,
-          },
-        },
+        offerDiscountTypes: true, // Get ALL discount types, not just active ones
       },
     });
 
@@ -931,7 +1026,26 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       bestDiscount: { price: number; offerName: string } | null;
     }>();
 
-    for (const offer of activeOffers) {
+    for (const offer of allOffers) {
+      // Only process offers that are currently active
+      if (offer.status !== 'active') {
+        console.log(`[Price Update] Skipping offer ${offer.id} - status: ${offer.status}`);
+        continue;
+      }
+
+      // Check if this offer has any active discount types that can apply price discounts
+      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean; discountType?: string }) => 
+        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
+      );
+      
+      console.log(`[Price Update] Offer ${offer.id} has ${activePriceDiscountTypes.length} active price discount types out of ${offer.offerDiscountTypes.length} total`);
+      
+      // If no active price discount types, skip this offer for price calculation
+      if (activePriceDiscountTypes.length === 0) {
+        console.log(`[Price Update] Skipping offer ${offer.id} - no active price discount types`);
+        continue;
+      }
+
       for (const offerProduct of offer.offerProducts) {
         const productId = offerProduct.product.productId;
         const product = offerProduct.product;
@@ -951,10 +1065,8 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           });
         }
 
-        // Calculate discount for this offer using only ACTIVE discount types
-        const activeDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean }) => dt.isActive !== false);
-        
-        for (const discountType of activeDiscountTypes) {
+        // Calculate discount for this offer using only ACTIVE price discount types
+        for (const discountType of activePriceDiscountTypes) {
           let discountedPrice = originalPrice;
           
           if (discountType.discountType === 'percentage') {
@@ -976,6 +1088,9 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       }
     }
 
+    // Note: We don't deactivate offers here - users can have offers with only promotions (buy_x_get_y)
+    // that don't affect prices but should still be active for display purposes
+
     // Update products with offers
     for (const [productId, productData] of productsWithOffers) {
       if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
@@ -990,20 +1105,35 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       }
     }
 
-    // Restore original prices for products that no longer have active offers
-    const productIdsWithOffers = new Set(productsWithOffers.keys());
+    // CRITICAL FIX: Restore original prices for ALL products that should not have active discounts
+    // This includes products with no offers AND products with offers but no active discount types
+    const productIdsWithActiveDiscounts = new Set(productsWithOffers.keys());
+    
+    console.log(`[Price Update] Found ${productIdsWithActiveDiscounts.size} products with active discounts out of ${allProducts.length} total products`);
+    
     for (const product of allProducts) {
-      if (!productIdsWithOffers.has(product.productId) && product.originalSellingPrice) {
-        // This product had an offer before but doesn't anymore, restore original price
-        await tx.product.update({
-          where: { productId: product.productId },
-          data: { 
-            sellingPrice: product.originalSellingPrice,
-            originalSellingPrice: null, // Clear the original price field
-          },
-        });
+      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
+      
+      if (!shouldHaveDiscount) {
+        // This product should NOT have a discount - restore original price
+        if (product.originalSellingPrice) {
+          console.log(`[Price Update] Restoring original price for product ${product.productId}: ${product.originalSellingPrice}`);
+          // Product had a discount before, restore original price
+          await tx.product.update({
+            where: { productId: product.productId },
+            data: { 
+              sellingPrice: product.originalSellingPrice,
+              originalSellingPrice: null, // Clear the original price field
+            },
+          });
+        } else {
+          // Product never had a discount, ensure sellingPrice is correct
+          // No action needed as it should already have the correct price
+        }
       }
     }
+    
+    console.log(`[Price Update] Price recalculation completed for user ${userId}`);
   } catch (error) {
   }
 }

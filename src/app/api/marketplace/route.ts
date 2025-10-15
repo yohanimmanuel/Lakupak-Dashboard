@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
+    const marketplaceUserId = searchParams.get('marketplaceUserId');
     
     // Build where clause for published products only
     const whereClause: Record<string, unknown> = {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     
     const skip = (page - 1) * limit;
     
-    // Get published products with user info
+    // Get published products with user info, ordered by lastSyncAt to get most recent changes
     const products = await prisma.product.findMany({
       where: whereClause,
       include: {
@@ -91,17 +92,21 @@ export async function GET(request: NextRequest) {
       },
       skip,
       take: limit,
-      orderBy: { publishedAt: 'desc' }
+      orderBy: [
+        { lastSyncAt: 'desc' }, // Prioritize recently synced products
+        { publishedAt: 'desc' }  // Then by publish date
+      ]
     });
     
     // Get active offers for all products
     const productIds = products.map(p => p.productId);
     const userIds = [...new Set(products.map(p => p.userId).filter((id): id is number => id !== null))];
     
-    const activeOffers = await prisma.offer.findMany({
+    // Get only ACTIVE offers to check real-time status
+    const allOffers = await prisma.offer.findMany({
       where: {
         userId: { in: userIds },
-        status: 'active',
+        status: 'active', // Only get active offers
         startDate: { lte: new Date() },
         endDate: { gte: new Date() },
         offerProducts: {
@@ -112,17 +117,73 @@ export async function GET(request: NextRequest) {
       },
       include: {
         offerProducts: true,
-        offerDiscountTypes: {
-          where: {
-            isActive: true
-          }
-        }
+        offerDiscountTypes: true // Get ALL discount types, not just active ones
       }
     });
+
+    // Filter offers - keep offer if at least one discount type is still usable
+    const validOffers = [];
+    for (const offer of allOffers) {
+      let hasValidDiscountType = false;
+      
+      for (const discountType of offer.offerDiscountTypes) {
+        let isDiscountTypeValid = true;
+        
+        // First check if the discount type is marked as active
+        if (discountType.isActive !== true) {
+          isDiscountTypeValid = false;
+        }
+        
+        // Check max usage limit
+        if (isDiscountTypeValid && discountType.maxUsage && discountType.maxUsage > 0) {
+          const totalUsage = await prisma.offerUsageTracking.aggregate({
+            where: {
+              offerId: offer.id,
+              discountTypeId: discountType.id
+            },
+            _sum: {
+              usageCount: true
+            }
+          });
+          
+          const currentUsage = totalUsage._sum.usageCount || 0;
+          if (currentUsage >= discountType.maxUsage) {
+            isDiscountTypeValid = false;
+          }
+        }
+
+        // Check per-customer usage limit if marketplaceUserId is provided
+        if (isDiscountTypeValid && marketplaceUserId && discountType.perCustomerLimit && discountType.perCustomerLimit > 0) {
+          const customerUsage = await prisma.offerUsageTracking.findUnique({
+            where: {
+              offerId_discountTypeId_marketplaceUserId: {
+                offerId: offer.id,
+                discountTypeId: discountType.id,
+                marketplaceUserId: parseInt(marketplaceUserId)
+              }
+            }
+          });
+
+          if (customerUsage && customerUsage.usageCount >= discountType.perCustomerLimit) {
+            isDiscountTypeValid = false;
+          }
+        }
+        
+        // If this discount type is valid, the offer is valid
+        if (isDiscountTypeValid) {
+          hasValidDiscountType = true;
+          break;
+        }
+      }
+      
+      if (hasValidDiscountType) {
+        validOffers.push(offer);
+      }
+    }
     
-    // Create a map of product offers
+    // Create a map of product offers using only valid offers
     const productOffersMap = new Map();
-    activeOffers.forEach((offer) => {
+    validOffers.forEach((offer) => {
       offer.offerProducts.forEach((op) => {
         if (!productOffersMap.has(op.productId)) {
           productOffersMap.set(op.productId, []);
@@ -132,7 +193,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Transform products for marketplace format
-    const marketplaceProducts = products.map(product => {
+    const marketplaceProducts = await Promise.all(products.map(async (product) => {
       // Convert price strings to numbers, handling IDR format with dots as thousands separators
       let sellingPrice = typeof product.sellingPrice === 'string' 
         ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
@@ -153,6 +214,18 @@ export async function GET(request: NextRequest) {
         purchasePrice = parseInt(product.purchasePrice.replace(/[^\d]/g, '')) || 0;
       }
       
+      // Get original selling price (the price before any discounts)
+      let originalSellingPriceValue = product.originalSellingPrice ? 
+        (typeof product.originalSellingPrice === 'string' 
+          ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
+          : product.originalSellingPrice) 
+        : sellingPrice; // Fallback to current selling price if no original price
+      
+      // If originalSellingPrice exists and is different from sellingPrice, 
+      // it means there's an active discount applied by the main system
+      const hasActiveDiscountInMainSystem = product.originalSellingPrice && 
+        parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) !== sellingPrice;
+      
       // Check if product has active offers
       const productOffers = productOffersMap.get(product.productId) || [];
       let offerBadge = undefined;
@@ -162,66 +235,134 @@ export async function GET(request: NextRequest) {
       let originalSellingPrice = undefined;
       let discountType = undefined;
       let discountValue = undefined;
+      let hasPriceDiscounts = false;
       
       let promotionDetails = undefined;
       
       if (productOffers.length > 0) {
         const primaryOffer = productOffers[0];
         
-        // Filter to only ACTIVE discount types
-        const discountTypes = primaryOffer.offerDiscountTypes.filter((dt: OfferDiscountType) => dt.isActive !== false);
+        // Filter to only ACTIVE discount types that haven't reached usage limits
+        const activeDiscountTypes = [];
+        for (const dt of primaryOffer.offerDiscountTypes) {
+          let isDiscountTypeUsable = true;
+          
+          // First check if the discount type is marked as active
+          if (dt.isActive !== true) {
+            isDiscountTypeUsable = false;
+          }
+          
+          // Check if this discount type has reached its usage limit
+          if (isDiscountTypeUsable && dt.maxUsage && dt.maxUsage > 0) {
+            const totalUsage = await prisma.offerUsageTracking.aggregate({
+              where: {
+                offerId: primaryOffer.id,
+                discountTypeId: dt.id
+              },
+              _sum: {
+                usageCount: true
+              }
+            });
+            
+            const currentUsage = totalUsage._sum.usageCount || 0;
+            if (currentUsage >= dt.maxUsage) {
+              isDiscountTypeUsable = false;
+            }
+          }
+          
+          // Check per-customer usage limit if marketplaceUserId is provided
+          if (isDiscountTypeUsable && marketplaceUserId && dt.perCustomerLimit && dt.perCustomerLimit > 0) {
+            const customerUsage = await prisma.offerUsageTracking.findUnique({
+              where: {
+                offerId_discountTypeId_marketplaceUserId: {
+                  offerId: primaryOffer.id,
+                  discountTypeId: dt.id,
+                  marketplaceUserId: parseInt(marketplaceUserId)
+                }
+              }
+            });
+
+            if (customerUsage && customerUsage.usageCount >= dt.perCustomerLimit) {
+              isDiscountTypeUsable = false;
+            }
+          }
+          
+          if (isDiscountTypeUsable) {
+            activeDiscountTypes.push(dt);
+          }
+        }
         
-        const hasDiscount = discountTypes.some((dt: OfferDiscountType) => 
+        // Show offer details if there are actually usable discount types
+        // For price discounts, also check if main system shows active discount
+        // For promotions (buy_x_get_y), show them regardless of main system discount status
+        hasPriceDiscounts = activeDiscountTypes.some((dt: OfferDiscountType) => 
           dt.discountType === 'percentage' || dt.discountType === 'fixed'
         );
-        const hasPromotion = discountTypes.some((dt: OfferDiscountType) => 
+        const hasPromotions = activeDiscountTypes.some((dt: OfferDiscountType) => 
           dt.discountType === 'buy_x_get_y'
         );
         
-        if (hasDiscount && hasPromotion) {
-          offerBadge = 'All Offers';
-        } else if (hasPromotion) {
-          offerBadge = 'Promotion';
-        } else if (hasDiscount) {
-          offerBadge = 'Discount';
+        const shouldShowOffer = activeDiscountTypes.length > 0 && (
+          (hasPriceDiscounts && hasActiveDiscountInMainSystem) || 
+          (hasPromotions && !hasPriceDiscounts) ||
+          (hasPriceDiscounts && hasPromotions)
+        );
+        
+        if (shouldShowOffer) {
+          if (hasPriceDiscounts && hasPromotions) {
+            offerBadge = 'All Offers';
+          } else if (hasPromotions) {
+            offerBadge = 'Promotion';
+          } else if (hasPriceDiscounts) {
+            offerBadge = 'Discount';
+          } else {
+            offerBadge = 'Offer';
+          }
+          
+          // Get discount type and value (only for price discounts)
+          if (hasPriceDiscounts) {
+            const fixedDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
+            const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
+            discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
+            discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+          }
+          
+          // Get Buy X Get Y promotion details
+          const buyXGetYPromo = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
+          if (buyXGetYPromo) {
+            promotionDetails = {
+              minQuantity: buyXGetYPromo.minQuantity,
+              freeQuantity: buyXGetYPromo.discountValue,
+              description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+            };
+          }
+          
+          hasActiveOffer = true;
+          offerId = primaryOffer.id;
+          offerName = primaryOffer.name;
+          // Only show original price if there are active price discounts
+          originalSellingPrice = hasPriceDiscounts ? originalSellingPriceValue : undefined;
         } else {
-          offerBadge = 'Offer';
+          // No usable discount types OR main system doesn't show active discount - revert to normal pricing
+          hasActiveOffer = false;
+          offerBadge = undefined;
+          offerId = undefined;
+          offerName = undefined;
+          discountType = undefined;
+          discountValue = undefined;
+          promotionDetails = undefined;
+          originalSellingPrice = undefined;
         }
-        
-        // Get discount type and value (prioritize fixed over percentage)
-        const fixedDiscount = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
-        const percentageDiscount = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
-        discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
-        discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
-        
-        // Get Buy X Get Y promotion details
-        const buyXGetYPromo = discountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
-        if (buyXGetYPromo) {
-          promotionDetails = {
-            minQuantity: buyXGetYPromo.minQuantity,
-            freeQuantity: buyXGetYPromo.discountValue,
-            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
-          };
-        }
-        
-        hasActiveOffer = true;
-        offerId = primaryOffer.id;
-        offerName = primaryOffer.name;
-        originalSellingPrice = product.originalSellingPrice ? 
-          (typeof product.originalSellingPrice === 'string' 
-            ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
-            : product.originalSellingPrice) 
-          : undefined;
       }
       
       return {
         id: product.productId,
         name: product.name,
         description: product.description,
-        sellingPrice: sellingPrice,
-        originalSellingPrice: originalSellingPrice,
+        sellingPrice: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
+        originalSellingPrice: hasActiveOffer && hasPriceDiscounts ? originalSellingPrice : undefined,
         // Keep old field names for backward compatibility
-        price: sellingPrice,
+        price: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
         originalPrice: purchasePrice,
         // Offer integration
         offerBadge,
@@ -315,7 +456,7 @@ export async function GET(request: NextRequest) {
       publishedAt: product.publishedAt,
       lastSyncAt: product.lastSyncAt
       };
-    });
+    }));
     
     const totalCount = await prisma.product.count({ where: whereClause });
     
@@ -326,8 +467,17 @@ export async function GET(request: NextRequest) {
         limit,
         total: totalCount,
         pages: Math.ceil(totalCount / limit)
+      },
+      // Add timestamp to help with cache invalidation
+      timestamp: new Date().toISOString()
+    }, { 
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
-    }, { headers });
+    });
     
   } catch (error) {
     return NextResponse.json(
