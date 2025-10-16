@@ -87,6 +87,25 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    // Get individual usage tracking for each discount type
+    const offerIds = offers.map(offer => offer.id);
+    const usageTracking = await prisma.offerUsageTracking.groupBy({
+      by: ['offerId', 'discountTypeId'],
+      where: {
+        offerId: { in: offerIds }
+      },
+      _sum: {
+        usageCount: true
+      }
+    });
+
+    // Create a map for quick lookup
+    const usageMap = new Map();
+    usageTracking.forEach(usage => {
+      const key = `${usage.offerId}-${usage.discountTypeId}`;
+      usageMap.set(key, usage._sum.usageCount || 0);
+    });
+
     // Get total count for pagination
     const totalCount = await prisma.offer.count({ where });
 
@@ -109,6 +128,7 @@ export async function GET(request: NextRequest) {
         maxUsage: dt.maxUsage,
         isActive: dt.isActive,
         priority: dt.priority,
+        currentUsage: usageMap.get(`${offer.id}-${dt.id}`) || 0,
       })),
       startDate: offer.startDate,
       endDate: offer.endDate,

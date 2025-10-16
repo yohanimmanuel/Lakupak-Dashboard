@@ -22,6 +22,18 @@ export interface OfferValidationResult {
     freeQuantity?: number;
     description?: string;
   };
+  // Add array of all applicable discount types for tracking
+  applicableDiscountTypes?: Array<{
+    id: string;
+    discountType: string;
+    discountAmount: number;
+    discountPercentage?: number;
+    promotionDetails?: {
+      minQuantity?: number;
+      freeQuantity?: number;
+      description?: string;
+    };
+  }>;
 }
 
 export interface OrderItemWithOffer {
@@ -101,6 +113,17 @@ export async function validateOfferForProduct(
     let bestDiscountTypeId = '';
     let promotionDetails = undefined;
     let hasValidDiscount = false;
+    let applicableDiscountTypes: Array<{
+      id: string;
+      discountType: string;
+      discountAmount: number;
+      discountPercentage?: number;
+      promotionDetails?: {
+        minQuantity?: number;
+        freeQuantity?: number;
+        description?: string;
+      };
+    }> = [];
 
     for (const discountType of offer.offerDiscountTypes) {
         // Check usage limits - this will prevent the offer from being applied if limit is reached
@@ -119,6 +142,7 @@ export async function validateOfferForProduct(
       // Calculate discount based on type
       let discountAmount = 0;
       let discountPercentage = 0;
+      let currentPromotionDetails = undefined;
 
       if (discountType.discountType === 'percentage') {
         discountPercentage = discountType.discountValue;
@@ -131,6 +155,14 @@ export async function validateOfferForProduct(
           bestDiscountTypeId = discountType.id;
           hasValidDiscount = true;
         }
+        
+        // Add to applicable discount types
+        applicableDiscountTypes.push({
+          id: discountType.id,
+          discountType: discountType.discountType,
+          discountAmount: discountAmount,
+          discountPercentage: discountPercentage
+        });
       } else if (discountType.discountType === 'fixed') {
         discountAmount = discountType.discountValue;
         
@@ -141,6 +173,13 @@ export async function validateOfferForProduct(
           bestDiscountTypeId = discountType.id;
           hasValidDiscount = true;
         }
+        
+        // Add to applicable discount types
+        applicableDiscountTypes.push({
+          id: discountType.id,
+          discountType: discountType.discountType,
+          discountAmount: discountAmount
+        });
       } else if (discountType.discountType === 'buy_x_get_y') {
         // For buy_x_get_y, we don't change the price but provide promotion details
         const minQuantity = discountType.minQuantity;
@@ -155,11 +194,21 @@ export async function validateOfferForProduct(
           // For "buy 2 get 2": if you buy 4, you get 4 free
           const totalFreeItems = freeItemsPerSet;
           
-          promotionDetails = {
+          currentPromotionDetails = {
             minQuantity: minQuantity,
             freeQuantity: totalFreeItems,
             description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`
           };
+          
+          promotionDetails = currentPromotionDetails;
+          
+          // Add to applicable discount types
+          applicableDiscountTypes.push({
+            id: discountType.id,
+            discountType: discountType.discountType,
+            discountAmount: 0, // Buy X Get Y doesn't change price
+            promotionDetails: currentPromotionDetails
+          });
         }
       }
     }
@@ -181,7 +230,8 @@ export async function validateOfferForProduct(
         offerBadge,
         originalPrice,
         finalPrice,
-        promotionDetails
+        promotionDetails,
+        applicableDiscountTypes: applicableDiscountTypes
       };
     }
 
@@ -195,6 +245,40 @@ export async function validateOfferForProduct(
       isValid: false, 
       error: error instanceof Error ? error.message : 'Failed to validate offer' 
     };
+  }
+}
+
+/**
+ * Deactivate offer and discount type if usage limit is reached
+ */
+async function deactivateOfferIfLimitReached(
+  offerId: string,
+  discountTypeId: string,
+  tx: Prisma.TransactionClient
+): Promise<void> {
+  try {
+    // Deactivate only this specific discount type
+    await tx.offerDiscountType.update({
+      where: { id: discountTypeId },
+      data: { isActive: false }
+    });
+    
+    // Check if ALL discount types are now inactive, then deactivate the entire offer
+    const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
+      where: {
+        offerId: offerId,
+        isActive: true
+      }
+    });
+    
+    if (remainingActiveDiscountTypes === 0) {
+      await tx.offer.update({
+        where: { id: offerId },
+        data: { status: 'inactive' }
+      });
+    }
+  } catch (error) {
+    // Don't throw - this shouldn't fail the validation
   }
 }
 
@@ -224,29 +308,12 @@ async function validateUsageLimits(
     });
 
     const currentUsage = totalUsage._sum.usageCount || 0;
-    console.log(`[DEBUG] validateUsageLimits - offerId: ${offerId}, discountTypeId: ${discountTypeId}, currentUsage: ${currentUsage}, maxUsage: ${discountType.maxUsage}`);
-    // Check if the current usage has already reached or exceeded the limit
+    
+    // Check if allowing this order would exceed the limit
+    // If currentUsage >= maxUsage, the limit has been reached and this order should be rejected
     if (currentUsage >= discountType.maxUsage) {
-      // Deactivate only this specific discount type, not the entire offer
-      await tx.offerDiscountType.update({
-        where: { id: discountTypeId },
-        data: { isActive: false }
-      });
-      
-      // Check if ALL discount types are now inactive, then deactivate the entire offer
-      const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
-        where: {
-          offerId: offerId,
-          isActive: true
-        }
-      });
-      
-      if (remainingActiveDiscountTypes === 0) {
-        await tx.offer.update({
-          where: { id: offerId },
-          data: { status: 'inactive' }
-        });
-      }
+      // Deactivate the discount type and offer if limit is reached
+      await deactivateOfferIfLimitReached(offerId, discountTypeId, tx);
       
       return { 
         isValid: false, 
@@ -292,6 +359,7 @@ export async function updateOfferStatusesBasedOnLimits(): Promise<void> {
             });
 
             const currentUsage = totalUsage._sum.usageCount || 0;
+            // Deactivate if the usage limit has been reached or exceeded
             if (currentUsage >= discountType.maxUsage) {
               // Deactivate only this specific discount type
               await tx.offerDiscountType.update({
@@ -325,6 +393,41 @@ export async function updateOfferStatusesBasedOnLimits(): Promise<void> {
 }
 
 /**
+ * Track usage for all applicable discount types in an order
+ */
+export async function trackOfferUsageForAllTypes(
+  offerId: string,
+  applicableDiscountTypes: Array<{
+    id: string;
+    discountType: string;
+    discountAmount: number;
+    discountPercentage?: number;
+    promotionDetails?: {
+      minQuantity?: number;
+      freeQuantity?: number;
+      description?: string;
+    };
+  }>,
+  marketplaceUserId: number | null,
+  tx: Prisma.TransactionClient
+): Promise<void> {
+  try {
+    for (const discountType of applicableDiscountTypes) {
+      // Track usage for this specific discount type
+      await trackOfferUsage(
+        offerId,
+        discountType.id,
+        marketplaceUserId,
+        discountType.discountAmount,
+        tx
+      );
+    }
+  } catch (error) {
+    // Don't throw - this shouldn't fail the order
+  }
+}
+
+/**
  * Track offer usage after successful order creation
  */
 export async function trackOfferUsage(
@@ -335,7 +438,6 @@ export async function trackOfferUsage(
   tx: Prisma.TransactionClient
 ): Promise<void> {
   try {
-    console.log(`[DEBUG] trackOfferUsage - offerId: ${offerId}, discountTypeId: ${discountTypeId}, marketplaceUserId: ${marketplaceUserId}`);
     // Track usage for marketplace user (or general usage if no marketplaceUserId)
     if (marketplaceUserId) {
       await tx.offerUsageTracking.upsert({
@@ -423,8 +525,8 @@ export async function trackOfferUsage(
         });
 
         const currentUsage = totalUsage._sum.usageCount || 0;
-        console.log(`[DEBUG] trackOfferUsage - After tracking, currentUsage: ${currentUsage}, maxUsage: ${discountType.maxUsage}`);
         
+        // Deactivate if the usage limit has been reached or exceeded
         if (currentUsage >= discountType.maxUsage) {
           // Deactivate only this specific discount type
           await tx.offerDiscountType.update({

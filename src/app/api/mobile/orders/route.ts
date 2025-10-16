@@ -4,7 +4,7 @@ import {
   getSecurityHeaders, 
   validateAuthInput 
 } from '../../../../utils/auth-security';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil } from '../../../../utils/offerValidation';
+import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes } from '../../../../utils/offerValidation';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 // Inline function to avoid circular imports
 async function updateProductPricesFromOffers(tx: any, userId: number) {
@@ -576,15 +576,25 @@ export async function POST(request: NextRequest) {
           };
           
           // If offer is valid, track usage and add snapshot data
-          if (offerValidation.isValid && offerValidation.offerId && offerValidation.discountTypeId) {
-            // Track offer usage and update analytics
-            await trackOfferUsageUtil(
-              offerValidation.offerId,
-              offerValidation.discountTypeId,
-              userIdNum,
-              offerValidation.discountAmount || 0,
-              tx
-            );
+          if (offerValidation.isValid && offerValidation.offerId) {
+            // Track usage for all applicable discount types
+            if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
+              await trackOfferUsageForAllTypes(
+                offerValidation.offerId,
+                offerValidation.applicableDiscountTypes,
+                userIdNum,
+                tx
+              );
+            } else if (offerValidation.discountTypeId) {
+              // Fallback to single discount type tracking for backward compatibility
+              await trackOfferUsageUtil(
+                offerValidation.offerId,
+                offerValidation.discountTypeId,
+                userIdNum,
+                offerValidation.discountAmount || 0,
+                tx
+              );
+            }
             
             // Add offer snapshot data
             orderItemData = {

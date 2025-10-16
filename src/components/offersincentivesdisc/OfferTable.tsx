@@ -168,9 +168,19 @@ export default function OfferTable({
 
     const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
     
-    // Check if all offer types have reached their maximum usage
+    // Check if all active discount types have reached their maximum usage
     const typesWithLimits = activeDiscountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-    const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => offer.totalUsage >= (dt.maxUsage || 0));
+    let allLimitsReached = true;
+    
+    // For each discount type, check if it has reached its individual limit
+    if (typesWithLimits.length > 0) {
+      allLimitsReached = typesWithLimits.every(dt => {
+        const currentUsage = dt.currentUsage !== undefined ? dt.currentUsage : offer.totalUsage;
+        return currentUsage >= (dt.maxUsage || 0);
+      });
+    } else {
+      allLimitsReached = false;
+    }
     
     if (allLimitsReached) {
       return (
@@ -184,21 +194,34 @@ export default function OfferTable({
 
     activeDiscountTypes.forEach(dt => {
       if (dt.maxUsage && dt.maxUsage > 0) {
-        const usageText = `${offer.totalUsage}/${dt.maxUsage}`;
+        // Use individual usage data if available, otherwise fall back to total usage
+        const currentUsage = dt.currentUsage !== undefined ? dt.currentUsage : offer.totalUsage;
+        const usageText = `${currentUsage}/${dt.maxUsage}`;
         let colorClass = '';
+        
+        // Check if this specific discount type has reached its limit
+        const isLimitReached = currentUsage >= (dt.maxUsage || 0);
         
         switch (dt.discountType) {
           case 'percentage':
-            colorClass = 'text-blue-600 p-1 bg-blue-100 rounded-lg';
+            colorClass = isLimitReached 
+              ? 'text-red-600 p-1 bg-red-100 rounded-lg' 
+              : 'text-blue-600 p-1 bg-blue-100 rounded-lg';
             break;
           case 'fixed':
-            colorClass = 'text-green-600 p-1 bg-green-100 rounded-lg';
+            colorClass = isLimitReached 
+              ? 'text-red-600 p-1 bg-red-100 rounded-lg' 
+              : 'text-green-600 p-1 bg-green-100 rounded-lg';
             break;
           case 'buy_x_get_y':
-            colorClass = 'text-purple-600 p-1 bg-purple-100 rounded-lg';
+            colorClass = isLimitReached 
+              ? 'text-red-600 p-1 bg-red-100 rounded-lg' 
+              : 'text-purple-600 p-1 bg-purple-100 rounded-lg';
             break;
           default:
-            colorClass = 'text-gray-600 p-1 bg-gray-100 rounded-lg';
+            colorClass = isLimitReached 
+              ? 'text-red-600 p-1 bg-red-100 rounded-lg' 
+              : 'text-gray-600 p-1 bg-gray-100 rounded-lg';
         }
         
         usageElements.push(

@@ -20,6 +20,7 @@ export interface OfferDiscountType {
   maxUsage?: number | null;
   isActive: boolean;
   priority: number;
+  currentUsage?: number; // Individual usage count for this discount type
   createdAt?: string;
   updatedAt?: string;
 }

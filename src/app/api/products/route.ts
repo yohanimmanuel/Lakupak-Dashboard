@@ -103,6 +103,25 @@ export async function GET(req: NextRequest) {
           }
         }
       });
+
+      // Get individual usage tracking for each discount type
+      const offerIds = activeOffers.map(offer => offer.id);
+      const usageTracking = offerIds.length > 0 ? await prisma.offerUsageTracking.groupBy({
+        by: ['offerId', 'discountTypeId'],
+        where: {
+          offerId: { in: offerIds }
+        },
+        _sum: {
+          usageCount: true
+        }
+      }) : [];
+
+      // Create a map for quick lookup
+      const usageMap = new Map();
+      usageTracking.forEach(usage => {
+        const key = `${usage.offerId}-${usage.discountTypeId}`;
+        usageMap.set(key, usage._sum.usageCount || 0);
+      });
       
       if (activeOffers.length > 0) {
         const primaryOffer = activeOffers[0];
@@ -110,9 +129,18 @@ export async function GET(req: NextRequest) {
         // Filter to only ACTIVE discount types
         const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
         
-        // Check if all offer types have reached their maximum usage (same logic as OfferTable)
+        // Check if all offer types have reached their maximum usage using individual usage tracking
         const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-        const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => primaryOffer.totalUsage >= (dt.maxUsage || 0));
+        let allLimitsReached = true;
+        
+        if (typesWithLimits.length > 0) {
+          allLimitsReached = typesWithLimits.every(dt => {
+            const currentUsage = usageMap.get(`${primaryOffer.id}-${dt.id}`) || 0;
+            return currentUsage >= (dt.maxUsage || 0);
+          });
+        } else {
+          allLimitsReached = false;
+        }
         
         // If all limits are reached or no active discount types, don't show offer badge
         if (discountTypes.length === 0 || allLimitsReached) {
@@ -259,6 +287,25 @@ export async function GET(req: NextRequest) {
         }
       }
     });
+
+    // Get individual usage tracking for all offers
+    const allOfferIds = activeOffers.map(offer => offer.id);
+    const allUsageTracking = allOfferIds.length > 0 ? await prisma.offerUsageTracking.groupBy({
+      by: ['offerId', 'discountTypeId'],
+      where: {
+        offerId: { in: allOfferIds }
+      },
+      _sum: {
+        usageCount: true
+      }
+    }) : [];
+
+    // Create a map for quick lookup
+    const allUsageMap = new Map();
+    allUsageTracking.forEach(usage => {
+      const key = `${usage.offerId}-${usage.discountTypeId}`;
+      allUsageMap.set(key, usage._sum.usageCount || 0);
+    });
     
     // Map offers to products
     const productsWithOffers = products.map(product => {
@@ -276,9 +323,18 @@ export async function GET(req: NextRequest) {
       // Filter to only ACTIVE discount types
       const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
       
-      // Check if all offer types have reached their maximum usage (same logic as OfferTable)
+      // Check if all offer types have reached their maximum usage using individual usage tracking
       const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-      const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => primaryOffer.totalUsage >= (dt.maxUsage || 0));
+      let allLimitsReached = true;
+      
+      if (typesWithLimits.length > 0) {
+        allLimitsReached = typesWithLimits.every(dt => {
+          const currentUsage = allUsageMap.get(`${primaryOffer.id}-${dt.id}`) || 0;
+          return currentUsage >= (dt.maxUsage || 0);
+        });
+      } else {
+        allLimitsReached = false;
+      }
       
       // If all limits are reached or no active discount types, don't show offer badge
       if (discountTypes.length === 0 || allLimitsReached) {

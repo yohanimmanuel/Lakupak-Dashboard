@@ -289,7 +289,23 @@ export async function GET(request: NextRequest) {
         
         // Check if all offer types have reached their maximum usage (same logic as OfferTable)
         const typesWithLimits = activeDiscountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-        const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => primaryOffer.totalUsage >= (dt.maxUsage || 0));
+        
+        // Get individual usage tracking for each discount type
+        const usageMap = new Map();
+        for (const dt of typesWithLimits) {
+          const usage = await prisma.offerUsageTracking.aggregate({
+            where: {
+              offerId: primaryOffer.id,
+              discountTypeId: dt.id
+            },
+            _sum: {
+              usageCount: true
+            }
+          });
+          usageMap.set(dt.id, usage._sum.usageCount || 0);
+        }
+        
+        const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => (usageMap.get(dt.id) || 0) >= (dt.maxUsage || 0));
         
         // If all limits are reached, don't show the offer
         if (allLimitsReached) {
