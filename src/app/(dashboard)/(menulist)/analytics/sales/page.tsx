@@ -50,13 +50,7 @@ export default function SalesAnalyticsPage() {
 		timeRangeValue: string
 	): string => {
 		const timestamp = new Date().toLocaleString();
-		const timeRangesLocal = [
-			{ value: '1M', label: 'Last Month' },
-			{ value: '3M', label: 'Last 3 Months' },
-			{ value: '6M', label: 'Last 6 Months' },
-			{ value: '1Y', label: 'Last Year' }
-		];
-		const timeRangeLabel = timeRangesLocal.find(r => r.value === timeRangeValue)?.label || timeRangeValue;
+		const timeRangeLabel = timeRanges.find(r => r.value === timeRangeValue)?.label || timeRangeValue;
 
 		// Build indices
 		const productIndex = new Map<string, ExportProduct>();

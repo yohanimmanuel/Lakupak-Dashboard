@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LineChart, 
   Line, 
@@ -33,6 +33,7 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ArrowRightIcon
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
@@ -92,6 +93,9 @@ const FinancialAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('6M');
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [metrics, setMetrics] = useState<FinancialMetrics>({
     totalRevenue: 0,
     totalProfit: 0,
@@ -109,6 +113,25 @@ const FinancialAnalytics: React.FC = () => {
   const [hasData, setHasData] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  const categoryOptions = [
+    { value: 'productCategory', label: 'Product Category' },
+    { value: 'productType', label: 'Product Type' }
+  ];
+
+  const currentCategoryOption = categoryOptions.find(option => option.value === categoryFilter);
+
+  // Handle dropdown click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Helper function to parse currency strings to numbers
   const parseCurrencyToNumber = (currencyString: string): number => {
@@ -273,22 +296,16 @@ const FinancialAnalytics: React.FC = () => {
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
-          // Handle missing category field gracefully
-          let category = 'Uncategorized';
-          
-          // First try to get category from order item (if it exists)
-          if (item.productTypeSnapshot) {
-            category = item.productTypeSnapshot;
-          } else {
-            // Fallback to product data
-            const product = products.find(p => p.productId === item.productId);
-            if (product?.productType) {
-              category = product.productType;
-            }
-          }
-          
           // Calculate actual revenue and profit using product prices
           const product = products.find(p => p.productId === item.productId);
+          
+          // Get category based on selected filter
+          let category = 'Uncategorized';
+          if (categoryFilter === 'productType') {
+            category = product?.productType || 'Uncategorized';
+          } else {
+            category = product?.productCategory || 'Uncategorized';
+          }
           
           if (product) {
             const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
@@ -355,7 +372,7 @@ const FinancialAnalytics: React.FC = () => {
       profit: stats.profit,
       percentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     })).sort((a, b) => b.revenue - a.revenue);
-  }, [orders, products, hasData, userCurrency]);
+  }, [orders, products, hasData, userCurrency, categoryFilter]);
 
   // Calculate real top products using actual product margins
   const allTopProducts: TopProduct[] = useMemo(() => {
@@ -387,13 +404,8 @@ const FinancialAnalytics: React.FC = () => {
             // Find the product to get its name and category
             const product = products.find(p => p.productId === productId);
             
-            // Handle missing category field gracefully
-            let category = 'Uncategorized';
-            if (item.productTypeSnapshot) {
-              category = item.productTypeSnapshot;
-            } else if (product?.productType) {
-              category = product.productType;
-            }
+            // Get category - use the same simple logic as CustomerSalesAnalytics
+            const category = product?.productCategory || 'Uncategorized';
             
             productStats[productId] = {
               revenue: 0,
@@ -791,7 +803,38 @@ const FinancialAnalytics: React.FC = () => {
            <div className="lg:col-span-6">
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-           <h3 className="text-lg font-semibold text-gray-900 mb-6">Revenue by Category</h3>
+           <div className="flex items-center justify-between mb-6">
+             <h3 className="text-lg font-semibold text-gray-900">Revenue by Category</h3>
+             <div className="relative" ref={categoryDropdownRef}>
+               <button
+                 onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                 className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+               >
+                 <Filter className="w-4 h-4" />
+                 {currentCategoryOption?.label}
+                 <ChevronDown className="w-4 h-4" />
+               </button>
+               
+               {isCategoryDropdownOpen && (
+                 <div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+                   {categoryOptions.map((option) => (
+                     <button
+                       key={option.value}
+                       onClick={() => {
+                         setCategoryFilter(option.value as 'productType' | 'productCategory');
+                         setIsCategoryDropdownOpen(false);
+                       }}
+                       className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                         categoryFilter === option.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                       }`}
+                     >
+                       {option.label}
+                     </button>
+                   ))}
+                 </div>
+               )}
+             </div>
+           </div>
            <ResponsiveContainer width="100%" height={284}>
              <PieChart>
                <defs>
@@ -900,7 +943,6 @@ const FinancialAnalytics: React.FC = () => {
                   <tr>
                     <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
                     <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Type</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
@@ -913,7 +955,7 @@ const FinancialAnalytics: React.FC = () => {
                      <td className="py-3 px-4 text-left text-black">
                        {(currentPage - 1) * productsPerPage + index + 1}
                      </td>
-                                                 <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
+                      <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
                          <span 
                            className="cursor-pointer transition-all duration-200 hover:text-blue-800"
                            onClick={() => window.location.href = `/products/catalog/${product.productId}`}
@@ -921,9 +963,6 @@ const FinancialAnalytics: React.FC = () => {
                          >
                             {product.name}
                           </span>
-                      </td>
-                      <td className="py-3 px-4 text-center text-gray-600">
-                        {product.productType}
                       </td>
                       <td className="py-3 px-4 text-center text-gray-600">
                         {product.productCategory}
@@ -1415,7 +1454,8 @@ export const calculateTopProducts = (
         const product = products.find(p => p.productId === productId);
         if (!product) { return; }
         if (!productStats[productId]) {
-          const category = item.productTypeSnapshot || product?.productType || 'Uncategorized';
+          // Get category - use the same simple logic as CustomerSalesAnalytics
+          const category = product?.productCategory || 'Uncategorized';
           productStats[productId] = {
             revenue: 0,
             unitsSold: 0,
@@ -1513,7 +1553,6 @@ export const AnalyticsTopProductsTable: React.FC<{
           <tr>
             <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
             <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Type</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
@@ -1533,7 +1572,6 @@ export const AnalyticsTopProductsTable: React.FC<{
                   {product.name}
                 </span>
               </td>
-              <td className="py-3 px-4 text-center text-gray-600">{product.productType}</td>
               <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
               <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>

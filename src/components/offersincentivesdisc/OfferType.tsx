@@ -347,7 +347,7 @@ export default function OfferType({
             minQuantity: editingType.minQuantity ?? undefined,
             maxUsage: editingType.maxUsage ?? undefined,
           } : undefined}
-          onSave={(typeData) => {
+          onSave={async (typeData) => {
             // Enforce single offer per type: update if exists, else add
             const discountTypeData = {
               id: editingType?.id || `dt-${Date.now()}`,
@@ -365,6 +365,9 @@ export default function OfferType({
             // find existing by type
             const existing = displayDiscountTypes.find((dt) => dt.discountType === typeData.discountType);
             
+            // Check if we're updating an existing discount type and maxUsage changed
+            const maxUsageChanged = existing && editingType && existing.maxUsage !== typeData.maxUsage;
+            
             if (isBatchEditMode) {
               // In batch edit mode, update parent state
               let updatedDiscountTypes;
@@ -381,6 +384,33 @@ export default function OfferType({
             } else {
               // In create view, use store or callbacks
               if (existing) {
+                // If maxUsage changed and we have an existing discount type, call API to reset usage
+                if (maxUsageChanged && existing.id && user?.id) {
+                  try {
+                    const response = await fetch(`/api/offers/${offerData?.id || 'temp'}?type=discount-type&itemId=${existing.id}&userId=${user.id}`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        name: typeData.name,
+                        description: typeData.description,
+                        minOrderValue: typeData.minOrderValue,
+                        minQuantity: typeData.minQuantity,
+                        maxUsage: typeData.maxUsage,
+                        isActive: true,
+                      }),
+                    });
+                    
+                    if (response.ok) {
+                      const result = await response.json();
+                      console.log('Usage reset successfully:', result.message);
+                    }
+                  } catch (error) {
+                    console.error('Failed to reset usage:', error);
+                  }
+                }
+                
                 if (onUpdateDiscountType) {
                   onUpdateDiscountType(existing.id, discountTypeData);
                 } else {

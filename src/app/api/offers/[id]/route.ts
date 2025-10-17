@@ -299,19 +299,36 @@ async function updateDiscountType(discountTypeId: string, userId: number, data: 
     );
   }
 
-  // Update the discount type
-  const updatedDiscountType = await prisma.offerDiscountType.update({
-    where: { id: discountTypeId },
-    data: {
-      name: data.name,
-      description: data.description,
-      minOrderValue: data.minOrderValue ? 
-        (typeof data.minOrderValue === 'string' ? parseFloat(data.minOrderValue.replace(/\./g, '')) : data.minOrderValue) : 
-        null,
-      minQuantity: data.minQuantity,
-      maxUsage: data.maxUsage,
-      isActive: data.isActive,
-    },
+  // Check if maxUsage is being changed
+  const maxUsageChanged = existingDiscountType.maxUsage !== data.maxUsage;
+  
+  // Use transaction to ensure atomicity
+  const result = await prisma.$transaction(async (tx) => {
+    // Update the discount type
+    const updatedDiscountType = await tx.offerDiscountType.update({
+      where: { id: discountTypeId },
+      data: {
+        name: data.name,
+        description: data.description,
+        minOrderValue: data.minOrderValue ? 
+          (typeof data.minOrderValue === 'string' ? parseFloat(data.minOrderValue.replace(/\./g, '')) : data.minOrderValue) : 
+          null,
+        minQuantity: data.minQuantity,
+        maxUsage: data.maxUsage,
+        isActive: data.isActive,
+      },
+    });
+
+    // If maxUsage changed, reset the usage tracking for this discount type
+    if (maxUsageChanged) {
+      await tx.offerUsageTracking.deleteMany({
+        where: {
+          discountTypeId: discountTypeId,
+        },
+      });
+    }
+
+    return updatedDiscountType;
   });
 
   // IMPORTANT: Update product prices after discount type status change
@@ -344,8 +361,9 @@ async function updateDiscountType(discountTypeId: string, userId: number, data: 
   });
 
   return NextResponse.json({
-    message: 'Discount type updated successfully',
-    discountType: updatedDiscountType,
+    message: maxUsageChanged ? 'Discount type updated successfully and usage reset' : 'Discount type updated successfully',
+    discountType: result,
+    usageReset: maxUsageChanged,
   });
 }
 

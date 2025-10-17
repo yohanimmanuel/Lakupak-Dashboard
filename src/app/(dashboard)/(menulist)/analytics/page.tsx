@@ -1,7 +1,7 @@
 'use client';
-import { DollarSign, ShoppingCart } from 'lucide-react';
+import { DollarSign, ShoppingCart, Calendar, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   AnalyticsMetricCard, 
   AnalyticsRevenueTrendChart,
@@ -30,26 +30,89 @@ export default function AnalyticsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
+  const [timeRange, setTimeRange] = useState('1M');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const userCurrency = user?.currency || 'IDR';
 
-  const totalRevenue = calculateTotalRevenue(orders, products);
+  const timeRanges = [
+    { value: '1M', label: 'Last Month' },
+    { value: '3M', label: 'Last 3 Months' },
+    { value: '6M', label: 'Last 6 Months' },
+    { value: '1Y', label: 'Last Year' }
+  ];
+
+  const currentRange = timeRanges.find(range => range.value === timeRange);
+
+  // Filter data based on selected time range
+  const filteredOrders = useMemo(() => {
+    if (!hasData || orders.length === 0) return [];
+    
+    const now = new Date();
+    const filterDate = new Date();
+    
+    switch (timeRange) {
+      case '1M':
+        filterDate.setMonth(now.getMonth() - 1);
+        break;
+      case '3M':
+        filterDate.setMonth(now.getMonth() - 3);
+        break;
+      case '6M':
+        filterDate.setMonth(now.getMonth() - 6);
+        break;
+      case '1Y':
+        filterDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        return orders;
+    }
+    
+    return orders.filter(order => {
+      const orderDate = new Date(order.orderDate);
+      return orderDate >= filterDate;
+    });
+  }, [orders, timeRange, hasData]);
+
+  const filteredProducts = useMemo(() => {
+    if (!hasData) return [];
+    // For products, we might want to filter based on creation date or keep all
+    // For now, keeping all products as they're referenced by orders
+    return products;
+  }, [products, hasData]);
+
+  const totalRevenue = calculateTotalRevenue(filteredOrders, filteredProducts);
 
   const revenueData = useMemo(() => {
-    return calculateRevenueData(orders, products, hasData);
-  }, [orders, products, hasData]);
+    return calculateRevenueData(filteredOrders, filteredProducts, hasData);
+  }, [filteredOrders, filteredProducts, hasData]);
 
   // Operational metrics reused from OperationalPerformanceAnalytics
-  const opMetrics = useMemo(() => computeOperationalMetrics(orders, products), [orders, products]);
-  const opStatusData = useMemo(() => computeOrderStatusData(orders), [orders]);
-  const opProcessingData = useMemo(() => computeProcessingTimeData(orders), [orders]);
+  const opMetrics = useMemo(() => computeOperationalMetrics(filteredOrders, filteredProducts), [filteredOrders, filteredProducts]);
+  const opStatusData = useMemo(() => computeOrderStatusData(filteredOrders), [filteredOrders]);
+  const opProcessingData = useMemo(() => computeProcessingTimeData(filteredOrders), [filteredOrders]);
 
   // Top products (reused from FinancialAnalytics exports)
-  const topProducts = useMemo(() => calculateTopProducts(orders, products, hasData, 10), [orders, products, hasData]);
+  const topProducts = useMemo(() => calculateTopProducts(filteredOrders, filteredProducts, hasData, 10), [filteredOrders, filteredProducts, hasData]);
 
   // Customer Sales metrics reused
-  const customerMetrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData]);
-  const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData), [orders, hasData]);
+  const customerMetrics = useMemo(() => calculateSalesMetrics(filteredOrders, filteredProducts, hasData), [filteredOrders, filteredProducts, hasData]);
+  const salesTrend = useMemo(() => calculateSalesTrend(filteredOrders, hasData), [filteredOrders, hasData]);
+
+  // Handle dropdown click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,9 +193,44 @@ export default function AnalyticsPage() {
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-        <p className="text-sm text-gray-600">Key insights and performance metrics for your business</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+          <p className="text-sm text-gray-600">Key insights and performance metrics for your business</p>
+        </div>
+        
+        {/* Time Range Dropdown */}
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              <Calendar className="w-4 h-4" />
+              {currentRange?.label}
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+                {timeRanges.map((range) => (
+                  <button
+                    key={range.value}
+                    onClick={() => {
+                      setTimeRange(range.value);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                      timeRange === range.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Row 1: Metric Cards (4 columns) */}

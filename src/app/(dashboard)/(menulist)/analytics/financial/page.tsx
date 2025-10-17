@@ -1,6 +1,6 @@
 'use client';
 import FinancialAnalytics from '@/components/analyticsperformance/FinancialAnalytics';
-import { Calendar, ChevronDown, Download, Filter } from 'lucide-react';
+import { Calendar, ChevronDown, Download } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
 
@@ -9,6 +9,29 @@ export default function FinancialAnalyticsPage() {
   const [timeRange, setTimeRange] = useState('1M');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const timeRanges = [
+    { value: '1M', label: 'Last Month' },
+    { value: '3M', label: 'Last 3 Months' },
+    { value: '6M', label: 'Last 6 Months' },
+    { value: '1Y', label: 'Last Year' }
+  ];
+
+  const currentRange = timeRanges.find(range => range.value === timeRange);
+
+  // Handle dropdown click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Export function to download financial data as Word document
   const handleExport = async () => {
@@ -617,28 +640,6 @@ export default function FinancialAnalyticsPage() {
     return htmlContent;
   };
 
-  const timeRanges = [
-    { value: '1M', label: 'Last Month' },
-    { value: '3M', label: 'Last 3 Months' },
-    { value: '6M', label: 'Last 6 Months' },
-    { value: '1Y', label: 'Last Year' }
-  ];
-
-  const currentRange = timeRanges.find(range => range.value === timeRange);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">

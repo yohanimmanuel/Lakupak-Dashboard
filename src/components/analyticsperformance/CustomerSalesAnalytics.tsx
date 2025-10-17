@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
 	Bar,
 	BarChart,
@@ -22,6 +22,8 @@ import {
 	TrendingUp,
 	ChevronLeft,
 	ChevronRight,
+	ChevronDown,
+	Filter,
 	ArrowRight
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
@@ -223,8 +225,30 @@ const CustomerSalesAnalytics: React.FC = () => {
 	const [buyers, setBuyers] = useState<BuyerLite[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [hasData, setHasData] = useState(false);
+	const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
+	const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+	const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
 	const userCurrency = user?.currency || 'IDR';
+
+	const categoryOptions = [
+		{ value: 'productCategory', label: 'Product Category' },
+		{ value: 'productType', label: 'Product Type' }
+	];
+
+	const currentCategoryOption = categoryOptions.find(option => option.value === categoryFilter);
+
+	// Handle dropdown click outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+				setIsCategoryDropdownOpen(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -288,7 +312,13 @@ const CustomerSalesAnalytics: React.FC = () => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
 				const prod = products.find(p => p.productId === it.productId);
-				const category = prod?.productCategory || 'Uncategorized';
+				// Get category based on selected filter
+				let category = 'Uncategorized';
+				if (categoryFilter === 'productType') {
+					category = prod?.productType || 'Uncategorized';
+				} else {
+					category = prod?.productCategory || 'Uncategorized';
+				}
 				// Calculate units using package-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
 				const packageQuantity = it.packageQuantity || 1;
@@ -298,7 +328,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 		return Object.entries(map).map(([category, units]) => ({ category, units }))
 			.sort((a, b) => b.units - a.units)
 			.slice(0, 8);
-	}, [orders, products, hasData]);
+	}, [orders, products, hasData, categoryFilter]);
 
 	// Top customers (exclude deleted/missing buyers)
 	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number };
@@ -430,7 +460,38 @@ const CustomerSalesAnalytics: React.FC = () => {
 				{/* Units by Category (Pie) */}
 				<div className="lg:col-span-5">
 					<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-						<h3 className="text-lg font-semibold text-gray-900 mb-6">Units by Product Category</h3>
+						<div className="flex items-center justify-between mb-6">
+							<h3 className="text-lg font-semibold text-gray-900">Units by Product Category</h3>
+							<div className="relative" ref={categoryDropdownRef}>
+								<button
+									onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+									className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+								>
+									<Filter className="w-4 h-4" />
+									{currentCategoryOption?.label}
+									<ChevronDown className="w-4 h-4" />
+								</button>
+								
+								{isCategoryDropdownOpen && (
+									<div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+										{categoryOptions.map((option) => (
+											<button
+												key={option.value}
+												onClick={() => {
+													setCategoryFilter(option.value as 'productType' | 'productCategory');
+													setIsCategoryDropdownOpen(false);
+												}}
+												className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+													categoryFilter === option.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+												}`}
+											>
+												{option.label}
+											</button>
+										))}
+									</div>
+								)}
+							</div>
+						</div>
 						<ResponsiveContainer width="100%" height={284}>
 							<PieChart>
 								<Pie data={unitsByCategory} dataKey="units" nameKey="category" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={2} stroke="white" strokeWidth={2} cornerRadius={8}>

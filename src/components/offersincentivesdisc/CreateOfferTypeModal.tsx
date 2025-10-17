@@ -85,6 +85,14 @@ export default function CreateOfferTypeModal({
         ...formData,
         maxUsage: noMaxUsage ? undefined : formData.maxUsage,
       };
+      
+      // If we're editing an existing discount type and maxUsage changed, 
+      // we need to call the API to reset usage tracking
+      if (editingType && editingType.maxUsage !== dataToSave.maxUsage) {
+        // The API call will be handled by the parent component or store
+        // This is just for the modal's internal logic
+      }
+      
       await onSave(dataToSave);
     } finally {
       setSaving(false);
