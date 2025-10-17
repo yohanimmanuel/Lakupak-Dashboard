@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
 const mainMenuItems = [
@@ -18,7 +18,16 @@ const mainMenuItems = [
   },
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
-  { label: 'Analytics', href: '/analytics', icon: <ChartBarIcon className="w-5 h-5" /> },
+  {
+    label: 'Analytics',
+    icon: <ChartBarIcon className="w-5 h-5" />,
+    submenu: [
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Overview', href: '/analytics' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Financial', href: '/analytics/financial' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Sales', href: '/analytics/sales' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Operational', href: '/analytics/performance' },
+    ],
+  },
   { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
 ];
 
@@ -71,7 +80,9 @@ const Menu = () => {
     const isActive = pathname === item.href || (item.href && pathname.startsWith(item.href));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
-      const isAnySubActive = item.submenu.some((sub: SubItem) => pathname.startsWith(sub.href));
+      const isAnySubActive = item.submenu.some((sub: SubItem) => pathname === sub.href);
+      // For items with submenus, highlight parent if any submenu is active OR if the parent itself is active
+      const shouldHighlightParent = isAnySubActive || isActive;
       // Collapsed: floating submenu on hover
       const handleMouseEnter = () => {
         if (!shouldShowExpanded) {
@@ -110,7 +121,7 @@ const Menu = () => {
           <button
             onClick={() => shouldShowExpanded && handleToggle(item.label)}
             className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 group relative ${
-              isAnySubActive ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+              shouldHighlightParent ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
             }`}
             title={!shouldShowExpanded ? item.label : undefined}
           >
@@ -142,7 +153,7 @@ const Menu = () => {
                   key={sub.label}
                   href={sub.href}
                   className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${
-                    pathname === sub.href || pathname.startsWith(sub.href)
+                    pathname === sub.href
                       ? 'bg-blue-200 text-[#007bff] shadow-sm'
                       : 'text-gray-500 hover:bg-blue-100 hover:text-[#007bff]'
                   }`}
@@ -161,7 +172,7 @@ const Menu = () => {
                   key={sub.label}
                   href={sub.href}
                   className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${
-                    pathname === sub.href || pathname.startsWith(sub.href)
+                    pathname === sub.href
                       ? 'bg-blue-200 text-[#007bff] shadow-sm'
                       : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
                   }`}
