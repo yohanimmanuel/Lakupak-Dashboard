@@ -525,9 +525,32 @@ export default function BuyerProfile({ buyer, onClose }: BuyerProfileProps) {
               {pagedOrderDetails.map((order: OrderDetail, idx: number) => (
                 <tr key={idx + (orderPage - 1) * orderRowsPerPage} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
-                  <td className="py-4 px-4 text-black">{order.product}</td>
-                  <td className="py-4 px-4 text-black">{order.totalOrders}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalSpend), userCurrency), userCurrency)}</td>
+                  <td className="py-4 px-4 text-black">
+                    <div className="text-xsfont-medium text-black">
+                      {order.product}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-black">
+                    <div>
+                      {order.totalOrders}
+                      {order.freeItems && order.freeItems > 0 && (
+                        <span className="font-bold text-purple-600 ml-2">
+                          (+ {order.freeItems} free items)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">
+                    <div className="flex items-center gap-2">
+                      <span>{formatCurrency(parseNumberByCurrency(String(order.totalSpend), userCurrency), userCurrency)}</span>
+                      {order.discountBadge && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                          {order.discountBadge}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-4 px-4 text-black">{order.lastOrderDate}</td>
                   <td className="py-4 px-4 text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.outstanding), userCurrency), userCurrency)}</td>
                 </tr>

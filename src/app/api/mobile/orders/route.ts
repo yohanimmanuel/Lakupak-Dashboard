@@ -7,7 +7,7 @@ import {
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes } from '../../../../utils/offerValidation';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 // Inline function to avoid circular imports
-async function updateProductPricesFromOffers(tx: any, userId: number) {
+async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
     // Get all products for this user
     const allProducts = await tx.product.findMany({
@@ -54,7 +54,7 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
         continue;
       }
 
-      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: any) => 
+      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive: boolean; discountType: string }) => 
         dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
       );
       
@@ -90,7 +90,7 @@ async function updateProductPricesFromOffers(tx: any, userId: number) {
           await tx.product.update({
             where: { productId: productId },
             data: { 
-              sellingPrice: bestDiscount.price,
+              sellingPrice: bestDiscount.price.toString(),
               originalSellingPrice: product.originalSellingPrice || product.sellingPrice
             }
           });
@@ -637,6 +637,16 @@ export async function POST(request: NextRequest) {
       }
     });
     
+    // Auto-sync order to buyer profile if buyerId exists
+    if (createdOrder?.buyerId && distributorUserId) {
+      try {
+        await syncOrderToBuyerProfile(createdOrder.buyerId, distributorUserId);
+      } catch (syncError) {
+        // Log error but don't fail the order creation
+        console.error('Failed to sync order to buyer profile:', syncError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       order: createdOrder
@@ -653,5 +663,153 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create order', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers }
     );
+  }
+}
+
+// Function to sync order data to buyer profile
+async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
+  try {
+    // Get buyer
+    const buyer = await prisma.buyer.findFirst({
+      where: { buyerId, userId }
+    });
+    
+    if (!buyer) return;
+    
+    // Get all orders for this buyer
+    const orders = await prisma.order.findMany({
+      where: { 
+        buyerId, 
+        userId,
+        orderStatus: { not: 'Cancelled' } // Exclude cancelled orders
+      },
+      include: {
+        orderItemsRel: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: { orderDate: 'desc' }
+    });
+    
+    // Process orders into orderDetails format - each order as separate row
+    interface OrderDetailData {
+      orderNo: string;
+      product: string;
+      totalOrders: string;
+      totalSpend: string;
+      lastOrderDate: string;
+      outstanding: string;
+      freeItems?: number;
+      discountBadge?: string;
+      offerApplied?: boolean;
+    }
+    
+    const orderDetails: OrderDetailData[] = [];
+    
+    orders.forEach(order => {
+      // Get all products in this order as a comma-separated string
+      const productNames = order.orderItemsRel.map(item => 
+        item.product?.name || item.productNameSnapshot || 'Unknown Product'
+      ).join(', ');
+      
+      // Calculate total orders (sum of all package quantities)
+      const totalOrders = order.orderItemsRel.reduce((sum, item) => sum + (item.packageQuantity || 1), 0);
+      
+      // Calculate total spend for this order
+      const totalSpend = order.orderItemsRel.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Calculate outstanding amount for this order (unpaid orders)
+      const outstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? totalSpend : 0;
+      
+      // Calculate free items from promotions
+      let totalFreeItems = 0;
+      let discountBadge = '';
+      let hasOfferApplied = false;
+      
+      order.orderItemsRel.forEach(item => {
+        if (item.offerApplied) {
+          hasOfferApplied = true;
+          
+          // Calculate free items from promotion
+          if (item.promotionDetailsSnapshot) {
+            try {
+              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                totalFreeItems += freeQty;
+              }
+            } catch {
+              // Invalid JSON, skip
+            }
+          }
+          
+          // Set discount badge
+          if (item.discountPercentage) {
+            discountBadge = `${item.discountPercentage}% OFF`;
+          } else if (item.discountAmount) {
+            discountBadge = `Rp ${item.discountAmount.toLocaleString('id-ID')} OFF`;
+          }
+        }
+      });
+      
+      orderDetails.push({
+        orderNo: order.orderId,
+        product: productNames,
+        totalOrders: totalOrders.toString(),
+        totalSpend: totalSpend.toString(),
+        lastOrderDate: order.orderDate.toISOString().split('T')[0],
+        outstanding: outstanding.toString(),
+        freeItems: totalFreeItems > 0 ? totalFreeItems : undefined,
+        discountBadge: discountBadge || undefined,
+        offerApplied: hasOfferApplied
+      });
+    });
+    
+    // Keep numeric values for frontend formatting
+    const formattedOrderDetails = orderDetails.map(detail => ({
+      ...detail,
+      totalSpend: detail.totalSpend,
+      outstanding: detail.outstanding
+    }));
+    
+    // Calculate logistics info
+    interface LogisticsData {
+      preferredDays: string;
+      lastShipment: string;
+      shipmentSuccess: string;
+    }
+    
+    const lastOrder = orders[0];
+    let existingLogistics: LogisticsData = { preferredDays: '', lastShipment: '', shipmentSuccess: '' };
+    
+    try {
+      if (buyer.logistics) {
+        existingLogistics = JSON.parse(buyer.logistics) as LogisticsData;
+      }
+    } catch (error) {
+      // If parsing fails, use default values
+    }
+    
+    const logisticsData: LogisticsData = {
+      preferredDays: existingLogistics.preferredDays || '',
+      lastShipment: lastOrder ? lastOrder.orderDate.toISOString().split('T')[0] : '',
+      shipmentSuccess: orders.filter(o => o.orderStatus === 'Delivered').length + '/' + orders.length
+    };
+    
+    // Update buyer with new order details and logistics
+    await prisma.buyer.update({
+      where: { buyerId },
+      data: {
+        orderDetails: JSON.stringify(formattedOrderDetails),
+        logistics: JSON.stringify(logisticsData),
+        updatedAt: new Date()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error syncing order to buyer profile:', error);
+    throw error;
   }
 }

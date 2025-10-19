@@ -404,10 +404,8 @@ export default function OfferType({
                     
                     if (response.ok) {
                       const result = await response.json();
-                      console.log('Usage reset successfully:', result.message);
                     }
                   } catch (error) {
-                    console.error('Failed to reset usage:', error);
                   }
                 }
                 

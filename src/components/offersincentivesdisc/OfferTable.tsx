@@ -163,7 +163,11 @@ export default function OfferTable({
   // Create color-coded usage display for each discount type
   function createUsageDisplay(offer: Offer): React.ReactNode {
     if (!offer.discountTypes || offer.discountTypes.length === 0) {
-      return `${offer.totalUsage}/∞`;
+      return (
+        <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
+          Limit Reached
+        </span>
+      );
     }
 
     const activeDiscountTypes = offer.discountTypes.filter(dt => dt.isActive);
@@ -184,7 +188,7 @@ export default function OfferTable({
     
     if (allLimitsReached) {
       return (
-        <span className="text-red-600 p-1 bg-red-100 rounded-lg font-medium">
+        <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
           Limit Reached
         </span>
       );
@@ -232,9 +236,13 @@ export default function OfferTable({
       }
     });
 
-    // If no maxUsage limits, show unlimited
+    // If no maxUsage limits, show limit reached
     if (usageElements.length === 0) {
-      return `${offer.totalUsage}/∞`;
+      return (
+        <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
+          Limit Reached
+        </span>
+      );
     }
 
     // Display multiple usage displays inline with spacing

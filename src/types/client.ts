@@ -82,6 +82,9 @@ export interface OrderDetail {
   totalSpend: string;
   lastOrderDate: string;
   outstanding: string;
+  freeItems?: number;
+  discountBadge?: string;
+  offerApplied?: boolean;
 }
 
 export interface SupplyDetail {

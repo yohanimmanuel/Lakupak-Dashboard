@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../generated/prisma';
+import { PrismaClient, Prisma } from '../../../generated/prisma';
 import { getProductSecurityHeaders } from '../../../utils/product-security';
 
 interface OfferDiscountType {
@@ -601,7 +601,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to update product prices based on active offers
-async function updateProductPricesFromOffers(tx: any, userId: number) {
+async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
     // Get all products for this user
     const allProducts = await tx.product.findMany({
