@@ -12,6 +12,7 @@ import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 import CreateOfferTypeModal from '@/components/offersincentivesdisc/CreateOfferTypeModal';
 import CreateDateRangeModal from '@/components/offersincentivesdisc/CreateDateRangeModal';
 import CreateTimeSlotModal from '@/components/offersincentivesdisc/CreateTimeSlotModal';
+import { formatCurrency } from '@/utils/currencyUtils';
 
 export default function CreateOfferPage() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function CreateOfferPage() {
   // Reset store to fresh state when component mounts (for new offer creation)
   useEffect(() => {
     resetToDefaults();
-  }, [resetToDefaults]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
@@ -154,6 +155,7 @@ export default function CreateOfferPage() {
         offerTypes.push('discount');
       }
 
+      const productIds = Object.keys(productOfferBadges || {});
       const offerData = {
         userId: user?.id,
         name,
@@ -162,7 +164,7 @@ export default function CreateOfferPage() {
         discountTypes,
         startDate: offerStartDate,
         endDate: offerEndDate,
-        productIds: Object.keys(productOfferBadges || {}), // Use products with offer badges
+        productIds,
         dateRanges: dateRanges || [],
         timeSlots: timeSlots || [],
         status: offerStatus,
@@ -177,7 +179,8 @@ export default function CreateOfferPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create offer');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create offer');
       }
 
       // Reset the store and redirect
@@ -549,7 +552,7 @@ export default function CreateOfferPage() {
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto hide-scrollbar">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <div>
@@ -577,12 +580,12 @@ export default function CreateOfferPage() {
                     <div key={index} className="flex items-center gap-2 bg-white/80 rounded-md p-2">
                       {dt.discountType === 'percentage' && (
                         <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                          -{dt.discountValue}% OFF
+                          {dt.discountValue}% OFF
                         </span>
                       )}
                       {dt.discountType === 'fixed' && (
                         <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                          -{dt.discountValue} OFF
+                          {formatCurrency(dt.discountValue)} OFF
                         </span>
                       )}
                       {dt.discountType === 'buy_x_get_y' && (
@@ -590,7 +593,7 @@ export default function CreateOfferPage() {
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                           </svg>
-                          Buy {dt.minQuantity} Get {dt.discountValue} Free
+                          Buy {dt.minQuantity} Get {Math.abs(dt.discountValue)} Free
                         </span>
                       )}
                       {dt.name && <span className="text-xs text-gray-600">{dt.name}</span>}

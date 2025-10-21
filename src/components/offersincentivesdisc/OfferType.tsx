@@ -18,6 +18,7 @@ interface DiscountTypeData {
   minQuantity?: number | null | undefined;
   freeQuantity?: number | null | undefined;
   maxUsage?: number | null | undefined;
+  perCustomerLimit?: number | null | undefined;
   isActive: boolean;
   priority?: number;
   offerId?: string;

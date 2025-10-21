@@ -643,7 +643,6 @@ export async function POST(request: NextRequest) {
         await syncOrderToBuyerProfile(createdOrder.buyerId, distributorUserId);
       } catch (syncError) {
         // Log error but don't fail the order creation
-        console.error('Failed to sync order to buyer profile:', syncError);
       }
     }
 
@@ -809,7 +808,6 @@ async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     });
     
   } catch (error) {
-    console.error('Error syncing order to buyer profile:', error);
     throw error;
   }
 }

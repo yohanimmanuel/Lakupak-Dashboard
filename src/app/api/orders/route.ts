@@ -710,7 +710,6 @@ export async function POST(request: NextRequest) {
         await syncOrderToBuyerProfile(order.buyerId, sanitizedData.userId as number);
       } catch (syncError) {
         // Log error but don't fail the order creation
-        console.error('Failed to sync order to buyer profile:', syncError);
       }
     }
 
@@ -866,7 +865,6 @@ async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     });
     
   } catch (error) {
-    console.error('Error syncing order to buyer profile:', error);
     throw error;
   }
 }
@@ -997,7 +995,6 @@ export async function PUT(request: NextRequest) {
           try {
             await syncOrderToBuyerProfile(updatedOrder.buyerId, Number(body.userId));
           } catch (syncError) {
-            console.error('Failed to sync order to buyer profile after cancellation:', syncError);
           }
         }
 
@@ -1311,7 +1308,6 @@ export async function PUT(request: NextRequest) {
         await syncOrderToBuyerProfile(order.buyerId, sanitizedData.userId as number);
       } catch (syncError) {
         // Log error but don't fail the order update
-        console.error('Failed to sync order to buyer profile:', syncError);
       }
     }
 
