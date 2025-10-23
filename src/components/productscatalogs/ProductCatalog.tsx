@@ -946,133 +946,132 @@ export default function ProductCatalog({
       )}
 
       <form id="product-form" onSubmit={handleSubmit} className="p-4">
-        {/* 4-Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 3-Row Layout */}
+        <div className="space-y-4">
           
-          {/* Top Row - Left: General Information */}
+          {/* Row 1: General Information - Full Width */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-gray-500" />
               General Information
             </h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product ID
-                </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Product ID
+                  </label>
                   <input
-                  type="text"
-                  value={formData.productId || ''}
-                  disabled={true}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Auto-generated Product ID"
-                />
-                 {currentMode === 'add' && (
-                   <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
-                 )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  SKU Number
-                </label>
-                                 <input
-                   type="text"
-                   value={formData.sku}
-                   onChange={(e) => handleInputChange('sku', e.target.value)}
-                   disabled={isViewMode}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Enter SKU"
-                 />
-              </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product Name
-                </label>
-                                 <input
-                   type="text"
-                   value={formData.name}
-                   onChange={(e) => handleInputChange('name', e.target.value)}
-                   disabled={isViewMode}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Enter product name"
-                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    type="text"
+                    value={formData.productId || ''}
+                    disabled={true}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="Auto-generated Product ID"
+                  />
+                  {currentMode === 'add' && (
+                    <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    SKU Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="Enter SKU"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
                     Brand
                   </label>
-                                     <input
-                     type="text"
-                     value={formData.brand}
-                     onChange={(e) => handleInputChange('brand', e.target.value)}
-                     disabled={isViewMode}
-                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                     placeholder="Enter brand"
-                   />
+                  <input
+                    type="text"
+                    value={formData.brand}
+                    onChange={(e) => handleInputChange('brand', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="Enter brand"
+                  />
                 </div>
-                                 <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Type
-                    </label>
-                   <div className="relative" ref={generalCategoryRef}>
-                     <button
-                       type="button"
-                       onClick={() => {
-                         setShowGeneralCategoryDropdown(!showGeneralCategoryDropdown);
-                         setShowCatalogCategoryDropdown(false);
-                       }}
-                       disabled={isViewMode}
-                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
-                     >
-                     <span className="flex items-center gap-2">
-                       {formData.productType ? (
-                         <>
-                           {(() => {
-                             const selectedCategory = getSelectedCategory(formData.productType);
-                             const IconComponent = getCategoryIconComponent(formData.productType);
-                            return (
-                              <span style={{ color: selectedCategory?.color }}>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Type
+                  </label>
+                  <div className="relative" ref={generalCategoryRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowGeneralCategoryDropdown(!showGeneralCategoryDropdown);
+                        setShowCatalogCategoryDropdown(false);
+                      }}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        {formData.productType ? (
+                          <>
+                            {(() => {
+                              const selectedCategory = getSelectedCategory(formData.productType);
+                              const IconComponent = getCategoryIconComponent(formData.productType);
+                              return (
+                                <span style={{ color: selectedCategory?.color }}>
+                                  <IconComponent className="w-4 h-4" />
+                                </span>
+                              );
+                            })()}
+                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-500">Select category</span>
+                        )}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                    
+                    {showGeneralCategoryDropdown && !isViewMode && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {availableCategories.map((category) => {
+                          const IconComponent = getCategoryIconComponent(category.value);
+                          return (
+                            <button
+                              key={category.value}
+                              type="button"
+                              onClick={() => handleCategorySelect(category.value, 'productType')}
+                              className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <span style={{ color: category.color }}>
                                 <IconComponent className="w-4 h-4" />
                               </span>
-                            );
-                           })()}
-                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
-                         </>
-                       ) : (
-                         <span className="text-gray-500">Select category</span>
-                       )}
-                     </span>
-                       <ChevronDown className="w-4 h-4 text-gray-400" />
-                     </button>
-                     
-                   {showGeneralCategoryDropdown && !isViewMode && (
-                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                       {availableCategories.map((category) => {
-                         const IconComponent = getCategoryIconComponent(category.value);
-                         return (
-                           <button
-                             key={category.value}
-                             type="button"
-                              onClick={() => handleCategorySelect(category.value, 'productType')}
-                             className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
-                           >
-                             <span style={{ color: category.color }}>
-                               <IconComponent className="w-4 h-4" />
-                             </span>
-                             <span className="text-black">{category.label}</span>
-                           </button>
-                         );
-                       })}
-                     </div>
-                   )}
-                   </div>
-                 </div>
+                              <span className="text-black">{category.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="Enter product name"
+                  />
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
                     Supplier
                   </label>
@@ -1085,24 +1084,25 @@ export default function ProductCatalog({
                     placeholder="Enter supplier"
                   />
                 </div>
-                             <div className="border-b border-gray-200 pb-2">
-                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                   Product Description
-                 </label>
-                 <textarea
-                   value={formData.description}
-                   onChange={(e) => handleInputChange('description', e.target.value)}
-                   disabled={isViewMode}
-                   rows={4}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="Enter product description"
-                 />
-               </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Product Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  disabled={isViewMode}
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  placeholder="Enter product description"
+                />
+              </div>
 
               {/* Product Assurance */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Product Assurance</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <label className="flex items-center gap-2 text-xs text-gray-700">
                     <button
                       type="button"
@@ -1160,101 +1160,19 @@ export default function ProductCatalog({
                     </button>
                     <span>Original Product</span>
                   </label>
-                </div>
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Return Policy (days)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.returnPolicyDays ?? 7}
-                    onChange={(e) => handleInputChange('returnPolicyDays', parseInt(e.target.value) || 0)}
-                    disabled={isViewMode}
-                    className="w-50 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="7"
-                  />
-                </div>
-              </div>
-
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Stock Information</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Package Type
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.packageType}
-                      onChange={(e) => handleInputChange('packageType', e.target.value)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="e.g., Box, Carton, Case"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Type of packaging unit</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Pieces per Package
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Return Policy (days)</label>
                     <input
                       type="number"
-                      value={formData.piecesPerPackage}
-                      onChange={(e) => handleInputChange('piecesPerPackage', parseInt(e.target.value) || 1)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="1"
-                      min="1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Number of individual pieces per package</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Stock Quantity
-                    </label>
-                   <input
-                     type="number"
-                     value={formData.stockQuantity}
-                     onChange={(e) => handleInputChange('stockQuantity', parseInt(e.target.value) || 0)}
-                     disabled={isViewMode}
-                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                     placeholder="0"
-                     min="0"
-                   />
-                   <p className="text-xs text-gray-500 mt-1">Current packages available</p>
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Low Stock Threshold
-                   </label>
-                                       <input
-                      type="number"
-                      value={formData.lowStockThreshold || 0}
-                      onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 0)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="0"
                       min="0"
+                      value={formData.returnPolicyDays ?? 7}
+                      onChange={(e) => handleInputChange('returnPolicyDays', parseInt(e.target.value) || 0)}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                      placeholder="7"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Set to your own stock threshold</p>
-                 </div>
-               <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Stock Status
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.stockStatus || 'In Stock'}
-                      disabled={true}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      readOnly
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Automatically calculated based on stock quantity and threshold</p>
                   </div>
+                </div>
               </div>
 
               {/* Buy X Get Y Promotion Notice */}
@@ -1294,343 +1212,439 @@ export default function ProductCatalog({
                   </div>
                 </div>
               )}
-
             </div>
           </div>
 
-          {/* Top Row - Right: Upload Images */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-gray-500" />
-                Upload Images
-              </h2>
-              {!isViewMode && formData.images.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearAllImages}
-                  className="text-xs text-red-500 hover:text-red-700 font-medium"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-4">
-              {/* Main Image Upload Area */}
-              <div 
-                className={`w-full h-110 bg-gray-100 rounded-lg border-2 border-dashed transition-colors ${
-                  isDragOver 
-                    ? 'border-[#0a61d7] bg-blue-50' 
-                    : 'border-gray-300'
-                } flex items-center justify-center relative overflow-hidden`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                  {formData.images.length > 0 ? (
-                  <div className="relative w-full h-full">
-                    <img 
-                      src={formData.images[0]} 
-                      alt="Main product" 
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                    {!isViewMode && (
-                      <button
-                        type="button"
-                        onClick={() => removeImage(0)}
-                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Upload className={`w-12 h-12 mx-auto mb-2 ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-400'}`} />
-                    <p className={`font-medium ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-500'}`}>
-                      {isDragOver ? 'Drop images here' : 'Drag & drop or click to upload'}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">Supports: JPG, PNG, GIF (Max 5MB)</p>
-                  </div>
+          {/* Row 2: Upload Images (3/4) + Product Settings (1/4) */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            {/* Upload Images - 3/4 width */}
+            <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-gray-500" />
+                  Upload Images
+                </h2>
+                {!isViewMode && formData.images.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAllImages}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Clear All
+                  </button>
                 )}
-                
-                {/* Hidden file input for click upload */}
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileInput}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  disabled={isViewMode}
-                />
               </div>
               
-              {/* Thumbnail Images */}
-              <div className="flex items-center gap-3 flex-wrap">
-                {formData.images.slice(1).map((image, index) => (
+              <div className="flex gap-4">
+                {/* Main Image - Right side */}
+                <div className="flex-1">
                   <div 
-                    key={index} 
-                    className="relative w-28 h-28 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden cursor-move hover:shadow-md transition-shadow"
-                    draggable={!isViewMode}
-                    onDragStart={(e) => {
-                      if (!isViewMode) {
-                        e.dataTransfer.setData('text/plain', String(index + 1));
-                      }
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      if (!isViewMode) {
-                        e.preventDefault();
-                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                        const toIndex = index + 1;
-                        reorderImages(fromIndex, toIndex);
-                      }
-                    }}
+                    className={`w-full h-64 bg-gray-100 rounded-lg border-2 border-dashed transition-colors ${
+                      isDragOver 
+                        ? 'border-[#0a61d7] bg-blue-50' 
+                        : 'border-gray-300'
+                    } flex items-center justify-center relative overflow-hidden`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                   >
-                    <img src={image} alt={`Product ${index + 2}`} className="w-full h-full object-cover" />
-                    {!isViewMode && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index + 1)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                        <div className="absolute bottom-1 left-1 w-6 h-6 bg-gray-800 bg-opacity-70 text-white text-xs rounded-full flex items-center justify-center">
-                          {index + 2}
-                        </div>
-                      </>
+                    {formData.images.length > 0 ? (
+                      <div className="relative w-full h-full">
+                        <img 
+                          src={formData.images[0]} 
+                          alt="Main product" 
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        {!isViewMode && (
+                          <button
+                            type="button"
+                            onClick={() => removeImage(0)}
+                            className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <Upload className={`w-12 h-12 mx-auto mb-2 ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-400'}`} />
+                        <p className={`font-medium ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-500'}`}>
+                          {isDragOver ? 'Drop images here' : 'Drag & drop or click to upload'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Supports: JPG, PNG, GIF (Max 5MB)</p>
+                      </div>
                     )}
-                  </div>
-                ))}
-                
-                {/* Add more images button */}
-                {!isViewMode && formData.images.length < 10 && (
-                  <div className="relative">
-                    <div className="w-28 h-28 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-[#0a61d7] transition-colors">
-                      <Plus className="w-6 h-6 text-gray-400" />
-                    </div>
+                    
+                    {/* Hidden file input for click upload */}
                     <input
                       type="file"
                       multiple
                       accept="image/*"
                       onChange={handleFileInput}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={isViewMode}
                     />
                   </div>
-                )}
+                </div>
+                
+                {/* Thumbnail Images - Left side, horizontal */}
+                <div className="w-32 space-y-2">
+                  <div className="text-xs text-gray-500 mb-2">Additional Images</div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {formData.images.slice(1).map((image, index) => (
+                      <div 
+                        key={index} 
+                        className="relative w-28 h-20 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden cursor-move hover:shadow-md transition-shadow"
+                        draggable={!isViewMode}
+                        onDragStart={(e) => {
+                          if (!isViewMode) {
+                            e.dataTransfer.setData('text/plain', String(index + 1));
+                          }
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          if (!isViewMode) {
+                            e.preventDefault();
+                            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                            const toIndex = index + 1;
+                            reorderImages(fromIndex, toIndex);
+                          }
+                        }}
+                      >
+                        <img src={image} alt={`Product ${index + 2}`} className="w-full h-full object-cover" />
+                        {!isViewMode && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index + 1)}
+                              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <div className="absolute bottom-1 left-1 w-5 h-5 bg-gray-800 bg-opacity-70 text-white text-xs rounded-full flex items-center justify-center">
+                              {index + 2}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {/* Add more images button */}
+                    {!isViewMode && formData.images.length < 10 && (
+                      <div className="relative">
+                        <div className="w-28 h-20 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-[#0a61d7] transition-colors">
+                          <Plus className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleFileInput}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
               {/* Upload Progress */}
               {uploadingImages && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-gray-600 mt-4">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-[#0a61d7] rounded-full animate-spin"></div>
                   <span>Uploading images...</span>
                 </div>
               )}
               {/* Image Count Info */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-4">
                 <div className="text-xs text-gray-500">
                   {formData.images.length}/10 images uploaded
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Bottom Row - Left: Catalog Settings */}
-           <div className="bg-white rounded-lg border border-gray-200 p-4">
-             <div className="flex items-center justify-between mb-2">
-               <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                 <Tag className="w-5 h-5 text-gray-500" />
-                 Product Settings
-               </h2>
-                 
-                  <div className="flex items-center gap-2">
-                     <p className="text-xs text-gray-500 italic">
-                       All Product Types input will be added as a new filter.
-                     </p>
-                  </div>
-             </div>
-            
-            <div className="space-y-4">
-                             <div>
-                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product Type
-                 </label>
-                 <div className="relative" ref={catalogCategoryRef}>
-                   <button
-                     type="button"
-                     onClick={() => {
-                       setShowCatalogCategoryDropdown(!showCatalogCategoryDropdown);
-                       setShowGeneralCategoryDropdown(false);
-                     }}
-                     disabled={isViewMode}
-                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
-                   >
-                     <span className="flex items-center gap-2">
-                        {formData.productType ? (
-                         <>
-                           {(() => {
-                             const selectedCategory = getSelectedCategory(formData.productType);
-                             const IconComponent = getCategoryIconComponent(formData.productType);
-                            return (
-                              <span style={{ color: selectedCategory?.color }}>
-                                <IconComponent className="w-4 h-4" />
-                              </span>
-                            );
-                           })()}
-                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
-                         </>
-                       ) : (
-                         <span className="text-gray-500">Select category</span>
-                       )}
-                     </span>
-                     <ChevronDown className="w-4 h-4 text-gray-400" />
-                   </button>
-                   
-                   {showCatalogCategoryDropdown && !isViewMode && (
-                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                       {availableCategories.map((category) => {
-                         const IconComponent = getCategoryIconComponent(category.value);
-                         return (
-                           <button
-                             key={category.value}
-                             type="button"
-                              onClick={() => handleCategorySelect(category.value, 'productType')}
-                             className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
-                           >
-                             <span style={{ color: category.color }}>
-                               <IconComponent className="w-4 h-4" />
-                             </span>
-                             <span className="text-black">{category.label}</span>
-                           </button>
-                         );
-                       })}
-                     </div>
-                   )}
-                 </div>
-               </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product Category
-                </label>
-                <input
-                  type="text"
-                  value={formData.productCategory}
-                  onChange={(e) => handleInputChange('productCategory', e.target.value)}
-                  disabled={isViewMode}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Distributor-specific rule (e.g, Wholesale, Retail)"
-                />
+            {/* Product Settings - 1/4 width */}
+            <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-gray-500" />
+                  Product Settings
+                </h2>
               </div>
               
-                             <div>
-                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                   Catalog Name
-                 </label>
-                 <input
-                   type="text"
-                   value={formData.catalogName}
-                   onChange={(e) => handleInputChange('catalogName', e.target.value)}
-                   disabled={isViewMode}
-                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                   placeholder="e.g., Daily Essentials, Seasonal Promotions"
-                 />
-               </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Product Type
+                  </label>
+                  <div className="relative" ref={catalogCategoryRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCatalogCategoryDropdown(!showCatalogCategoryDropdown);
+                        setShowGeneralCategoryDropdown(false);
+                      }}
+                      disabled={isViewMode}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        {formData.productType ? (
+                          <>
+                            {(() => {
+                              const selectedCategory = getSelectedCategory(formData.productType);
+                              const IconComponent = getCategoryIconComponent(formData.productType);
+                              return (
+                                <span style={{ color: selectedCategory?.color }}>
+                                  <IconComponent className="w-4 h-4" />
+                                </span>
+                              );
+                            })()}
+                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-500">Select category</span>
+                        )}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                    
+                    {showCatalogCategoryDropdown && !isViewMode && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {availableCategories.map((category) => {
+                          const IconComponent = getCategoryIconComponent(category.value);
+                          return (
+                            <button
+                              key={category.value}
+                              type="button"
+                              onClick={() => handleCategorySelect(category.value, 'productType')}
+                              className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <span style={{ color: category.color }}>
+                                <IconComponent className="w-4 h-4" />
+                              </span>
+                              <span className="text-black">{category.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Product Category
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.productCategory}
+                    onChange={(e) => handleInputChange('productCategory', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="e.g., Wholesale, Retail"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Catalog Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.catalogName}
+                    onChange={(e) => handleInputChange('catalogName', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    placeholder="e.g., Daily Essentials"
+                  />
+                </div>
+                
+                <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-200">
+                  All Product Types input will be added as a new filter.
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Bottom Row - Right: Pricing and Stock */}
+          {/* Row 3: Product Variants (Pricing & Stock Information) - Full Width */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-gray-500" />
-              Pricing
-              <span className="text-xs text-gray-500 font-normal">(format matches {userCurrency})</span>
+              Product Variants
+              <span className="text-xs text-gray-500 font-normal">(Different package sizes and pricing)</span>
             </h2>
             
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Base/Selling Price 
-                   </label>
-                   <div className="relative">
-                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                       {currencySymbol}
-                     </div>
-                     <input
-                       type="text"
-                       value={formData.sellingPrice}
-                       onChange={(e) => handlePriceInput('sellingPrice', e.target.value)}
-                       onBlur={() => handlePriceBlur('sellingPrice')}
-                       disabled={isViewMode}
-                       className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder={getPricePlaceholder(userCurrency)}
-                     />
-                   </div>
-                   {/* Only show original price and offer name if there's a DISCOUNT (not just promotion) */}
-                   {product?.originalPrice && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
-                     <div className="mt-1 text-xs text-gray-400 line-through">
-                       Original: {formatCurrencyAmount(parseNumberByCurrency(product.originalPrice, userCurrency), userCurrency)}
-                     </div>
-                   )}
-                   {product?.offerName && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
-                     <div className="mt-1 text-xs text-green-600">
-                       Applied Offer: {product.offerName}
-                     </div>
-                   )}
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                     Purchase Price
-                   </label>
-                   <div className="relative">
-                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                       {currencySymbol}
-                     </div>
-                     <input
-                       type="text"
-                       value={formData.purchasePrice}
-                       onChange={(e) => handlePriceInput('purchasePrice', e.target.value)}
-                       onBlur={() => handlePriceBlur('purchasePrice')}
-                       disabled={isViewMode}
-                       className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                       placeholder={getPricePlaceholder(userCurrency)}
-                     />
-                   </div>
-                 </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Stock Information Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Stock Information</h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Package Type
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.packageType}
+                        onChange={(e) => handleInputChange('packageType', e.target.value)}
+                        disabled={isViewMode}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="e.g., Box, Carton, Case"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Type of packaging unit</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Pieces per Package
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.piecesPerPackage}
+                        onChange={(e) => handleInputChange('piecesPerPackage', parseInt(e.target.value) || 1)}
+                        disabled={isViewMode}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="1"
+                        min="1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Number of individual pieces per package</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Stock Quantity
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.stockQuantity}
+                        onChange={(e) => handleInputChange('stockQuantity', parseInt(e.target.value) || 0)}
+                        disabled={isViewMode}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="0"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Current packages available</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Low Stock Threshold
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.lowStockThreshold || 0}
+                        onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 0)}
+                        disabled={isViewMode}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                        placeholder="0"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Set to your own stock threshold</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Stock Status
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.stockStatus || 'In Stock'}
+                        disabled={true}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        readOnly
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-
-              {/* Calculated Price per Package */}
-              <div className="border-t border-gray-200 pt-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Price per Package (Calculated)
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                      {currencySymbol}
+              {/* Pricing Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Pricing</h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Base/Selling Price 
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.sellingPrice}
+                          onChange={(e) => handlePriceInput('sellingPrice', e.target.value)}
+                          onBlur={() => handlePriceBlur('sellingPrice')}
+                          disabled={isViewMode}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                          placeholder={getPricePlaceholder(userCurrency)}
+                        />
+                      </div>
+                      {/* Only show original price and offer name if there's a DISCOUNT (not just promotion) */}
+                      {product?.originalPrice && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
+                        <div className="mt-1 text-xs text-gray-400 line-through">
+                          Original: {formatCurrencyAmount(parseNumberByCurrency(product.originalPrice, userCurrency), userCurrency)}
+                        </div>
+                      )}
+                      {product?.offerName && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
+                        <div className="mt-1 text-xs text-green-600">
+                          Applied Offer: {product.offerName}
+                        </div>
+                      )}
                     </div>
-                    <input
-                      type="text"
-                      value={(() => {
-                        const sellingPrice = parseNumberByCurrency(formData.sellingPrice, userCurrency) || 0;
-                        const piecesPerPackage = formData.piecesPerPackage || 1;
-                        const packagePrice = sellingPrice * piecesPerPackage;
-                        return packagePrice > 0 ? formatNumberByCurrency(packagePrice, userCurrency) : '0';
-                      })()}
-                      disabled={true}
-                      className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      readOnly
-                    />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Purchase Price
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.purchasePrice}
+                          onChange={(e) => handlePriceInput('purchasePrice', e.target.value)}
+                          onBlur={() => handlePriceBlur('purchasePrice')}
+                          disabled={isViewMode}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                          placeholder={getPricePlaceholder(userCurrency)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formatNumberByCurrency(parseNumberByCurrency(formData.sellingPrice, userCurrency), userCurrency)} per {formData.packageType || 'piece'}
-                  </p>
+
+                  {/* Calculated Price per Package */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Price per Package (Calculated)
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          value={(() => {
+                            const sellingPrice = parseNumberByCurrency(formData.sellingPrice, userCurrency) || 0;
+                            const piecesPerPackage = formData.piecesPerPackage || 1;
+                            const packagePrice = sellingPrice * piecesPerPackage;
+                            return packagePrice > 0 ? formatNumberByCurrency(packagePrice, userCurrency) : '0';
+                          })()}
+                          disabled={true}
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                          readOnly
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formatNumberByCurrency(parseNumberByCurrency(formData.sellingPrice, userCurrency), userCurrency)} per {formData.packageType || 'piece'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
