@@ -1,5 +1,5 @@
 import React from "react";
-import { Package, CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown, X } from "lucide-react";
+import { Package, CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown, X, Gift } from "lucide-react";
 import { Product } from "@/types/product";
 
 interface ProductCardsProps {
@@ -15,6 +15,14 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   const activeProducts = products.filter(product => product.status === 'Published').length;
   const lowStockAlerts = products.filter(product => product.stockQuantity > 0 && (product.lowStockThreshold || 0) > 0 && product.stockQuantity <= (product.lowStockThreshold || 0)).length;
   const outOfStock = products.filter(product => product.stockQuantity === 0).length;
+  const productsWithOffers = products.filter(product => 
+    product.hasActiveOffer || 
+    product.offerBadge || 
+    product.originalPrice || 
+    product.offerName || 
+    product.discountType ||
+    product.promotionDetails
+  ).length;
   const stats = [
     {
       label: 'Total Products',
@@ -29,6 +37,13 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
       icon: <CheckCircle className="w-6 h-6 text-green-500" />,
       color: 'bg-[#e6f7ec]',
       trend: { percent: '+0%', label: 'from last month', up: true }
+    },
+    {
+      label: 'Products with Offers',
+      value: productsWithOffers,
+      icon: <Gift className="w-6 h-6 text-purple-500" />,
+      color: 'bg-[#f3e8ff]',
+      trend: { percent: '+0%', label: 'from last month', up: true }
     }
   ];
 
@@ -36,8 +51,8 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
 
   return (
     <div className="w-full mx-auto space-y-4">
-      {/* Main Stats - Two Column */}
-      <div className="grid grid-cols-2 gap-3"> 
+      {/* Main Stats - Three Column */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"> 
         {stats.map((stat, idx) => (
           <div
             key={stat.label}
