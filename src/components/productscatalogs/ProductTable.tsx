@@ -169,6 +169,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     const product = products.find(p => p.productId === productId);
     if (!product) return false;
     
+    // Check if product has at least one complete variant
+    const hasCompleteVariant = product.variants && product.variants.length > 0 && 
+      product.variants.some(variant => 
+        variant.purchasePrice && 
+        variant.sellingPrice && 
+        variant.stockQuantity !== undefined && 
+        variant.stockQuantity !== null &&
+        variant.isActive
+      );
+    
     // Check required fields for marketplace publishing
     const hasRequiredFields = Boolean(product.sku && 
                              product.name && 
@@ -176,10 +186,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              product.productType && 
                              product.brand && 
                              product.supplier && 
-                             product.purchasePrice && 
-                             product.sellingPrice && 
-                             product.stockQuantity !== undefined && 
-                             product.stockQuantity !== null);
+                             hasCompleteVariant);
     
     const hasImages = Boolean(product.images && product.images.length > 0);
     
@@ -617,6 +624,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
         
         const missingDataCount = currentPageOriginalProducts.filter(product => {
+          // Check if product has at least one complete variant
+          const hasCompleteVariant = product.variants && product.variants.length > 0 && 
+            product.variants.some(variant => 
+              variant.purchasePrice && 
+              variant.sellingPrice && 
+              variant.stockQuantity !== undefined && 
+              variant.stockQuantity !== null &&
+              variant.isActive
+            );
+          
           // Use the same logic as isProductComplete function
           const hasRequiredFields = Boolean(product.sku && 
                                    product.name && 
@@ -624,10 +641,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                    product.productType && 
                                    product.brand && 
                                    product.supplier && 
-                                   product.purchasePrice && 
-                                   product.sellingPrice && 
-                                   product.stockQuantity !== undefined && 
-                                   product.stockQuantity !== null);
+                                   hasCompleteVariant);
           
           const hasImages = Boolean(product.images && product.images.length > 0);
           
@@ -905,17 +919,18 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               const originalProduct = products.find(p => p.productId === product.productId);
               
               const hasIncompleteData = originalProduct ? (() => {
-                // Use the same logic as isProductComplete function
+                // Check if product has variants and if the first variant has required data
+                const firstVariant = originalProduct.variants?.[0];
                 const hasRequiredFields = Boolean(originalProduct.sku && 
                                          originalProduct.name && 
                                          originalProduct.description && 
                                          originalProduct.productType && 
                                          originalProduct.brand && 
                                          originalProduct.supplier && 
-                                         originalProduct.purchasePrice && 
-                                         originalProduct.sellingPrice && 
-                                         originalProduct.stockQuantity !== undefined && 
-                                         originalProduct.stockQuantity !== null);
+                                         firstVariant?.purchasePrice && 
+                                         firstVariant?.sellingPrice && 
+                                         firstVariant?.stockQuantity !== undefined && 
+                                         firstVariant?.stockQuantity !== null);
                 
                 const hasImages = Boolean(originalProduct.images && originalProduct.images.length > 0);
                 
@@ -1026,8 +1041,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                   return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                                 }
                                 // Fallback to percentage calculation
-                                if (originalProduct.originalSellingPrice) {
-                                  const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                                if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                                  const originalPrice = parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency);
                                   const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                   if (originalPrice > currentPrice && originalPrice > 0) {
                                     const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -1053,8 +1068,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                 return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                               }
                               // Fallback to percentage calculation
-                              if (originalProduct.originalSellingPrice) {
-                                const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                              if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                                const originalPrice = parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency);
                                 const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                 if (originalPrice > currentPrice && originalPrice > 0) {
                                   const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -1154,9 +1169,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 ];
                const hasMissingBasicFields = basicFields.some(field => field);
                
-               const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+               const firstVariant = originalProduct.variants?.[0];
+               const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               const hasMissingStock = firstVariant?.stockQuantity === undefined || firstVariant?.stockQuantity === null;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1229,8 +1245,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                              }
                              // Fallback to percentage calculation
-                             if (originalProduct.originalSellingPrice) {
-                               const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                             if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                               const originalPrice = parseNumberByCurrency(originalProduct.variants?.[0]?.originalSellingPrice, userCurrency);
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -1256,8 +1272,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                            }
                            // Fallback to percentage calculation
-                           if (originalProduct.originalSellingPrice) {
-                             const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                           if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                             const originalPrice = parseNumberByCurrency(originalProduct.variants?.[0]?.originalSellingPrice, userCurrency);
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -1311,7 +1327,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
                      Stock: {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
-                       product.stockQuantity
+                       `${product.stockQuantity * (product.piecesPerPackage || 1)} pieces`
                      ) : (
                        <span className="text-red-600 font-bold">Missing Stock</span>
                      )}
@@ -1423,9 +1439,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                ];
                const hasMissingBasicFields = basicFields.some(field => field);
                
-               const hasMissingPricing = !String(originalProduct.purchasePrice).trim() || !String(originalProduct.sellingPrice).trim();
+               const firstVariant = originalProduct.variants?.[0];
+               const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               const hasMissingStock = firstVariant?.stockQuantity === undefined || firstVariant?.stockQuantity === null;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1498,8 +1515,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                              }
                              // Fallback to percentage calculation
-                             if (originalProduct.originalSellingPrice) {
-                               const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                             if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                               const originalPrice = parseNumberByCurrency(originalProduct.variants?.[0]?.originalSellingPrice, userCurrency);
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -1524,8 +1541,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                            }
                            // Fallback to percentage calculation
-                           if (originalProduct.originalSellingPrice) {
-                             const originalPrice = parseNumberByCurrency(originalProduct.originalSellingPrice, userCurrency);
+                           if (originalProduct.variants?.[0]?.originalSellingPrice) {
+                             const originalPrice = parseNumberByCurrency(originalProduct.variants?.[0]?.originalSellingPrice, userCurrency);
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);

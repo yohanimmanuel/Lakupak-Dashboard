@@ -72,7 +72,8 @@ export default function ProductMarketplacePubs({
             throw new Error(result.error || 'Failed to publish product');
           }
           
-          return response.json();
+          const result = await response.json();
+          return result;
         });
         
         await Promise.all(publishPromises);
@@ -99,6 +100,7 @@ export default function ProductMarketplacePubs({
         if (!response.ok) {
           throw new Error(result.error || 'Failed to publish product');
         }
+        
       }
       
       if (onPublish) {
@@ -227,9 +229,19 @@ export default function ProductMarketplacePubs({
                               if (!String(originalProduct.productType).trim()) missingFields.push('Type');
                               if (!String(originalProduct.brand).trim()) missingFields.push('Brand');
                               if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
-                              if (!String(originalProduct.purchasePrice).trim()) missingFields.push('Purchase Price');
-                              if (!String(originalProduct.sellingPrice).trim()) missingFields.push('Selling Price');
-                              if (originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null) missingFields.push('Stock');
+                              
+                              // Check if product has at least one complete variant
+                              const hasCompleteVariant = originalProduct.variants && originalProduct.variants.length > 0 && 
+                                originalProduct.variants.some(variant => 
+                                  variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
+                                  variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
+                                  variant.stockQuantity !== undefined && variant.stockQuantity !== null &&
+                                  variant.isActive
+                                );
+                              
+                              if (!hasCompleteVariant) {
+                                missingFields.push('Product Variants (Pricing & Stock)');
+                              }
                             }
                             
                             return (

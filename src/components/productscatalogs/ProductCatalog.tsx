@@ -49,11 +49,6 @@ export default function ProductCatalog({
     productType: product?.productType || '',
     brand: product?.brand || '',
     supplier: product?.supplier || '',
-    stockQuantity: product?.stockQuantity || 0,
-    lowStockThreshold: product?.lowStockThreshold || 0,
-    stockStatus: product?.stockStatus || 'In Stock',
-    purchasePrice: product?.purchasePrice || '',
-    sellingPrice: product?.sellingPrice || '',
     status: product?.status || 'Draft',
     productCategory: product?.productCategory || '',
     catalogName: product?.catalogName || '',
@@ -61,10 +56,61 @@ export default function ProductCatalog({
     halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
     bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
     originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
-    returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
-    packageType: (product as { packageType?: string })?.packageType ?? '',
-    piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
+    returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7
   });
+
+  // Product variants state
+  const [variants, setVariants] = useState<Array<{
+    id: string;
+    variantName: string;
+    packageType: string;
+    piecesPerPackage: number;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+    purchasePrice: string;
+    sellingPrice: string;
+    originalSellingPrice?: string;
+    isDefault: boolean;
+    isActive: boolean;
+  }>>([]);
+
+  // Initialize variants from product data
+  useEffect(() => {
+    if (product?.variants && product.variants.length > 0) {
+      // Load existing variants from product
+        setVariants(product.variants.map(variant => ({
+          id: variant.id ? String(variant.id) : `variant-${Date.now()}`,
+          variantName: variant.variantName,
+          packageType: variant.packageType,
+          piecesPerPackage: variant.piecesPerPackage,
+          stockQuantity: variant.stockQuantity,
+          lowStockThreshold: variant.lowStockThreshold,
+          stockStatus: variant.stockStatus,
+          purchasePrice: variant.purchasePrice,
+          sellingPrice: variant.sellingPrice,
+          originalSellingPrice: variant.originalSellingPrice,
+          isDefault: variant.isDefault,
+          isActive: variant.isActive
+        })));
+    } else {
+      // Create default single piece variant
+      setVariants([{
+        id: 'default',
+        variantName: 'Single Piece',
+        packageType: 'Piece',
+        piecesPerPackage: 1, // Default to 1, but can be changed
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock',
+        purchasePrice: '',
+        sellingPrice: '',
+        originalSellingPrice: '',
+        isDefault: true,
+        isActive: true
+      }]);
+    }
+  }, [product]);
 
 
   const [isDragOver, setIsDragOver] = useState(false);
@@ -102,11 +148,6 @@ export default function ProductCatalog({
         productType: product.productType || '',
         brand: product.brand || '',
         supplier: product.supplier || '',
-        stockQuantity: product.stockQuantity || 0,
-        lowStockThreshold: product.lowStockThreshold || 0,
-        stockStatus: product.stockStatus || 'In Stock',
-        purchasePrice: product.purchasePrice || '',
-        sellingPrice: product.sellingPrice || '',
         status: product.status || 'Draft',
         productCategory: product.productCategory || '',
         catalogName: product.catalogName || '',
@@ -115,8 +156,6 @@ export default function ProductCatalog({
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
         originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
         returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
-        packageType: (product as { packageType?: string })?.packageType ?? '',
-        piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
       };
       
       // Only update form data if it's actually different
@@ -156,11 +195,6 @@ export default function ProductCatalog({
         productType: product?.productType || '',
         brand: product?.brand || '',
         supplier: product?.supplier || '',
-        stockQuantity: product?.stockQuantity || 0,
-        lowStockThreshold: product?.lowStockThreshold || 0,
-        stockStatus: product?.stockStatus || 'In Stock',
-        purchasePrice: product?.purchasePrice || '',
-        sellingPrice: product?.sellingPrice || '',
         status: product?.status || 'Draft',
         productCategory: product?.productCategory || '',
         catalogName: product?.catalogName || '',
@@ -169,8 +203,6 @@ export default function ProductCatalog({
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
         originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
         returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
-        packageType: (product as { packageType?: string })?.packageType ?? '',
-        piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
       };
       setOriginalFormData(JSON.parse(JSON.stringify(initial)));
     }
@@ -216,30 +248,6 @@ export default function ProductCatalog({
     }
   }, [mode, product]);
 
-  // Initialize stock status based on stock quantity and threshold
-  useEffect(() => {
-    if (formData.stockQuantity !== undefined && formData.lowStockThreshold !== undefined) {
-      let newStockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-      
-      if (formData.stockQuantity === 0) {
-        newStockStatus = 'Out of Stock';
-      } else if (formData.lowStockThreshold === 0) {
-        // If threshold is 0, only "Out of Stock" when quantity is 0, otherwise "In Stock"
-        newStockStatus = 'In Stock';
-      } else if (formData.stockQuantity <= formData.lowStockThreshold) {
-        newStockStatus = 'Low Stock';
-      } else {
-        newStockStatus = 'In Stock';
-      }
-      
-      if (newStockStatus !== formData.stockStatus) {
-        setFormData(prev => ({
-          ...prev,
-          stockStatus: newStockStatus
-        }));
-      }
-    }
-  }, [formData.stockQuantity, formData.lowStockThreshold, formData.stockStatus]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -282,57 +290,65 @@ export default function ProductCatalog({
 
 
   // Helper function to handle price input with better UX
-  const handlePriceInput = (field: 'purchasePrice' | 'sellingPrice', value: string) => {
-    // Allow typing without immediate formatting
+
+  const handleInputChange = (field: keyof ProductFormData, value: string | number | string[] | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  // Helper function to format price on blur
-  const handlePriceBlur = (field: 'purchasePrice' | 'sellingPrice') => {
-    const currentValue = formData[field];
-    if (currentValue && currentValue.trim() !== '') {
-      // Parse the current value to get the numeric value
-      const numericValue = parseNumberByCurrency(currentValue, userCurrency);
-      
-      // Format it properly according to currency
-      const formattedValue = formatNumberByCurrency(numericValue, userCurrency);
-      
-      setFormData(prev => ({
-        ...prev,
-        [field]: formattedValue
-      }));
+  // Variant management functions
+  const addVariant = () => {
+    const newVariant = {
+      id: `variant-${Date.now()}`,
+      variantName: `Package ${variants.length}`, // Start from Package 1 (since first is Single Piece)
+      packageType: '',
+      piecesPerPackage: 1, // Will be editable for non-first variants
+      stockQuantity: 0,
+      lowStockThreshold: 0,
+      stockStatus: 'In Stock' as const,
+      purchasePrice: '',
+      sellingPrice: '',
+      originalSellingPrice: '',
+      isDefault: false,
+      isActive: true
+    };
+    setVariants(prev => [...prev, newVariant]);
+  };
+
+  const removeVariant = (variantId: string) => {
+    // Prevent removing the first variant (Single Piece)
+    if (variants.length > 1 && variantId !== variants[0].id) {
+      setVariants(prev => prev.filter(variant => variant.id !== variantId));
     }
   };
 
-  const handleInputChange = (field: keyof ProductFormData, value: string | number | string[] | boolean) => {
-    setFormData(prev => {
-      const newFormData = {
-        ...prev,
-        [field]: value
-      };
-      
-             // Automatically update stock status based on stock quantity and threshold
-       if (field === 'stockQuantity' || field === 'lowStockThreshold') {
-         const stockQty = field === 'stockQuantity' ? value : newFormData.stockQuantity;
-         const threshold = field === 'lowStockThreshold' ? value : newFormData.lowStockThreshold;
-         
-         if (stockQty === 0) {
-           newFormData.stockStatus = 'Out of Stock';
-         } else if (threshold === 0) {
-           // If threshold is 0, only "Out of Stock" when quantity is 0, otherwise "In Stock"
-           newFormData.stockStatus = 'In Stock';
-         } else if (stockQty <= threshold) {
-           newFormData.stockStatus = 'Low Stock';
-         } else {
-           newFormData.stockStatus = 'In Stock';
-         }
-       }
-      
-      return newFormData;
-    });
+  const updateVariant = (variantId: string, field: string, value: string | number | boolean) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        const updatedVariant = { ...variant, [field]: value };
+        
+        // Auto-calculate stock status for stock-related fields
+        if (field === 'stockQuantity' || field === 'lowStockThreshold') {
+          const stockQty = field === 'stockQuantity' ? value : updatedVariant.stockQuantity;
+          const threshold = field === 'lowStockThreshold' ? value : updatedVariant.lowStockThreshold;
+          
+          if (stockQty === 0) {
+            updatedVariant.stockStatus = 'Out of Stock';
+          } else if (threshold === 0) {
+            updatedVariant.stockStatus = 'In Stock';
+          } else if (stockQty <= threshold) {
+            updatedVariant.stockStatus = 'Low Stock';
+          } else {
+            updatedVariant.stockStatus = 'In Stock';
+          }
+        }
+        
+        return updatedVariant;
+      }
+      return variant;
+    }));
   };
 
 
@@ -551,9 +567,21 @@ export default function ProductCatalog({
         ...finalData,
         id: formData.id,
         productId: formData.productId,
-        purchasePrice: formData.purchasePrice,
-        sellingPrice: formData.sellingPrice,
-        userId: user.id
+        userId: user.id,
+        currency: user.currency,
+        variants: variants.map(variant => ({
+          variantName: variant.variantName,
+          packageType: variant.packageType,
+          piecesPerPackage: variant.piecesPerPackage,
+          stockQuantity: variant.stockQuantity,
+          lowStockThreshold: variant.lowStockThreshold,
+          stockStatus: variant.stockStatus,
+          purchasePrice: variant.purchasePrice,
+          sellingPrice: variant.sellingPrice,
+          originalSellingPrice: variant.originalSellingPrice,
+          isDefault: variant.isDefault,
+          isActive: variant.isActive
+        }))
       };
 
       let response;
@@ -650,21 +678,27 @@ export default function ProductCatalog({
       { field: 'productType', value: formData.productType, name: 'Product Type' },
       { field: 'brand', value: formData.brand, name: 'Brand' },
       { field: 'supplier', value: formData.supplier, name: 'Supplier' },
-      { field: 'purchasePrice', value: formData.purchasePrice, name: 'Purchase Price' },
-      { field: 'sellingPrice', value: formData.sellingPrice, name: 'Selling Price' },
-      { field: 'stockQuantity', value: formData.stockQuantity, name: 'Stock Quantity' },
       { field: 'images', value: formData.images, name: 'Product Images' }
     ];
+
+    // Check if variants are properly configured
+    const variantValidation = variants.every(variant => 
+      variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
+      variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
+      variant.stockQuantity >= 0
+    );
 
     const missingFields = requiredFields.filter(field => {
       if (field.field === 'images') {
         return !field.value || (Array.isArray(field.value) && field.value.length === 0);
       }
-      if (field.field === 'stockQuantity') {
-        return field.value === undefined || field.value === null || (typeof field.value === 'number' && field.value < 0);
-      }
       return !field.value || String(field.value).trim() === '';
     });
+
+    // Add variant validation to missing fields
+    if (!variantValidation) {
+      missingFields.push({ field: 'variants', value: '', name: 'Product Variants' });
+    }
 
     return {
       isValid: missingFields.length === 0,
@@ -900,10 +934,12 @@ export default function ProductCatalog({
               { name: 'Category', value: String(dataSource?.productType || '').trim() },
               { name: 'Brand', value: String(dataSource?.brand || '').trim() },
               { name: 'Supplier', value: String(dataSource?.supplier || '').trim() },
-              { name: 'Purchase Price', value: String(dataSource?.purchasePrice || '').trim() },
-              { name: 'Selling Price', value: String(dataSource?.sellingPrice || '').trim() },
-              { name: 'Stock Quantity', value: dataSource?.stockQuantity !== undefined && dataSource?.stockQuantity !== null },
-              { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 }
+              { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 },
+              { name: 'Product Variants', value: variants.every(variant => 
+                variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
+                variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
+                variant.stockQuantity >= 0
+              ) }
             ];
             
             const completedFields = requiredFields.filter(field => 
@@ -1468,185 +1504,225 @@ export default function ProductCatalog({
 
           {/* Row 3: Product Variants (Pricing & Stock Information) - Full Width */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-gray-500" />
-              Product Variants
-              <span className="text-xs text-gray-500 font-normal">(Different package sizes and pricing)</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-gray-500" />
+                Product Variants
+                <span className="text-xs text-gray-500 font-normal">(Different package sizes and pricing)</span>
+              </h2>
+              {!isViewMode && (
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Variant
+                </button>
+              )}
+            </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Stock Information Section */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Stock Information</h3>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Package Type
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.packageType}
-                        onChange={(e) => handleInputChange('packageType', e.target.value)}
-                        disabled={isViewMode}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="e.g., Box, Carton, Case"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Type of packaging unit</p>
+            {/* Variants List */}
+            <div className="space-y-4">
+              {variants.map((variant, index) => (
+                <div key={variant.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Variant Name
+                        </label>
+                        <input
+                          type="text"
+                          value={variant.variantName}
+                          onChange={(e) => updateVariant(variant.id, 'variantName', e.target.value)}
+                          disabled={isViewMode}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
+                          placeholder="e.g., Single Piece, 20-Pack Box, Bulk Case"
+                        />
+                      </div>
+                      {variant.isDefault && (
+                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
+                          Default
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Pieces per Package
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.piecesPerPackage}
-                        onChange={(e) => handleInputChange('piecesPerPackage', parseInt(e.target.value) || 1)}
-                        disabled={isViewMode}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="1"
-                        min="1"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Number of individual pieces per package</p>
-                    </div>
+                    {!isViewMode && variants.length > 1 && index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(variant.id)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Stock Information Section */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Stock Information</h4>
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Package Type
+                            </label>
+                            <input
+                              type="text"
+                              value={variant.packageType}
+                              onChange={(e) => updateVariant(variant.id, 'packageType', e.target.value)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="e.g., Box, Carton, Case"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Type of packaging unit</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Pieces per Package
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.piecesPerPackage}
+                              onChange={(e) => updateVariant(variant.id, 'piecesPerPackage', parseInt(e.target.value) || 1)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="1"
+                              min="1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Number of individual pieces per package
+                            </p>
+                          </div>
+                        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Stock Quantity
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.stockQuantity}
-                        onChange={(e) => handleInputChange('stockQuantity', parseInt(e.target.value) || 0)}
-                        disabled={isViewMode}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="0"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Current packages available</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Stock Quantity
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.stockQuantity}
+                              onChange={(e) => updateVariant(variant.id, 'stockQuantity', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Current packages available</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Low Stock Threshold
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.lowStockThreshold}
+                              onChange={(e) => updateVariant(variant.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Set to your own stock threshold</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Stock Status
+                            </label>
+                            <input
+                              type="text"
+                              value={variant.stockStatus}
+                              disabled={true}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                              readOnly
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Low Stock Threshold
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.lowStockThreshold || 0}
-                        onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 0)}
-                        disabled={isViewMode}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="0"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Set to your own stock threshold</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Stock Status
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.stockStatus || 'In Stock'}
-                        disabled={true}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                        readOnly
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
+
+                    {/* Pricing Section */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Pricing <span className="text-xs text-gray-500 font-medium">(per 1-piece)</span></h4>
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Base/Selling Price 
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={variant.sellingPrice}
+                                onChange={(e) => updateVariant(variant.id, 'sellingPrice', e.target.value)}
+                                disabled={isViewMode}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder={getPricePlaceholder(userCurrency)}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Purchase Price
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={variant.purchasePrice}
+                                onChange={(e) => updateVariant(variant.id, 'purchasePrice', e.target.value)}
+                                disabled={isViewMode}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder={getPricePlaceholder(userCurrency)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Calculated Price per Package */}
+                        <div className="border-t border-gray-200 pt-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Price per Package (Calculated)
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={(() => {
+                                  const sellingPrice = parseNumberByCurrency(variant.sellingPrice, userCurrency) || 0;
+                                  const piecesPerPackage = variant.piecesPerPackage || 1;
+                                  const packagePrice = sellingPrice * piecesPerPackage;
+                                  return packagePrice > 0 ? formatNumberByCurrency(packagePrice, userCurrency) : '0';
+                                })()}
+                                disabled={true}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                                readOnly
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {variant.piecesPerPackage || 1} {variant.packageType || 'pieces'} × {currencySymbol}{formatNumberByCurrency(parseNumberByCurrency(variant.sellingPrice, userCurrency), userCurrency)} per {variant.packageType || 'piece'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Pricing Section */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Pricing</h3>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Base/Selling Price 
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.sellingPrice}
-                          onChange={(e) => handlePriceInput('sellingPrice', e.target.value)}
-                          onBlur={() => handlePriceBlur('sellingPrice')}
-                          disabled={isViewMode}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder={getPricePlaceholder(userCurrency)}
-                        />
-                      </div>
-                      {/* Only show original price and offer name if there's a DISCOUNT (not just promotion) */}
-                      {product?.originalPrice && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
-                        <div className="mt-1 text-xs text-gray-400 line-through">
-                          Original: {formatCurrencyAmount(parseNumberByCurrency(product.originalPrice, userCurrency), userCurrency)}
-                        </div>
-                      )}
-                      {product?.offerName && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
-                        <div className="mt-1 text-xs text-green-600">
-                          Applied Offer: {product.offerName}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Purchase Price
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.purchasePrice}
-                          onChange={(e) => handlePriceInput('purchasePrice', e.target.value)}
-                          onBlur={() => handlePriceBlur('purchasePrice')}
-                          disabled={isViewMode}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder={getPricePlaceholder(userCurrency)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Calculated Price per Package */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Price per Package (Calculated)
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={(() => {
-                            const sellingPrice = parseNumberByCurrency(formData.sellingPrice, userCurrency) || 0;
-                            const piecesPerPackage = formData.piecesPerPackage || 1;
-                            const packagePrice = sellingPrice * piecesPerPackage;
-                            return packagePrice > 0 ? formatNumberByCurrency(packagePrice, userCurrency) : '0';
-                          })()}
-                          disabled={true}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                          readOnly
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formData.piecesPerPackage || 1} {formData.packageType || 'pieces'} × {currencySymbol}{formatNumberByCurrency(parseNumberByCurrency(formData.sellingPrice, userCurrency), userCurrency)} per {formData.packageType || 'piece'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

@@ -121,12 +121,6 @@ model Product {
   productType       String
   brand             String
   supplier          String
-  stockQuantity     Int
-  lowStockThreshold Int?
-  stockStatus       String?
-  purchasePrice     String
-  sellingPrice      String
-  originalSellingPrice String? // Store original price before any discounts
   status            String
   productCategory   String
   catalogName       String
@@ -138,14 +132,32 @@ model Product {
   halalCertified    Boolean?    @default(false)
   originalProduct   Boolean?    @default(true)
   returnPolicyDays  Int?        @default(7)
-  packageType       String?
-  piecesPerPackage  Int?        @default(1)
   lastSyncAt        DateTime?
   marketplaceStatus String?     @default("Not Published")
   publishedAt       DateTime?
+  variants          ProductVariant[]
   orderItems        OrderItem[]
   offerProducts     OfferProduct[]
   user              User?       @relation(fields: [userId], references: [id])
+}
+
+model ProductVariant {
+  id                Int      @id @default(autoincrement())
+  variantName       String
+  packageType       String
+  piecesPerPackage  Int      @default(1)
+  stockQuantity     Int      @default(0)
+  lowStockThreshold Int      @default(0)
+  stockStatus       String   @default("In Stock")
+  purchasePrice     String
+  sellingPrice      String
+  originalSellingPrice String? // Store original price before any discounts
+  isDefault         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+  productId         Int
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model MarketplaceUser {

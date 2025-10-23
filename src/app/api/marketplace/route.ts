@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: whereClause,
       include: {
+        variants: true,
         user: {
           select: {
             firstName: true,
@@ -193,37 +194,45 @@ export async function GET(request: NextRequest) {
     
     // Transform products for marketplace format
     const marketplaceProducts = await Promise.all(products.map(async (product) => {
-      // Convert price strings to numbers, handling IDR format with dots as thousands separators
-      let sellingPrice = typeof product.sellingPrice === 'string' 
-        ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-        : product.sellingPrice || 0;
+      // Get the first variant (default variant) for pricing and stock info
+      const firstVariant = product.variants?.[0];
       
-      let purchasePrice = typeof product.purchasePrice === 'string'
-        ? parseFloat(product.purchasePrice.replace(/[^\d.-]/g, '')) || 0
-        : product.purchasePrice || 0;
-      
-      // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-      if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
-        // Remove dots and parse as integer (dots are thousands separators in IDR)
-        sellingPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+      if (!firstVariant) {
+        // Skip products without variants
+        return null;
       }
       
-      if (typeof product.purchasePrice === 'string' && product.purchasePrice.includes('.')) {
+      // Convert price strings to numbers, handling IDR format with dots as thousands separators
+      let sellingPrice = typeof firstVariant.sellingPrice === 'string' 
+        ? parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+        : firstVariant.sellingPrice || 0;
+      
+      let purchasePrice = typeof firstVariant.purchasePrice === 'string'
+        ? parseFloat(firstVariant.purchasePrice.replace(/[^\d.-]/g, '')) || 0
+        : firstVariant.purchasePrice || 0;
+      
+      // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
+      if (typeof firstVariant.sellingPrice === 'string' && firstVariant.sellingPrice.includes('.')) {
         // Remove dots and parse as integer (dots are thousands separators in IDR)
-        purchasePrice = parseInt(product.purchasePrice.replace(/[^\d]/g, '')) || 0;
+        sellingPrice = parseInt(firstVariant.sellingPrice.replace(/[^\d]/g, '')) || 0;
+      }
+      
+      if (typeof firstVariant.purchasePrice === 'string' && firstVariant.purchasePrice.includes('.')) {
+        // Remove dots and parse as integer (dots are thousands separators in IDR)
+        purchasePrice = parseInt(firstVariant.purchasePrice.replace(/[^\d]/g, '')) || 0;
       }
       
       // Get original selling price (the price before any discounts)
-      let originalSellingPriceValue = product.originalSellingPrice ? 
-        (typeof product.originalSellingPrice === 'string' 
-          ? parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) || 0
-          : product.originalSellingPrice) 
+      let originalSellingPriceValue = firstVariant.originalSellingPrice ? 
+        (typeof firstVariant.originalSellingPrice === 'string' 
+          ? parseInt(firstVariant.originalSellingPrice.replace(/[^\d]/g, '')) || 0
+          : firstVariant.originalSellingPrice) 
         : sellingPrice; // Fallback to current selling price if no original price
       
       // If originalSellingPrice exists and is different from sellingPrice, 
       // it means there's an active discount applied by the main system
-      const hasActiveDiscountInMainSystem = product.originalSellingPrice && 
-        parseInt(product.originalSellingPrice.replace(/[^\d]/g, '')) !== sellingPrice;
+      const hasActiveDiscountInMainSystem = firstVariant.originalSellingPrice && 
+        parseInt(firstVariant.originalSellingPrice.replace(/[^\d]/g, '')) !== sellingPrice;
       
       // Check if product has active offers
       const productOffers = productOffersMap.get(product.productId) || [];
@@ -402,14 +411,14 @@ export async function GET(request: NextRequest) {
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: "0", // Will be calculated from actual orders
-        stock: product.stockQuantity,
-        stockStatus: product.stockStatus || 'In Stock',
+        stock: firstVariant.stockQuantity,
+        stockStatus: firstVariant.stockStatus || 'In Stock',
         images: product.images || [],
         category: product.productType || 'Uncategorized',
         brand: product.brand,
-        unit: product.packageType || 'pcs',
-        packageType: product.packageType || 'pcs',
-        piecesPerPackage: product.piecesPerPackage || 1,
+        unit: firstVariant.packageType || 'pcs',
+        packageType: firstVariant.packageType || 'pcs',
+        piecesPerPackage: firstVariant.piecesPerPackage || 1,
          seller: {
            name: product.user?.company?.name || 'Unknown Company',
            avatar: '/default-avatar.png',
@@ -488,7 +497,7 @@ export async function GET(request: NextRequest) {
     const totalCount = await prisma.product.count({ where: whereClause });
     
     return NextResponse.json({
-      products: marketplaceProducts,
+      products: marketplaceProducts.filter(product => product !== null),
       pagination: {
         page,
         limit,
@@ -542,6 +551,9 @@ export async function POST(request: NextRequest) {
       where: {
         productId,
         userId: userIdNum
+      },
+      include: {
+        variants: true
       }
     });
     
@@ -555,9 +567,9 @@ export async function POST(request: NextRequest) {
     // Validate product is ready for publishing
     if (action === 'publish') {
       // Check if product has required fields for marketplace
-      if (!product.name || !product.description || !product.sellingPrice) {
+      if (!product.name || !product.description) {
         return NextResponse.json(
-          { error: 'Product must have name, description, and selling price' },
+          { error: 'Product must have name and description' },
           { status: 400, headers }
         );
       }
@@ -565,6 +577,22 @@ export async function POST(request: NextRequest) {
       if (!product.images || product.images.length === 0) {
         return NextResponse.json(
           { error: 'Product must have at least one image' },
+          { status: 400, headers }
+        );
+      }
+      
+      // Check if product has at least one complete variant
+      const hasCompleteVariant = product.variants && product.variants.length > 0 && 
+        product.variants.some(variant => 
+          variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
+          variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
+          variant.stockQuantity !== undefined && variant.stockQuantity !== null &&
+          variant.isActive
+        );
+      
+      if (!hasCompleteVariant) {
+        return NextResponse.json(
+          { error: 'Product must have at least one complete variant with pricing and stock information' },
           { status: 400, headers }
         );
       }
@@ -584,8 +612,7 @@ export async function POST(request: NextRequest) {
       where: { id: product.id },
       data: updateData
     });
-    
-    
+        
     return NextResponse.json({
       success: true,
       product: updatedProduct,
@@ -608,8 +635,6 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       where: { userId: userId },
       select: {
         productId: true,
-        sellingPrice: true,
-        originalSellingPrice: true,
       },
     });
 
@@ -626,9 +651,10 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
             product: {
               select: {
                 productId: true,
-                sellingPrice: true,
-                originalSellingPrice: true,
               },
+              include: {
+                variants: true
+              }
             },
           },
         },
@@ -664,11 +690,14 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       for (const offerProduct of offer.offerProducts) {
         const productId = offerProduct.product.productId;
         const product = offerProduct.product;
+        const firstVariant = product.variants?.[0];
+        
+        if (!firstVariant) continue; // Skip products without variants
         
         // Use originalSellingPrice if it exists, otherwise use current sellingPrice
-        const originalPrice = product.originalSellingPrice 
-          ? parseFloat(product.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
+        const originalPrice = firstVariant.originalSellingPrice 
+          ? parseFloat(firstVariant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
         
         if (!productsWithOffers.has(productId)) {
           productsWithOffers.set(productId, {
@@ -706,10 +735,14 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     for (const [productId, productData] of productsWithOffers) {
       if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
         const newPrice = String(productData.bestDiscount.price);
-        await tx.product.update({
-          where: { productId: productId },
+        // Update the first variant's pricing
+        await tx.productVariant.updateMany({
+          where: { 
+            product: { productId: productId },
+            isDefault: true // Update the default variant
+          },
           data: { 
-            sellingPrice: newPrice,
+            sellingPrice: String(newPrice),
             originalSellingPrice: String(productData.originalPrice), // Store original price
           },
         });
@@ -725,13 +758,20 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       
       if (!shouldHaveDiscount) {
         // This product should NOT have a discount - restore original price
-        if (product.originalSellingPrice) {
-          // Product had a discount before, restore original price
-          await tx.product.update({
-            where: { productId: product.productId },
+        // Find variants with originalSellingPrice and restore them
+        const variantsToRestore = await tx.productVariant.findMany({
+          where: {
+            product: { productId: product.productId },
+            originalSellingPrice: { not: null }
+          }
+        });
+        
+        for (const variant of variantsToRestore) {
+          await tx.productVariant.update({
+            where: { id: variant.id },
             data: { 
-              sellingPrice: product.originalSellingPrice,
-              originalSellingPrice: null, // Clear the original price field
+              sellingPrice: variant.originalSellingPrice!,
+              originalSellingPrice: null, // Clear the original price since we're restoring it
             },
           });
         }

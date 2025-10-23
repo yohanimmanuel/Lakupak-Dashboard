@@ -113,26 +113,31 @@ export default function ProductsPage() {
   }, [user?.id]);
 
   // Convert product data to table row format
-  const profileToTableRow = (product: Product): ProductTableRow => ({
-    id: product.id || 0,
-    productId: product.productId,
-    sku: product.sku,
-    name: product.name,
-    productType: product.productType,
-    brand: product.brand,
-    supplier: product.supplier,
-    stockQuantity: product.stockQuantity,
-    lowStockThreshold: product.lowStockThreshold || 30,
-    purchasePrice: product.purchasePrice,
-    sellingPrice: product.sellingPrice,
-    packageType: product.packageType,
-    piecesPerPackage: product.piecesPerPackage,
+  const profileToTableRow = (product: Product): ProductTableRow => {
+    // Get data from the first variant (default variant) or create default values
+    const firstVariant = product.variants?.[0];
     
-    status: product.status,
-    createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
-    lastUpdated: product.updatedAt ? formatDate(product.updatedAt) : 'N/A',
-    userId: product.userId || 0
-  });
+    return {
+      id: product.id || 0,
+      productId: product.productId,
+      sku: product.sku,
+      name: product.name,
+      productType: product.productType,
+      brand: product.brand,
+      supplier: product.supplier,
+      stockQuantity: firstVariant?.stockQuantity || 0,
+      lowStockThreshold: firstVariant?.lowStockThreshold || 30,
+      purchasePrice: firstVariant?.purchasePrice || '0',
+      sellingPrice: firstVariant?.sellingPrice || '0',
+      packageType: firstVariant?.packageType || 'Piece',
+      piecesPerPackage: firstVariant?.piecesPerPackage || 1,
+      
+      status: product.status,
+      createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
+      lastUpdated: product.updatedAt ? formatDate(product.updatedAt) : 'N/A',
+      userId: product.userId || 0
+    };
+  };
 
   // Use the enhanced generateUniqueProductId from security utils
   const generateLKPProductId = () => generateUniqueProductId();

@@ -1,3 +1,21 @@
+export interface ProductVariant {
+  id?: number;
+  variantName: string;
+  packageType: string;
+  piecesPerPackage: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  purchasePrice: string;
+  sellingPrice: string;
+  originalSellingPrice?: string; // Store original price before any discounts
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  productId?: number;
+}
+
 export interface Product {
   id?: number;
   productId: string;
@@ -7,14 +25,6 @@ export interface Product {
   productType: string;
   brand: string;
   supplier: string;
-  stockQuantity: number;
-  lowStockThreshold?: number;
-  stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  // Package information
-  packageType?: string;
-  piecesPerPackage?: number;
-  purchasePrice: string;
-  sellingPrice: string;
   status: 'Draft' | 'Published';
   productCategory: string;
   catalogName: string;
@@ -27,10 +37,11 @@ export interface Product {
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
+  // Variants
+  variants?: ProductVariant[];
   // Offer integration
   offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
   originalPrice?: string;
-  originalSellingPrice?: string; // Database field for original price before discounts
   hasActiveOffer?: boolean;
   offerId?: string;
   offerName?: string;
@@ -93,14 +104,6 @@ export interface ProductFormData {
   productType: string;
   brand: string;
   supplier: string;
-  stockQuantity: number;
-  lowStockThreshold: number;
-  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  // Package information
-  packageType: string;
-  piecesPerPackage: number;
-  purchasePrice: string;
-  sellingPrice: string;
   status: 'Draft' | 'Published';
   productCategory: string;
   catalogName: string;

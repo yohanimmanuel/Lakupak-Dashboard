@@ -56,11 +56,13 @@ export async function GET(req: NextRequest) {
       let product;
       if (/^\d+$/.test(id)) {
         product = await prisma.product.findFirst({
-          where: { id: Number(id), userId: Number(userId) }
+          where: { id: Number(id), userId: Number(userId) },
+          include: { variants: true }
         });
       } else {
         product = await prisma.product.findFirst({
-          where: { productId: id, userId: Number(userId) }
+          where: { productId: id, userId: Number(userId) },
+          include: { variants: true }
         });
       }
       
@@ -180,7 +182,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           ...product,
           offerBadge,
-          originalPrice: product.originalSellingPrice || undefined,
+          originalPrice: (product as { variants?: Array<{ originalSellingPrice?: string }> })?.variants?.[0]?.originalSellingPrice || undefined,
           hasActiveOffer: true,
           offerId: primaryOffer.id,
           offerName: primaryOffer.name,
@@ -248,7 +250,10 @@ export async function GET(req: NextRequest) {
       where: whereClause,
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        variants: true
+      }
     });
     
     // Fetch active offers for all products
@@ -375,7 +380,7 @@ export async function GET(req: NextRequest) {
       return {
         ...product,
         offerBadge,
-        originalPrice: product.originalSellingPrice || undefined,
+          originalPrice: (product as { variants?: Array<{ originalSellingPrice?: string }> }).variants?.[0]?.originalSellingPrice || undefined,
         hasActiveOffer: true,
         offerId: primaryOffer.id,
         offerName: primaryOffer.name,
@@ -432,14 +437,6 @@ export async function POST(req: NextRequest) {
       productType: data.productType || '',
       brand: data.brand || '',
       supplier: data.supplier || '',
-      stockQuantity: Number(data.stockQuantity) || 0,
-      lowStockThreshold: data.lowStockThreshold ? Number(data.lowStockThreshold) : null,
-      stockStatus: data.stockStatus || null,
-      // Package information
-      packageType: data.packageType || null,
-      piecesPerPackage: data.piecesPerPackage ? Number(data.piecesPerPackage) : 1,
-      purchasePrice: String(parseNumberByCurrency(String(data.purchasePrice || ''), data.currency || 'IDR')),
-      sellingPrice: String(parseNumberByCurrency(String(data.sellingPrice || ''), data.currency || 'IDR')),
       status: data.status || 'Draft',
       productCategory: data.productCategory || '',
       catalogName: data.catalogName || '',
@@ -465,7 +462,39 @@ export async function POST(req: NextRequest) {
     }
     
     const product = await prisma.product.create({
-      data: productData
+      data: {
+        ...productData,
+        variants: data.variants ? {
+          create: data.variants.map((variant: {
+            variantName: string;
+            packageType: string;
+            piecesPerPackage: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
+            purchasePrice: string;
+            sellingPrice: string;
+            originalSellingPrice?: string;
+            isDefault: boolean;
+            isActive: boolean;
+          }) => ({
+            variantName: variant.variantName,
+            packageType: variant.packageType || '',
+            piecesPerPackage: variant.piecesPerPackage || 1,
+            stockQuantity: variant.stockQuantity || 0,
+            lowStockThreshold: variant.lowStockThreshold || 0,
+            stockStatus: variant.stockStatus || 'In Stock',
+                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 isDefault: variant.isDefault || false,
+                 isActive: variant.isActive !== false
+          }))
+        } : undefined
+      },
+      include: {
+        variants: true
+      }
     });
     
     return NextResponse.json(product, { status: 201, headers });
@@ -579,14 +608,6 @@ export async function PUT(req: NextRequest) {
       productType: string;
       brand: string;
       supplier: string;
-      stockQuantity: number;
-      lowStockThreshold: number | null;
-      stockStatus: string | null;
-      // Package information
-      packageType: string | null;
-      piecesPerPackage: number;
-      purchasePrice: string;
-      sellingPrice: string;
       status: string;
       productCategory: string;
       catalogName: string;
@@ -602,14 +623,6 @@ export async function PUT(req: NextRequest) {
     if ('productType' in updateData && updateData.productType !== undefined) cleanUpdateData.productType = String(updateData.productType);
     if (updateData.brand !== undefined) cleanUpdateData.brand = String(updateData.brand);
     if (updateData.supplier !== undefined) cleanUpdateData.supplier = String(updateData.supplier);
-    if (updateData.stockQuantity !== undefined) cleanUpdateData.stockQuantity = Number(updateData.stockQuantity);
-    if (updateData.lowStockThreshold !== undefined) cleanUpdateData.lowStockThreshold = updateData.lowStockThreshold ? Number(updateData.lowStockThreshold) : null;
-    if (updateData.stockStatus !== undefined) cleanUpdateData.stockStatus = updateData.stockStatus ? String(updateData.stockStatus) : null;
-    // Package information
-    if (updateData.packageType !== undefined) cleanUpdateData.packageType = updateData.packageType ? String(updateData.packageType) : null;
-    if (updateData.piecesPerPackage !== undefined) cleanUpdateData.piecesPerPackage = updateData.piecesPerPackage ? Number(updateData.piecesPerPackage) : 1;
-         if (updateData.purchasePrice !== undefined) cleanUpdateData.purchasePrice = String(parseNumberByCurrency(String(updateData.purchasePrice), data.currency || 'IDR'));
-     if (updateData.sellingPrice !== undefined) cleanUpdateData.sellingPrice = String(parseNumberByCurrency(String(updateData.sellingPrice), data.currency || 'IDR'));
     if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
     if ('productCategory' in updateData && updateData.productCategory !== undefined) cleanUpdateData.productCategory = String(updateData.productCategory);
     if (updateData.catalogName !== undefined) cleanUpdateData.catalogName = String(updateData.catalogName);
@@ -625,12 +638,82 @@ export async function PUT(req: NextRequest) {
     if (id) {
       product = await prisma.product.update({
         where: { id: Number(id), userId: userIdNum },
-        data: cleanUpdateData
+        data: {
+          ...cleanUpdateData,
+          ...(data.variants && {
+            variants: {
+              deleteMany: {}, // Delete all existing variants
+              create: data.variants.map((variant: {
+            variantName: string;
+            packageType: string;
+            piecesPerPackage: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
+            purchasePrice: string;
+            sellingPrice: string;
+            originalSellingPrice?: string;
+            isDefault: boolean;
+            isActive: boolean;
+          }) => ({
+                variantName: variant.variantName || 'Default Variant',
+                packageType: variant.packageType || '',
+                piecesPerPackage: variant.piecesPerPackage || 1,
+                stockQuantity: variant.stockQuantity || 0,
+                lowStockThreshold: variant.lowStockThreshold || 0,
+                stockStatus: variant.stockStatus || 'In Stock',
+                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 isDefault: variant.isDefault || false,
+                 isActive: variant.isActive !== false
+              }))
+            }
+          })
+        },
+        include: {
+          variants: true
+        }
       });
     } else if (productId) {
       product = await prisma.product.update({
         where: { productId: productId, userId: userIdNum },
-        data: cleanUpdateData
+        data: {
+          ...cleanUpdateData,
+          ...(data.variants && {
+            variants: {
+              deleteMany: {}, // Delete all existing variants
+              create: data.variants.map((variant: {
+            variantName: string;
+            packageType: string;
+            piecesPerPackage: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
+            purchasePrice: string;
+            sellingPrice: string;
+            originalSellingPrice?: string;
+            isDefault: boolean;
+            isActive: boolean;
+          }) => ({
+                variantName: variant.variantName || 'Default Variant',
+                packageType: variant.packageType || '',
+                piecesPerPackage: variant.piecesPerPackage || 1,
+                stockQuantity: variant.stockQuantity || 0,
+                lowStockThreshold: variant.lowStockThreshold || 0,
+                stockStatus: variant.stockStatus || 'In Stock',
+                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 isDefault: variant.isDefault || false,
+                 isActive: variant.isActive !== false
+              }))
+            }
+          })
+        },
+        include: {
+          variants: true
+        }
       });
     } else {
       return NextResponse.json({ error: 'Missing id or productId' }, { status: 400 });

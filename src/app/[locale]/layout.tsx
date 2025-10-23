@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
+import type { Metadata } from 'next';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Laku-Laku | Distribute More. Restock Faster. Grow Smarter."
 };
 
