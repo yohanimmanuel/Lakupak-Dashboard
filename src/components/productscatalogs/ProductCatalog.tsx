@@ -489,6 +489,26 @@ export default function ProductCatalog({
       });
 
       if (response.ok) {
+        // Also update marketplace status to unpublished
+        try {
+          const marketplaceResponse = await fetch('/api/marketplace', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productId: product.productId,
+              userId: user.id,
+              action: 'unpublish'
+            }),
+          });
+
+          if (!marketplaceResponse.ok) {
+            const marketplaceError = await marketplaceResponse.json();
+            // Don't fail the entire operation, just warn
+          }
+        } catch (marketplaceError) {
+          // Don't fail the entire operation, just warn
+        }
+
         // Show success modal and reload page
         setShowSuccessModal(true);
         setTimeout(() => {
@@ -556,6 +576,28 @@ export default function ProductCatalog({
 
       if (response?.ok) {
         const savedProduct = await response.json();
+        
+        // If publishing, also update marketplace status
+        if (status === 'Published') {
+          try {
+            const marketplaceResponse = await fetch('/api/marketplace', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                productId: savedProduct.productId,
+                userId: user.id,
+                action: 'publish'
+              }),
+            });
+
+            if (!marketplaceResponse.ok) {
+              const marketplaceError = await marketplaceResponse.json();
+              // Don't fail the entire operation, just warn
+            }
+          } catch (marketplaceError) {
+            // Don't fail the entire operation, just warn
+          }
+        }
         
         if (currentMode === 'edit') {
           // Show success modal and reload page
