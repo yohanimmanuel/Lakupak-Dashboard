@@ -692,7 +692,7 @@ export default function ProductCatalog({
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Products
+            Back
           </button>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -749,12 +749,12 @@ export default function ProductCatalog({
                 type="button"
                 onClick={handleUnpublish}
                 disabled={saving}
-                className="flex items-center gap-2 px-6 py-2 font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Unpublishing...
+                    Delisting...
                   </>
                 ) : (
                   <>
@@ -798,7 +798,7 @@ export default function ProductCatalog({
                 type="submit"
                 form="product-form"
                 disabled={saving || !validation.isValid}
-                className="flex items-center gap-2 px-6 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
               >
                 {saving ? (
