@@ -73,6 +73,56 @@ export default function ProductCatalog({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Internal state management for mode and product status
+  const [currentMode, setCurrentMode] = useState(mode);
+  const [currentProductStatus, setCurrentProductStatus] = useState(product?.status || 'Draft');
+
+  // Effect to synchronize internal mode/status with props after a refresh
+  useEffect(() => {
+    if (product) {
+      setCurrentProductStatus(product.status);
+      if (product.status === 'Published') {
+        setCurrentMode('view');
+      } else {
+        setCurrentMode('edit');
+      }
+      
+      // Update formData with fresh product data
+      const freshFormData = {
+        id: product.id,
+        productId: product.productId || '',
+        sku: product.sku || '',
+        name: product.name || '',
+        description: product.description || '',
+        productType: product.productType || '',
+        brand: product.brand || '',
+        supplier: product.supplier || '',
+        stockQuantity: product.stockQuantity || 0,
+        lowStockThreshold: product.lowStockThreshold || 0,
+        stockStatus: product.stockStatus || 'In Stock',
+        purchasePrice: product.purchasePrice || '',
+        sellingPrice: product.sellingPrice || '',
+        status: product.status || 'Draft',
+        productCategory: product.productCategory || '',
+        catalogName: product.catalogName || '',
+        images: product.images || [],
+        halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
+        bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
+        originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
+        returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
+        packageType: (product as { packageType?: string })?.packageType ?? '',
+        piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
+      };
+      
+      setFormData(freshFormData);
+      setOriginalFormData(JSON.parse(JSON.stringify(freshFormData)));
+      setHasUnsavedChanges(false);
+    } else {
+      setCurrentMode(mode);
+      setCurrentProductStatus('Draft');
+    }
+  }, [mode, product]);
 
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
@@ -406,9 +456,45 @@ export default function ProductCatalog({
 
     
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUnpublish = async () => {
+    if (!user?.id || !product?.id) {
+      alert('User not authenticated or product not found');
+      return;
+    }
+
+    setSaving(true);
     
+    try {
+      const response = await fetch('/api/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...product,
+          status: 'Draft',
+          userId: user.id
+        }),
+      });
+
+      if (response.ok) {
+        // Show success modal and reload page
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          // Force complete page reload
+          window.location.href = window.location.href;
+        }, 1000);
+      } else {
+        const errorData = await response?.json();
+        alert(`Error: ${errorData?.error || 'Failed to unpublish product'}`);
+      }
+    } catch (error) {
+      alert('Error unpublishing product. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmitWithStatus = async (status: 'Draft' | 'Published') => {
     if (!user?.id) {
       alert('User not authenticated');
       return;
@@ -418,7 +504,8 @@ export default function ProductCatalog({
     
     try {
       const finalData: ProductFormData = {
-        ...formData
+        ...formData,
+        status: status
       };
 
       // Generate product ID in LKP format if not exists
@@ -458,13 +545,15 @@ export default function ProductCatalog({
         const savedProduct = await response.json();
         
         if (mode === 'edit') {
-          // Show success modal for edit mode
+          // Show success modal and reload page
           setHasUnsavedChanges(false);
           setOriginalFormData(JSON.parse(JSON.stringify(formData)));
           setShowSuccessModal(true);
           setTimeout(() => {
             setShowSuccessModal(false);
-          }, 3000);
+            // Force complete page reload
+            window.location.href = window.location.href;
+          }, 500);
         } else if (onSave) {
           onSave(savedProduct);
         } else {
@@ -482,6 +571,11 @@ export default function ProductCatalog({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSubmitWithStatus('Published');
+  };
+
   const handleCancel = () => {
     if (originalFormData) {
       setFormData(JSON.parse(JSON.stringify(originalFormData)));
@@ -489,8 +583,41 @@ export default function ProductCatalog({
     }
   };
 
-  const isViewMode = mode === 'view';
-  const isEditMode = mode === 'edit';
+  const isViewMode = currentMode === 'view';
+  const isEditMode = currentMode === 'edit';
+
+  // Validation function to check if all required fields are filled
+  const validateRequiredFields = () => {
+    const requiredFields = [
+      { field: 'sku', value: formData.sku, name: 'SKU Number' },
+      { field: 'name', value: formData.name, name: 'Product Name' },
+      { field: 'description', value: formData.description, name: 'Product Description' },
+      { field: 'productType', value: formData.productType, name: 'Product Type' },
+      { field: 'brand', value: formData.brand, name: 'Brand' },
+      { field: 'supplier', value: formData.supplier, name: 'Supplier' },
+      { field: 'purchasePrice', value: formData.purchasePrice, name: 'Purchase Price' },
+      { field: 'sellingPrice', value: formData.sellingPrice, name: 'Selling Price' },
+      { field: 'stockQuantity', value: formData.stockQuantity, name: 'Stock Quantity' },
+      { field: 'images', value: formData.images, name: 'Product Images' }
+    ];
+
+    const missingFields = requiredFields.filter(field => {
+      if (field.field === 'images') {
+        return !field.value || (Array.isArray(field.value) && field.value.length === 0);
+      }
+      if (field.field === 'stockQuantity') {
+        return field.value === undefined || field.value === null || (typeof field.value === 'number' && field.value < 0);
+      }
+      return !field.value || String(field.value).trim() === '';
+    });
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields: missingFields.map(f => f.name)
+    };
+  };
+
+  const validation = validateRequiredFields();
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
@@ -514,11 +641,11 @@ export default function ProductCatalog({
           </button>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
-              {mode === 'add' && 'Add New Product'}
-              {mode === 'view' && 'Product Details'}
-              {mode === 'edit' && 'Edit Product'}
+              {currentMode === 'add' && 'Add New Product'}
+              {currentMode === 'view' && 'Product Details'}
+              {currentMode === 'edit' && 'Edit Product'}
             </h1>
-            {mode === 'view' && formData.status === 'Published' && (
+            {currentMode === 'view' && currentProductStatus === 'Published' && (
               <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
                 Published
               </span>
@@ -561,13 +688,63 @@ export default function ProductCatalog({
           )}
         </div>
         <div className="flex items-center gap-3">
-          {mode === 'add' && (
+          {currentMode === 'view' && currentProductStatus === 'Published' && (
             <>
+              <button
+                type="button"
+                onClick={handleUnpublish}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Unpublishing...
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    Unpublish
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          {currentMode === 'add' && (
+            <>
+              <button
+                type="button"
+                onClick={() => router.push('/products')}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmitWithStatus('Draft')}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </>
+                )}
+              </button>
               <button
                 type="submit"
                 form="product-form"
-                disabled={saving}
+                disabled={saving || !validation.isValid}
                 className="flex items-center gap-2 px-6 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
               >
                 {saving ? (
                   <>
@@ -577,13 +754,13 @@ export default function ProductCatalog({
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    Add Product
+                    Save and Publish
                   </>
                 )}
               </button>
             </>
           )}
-          {mode === 'edit' && (
+          {currentMode === 'edit' && currentProductStatus !== 'Published' && (
             <>
               <button
                 type="button"
@@ -595,10 +772,10 @@ export default function ProductCatalog({
                 Cancel
               </button>
               <button
-                type="submit"
-                form="product-form"
-                disabled={!hasUnsavedChanges || saving}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => handleSubmitWithStatus('Draft')}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>
@@ -608,7 +785,26 @@ export default function ProductCatalog({
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Changes
+                    Save Draft
+                  </>
+                )}
+              </button>
+              <button
+                type="submit"
+                form="product-form"
+                disabled={saving || !validation.isValid}
+                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Save and Publish
                   </>
                 )}
               </button>
@@ -619,17 +815,17 @@ export default function ProductCatalog({
 
       {/* Mode Descriptions */}
       <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-        {mode === 'add' && (
+        {currentMode === 'add' && (
           <p className="text-sm text-gray-600">
             Create a new product by filling out the form below. All fields marked with descriptions are required for proper product cataloging.
           </p>
         )}
-        {mode === 'view' && (
+        {currentMode === 'view' && (
           <p className="text-sm text-gray-600">
             View detailed information about this product. You can see all product specifications, images, and current status.
           </p>
         )}
-        {mode === 'edit' && (
+        {currentMode === 'edit' && (
           <p className="text-sm text-gray-600">
             Modify existing product information. Update any fields as needed and save your changes to the product catalog.
           </p>
@@ -637,21 +833,22 @@ export default function ProductCatalog({
       </div>
 
       {/* Profile Completion Progress */}
-      {(mode === 'view' || mode === 'edit') && product && (
+      {(currentMode === 'view' || currentMode === 'edit' || currentMode === 'add') && (
         <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           {(() => {
-            // Calculate completion progress
+            // Calculate completion progress - use formData for all modes
+            const dataSource = currentMode === 'add' ? formData : product;
             const requiredFields = [
-              { name: 'SKU Number', value: String(product.sku || '').trim() },
-              { name: 'Product Name', value: String(product.name || '').trim() },
-              { name: 'Description', value: String(product.description || '').trim() },
-                { name: 'Category', value: String(product.productType || '').trim() },
-              { name: 'Brand', value: String(product.brand || '').trim() },
-              { name: 'Supplier', value: String(product.supplier || '').trim() },
-              { name: 'Purchase Price', value: String(product.purchasePrice || '').trim() },
-              { name: 'Selling Price', value: String(product.sellingPrice || '').trim() },
-              { name: 'Stock Quantity', value: product.stockQuantity !== undefined && product.stockQuantity !== null },
-              { name: 'Product Images', value: product.images && product.images.length > 0 }
+              { name: 'SKU Number', value: String(dataSource?.sku || '').trim() },
+              { name: 'Product Name', value: String(dataSource?.name || '').trim() },
+              { name: 'Description', value: String(dataSource?.description || '').trim() },
+              { name: 'Category', value: String(dataSource?.productType || '').trim() },
+              { name: 'Brand', value: String(dataSource?.brand || '').trim() },
+              { name: 'Supplier', value: String(dataSource?.supplier || '').trim() },
+              { name: 'Purchase Price', value: String(dataSource?.purchasePrice || '').trim() },
+              { name: 'Selling Price', value: String(dataSource?.sellingPrice || '').trim() },
+              { name: 'Stock Quantity', value: dataSource?.stockQuantity !== undefined && dataSource?.stockQuantity !== null },
+              { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 }
             ];
             
             const completedFields = requiredFields.filter(field => 
