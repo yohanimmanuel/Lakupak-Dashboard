@@ -135,7 +135,7 @@ export default function ProductCatalog({
         setCurrentProductStatus('Draft');
       }
     }
-  }, [mode, product, currentMode, currentProductStatus]);
+  }, [mode, product]);
 
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
@@ -214,7 +214,7 @@ export default function ProductCatalog({
         productId: generateLKPProductId()
       }));
     }
-  }, [mode, formData.productId, product]);
+  }, [mode, product]);
 
   // Initialize stock status based on stock quantity and threshold
   useEffect(() => {
