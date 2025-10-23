@@ -81,14 +81,18 @@ export default function ProductCatalog({
   // Effect to synchronize internal mode/status with props after a refresh
   useEffect(() => {
     if (product) {
-      setCurrentProductStatus(product.status);
-      if (product.status === 'Published') {
-        setCurrentMode('view');
-      } else {
-        setCurrentMode('edit');
+      const newStatus = product.status;
+      const newMode = newStatus === 'Published' ? 'view' : 'edit';
+      
+      // Only update if status or mode actually changed
+      if (currentProductStatus !== newStatus) {
+        setCurrentProductStatus(newStatus);
+      }
+      if (currentMode !== newMode) {
+        setCurrentMode(newMode);
       }
       
-      // Update formData with fresh product data
+      // Update formData with fresh product data only if product actually changed
       const freshFormData = {
         id: product.id,
         productId: product.productId || '',
@@ -115,14 +119,23 @@ export default function ProductCatalog({
         piecesPerPackage: (product as { piecesPerPackage?: number })?.piecesPerPackage ?? 1
       };
       
-      setFormData(freshFormData);
+      // Only update form data if it's actually different
+      setFormData(prev => {
+        const isDifferent = JSON.stringify(prev) !== JSON.stringify(freshFormData);
+        return isDifferent ? freshFormData : prev;
+      });
+      
       setOriginalFormData(JSON.parse(JSON.stringify(freshFormData)));
       setHasUnsavedChanges(false);
     } else {
-      setCurrentMode(mode);
-      setCurrentProductStatus('Draft');
+      if (currentMode !== mode) {
+        setCurrentMode(mode);
+      }
+      if (currentProductStatus !== 'Draft') {
+        setCurrentProductStatus('Draft');
+      }
     }
-  }, [mode, product]);
+  }, [mode, product, currentMode, currentProductStatus]);
 
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
@@ -509,7 +522,7 @@ export default function ProductCatalog({
       };
 
       // Generate product ID in LKP format if not exists
-      if (!finalData.productId && mode === 'add') {
+      if (!finalData.productId && currentMode === 'add') {
         finalData.productId = generateLKPProductId();
       }
 
@@ -524,19 +537,19 @@ export default function ProductCatalog({
       };
 
       let response;
-      if (mode === 'add') {
+      if (currentMode === 'add') {
         response = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-      } else if (mode === 'edit' && (finalData.id || finalData.productId)) {
+      } else if (currentMode === 'edit' && (finalData.id || finalData.productId)) {
         response = await fetch('/api/products', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-      } else if (mode === 'edit') {
+      } else if (currentMode === 'edit') {
         alert('Cannot edit product: Missing product ID');
         return;
       }
@@ -544,7 +557,7 @@ export default function ProductCatalog({
       if (response?.ok) {
         const savedProduct = await response.json();
         
-        if (mode === 'edit') {
+        if (currentMode === 'edit') {
           // Show success modal and reload page
           setHasUnsavedChanges(false);
           setOriginalFormData(JSON.parse(JSON.stringify(formData)));
@@ -626,7 +639,7 @@ export default function ProductCatalog({
         <div className="flex items-center gap-4">
           <button
             onClick={() => {
-              if (mode === 'edit' && hasUnsavedChanges) {
+              if (currentMode === 'edit' && hasUnsavedChanges) {
                 if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
                   router.push('/products');
                 }
@@ -672,11 +685,11 @@ export default function ProductCatalog({
                 )}
               </>
             )}
-            {mode === 'edit' && hasUnsavedChanges && (
+            {currentMode === 'edit' && hasUnsavedChanges && (
               <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
             )}
           </div>
-          {mode === 'view' && formData.status === 'Published' && (
+          {currentMode === 'view' && currentProductStatus === 'Published' && (
             <div className="flex items-center justify-end gap-3">
               <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
                 <Info className="w-4 h-4 text-orange-600" />
@@ -906,15 +919,14 @@ export default function ProductCatalog({
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Product ID
                 </label>
-                                                 <input
+                  <input
                   type="text"
                   value={formData.productId || ''}
-                  onChange={(e) => handleInputChange('productId', e.target.value)}
-                  disabled={mode === 'add' || isViewMode || mode === 'edit'}
+                  disabled={true}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                   placeholder="Auto-generated Product ID"
                 />
-                 {mode === 'add' && (
+                 {currentMode === 'add' && (
                    <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
                  )}
               </div>
@@ -1518,12 +1530,12 @@ export default function ProductCatalog({
                      />
                    </div>
                    {/* Only show original price and offer name if there's a DISCOUNT (not just promotion) */}
-                   {product?.originalPrice && mode === 'view' && product?.offerBadge !== 'Promotion' && (
+                   {product?.originalPrice && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
                      <div className="mt-1 text-xs text-gray-400 line-through">
                        Original: {formatCurrencyAmount(parseNumberByCurrency(product.originalPrice, userCurrency), userCurrency)}
                      </div>
                    )}
-                   {product?.offerName && mode === 'view' && product?.offerBadge !== 'Promotion' && (
+                   {product?.offerName && currentMode === 'view' && product?.offerBadge !== 'Promotion' && (
                      <div className="mt-1 text-xs text-green-600">
                        Applied Offer: {product.offerName}
                      </div>
