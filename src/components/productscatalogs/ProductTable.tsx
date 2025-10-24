@@ -1093,13 +1093,23 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         )}
                       </>
                     )}
-                    <span className="text-[#0a61d7] font-semibold">
-                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
-                        formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
-                      ) : (
-                        <span className="text-red-600 font-bold">Missing Selling Price</span>
-                      )}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      {/* Show original price with strikethrough if discount is applied */}
+                      {originalProduct?.variants?.[0]?.originalSellingPrice && 
+                       originalProduct.variants[0].originalSellingPrice !== String(product.sellingPrice) && 
+                       parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
+                        <span className="text-xs text-gray-400 line-through">
+                          {formatCurrency(parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency), userCurrency)}
+                        </span>
+                      ) : null}
+                      <span className="text-[#0a61d7] font-semibold">
+                        {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
+                          formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                        ) : (
+                          <span className="text-red-600 font-bold">Missing Selling Price</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </td>
                 <td className="py-3 px-4 text-xs">
@@ -1346,11 +1356,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  
                  {/* Price */}
                  <div className="flex flex-col gap-1">
-                   {originalProduct?.originalPrice && (
+                   {/* Show original price with strikethrough if discount is applied */}
+                   {originalProduct?.variants?.[0]?.originalSellingPrice && 
+                    originalProduct.variants[0].originalSellingPrice !== String(product.sellingPrice) && 
+                    parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
                      <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
+                       {formatCurrency(parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency), userCurrency)}
                      </span>
-                   )}
+                   ) : null}
                    <div className="text-sm font-semibold text-[#0a61d7]">
                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
                        formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
@@ -1615,11 +1628,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  
                  {/* Price */}
                  <div className="flex flex-col gap-1">
-                   {originalProduct?.originalPrice && (
+                   {/* Show original price with strikethrough if discount is applied */}
+                   {originalProduct?.variants?.[0]?.originalSellingPrice && 
+                    originalProduct.variants[0].originalSellingPrice !== String(product.sellingPrice) && 
+                    parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
                      <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parseNumberByCurrency(String(originalProduct.originalPrice), userCurrency), userCurrency)}
+                       {formatCurrency(parseNumberByCurrency(originalProduct.variants[0].originalSellingPrice, userCurrency), userCurrency)}
                      </span>
-                   )}
+                   ) : null}
                    <div className="text-sm font-semibold text-[#0a61d7]">
                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
                        formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)

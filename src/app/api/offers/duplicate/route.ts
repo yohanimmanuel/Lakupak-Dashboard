@@ -28,9 +28,8 @@ export async function POST(request: NextRequest) {
         offerProducts: {
           include: {
             product: {
-              select: {
-                productId: true,
-                name: true
+              include: {
+                variants: true
               }
             }
           }
@@ -134,12 +133,8 @@ export async function POST(request: NextRequest) {
         offerProducts: {
           include: {
             product: {
-              select: {
-                productId: true,
-                name: true,
-                productType: true,
-                productCategory: true,
-                sellingPrice: true
+              include: {
+                variants: true
               }
             }
           }
@@ -174,14 +169,24 @@ export async function POST(request: NextRequest) {
       endDate: createdOffer!.endDate,
       totalUsage: createdOffer!.totalUsage,
       totalDiscountGiven: createdOffer!.totalDiscountGiven,
-      products: createdOffer!.offerProducts.map((op) => ({
-        id: op.id,
-        productId: op.product.productId,
-        name: op.product.name,
-        productType: op.product.productType,
-        productCategory: op.product.productCategory,
-        sellingPrice: op.product.sellingPrice
-      })),
+      products: createdOffer!.offerProducts.map((op) => {
+        const firstVariant = op.product.variants?.[0];
+        return {
+          id: op.id,
+          productId: op.product.productId,
+          name: op.product.name,
+          productType: op.product.productType,
+          productCategory: op.product.productCategory,
+          price: firstVariant?.sellingPrice || '0',
+          // Add variant information for piece-based pricing
+          variantName: firstVariant?.variantName || 'Single Piece',
+          packageType: firstVariant?.packageType || 'Piece',
+          piecesPerPackage: firstVariant?.piecesPerPackage || 1,
+          // Calculate piece price (price per individual piece)
+          piecePrice: firstVariant ? 
+            (parseFloat(firstVariant.sellingPrice || '0') / (firstVariant.piecesPerPackage || 1)) : 0
+        };
+      }),
       dateRanges: createdOffer!.dateRanges?.map((dr) => ({
         id: dr.id,
         name: dr.name,

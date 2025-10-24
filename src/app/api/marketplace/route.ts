@@ -360,6 +360,13 @@ export async function GET(request: NextRequest) {
             const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
             discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
             discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+            
+            // DON'T apply discount again - the backend has already applied it
+            // The sellingPrice from the backend is already the discounted price
+            // We just need to show the original price for display purposes
+            if (hasActiveDiscountInMainSystem) {
+              originalSellingPrice = originalSellingPriceValue;
+            }
           }
           
           // Get Buy X Get Y promotion details
@@ -396,7 +403,7 @@ export async function GET(request: NextRequest) {
         name: product.name,
         description: product.description,
         sellingPrice: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
-        originalSellingPrice: hasActiveOffer && hasPriceDiscounts ? originalSellingPrice : undefined,
+        originalSellingPrice: hasActiveOffer && hasPriceDiscounts ? originalSellingPriceValue : undefined,
         // Keep old field names for backward compatibility
         price: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
         originalPrice: purchasePrice,

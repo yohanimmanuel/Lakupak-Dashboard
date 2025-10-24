@@ -62,16 +62,9 @@ export async function GET(
         offerProducts: {
           include: {
             product: {
-              select: {
-                productId: true,
-                name: true,
-                brand: true,
-                productType: true,
-                productCategory: true,
-                sellingPrice: true,
-                status: true,
-                stockQuantity: true,
-              },
+              include: {
+                variants: true
+              }
             },
           },
         },
@@ -112,17 +105,27 @@ export async function GET(
         isActive: dt.isActive,
         priority: dt.priority,
       })),
-      products: offer.offerProducts.map((op) => ({
-        id: op.id,
-        productId: op.product.productId,
-        name: op.product.name,
-        brand: op.product.brand,
-        type: op.product.productType,
-        category: op.product.productCategory,
-        price: op.product.sellingPrice,
-        status: op.product.status,
-        stock: op.product.stockQuantity,
-      })),
+      products: offer.offerProducts.map((op) => {
+        const firstVariant = op.product.variants?.[0];
+        return {
+          id: op.id,
+          productId: op.product.productId,
+          name: op.product.name,
+          brand: op.product.brand,
+          type: op.product.productType,
+          category: op.product.productCategory,
+          price: firstVariant?.sellingPrice || '0',
+          status: op.product.status,
+          stock: firstVariant?.stockQuantity || 0,
+          // Add variant information for piece-based pricing
+          variantName: firstVariant?.variantName || 'Single Piece',
+          packageType: firstVariant?.packageType || 'Piece',
+          piecesPerPackage: firstVariant?.piecesPerPackage || 1,
+          // Calculate piece price (price per individual piece)
+          piecePrice: firstVariant ? 
+            (parseFloat(firstVariant.sellingPrice || '0') / (firstVariant.piecesPerPackage || 1)) : 0
+        };
+      }),
       dateRanges: offer.dateRanges?.map((dr) => ({
         id: dr.id,
         name: dr.name,
@@ -333,7 +336,10 @@ async function updateDiscountType(discountTypeId: string, userId: number, data: 
 
   // IMPORTANT: Update product prices after discount type status change
   // This ensures prices revert to original when discount types are deactivated
-  await updateProductPricesFromOffers(prisma, userId);
+  await prisma.$transaction(async (tx) => {
+    await resetProductPricesFromOffers(tx, userId);
+    await updateProductPricesFromOffers(tx, userId);
+  });
 
   // Note: We don't auto-deactivate offers when discount types are deactivated
   // Users should manually control offer status - they might want to keep offers active
@@ -471,7 +477,10 @@ async function updateOffer(offerId: string, userId: number, data: OfferUpdateInp
 
   // IMPORTANT: Update product prices after offer status change
   // This ensures prices revert to original when offers are deactivated
-  await updateProductPricesFromOffers(prisma, userId);
+  await prisma.$transaction(async (tx) => {
+    await resetProductPricesFromOffers(tx, userId);
+    await updateProductPricesFromOffers(tx, userId);
+  });
 
   // Update lastSyncAt for marketplace sync
   await prisma.product.updateMany({
@@ -519,7 +528,10 @@ async function deleteDiscountType(discountTypeId: string, userId: number) {
 
   // IMPORTANT: Update product prices after discount type deletion
   // This ensures prices revert to original when discount types are removed
-  await updateProductPricesFromOffers(prisma, userId);
+  await prisma.$transaction(async (tx) => {
+    await resetProductPricesFromOffers(tx, userId);
+    await updateProductPricesFromOffers(tx, userId);
+  });
 
   // Update lastSyncAt for marketplace sync
   await prisma.product.updateMany({
@@ -621,7 +633,10 @@ async function deleteOffer(offerId: string, userId: number) {
   });
 
   // Update product prices after deleting the offer
-  await updateProductPricesFromOffers(prisma, userId);
+  await prisma.$transaction(async (tx) => {
+    await resetProductPricesFromOffers(tx, userId);
+    await updateProductPricesFromOffers(tx, userId);
+  });
 
   return NextResponse.json({ message: 'Offer deleted successfully' });
 }
@@ -961,6 +976,7 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
       }
 
       // 5. Update product prices based on active offers
+      await resetProductPricesFromOffers(tx, userId);
       await updateProductPricesFromOffers(tx, userId);
     });
 
@@ -971,11 +987,17 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Run price recalculation multiple times to ensure it works
-      await updateProductPricesFromOffers(prisma, userId);
+      await prisma.$transaction(async (tx) => {
+        await resetProductPricesFromOffers(tx, userId);
+        await updateProductPricesFromOffers(tx, userId);
+      });
       
       // Additional delay and retry for stubborn cases
       await new Promise(resolve => setTimeout(resolve, 200));
-      await updateProductPricesFromOffers(prisma, userId);
+      await prisma.$transaction(async (tx) => {
+        await resetProductPricesFromOffers(tx, userId);
+        await updateProductPricesFromOffers(tx, userId);
+      });
       
     } catch (priceUpdateError) {
       // Log the error but don't fail the entire operation
@@ -998,147 +1020,123 @@ async function batchUpdateOffer(offerId: string, userId: number, data: BatchOffe
 async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
     // Get all products for this user
-    const allProducts = await tx.product.findMany({
+    const products = await tx.product.findMany({
       where: { userId: userId },
-      select: {
-        productId: true,
-        sellingPrice: true,
-        originalSellingPrice: true,
-      },
+      include: { variants: true }
     });
 
-    // Get all offers for this user (both active and inactive to check discount types)
-    const allOffers = await tx.offer.findMany({
-      where: {
-        userId: userId,
-        startDate: { lte: new Date() },
-        endDate: { gte: new Date() },
-      },
-      include: {
-        offerProducts: {
-          include: {
-            product: {
-              select: {
-                productId: true,
-                sellingPrice: true,
-                originalSellingPrice: true,
-              },
-            },
-          },
+    for (const product of products) {
+      // Get active offers for this product
+      const productOffers = await tx.offer.findMany({
+        where: {
+          userId: userId,
+          status: 'active',
+          offerProducts: {
+            some: { productId: product.productId }
+          }
         },
-        offerDiscountTypes: true, // Get ALL discount types, not just active ones
-      },
-    });
-
-    // Create a map of products with offers
-    const productsWithOffers = new Map<string, { 
-      productId: string;
-      offerId: string; 
-      offerBadge: string;
-      originalPrice: number;
-      bestDiscount: { price: number; offerName: string } | null;
-    }>();
-
-    for (const offer of allOffers) {
-      // Only process offers that are currently active
-      if (offer.status !== 'active') {
-        continue;
-      }
-
-      // Check if this offer has any active discount types that can apply price discounts
-      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean; discountType?: string }) => 
-        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
-      );
-      
-      // If no active price discount types, skip this offer for price calculation
-      if (activePriceDiscountTypes.length === 0) {
-        continue;
-      }
-
-      for (const offerProduct of offer.offerProducts) {
-        const productId = offerProduct.product.productId;
-        const product = offerProduct.product;
-        
-        // Use originalSellingPrice if it exists, otherwise use current sellingPrice
-        const originalPrice = product.originalSellingPrice 
-          ? parseNumberByCurrency(product.originalSellingPrice, 'IDR')
-          : parseNumberByCurrency(product.sellingPrice, 'IDR');
-        
-        if (!productsWithOffers.has(productId)) {
-          productsWithOffers.set(productId, {
-            productId,
-            offerId: offer.id,
-            offerBadge: '',
-            originalPrice,
-            bestDiscount: null,
-          });
+        include: {
+          offerDiscountTypes: {
+            where: { isActive: true }
+          }
         }
+      });
 
-        // Calculate discount for this offer using only ACTIVE price discount types
-        for (const discountType of activePriceDiscountTypes) {
-          let discountedPrice = originalPrice;
+      for (const variant of product.variants) {
+        // Get original price (if not set, use current selling price)
+        const originalPrice = variant.originalSellingPrice 
+          ? parseFloat(variant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
+
+        let finalPrice = originalPrice;
+        let hasOffer = false;
+
+        // Apply discount if there are active offers
+        if (productOffers.length > 0) {
+          const offer = productOffers[0];
+          const discountType = offer.offerDiscountTypes[0];
           
-          if (discountType.discountType === 'percentage') {
-            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
-          } else if (discountType.discountType === 'fixed') {
-            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
-          }
-          // Skip buy_x_get_y for price calculation as it's a promotion, not a discount
-
-          // Keep the best discount (lowest price)
-          const productData = productsWithOffers.get(productId);
-          if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
-            productData.bestDiscount = {
-              price: discountedPrice,
-              offerName: offer.name,
-            };
+          if (discountType) {
+            if (discountType.discountType === 'percentage') {
+              finalPrice = originalPrice * (1 - discountType.discountValue / 100);
+              hasOffer = true;
+            } else if (discountType.discountType === 'fixed') {
+              finalPrice = Math.max(0, originalPrice - discountType.discountValue);
+              hasOffer = true;
+            }
           }
         }
-      }
-    }
 
-    // Note: We don't deactivate offers here - users can have offers with only promotions (buy_x_get_y)
-    // that don't affect prices but should still be active for display purposes
-
-    // Update products with offers
-    for (const [productId, productData] of productsWithOffers) {
-      if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
-        const newPrice = String(productData.bestDiscount.price);
-        await tx.product.update({
-          where: { productId: productId },
-          data: { 
-            sellingPrice: newPrice,
-            originalSellingPrice: String(productData.originalPrice), // Store original price
-          },
+        // Update the variant
+        await tx.productVariant.update({
+          where: { id: variant.id },
+          data: {
+            sellingPrice: String(Math.round(finalPrice)),
+            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : variant.originalSellingPrice
+          }
         });
       }
     }
+  } catch (error) {
+    console.error('Error updating product prices from offers:', error);
+  }
+}
 
-    // CRITICAL FIX: Restore original prices for ALL products that should not have active discounts
-    // This includes products with no offers AND products with offers but no active discount types
-    const productIdsWithActiveDiscounts = new Set(productsWithOffers.keys());
-    
-    for (const product of allProducts) {
-      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
-      
-      if (!shouldHaveDiscount) {
-        // This product should NOT have a discount - restore original price
-        if (product.originalSellingPrice) {
-          // Product had a discount before, restore original price
-          await tx.product.update({
-            where: { productId: product.productId },
-            data: { 
-              sellingPrice: product.originalSellingPrice,
-              originalSellingPrice: null, // Clear the original price field
-            },
+// Helper function to reset product prices when offers are removed or expired
+async function resetProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
+  try {
+    // Get all products for this user that have variants with originalSellingPrice set
+    const productsWithOriginalPrices = await tx.product.findMany({
+      where: {
+        userId: userId,
+        variants: {
+          some: {
+            originalSellingPrice: {
+              not: null
+            }
+          }
+        }
+      },
+      include: { variants: true }
+    });
+
+    // Get all active offers for this user to check which products still have active offers
+    const activeOffers = await tx.offer.findMany({
+      where: {
+        userId: userId,
+        status: 'active',
+      },
+      include: {
+        offerProducts: true,
+      },
+    });
+
+    // Get product IDs that still have active offers
+    const productsWithActiveOffers = new Set(
+      activeOffers.flatMap((offer: { offerProducts: { productId: string }[] }) => offer.offerProducts.map((op: { productId: string }) => op.productId))
+    );
+
+    // Reset prices for products that no longer have active offers
+    for (const product of productsWithOriginalPrices) {
+      // Skip if product still has active offers
+      if (productsWithActiveOffers.has(product.productId)) {
+        continue;
+      }
+
+      for (const variant of product.variants) {
+        if (variant.originalSellingPrice) {
+          // Reset selling price to original price and clear originalSellingPrice
+          await tx.productVariant.update({
+            where: { id: variant.id },
+            data: {
+              sellingPrice: variant.originalSellingPrice,
+              originalSellingPrice: null
+            }
           });
-        } else {
-          // Product never had a discount, ensure sellingPrice is correct
-          // No action needed as it should already have the correct price
         }
       }
     }
-    
   } catch (error) {
+    console.error('Error resetting product prices from offers:', error);
   }
 }

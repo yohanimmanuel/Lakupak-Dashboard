@@ -284,11 +284,6 @@ export default function ProductCatalog({
   const getSelectedCategory = (categoryValue: string) => {
     return getCategoryByValue(categoryValue);
   };
-
-
-
-
-
   // Helper function to handle price input with better UX
 
   const handleInputChange = (field: keyof ProductFormData, value: string | number | string[] | boolean) => {
@@ -343,6 +338,11 @@ export default function ProductCatalog({
           } else {
             updatedVariant.stockStatus = 'In Stock';
           }
+        }
+        
+        // Auto-set originalSellingPrice when sellingPrice is first set
+        if (field === 'sellingPrice' && value && !variant.originalSellingPrice) {
+          updatedVariant.originalSellingPrice = String(value);
         }
         
         return updatedVariant;

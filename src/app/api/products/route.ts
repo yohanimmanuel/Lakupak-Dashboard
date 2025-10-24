@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../generated/prisma';
+import { PrismaClient, Prisma } from '../../../generated/prisma';
 import { 
   getProductSecurityHeaders, 
   validateProductInput, 
@@ -419,6 +419,95 @@ export async function POST(req: NextRequest) {
         { status: 400, headers }
       );
     }
+
+    // Handle special actions
+    if (data.action === 'reset-original-prices') {
+      const result = await resetOriginalPricesForUser(Number(data.userId));
+      return NextResponse.json(result, { headers });
+    }
+    
+    if (data.action === 'apply-offers-to-all-products') {
+      await updateProductPricesFromOffers(prisma, Number(data.userId));
+      return NextResponse.json({
+        success: true,
+        message: 'Applied offers to all products successfully'
+      }, { headers });
+    }
+    
+    if (data.action === 'update-prices-from-offers') {
+      await updateProductPricesFromOffers(prisma, Number(data.userId));
+      return NextResponse.json({
+        success: true,
+        message: 'Product prices updated from offers successfully'
+      }, { headers });
+    }
+    
+    if (data.action === 'force-update-prices') {
+      await prisma.$transaction(async (tx) => {
+        // First, ensure all product variants have originalSellingPrice set
+        const productsWithVariants = await tx.product.findMany({
+          where: { userId: Number(data.userId) },
+          include: { variants: true }
+        });
+        
+        for (const product of productsWithVariants) {
+          for (const variant of product.variants) {
+            if (!variant.originalSellingPrice) {
+              await tx.productVariant.update({
+                where: { id: variant.id },
+                data: { originalSellingPrice: variant.sellingPrice }
+              });
+            }
+          }
+        }
+        
+        // Then apply current active offers
+        await updateProductPricesFromOffers(tx, Number(data.userId));
+      });
+      return NextResponse.json({
+        success: true,
+        message: 'Product prices force updated successfully'
+      }, { headers });
+    }
+    
+    if (data.action === 'reset-product-prices') {
+      const productId = data.productId;
+      if (!productId) {
+        return NextResponse.json({
+          error: 'Product ID is required for reset action'
+        }, { status: 400, headers });
+      }
+      
+      await prisma.$transaction(async (tx) => {
+        // Get the product with its variants
+        const product = await tx.product.findFirst({
+          where: { productId: productId, userId: Number(data.userId) },
+          include: { variants: true }
+        });
+        
+        if (product) {
+          for (const variant of product.variants) {
+            if (variant.originalSellingPrice) {
+              // Reset to original price and clear originalSellingPrice
+              await tx.productVariant.update({
+                where: { id: variant.id },
+                data: {
+                  sellingPrice: variant.originalSellingPrice,
+                  originalSellingPrice: null
+                }
+              });
+            }
+          }
+        }
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Product prices reset to original successfully'
+      }, { headers });
+    }
+    
+    
     
     // Validate userId format
     if (!/^\d+$/.test(String(data.userId))) {
@@ -486,7 +575,7 @@ export async function POST(req: NextRequest) {
             stockStatus: variant.stockStatus || 'In Stock',
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 originalSellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
           }))
@@ -497,7 +586,16 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    return NextResponse.json(product, { status: 201, headers });
+    // Update product prices based on active offers after creation
+    await updateProductPricesFromOffers(prisma, Number(data.userId));
+    
+    // Fetch the updated product with new prices
+    const updatedProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: { variants: true }
+    });
+    
+    return NextResponse.json(updatedProduct, { status: 201, headers });
   } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Internal server error' }, 
@@ -573,6 +671,109 @@ export async function DELETE(req: NextRequest) {
       { error: 'Failed to delete product' }, 
       { status: 500, headers }
     );
+  }
+}
+
+// Helper function to update product prices based on active offers
+async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
+  try {
+    // Get all products for this user
+    const products = await tx.product.findMany({
+      where: { userId: userId },
+      include: { variants: true }
+    });
+
+    for (const product of products) {
+      // Get active offers for this product
+      const productOffers = await tx.offer.findMany({
+        where: {
+          userId: userId,
+          status: 'active',
+          offerProducts: {
+            some: { productId: product.productId }
+          }
+        },
+        include: {
+          offerDiscountTypes: {
+            where: { isActive: true }
+          }
+        }
+      });
+
+      for (const variant of product.variants) {
+        // Get original price (if not set, use current selling price)
+        const originalPrice = variant.originalSellingPrice 
+          ? parseFloat(variant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
+
+        let finalPrice = originalPrice;
+        let hasOffer = false;
+
+        // Apply discount if there are active offers
+        if (productOffers.length > 0) {
+          const offer = productOffers[0];
+          const discountType = offer.offerDiscountTypes[0];
+          
+          if (discountType) {
+            if (discountType.discountType === 'percentage') {
+              finalPrice = originalPrice * (1 - discountType.discountValue / 100);
+              hasOffer = true;
+            } else if (discountType.discountType === 'fixed') {
+              finalPrice = Math.max(0, originalPrice - discountType.discountValue);
+              hasOffer = true;
+            }
+          }
+        }
+
+        // Update the variant
+        await tx.productVariant.update({
+          where: { id: variant.id },
+          data: {
+            sellingPrice: String(Math.round(finalPrice)),
+            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : null
+          }
+        });
+      }
+    }
+  } catch (error) {
+  }
+}
+
+// Helper function to reset originalSellingPrice for products with null values
+async function resetOriginalPricesForUser(userId: number) {
+  try {
+    // Find all product variants with null originalSellingPrice
+    const variantsWithNullOriginalPrice = await prisma.productVariant.findMany({
+      where: {
+        originalSellingPrice: null,
+        product: {
+          userId: userId
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+
+    // Update variants to set originalSellingPrice = sellingPrice
+    const updatePromises = variantsWithNullOriginalPrice.map(variant => 
+      prisma.productVariant.update({
+        where: { id: variant.id },
+        data: {
+          originalSellingPrice: variant.sellingPrice
+        }
+      })
+    );
+
+    await Promise.all(updatePromises);
+
+    return {
+      success: true,
+      message: `Reset originalSellingPrice for ${variantsWithNullOriginalPrice.length} variants`,
+      updatedCount: variantsWithNullOriginalPrice.length
+    };
+  } catch (error) {
+    throw error;
   }
 }
 
@@ -664,7 +865,7 @@ export async function PUT(req: NextRequest) {
                 stockStatus: variant.stockStatus || 'In Stock',
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 originalSellingPrice: variant.originalSellingPrice,
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
               }))
@@ -704,7 +905,7 @@ export async function PUT(req: NextRequest) {
                 stockStatus: variant.stockStatus || 'In Stock',
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: variant.originalSellingPrice ? String(parseNumberByCurrency(String(variant.originalSellingPrice), data.currency || 'IDR')) : null,
+                 originalSellingPrice: variant.originalSellingPrice,
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
               }))
@@ -719,10 +920,19 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Missing id or productId' }, { status: 400 });
     }
     
+    // Update product prices based on active offers after update
+    await updateProductPricesFromOffers(prisma, userIdNum);
+    
+    // Fetch the updated product with new prices
+    const updatedProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: { variants: true }
+    });
+    
     // Ensure we always return the productId for proper routing
     const responseData = {
-      ...product,
-      productId: product.productId || productId
+      ...updatedProduct,
+      productId: updatedProduct?.productId || productId
     };
     
     return NextResponse.json(responseData, { headers });
