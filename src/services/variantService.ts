@@ -11,12 +11,13 @@ export interface VariantValidationResult {
 
 /**
  * Validate if a variant exists and is active for a product
- * Also validates MOQ (Minimum Order Quantity) for single piece variants
+ * Also validates MOQ (Minimum Order Quantity) for ALL variants
  */
 export const validateVariant = async (
   productId: string, 
   variantId?: number,
-  orderQuantity?: number
+  orderQuantity?: number,
+  packageQuantity?: number
 ): Promise<VariantValidationResult> => {
   try {
     // Get the product with its variants
@@ -60,12 +61,29 @@ export const validateVariant = async (
       };
     }
 
-    // Validate MOQ for single piece variants
-    if (targetVariant.variantName === 'Single Piece' && targetVariant.moq && orderQuantity) {
-      if (orderQuantity < targetVariant.moq) {
+    // Validate MOQ for the specific variant (if MOQ is set)
+    if (targetVariant.moq) {
+      // Check if this variant is a single piece variant (piecesPerPackage = 1)
+      const isSinglePieceVariant = (targetVariant.piecesPerPackage || 1) === 1;
+      
+      let quantityToCheck: number;
+      let unitType: string;
+      
+      if (isSinglePieceVariant) {
+        // For single piece variants, use total pieces
+        quantityToCheck = orderQuantity || 0;
+        unitType = 'pieces';
+      } else {
+        // For package variants, use package quantity
+        quantityToCheck = packageQuantity || 0;
+        unitType = targetVariant.variantName.toLowerCase() + 's';
+      }
+      
+      
+      if (quantityToCheck < targetVariant.moq) {
         return {
           isValid: false,
-          error: `Minimum order quantity for single pieces is ${targetVariant.moq}. You ordered ${orderQuantity} pieces.`
+          error: `Minimum order quantity for ${targetVariant.variantName} is ${targetVariant.moq} ${unitType}. You ordered ${quantityToCheck} ${unitType}.`
         };
       }
     }

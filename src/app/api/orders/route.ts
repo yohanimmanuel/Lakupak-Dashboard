@@ -434,26 +434,28 @@ export async function POST(request: NextRequest) {
           
           // Process all order items
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-            // Calculate total pieces for MOQ validation
-            const packageQuantity = item.packageQuantity || 1;
+            // Get the variant first to calculate total pieces for MOQ validation
+            const product = await tx.product.findFirst({
+              where: { productId: String(item.productId) },
+              include: { variants: true }
+            });
             
-            // Validate variant using the new service with order quantity for MOQ validation
-            const variantValidation = await validateVariant(String(item.productId), item.variantId, packageQuantity);
+            if (!product) {
+              throw new Error(`Product not found: ${item.productId}`);
+            }
+            
+            const selectedVariant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
+            const packageQuantity = item.packageQuantity || 1;
+            const totalPieces = packageQuantity * (selectedVariant.piecesPerPackage || 1);
+            
+            // Validate variant using the new service with correct quantities for MOQ validation
+            const variantValidation = await validateVariant(String(item.productId), item.variantId, totalPieces, packageQuantity);
             
             if (!variantValidation.isValid || !variantValidation.variant) {
               throw new Error(variantValidation.error);
             }
             
             const variant = variantValidation.variant;
-            
-            // Get the product information
-            const product = await tx.product.findFirst({
-              where: { productId: String(item.productId) }
-            });
-            
-            if (!product) {
-              throw new Error(`Product not found: ${item.productId}`);
-            }
             
             // Use the new price parsing utility
             const consistentUnitPrice = parseVariantPrice(variant);

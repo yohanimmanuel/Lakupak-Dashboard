@@ -71,7 +71,7 @@ export default function ProductCatalog({
     purchasePrice: string;
     sellingPrice: string;
     originalSellingPrice?: string;
-    moq?: number; // Minimum Order Quantity - only for single piece variants
+    moq?: number; // Minimum Order Quantity - for all variants
     isDefault: boolean;
     isActive: boolean;
   }>>([]);
@@ -309,7 +309,7 @@ export default function ProductCatalog({
       purchasePrice: '',
       sellingPrice: '',
       originalSellingPrice: '',
-      moq: undefined, // MOQ only for single piece variants
+      moq: undefined, // MOQ for all variants
       isDefault: false,
       isActive: true
     };
@@ -1649,31 +1649,70 @@ export default function ProductCatalog({
                           </div>
                         </div>
 
-                        {/* MOQ Field - Only for Single Piece variant (first variant) */}
-                        {variant.variantName === 'Single Piece' && (
-                          <div className="mt-4">
-                            <div className="max-w-xs">
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Minimum Order Quantity (MOQ)
-                              </label>
-                              <input
-                                type="number"
-                                value={variant.moq || ''}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
+                        {/* MOQ Field - For ALL variants */}
+                        <div className="mt-4">
+                          <div className="max-w-xs">
+                            <div className="flex items-center mb-2">
+                              <div className="relative">
+                                <input 
+                                  type="checkbox" 
+                                  checked={!!variant.moq}
+                                  onChange={(e) => {
+                                    if (!isViewMode) {
+                                      if (e.target.checked) {
+                                        updateVariant(variant.id, 'moq', 1);
+                                      } else {
+                                        updateVariant(variant.id, 'moq', undefined);
+                                      }
+                                    }
+                                  }}
+                                  disabled={isViewMode}
+                                  className="sr-only" 
+                                />
+                                <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${!!variant.moq ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
+                                  {!!variant.moq && (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                              <label 
+                                className="ml-2 text-xs font-medium text-gray-700 cursor-pointer"
+                                onClick={() => {
+                                  if (!isViewMode) {
+                                    if (variant.moq) {
+                                      updateVariant(variant.id, 'moq', undefined);
+                                    } else {
+                                      updateVariant(variant.id, 'moq', 1);
+                                    }
+                                  }
                                 }}
-                                disabled={isViewMode}
-                                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                placeholder="e.g., 10"
-                                min="1"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Minimum quantity buyers must order for single pieces
-                              </p>
+                              >
+                                Enable Minimum Order Quantity (MOQ)
+                              </label>
                             </div>
+                            {variant.moq && (
+                              <>
+                                <input
+                                  type="number"
+                                  value={variant.moq || ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
+                                  }}
+                                  disabled={isViewMode}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  placeholder="e.g., 10"
+                                  min="1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Minimum quantity buyers must order for {variant.variantName}
+                                </p>
+                              </>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
 

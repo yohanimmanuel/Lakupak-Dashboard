@@ -9,7 +9,7 @@ export interface ProductVariant {
   purchasePrice: string;
   sellingPrice: string;
   originalSellingPrice?: string; // Store original price before any discounts
-  moq?: number; // Minimum Order Quantity - only for single piece variants
+  moq?: number; // Minimum Order Quantity - for all variants
   isDefault: boolean;
   isActive: boolean;
   createdAt?: Date;

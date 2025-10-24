@@ -339,13 +339,11 @@ async function validateUsageLimits(
 export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]): Promise<void> {
   // If no offers were used, don't check anything
   if (!usedOfferIds || usedOfferIds.length === 0) {
-    console.log('No offers were used in this order, skipping offer status update');
     return;
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-      console.log(`Checking offer statuses for used offers: ${usedOfferIds.join(', ')}`);
       
       // Only check the specific offers that were used
       const usedOffers = await tx.offer.findMany({
@@ -360,7 +358,6 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
         }
       });
 
-      console.log(`Found ${usedOffers.length} used offers to check`);
 
       for (const offer of usedOffers) {
         let hasDeactivatedDiscountType = false;
@@ -370,7 +367,6 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
           dt.maxUsage && dt.maxUsage > 0
         );
         
-        console.log(`Checking ${discountTypesWithLimits.length} discount types with limits for offer ${offer.id}`);
         
         for (const discountType of discountTypesWithLimits) {
           const totalUsage = await tx.offerUsageTracking.aggregate({
@@ -385,11 +381,9 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
 
           const currentUsage = totalUsage._sum.usageCount || 0;
           
-          console.log(`Discount type ${discountType.id}: usage ${currentUsage}/${discountType.maxUsage}`);
           
           // Only deactivate if the usage limit has been reached or exceeded
           if (currentUsage >= (discountType.maxUsage || 0)) {
-            console.log(`Deactivating discount type ${discountType.id} for offer ${offer.id} - usage: ${currentUsage}/${discountType.maxUsage}`);
             
             // Deactivate only this specific discount type
             await tx.offerDiscountType.update({
@@ -412,7 +406,6 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
           });
           
           if (remainingActiveDiscountTypes === 0) {
-            console.log(`Deactivating entire offer ${offer.id} - no active discount types remaining`);
             await tx.offer.update({
               where: { id: offer.id },
               data: { status: 'inactive' }
@@ -426,7 +419,6 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
     });
   } catch (error) {
     // Log error but don't throw - this is a maintenance function
-    console.error('Error updating offer statuses:', error);
   }
 }
 

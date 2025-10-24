@@ -152,7 +152,7 @@ model ProductVariant {
   purchasePrice     String
   sellingPrice      String
   originalSellingPrice String? // Store original price before any discounts
-  moq               Int?     // Minimum Order Quantity - only for single piece variants
+  moq               Int?     // Minimum Order Quantity - for all variants
   isDefault         Boolean  @default(false)
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now()) @db.Timestamptz(3)

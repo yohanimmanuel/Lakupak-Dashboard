@@ -814,16 +814,17 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
 /**
  * Calculate sold count for a product by counting total pieces sold
  * This includes both piece variants and package variants converted to pieces
+ * Only counts orders that are not Pending, Cancelled, or Returned
  */
 async function calculateSoldCount(productId: string): Promise<string> {
   try {
-    // Get all order items for this product that are not cancelled/returned
+    // Get all order items for this product that are not pending, cancelled, or returned
     const orderItems = await prisma.orderItem.findMany({
       where: {
         productId: productId,
         order: {
           orderStatus: {
-            notIn: ['Cancelled', 'Returned', 'Refunded']
+            notIn: ['Pending', 'Cancelled', 'Returned']
           }
         }
       },

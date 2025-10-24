@@ -32,8 +32,9 @@ interface OrderItemInput {
   pricePerPackage?: string;
   productName?: string;
   productSku?: string;
+  variantId?: number;
+  variantName?: string;
   category?: string;
-  variantId?: number; // Add variant ID for variant-specific orders
 }
 
 const prisma = new PrismaClient();
@@ -311,19 +312,7 @@ export async function POST(request: NextRequest) {
     // Validate stock availability BEFORE creating order
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       for (const item of orderItems) {
-        // Calculate total pieces for MOQ validation
-        const packageQuantity = item.packageQuantity || 1;
-        
-        // Use the new variant validation service with order quantity for MOQ validation
-        const variantValidation = await validateVariant(String(item.productId || ''), item.variantId, packageQuantity);
-        
-        if (!variantValidation.isValid) {
-          return NextResponse.json(
-            { error: variantValidation.error },
-            { status: 404, headers }
-          );
-        }
-        
+        // Get the variant first to calculate total pieces for MOQ validation
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') },
           include: { variants: true }
@@ -332,6 +321,20 @@ export async function POST(request: NextRequest) {
         if (!product) {
           return NextResponse.json(
             { error: `Product not found: ${item.productId}` },
+            { status: 404, headers }
+          );
+        }
+        
+        const variant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
+        const packageQuantity = item.packageQuantity || 1;
+        const totalPieces = packageQuantity * (variant.piecesPerPackage || 1);
+        
+        // Use the new variant validation service with correct quantities for MOQ validation
+        const variantValidation = await validateVariant(String(item.productId || ''), item.variantId, totalPieces, packageQuantity);
+        
+        if (!variantValidation.isValid) {
+          return NextResponse.json(
+            { error: variantValidation.error },
             { status: 404, headers }
           );
         }
