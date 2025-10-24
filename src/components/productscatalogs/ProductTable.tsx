@@ -1046,7 +1046,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                   const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                   if (originalPrice > currentPrice && originalPrice > 0) {
                                     const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                                    return `-${discountPercent}%`;
+                                    return `${discountPercent}% OFF`;
                                   }
                                 }
                                 return 'Discount';
@@ -1073,7 +1073,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                 const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                 if (originalPrice > currentPrice && originalPrice > 0) {
                                   const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                                  return `-${discountPercent}%`;
+                                  return `${discountPercent}% OFF`;
                                 }
                               }
                               return 'Discount';
@@ -1260,7 +1260,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                                 return `-${discountPercent}%`;
+                                 return `${discountPercent}% OFF`;
                                }
                              }
                              return 'Discount';
@@ -1287,7 +1287,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                               return `-${discountPercent}%`;
+                               return `${discountPercent}% OFF`;
                              }
                            }
                            return 'Discount';
@@ -1533,7 +1533,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                                 return `-${discountPercent}%`;
+                                 return `${discountPercent}% OFF`;
                                }
                              }
                              return 'Discount';
@@ -1559,7 +1559,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                               return `-${discountPercent}%`;
+                               return `${discountPercent}% OFF`;
                              }
                            }
                            return 'Discount';

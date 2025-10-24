@@ -356,7 +356,7 @@ export default function ProductMarketplacePubs({
                   {formatCurrency(20000, userCurrency)}
                 </span>
                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded">
-                  -25%
+                  25% OFF
                 </span>
               </div>
               
