@@ -574,12 +574,33 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           const discountType = offer.offerDiscountTypes[0];
           
           if (discountType) {
-            if (discountType.discountType === 'percentage') {
-              finalPrice = originalPrice * (1 - discountType.discountValue / 100);
-              hasOffer = true;
-            } else if (discountType.discountType === 'fixed') {
-              finalPrice = Math.max(0, originalPrice - discountType.discountValue);
-              hasOffer = true;
+            // Check if the discount type has reached its usage limit
+            let isDiscountTypeUsable = true;
+            
+            if (discountType.maxUsage && discountType.maxUsage > 0) {
+              const totalUsage = await tx.offerUsageTracking.aggregate({
+                where: {
+                  offerId: offer.id,
+                  discountTypeId: discountType.id
+                },
+                _count: {
+                  id: true
+                }
+              });
+              
+              if (totalUsage._count.id >= discountType.maxUsage) {
+                isDiscountTypeUsable = false;
+              }
+            }
+            
+            if (isDiscountTypeUsable) {
+              if (discountType.discountType === 'percentage') {
+                finalPrice = originalPrice * (1 - discountType.discountValue / 100);
+                hasOffer = true;
+              } else if (discountType.discountType === 'fixed') {
+                finalPrice = Math.max(0, originalPrice - discountType.discountValue);
+                hasOffer = true;
+              }
             }
           }
         }
@@ -595,7 +616,6 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       }
     }
   } catch (error) {
-    console.error('Error updating product prices from offers:', error);
   }
 }
 
@@ -633,13 +653,9 @@ async function resetProductPricesFromOffers(tx: Prisma.TransactionClient, userId
       activeOffers.flatMap((offer: { offerProducts: { productId: string }[] }) => offer.offerProducts.map((op: { productId: string }) => op.productId))
     );
 
-    // Reset prices for products that no longer have active offers
+    // Reset ALL products with originalSellingPrice set, regardless of active offers
+    // This ensures that when offers are reactivated, we start with a clean slate
     for (const product of productsWithOriginalPrices) {
-      // Skip if product still has active offers
-      if (productsWithActiveOffers.has(product.productId)) {
-        continue;
-      }
-
       for (const variant of product.variants) {
         if (variant.originalSellingPrice) {
           // Reset selling price to original price and clear originalSellingPrice

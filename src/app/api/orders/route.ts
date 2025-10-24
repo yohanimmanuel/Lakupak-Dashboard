@@ -13,134 +13,7 @@ import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsiste
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage } from '@/utils/offerValidation';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 // Import the function from the offers API
-async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
-  // This function will be implemented inline to avoid circular imports
-  try {
-    // Get all products for this user
-    const allProducts = await tx.product.findMany({
-      where: { userId: userId },
-      select: {
-        productId: true,
-        sellingPrice: true,
-        originalSellingPrice: true
-      }
-    });
-
-    // Get all active offers for this user
-    const allOffers = await tx.offer.findMany({
-      where: {
-        status: 'active',
-        userId: userId,
-        startDate: { lte: new Date() },
-        endDate: { gte: new Date() }
-      },
-      include: {
-        offerProducts: {
-          include: {
-            product: {
-              select: {
-                productId: true,
-                sellingPrice: true,
-                originalSellingPrice: true
-              }
-            }
-          }
-        },
-        offerDiscountTypes: {
-          where: {
-            isActive: true,
-            discountType: { in: ['percentage', 'fixed'] }
-          }
-        }
-      }
-    });
-
-    // Process each offer and update product prices
-    for (const offer of allOffers) {
-      // Only process offers that are currently active
-      if (offer.status !== 'active') {
-        continue;
-      }
-
-      // Check if this offer has any active discount types that can apply price discounts
-      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive: boolean; discountType: string }) => 
-        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
-      );
-      
-      // If no active price discount types, skip this offer for price calculation
-      if (activePriceDiscountTypes.length === 0) {
-        continue;
-      }
-
-      for (const offerProduct of offer.offerProducts) {
-        const productId = offerProduct.product.productId;
-        const product = offerProduct.product;
-        
-        // Calculate the best discount for this product
-        let bestDiscount = { price: parseNumberByCurrency(String(product.sellingPrice), 'IDR'), offerName: offer.name };
-        
-        for (const discountType of activePriceDiscountTypes) {
-          const originalPrice = product.originalSellingPrice ? 
-            parseNumberByCurrency(String(product.originalSellingPrice), 'IDR') : 
-            parseNumberByCurrency(String(product.sellingPrice), 'IDR');
-          
-          let discountedPrice = originalPrice;
-          
-          if (discountType.discountType === 'percentage') {
-            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
-          } else if (discountType.discountType === 'fixed') {
-            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
-          }
-          
-          if (discountedPrice < bestDiscount.price) {
-            bestDiscount = { price: discountedPrice, offerName: offer.name };
-          }
-        }
-        
-        // Update product price if we found a better discount
-        if (bestDiscount.price < parseNumberByCurrency(String(product.sellingPrice), 'IDR')) {
-          await tx.product.update({
-            where: { productId: productId },
-            data: { 
-              sellingPrice: bestDiscount.price.toString(),
-              originalSellingPrice: product.originalSellingPrice || product.sellingPrice
-            }
-          });
-        }
-      }
-    }
-
-    // Restore original prices for products that should not have active discounts
-    const productIdsWithActiveDiscounts = new Set();
-    for (const offer of allOffers) {
-      if (offer.status === 'active' && offer.offerDiscountTypes.length > 0) {
-        for (const offerProduct of offer.offerProducts) {
-          productIdsWithActiveDiscounts.add(offerProduct.product.productId);
-        }
-      }
-    }
-    
-    for (const product of allProducts) {
-      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
-      
-      if (!shouldHaveDiscount) {
-        // This product should NOT have a discount - restore original price
-        if (product.originalSellingPrice) {
-          await tx.product.update({
-            where: { productId: product.productId },
-            data: { 
-              sellingPrice: product.originalSellingPrice,
-              originalSellingPrice: null
-            }
-          });
-        }
-      }
-    }
-    
-  } catch (error) {
-    // Error handled silently
-  }
-}
+// Price updates are now handled by the offers API - no longer needed here
 import { Order } from '@/generated/prisma';
 
 interface OfferDiscountType {
@@ -560,26 +433,36 @@ export async function POST(request: NextRequest) {
         await prisma.$transaction(async (tx) => {
           // Process all order items
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-            // Fetch the product
+            // Fetch the product with variants
             const product = await tx.product.findFirst({
-              where: { productId: String(item.productId) }
+              where: { productId: String(item.productId) },
+              include: { variants: true }
             });
             
             if (!product) {
               throw new Error(`Product not found: ${item.productId}. Cannot create OrderItem without valid product.`);
             }
             
-            // Calculate package-based pricing
-            let consistentUnitPrice = typeof product.sellingPrice === 'string' 
-              ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-              : product.sellingPrice || 0;
+            // Get the specific variant (use first variant as default, or find by variantId if provided)
+            const variant = item.variantId ? 
+              product.variants.find(v => v.id === item.variantId) || product.variants[0] :
+              product.variants[0];
             
-            // Handle IDR format where dots are thousands separators
-            if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
-              consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+            if (!variant) {
+              throw new Error(`No variants found for product: ${item.productId}.`);
             }
             
-            const piecesPerPackage = product.piecesPerPackage || 1;
+            // Calculate package-based pricing from variant
+            let consistentUnitPrice = typeof variant.sellingPrice === 'string' 
+              ? parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+              : variant.sellingPrice || 0;
+            
+            // Handle IDR format where dots are thousands separators
+            if (typeof variant.sellingPrice === 'string' && variant.sellingPrice.includes('.')) {
+              consistentUnitPrice = parseInt(variant.sellingPrice.replace(/[^\d]/g, '')) || 0;
+            }
+            
+            const piecesPerPackage = variant.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             const pricePerPackage = consistentUnitPrice * piecesPerPackage;
             const consistentSubtotal = packageQuantity * pricePerPackage;
@@ -591,7 +474,8 @@ export async function POST(request: NextRequest) {
               totalAmountCalc,
               packageQuantity * piecesPerPackage,
               tx,
-              packageQuantity // Pass package quantity for buy_x_get_y calculations
+              packageQuantity, // Pass package quantity for buy_x_get_y calculations
+              variant // Pass variant for accurate pricing
             );
             
             
@@ -618,10 +502,10 @@ export async function POST(request: NextRequest) {
               orderId: sanitizedData.orderId as string,
               productId: item.productId as string,
               subtotal: consistentSubtotal,
-              packageType: item.packageType || product.packageType || null,
-              piecesPerPackage: item.piecesPerPackage || product.piecesPerPackage || 1,
+              packageType: item.packageType || variant.packageType || null,
+              piecesPerPackage: item.piecesPerPackage || variant.piecesPerPackage || 1,
               packageQuantity: item.packageQuantity || 1,
-              pricePerPackage: item.pricePerPackage || (product.piecesPerPackage ? consistentUnitPrice * product.piecesPerPackage : null),
+              pricePerPackage: item.pricePerPackage || (variant.piecesPerPackage ? consistentUnitPrice * variant.piecesPerPackage : null),
               productNameSnapshot: product.name,
               productSkuSnapshot: product.sku,
               productTypeSnapshot: product.productType,
@@ -669,8 +553,7 @@ export async function POST(request: NextRequest) {
           await Promise.all(orderItemPromises);
           
           // Update product prices after all offer usage tracking is complete
-          // This ensures prices are recalculated when offers reach their limits
-          await updateProductPricesFromOffers(tx, sanitizedData.userId as number);
+          // Price updates are now handled by the offers API
         });
         
       } catch (orderItemError) {
@@ -1143,26 +1026,41 @@ export async function PUT(request: NextRequest) {
               }
             }
             
-            // Restore stock
-            const newStock = product.stockQuantity + totalQtyToRestore;
-            let newStockStatus = product.stockStatus;
+            // Get the product first to get its ID
+            const productForRestore = await prisma.product.findFirst({
+              where: { productId: orderItem.productId || '' }
+            });
             
-            // Update stock status based on threshold
-            if (newStock <= 0) {
-              newStockStatus = 'Out of Stock';
-            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
-              newStockStatus = 'Low Stock';
-            } else {
-              newStockStatus = 'In Stock';
+            if (!productForRestore) {
+              continue; // Skip if product not found
             }
             
-            await prisma.product.update({
-              where: { productId: orderItem.productId },
-              data: {
-                stockQuantity: newStock,
-                stockStatus: newStockStatus
-              }
+            // Restore stock for all variants of this product
+            const productVariants = await prisma.productVariant.findMany({
+              where: { productId: productForRestore.id }
             });
+            
+            for (const variant of productVariants) {
+              const newStock = variant.stockQuantity + totalQtyToRestore;
+              let newStockStatus = variant.stockStatus;
+              
+              // Update stock status based on threshold
+              if (newStock <= 0) {
+                newStockStatus = 'Out of Stock';
+              } else if (variant.lowStockThreshold && newStock <= variant.lowStockThreshold) {
+                newStockStatus = 'Low Stock';
+              } else {
+                newStockStatus = 'In Stock';
+              }
+              
+              await prisma.productVariant.update({
+                where: { id: variant.id },
+                data: {
+                  stockQuantity: newStock,
+                  stockStatus: newStockStatus
+                }
+              });
+            }
           }
         }
         
@@ -1197,26 +1095,41 @@ export async function PUT(request: NextRequest) {
               }
             }
             
-            // Deduct stock
-            const newStock = product.stockQuantity - totalQtyToDeduct;
-            let newStockStatus = product.stockStatus;
+            // Get the product first to get its ID
+            const productForDeduct = await prisma.product.findFirst({
+              where: { productId: orderItem.productId || '' }
+            });
             
-            // Update stock status based on threshold
-            if (newStock <= 0) {
-              newStockStatus = 'Out of Stock';
-            } else if (product.lowStockThreshold && newStock <= product.lowStockThreshold) {
-              newStockStatus = 'Low Stock';
-            } else {
-              newStockStatus = 'In Stock';
+            if (!productForDeduct) {
+              continue; // Skip if product not found
             }
             
-            await prisma.product.update({
-              where: { productId: orderItem.productId },
-              data: {
-                stockQuantity: Math.max(0, newStock),
-                stockStatus: newStockStatus
-              }
+            // Deduct stock for all variants of this product
+            const productVariants = await prisma.productVariant.findMany({
+              where: { productId: productForDeduct.id }
             });
+            
+            for (const variant of productVariants) {
+              const newStock = variant.stockQuantity - totalQtyToDeduct;
+              let newStockStatus = variant.stockStatus;
+              
+              // Update stock status based on threshold
+              if (newStock <= 0) {
+                newStockStatus = 'Out of Stock';
+              } else if (variant.lowStockThreshold && newStock <= variant.lowStockThreshold) {
+                newStockStatus = 'Low Stock';
+              } else {
+                newStockStatus = 'In Stock';
+              }
+              
+              await prisma.productVariant.update({
+                where: { id: variant.id },
+                data: {
+                  stockQuantity: Math.max(0, newStock),
+                  stockStatus: newStockStatus
+                }
+              });
+            }
           }
         }
       }
@@ -1242,25 +1155,31 @@ export async function PUT(request: NextRequest) {
       
       // Create new OrderItem records with price consistency
       const orderItemPromises = (sanitizedData.orderItems as Array<{ productId: string; quantity: number }>).map(async (item: { productId: string; quantity: number }) => {
-        // Fetch the product to ensure price consistency
+        // Fetch the product with variants to ensure price consistency
         const product = await prisma.product.findFirst({
-          where: { productId: item.productId }
+          where: { productId: item.productId },
+          include: { variants: true }
         });
         
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`);
         }
         
-        // Use the product's sellingPrice as the unitPrice to ensure consistency
+        // Use the first variant's sellingPrice as the unitPrice to ensure consistency
+        const firstVariant = product.variants[0];
+        if (!firstVariant) {
+          throw new Error(`No variants found for product: ${item.productId}`);
+        }
+        
         // Parse sellingPrice correctly handling IDR format with dots as thousands separators
-        let consistentUnitPrice = typeof product.sellingPrice === 'string' 
-          ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : product.sellingPrice || 0;
+        let consistentUnitPrice = typeof firstVariant.sellingPrice === 'string' 
+          ? parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : firstVariant.sellingPrice || 0;
         
         // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-        if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
+        if (typeof firstVariant.sellingPrice === 'string' && firstVariant.sellingPrice.includes('.')) {
           // Remove dots and parse as integer (dots are thousands separators in IDR)
-          consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+          consistentUnitPrice = parseInt(firstVariant.sellingPrice.replace(/[^\d]/g, '')) || 0;
         }
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         

@@ -194,13 +194,16 @@ export async function GET(request: NextRequest) {
     
     // Transform products for marketplace format
     const marketplaceProducts = await Promise.all(products.map(async (product) => {
-      // Get the first variant (default variant) for pricing and stock info
-      const firstVariant = product.variants?.[0];
+      // Get all variants for the product
+      const variants = product.variants || [];
       
-      if (!firstVariant) {
+      if (variants.length === 0) {
         // Skip products without variants
         return null;
       }
+      
+      // Get the first variant (default variant) for main pricing and stock info
+      const firstVariant = variants[0];
       
       // Convert price strings to numbers, handling IDR format with dots as thousands separators
       let sellingPrice = typeof firstVariant.sellingPrice === 'string' 
@@ -422,6 +425,7 @@ export async function GET(request: NextRequest) {
         stockStatus: firstVariant.stockStatus || 'In Stock',
         images: product.images || [],
         category: product.productType || 'Uncategorized',
+        productCategory: product.productCategory || 'Uncategorized',
         brand: product.brand,
         unit: firstVariant.packageType || 'pcs',
         packageType: firstVariant.packageType || 'pcs',
@@ -497,7 +501,30 @@ export async function GET(request: NextRequest) {
       sku: product.sku,
       supplier: product.supplier,
       publishedAt: product.publishedAt,
-      lastSyncAt: product.lastSyncAt
+      lastSyncAt: product.lastSyncAt,
+      // Include all variants for variant selection
+      variants: variants.map(variant => ({
+        id: variant.id,
+        variantName: variant.variantName,
+        packageType: variant.packageType,
+        piecesPerPackage: variant.piecesPerPackage,
+        stockQuantity: variant.stockQuantity,
+        lowStockThreshold: variant.lowStockThreshold,
+        stockStatus: variant.stockStatus,
+        purchasePrice: typeof variant.purchasePrice === 'string' 
+          ? parseFloat(variant.purchasePrice.replace(/[^\d.-]/g, '')) || 0
+          : variant.purchasePrice || 0,
+        sellingPrice: typeof variant.sellingPrice === 'string' 
+          ? parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
+          : variant.sellingPrice || 0,
+        originalSellingPrice: variant.originalSellingPrice ? 
+          (typeof variant.originalSellingPrice === 'string' 
+            ? parseFloat(variant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
+            : variant.originalSellingPrice) 
+          : null,
+        isDefault: variant.isDefault,
+        isActive: variant.isActive
+      }))
       };
     }));
     

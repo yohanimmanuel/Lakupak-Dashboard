@@ -63,6 +63,8 @@ export interface OrderItem {
   piecesPerPackage?: number;
   packageQuantity?: number;
   pricePerPackage?: number;
+  // Variant information
+  variantId?: number;
   // augmented fields for deleted product handling
   productDeleted?: boolean;
   productNameSnapshot?: string;

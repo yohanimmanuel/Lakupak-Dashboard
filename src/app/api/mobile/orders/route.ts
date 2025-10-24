@@ -7,127 +7,7 @@ import {
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes } from '../../../../utils/offerValidation';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 // Inline function to avoid circular imports
-async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
-  try {
-    // Get all products for this user
-    const allProducts = await tx.product.findMany({
-      where: { userId: userId },
-      select: {
-        productId: true,
-        sellingPrice: true,
-        originalSellingPrice: true
-      }
-    });
-
-    // Get all active offers for this user
-    const allOffers = await tx.offer.findMany({
-      where: {
-        status: 'active',
-        userId: userId,
-        startDate: { lte: new Date() },
-        endDate: { gte: new Date() }
-      },
-      include: {
-        offerProducts: {
-          include: {
-            product: {
-              select: {
-                productId: true,
-                sellingPrice: true,
-                originalSellingPrice: true
-              }
-            }
-          }
-        },
-        offerDiscountTypes: {
-          where: {
-            isActive: true,
-            discountType: { in: ['percentage', 'fixed'] }
-          }
-        }
-      }
-    });
-
-    // Process each offer and update product prices
-    for (const offer of allOffers) {
-      if (offer.status !== 'active') {
-        continue;
-      }
-
-      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive: boolean; discountType: string }) => 
-        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
-      );
-      
-      if (activePriceDiscountTypes.length === 0) {
-        continue;
-      }
-
-      for (const offerProduct of offer.offerProducts) {
-        const productId = offerProduct.product.productId;
-        const product = offerProduct.product;
-        
-        let bestDiscount = { price: parseNumberByCurrency(String(product.sellingPrice), 'IDR'), offerName: offer.name };
-        
-        for (const discountType of activePriceDiscountTypes) {
-          const originalPrice = product.originalSellingPrice ? 
-            parseNumberByCurrency(String(product.originalSellingPrice), 'IDR') : 
-            parseNumberByCurrency(String(product.sellingPrice), 'IDR');
-          
-          let discountedPrice = originalPrice;
-          
-          if (discountType.discountType === 'percentage') {
-            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
-          } else if (discountType.discountType === 'fixed') {
-            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
-          }
-          
-          if (discountedPrice < bestDiscount.price) {
-            bestDiscount = { price: discountedPrice, offerName: offer.name };
-          }
-        }
-        
-        if (bestDiscount.price < parseNumberByCurrency(String(product.sellingPrice), 'IDR')) {
-          await tx.product.update({
-            where: { productId: productId },
-            data: { 
-              sellingPrice: bestDiscount.price.toString(),
-              originalSellingPrice: product.originalSellingPrice || product.sellingPrice
-            }
-          });
-        }
-      }
-    }
-
-    // Restore original prices for products that should not have active discounts
-    const productIdsWithActiveDiscounts = new Set();
-    for (const offer of allOffers) {
-      if (offer.status === 'active' && offer.offerDiscountTypes.length > 0) {
-        for (const offerProduct of offer.offerProducts) {
-          productIdsWithActiveDiscounts.add(offerProduct.product.productId);
-        }
-      }
-    }
-    
-    for (const product of allProducts) {
-      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
-      
-      if (!shouldHaveDiscount) {
-        if (product.originalSellingPrice) {
-          await tx.product.update({
-            where: { productId: product.productId },
-            data: { 
-              sellingPrice: product.originalSellingPrice,
-              originalSellingPrice: null
-            }
-          });
-        }
-      }
-    }
-    
-  } catch (error) {
-    // Error handled silently
-  }
-}
+// Price updates are now handled by the offers API - no longer needed here
 
 interface OfferDiscountType {
   id: string;
@@ -151,6 +31,7 @@ interface OrderItemInput {
   productName?: string;
   productSku?: string;
   category?: string;
+  variantId?: number; // Add variant ID for variant-specific orders
 }
 
 const prisma = new PrismaClient();
@@ -429,7 +310,8 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       for (const item of orderItems) {
         const product = await prisma.product.findFirst({
-          where: { productId: String(item.productId || '') }
+          where: { productId: String(item.productId || '') },
+          include: { variants: true }
         });
         
         if (!product) {
@@ -477,11 +359,19 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // Check if sufficient stock
-        if (product.stockQuantity < totalQtyNeeded) {
+        // Check if sufficient stock (using first variant as default)
+        const firstVariant = product.variants[0];
+        if (!firstVariant) {
+          return NextResponse.json(
+            { error: `No variants found for product: ${product.name}` },
+            { status: 400, headers }
+          );
+        }
+        
+        if (firstVariant.stockQuantity < totalQtyNeeded) {
           return NextResponse.json(
             { 
-              error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+              error: `Insufficient stock for ${product.name}. Available: ${firstVariant.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
             },
             { status: 400, headers }
           );
@@ -529,13 +419,23 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       await prisma.$transaction(async (tx) => {
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-          // Fetch product
+          // Fetch product with variants
           const product = await tx.product.findFirst({
-            where: { productId: String(item.productId || '') }
+            where: { productId: String(item.productId || '') },
+            include: { variants: true }
           });
           
           if (!product) {
             throw new Error(`Product not found: ${item.productId}`);
+          }
+          
+          // Get the specific variant (use first variant as default, or find by variantId if provided)
+          const variant = item.variantId ? 
+            product.variants.find(v => v.id === item.variantId) || product.variants[0] :
+            product.variants[0];
+          
+          if (!variant) {
+            throw new Error(`No variants found for product: ${item.productId}.`);
           }
           
           // Calculate total amount and quantity for validation
@@ -551,7 +451,8 @@ export async function POST(request: NextRequest) {
             orderTotal,
             totalQuantity,
             tx,
-            packageQuantity // Pass package quantity for buy_x_get_y calculations
+            packageQuantity, // Pass package quantity for buy_x_get_y calculations
+            variant // Pass variant for accurate pricing
           );
           
           // Initialize order item data
@@ -620,8 +521,7 @@ export async function POST(request: NextRequest) {
         await Promise.all(orderItemPromises);
         
         // Update product prices after all offer usage tracking is complete
-        // This ensures prices are recalculated when offers reach their limits
-        await updateProductPricesFromOffers(tx, distributorUserId);
+          // Price updates are now handled by the offers API
       });
     }
     

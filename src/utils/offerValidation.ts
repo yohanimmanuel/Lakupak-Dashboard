@@ -63,7 +63,8 @@ export async function validateOfferForProduct(
   orderTotal: number,
   orderQuantity: number,
   tx: Prisma.TransactionClient,
-  packageQuantity?: number // Add package quantity for buy_x_get_y calculations
+  packageQuantity?: number, // Add package quantity for buy_x_get_y calculations
+  variant?: { sellingPrice: string; originalSellingPrice?: string | null } // Add variant parameter
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
@@ -105,7 +106,11 @@ export async function validateOfferForProduct(
     // Get the first (highest priority) offer
     const offer = activeOffers[0];
     const product = offer.offerProducts[0].product;
-    const originalPrice = parseFloat(product.originalSellingPrice || product.sellingPrice);
+    
+    // Use variant price if provided, otherwise fallback to product price
+    const originalPrice = variant ? 
+      parseFloat(variant.originalSellingPrice || variant.sellingPrice) :
+      parseFloat(product.originalSellingPrice || product.sellingPrice);
 
     // Try each discount type in priority order and collect all applicable discounts/promotions
     let bestDiscountAmount = 0;
@@ -548,6 +553,9 @@ export async function trackOfferUsage(
               data: { status: 'inactive' }
             });
           }
+          
+          // Update product prices after deactivation
+          await updateProductPricesAfterOfferDeactivation(tx, offerId);
         }
       }
     }
@@ -728,5 +736,56 @@ export async function validateOffersForCart(
   }
 
   return results;
+}
+
+/**
+ * Update product prices after offer deactivation
+ * This function resets product prices to their original values when offers are deactivated
+ */
+async function updateProductPricesAfterOfferDeactivation(
+  tx: Prisma.TransactionClient, 
+  offerId: string
+): Promise<void> {
+  try {
+    // Get the offer to find the userId
+    const offer = await tx.offer.findUnique({
+      where: { id: offerId },
+      select: { userId: true }
+    });
+
+    if (!offer) return;
+
+    // Get all products with originalSellingPrice set (indicating they had discounts)
+    const productsWithOriginalPrices = await tx.product.findMany({
+      where: {
+        userId: offer.userId,
+        variants: {
+          some: {
+            originalSellingPrice: {
+              not: null
+            }
+          }
+        }
+      },
+      include: { variants: true }
+    });
+
+    // Reset prices for all variants
+    for (const product of productsWithOriginalPrices) {
+      for (const variant of product.variants) {
+        if (variant.originalSellingPrice) {
+          await tx.productVariant.update({
+            where: { id: variant.id },
+            data: {
+              sellingPrice: variant.originalSellingPrice,
+              originalSellingPrice: null
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    // Error handled silently - don't fail the order
+  }
 }
 
