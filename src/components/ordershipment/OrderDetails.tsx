@@ -588,7 +588,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <th className="text-left py-2 font-medium uppercase">Description</th>
                     <th className="text-left py-2 font-medium uppercase">Pckg Type</th>
                     <th className="text-left py-2 font-medium uppercase">Pcs/Pckg</th>
-                    <th className="text-left py-2 font-medium uppercase">Qty of Pckg</th>
+                    <th className="text-left py-2 font-medium uppercase">Qty</th>
                     <th className="text-left py-2 font-medium uppercase">Price/Pckg</th>
                     <th className="text-right py-2 font-medium uppercase">Total Amount</th>
                     </tr>

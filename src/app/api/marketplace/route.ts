@@ -420,7 +420,7 @@ export async function GET(request: NextRequest) {
         promotionDetails,
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
-         soldCount: "0", // Will be calculated from actual orders
+         soldCount: await calculateSoldCount(product.productId), // Calculate from actual orders
         stock: firstVariant.stockQuantity,
         stockStatus: firstVariant.stockStatus || 'In Stock',
         images: product.images || [],
@@ -814,5 +814,50 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     
   } catch (error) {
     // Error handled silently
+  }
+}
+
+/**
+ * Calculate sold count for a product by counting total pieces sold
+ * This includes both piece variants and package variants converted to pieces
+ */
+async function calculateSoldCount(productId: string): Promise<string> {
+  try {
+    // Get all order items for this product that are not cancelled/returned
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        productId: productId,
+        order: {
+          orderStatus: {
+            notIn: ['Cancelled', 'Returned', 'Refunded']
+          }
+        }
+      },
+      select: {
+        packageQuantity: true,
+        piecesPerPackage: true
+      }
+    });
+
+    // Calculate total pieces sold
+    let totalPiecesSold = 0;
+    
+    for (const item of orderItems) {
+      // Calculate pieces sold based on packageQuantity and piecesPerPackage
+      if (item.packageQuantity && item.piecesPerPackage) {
+        // Both package and piece variants use this calculation
+        // Package variant: packageQuantity * piecesPerPackage (e.g., 3 cartons * 20 pieces = 60 pieces)
+        // Piece variant: packageQuantity * piecesPerPackage (e.g., 5 pieces * 1 piece = 5 pieces)
+        totalPiecesSold += item.packageQuantity * item.piecesPerPackage;
+      } else {
+        // Fallback: if no packageQuantity, assume 1 piece
+        totalPiecesSold += 1;
+      }
+    }
+
+    return totalPiecesSold.toString();
+  } catch (error) {
+    // Return "0" if calculation fails
+    return "0";
   }
 }
