@@ -492,6 +492,7 @@ export async function GET(request: NextRequest) {
         purchasePrice: safeParsePrice(variant.purchasePrice),
         sellingPrice: parseVariantPrice(variant),
         originalSellingPrice: parseVariantOriginalPrice(variant),
+        moq: variant.moq,
         isDefault: variant.isDefault,
         isActive: variant.isActive
       }))

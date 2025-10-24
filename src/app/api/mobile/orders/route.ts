@@ -311,8 +311,11 @@ export async function POST(request: NextRequest) {
     // Validate stock availability BEFORE creating order
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       for (const item of orderItems) {
-        // Use the new variant validation service
-        const variantValidation = await validateVariant(String(item.productId || ''), item.variantId);
+        // Calculate total pieces for MOQ validation
+        const packageQuantity = item.packageQuantity || 1;
+        
+        // Use the new variant validation service with order quantity for MOQ validation
+        const variantValidation = await validateVariant(String(item.productId || ''), item.variantId, packageQuantity);
         
         if (!variantValidation.isValid) {
           return NextResponse.json(

@@ -11,10 +11,12 @@ export interface VariantValidationResult {
 
 /**
  * Validate if a variant exists and is active for a product
+ * Also validates MOQ (Minimum Order Quantity) for single piece variants
  */
 export const validateVariant = async (
   productId: string, 
-  variantId?: number
+  variantId?: number,
+  orderQuantity?: number
 ): Promise<VariantValidationResult> => {
   try {
     // Get the product with its variants
@@ -56,6 +58,16 @@ export const validateVariant = async (
         isValid: false,
         error: `Variant ${targetVariant.variantName} is not active`
       };
+    }
+
+    // Validate MOQ for single piece variants
+    if (targetVariant.variantName === 'Single Piece' && targetVariant.moq && orderQuantity) {
+      if (orderQuantity < targetVariant.moq) {
+        return {
+          isValid: false,
+          error: `Minimum order quantity for single pieces is ${targetVariant.moq}. You ordered ${orderQuantity} pieces.`
+        };
+      }
     }
 
     return {

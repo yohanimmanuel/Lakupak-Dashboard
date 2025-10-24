@@ -565,6 +565,7 @@ export async function POST(req: NextRequest) {
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
+            moq?: number;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
@@ -577,6 +578,7 @@ export async function POST(req: NextRequest) {
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                  originalSellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                 moq: variant.moq,
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
           }))
@@ -853,6 +855,7 @@ export async function PUT(req: NextRequest) {
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
+            moq?: number;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
@@ -865,6 +868,7 @@ export async function PUT(req: NextRequest) {
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                  originalSellingPrice: variant.originalSellingPrice,
+                 moq: variant.moq,
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
               }))
@@ -893,6 +897,7 @@ export async function PUT(req: NextRequest) {
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
+            moq?: number;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
@@ -905,6 +910,7 @@ export async function PUT(req: NextRequest) {
                  purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
                  sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                  originalSellingPrice: variant.originalSellingPrice,
+                 moq: variant.moq,
                  isDefault: variant.isDefault || false,
                  isActive: variant.isActive !== false
               }))

@@ -71,6 +71,7 @@ export default function ProductCatalog({
     purchasePrice: string;
     sellingPrice: string;
     originalSellingPrice?: string;
+    moq?: number; // Minimum Order Quantity - only for single piece variants
     isDefault: boolean;
     isActive: boolean;
   }>>([]);
@@ -90,6 +91,7 @@ export default function ProductCatalog({
           purchasePrice: variant.purchasePrice,
           sellingPrice: variant.sellingPrice,
           originalSellingPrice: variant.originalSellingPrice,
+          moq: variant.moq,
           isDefault: variant.isDefault,
           isActive: variant.isActive
         })));
@@ -106,6 +108,7 @@ export default function ProductCatalog({
         purchasePrice: '',
         sellingPrice: '',
         originalSellingPrice: '',
+        moq: undefined, // MOQ will be set by user
         isDefault: true,
         isActive: true
       }]);
@@ -306,6 +309,7 @@ export default function ProductCatalog({
       purchasePrice: '',
       sellingPrice: '',
       originalSellingPrice: '',
+      moq: undefined, // MOQ only for single piece variants
       isDefault: false,
       isActive: true
     };
@@ -319,15 +323,15 @@ export default function ProductCatalog({
     }
   };
 
-  const updateVariant = (variantId: string, field: string, value: string | number | boolean) => {
+  const updateVariant = (variantId: string, field: string, value: string | number | boolean | undefined) => {
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         const updatedVariant = { ...variant, [field]: value };
         
         // Auto-calculate stock status for stock-related fields
         if (field === 'stockQuantity' || field === 'lowStockThreshold') {
-          const stockQty = field === 'stockQuantity' ? value : updatedVariant.stockQuantity;
-          const threshold = field === 'lowStockThreshold' ? value : updatedVariant.lowStockThreshold;
+          const stockQty = field === 'stockQuantity' ? (value as number) : updatedVariant.stockQuantity;
+          const threshold = field === 'lowStockThreshold' ? (value as number) : updatedVariant.lowStockThreshold;
           
           if (stockQty === 0) {
             updatedVariant.stockStatus = 'Out of Stock';
@@ -579,6 +583,7 @@ export default function ProductCatalog({
           purchasePrice: variant.purchasePrice,
           sellingPrice: variant.sellingPrice,
           originalSellingPrice: variant.originalSellingPrice,
+          moq: variant.moq,
           isDefault: variant.isDefault,
           isActive: variant.isActive
         }))
@@ -1643,6 +1648,32 @@ export default function ProductCatalog({
                             <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
                           </div>
                         </div>
+
+                        {/* MOQ Field - Only for Single Piece variant (first variant) */}
+                        {variant.variantName === 'Single Piece' && (
+                          <div className="mt-4">
+                            <div className="max-w-xs">
+                              <label className="block text-xs font-medium text-gray-700 mb-2">
+                                Minimum Order Quantity (MOQ)
+                              </label>
+                              <input
+                                type="number"
+                                value={variant.moq || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
+                                }}
+                                disabled={isViewMode}
+                                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder="e.g., 10"
+                                min="1"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Minimum quantity buyers must order for single pieces
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -434,8 +434,11 @@ export async function POST(request: NextRequest) {
           
           // Process all order items
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-            // Validate variant using the new service
-            const variantValidation = await validateVariant(String(item.productId), item.variantId);
+            // Calculate total pieces for MOQ validation
+            const packageQuantity = item.packageQuantity || 1;
+            
+            // Validate variant using the new service with order quantity for MOQ validation
+            const variantValidation = await validateVariant(String(item.productId), item.variantId, packageQuantity);
             
             if (!variantValidation.isValid || !variantValidation.variant) {
               throw new Error(variantValidation.error);
@@ -456,7 +459,6 @@ export async function POST(request: NextRequest) {
             const consistentUnitPrice = parseVariantPrice(variant);
             
             const piecesPerPackage = variant.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
             const pricePerPackage = consistentUnitPrice * piecesPerPackage;
             const consistentSubtotal = packageQuantity * pricePerPackage;
             
