@@ -4,8 +4,10 @@ import {
   getSecurityHeaders, 
   validateAuthInput 
 } from '../../../../utils/auth-security';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes } from '../../../../utils/offerValidation';
+import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '../../../../utils/offerValidation';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
+import { validateVariant, parseVariantPrice } from '../../../../services/variantService';
+import { parsePrice } from '../../../../utils/currencyUtils';
 // Inline function to avoid circular imports
 // Price updates are now handled by the offers API - no longer needed here
 
@@ -309,6 +311,16 @@ export async function POST(request: NextRequest) {
     // Validate stock availability BEFORE creating order
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       for (const item of orderItems) {
+        // Use the new variant validation service
+        const variantValidation = await validateVariant(String(item.productId || ''), item.variantId);
+        
+        if (!variantValidation.isValid) {
+          return NextResponse.json(
+            { error: variantValidation.error },
+            { status: 404, headers }
+          );
+        }
+        
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') },
           include: { variants: true }
@@ -417,7 +429,11 @@ export async function POST(request: NextRequest) {
     
     // Create order items if provided with offer validation and tracking
     if (Array.isArray(orderItems) && orderItems.length > 0) {
+      // Track used offer IDs for targeted deactivation
+      const usedOfferIds: string[] = [];
+      
       await prisma.$transaction(async (tx) => {
+        
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
           // Fetch product with variants
           const product = await tx.product.findFirst({
@@ -478,6 +494,11 @@ export async function POST(request: NextRequest) {
           
           // If offer is valid, track usage and add snapshot data
           if (offerValidation.isValid && offerValidation.offerId) {
+            // Add to used offer IDs for targeted deactivation
+            if (!usedOfferIds.includes(offerValidation.offerId)) {
+              usedOfferIds.push(offerValidation.offerId);
+            }
+            
             // Track usage for all applicable discount types
             if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
               await trackOfferUsageForAllTypes(
@@ -523,6 +544,12 @@ export async function POST(request: NextRequest) {
         // Update product prices after all offer usage tracking is complete
           // Price updates are now handled by the offers API
       });
+      
+      // Update offer statuses after all offer usage tracking is complete
+      // Only check offers that were actually used in this order
+      if (usedOfferIds.length > 0) {
+        await updateOfferStatusesBasedOnLimits(usedOfferIds);
+      }
     }
     
     // Return the created order with items

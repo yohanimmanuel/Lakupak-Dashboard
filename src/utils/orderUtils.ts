@@ -1,47 +1,11 @@
 import { Order, OrderItem } from '@/types/order';
 import { PrismaClient } from '@/generated/prisma';
+import { parsePrice } from '@/utils/currencyUtils';
 
 const prisma = new PrismaClient();
 
 // ===== CALCULATION FUNCTIONS =====
 
-// Create order item from product data with package information
-export const createOrderItemFromProduct = (
-  product: {
-    productId: string;
-    name: string;
-    productType: string;
-    sellingPrice: string | number;
-    packageType?: string;
-    piecesPerPackage?: number;
-  }, 
-  packageQuantity: number = 1
-): OrderItem => {
-  // Parse sellingPrice correctly handling IDR format with dots as thousands separators
-  let unitPrice = typeof product.sellingPrice === 'string' 
-    ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-    : product.sellingPrice || 0;
-  
-  // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-  if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
-    // Remove dots and parse as integer (dots are thousands separators in IDR)
-    unitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
-  }
-  const piecesPerPackage = product.piecesPerPackage || 1;
-  const pricePerPackage = unitPrice * piecesPerPackage;
-  const subtotal = packageQuantity * pricePerPackage;
-  
-  return {
-    productId: product.productId,
-    productName: product.name,
-    category: product.productType,
-    subtotal: subtotal,
-    packageType: product.packageType,
-    piecesPerPackage: piecesPerPackage,
-    packageQuantity: packageQuantity,
-    pricePerPackage: pricePerPackage
-  };
-};
 
 // Ensure price consistency by fetching product's sellingPrice and package info
 export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem> => {
@@ -52,50 +16,35 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     }
     
     const product = await prisma.product.findFirst({
-      where: { productId: item.productId }
+      where: { productId: item.productId },
+      include: { variants: true }
     });
     
     if (!product) {
       throw new Error(`Product not found: ${item.productId}`);
     }
     
-    // Use the product's sellingPrice as the unitPrice to ensure consistency
-    // Parse sellingPrice correctly handling IDR format with dots as thousands separators
-    let consistentUnitPrice = typeof product.sellingPrice === 'string' 
-      ? parseFloat(product.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-      : product.sellingPrice || 0;
+    // Get the first variant (or specified variant)
+    const variant = item.variantId 
+      ? product.variants.find(v => v.id === item.variantId) || product.variants[0]
+      : product.variants[0];
     
-    // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-    if (typeof product.sellingPrice === 'string' && product.sellingPrice.includes('.')) {
-      // Remove dots and parse as integer (dots are thousands separators in IDR)
-      consistentUnitPrice = parseInt(product.sellingPrice.replace(/[^\d]/g, '')) || 0;
+    if (!variant) {
+      throw new Error(`No variants found for product: ${item.productId}`);
     }
     
-    // Calculate package-based pricing if package information is available
-    if (product.packageType && product.piecesPerPackage) {
-      const pricePerPackage = consistentUnitPrice * product.piecesPerPackage;
-      const packageQuantity = item.packageQuantity || 1;
-      const consistentSubtotal = packageQuantity * pricePerPackage;
-      
-    return {
-      ...item,
-      packageType: product.packageType,
-      piecesPerPackage: product.piecesPerPackage,
-      packageQuantity: packageQuantity,
-      pricePerPackage: pricePerPackage,
-      subtotal: consistentSubtotal
-    };
-    }
+    // Use the centralized price parsing utility for consistency
+    const consistentUnitPrice = parsePrice(variant.sellingPrice);
     
-    // Fallback to package-based pricing with defaults
-    const piecesPerPackage = 1;
+    // Calculate package-based pricing
+    const piecesPerPackage = variant.piecesPerPackage || 1;
     const packageQuantity = item.packageQuantity || 1;
-    const pricePerPackage = consistentUnitPrice;
+    const pricePerPackage = consistentUnitPrice * piecesPerPackage;
     const consistentSubtotal = packageQuantity * pricePerPackage;
     
     return {
       ...item,
-      packageType: 'Package',
+      packageType: variant.packageType,
       piecesPerPackage: piecesPerPackage,
       packageQuantity: packageQuantity,
       pricePerPackage: pricePerPackage,

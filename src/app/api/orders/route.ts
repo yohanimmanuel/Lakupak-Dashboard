@@ -10,11 +10,8 @@ import {
   validateOrderAccess
 } from '@/utils/order-security';
 import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage } from '@/utils/offerValidation';
-import { parseNumberByCurrency } from '@/config/currencyConfig';
-// Import the function from the offers API
-// Price updates are now handled by the offers API - no longer needed here
-import { Order } from '@/generated/prisma';
+import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
+import { validateVariant, parseVariantPrice } from '@/services/variantService';
 
 interface OfferDiscountType {
   id: string;
@@ -429,38 +426,34 @@ export async function POST(request: NextRequest) {
     
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
       try {
+        // Track used offer IDs for targeted deactivation
+        const usedOfferIds: string[] = [];
+        
         // Use a single transaction for all offer validation, tracking, and price updates
         await prisma.$transaction(async (tx) => {
+          
           // Process all order items
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
-            // Fetch the product with variants
+            // Validate variant using the new service
+            const variantValidation = await validateVariant(String(item.productId), item.variantId);
+            
+            if (!variantValidation.isValid || !variantValidation.variant) {
+              throw new Error(variantValidation.error);
+            }
+            
+            const variant = variantValidation.variant;
+            
+            // Get the product information
             const product = await tx.product.findFirst({
-              where: { productId: String(item.productId) },
-              include: { variants: true }
+              where: { productId: String(item.productId) }
             });
             
             if (!product) {
-              throw new Error(`Product not found: ${item.productId}. Cannot create OrderItem without valid product.`);
+              throw new Error(`Product not found: ${item.productId}`);
             }
             
-            // Get the specific variant (use first variant as default, or find by variantId if provided)
-            const variant = item.variantId ? 
-              product.variants.find(v => v.id === item.variantId) || product.variants[0] :
-              product.variants[0];
-            
-            if (!variant) {
-              throw new Error(`No variants found for product: ${item.productId}.`);
-            }
-            
-            // Calculate package-based pricing from variant
-            let consistentUnitPrice = typeof variant.sellingPrice === 'string' 
-              ? parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-              : variant.sellingPrice || 0;
-            
-            // Handle IDR format where dots are thousands separators
-            if (typeof variant.sellingPrice === 'string' && variant.sellingPrice.includes('.')) {
-              consistentUnitPrice = parseInt(variant.sellingPrice.replace(/[^\d]/g, '')) || 0;
-            }
+            // Use the new price parsing utility
+            const consistentUnitPrice = parseVariantPrice(variant);
             
             const piecesPerPackage = variant.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
@@ -520,6 +513,11 @@ export async function POST(request: NextRequest) {
             
             // If offer is valid, track usage and add snapshot data
             if (offerValidation.isValid && offerValidation.offerId && offerValidation.discountTypeId) {
+              // Add to used offer IDs for targeted deactivation
+              if (!usedOfferIds.includes(offerValidation.offerId)) {
+                usedOfferIds.push(offerValidation.offerId);
+              }
+              
               // Track offer usage and update analytics
               await trackOfferUsageUtil(
                 offerValidation.offerId,
@@ -555,6 +553,12 @@ export async function POST(request: NextRequest) {
           // Update product prices after all offer usage tracking is complete
           // Price updates are now handled by the offers API
         });
+        
+        // Update offer statuses after all offer usage tracking is complete
+        // Only check offers that were actually used in this order
+        if (usedOfferIds.length > 0) {
+          await updateOfferStatusesBasedOnLimits(usedOfferIds);
+        }
         
       } catch (orderItemError) {
         // Don't throw here, just log the error and continue
@@ -1171,16 +1175,8 @@ export async function PUT(request: NextRequest) {
           throw new Error(`No variants found for product: ${item.productId}`);
         }
         
-        // Parse sellingPrice correctly handling IDR format with dots as thousands separators
-        let consistentUnitPrice = typeof firstVariant.sellingPrice === 'string' 
-          ? parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : firstVariant.sellingPrice || 0;
-        
-        // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-        if (typeof firstVariant.sellingPrice === 'string' && firstVariant.sellingPrice.includes('.')) {
-          // Remove dots and parse as integer (dots are thousands separators in IDR)
-          consistentUnitPrice = parseInt(firstVariant.sellingPrice.replace(/[^\d]/g, '')) || 0;
-        }
+        // Use the centralized price parsing utility
+        const consistentUnitPrice = parseVariantPrice(firstVariant);
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({

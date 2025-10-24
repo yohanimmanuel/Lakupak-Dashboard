@@ -8,6 +8,7 @@ import {
   generateUniqueProductId
 } from '../../../utils/product-security';
 import { parseNumberByCurrency } from '../../../config/currencyConfig';
+import { parseVariantPrice, parseVariantOriginalPrice } from '../../../services/variantService';
 
 interface OfferDiscountType {
   id: string;
@@ -702,9 +703,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
 
       for (const variant of product.variants) {
         // Get original price (if not set, use current selling price)
-        const originalPrice = variant.originalSellingPrice 
-          ? parseFloat(variant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
+        const originalPrice = parseVariantOriginalPrice(variant) || parseVariantPrice(variant);
 
         let finalPrice = originalPrice;
         let hasOffer = false;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '../../../generated/prisma';
 import { getProductSecurityHeaders } from '../../../utils/product-security';
+import { parsePrice, safeParsePrice } from '../../../utils/currencyUtils';
+import { validateVariant, parseVariantPrice, parseVariantOriginalPrice, hasVariantDiscount } from '../../../services/variantService';
 
 interface OfferDiscountType {
   id: string;
@@ -205,37 +207,13 @@ export async function GET(request: NextRequest) {
       // Get the first variant (default variant) for main pricing and stock info
       const firstVariant = variants[0];
       
-      // Convert price strings to numbers, handling IDR format with dots as thousands separators
-      let sellingPrice = typeof firstVariant.sellingPrice === 'string' 
-        ? parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-        : firstVariant.sellingPrice || 0;
+      // Use the new price parsing utilities
+      const sellingPrice = parseVariantPrice(firstVariant);
+      const purchasePrice = safeParsePrice(firstVariant.purchasePrice);
+      const originalSellingPriceValue = parseVariantOriginalPrice(firstVariant) || sellingPrice;
       
-      let purchasePrice = typeof firstVariant.purchasePrice === 'string'
-        ? parseFloat(firstVariant.purchasePrice.replace(/[^\d.-]/g, '')) || 0
-        : firstVariant.purchasePrice || 0;
-      
-      // Handle IDR format where dots are thousands separators (e.g., "550.000" = 550000)
-      if (typeof firstVariant.sellingPrice === 'string' && firstVariant.sellingPrice.includes('.')) {
-        // Remove dots and parse as integer (dots are thousands separators in IDR)
-        sellingPrice = parseInt(firstVariant.sellingPrice.replace(/[^\d]/g, '')) || 0;
-      }
-      
-      if (typeof firstVariant.purchasePrice === 'string' && firstVariant.purchasePrice.includes('.')) {
-        // Remove dots and parse as integer (dots are thousands separators in IDR)
-        purchasePrice = parseInt(firstVariant.purchasePrice.replace(/[^\d]/g, '')) || 0;
-      }
-      
-      // Get original selling price (the price before any discounts)
-      let originalSellingPriceValue = firstVariant.originalSellingPrice ? 
-        (typeof firstVariant.originalSellingPrice === 'string' 
-          ? parseInt(firstVariant.originalSellingPrice.replace(/[^\d]/g, '')) || 0
-          : firstVariant.originalSellingPrice) 
-        : sellingPrice; // Fallback to current selling price if no original price
-      
-      // If originalSellingPrice exists and is different from sellingPrice, 
-      // it means there's an active discount applied by the main system
-      const hasActiveDiscountInMainSystem = firstVariant.originalSellingPrice && 
-        parseInt(firstVariant.originalSellingPrice.replace(/[^\d]/g, '')) !== sellingPrice;
+      // Check if variant has an active discount
+      const hasActiveDiscountInMainSystem = hasVariantDiscount(firstVariant);
       
       // Check if product has active offers
       const productOffers = productOffersMap.get(product.productId) || [];
@@ -511,17 +489,9 @@ export async function GET(request: NextRequest) {
         stockQuantity: variant.stockQuantity,
         lowStockThreshold: variant.lowStockThreshold,
         stockStatus: variant.stockStatus,
-        purchasePrice: typeof variant.purchasePrice === 'string' 
-          ? parseFloat(variant.purchasePrice.replace(/[^\d.-]/g, '')) || 0
-          : variant.purchasePrice || 0,
-        sellingPrice: typeof variant.sellingPrice === 'string' 
-          ? parseFloat(variant.sellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : variant.sellingPrice || 0,
-        originalSellingPrice: variant.originalSellingPrice ? 
-          (typeof variant.originalSellingPrice === 'string' 
-            ? parseFloat(variant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
-            : variant.originalSellingPrice) 
-          : null,
+        purchasePrice: safeParsePrice(variant.purchasePrice),
+        sellingPrice: parseVariantPrice(variant),
+        originalSellingPrice: parseVariantOriginalPrice(variant),
         isDefault: variant.isDefault,
         isActive: variant.isActive
       }))
@@ -703,6 +673,11 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       offerBadge: string;
       originalPrice: number;
       bestDiscount: { price: number; offerName: string } | null;
+      promotionDetails?: Array<{
+        minQuantity: number;
+        freeQuantity: number;
+        description: string;
+      }>;
     }>();
 
     for (const offer of allOffers) {
@@ -716,8 +691,13 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
       );
       
-      // If no active price discount types, skip this offer for price calculation
-      if (activePriceDiscountTypes.length === 0) {
+      // Check if this offer has any active promotion types
+      const activePromotionTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean; discountType?: string }) => 
+        dt.isActive === true && dt.discountType === 'buy_x_get_y'
+      );
+      
+      // If no active discount types at all (neither price nor promotion), skip this offer
+      if (activePriceDiscountTypes.length === 0 && activePromotionTypes.length === 0) {
         continue;
       }
 
@@ -729,9 +709,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         if (!firstVariant) continue; // Skip products without variants
         
         // Use originalSellingPrice if it exists, otherwise use current sellingPrice
-        const originalPrice = firstVariant.originalSellingPrice 
-          ? parseFloat(firstVariant.originalSellingPrice.replace(/[^\d.-]/g, '')) || 0
-          : parseFloat(firstVariant.sellingPrice.replace(/[^\d.-]/g, '')) || 0;
+        const originalPrice = parseVariantOriginalPrice(firstVariant) || parseVariantPrice(firstVariant);
         
         if (!productsWithOffers.has(productId)) {
           productsWithOffers.set(productId, {
@@ -744,22 +722,37 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         }
 
         // Calculate discount for this offer using only ACTIVE price discount types
-        for (const discountType of activePriceDiscountTypes) {
-          let discountedPrice = originalPrice;
-          
-          if (discountType.discountType === 'percentage') {
-            discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
-          } else if (discountType.discountType === 'fixed') {
-            discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
-          }
+        if (activePriceDiscountTypes.length > 0) {
+          for (const discountType of activePriceDiscountTypes) {
+            let discountedPrice = originalPrice;
+            
+            if (discountType.discountType === 'percentage') {
+              discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
+            } else if (discountType.discountType === 'fixed') {
+              discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
+            }
 
-          // Keep the best discount (lowest price)
+            // Keep the best discount (lowest price)
+            const productData = productsWithOffers.get(productId);
+            if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
+              productData.bestDiscount = {
+                price: discountedPrice,
+                offerName: offer.name,
+              };
+            }
+          }
+        }
+        
+        // Handle promotions even if there are no active price discounts
+        if (activePromotionTypes.length > 0) {
           const productData = productsWithOffers.get(productId);
-          if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
-            productData.bestDiscount = {
-              price: discountedPrice,
-              offerName: offer.name,
-            };
+          if (productData) {
+            // Set up promotion data even without price discount
+            productData.promotionDetails = activePromotionTypes.map(dt => ({
+              minQuantity: dt.minQuantity || 1,
+              freeQuantity: dt.discountValue || 0,
+              description: dt.description || `Buy ${dt.minQuantity || 1} Get ${dt.discountValue || 0} Free`
+            }));
           }
         }
       }
