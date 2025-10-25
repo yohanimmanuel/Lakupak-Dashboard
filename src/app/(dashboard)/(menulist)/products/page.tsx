@@ -369,8 +369,8 @@ export default function ProductsPage() {
       <div className="mt-6">
         <ProductImport 
           open={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onImport={handleImport}
+          onCloseAction={() => setIsImportModalOpen(false)}
+          onImportAction={handleImport}
         />
         <ProductTable 
           products={products}

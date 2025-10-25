@@ -7,15 +7,17 @@ export function sanitizeOfferData(data: OfferFormData): OfferFormData {
   return {
     name: sanitizeString(data.name, 100),
     description: data.description ? sanitizeString(data.description, 500) : undefined,
-    type: validateOfferType(data.type),
-    discountType: validateDiscountType(data.discountType),
-    discountValue: validateDiscountValue(data.discountValue, data.discountType),
+    type: data.type, // Already validated as array
+    discountTypes: data.discountTypes.map(dt => ({
+      discountType: validateDiscountType(dt.discountType),
+      discountValue: validateDiscountValue(dt.discountValue, dt.discountType),
+      isActive: dt.isActive,
+      priority: dt.priority
+    })),
     minOrderValue: data.minOrderValue ? validatePositiveStringNumber(data.minOrderValue) : undefined,
     minQuantity: data.minQuantity ? validatePositiveInteger(data.minQuantity) : undefined,
     startDate: validateDate(data.startDate),
     endDate: validateDate(data.endDate),
-    maxUsage: data.maxUsage ? validatePositiveInteger(data.maxUsage) : undefined,
-    perCustomerLimit: data.perCustomerLimit ? validatePositiveInteger(data.perCustomerLimit) : undefined,
     productIds: validateProductIds(data.productIds),
   };
 }

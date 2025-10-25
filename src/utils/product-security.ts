@@ -49,12 +49,7 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   if (typeof data.supplier === 'string') {
     sanitized.supplier = data.supplier.trim();
   }
-  if (typeof data.purchasePrice === 'string') {
-    sanitized.purchasePrice = data.purchasePrice.trim();
-  }
-  if (typeof data.sellingPrice === 'string') {
-    sanitized.sellingPrice = data.sellingPrice.trim();
-  }
+  // Pricing fields removed - now handled at variant level
   if (typeof data.status === 'string') {
     sanitized.status = data.status.trim() as 'Draft' | 'Published';
   }

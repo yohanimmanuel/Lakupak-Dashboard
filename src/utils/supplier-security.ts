@@ -40,8 +40,8 @@ export function sanitizeSupplierData(data: Partial<SupplierFormData>): Partial<S
   const sanitized: Partial<SupplierFormData> = {};
 
   // Sanitize string fields
-  if (typeof data.supplierName === 'string') {
-    sanitized.supplierName = data.supplierName.trim();
+  if (typeof data.name === 'string') {
+    sanitized.name = data.name.trim();
   }
   if (typeof data.contact === 'string') {
     sanitized.contact = data.contact.trim();

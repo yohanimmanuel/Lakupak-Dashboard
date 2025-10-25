@@ -6,8 +6,8 @@ import { ProductImportRow } from '@/types/product';
 
 type ProductImportProps = {
   open: boolean;
-  onClose: () => void;
-  onImport: (data: ProductImportRow[]) => void;
+  onCloseAction: () => void;
+  onImportAction: (data: ProductImportRow[]) => void;
 };
 
 const productFields = [
@@ -18,9 +18,7 @@ const productFields = [
   { key: 'Product Type', label: 'Product Type (Optional)' },
   { key: 'Brand', label: 'Brand (Optional)' },
   { key: 'Supplier', label: 'Supplier (Optional)' },
-  { key: 'Stock Quantity', label: 'Stock Quantity (Optional)' },
-  { key: 'Low Stock Threshold', label: 'Low Stock Threshold (Optional)' },
-  { key: 'Stock Status', label: 'Stock Status (Auto-calculated)' },
+  // Stock fields removed - now handled at variant level
   { key: 'Purchase Price', label: 'Purchase Price (Optional)' },
   { key: 'Selling Price', label: 'Selling Price (Optional)' },
   { key: 'Status', label: 'Status (Always Draft)' },
@@ -37,9 +35,7 @@ const productSynonyms: { [key: string]: string[] } = {
   'Product Type': ['category', 'kategori', 'jenis', 'type', 'product type'],
   'Brand': ['brand', 'merek', 'brand name'],
   'Supplier': ['supplier', 'vendor', 'pemasok', 'supplier name'],
-  'Stock Quantity': ['stock', 'quantity', 'stock quantity', 'inventory', 'stok', 'jumlah'],
-  'Low Stock Threshold': ['low stock threshold', 'low stock', 'threshold', 'minimum stock', 'batas stok rendah'],
-  'Stock Status': ['stock status', 'stock state', 'inventory status', 'status stok'],
+  // Stock fields removed - now handled at variant level
   'Purchase Price': ['purchase price', 'buy price', 'cost', 'harga beli', 'harga modal'],
   'Selling Price': ['selling price', 'sell price', 'price', 'harga jual', 'harga'],
   'Status': ['status', 'product status', 'state'],
@@ -53,7 +49,7 @@ function generateProductId() {
   return 'LKP-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-export default function ProductImport({ open, onClose, onImport }: ProductImportProps) {
+export default function ProductImport({ open, onCloseAction, onImportAction }: ProductImportProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -135,16 +131,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
       mapped['Status'] = 'Draft'; // Always set status to Draft for imported products
       
       // Calculate stock status dynamically based on stock quantity and threshold
-      const stockQuantity = parseInt(mapped['Stock Quantity'] || '0') || 0;
-      const lowStockThreshold = parseInt(mapped['Low Stock Threshold'] || '30') || 30;
-      
-      if (stockQuantity === 0) {
-        mapped['Stock Status'] = 'Out of Stock';
-      } else if (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold) {
-        mapped['Stock Status'] = 'Low Stock';
-      } else {
-        mapped['Stock Status'] = 'In Stock';
-      }
+      // Stock calculation removed - now handled at variant level
       
       if (!mapped['Product Category']) {
         mapped['Product Category'] = '';
@@ -160,15 +147,15 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
 
   const handleImport = () => {
     const mappedRows = getMappedRows();
-    if (onImport) {
-      onImport(mappedRows);
+    if (onImportAction) {
+      onImportAction(mappedRows);
     }
     setRows([]);
     setStep(0);
     setFilename('');
     setFileHeaders([]);
     setMapping({});
-    onClose();
+    onCloseAction();
   };
 
   if (!open) return null;
@@ -176,7 +163,7 @@ export default function ProductImport({ open, onClose, onImport }: ProductImport
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative">
-        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}>
+        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onCloseAction}>
           <X className="w-5 h-5 text-black" />
         </button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
