@@ -17,7 +17,6 @@ interface DiscountType {
   minOrderValue?: number | string | null | undefined;
   minQuantity?: number | null | undefined;
   freeQuantity?: number | null | undefined;
-  maxUsage?: number | null | undefined;
   isActive: boolean;
   priority: number;
   offerId?: string;
@@ -232,7 +231,7 @@ export default function ProductIntegration({
   const calculateDiscountAmount = (product: ProductWithOffer): number => {
     if (!discountTypes || discountTypes.length === 0) return 0;
     
-    const productPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+    const productPrice = parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency);
     let totalDiscount = 0;
     
     // Filter discount types based on selected offer types (if any are selected)
@@ -518,7 +517,7 @@ export default function ProductIntegration({
   };
 
   const getStockStatus = (product: ProductWithOffer) => {
-    const stock = product.stockQuantity;
+    const stock = product.stockQuantity || 0;
     const threshold = product.lowStockThreshold || 30;
     
     if (stock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
@@ -857,13 +856,13 @@ export default function ProductIntegration({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Price:</span>
                     <span className="text-black font-medium">
-                      {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
+                      {formatCurrency(parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency), userCurrency)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Stock:</span>
                     <span className={`${getStockStatus(product).color}`}>
-                      {product.stockQuantity} units
+                      {product.stockQuantity || 0} units
                     </span>
                   </div>
                 </div>
@@ -962,11 +961,11 @@ export default function ProductIntegration({
                     <td className="py-4 px-4 text-gray-700 truncate">{product.productCategory}</td>
                     <td className="py-4 px-4 text-gray-700 truncate">{product.brand}</td>
                     <td className="py-4 px-4 text-gray-700 font-medium text-right">
-                      {formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)}
+                      {formatCurrency(parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency), userCurrency)}
                     </td>
                     <td className="py-4 px-4 text-right">
                       <span className={`${getStockStatus(product).color}`}>
-                        {product.stockQuantity}
+                        {product.stockQuantity || 0}
                       </span>
                     </td>
                     <td className="py-4 px-4">

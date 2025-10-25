@@ -230,17 +230,24 @@ export default function ProductMarketplacePubs({
                               if (!String(originalProduct.brand).trim()) missingFields.push('Brand');
                               if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
                               
-                              // Check if product has at least one complete variant
+                              // Check if product has at least one complete variant (piece-based system)
                               const hasCompleteVariant = originalProduct.variants && originalProduct.variants.length > 0 && 
                                 originalProduct.variants.some(variant => 
                                   variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
                                   variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
-                                  variant.stockQuantity !== undefined && variant.stockQuantity !== null &&
                                   variant.isActive
                                 );
                               
+                              // Check product-level stock (piece-based system)
+                              const hasStock = originalProduct.stockQuantity !== undefined && 
+                                              originalProduct.stockQuantity !== null;
+                              
                               if (!hasCompleteVariant) {
-                                missingFields.push('Product Variants (Pricing & Stock)');
+                                missingFields.push('Product Variants (Pricing)');
+                              }
+                              
+                              if (!hasStock) {
+                                missingFields.push('Product Stock');
                               }
                             }
                             

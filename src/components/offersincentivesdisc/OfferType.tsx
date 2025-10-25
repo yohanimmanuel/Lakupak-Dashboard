@@ -17,7 +17,6 @@ interface DiscountTypeData {
   minOrderValue?: string | number | null | undefined;
   minQuantity?: number | null | undefined;
   freeQuantity?: number | null | undefined;
-  maxUsage?: number | null | undefined;
   perCustomerLimit?: number | null | undefined;
   isActive: boolean;
   priority?: number;
@@ -55,7 +54,6 @@ interface OfferType {
   discountValue: number;
   minOrderValue?: string | number | null;
   minQuantity?: number | null;
-  maxUsage?: number | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -99,7 +97,6 @@ export default function OfferType({
       discountValue: dt.discountValue,
       minOrderValue: dt.minOrderValue,
       minQuantity: dt.minQuantity,
-      maxUsage: dt.maxUsage,
       isActive: dt.isActive,
       createdAt: new Date().toISOString(),
     };
@@ -296,10 +293,6 @@ export default function OfferType({
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600">Max Usage:</span>
-                <span className="font-medium text-black text-xs">
-                  {type.maxUsage ? type.maxUsage : 'No limit'}
-                </span>
               </div>
 
             </div>
@@ -346,7 +339,6 @@ export default function OfferType({
             discountValue: editingType.discountValue || 0,
             minOrderValue: editingType.minOrderValue ? String(editingType.minOrderValue) : undefined,
             minQuantity: editingType.minQuantity ?? undefined,
-            maxUsage: editingType.maxUsage ?? undefined,
           } : undefined}
           onSave={async (typeData) => {
             // Enforce single offer per type: update if exists, else add
@@ -358,7 +350,6 @@ export default function OfferType({
               discountValue: typeData.discountValue,
               minOrderValue: typeData.minOrderValue,
               minQuantity: typeData.minQuantity,
-              maxUsage: typeData.maxUsage,
               isActive: true,
               priority: 1,
             };
@@ -366,8 +357,6 @@ export default function OfferType({
             // find existing by type
             const existing = displayDiscountTypes.find((dt) => dt.discountType === typeData.discountType);
             
-            // Check if we're updating an existing discount type and maxUsage changed
-            const maxUsageChanged = existing && editingType && existing.maxUsage !== typeData.maxUsage;
             
             if (isBatchEditMode) {
               // In batch edit mode, update parent state
@@ -385,30 +374,6 @@ export default function OfferType({
             } else {
               // In create view, use store or callbacks
               if (existing) {
-                // If maxUsage changed and we have an existing discount type, call API to reset usage
-                if (maxUsageChanged && existing.id && user?.id) {
-                  try {
-                    const response = await fetch(`/api/offers/${offerData?.id || 'temp'}?type=discount-type&itemId=${existing.id}&userId=${user.id}`, {
-                      method: 'PUT',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        name: typeData.name,
-                        description: typeData.description,
-                        minOrderValue: typeData.minOrderValue,
-                        minQuantity: typeData.minQuantity,
-                        maxUsage: typeData.maxUsage,
-                        isActive: true,
-                      }),
-                    });
-                    
-                    if (response.ok) {
-                      const result = await response.json();
-                    }
-                  } catch (error) {
-                  }
-                }
                 
                 if (onUpdateDiscountType) {
                   onUpdateDiscountType(existing.id, discountTypeData);

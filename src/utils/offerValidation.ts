@@ -21,6 +21,7 @@ export interface OfferValidationResult {
     minQuantity?: number;
     freeQuantity?: number;
     description?: string;
+    moq?: number | null;
   };
   // Add array of all applicable discount types for tracking
   applicableDiscountTypes?: Array<{
@@ -64,7 +65,7 @@ export async function validateOfferForProduct(
   orderQuantity: number,
   tx: Prisma.TransactionClient,
   packageQuantity?: number, // Add package quantity for buy_x_get_y calculations
-  variant?: { sellingPrice: string; originalSellingPrice?: string | null } // Add variant parameter
+  variant?: { sellingPrice: string; originalSellingPrice?: string | null; moq?: number | null } // Add variant parameter with MOQ
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
@@ -127,6 +128,7 @@ export async function validateOfferForProduct(
         minQuantity?: number;
         freeQuantity?: number;
         description?: string;
+        moq?: number | null;
       };
     }> = [];
 
@@ -202,7 +204,8 @@ export async function validateOfferForProduct(
           currentPromotionDetails = {
             minQuantity: minQuantity,
             freeQuantity: totalFreeItems,
-            description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`
+            description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`,
+            moq: variant?.moq || null
           };
           
           promotionDetails = currentPromotionDetails;
@@ -295,37 +298,11 @@ async function validateUsageLimits(
   discountTypeId: string,
   marketplaceUserId: number | null,
   discountType: {
-    maxUsage?: number | null;
     // perCustomerLimit removed
   },
   tx: Prisma.TransactionClient
 ): Promise<{ isValid: boolean; error?: string }> {
-  // Check overall max usage for this discount type
-  if (discountType.maxUsage && discountType.maxUsage > 0) {
-    const totalUsage = await tx.offerUsageTracking.aggregate({
-      where: {
-        offerId: offerId,
-        discountTypeId: discountTypeId
-      },
-      _sum: {
-        usageCount: true
-      }
-    });
-
-    const currentUsage = totalUsage._sum.usageCount || 0;
-    
-    // Check if allowing this order would exceed the limit
-    // If currentUsage >= maxUsage, the limit has been reached and this order should be rejected
-    if (currentUsage >= discountType.maxUsage) {
-      // Deactivate the discount type and offer if limit is reached
-      await deactivateOfferIfLimitReached(offerId, discountTypeId, tx);
-      
-      return { 
-        isValid: false, 
-        error: `This offer has reached its maximum usage limit of ${discountType.maxUsage} (current usage: ${currentUsage})` 
-      };
-    }
-  }
+  // No usage limits - distributors manage offers manually
 
   // Per-customer usage limit check removed
 
@@ -362,59 +339,9 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
       for (const offer of usedOffers) {
         let hasDeactivatedDiscountType = false;
         
-        // Only check discount types that have usage limits
-        const discountTypesWithLimits = offer.offerDiscountTypes.filter(dt => 
-          dt.maxUsage && dt.maxUsage > 0
-        );
+        // No usage limits - distributors manage offers manually
         
-        
-        for (const discountType of discountTypesWithLimits) {
-          const totalUsage = await tx.offerUsageTracking.aggregate({
-            where: {
-              offerId: offer.id,
-              discountTypeId: discountType.id
-            },
-            _sum: {
-              usageCount: true
-            }
-          });
-
-          const currentUsage = totalUsage._sum.usageCount || 0;
-          
-          
-          // Only deactivate if the usage limit has been reached or exceeded
-          if (currentUsage >= (discountType.maxUsage || 0)) {
-            
-            // Deactivate only this specific discount type
-            await tx.offerDiscountType.update({
-              where: { id: discountType.id },
-              data: { isActive: false }
-            });
-            
-            hasDeactivatedDiscountType = true;
-          }
-        }
-        
-        // Only check if we need to deactivate the entire offer if we deactivated a discount type
-        if (hasDeactivatedDiscountType) {
-          // Check if ALL discount types are now inactive, then deactivate the entire offer
-          const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
-            where: {
-              offerId: offer.id,
-              isActive: true
-            }
-          });
-          
-          if (remainingActiveDiscountTypes === 0) {
-            await tx.offer.update({
-              where: { id: offer.id },
-              data: { status: 'inactive' }
-            });
-            
-            // Reset product prices when entire offer is deactivated
-            await updateProductPricesAfterOfferDeactivation(tx, offer.id);
-          }
-        }
+        // No automatic deactivation - distributors manage offers manually
       }
     });
   } catch (error) {
@@ -535,55 +462,7 @@ export async function trackOfferUsage(
       }
     });
 
-    // Check if this usage pushes the offer over its limits and deactivate if needed
-    const discountType = await tx.offerDiscountType.findUnique({
-      where: { id: discountTypeId },
-      select: { maxUsage: true }
-    });
-
-    if (discountType) {
-      // Check max usage limit
-      if (discountType.maxUsage && discountType.maxUsage > 0) {
-        const totalUsage = await tx.offerUsageTracking.aggregate({
-          where: {
-            offerId: offerId,
-            discountTypeId: discountTypeId
-          },
-          _sum: {
-            usageCount: true
-          }
-        });
-
-        const currentUsage = totalUsage._sum.usageCount || 0;
-        
-        // Deactivate if the usage limit has been reached or exceeded
-        if (currentUsage >= discountType.maxUsage) {
-          // Deactivate only this specific discount type
-          await tx.offerDiscountType.update({
-            where: { id: discountTypeId },
-            data: { isActive: false }
-          });
-          
-          // Check if ALL discount types are now inactive, then deactivate the entire offer
-          const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
-            where: {
-              offerId: offerId,
-              isActive: true
-            }
-          });
-          
-          if (remainingActiveDiscountTypes === 0) {
-            await tx.offer.update({
-              where: { id: offerId },
-              data: { status: 'inactive' }
-            });
-            
-            // Only update product prices when the entire offer is deactivated
-            await updateProductPricesAfterOfferDeactivation(tx, offerId);
-          }
-        }
-      }
-    }
+    // No usage limits - distributors manage offers manually
 
   } catch (error) {
     // Don't fail the order if tracking fails, just log it
@@ -825,4 +704,5 @@ async function updateProductPricesAfterOfferDeactivation(
     // Error handled silently - don't fail the order
   }
 }
+
 

@@ -41,9 +41,8 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
     // Calculate average discount per offer
     const avgDiscountPerOffer = totalOffers > 0 ? totalDiscountGiven / totalOffers : 0;
     
-    // Calculate redemption rate (usage vs max usage)
-    const totalMaxUsage = offers.reduce((sum, offer) => sum + (offer.maxUsage || 0), 0);
-    const redemptionRate = totalMaxUsage > 0 ? (totalUsage / totalMaxUsage) * 100 : 0;
+    // No usage limits - distributors manage offers manually
+    const redemptionRate = 0; // No usage limits
 
     return [
       {

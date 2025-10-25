@@ -135,6 +135,12 @@ model Product {
   lastSyncAt        DateTime?
   marketplaceStatus String?     @default("Not Published")
   publishedAt       DateTime?
+  // Stock management at product level (piece-based)
+  stockQuantity     Int         @default(0)
+  lowStockThreshold Int         @default(0)
+  stockStatus       String      @default("In Stock")
+  // Package reference (for display and fulfillment only)
+  packageInfo       PackageInfo[]
   variants          ProductVariant[]
   orderItems        OrderItem[]
   offerProducts     OfferProduct[]
@@ -143,22 +149,42 @@ model Product {
 
 model ProductVariant {
   id                Int      @id @default(autoincrement())
-  variantName       String
-  packageType       String
-  piecesPerPackage  Int      @default(1)
-  stockQuantity     Int      @default(0)
-  lowStockThreshold Int      @default(0)
-  stockStatus       String   @default("In Stock")
+  variantName       String   // e.g., "Original Flavor", "Spicy", "Red", "Size M"
+  variantType       String?  // e.g., "Flavor", "Color", "Size" (optional categorization)
+  sku               String?  // Variant-specific SKU (optional)
+  // Pricing at variant level
   purchasePrice     String
   sellingPrice      String
   originalSellingPrice String? // Store original price before any discounts
-  moq               Int?     // Minimum Order Quantity - for all variants
+  // MOQ at variant level (different distributors may have different MOQs)
+  moq               Int?     // Minimum Order Quantity in pieces
+  // Variant attributes (for actual product variations)
+  attributes        Json?    // Flexible JSON for variant-specific attributes
   isDefault         Boolean  @default(false)
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime @updatedAt @db.Timestamptz(3)
   productId         Int
   product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
+  @@index([isActive])
+}
+
+// Package reference for display and fulfillment (NOT separate SKUs)
+model PackageInfo {
+  id                Int      @id @default(autoincrement())
+  packageName       String   @default("") // e.g., "Small Box", "Large Carton"
+  packageType       String   // e.g., "Piece", "Pack", "Carton", "Box"
+  piecesPerPackage  Int      @default(1)
+  displayOrder      Int      @default(0) // Order to display in UI
+  isDefault         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+  productId         Int
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
 }
 
 model MarketplaceUser {
@@ -271,6 +297,7 @@ model OrderItem {
   discountPercentage      Float?   // Calculated discount % at time of purchase (for percentage discounts)
   discountAmount          Float?   // Fixed discount amount at time of purchase (for fixed discounts)
   promotionDetailsSnapshot String? // JSON string of promotion details {minQuantity, freeQuantity, description}
+  moqSnapshot             Int?     // MOQ at time of order (in pieces) - for accurate promotion calculation in order history
   order                   Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   product                 Product? @relation(fields: [productId], references: [productId])
 }
@@ -379,7 +406,6 @@ model OfferDiscountType {
   description     String? // e.g., "4% discount on all items"
   minOrderValue   Float?   // minimum order value for this discount type
   minQuantity     Int?    // minimum quantity required
-  maxUsage        Int?    // maximum usage limit for this discount type
   // per-customer usage limit removed
   isActive        Boolean @default(true)
   priority        Int     @default(1) // Higher number = higher priority

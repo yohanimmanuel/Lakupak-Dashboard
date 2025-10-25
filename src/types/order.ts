@@ -82,6 +82,7 @@ export interface OrderItem {
   discountPercentage?: number;
   discountAmount?: number | null;
   promotionDetailsSnapshot?: string; // JSON string
+  moqSnapshot?: number | null; // MOQ at time of order (in pieces)
 }
 
 export interface OrderTableRow {

@@ -62,28 +62,12 @@ export const validateVariant = async (
     }
 
     // Validate MOQ for the specific variant (if MOQ is set)
-    if (targetVariant.moq) {
-      // Check if this variant is a single piece variant (piecesPerPackage = 1)
-      const isSinglePieceVariant = (targetVariant.piecesPerPackage || 1) === 1;
-      
-      let quantityToCheck: number;
-      let unitType: string;
-      
-      if (isSinglePieceVariant) {
-        // For single piece variants, use total pieces
-        quantityToCheck = orderQuantity || 0;
-        unitType = 'pieces';
-      } else {
-        // For package variants, use package quantity
-        quantityToCheck = packageQuantity || 0;
-        unitType = targetVariant.variantName.toLowerCase() + 's';
-      }
-      
-      
-      if (quantityToCheck < targetVariant.moq) {
+    // MOQ is now in pieces (piece-based system)
+    if (targetVariant.moq && orderQuantity !== undefined) {
+      if (orderQuantity < targetVariant.moq) {
         return {
           isValid: false,
-          error: `Minimum order quantity for ${targetVariant.variantName} is ${targetVariant.moq} ${unitType}. You ordered ${quantityToCheck} ${unitType}.`
+          error: `Minimum order quantity for ${targetVariant.variantName} is ${targetVariant.moq} pieces. You ordered ${orderQuantity} pieces.`
         };
       }
     }

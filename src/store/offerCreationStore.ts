@@ -9,7 +9,6 @@ export interface OfferDiscountType {
   discountValue: number;
   minOrderValue?: string;
   minQuantity?: number;
-  maxUsage?: number;
   perCustomerLimit?: number;
   isActive: boolean;
   priority: number;
@@ -65,7 +64,6 @@ export interface OfferCreationState {
   endDate: string;
   
   // Usage Limits
-  maxUsage: number;
   perCustomerLimit: number;
   
   // Selected Products
@@ -109,7 +107,6 @@ interface OfferCreationActions {
   setEndDate: (date: string) => void;
   
   // Usage Limits
-  setMaxUsage: (usage: number) => void;
   setPerCustomerLimit: (limit: number) => void;
   
   // Products
@@ -154,7 +151,6 @@ const initialState: OfferCreationState = {
   endDate: '',
   
   // Usage Limits
-  maxUsage: 0,
   perCustomerLimit: 0,
   
   // Selected Products
@@ -326,7 +322,6 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
       },
       
       // Usage Limits
-      setMaxUsage: (usage) => set({ maxUsage: usage }),
       setPerCustomerLimit: (limit) => set({ perCustomerLimit: limit }),
       
       // Products
@@ -438,7 +433,6 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         selectedTimeSlot: state.selectedTimeSlot,
         startDate: state.startDate,
         endDate: state.endDate,
-        maxUsage: state.maxUsage,
         perCustomerLimit: state.perCustomerLimit,
         selectedProducts: state.selectedProducts,
         productOfferBadges: state.productOfferBadges,

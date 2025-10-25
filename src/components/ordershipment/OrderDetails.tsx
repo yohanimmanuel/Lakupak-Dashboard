@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
@@ -110,35 +111,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     return badges;
   };
   
-  // Calculate promotion free items for an order item
-  const calculatePromotionGift = (item: { 
-    promotionDetailsSnapshot?: string | null;
-    packageQuantity?: number;
-  }) => {
-    if (!item.promotionDetailsSnapshot) return null;
-    
-    try {
-      const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-      const orderedQty = item.packageQuantity || 1;
-      const minQty = promoDetails.minQuantity || 1;
-      const freeQty = promoDetails.freeQuantity || 0;
-      
-      // Calculate how many free items they get
-      const qualifyingSets = Math.floor(orderedQty / minQty);
-      const totalFreeItems = qualifyingSets * freeQty;
-      const totalReceived = orderedQty + totalFreeItems;
-      
-      return {
-        orderedQty,
-        freeQty: totalFreeItems,
-        totalReceived,
-        minQty: promoDetails.minQuantity,
-        freePerSet: promoDetails.freeQuantity
-      };
-    } catch (e) {
-      return null;
-    }
-  };
+  // Calculate promotion free items for an order item - REMOVED DUPLICATE LOGIC
+  // Now using calculateOrderItemPromotion from utils/promotionUtils.ts (SAME as Marketplace)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -523,9 +497,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         try {
                           const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
                           if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                            const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                            return freeQty > 0 ? (
-                              <span className="font-bold text-purple-600"> (+ {freeQty} free items)</span>
+                            // Extract MOQ from promotion details (same as Marketplace)
+                            const moq = promoDetails.moq || item.moqSnapshot || null;
+                            const promotionGift = calculateOrderItemPromotion(
+                              promoDetails,
+                              item.packageQuantity || 1,
+                              item.piecesPerPackage || 1,
+                              moq
+                            );
+                            return promotionGift ? (
+                              <span className="font-bold text-purple-600"> (+ {promotionGift.freeQty} free pieces)</span>
                             ) : '';
                           }
                         } catch {
@@ -617,9 +598,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           try {
                             const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
                             if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                              return freeQty > 0 ? (
-                                <span className="font-bold text-purple-600"> (+ {freeQty} free)</span>
+                              // Extract MOQ from promotion details (same as Marketplace)
+                              const moq = promoDetails.moq || item.moqSnapshot || null;
+                              const promotionGift = calculateOrderItemPromotion(
+                                promoDetails,
+                                item.packageQuantity || 1,
+                                item.piecesPerPackage || 1,
+                                moq
+                              );
+                              return promotionGift ? (
+                                <span className="font-bold text-purple-600"> (+ {promotionGift.freeQty} free pieces)</span>
                               ) : '';
                             }
                           } catch {
@@ -714,8 +702,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           try {
                             const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
                             if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                              const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
-                              return freeQty > 0 ? ` (+ ${freeQty} free items)` : '';
+                              // Extract MOQ from promotion details (same as Marketplace)
+                              const moq = promoDetails.moq || item.moqSnapshot || null;
+                              const promotionGift = calculateOrderItemPromotion(
+                                promoDetails,
+                                item.packageQuantity || 1,
+                                item.piecesPerPackage || 1,
+                                moq
+                              );
+                              return promotionGift ? ` (+ ${promotionGift.freeQty} free pieces)` : '';
                             }
                           } catch {
                             // Invalid JSON, skip

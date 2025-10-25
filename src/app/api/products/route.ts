@@ -58,12 +58,12 @@ export async function GET(req: NextRequest) {
       if (/^\d+$/.test(id)) {
         product = await prisma.product.findFirst({
           where: { id: Number(id), userId: Number(userId) },
-          include: { variants: true }
+          include: { variants: true, packageInfo: true }
         });
       } else {
         product = await prisma.product.findFirst({
           where: { productId: id, userId: Number(userId) },
-          include: { variants: true }
+          include: { variants: true, packageInfo: true }
         });
       }
       
@@ -86,11 +86,9 @@ export async function GET(req: NextRequest) {
               productId: product.productId
             }
           },
-          // Only fetch offers that have at least one active discount type
+          // Fetch all offers that have discount types (regardless of active status)
           offerDiscountTypes: {
-            some: {
-              isActive: true
-            }
+            some: {}
           }
         },
         include: {
@@ -99,32 +97,10 @@ export async function GET(req: NextRequest) {
               productId: product.productId
             }
           },
-          offerDiscountTypes: {
-            where: {
-              isActive: true
-            }
-          }
+          offerDiscountTypes: true
         }
       });
 
-      // Get individual usage tracking for each discount type
-      const offerIds = activeOffers.map(offer => offer.id);
-      const usageTracking = offerIds.length > 0 ? await prisma.offerUsageTracking.groupBy({
-        by: ['offerId', 'discountTypeId'],
-        where: {
-          offerId: { in: offerIds }
-        },
-        _sum: {
-          usageCount: true
-        }
-      }) : [];
-
-      // Create a map for quick lookup
-      const usageMap = new Map();
-      usageTracking.forEach(usage => {
-        const key = `${usage.offerId}-${usage.discountTypeId}`;
-        usageMap.set(key, usage._sum.usageCount || 0);
-      });
       
       if (activeOffers.length > 0) {
         const primaryOffer = activeOffers[0];
@@ -132,21 +108,8 @@ export async function GET(req: NextRequest) {
         // Filter to only ACTIVE discount types
         const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
         
-        // Check if all offer types have reached their maximum usage using individual usage tracking
-        const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-        let allLimitsReached = true;
-        
-        if (typesWithLimits.length > 0) {
-          allLimitsReached = typesWithLimits.every(dt => {
-            const currentUsage = usageMap.get(`${primaryOffer.id}-${dt.id}`) || 0;
-            return currentUsage >= (dt.maxUsage || 0);
-          });
-        } else {
-          allLimitsReached = false;
-        }
-        
-        // If all limits are reached or no active discount types, don't show offer badge
-        if (discountTypes.length === 0 || allLimitsReached) {
+        // If no active discount types, don't show offer badge
+        if (discountTypes.length === 0) {
           return NextResponse.json(product, { headers });
         }
         
@@ -253,7 +216,8 @@ export async function GET(req: NextRequest) {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        variants: true
+        variants: true,
+        packageInfo: true
       }
     });
     
@@ -270,11 +234,9 @@ export async function GET(req: NextRequest) {
             productId: { in: productIds }
           }
         },
-        // Only fetch offers that have at least one active discount type
+        // Fetch all offers that have discount types (regardless of active status)
         offerDiscountTypes: {
-          some: {
-            isActive: true
-          }
+          some: {}
         }
       },
       include: {
@@ -284,9 +246,6 @@ export async function GET(req: NextRequest) {
           }
         },
         offerDiscountTypes: {
-          where: {
-            isActive: true
-          },
           orderBy: {
             priority: 'desc'
           }
@@ -294,24 +253,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Get individual usage tracking for all offers
-    const allOfferIds = activeOffers.map(offer => offer.id);
-    const allUsageTracking = allOfferIds.length > 0 ? await prisma.offerUsageTracking.groupBy({
-      by: ['offerId', 'discountTypeId'],
-      where: {
-        offerId: { in: allOfferIds }
-      },
-      _sum: {
-        usageCount: true
-      }
-    }) : [];
-
-    // Create a map for quick lookup
-    const allUsageMap = new Map();
-    allUsageTracking.forEach(usage => {
-      const key = `${usage.offerId}-${usage.discountTypeId}`;
-      allUsageMap.set(key, usage._sum.usageCount || 0);
-    });
     
     // Map offers to products
     const productsWithOffers = products.map(product => {
@@ -326,32 +267,24 @@ export async function GET(req: NextRequest) {
       // Get the highest priority offer
       const primaryOffer = productOffers[0];
       
-      // Filter to only ACTIVE discount types
-      const discountTypes = primaryOffer.offerDiscountTypes.filter((dt) => dt.isActive !== false);
+      // Get ALL discount types (both active and inactive)
+      const allDiscountTypes = primaryOffer.offerDiscountTypes;
       
-      // Check if all offer types have reached their maximum usage using individual usage tracking
-      const typesWithLimits = discountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-      let allLimitsReached = true;
+      // Check which discount types are actually usable (active only)
+      const usableDiscountTypes = allDiscountTypes.filter(dt => {
+        return dt.isActive === true;
+      });
       
-      if (typesWithLimits.length > 0) {
-        allLimitsReached = typesWithLimits.every(dt => {
-          const currentUsage = allUsageMap.get(`${primaryOffer.id}-${dt.id}`) || 0;
-          return currentUsage >= (dt.maxUsage || 0);
-        });
-      } else {
-        allLimitsReached = false;
-      }
-      
-      // If all limits are reached or no active discount types, don't show offer badge
-      if (discountTypes.length === 0 || allLimitsReached) {
+      // If no usable discount types, don't show offer badge
+      if (usableDiscountTypes.length === 0) {
         return product;
       }
       
       // Determine badge type based on applied discount types
-      const hasDiscount = discountTypes.some((dt) => 
+      const hasDiscount = usableDiscountTypes.some((dt) => 
         dt.discountType === 'percentage' || dt.discountType === 'fixed'
       );
-      const hasPromotion = discountTypes.some((dt) => 
+      const hasPromotion = usableDiscountTypes.some((dt) => 
         dt.discountType === 'buy_x_get_y'
       );
       
@@ -365,13 +298,13 @@ export async function GET(req: NextRequest) {
       }
       
       // Get discount type and value (prioritize fixed over percentage)
-      const fixedDiscount = discountTypes.find((dt) => dt.discountType === 'fixed');
-      const percentageDiscount = discountTypes.find((dt) => dt.discountType === 'percentage');
+      const fixedDiscount = usableDiscountTypes.find((dt) => dt.discountType === 'fixed');
+      const percentageDiscount = usableDiscountTypes.find((dt) => dt.discountType === 'percentage');
       const discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
       const discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
       
       // Get Buy X Get Y promotion details
-      const buyXGetYPromo = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
+      const buyXGetYPromo = usableDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
       const promotionDetails = buyXGetYPromo ? {
         minQuantity: buyXGetYPromo.minQuantity,
         freeQuantity: buyXGetYPromo.discountValue,
@@ -554,38 +487,56 @@ export async function POST(req: NextRequest) {
     const product = await prisma.product.create({
       data: {
         ...productData,
+        // Stock management at product level (piece-based)
+        stockQuantity: data.stockQuantity || 0,
+        lowStockThreshold: data.lowStockThreshold || 0,
+        stockStatus: data.stockStatus || 'In Stock',
+        // Variants for actual product variations (color, size, flavor)
         variants: data.variants ? {
           create: data.variants.map((variant: {
             variantName: string;
-            packageType: string;
-            piecesPerPackage: number;
-            stockQuantity: number;
-            lowStockThreshold: number;
-            stockStatus: string;
+            variantType?: string;
+            sku?: string;
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
             variantName: variant.variantName,
-            packageType: variant.packageType || '',
-            piecesPerPackage: variant.piecesPerPackage || 1,
-            stockQuantity: variant.stockQuantity || 0,
-            lowStockThreshold: variant.lowStockThreshold || 0,
-            stockStatus: variant.stockStatus || 'In Stock',
-                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
-                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 moq: variant.moq,
-                 isDefault: variant.isDefault || false,
-                 isActive: variant.isActive !== false
+            variantType: variant.variantType,
+            sku: variant.sku,
+            purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+            sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+            originalSellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+            moq: variant.moq,
+            attributes: variant.attributes,
+            isDefault: variant.isDefault || false,
+            isActive: variant.isActive !== false
+          }))
+        } : undefined,
+        // Package info for display/fulfillment reference
+        packageInfo: data.packageInfo ? {
+          create: data.packageInfo.map((pkg: {
+            packageName?: string;
+            packageType: string;
+            piecesPerPackage: number;
+            displayOrder: number;
+            isDefault: boolean;
+          }) => ({
+            packageName: pkg.packageName || '',
+            packageType: pkg.packageType,
+            piecesPerPackage: pkg.piecesPerPackage,
+            displayOrder: pkg.displayOrder,
+            isDefault: pkg.isDefault
           }))
         } : undefined
       },
       include: {
-        variants: true
+        variants: true,
+        packageInfo: true
       }
     });
     
@@ -697,15 +648,16 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           }
         },
         include: {
-          offerDiscountTypes: {
-            where: { isActive: true }
-          }
+          offerDiscountTypes: true
         }
       });
 
       for (const variant of product.variants) {
         // Get original price (if not set, use current selling price)
-        const originalPrice = parseVariantOriginalPrice(variant) || parseVariantPrice(variant);
+        // If originalSellingPrice is already set, use it; otherwise use current sellingPrice
+        const originalPrice = variant.originalSellingPrice ? 
+          (parseVariantOriginalPrice(variant) || parseVariantPrice(variant)) : 
+          parseVariantPrice(variant);
 
         let finalPrice = originalPrice;
         let hasOffer = false;
@@ -713,17 +665,51 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         // Apply discount if there are active offers
         if (productOffers.length > 0) {
           const offer = productOffers[0];
-          const discountType = offer.offerDiscountTypes[0];
+          let bestDiscountAmount = 0;
+          let bestDiscountType = null;
           
-          if (discountType) {
-            if (discountType.discountType === 'percentage') {
-              finalPrice = originalPrice * (1 - discountType.discountValue / 100);
-              hasOffer = true;
-            } else if (discountType.discountType === 'fixed') {
-              finalPrice = Math.max(0, originalPrice - discountType.discountValue);
-              hasOffer = true;
+          // Check all discount types and find the best one
+          for (const discountType of offer.offerDiscountTypes) {
+            // Skip if discount type is not active
+            if (!discountType.isActive) {
+              continue;
+            }
+            
+            // All active discount types are usable (no usage limits)
+            if (discountType.isActive) {
+              let discountAmount = 0;
+              
+              if (discountType.discountType === 'percentage') {
+                discountAmount = (originalPrice * discountType.discountValue) / 100;
+              } else if (discountType.discountType === 'fixed') {
+                discountAmount = discountType.discountValue;
+              }
+              
+              // Keep the best discount
+              if (discountAmount > bestDiscountAmount) {
+                bestDiscountAmount = discountAmount;
+                bestDiscountType = discountType;
+              }
             }
           }
+          
+          // Apply the best discount found
+          if (bestDiscountType && bestDiscountAmount > 0) {
+            if (bestDiscountType.discountType === 'percentage') {
+              finalPrice = originalPrice * (1 - bestDiscountType.discountValue / 100);
+            } else if (bestDiscountType.discountType === 'fixed') {
+              finalPrice = Math.max(0, originalPrice - bestDiscountType.discountValue);
+            }
+            hasOffer = true;
+          } else {
+            // No usable discount types, reset to original price
+            finalPrice = originalPrice;
+            hasOffer = false;
+          }
+        } else {
+          // No active offers, reset to original price
+          finalPrice = originalPrice;
+          hasOffer = false;
         }
 
         // Update the variant
@@ -842,41 +828,62 @@ export async function PUT(req: NextRequest) {
         where: { id: Number(id), userId: userIdNum },
         data: {
           ...cleanUpdateData,
+          // Stock management at product level
+          ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
+          ...(data.lowStockThreshold !== undefined && { lowStockThreshold: data.lowStockThreshold }),
+          ...(data.stockStatus !== undefined && { stockStatus: data.stockStatus }),
+          // Variants for actual product variations
           ...(data.variants && {
             variants: {
               deleteMany: {}, // Delete all existing variants
               create: data.variants.map((variant: {
             variantName: string;
-            packageType: string;
-            piecesPerPackage: number;
-            stockQuantity: number;
-            lowStockThreshold: number;
-            stockStatus: string;
+            variantType?: string;
+            sku?: string;
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
                 variantName: variant.variantName || 'Default Variant',
-                packageType: variant.packageType || '',
-                piecesPerPackage: variant.piecesPerPackage || 1,
-                stockQuantity: variant.stockQuantity || 0,
-                lowStockThreshold: variant.lowStockThreshold || 0,
-                stockStatus: variant.stockStatus || 'In Stock',
-                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
-                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: variant.originalSellingPrice,
-                 moq: variant.moq,
-                 isDefault: variant.isDefault || false,
-                 isActive: variant.isActive !== false
+                variantType: variant.variantType,
+                sku: variant.sku,
+                purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+                sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                originalSellingPrice: variant.originalSellingPrice,
+                moq: variant.moq,
+                attributes: variant.attributes,
+                isDefault: variant.isDefault || false,
+                isActive: variant.isActive !== false
+              }))
+            }
+          }),
+          // Package info for display/fulfillment
+          ...(data.packageInfo && {
+            packageInfo: {
+              deleteMany: {}, // Delete all existing package info
+              create: data.packageInfo.map((pkg: {
+                packageName?: string;
+                packageType: string;
+                piecesPerPackage: number;
+                displayOrder: number;
+                isDefault: boolean;
+              }) => ({
+                packageName: pkg.packageName || '',
+                packageType: pkg.packageType,
+                piecesPerPackage: pkg.piecesPerPackage,
+                displayOrder: pkg.displayOrder,
+                isDefault: pkg.isDefault
               }))
             }
           })
         },
         include: {
-          variants: true
+          variants: true,
+          packageInfo: true
         }
       });
     } else if (productId) {
@@ -884,41 +891,62 @@ export async function PUT(req: NextRequest) {
         where: { productId: productId, userId: userIdNum },
         data: {
           ...cleanUpdateData,
+          // Stock management at product level
+          ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
+          ...(data.lowStockThreshold !== undefined && { lowStockThreshold: data.lowStockThreshold }),
+          ...(data.stockStatus !== undefined && { stockStatus: data.stockStatus }),
+          // Variants for actual product variations
           ...(data.variants && {
             variants: {
               deleteMany: {}, // Delete all existing variants
               create: data.variants.map((variant: {
             variantName: string;
-            packageType: string;
-            piecesPerPackage: number;
-            stockQuantity: number;
-            lowStockThreshold: number;
-            stockStatus: string;
+            variantType?: string;
+            sku?: string;
             purchasePrice: string;
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
           }) => ({
                 variantName: variant.variantName || 'Default Variant',
-                packageType: variant.packageType || '',
-                piecesPerPackage: variant.piecesPerPackage || 1,
-                stockQuantity: variant.stockQuantity || 0,
-                lowStockThreshold: variant.lowStockThreshold || 0,
-                stockStatus: variant.stockStatus || 'In Stock',
-                 purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
-                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
-                 originalSellingPrice: variant.originalSellingPrice,
-                 moq: variant.moq,
-                 isDefault: variant.isDefault || false,
-                 isActive: variant.isActive !== false
+                variantType: variant.variantType,
+                sku: variant.sku,
+                purchasePrice: String(parseNumberByCurrency(String(variant.purchasePrice || ''), data.currency || 'IDR')),
+                sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
+                originalSellingPrice: variant.originalSellingPrice,
+                moq: variant.moq,
+                attributes: variant.attributes,
+                isDefault: variant.isDefault || false,
+                isActive: variant.isActive !== false
+              }))
+            }
+          }),
+          // Package info for display/fulfillment
+          ...(data.packageInfo && {
+            packageInfo: {
+              deleteMany: {}, // Delete all existing package info
+              create: data.packageInfo.map((pkg: {
+                packageName?: string;
+                packageType: string;
+                piecesPerPackage: number;
+                displayOrder: number;
+                isDefault: boolean;
+              }) => ({
+                packageName: pkg.packageName || '',
+                packageType: pkg.packageType,
+                piecesPerPackage: pkg.piecesPerPackage,
+                displayOrder: pkg.displayOrder,
+                isDefault: pkg.isDefault
               }))
             }
           })
         },
         include: {
-          variants: true
+          variants: true,
+          packageInfo: true
         }
       });
     } else {

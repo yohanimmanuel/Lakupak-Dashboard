@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         variants: true,
+        packageInfo: true,
         user: {
           select: {
             firstName: true,
@@ -132,32 +133,9 @@ export async function GET(request: NextRequest) {
       for (const discountType of offer.offerDiscountTypes) {
         let isDiscountTypeValid = true;
         
-        // First check if the discount type is marked as active
+        // Check if the discount type is marked as active
         if (discountType.isActive !== true) {
           isDiscountTypeValid = false;
-        }
-        
-        // Check max usage limit - this is the critical check
-        if (isDiscountTypeValid && discountType.maxUsage && discountType.maxUsage > 0) {
-          const totalUsage = await prisma.offerUsageTracking.aggregate({
-            where: {
-              offerId: offer.id,
-              discountTypeId: discountType.id
-            },
-            _sum: {
-              usageCount: true
-            }
-          });
-          
-          const currentUsage = totalUsage._sum.usageCount || 0;
-          if (currentUsage >= discountType.maxUsage) {
-            isDiscountTypeValid = false;
-            // Immediately deactivate this discount type if limit is reached
-            await prisma.offerDiscountType.update({
-              where: { id: discountType.id },
-              data: { isActive: false }
-            });
-          }
         }
         
         // If this discount type is valid, the offer is valid
@@ -236,32 +214,9 @@ export async function GET(request: NextRequest) {
         for (const dt of primaryOffer.offerDiscountTypes) {
           let isDiscountTypeUsable = true;
           
-          // First check if the discount type is marked as active
+          // Check if the discount type is marked as active
           if (dt.isActive !== true) {
             isDiscountTypeUsable = false;
-          }
-          
-          // Check if this discount type has reached its usage limit
-          if (isDiscountTypeUsable && dt.maxUsage && dt.maxUsage > 0) {
-            const totalUsage = await prisma.offerUsageTracking.aggregate({
-              where: {
-                offerId: primaryOffer.id,
-                discountTypeId: dt.id
-              },
-              _sum: {
-                usageCount: true
-              }
-            });
-            
-            const currentUsage = totalUsage._sum.usageCount || 0;
-            if (currentUsage >= dt.maxUsage) {
-              isDiscountTypeUsable = false;
-              // Immediately deactivate this discount type if limit is reached
-              await prisma.offerDiscountType.update({
-                where: { id: dt.id },
-                data: { isActive: false }
-              });
-            }
           }
           
           if (isDiscountTypeUsable) {
@@ -277,28 +232,8 @@ export async function GET(request: NextRequest) {
           });
         }
         
-        // Check if all offer types have reached their maximum usage (same logic as OfferTable)
-        const typesWithLimits = activeDiscountTypes.filter(dt => dt.maxUsage && dt.maxUsage > 0);
-        
-        // Get individual usage tracking for each discount type
-        const usageMap = new Map();
-        for (const dt of typesWithLimits) {
-          const usage = await prisma.offerUsageTracking.aggregate({
-            where: {
-              offerId: primaryOffer.id,
-              discountTypeId: dt.id
-            },
-            _sum: {
-              usageCount: true
-            }
-          });
-          usageMap.set(dt.id, usage._sum.usageCount || 0);
-        }
-        
-        const allLimitsReached = typesWithLimits.length > 0 && typesWithLimits.every(dt => (usageMap.get(dt.id) || 0) >= (dt.maxUsage || 0));
-        
-        // If all limits are reached, don't show the offer
-        if (allLimitsReached) {
+        // Check if there are active discount types
+        if (activeDiscountTypes.length === 0) {
           hasActiveOffer = false;
           offerBadge = undefined;
           offerId = undefined;
@@ -399,15 +334,13 @@ export async function GET(request: NextRequest) {
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: await calculateSoldCount(product.productId), // Calculate from actual orders
-        stock: firstVariant.stockQuantity,
-        stockStatus: firstVariant.stockStatus || 'In Stock',
+        stock: product.stockQuantity,
+        stockStatus: product.stockStatus || 'In Stock',
         images: product.images || [],
         category: product.productType || 'Uncategorized',
         productCategory: product.productCategory || 'Uncategorized',
         brand: product.brand,
-        unit: firstVariant.packageType || 'pcs',
-        packageType: firstVariant.packageType || 'pcs',
-        piecesPerPackage: firstVariant.piecesPerPackage || 1,
+        unit: product.packageInfo?.[0]?.packageType || 'Piece',
          seller: {
            name: product.user?.company?.name || 'Unknown Company',
            avatar: '/default-avatar.png',
@@ -480,22 +413,24 @@ export async function GET(request: NextRequest) {
       supplier: product.supplier,
       publishedAt: product.publishedAt,
       lastSyncAt: product.lastSyncAt,
-      // Include all variants for variant selection
+      // Include all variants for variant selection (piece-based system)
       variants: variants.map(variant => ({
         id: variant.id,
         variantName: variant.variantName,
-        packageType: variant.packageType,
-        piecesPerPackage: variant.piecesPerPackage,
-        stockQuantity: variant.stockQuantity,
-        lowStockThreshold: variant.lowStockThreshold,
-        stockStatus: variant.stockStatus,
+        variantType: variant.variantType,
+        sku: variant.sku,
         purchasePrice: safeParsePrice(variant.purchasePrice),
         sellingPrice: parseVariantPrice(variant),
         originalSellingPrice: parseVariantOriginalPrice(variant),
         moq: variant.moq,
+        attributes: variant.attributes,
         isDefault: variant.isDefault,
         isActive: variant.isActive
-      }))
+      })),
+      // Include package info for display/fulfillment
+      packageInfo: product.packageInfo || [],
+      piecesPerPackage: product.packageInfo?.[0]?.piecesPerPackage || 1,
+      packageType: product.packageInfo?.[0]?.packageType || 'Piece'
       };
     }));
     
@@ -558,7 +493,8 @@ export async function POST(request: NextRequest) {
         userId: userIdNum
       },
       include: {
-        variants: true
+        variants: true,
+        packageInfo: true
       }
     });
     
@@ -586,18 +522,27 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Check if product has at least one complete variant
+      // Check if product has at least one complete variant (piece-based system)
       const hasCompleteVariant = product.variants && product.variants.length > 0 && 
         product.variants.some(variant => 
           variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
           variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
-          variant.stockQuantity !== undefined && variant.stockQuantity !== null &&
           variant.isActive
         );
       
+      // Check product-level stock (piece-based system)
+      const hasStock = product.stockQuantity !== undefined && product.stockQuantity !== null;
+      
       if (!hasCompleteVariant) {
         return NextResponse.json(
-          { error: 'Product must have at least one complete variant with pricing and stock information' },
+          { error: 'Product must have at least one complete variant with pricing' },
+          { status: 400, headers }
+        );
+      }
+      
+      if (!hasStock) {
+        return NextResponse.json(
+          { error: 'Product must have stock quantity set' },
           { status: 400, headers }
         );
       }

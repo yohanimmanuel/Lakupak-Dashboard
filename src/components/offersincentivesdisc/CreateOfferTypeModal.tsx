@@ -12,7 +12,6 @@ interface OfferTypeData {
   discountValue: number;
   minOrderValue?: string;
   minQuantity?: number;
-  maxUsage?: number;
 }
 
 interface CreateOfferTypeModalProps {
@@ -39,9 +38,7 @@ export default function CreateOfferTypeModal({
     discountValue: 0,
     minOrderValue: '',
     minQuantity: undefined,
-    maxUsage: undefined,
   });
-  const [noMaxUsage, setNoMaxUsage] = useState(false);
 
   useEffect(() => {
     if (editingType) {
@@ -52,9 +49,7 @@ export default function CreateOfferTypeModal({
         discountValue: editingType.discountValue || 0,
         minOrderValue: editingType.minOrderValue || '',
         minQuantity: editingType.minQuantity || undefined,
-        maxUsage: editingType.maxUsage || undefined,
       });
-      setNoMaxUsage(!editingType.maxUsage);
     } else {
       setFormData({
         name: '',
@@ -63,9 +58,7 @@ export default function CreateOfferTypeModal({
         discountValue: 0,
         minOrderValue: '',
         minQuantity: undefined,
-        maxUsage: undefined,
       });
-      setNoMaxUsage(false);
     }
   }, [editingType]);
 
@@ -83,15 +76,7 @@ export default function CreateOfferTypeModal({
     try {
       const dataToSave = {
         ...formData,
-        maxUsage: noMaxUsage ? undefined : formData.maxUsage,
       };
-      
-      // If we're editing an existing discount type and maxUsage changed, 
-      // we need to call the API to reset usage tracking
-      if (editingType && editingType.maxUsage !== dataToSave.maxUsage) {
-        // The API call will be handled by the parent component or store
-        // This is just for the modal's internal logic
-      }
       
       await onSave(dataToSave);
     } finally {
@@ -308,51 +293,6 @@ export default function CreateOfferTypeModal({
                 </div>
               </div>
 
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <button
-                    onClick={() => {
-                      setNoMaxUsage(!noMaxUsage);
-                      if (!noMaxUsage) {
-                        handleInputChange('maxUsage', undefined);
-                      }
-                    }}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                      noMaxUsage
-                        ? 'bg-green-500 border-green-500'
-                        : 'bg-white border-gray-300 hover:border-green-400'
-                    }`}
-                  >
-                    {noMaxUsage && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                  <label className="text-xs font-medium text-black cursor-pointer" onClick={() => {
-                    setNoMaxUsage(!noMaxUsage);
-                    if (!noMaxUsage) {
-                      handleInputChange('maxUsage', undefined);
-                    }
-                  }}>
-                    No Maximum Usage Count
-                  </label>
-                </div>
-                {!noMaxUsage && (
-                  <>
-                    <input
-                      type="number"
-                      value={formData.maxUsage || ''}
-                      onChange={(e) => handleInputChange('maxUsage', parseInt(e.target.value) || undefined)}
-                      placeholder="1000"
-                      className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
-                    />
-                    <div className="mt-1 text-xs text-gray-500">
-                      Total times this offer can be used across all customers
-                    </div>
-                  </>
-                )}
-              </div>
 
             </div>
           </div>

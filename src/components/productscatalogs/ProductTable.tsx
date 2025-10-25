@@ -169,15 +169,17 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     const product = products.find(p => p.productId === productId);
     if (!product) return false;
     
-    // Check if product has at least one complete variant
+    // Check if product has at least one complete variant (piece-based system)
     const hasCompleteVariant = product.variants && product.variants.length > 0 && 
       product.variants.some(variant => 
         variant.purchasePrice && 
         variant.sellingPrice && 
-        variant.stockQuantity !== undefined && 
-        variant.stockQuantity !== null &&
         variant.isActive
       );
+    
+    // Check product-level stock (piece-based system)
+    const hasStock = product.stockQuantity !== undefined && 
+                    product.stockQuantity !== null;
     
     // Check required fields for marketplace publishing
     const hasRequiredFields = Boolean(product.sku && 
@@ -186,7 +188,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              product.productType && 
                              product.brand && 
                              product.supplier && 
-                             hasCompleteVariant);
+                             hasCompleteVariant &&
+                             hasStock);
     
     const hasImages = Boolean(product.images && product.images.length > 0);
     
@@ -624,15 +627,17 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
         
         const missingDataCount = currentPageOriginalProducts.filter(product => {
-          // Check if product has at least one complete variant
+            // Check if product has at least one complete variant (piece-based system)
           const hasCompleteVariant = product.variants && product.variants.length > 0 && 
             product.variants.some(variant => 
               variant.purchasePrice && 
               variant.sellingPrice && 
-              variant.stockQuantity !== undefined && 
-              variant.stockQuantity !== null &&
               variant.isActive
             );
+          
+          // Check product-level stock (piece-based system)
+          const hasStock = product.stockQuantity !== undefined && 
+                          product.stockQuantity !== null;
           
           // Use the same logic as isProductComplete function
           const hasRequiredFields = Boolean(product.sku && 
@@ -641,7 +646,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                    product.productType && 
                                    product.brand && 
                                    product.supplier && 
-                                   hasCompleteVariant);
+                                   hasCompleteVariant &&
+                                   hasStock);
           
           const hasImages = Boolean(product.images && product.images.length > 0);
           
@@ -919,7 +925,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               const originalProduct = products.find(p => p.productId === product.productId);
               
               const hasIncompleteData = originalProduct ? (() => {
-                // Check if product has variants and if the first variant has required data
+                // Check if product has variants and if the first variant has required data (piece-based system)
                 const firstVariant = originalProduct.variants?.[0];
                 const hasRequiredFields = Boolean(originalProduct.sku && 
                                          originalProduct.name && 
@@ -929,8 +935,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                          originalProduct.supplier && 
                                          firstVariant?.purchasePrice && 
                                          firstVariant?.sellingPrice && 
-                                         firstVariant?.stockQuantity !== undefined && 
-                                         firstVariant?.stockQuantity !== null);
+                                         originalProduct.stockQuantity !== undefined && 
+                                         originalProduct.stockQuantity !== null);
                 
                 const hasImages = Boolean(originalProduct.images && originalProduct.images.length > 0);
                 
@@ -1171,7 +1177,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              const originalProduct = products.find(p => p.productId === product.productId);
              
              const hasIncompleteData = originalProduct ? (() => {
-               // Check all profile fields for missing data
+               // Check all profile fields for missing data (piece-based system)
                 const basicFields = [
                 !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
                 !String(originalProduct.description).trim(), !String((originalProduct.productType || '')).trim(),
@@ -1182,7 +1188,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const firstVariant = originalProduct.variants?.[0];
                const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = firstVariant?.stockQuantity === undefined || firstVariant?.stockQuantity === null;
+               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1444,7 +1450,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              const originalProduct = products.find(p => p.productId === product.productId);
              
              const hasIncompleteData = originalProduct ? (() => {
-               // Check all profile fields for missing data
+               // Check all profile fields for missing data (piece-based system)
                const basicFields = [
                  !String(originalProduct.sku).trim(), !String(originalProduct.name).trim(), 
                 !String(originalProduct.description).trim(), !String(originalProduct.productType).trim(),
@@ -1455,7 +1461,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const firstVariant = originalProduct.variants?.[0];
                const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = firstVariant?.stockQuantity === undefined || firstVariant?.stockQuantity === null;
+               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;

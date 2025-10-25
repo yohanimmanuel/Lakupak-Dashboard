@@ -1,15 +1,30 @@
+// Package reference for display and fulfillment (NOT separate SKUs)
+export interface PackageInfo {
+  id?: number;
+  packageName?: string; // e.g., "Small Box", "Large Carton"
+  packageType: string; // e.g., "Piece", "Pack", "Carton", "Box"
+  piecesPerPackage: number;
+  displayOrder: number;
+  isDefault: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  productId?: number;
+}
+
+// Variants for actual product variations (color, size, flavor - NOT package types)
 export interface ProductVariant {
   id?: number;
-  variantName: string;
-  packageType: string;
-  piecesPerPackage: number;
-  stockQuantity: number;
-  lowStockThreshold: number;
-  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  variantName: string; // e.g., "Original Flavor", "Spicy", "Red", "Size M"
+  variantType?: string; // e.g., "Flavor", "Color", "Size"
+  sku?: string; // Variant-specific SKU
+  // Pricing at variant level
   purchasePrice: string;
   sellingPrice: string;
-  originalSellingPrice?: string; // Store original price before any discounts
-  moq?: number; // Minimum Order Quantity - for all variants
+  originalSellingPrice?: string;
+  // MOQ at variant level (different distributors may have different MOQs)
+  moq?: number; // Minimum Order Quantity in pieces
+  // Variant attributes
+  attributes?: Record<string, unknown>;
   isDefault: boolean;
   isActive: boolean;
   createdAt?: Date;
@@ -35,11 +50,17 @@ export interface Product {
   bpomApproved?: boolean;
   originalProduct?: boolean;
   returnPolicyDays?: number;
+  // Stock management at product level (piece-based)
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  // Package reference (for display only)
+  packageInfo?: PackageInfo[];
+  // Variants (for actual product variations)
+  variants?: ProductVariant[];
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
-  // Variants
-  variants?: ProductVariant[];
   // Offer integration
   offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
   originalPrice?: string;
@@ -47,10 +68,10 @@ export interface Product {
   offerId?: string;
   offerName?: string;
   discountType?: 'percentage' | 'fixed' | 'buy_x_get_y';
-  discountValue?: number; // The actual discount amount (for fixed) or percentage (for percentage)
+  discountValue?: number;
   promotionDetails?: {
-    minQuantity: number;
-    freeQuantity: number;
+    minQuantity: number; // in pieces
+    freeQuantity: number; // in pieces
     description: string;
   };
 }

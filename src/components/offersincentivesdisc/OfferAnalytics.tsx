@@ -54,15 +54,8 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
     const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
     const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
     
-    // Calculate redemption rate (actual usage vs max usage from discount types)
-    const totalMaxUsage = offers.reduce((sum, offer) => {
-      // Sum maxUsage from all active discount types in this offer
-      const offerMaxUsage = offer.discountTypes?.reduce((discountSum, discountType) => {
-        return discountSum + (discountType.maxUsage || 0);
-      }, 0) || 0;
-      return sum + offerMaxUsage;
-    }, 0);
-    const redemptionRate = totalMaxUsage > 0 ? (totalUsage / totalMaxUsage) * 100 : 0;
+    // No usage limits - distributors manage offers manually
+    const redemptionRate = 0; // No usage limits
     
     // Calculate conversion rate (offers that have been used vs total offers)
     const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;

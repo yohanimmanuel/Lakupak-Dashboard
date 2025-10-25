@@ -167,7 +167,8 @@ export async function GET(request: NextRequest) {
         originalPriceSnapshot: oi.originalPriceSnapshot || null,
         discountPercentage: oi.discountPercentage || null,
         discountAmount: oi.discountAmount || null,
-        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null
+        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
+        moqSnapshot: oi.moqSnapshot || null
       }));
       
       return {
@@ -315,7 +316,7 @@ export async function POST(request: NextRequest) {
         // Get the variant first to calculate total pieces for MOQ validation
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') },
-          include: { variants: true }
+          include: { variants: true, packageInfo: true }
         });
         
         if (!product) {
@@ -327,7 +328,10 @@ export async function POST(request: NextRequest) {
         
         const variant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
         const packageQuantity = item.packageQuantity || 1;
-        const totalPieces = packageQuantity * (variant.piecesPerPackage || 1);
+        // Get piecesPerPackage from product packageInfo (piece-based system)
+        const firstPackage = product.packageInfo?.[0];
+        const piecesPerPackage = firstPackage?.piecesPerPackage || 1;
+        const totalPieces = packageQuantity * piecesPerPackage;
         
         // Use the new variant validation service with correct quantities for MOQ validation
         const variantValidation = await validateVariant(String(item.productId || ''), item.variantId, totalPieces, packageQuantity);
@@ -386,10 +390,11 @@ export async function POST(request: NextRequest) {
           );
         }
         
-        if (firstVariant.stockQuantity < totalQtyNeeded) {
+        // Check product-level stock (piece-based system)
+        if (product.stockQuantity < totalQtyNeeded) {
           return NextResponse.json(
             { 
-              error: `Insufficient stock for ${product.name}. Available: ${firstVariant.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+              error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
             },
             { status: 400, headers }
           );
@@ -441,10 +446,10 @@ export async function POST(request: NextRequest) {
       await prisma.$transaction(async (tx) => {
         
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-          // Fetch product with variants
+          // Fetch product with variants and packageInfo
           const product = await tx.product.findFirst({
             where: { productId: String(item.productId || '') },
-            include: { variants: true }
+            include: { variants: true, packageInfo: true }
           });
           
           if (!product) {
@@ -495,7 +500,8 @@ export async function POST(request: NextRequest) {
             originalPriceSnapshot: null as string | null,
             discountPercentage: null as number | null,
             discountAmount: null as number | null,
-            promotionDetailsSnapshot: null as string | null
+            promotionDetailsSnapshot: null as string | null,
+            moqSnapshot: variant.moq || null // Save MOQ at time of order (in pieces)
           };
           
           // If offer is valid, track usage and add snapshot data

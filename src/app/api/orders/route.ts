@@ -437,7 +437,7 @@ export async function POST(request: NextRequest) {
             // Get the variant first to calculate total pieces for MOQ validation
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId) },
-              include: { variants: true }
+              include: { variants: true, packageInfo: true }
             });
             
             if (!product) {
@@ -446,7 +446,10 @@ export async function POST(request: NextRequest) {
             
             const selectedVariant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
             const packageQuantity = item.packageQuantity || 1;
-            const totalPieces = packageQuantity * (selectedVariant.piecesPerPackage || 1);
+            // Get piecesPerPackage from product packageInfo (piece-based system)
+            const productPackageInfo = product.packageInfo?.[0];
+            const piecesPerPackageForMOQ = productPackageInfo?.piecesPerPackage || 1;
+            const totalPieces = packageQuantity * piecesPerPackageForMOQ;
             
             // Validate variant using the new service with correct quantities for MOQ validation
             const variantValidation = await validateVariant(String(item.productId), item.variantId, totalPieces, packageQuantity);
@@ -460,7 +463,9 @@ export async function POST(request: NextRequest) {
             // Use the new price parsing utility
             const consistentUnitPrice = parseVariantPrice(variant);
             
-            const piecesPerPackage = variant.piecesPerPackage || 1;
+            // Get package info from product level (piece-based system)
+            const piecesPerPackage = item.piecesPerPackage || productPackageInfo?.piecesPerPackage || 1;
+            const packageType = item.packageType || productPackageInfo?.packageType || 'Piece';
             const pricePerPackage = consistentUnitPrice * piecesPerPackage;
             const consistentSubtotal = packageQuantity * pricePerPackage;
             
@@ -499,10 +504,10 @@ export async function POST(request: NextRequest) {
               orderId: sanitizedData.orderId as string,
               productId: item.productId as string,
               subtotal: consistentSubtotal,
-              packageType: item.packageType || variant.packageType || null,
-              piecesPerPackage: item.piecesPerPackage || variant.piecesPerPackage || 1,
+              packageType: packageType,
+              piecesPerPackage: piecesPerPackage,
               packageQuantity: item.packageQuantity || 1,
-              pricePerPackage: item.pricePerPackage || (variant.piecesPerPackage ? consistentUnitPrice * variant.piecesPerPackage : null),
+              pricePerPackage: item.pricePerPackage || pricePerPackage,
               productNameSnapshot: product.name,
               productSkuSnapshot: product.sku,
               productTypeSnapshot: product.productType,
@@ -1043,32 +1048,26 @@ export async function PUT(request: NextRequest) {
               continue; // Skip if product not found
             }
             
-            // Restore stock for all variants of this product
-            const productVariants = await prisma.productVariant.findMany({
-              where: { productId: productForRestore.id }
-            });
+            // Restore stock at product level (piece-based system)
+            const newStock = (productForRestore.stockQuantity || 0) + totalQtyToRestore;
+            let newStockStatus = productForRestore.stockStatus;
             
-            for (const variant of productVariants) {
-              const newStock = variant.stockQuantity + totalQtyToRestore;
-              let newStockStatus = variant.stockStatus;
-              
-              // Update stock status based on threshold
-              if (newStock <= 0) {
-                newStockStatus = 'Out of Stock';
-              } else if (variant.lowStockThreshold && newStock <= variant.lowStockThreshold) {
-                newStockStatus = 'Low Stock';
-              } else {
-                newStockStatus = 'In Stock';
-              }
-              
-              await prisma.productVariant.update({
-                where: { id: variant.id },
-                data: {
-                  stockQuantity: newStock,
-                  stockStatus: newStockStatus
-                }
-              });
+            // Update stock status based on threshold
+            if (newStock <= 0) {
+              newStockStatus = 'Out of Stock';
+            } else if (productForRestore.lowStockThreshold && newStock <= productForRestore.lowStockThreshold) {
+              newStockStatus = 'Low Stock';
+            } else {
+              newStockStatus = 'In Stock';
             }
+            
+            await prisma.product.update({
+              where: { id: productForRestore.id },
+              data: {
+                stockQuantity: newStock,
+                stockStatus: newStockStatus
+              }
+            });
           }
         }
         
@@ -1112,32 +1111,26 @@ export async function PUT(request: NextRequest) {
               continue; // Skip if product not found
             }
             
-            // Deduct stock for all variants of this product
-            const productVariants = await prisma.productVariant.findMany({
-              where: { productId: productForDeduct.id }
-            });
+            // Deduct stock at product level (piece-based system)
+            const newStock = (productForDeduct.stockQuantity || 0) - totalQtyToDeduct;
+            let newStockStatus = productForDeduct.stockStatus;
             
-            for (const variant of productVariants) {
-              const newStock = variant.stockQuantity - totalQtyToDeduct;
-              let newStockStatus = variant.stockStatus;
-              
-              // Update stock status based on threshold
-              if (newStock <= 0) {
-                newStockStatus = 'Out of Stock';
-              } else if (variant.lowStockThreshold && newStock <= variant.lowStockThreshold) {
-                newStockStatus = 'Low Stock';
-              } else {
-                newStockStatus = 'In Stock';
-              }
-              
-              await prisma.productVariant.update({
-                where: { id: variant.id },
-                data: {
-                  stockQuantity: Math.max(0, newStock),
-                  stockStatus: newStockStatus
-                }
-              });
+            // Update stock status based on threshold
+            if (newStock <= 0) {
+              newStockStatus = 'Out of Stock';
+            } else if (productForDeduct.lowStockThreshold && newStock <= productForDeduct.lowStockThreshold) {
+              newStockStatus = 'Low Stock';
+            } else {
+              newStockStatus = 'In Stock';
             }
+            
+            await prisma.product.update({
+              where: { id: productForDeduct.id },
+              data: {
+                stockQuantity: Math.max(0, newStock),
+                stockStatus: newStockStatus
+              }
+            });
           }
         }
       }
@@ -1166,7 +1159,7 @@ export async function PUT(request: NextRequest) {
         // Fetch the product with variants to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId },
-          include: { variants: true }
+          include: { variants: true, packageInfo: true }
         });
         
         if (!product) {

@@ -113,11 +113,10 @@ export async function GET(request: NextRequest) {
         discountValue: dt.discountValue,
         name: dt.name,
         description: dt.description,
-        minOrderValue: dt.minOrderValue,
-        minQuantity: dt.minQuantity,
-        maxUsage: dt.maxUsage,
-        isActive: dt.isActive,
-        priority: dt.priority,
+          minOrderValue: dt.minOrderValue,
+          minQuantity: dt.minQuantity,
+          isActive: dt.isActive,
+          priority: dt.priority,
         currentUsage: usageMap.get(`${offer.id}-${dt.id}`) || 0,
       })),
       startDate: offer.startDate,
@@ -367,9 +366,8 @@ export async function POST(request: NextRequest) {
           minOrderValue: dt.minOrderValue ? 
             (typeof dt.minOrderValue === 'string' ? parseFloat(dt.minOrderValue.replace(/\./g, '')) : dt.minOrderValue) : 
             undefined,
-          minQuantity: dt.minQuantity,
-          maxUsage: dt.maxUsage,
-          isActive: dt.isActive,
+            minQuantity: dt.minQuantity,
+            isActive: dt.isActive,
           priority: dt.priority,
         })),
       });
@@ -486,11 +484,10 @@ export async function POST(request: NextRequest) {
         discountValue: dt.discountValue,
         name: dt.name,
         description: dt.description,
-        minOrderValue: dt.minOrderValue,
-        minQuantity: dt.minQuantity,
-          maxUsage: dt.maxUsage,
-        isActive: dt.isActive,
-        priority: dt.priority,
+          minOrderValue: dt.minOrderValue,
+          minQuantity: dt.minQuantity,
+          isActive: dt.isActive,
+          priority: dt.priority,
       })),
       startDate: createdOffer!.startDate,
       endDate: createdOffer!.endDate,
@@ -554,15 +551,16 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           }
         },
         include: {
-          offerDiscountTypes: {
-            where: { isActive: true }
-          }
+          offerDiscountTypes: true
         }
       });
 
       for (const variant of product.variants) {
         // Get original price (if not set, use current selling price)
-        const originalPrice = parseVariantOriginalPrice(variant) || parseVariantPrice(variant);
+        // If originalSellingPrice is already set, use it; otherwise use current sellingPrice
+        const originalPrice = variant.originalSellingPrice ? 
+          (parseVariantOriginalPrice(variant) || parseVariantPrice(variant)) : 
+          parseVariantPrice(variant);
 
         let finalPrice = originalPrice;
         let hasOffer = false;
@@ -570,38 +568,51 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         // Apply discount if there are active offers
         if (productOffers.length > 0) {
           const offer = productOffers[0];
-          const discountType = offer.offerDiscountTypes[0];
+          let bestDiscountAmount = 0;
+          let bestDiscountType = null;
           
-          if (discountType) {
-            // Check if the discount type has reached its usage limit
-            let isDiscountTypeUsable = true;
-            
-            if (discountType.maxUsage && discountType.maxUsage > 0) {
-              const totalUsage = await tx.offerUsageTracking.aggregate({
-                where: {
-                  offerId: offer.id,
-                  discountTypeId: discountType.id
-                },
-                _count: {
-                  id: true
-                }
-              });
-              
-              if (totalUsage._count.id >= discountType.maxUsage) {
-                isDiscountTypeUsable = false;
-              }
+          // Check all discount types and find the best one
+          for (const discountType of offer.offerDiscountTypes) {
+            // Skip if discount type is not active
+            if (!discountType.isActive) {
+              continue;
             }
             
-            if (isDiscountTypeUsable) {
+            // All active discount types are usable (no usage limits)
+            if (discountType.isActive) {
+              let discountAmount = 0;
+              
               if (discountType.discountType === 'percentage') {
-                finalPrice = originalPrice * (1 - discountType.discountValue / 100);
-                hasOffer = true;
+                discountAmount = (originalPrice * discountType.discountValue) / 100;
               } else if (discountType.discountType === 'fixed') {
-                finalPrice = Math.max(0, originalPrice - discountType.discountValue);
-                hasOffer = true;
+                discountAmount = discountType.discountValue;
+              }
+              
+              // Keep the best discount
+              if (discountAmount > bestDiscountAmount) {
+                bestDiscountAmount = discountAmount;
+                bestDiscountType = discountType;
               }
             }
           }
+          
+          // Apply the best discount found
+          if (bestDiscountType && bestDiscountAmount > 0) {
+            if (bestDiscountType.discountType === 'percentage') {
+              finalPrice = originalPrice * (1 - bestDiscountType.discountValue / 100);
+            } else if (bestDiscountType.discountType === 'fixed') {
+              finalPrice = Math.max(0, originalPrice - bestDiscountType.discountValue);
+            }
+            hasOffer = true;
+          } else {
+            // No usable discount types, reset to original price
+            finalPrice = originalPrice;
+            hasOffer = false;
+          }
+        } else {
+          // No active offers, reset to original price
+          finalPrice = originalPrice;
+          hasOffer = false;
         }
 
         // Update the variant
@@ -609,7 +620,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           where: { id: variant.id },
           data: {
             sellingPrice: String(Math.round(finalPrice)),
-            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : variant.originalSellingPrice
+            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : null
           }
         });
       }
@@ -657,12 +668,12 @@ async function resetProductPricesFromOffers(tx: Prisma.TransactionClient, userId
     for (const product of productsWithOriginalPrices) {
       for (const variant of product.variants) {
         if (variant.originalSellingPrice) {
-          // Reset selling price to original price and clear originalSellingPrice
+          // Reset selling price to original price but keep originalSellingPrice
+          // The updateProductPricesFromOffers function will decide whether to clear it
           await tx.productVariant.update({
             where: { id: variant.id },
             data: {
-              sellingPrice: variant.originalSellingPrice,
-              originalSellingPrice: null
+              sellingPrice: variant.originalSellingPrice
             }
           });
         }

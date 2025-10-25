@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true
+                variants: true,
+                packageInfo: true
               }
             }
           }
@@ -77,7 +78,6 @@ export async function POST(request: NextRequest) {
             description: dt.description,
             minOrderValue: dt.minOrderValue,
             minQuantity: dt.minQuantity,
-            maxUsage: dt.maxUsage,
             isActive: dt.isActive,
             priority: dt.priority
           }))
@@ -134,7 +134,8 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true
+                variants: true,
+                packageInfo: true
               }
             }
           }
@@ -161,7 +162,6 @@ export async function POST(request: NextRequest) {
         description: dt.description,
         minOrderValue: dt.minOrderValue,
         minQuantity: dt.minQuantity,
-        maxUsage: dt.maxUsage,
         isActive: dt.isActive,
         priority: dt.priority
       })),
@@ -179,12 +179,12 @@ export async function POST(request: NextRequest) {
           productCategory: op.product.productCategory,
           price: firstVariant?.sellingPrice || '0',
           // Add variant information for piece-based pricing
-          variantName: firstVariant?.variantName || 'Single Piece',
-          packageType: firstVariant?.packageType || 'Piece',
-          piecesPerPackage: firstVariant?.piecesPerPackage || 1,
+          variantName: firstVariant?.variantName || 'Default',
+          packageType: op.product.packageInfo?.[0]?.packageType || 'Piece',
+          piecesPerPackage: op.product.packageInfo?.[0]?.piecesPerPackage || 1,
           // Calculate piece price (price per individual piece)
           piecePrice: firstVariant ? 
-            (parseFloat(firstVariant.sellingPrice || '0') / (firstVariant.piecesPerPackage || 1)) : 0
+            (parseFloat(firstVariant.sellingPrice || '0') / (op.product.packageInfo?.[0]?.piecesPerPackage || 1)) : 0
         };
       }),
       dateRanges: createdOffer!.dateRanges?.map((dr) => ({

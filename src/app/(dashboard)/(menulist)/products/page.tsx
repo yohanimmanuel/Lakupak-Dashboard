@@ -114,8 +114,9 @@ export default function ProductsPage() {
 
   // Convert product data to table row format
   const profileToTableRow = (product: Product): ProductTableRow => {
-    // Get data from the first variant (default variant) or create default values
+    // Get data from product level (piece-based system) and first variant for pricing
     const firstVariant = product.variants?.[0];
+    const firstPackage = product.packageInfo?.[0];
     
     return {
       id: product.id || 0,
@@ -125,12 +126,12 @@ export default function ProductsPage() {
       productType: product.productType,
       brand: product.brand,
       supplier: product.supplier,
-      stockQuantity: firstVariant?.stockQuantity || 0,
-      lowStockThreshold: firstVariant?.lowStockThreshold || 30,
+      stockQuantity: product.stockQuantity || 0, // Product-level stock in pieces
+      lowStockThreshold: product.lowStockThreshold || 30, // Product-level threshold
       purchasePrice: firstVariant?.purchasePrice || '0',
       sellingPrice: firstVariant?.sellingPrice || '0',
-      packageType: firstVariant?.packageType || 'Piece',
-      piecesPerPackage: firstVariant?.piecesPerPackage || 1,
+      packageType: firstPackage?.packageType || 'Piece', // From packageInfo
+      piecesPerPackage: firstPackage?.piecesPerPackage || 1, // From packageInfo
       
       status: product.status,
       createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',

@@ -17,7 +17,6 @@ export interface OfferDiscountType {
   minOrderValue?: number | string | null;
   minQuantity?: number | null;
   freeQuantity?: number | null;
-  maxUsage?: number | null;
   isActive: boolean;
   priority: number;
   currentUsage?: number; // Individual usage count for this discount type
@@ -61,7 +60,6 @@ export interface Offer {
   minQuantity?: number;
   startDate: string;
   endDate: string;
-  maxUsage?: number;
   totalUsage: number;
   totalDiscountGiven: number;
   products: OfferProduct[];
@@ -88,7 +86,6 @@ export interface OfferFormData {
   minQuantity?: number;
   startDate: string;
   endDate: string;
-  maxUsage?: number;
   productIds: string[];
 }
 
