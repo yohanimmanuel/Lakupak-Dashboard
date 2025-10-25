@@ -109,8 +109,28 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
     
+    // Auto-sync buyer data with latest orders (including shipping fees)
+    // This ensures buyer totals are always up-to-date
+    for (const buyer of buyers) {
+      if (buyer.buyerId) {
+        try {
+          await syncBuyerOrderData(buyer.buyerId, Number(userId));
+        } catch (syncError) {
+          // Silent fail - don't block the response
+        }
+      }
+    }
+    
+    // Refetch buyers after sync to get updated data
+    const updatedBuyers = await prisma.buyer.findMany({
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    });
+    
     return NextResponse.json({
-      buyers,
+      buyers: updatedBuyers,
       pagination: {
         page,
         limit,
@@ -169,17 +189,29 @@ export async function POST(req: NextRequest) {
     const buyerData = sanitizeBuyerData(data);
     
     // Use data provided by user - store blank values, frontend will display "Missing"
-    const finalBuyerData = {
+    const finalBuyerData: {
+      buyerId: string;
+      userId: number;
+      storeName: string;
+      owner: string;
+      email: string;
+      phone: string;
+      businessType: string;
+      address: string;
+      status: string;
+      [key: string]: unknown;
+    } = {
       ...buyerData,
+      buyerId: String(buyerData.buyerId || ''), // Will be generated if empty
       userId: Number(data.userId), // Ensure userId is included
       // Store blank values, frontend will show "Missing" when displaying
-      storeName: buyerData.storeName || '',
-      owner: buyerData.owner || '',
-      email: buyerData.email || '',
-      phone: buyerData.phone || '',
-      businessType: buyerData.businessType || '',
-      address: buyerData.address || '',
-      status: buyerData.status || 'Active',
+      storeName: String(buyerData.storeName || ''),
+      owner: String(buyerData.owner || ''),
+      email: String(buyerData.email || ''),
+      phone: String(buyerData.phone || ''),
+      businessType: String(buyerData.businessType || ''),
+      address: String(buyerData.address || ''),
+      status: String(buyerData.status || 'Active'),
     };
     
     // Only check for unique buyerId - allow duplicate emails, names, etc. for MVP flexibility
@@ -449,6 +481,107 @@ export async function PUT(req: NextRequest) {
       { error: 'Failed to update buyer' }, 
       { status: 500, headers }
     );
+  }
+}
+
+// Function to sync buyer order data (including shipping fees)
+async function syncBuyerOrderData(buyerId: string, userId: number) {
+  try {
+    // Get buyer
+    const buyer = await prisma.buyer.findFirst({
+      where: { buyerId, userId }
+    });
+    
+    if (!buyer) return;
+    
+    // Get all orders for this buyer
+    const orders = await prisma.order.findMany({
+      where: { 
+        buyerId, 
+        userId,
+        orderStatus: { notIn: ['Cancelled', 'Returned'] } // Exclude cancelled and returned orders
+      },
+      include: {
+        orderItemsRel: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: { orderDate: 'desc' }
+    });
+    
+    // Process orders into orderDetails format
+    const orderDetails = orders.map(order => {
+      // Get all products in this order as a comma-separated string
+      const productNames = order.orderItemsRel.map(item => 
+        item.product?.name || item.productNameSnapshot || 'Unknown Product'
+      ).join(', ');
+      
+      // Calculate total orders (sum of all package quantities)
+      const totalOrders = order.orderItemsRel.reduce((sum, item) => sum + (item.packageQuantity || 1), 0);
+      
+      // Calculate total spend for this order (including shipping fee)
+      const totalSpend = order.orderItemsRel.reduce((sum, item) => sum + item.subtotal, 0) + (order.shippingFee || 0);
+      
+      // Calculate outstanding amount for this order (unpaid orders, including shipping fee)
+      const outstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? totalSpend : 0;
+      
+      // Calculate free items from promotions
+      let totalFreeItems = 0;
+      let discountBadge = '';
+      let hasOfferApplied = false;
+      
+      order.orderItemsRel.forEach(item => {
+        if (item.offerApplied) {
+          hasOfferApplied = true;
+          
+          // Calculate free items from promotion
+          if (item.promotionDetailsSnapshot) {
+            try {
+              const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+              if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                const freeQty = Math.floor((item.packageQuantity || 1) / promoDetails.minQuantity) * promoDetails.freeQuantity;
+                totalFreeItems += freeQty;
+              }
+            } catch {
+              // Invalid JSON, skip
+            }
+          }
+          
+          // Set discount badge
+          if (item.discountPercentage) {
+            discountBadge = `${item.discountPercentage}% OFF`;
+          } else if (item.discountAmount) {
+            discountBadge = `Rp ${item.discountAmount.toLocaleString('id-ID')} OFF`;
+          }
+        }
+      });
+      
+      return {
+        orderNo: order.orderId,
+        product: productNames,
+        totalOrders: totalOrders.toString(),
+        totalSpend: totalSpend.toString(),
+        shippingFee: (order.shippingFee || 0).toString(),
+        lastOrderDate: order.orderDate.toISOString().split('T')[0],
+        outstanding: outstanding.toString(),
+        freeItems: totalFreeItems > 0 ? totalFreeItems : undefined,
+        discountBadge: discountBadge || undefined,
+        offerApplied: hasOfferApplied
+      };
+    });
+    
+    // Update buyer with new order details
+    await prisma.buyer.update({
+      where: { id: buyer.id },
+      data: {
+        orderDetails: JSON.stringify(orderDetails),
+        updatedAt: new Date()
+      }
+    });
+  } catch (error) {
+    // Silent fail
   }
 }
 

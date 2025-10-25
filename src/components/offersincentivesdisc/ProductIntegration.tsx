@@ -517,11 +517,12 @@ export default function ProductIntegration({
   };
 
   const getStockStatus = (product: ProductWithOffer) => {
-    const stock = product.stockQuantity || 0;
-    const threshold = product.lowStockThreshold || 30;
+    // Calculate total stock from all variants
+    const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
     
-    if (stock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
-    if (threshold > 0 && stock <= threshold) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
+    if (totalStock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
+    if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
     return { color: 'text-green-600', bg: 'bg-green-50', label: 'In Stock' };
   };
 
@@ -862,7 +863,7 @@ export default function ProductIntegration({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Stock:</span>
                     <span className={`${getStockStatus(product).color}`}>
-                      {product.stockQuantity || 0} units
+                      {product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0} units
                     </span>
                   </div>
                 </div>
@@ -965,7 +966,7 @@ export default function ProductIntegration({
                     </td>
                     <td className="py-4 px-4 text-right">
                       <span className={`${getStockStatus(product).color}`}>
-                        {product.stockQuantity || 0}
+                        {product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0}
                       </span>
                     </td>
                     <td className="py-4 px-4">

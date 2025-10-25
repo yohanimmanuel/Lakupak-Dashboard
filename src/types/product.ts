@@ -23,6 +23,10 @@ export interface ProductVariant {
   originalSellingPrice?: string;
   // MOQ at variant level (different distributors may have different MOQs)
   moq?: number; // Minimum Order Quantity in pieces
+  // Stock management at variant level (piece-based)
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
   // Variant attributes
   attributes?: Record<string, unknown>;
   isDefault: boolean;
@@ -50,13 +54,14 @@ export interface Product {
   bpomApproved?: boolean;
   originalProduct?: boolean;
   returnPolicyDays?: number;
-  // Stock management at product level (piece-based)
-  stockQuantity: number;
-  lowStockThreshold: number;
-  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  // Product-level stock is computed from sum of all variant stocks
+  // Use getProductTotalStock() helper function to calculate
+  stockQuantity?: number; // Computed field
+  lowStockThreshold?: number; // Computed field
+  stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock'; // Computed field
   // Package reference (for display only)
   packageInfo?: PackageInfo[];
-  // Variants (for actual product variations)
+  // Variants (for actual product variations) - STOCK IS AT VARIANT LEVEL
   variants?: ProductVariant[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -95,6 +100,8 @@ export interface ProductTableRow {
   createdAt: string;
   lastUpdated: string;
   userId: number;
+  // Variants for stock calculation
+  variants?: ProductVariant[];
 }
 
 export interface ProductImportRow {

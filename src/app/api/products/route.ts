@@ -487,10 +487,7 @@ export async function POST(req: NextRequest) {
     const product = await prisma.product.create({
       data: {
         ...productData,
-        // Stock management at product level (piece-based)
-        stockQuantity: data.stockQuantity || 0,
-        lowStockThreshold: data.lowStockThreshold || 0,
-        stockStatus: data.stockStatus || 'In Stock',
+        // Stock management is now at variant level - no product-level stock fields
         // Variants for actual product variations (color, size, flavor)
         variants: data.variants ? {
           create: data.variants.map((variant: {
@@ -501,6 +498,9 @@ export async function POST(req: NextRequest) {
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
             attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
@@ -512,6 +512,9 @@ export async function POST(req: NextRequest) {
             sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
             originalSellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
             moq: variant.moq,
+            stockQuantity: variant.stockQuantity || 0,
+            lowStockThreshold: variant.lowStockThreshold || 0,
+            stockStatus: variant.stockStatus || 'In Stock',
             attributes: variant.attributes,
             isDefault: variant.isDefault || false,
             isActive: variant.isActive !== false
@@ -828,10 +831,7 @@ export async function PUT(req: NextRequest) {
         where: { id: Number(id), userId: userIdNum },
         data: {
           ...cleanUpdateData,
-          // Stock management at product level
-          ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
-          ...(data.lowStockThreshold !== undefined && { lowStockThreshold: data.lowStockThreshold }),
-          ...(data.stockStatus !== undefined && { stockStatus: data.stockStatus }),
+          // Stock management is now at variant level - no product-level stock fields
           // Variants for actual product variations
           ...(data.variants && {
             variants: {
@@ -844,6 +844,9 @@ export async function PUT(req: NextRequest) {
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
             attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
@@ -855,6 +858,9 @@ export async function PUT(req: NextRequest) {
                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                 originalSellingPrice: variant.originalSellingPrice,
                 moq: variant.moq,
+                stockQuantity: variant.stockQuantity || 0,
+                lowStockThreshold: variant.lowStockThreshold || 0,
+                stockStatus: variant.stockStatus || 'In Stock',
                 attributes: variant.attributes,
                 isDefault: variant.isDefault || false,
                 isActive: variant.isActive !== false
@@ -891,10 +897,7 @@ export async function PUT(req: NextRequest) {
         where: { productId: productId, userId: userIdNum },
         data: {
           ...cleanUpdateData,
-          // Stock management at product level
-          ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
-          ...(data.lowStockThreshold !== undefined && { lowStockThreshold: data.lowStockThreshold }),
-          ...(data.stockStatus !== undefined && { stockStatus: data.stockStatus }),
+          // Stock management is now at variant level - no product-level stock fields
           // Variants for actual product variations
           ...(data.variants && {
             variants: {
@@ -907,6 +910,9 @@ export async function PUT(req: NextRequest) {
             sellingPrice: string;
             originalSellingPrice?: string;
             moq?: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
             attributes?: Record<string, unknown>;
             isDefault: boolean;
             isActive: boolean;
@@ -918,6 +924,9 @@ export async function PUT(req: NextRequest) {
                 sellingPrice: String(parseNumberByCurrency(String(variant.sellingPrice || ''), data.currency || 'IDR')),
                 originalSellingPrice: variant.originalSellingPrice,
                 moq: variant.moq,
+                stockQuantity: variant.stockQuantity || 0,
+                lowStockThreshold: variant.lowStockThreshold || 0,
+                stockStatus: variant.stockStatus || 'In Stock',
                 attributes: variant.attributes,
                 isDefault: variant.isDefault || false,
                 isActive: variant.isActive !== false

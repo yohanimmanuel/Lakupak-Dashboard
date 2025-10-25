@@ -70,6 +70,7 @@ export interface OrderItem {
   productNameSnapshot?: string;
   productSkuSnapshot?: string;
   productTypeSnapshot?: string;
+  variantNameSnapshot?: string; // Variant name at time of order
   // Product images
   images?: string[];
   brand?: string;

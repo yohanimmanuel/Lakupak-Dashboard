@@ -80,6 +80,7 @@ export interface OrderDetail {
   product: string;
   totalOrders: string;
   totalSpend: string;
+  shippingFee?: string;
   lastOrderDate: string;
   outstanding: string;
   freeItems?: number;

@@ -56,7 +56,7 @@ interface OperationalMetrics {
   onTimeDeliveryRate: number;
   orderAcceptanceRate: number;
   trackingCoverageRate: number;
-  lowStockSKUs: number;
+  lowStockPieces: number;
   stockoutRate: number;
   activeProducts: number;
   dataCompletenessScore: number;
@@ -84,9 +84,9 @@ interface ProcessingTimeData {
 
 interface InventoryHealthData {
   category: string;
-  totalSKUs: number;
-  lowStockSKUs: number;
-  stockoutSKUs: number;
+  totalPieces: number;
+  lowStockPieces: number;
+  stockoutPieces: number;
   healthScore: number;
 }
 
@@ -111,7 +111,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     onTimeDeliveryRate: 0,
     orderAcceptanceRate: 0,
     trackingCoverageRate: 0,
-    lowStockSKUs: 0,
+    lowStockPieces: 0,
     stockoutRate: 0,
     activeProducts: 0,
     dataCompletenessScore: 0
@@ -172,7 +172,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         onTimeDeliveryRate: 0,
         orderAcceptanceRate: 0,
         trackingCoverageRate: 0,
-        lowStockSKUs: 0,
+        lowStockPieces: 0,
         stockoutRate: 0,
         activeProducts: 0,
         dataCompletenessScore: 0
@@ -211,14 +211,16 @@ const OperationalPerformanceAnalytics: React.FC = () => {
 
     // Inventory metrics
     const totalProducts = products.length;
-    const lowStockSKUs = products.filter(product => 
-      product.lowStockThreshold && 
-      product.stockQuantity <= product.lowStockThreshold
-    ).length;
-    const stockoutSKUs = products.filter(product => 
-      product.stockQuantity === 0 || product.stockStatus === 'Out of Stock'
-    ).length;
-    const stockoutRate = totalProducts > 0 ? (stockoutSKUs / totalProducts) * 100 : 0;
+    const lowStockPieces = products.filter(product => {
+      const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+      const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+      return totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
+    }).length;
+    const stockoutPieces = products.filter(product => {
+      const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+      return totalStock === 0;
+    }).length;
+    const stockoutRate = totalProducts > 0 ? (stockoutPieces / totalProducts) * 100 : 0;
     
     // Data completeness score
     const ordersWithLogistics = orders.filter(order => order.assignedLogistics).length;
@@ -239,7 +241,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       onTimeDeliveryRate: 85, // Placeholder - would need delivery dates
       orderAcceptanceRate,
       trackingCoverageRate,
-      lowStockSKUs,
+      lowStockPieces,
       stockoutRate,
       activeProducts: totalProducts,
       dataCompletenessScore
@@ -344,9 +346,12 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       
       categoryData[category].total += 1;
       
-      if (product.stockQuantity === 0 || product.stockStatus === 'Out of Stock') {
+      const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+      const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+      
+      if (totalStock === 0) {
         categoryData[category].stockout += 1;
-      } else if (product.lowStockThreshold && product.stockQuantity <= product.lowStockThreshold) {
+      } else if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) {
         categoryData[category].lowStock += 1;
       }
     });
@@ -357,12 +362,12 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       
       return {
         category,
-        totalSKUs: data.total,
-        lowStockSKUs: data.lowStock,
-        stockoutSKUs: data.stockout,
+        totalPieces: data.total,
+        lowStockPieces: data.lowStock,
+        stockoutPieces: data.stockout,
         healthScore
       };
-    }).sort((a, b) => b.totalSKUs - a.totalSKUs);
+    }).sort((a, b) => b.totalPieces - a.totalPieces);
   }, [products, hasData]);
 
   // Calculate quality metrics
@@ -768,14 +773,14 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                     content={({ active, payload, label }) => {
                       if (!active || !payload) return null;
                       const colors: Record<string, string> = {
-                        healthySKUs: '#10B981',
-                        lowStockSKUs: '#F59E0B',
-                        stockoutSKUs: '#EF4444'
+                        healthyPieces: '#10B981',
+                        lowStockPieces: '#F59E0B',
+                        stockoutPieces: '#EF4444'
                       };
                       const labelsMap: Record<string, string> = {
-                        healthySKUs: 'Healthy stock (In-stock)',
-                        lowStockSKUs: 'Low Stock',
-                        stockoutSKUs: 'Out of Stock'
+                        healthyPieces: 'Healthy stock (In-stock)',
+                        lowStockPieces: 'Low Stock',
+                        stockoutPieces: 'Out of Stock'
                       };
                       return (
                         <div className="bg-white border-none rounded-xl shadow-lg p-4">
@@ -788,7 +793,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                             return (
                               <div key={idx} className="flex items-center space-x-2 mb-1">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                                <span className="font-medium" style={{ color }}>{value} SKUs</span>
+                                <span className="font-medium" style={{ color }}>{value} pieces</span>
                                 <span className="text-gray-500 ml-1">{display}</span>
                               </div>
                             );
@@ -799,24 +804,24 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                     cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
                   />
                   <Bar 
-                    dataKey="stockoutSKUs" 
+                    dataKey="stockoutPieces" 
                     stackId="a"
                     fill="url(#stockoutGradient)" 
-                    name="stockoutSKUs"
+                    name="stockoutPieces"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar 
-                    dataKey="lowStockSKUs" 
+                    dataKey="lowStockPieces" 
                     stackId="a"
                     fill="url(#lowStockGradient)" 
-                    name="lowStockSKUs"
+                    name="lowStockPieces"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar 
-                    dataKey={(entry) => entry.totalSKUs - entry.lowStockSKUs - entry.stockoutSKUs}
+                    dataKey={(entry) => entry.totalPieces - entry.lowStockPieces - entry.stockoutPieces}
                     stackId="a"
                     fill="url(#healthyGradient)" 
-                    name="healthySKUs"
+                    name="healthyPieces"
                     radius={[4, 4, 0, 0]}
                   />
                   </BarChart>
@@ -1174,7 +1179,7 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
       onTimeDeliveryRate: 0,
       orderAcceptanceRate: 0,
       trackingCoverageRate: 0,
-      lowStockSKUs: 0,
+      lowStockPieces: 0,
       stockoutRate: 0,
       activeProducts: products?.length || 0,
       dataCompletenessScore: 0
@@ -1196,9 +1201,16 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
   }, 0);
   const averageProcessingTime = withProc.length > 0 ? totalProc / withProc.length : 0;
   const totalProducts = products?.length || 0;
-  const lowStockSKUs = (products || []).filter(p => p.lowStockThreshold && p.stockQuantity <= p.lowStockThreshold).length;
-  const stockoutSKUs = (products || []).filter(p => p.stockQuantity === 0 || p.stockStatus === 'Out of Stock').length;
-  const stockoutRate = totalProducts > 0 ? (stockoutSKUs / totalProducts) * 100 : 0;
+    const lowStockPieces = (products || []).filter(p => {
+    const totalStock = p.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    const totalLowStockThreshold = p.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+    return totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
+  }).length;
+  const stockoutPieces = (products || []).filter(p => {
+    const totalStock = p.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    return totalStock === 0;
+  }).length;
+  const stockoutRate = totalProducts > 0 ? (stockoutPieces / totalProducts) * 100 : 0;
   const ordersWithLogistics = orders.filter(o => o.assignedLogistics).length;
   const ordersWithPOD = orders.filter(o => o.pod || o.deliveryConfirmation).length;
   const dataPoints = [ordersWithTracking, ordersWithLogistics, ordersWithPOD];
@@ -1214,7 +1226,7 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
     onTimeDeliveryRate: 85,
     orderAcceptanceRate,
     trackingCoverageRate,
-    lowStockSKUs,
+    lowStockPieces,
     stockoutRate,
     activeProducts: totalProducts,
     dataCompletenessScore

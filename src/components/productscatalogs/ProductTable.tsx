@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
+import { getProductTotalStock } from '@/utils/stockUtils';
 
 const statusTabs = [
   { label: "All" },
@@ -90,8 +91,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
-      const stock = p.stockQuantity;
-      const threshold = p.lowStockThreshold;
+      // Calculate total stock from variants
+      const productStock = getProductTotalStock(p.variants || []);
+      const stock = productStock.totalStock;
+      const threshold = productStock.lowStockThreshold;
       if (selectedStockFilter === "high") return threshold > 0 ? stock > threshold : stock > 0;
       if (selectedStockFilter === "low") return threshold > 0 ? stock <= threshold && stock > 0 : false;
       if (selectedStockFilter === "out") return stock === 0;
@@ -177,9 +180,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         variant.isActive
       );
     
-    // Check product-level stock (piece-based system)
-    const hasStock = product.stockQuantity !== undefined && 
-                    product.stockQuantity !== null;
+    // Check variant-level stock (piece-based system)
+    const productStock = getProductTotalStock(product.variants || []);
+    const hasStock = productStock.totalStock >= 0;
     
     // Check required fields for marketplace publishing
     const hasRequiredFields = Boolean(product.sku && 
@@ -635,9 +638,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               variant.isActive
             );
           
-          // Check product-level stock (piece-based system)
-          const hasStock = product.stockQuantity !== undefined && 
-                          product.stockQuantity !== null;
+          // Check variant-level stock (piece-based system)
+          const productStock = getProductTotalStock(product.variants || []);
+          const hasStock = productStock.totalStock >= 0;
           
           // Use the same logic as isProductComplete function
           const hasRequiredFields = Boolean(product.sku && 
@@ -934,14 +937,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                          originalProduct.brand && 
                                          originalProduct.supplier && 
                                          firstVariant?.purchasePrice && 
-                                         firstVariant?.sellingPrice && 
-                                         originalProduct.stockQuantity !== undefined && 
-                                         originalProduct.stockQuantity !== null);
+                                         firstVariant?.sellingPrice);
+                
+                // Check variant-level stock (piece-based system)
+                const productStock = getProductTotalStock(originalProduct.variants || []);
+                const hasStock = productStock.totalStock >= 0;
                 
                 const hasImages = Boolean(originalProduct.images && originalProduct.images.length > 0);
                 
                 // Return true if product is NOT complete (has incomplete data)
-                return !(hasRequiredFields && hasImages);
+                return !(hasRequiredFields && hasStock && hasImages);
               })() : false;
               
               return (
@@ -1008,22 +1013,29 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <td className="py-3 px-4 text-xs">
                    <div className="flex items-center gap-2">
                      <span className="text-black">
-                       {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
-                         product.stockQuantity
-                       ) : (
-                         <span className="text-red-600 font-bold">Missing Stock</span>
-                       )}
+                       {(() => {
+                         const productStock = getProductTotalStock(product.variants || []);
+                         return productStock.totalStock;
+                       })()}
                      </span>
-                     {product.stockQuantity === 0 && (
-                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                         Out of Stock
-                       </span>
-                     )}
-                     {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
-                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                         Low Stock
-                       </span>
-                     )}
+                     {(() => {
+                       const productStock = getProductTotalStock(product.variants || []);
+                       if (productStock.totalStock === 0) {
+                         return (
+                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                             Out of Stock
+                           </span>
+                         );
+                       }
+                       if (productStock.lowStockThreshold > 0 && productStock.totalStock <= productStock.lowStockThreshold) {
+                         return (
+                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
+                             Low Stock
+                           </span>
+                         );
+                       }
+                       return null;
+                     })()}
                    </div>
                  </td>
                 <td className="py-3 px-4 text-xs text-gray-700">
@@ -1188,7 +1200,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const firstVariant = originalProduct.variants?.[0];
                const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               const productStock = getProductTotalStock(originalProduct.variants || []);
+               const hasMissingStock = productStock.totalStock < 0;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1342,22 +1355,29 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
-                     Stock: {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
-                       `${product.stockQuantity * (product.piecesPerPackage || 1)} pieces`
-                     ) : (
-                       <span className="text-red-600 font-bold">Missing Stock</span>
-                     )}
+                     Stock: {(() => {
+                       const productStock = getProductTotalStock(product.variants || []);
+                       return `${productStock.totalStock} pieces`;
+                     })()}
                    </span>
-                   {product.stockQuantity === 0 && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                       Out of Stock
-                     </span>
-                   )}
-                   {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                       Low Stock
-                     </span>
-                   )}
+                   {(() => {
+                     const productStock = getProductTotalStock(product.variants || []);
+                     if (productStock.totalStock === 0) {
+                       return (
+                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                           Out of Stock
+                         </span>
+                       );
+                     }
+                     if (productStock.lowStockThreshold > 0 && productStock.totalStock <= productStock.lowStockThreshold) {
+                       return (
+                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
+                           Low Stock
+                         </span>
+                       );
+                     }
+                     return null;
+                   })()}
                  </div>
                  
                  {/* Price */}
@@ -1461,7 +1481,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const firstVariant = originalProduct.variants?.[0];
                const hasMissingPricing = !firstVariant?.purchasePrice || !firstVariant?.sellingPrice;
                
-               const hasMissingStock = originalProduct.stockQuantity === undefined || originalProduct.stockQuantity === null;
+               const productStock = getProductTotalStock(originalProduct.variants || []);
+               const hasMissingStock = productStock.totalStock < 0;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1614,22 +1635,29 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
-                     {product.stockQuantity !== undefined && product.stockQuantity !== null ? (
-                       product.stockQuantity
-                     ) : (
-                       <span className="text-red-600 font-bold">Missing Stock</span>
-                     )}
+                     {(() => {
+                       const productStock = getProductTotalStock(product.variants || []);
+                       return productStock.totalStock;
+                     })()}
                    </span>
-                   {product.stockQuantity === 0 && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                       Out of Stock
-                     </span>
-                   )}
-                   {product.stockQuantity > 0 && product.lowStockThreshold > 0 && product.stockQuantity <= product.lowStockThreshold && (
-                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                       Low Stock
-                     </span>
-                   )}
+                   {(() => {
+                     const productStock = getProductTotalStock(product.variants || []);
+                     if (productStock.totalStock === 0) {
+                       return (
+                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                           Out of Stock
+                         </span>
+                       );
+                     }
+                     if (productStock.lowStockThreshold > 0 && productStock.totalStock <= productStock.lowStockThreshold) {
+                       return (
+                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
+                           Low Stock
+                         </span>
+                       );
+                     }
+                     return null;
+                   })()}
                  </div>
                  
                  {/* Price */}

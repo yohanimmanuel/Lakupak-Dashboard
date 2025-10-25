@@ -633,7 +633,7 @@ async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       where: { 
         buyerId, 
         userId,
-        orderStatus: { not: 'Cancelled' } // Exclude cancelled orders
+        orderStatus: { notIn: ['Cancelled', 'Returned'] } // Exclude cancelled and returned orders
       },
       include: {
         orderItemsRel: {
@@ -669,10 +669,10 @@ async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       // Calculate total orders (sum of all package quantities)
       const totalOrders = order.orderItemsRel.reduce((sum, item) => sum + (item.packageQuantity || 1), 0);
       
-      // Calculate total spend for this order
-      const totalSpend = order.orderItemsRel.reduce((sum, item) => sum + item.subtotal, 0);
+      // Calculate total spend for this order (including shipping fee)
+      const totalSpend = order.orderItemsRel.reduce((sum, item) => sum + item.subtotal, 0) + (order.shippingFee || 0);
       
-      // Calculate outstanding amount for this order (unpaid orders)
+      // Calculate outstanding amount for this order (unpaid orders, including shipping fee)
       const outstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? totalSpend : 0;
       
       // Calculate free items from promotions
@@ -1039,30 +1039,38 @@ export async function PUT(request: NextRequest) {
               }
             }
             
-            // Get the product first to get its ID
+            // Get the product and variant for stock restoration
             const productForRestore = await prisma.product.findFirst({
-              where: { productId: orderItem.productId || '' }
+              where: { productId: orderItem.productId || '' },
+              include: { variants: true }
             });
             
             if (!productForRestore) {
               continue; // Skip if product not found
             }
             
-            // Restore stock at product level (piece-based system)
-            const newStock = (productForRestore.stockQuantity || 0) + totalQtyToRestore;
-            let newStockStatus = productForRestore.stockStatus;
+            // Find the specific variant to restore stock to
+            const variantToRestore = productForRestore.variants.find(v => v.id === orderItem.variantId) || productForRestore.variants[0];
+            
+            if (!variantToRestore) {
+              continue; // Skip if no variant found
+            }
+            
+            // Restore stock at variant level (piece-based system)
+            const newStock = (variantToRestore.stockQuantity || 0) + totalQtyToRestore;
+            let newStockStatus = variantToRestore.stockStatus;
             
             // Update stock status based on threshold
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
-            } else if (productForRestore.lowStockThreshold && newStock <= productForRestore.lowStockThreshold) {
+            } else if (variantToRestore.lowStockThreshold && newStock <= variantToRestore.lowStockThreshold) {
               newStockStatus = 'Low Stock';
             } else {
               newStockStatus = 'In Stock';
             }
             
-            await prisma.product.update({
-              where: { id: productForRestore.id },
+            await prisma.productVariant.update({
+              where: { id: variantToRestore.id },
               data: {
                 stockQuantity: newStock,
                 stockStatus: newStockStatus
@@ -1102,30 +1110,38 @@ export async function PUT(request: NextRequest) {
               }
             }
             
-            // Get the product first to get its ID
+            // Get the product and variant for stock deduction
             const productForDeduct = await prisma.product.findFirst({
-              where: { productId: orderItem.productId || '' }
+              where: { productId: orderItem.productId || '' },
+              include: { variants: true }
             });
             
             if (!productForDeduct) {
               continue; // Skip if product not found
             }
             
-            // Deduct stock at product level (piece-based system)
-            const newStock = (productForDeduct.stockQuantity || 0) - totalQtyToDeduct;
-            let newStockStatus = productForDeduct.stockStatus;
+            // Find the specific variant to deduct stock from
+            const variantToDeduct = productForDeduct.variants.find(v => v.id === orderItem.variantId) || productForDeduct.variants[0];
+            
+            if (!variantToDeduct) {
+              continue; // Skip if no variant found
+            }
+            
+            // Deduct stock at variant level (piece-based system)
+            const newStock = (variantToDeduct.stockQuantity || 0) - totalQtyToDeduct;
+            let newStockStatus = variantToDeduct.stockStatus;
             
             // Update stock status based on threshold
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
-            } else if (productForDeduct.lowStockThreshold && newStock <= productForDeduct.lowStockThreshold) {
+            } else if (variantToDeduct.lowStockThreshold && newStock <= variantToDeduct.lowStockThreshold) {
               newStockStatus = 'Low Stock';
             } else {
               newStockStatus = 'In Stock';
             }
             
-            await prisma.product.update({
-              where: { id: productForDeduct.id },
+            await prisma.productVariant.update({
+              where: { id: variantToDeduct.id },
               data: {
                 stockQuantity: Math.max(0, newStock),
                 stockStatus: newStockStatus

@@ -44,29 +44,29 @@ interface BuyerLite {
 }
 
 // ===== Reusable types & utilities (exported) =====
-export type SalesTrendPoint = { month: string; orders: number; packages: number; units: number };
+export type SalesTrendPoint = { month: string; orders: number; pieces: number; units: number };
 
 export const calculateSalesTrend = (orders: Order[], hasData: boolean): SalesTrendPoint[] => {
 	if (!hasData || orders.length === 0) return [];
-	const monthly: Record<string, { orders: number; packages: number; units: number; label: string }> = {};
+	const monthly: Record<string, { orders: number; pieces: number; units: number; label: string }> = {};
 	orders.forEach(o => {
 		const d = new Date(o.orderDate);
 		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
 		const label = d.toLocaleDateString('en-US', { month: 'short' });
-		if (!monthly[key]) monthly[key] = { orders: 0, packages: 0, units: 0, label };
+		if (!monthly[key]) monthly[key] = { orders: 0, pieces: 0, units: 0, label };
 		monthly[key].orders += 1;
 		if (o.orderItems && Array.isArray(o.orderItems)) {
 			o.orderItems.forEach(i => {
-				// Calculate packages and units using package-based pricing
+				// Calculate pieces and units using piece-based pricing
 				const packageQuantity = i.packageQuantity || 1;
 				const piecesPerPackage = i.piecesPerPackage || 1;
-				monthly[key].packages += packageQuantity;
+				monthly[key].pieces += packageQuantity;
 				monthly[key].units += packageQuantity * piecesPerPackage;
 			});
 		}
 	});
 	const sorted = Object.entries(monthly)
-		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, packages: v.packages, units: v.units }))
+		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, pieces: v.pieces, units: v.units }))
 		.sort((a, b) => a.key.localeCompare(b.key));
 	return sorted.slice(-6);
 };
@@ -88,7 +88,7 @@ export const calculateSalesMetrics = (
 			repeatCustomerRate: 0
 		};
 	}
-	let totalPackagesSold = 0;
+	let totalPiecesSold = 0;
 	let totalUnitsSold = 0;
 	let revenueSum = 0;
 	const buyerOrderCount = new Map<string | number, number>();
@@ -96,10 +96,10 @@ export const calculateSalesMetrics = (
 		buyerOrderCount.set(order.buyerId as string, (buyerOrderCount.get(order.buyerId as string) || 0) + 1);
 		if (order.orderItems && Array.isArray(order.orderItems)) {
 			order.orderItems.forEach(item => {
-				// Calculate packages and units from package-based pricing
+				// Calculate pieces and units from piece-based pricing
 				const packageQuantity = item.packageQuantity || 1;
 				const piecesPerPackage = item.piecesPerPackage || 1;
-				totalPackagesSold += packageQuantity;
+				totalPiecesSold += packageQuantity;
 				totalUnitsSold += packageQuantity * piecesPerPackage;
 			});
 		}
@@ -111,14 +111,14 @@ export const calculateSalesMetrics = (
 	const uniqueCustomers = Array.from(buyerOrderCount.keys()).length;
 	const repeatCustomers = Array.from(buyerOrderCount.values()).filter(c => c > 1).length;
 	const repeatCustomerRate = uniqueCustomers > 0 ? (repeatCustomers / uniqueCustomers) * 100 : 0;
-	const avgPackagesPerOrder = totalOrders > 0 ? totalPackagesSold / totalOrders : 0;
+	const avgPiecesPerOrder = totalOrders > 0 ? totalPiecesSold / totalOrders : 0;
 	const avgUnitsPerOrder = totalOrders > 0 ? totalUnitsSold / totalOrders : 0;
 	const avgOrderValue = totalOrders > 0 ? revenueSum / totalOrders : 0;
 	return {
 		totalOrders,
-		totalPackagesSold,
+		totalPiecesSold,
 		totalUnitsSold,
-		avgPackagesPerOrder,
+		avgPiecesPerOrder,
 		avgUnitsPerOrder,
 		avgOrderValue,
 		uniqueCustomers,
@@ -151,10 +151,6 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 						<stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
 						<stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.7}/>
 					</linearGradient>
-					<linearGradient id="packagesGradient" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.9}/>
-						<stop offset="100%" stopColor="#7C3AED" stopOpacity={0.7}/>
-					</linearGradient>
 					<linearGradient id="unitsGradient" x1="0" y1="0" x2="0" y2="1">
 						<stop offset="0%" stopColor="#10B981" stopOpacity={0.9}/>
 						<stop offset="100%" stopColor="#059669" stopOpacity={0.7}/>
@@ -178,9 +174,6 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 										if (entry.dataKey === 'orders') {
 											label = 'Orders';
 											color = '#3B82F6';
-										} else if (entry.dataKey === 'packages') {
-											label = 'Packages';
-											color = '#8B5CF6';
 										} else if (entry.dataKey === 'units') {
 											label = 'Pieces';
 											color = '#10B981';
@@ -200,17 +193,16 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 					cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
 				/>
 				<Bar dataKey="orders" name="Orders" fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
-				<Bar dataKey="packages" name="Packages" fill="url(#packagesGradient)" radius={[6,6,0,0]} maxBarSize={40} />
 				<Bar dataKey="units" name="Pieces" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
 			</BarChart>
 		</ResponsiveContainer>
 	</div>
 );
 
-export const CustomerPackagesSoldCard: React.FC<{ packagesSold: number; unitsSold: number; userCurrency?: string }> = ({ packagesSold, unitsSold }) => (
+export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; userCurrency?: string }> = ({ piecesSold, unitsSold }) => (
 	<AnalyticsMetricCard
-		title="Packages Sold"
-		value={`${packagesSold.toLocaleString()}`}
+		title="Pieces Sold"
+		value={`${piecesSold.toLocaleString()}`}
 		change={0}
 		icon={<Package className="w-6 h-6 text-green-600" />}
 		color="bg-[#e6f7ec]"
@@ -319,7 +311,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 				} else {
 					category = prod?.productCategory || 'Uncategorized';
 				}
-				// Calculate units using package-based pricing
+				// Calculate units using piece-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
 				const packageQuantity = it.packageQuantity || 1;
 				map[category] = (map[category] || 0) + (packageQuantity * piecesPerPackage);
@@ -429,14 +421,14 @@ const CustomerSalesAnalytics: React.FC = () => {
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
 					color="bg-[#f7faff]"
 				/>
-				<CustomerPackagesSoldCard
-					packagesSold={metrics.totalPackagesSold}
+				<CustomerPiecesSoldCard
+					piecesSold={metrics.totalPiecesSold || 0}
 					unitsSold={metrics.totalUnitsSold}
 					userCurrency={user?.currency}
 				/>
 				<AnalyticsMetricCard
-					title="Avg Packages / Order"
-					value={`${metrics.avgPackagesPerOrder.toFixed(2)}`}
+					title="Avg Pieces / Order"
+					value={`${(metrics.avgPiecesPerOrder || 0).toFixed(2)}`}
 					change={0}
 					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
 					color="bg-[#fff7ed]"

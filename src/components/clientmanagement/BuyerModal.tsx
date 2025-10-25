@@ -93,11 +93,11 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           totalSpend: row.totalSpend || '',
           lastOrderDate: row.lastOrderDate || '',
           outstanding: row.outstanding || '',
-        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
       } catch {
-        return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }];
+        return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
       }
-    })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+    })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
   );
 
   // Enhanced state for production features
@@ -161,7 +161,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   }, []);
 
   const addOrderRow = useCallback(() => {
-    setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]);
+    setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]);
   }, []);
 
   const deleteOrderRow = useCallback((idx: number) => {
@@ -319,7 +319,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           totalSpend: row.totalSpend || '',
           lastOrderDate: row.lastOrderDate || '',
           outstanding: row.outstanding || '',
-        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', lastOrderDate: '', outstanding: '' }]
+        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
       );
       setAvatar(initialData.avatar || '');
       setValidationErrors({});
@@ -529,6 +529,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                     <th className="py-2 px-3 font-medium uppercase">Product</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Orders (Boxes)</th>
                     <th className="py-2 px-3 font-medium uppercase">Total Spend</th>
+                    <th className="py-2 px-3 font-medium uppercase">Shipping Fee</th>
                     <th className="py-2 px-3 font-medium uppercase">Last Order Date</th>
                     <th className="py-2 px-3 font-medium uppercase">Outstanding</th>
                     <th></th>
@@ -562,6 +563,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                             className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                             value={row.totalSpend} 
                             onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
+                            placeholder="0"
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center">
+                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
+                          <input 
+                            type="text" 
+                            className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                            value={row.shippingFee} 
+                            onChange={e => handleOrderChange(idx, 'shippingFee', e.target.value)} 
                             placeholder="0"
                           />
                         </div>

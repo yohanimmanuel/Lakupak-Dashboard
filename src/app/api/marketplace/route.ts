@@ -334,8 +334,15 @@ export async function GET(request: NextRequest) {
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: await calculateSoldCount(product.productId), // Calculate from actual orders
-        stock: product.stockQuantity,
-        stockStatus: product.stockStatus || 'In Stock',
+        stock: product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0,
+        stockStatus: (() => {
+          const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+          const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+          
+          if (totalStock === 0) return 'Out of Stock';
+          if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) return 'Low Stock';
+          return 'In Stock';
+        })(),
         images: product.images || [],
         category: product.productType || 'Uncategorized',
         productCategory: product.productCategory || 'Uncategorized',
@@ -423,6 +430,9 @@ export async function GET(request: NextRequest) {
         sellingPrice: parseVariantPrice(variant),
         originalSellingPrice: parseVariantOriginalPrice(variant),
         moq: variant.moq,
+        stockQuantity: variant.stockQuantity || 0,
+        lowStockThreshold: variant.lowStockThreshold || 0,
+        stockStatus: variant.stockStatus || 'In Stock',
         attributes: variant.attributes,
         isDefault: variant.isDefault,
         isActive: variant.isActive
@@ -530,8 +540,15 @@ export async function POST(request: NextRequest) {
           variant.isActive
         );
       
-      // Check product-level stock (piece-based system)
-      const hasStock = product.stockQuantity !== undefined && product.stockQuantity !== null;
+      // Check variant-level stock (piece-based system)
+      const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+      const hasStock = totalStock > 0;
+      
+      // Check if variants have stock fields set
+      const hasVariantStock = product.variants?.some(variant => 
+        variant.stockQuantity !== undefined && variant.stockQuantity !== null
+      ) || false;
+      
       
       if (!hasCompleteVariant) {
         return NextResponse.json(
@@ -540,9 +557,16 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      if (!hasVariantStock) {
+        return NextResponse.json(
+          { error: 'Product variants must have stock quantity set' },
+          { status: 400, headers }
+        );
+      }
+      
       if (!hasStock) {
         return NextResponse.json(
-          { error: 'Product must have stock quantity set' },
+          { error: 'Product must have stock quantity greater than 0' },
           { status: 400, headers }
         );
       }

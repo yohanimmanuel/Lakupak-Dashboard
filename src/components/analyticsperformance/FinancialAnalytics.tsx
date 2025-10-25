@@ -77,7 +77,7 @@ interface TopProduct {
   profit: number;
   margin: number;
   unitsSold: number;
-  packagesSold: number;
+  piecesSold: number;
   productId: string;
 }
 
@@ -209,7 +209,7 @@ const FinancialAnalytics: React.FC = () => {
     // Build quick lookup for product purchase prices (as numbers)
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
-      const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
       }
@@ -235,7 +235,7 @@ const FinancialAnalytics: React.FC = () => {
           const cost = productCostById[pid];
           // Only include COGS when product exists and purchasePrice > 0
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS using package-based pricing
+            // Calculate COGS using piece-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             orderCogs += cost * packageQuantity * piecesPerPackage;
@@ -284,8 +284,8 @@ const FinancialAnalytics: React.FC = () => {
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -308,11 +308,11 @@ const FinancialAnalytics: React.FC = () => {
           }
           
           if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using package-based pricing
+              // Calculate revenue and cost using piece-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
@@ -326,7 +326,7 @@ const FinancialAnalytics: React.FC = () => {
               categoryStats[category].profit += itemProfit;
             } else {
               // Fallback to item pricing if product prices are invalid
-              // Calculate revenue using package-based pricing
+              // Calculate revenue using piece-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const revenue = (item.pricePerPackage || 0) * packageQuantity;
@@ -344,7 +344,7 @@ const FinancialAnalytics: React.FC = () => {
             }
           } else {
             // Fallback to item pricing if product not found
-            // Calculate revenue using package-based pricing
+            // Calculate revenue using piece-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             const revenue = (item.pricePerPackage || 0) * packageQuantity;
@@ -380,13 +380,13 @@ const FinancialAnalytics: React.FC = () => {
       return [];
     }
 
-    const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { revenue: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+      const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -410,7 +410,7 @@ const FinancialAnalytics: React.FC = () => {
             productStats[productId] = {
               revenue: 0,
               unitsSold: 0,
-              packagesSold: 0,
+              piecesSold: 0,
               category: category,
               productCategory: product?.productCategory || 'Uncategorized',
               name: product?.name || `Product ${productId}`,
@@ -422,11 +422,11 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === productId);
           
           if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+            const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using package-based pricing
+              // Calculate revenue and cost using piece-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
@@ -437,7 +437,7 @@ const FinancialAnalytics: React.FC = () => {
               productStats[productId].profit += itemProfit;
             } else {
               // Fallback to item pricing if product prices are invalid
-              // Calculate revenue using package-based pricing
+              // Calculate revenue using piece-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
@@ -452,7 +452,7 @@ const FinancialAnalytics: React.FC = () => {
             }
           } else {
             // Fallback to item pricing if product not found
-            // Calculate revenue using package-based pricing
+            // Calculate revenue using piece-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
@@ -466,11 +466,11 @@ const FinancialAnalytics: React.FC = () => {
             productStats[productId].profit += itemProfit;
           }
           
-          // Calculate units sold using package-based pricing
+          // Calculate units sold using piece-based pricing
           const piecesPerPackage = item.piecesPerPackage || 1;
           const packageQuantity = item.packageQuantity || 1;
           productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
-          productStats[productId].packagesSold += packageQuantity;
+          productStats[productId].piecesSold += packageQuantity;
         });
       }
     });
@@ -482,7 +482,7 @@ const FinancialAnalytics: React.FC = () => {
         name: stats.name,
         revenue: stats.revenue,
         unitsSold: stats.unitsSold,
-        packagesSold: stats.packagesSold,
+        piecesSold: stats.piecesSold,
         margin,
         productType: stats.category,
         productCategory: stats.productCategory,
@@ -501,7 +501,7 @@ const FinancialAnalytics: React.FC = () => {
     // Precompute product costs
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
-      const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
       }
@@ -528,7 +528,7 @@ const FinancialAnalytics: React.FC = () => {
           if (!pid) { return; }
           const cost = productCostById[pid];
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS using package-based pricing
+            // Calculate COGS using piece-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             orderCogs += cost * packageQuantity * piecesPerPackage;
@@ -944,7 +944,7 @@ const FinancialAnalytics: React.FC = () => {
                     <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
                     <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">CR</th>
                   </tr>
@@ -968,7 +968,7 @@ const FinancialAnalytics: React.FC = () => {
                         {product.productCategory}
                       </td>
                       <td className="py-3 px-4 text-center text-black">
-                        {product.packagesSold.toLocaleString()}
+                        {product.piecesSold.toLocaleString()}
                       </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
                        {utilsFormatCurrency(product.revenue, userCurrency)}
@@ -1350,7 +1350,7 @@ export const calculateRevenueData = (
   // Precompute product costs from recorded data only (no estimates)
   const productCostById: Record<string, number> = {};
   products.forEach(p => {
-    const cost = parseCurrencyToNumber(p.purchasePrice || '0');
+    const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
     if (!isNaN(cost) && cost > 0) {
       productCostById[p.productId] = cost;
     }
@@ -1419,7 +1419,7 @@ export type TopProductRow = {
   profit: number;
   margin: number;
   unitsSold: number;
-  packagesSold: number;
+  piecesSold: number;
   productId: string;
 };
 
@@ -1433,12 +1433,12 @@ export const calculateTopProducts = (
     return [];
   }
 
-  const productStats: { [key: string]: { revenue: number; unitsSold: number; packagesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
+  const productStats: { [key: string]: { revenue: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
-    const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-    const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+    const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+    const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
     if (sellingPrice > 0 && purchasePrice > 0) {
       const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
       productMargins[product.productId] = margin;
@@ -1459,7 +1459,7 @@ export const calculateTopProducts = (
           productStats[productId] = {
             revenue: 0,
             unitsSold: 0,
-            packagesSold: 0,
+            piecesSold: 0,
             category,
             productCategory: product?.productCategory || 'Uncategorized',
             name: product?.name || `Product ${productId}`,
@@ -1468,8 +1468,8 @@ export const calculateTopProducts = (
         }
 
         if (product) {
-          const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-          const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
+          const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
+          const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
           if (sellingPrice > 0 && purchasePrice > 0) {
             // Calculate revenue and cost using package-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
@@ -1480,7 +1480,7 @@ export const calculateTopProducts = (
             productStats[productId].revenue += itemRevenue;
             productStats[productId].profit += itemProfit;
           } else {
-            // Calculate revenue using package-based pricing
+            // Calculate revenue using piece-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
@@ -1504,11 +1504,11 @@ export const calculateTopProducts = (
           productStats[productId].profit += itemProfit;
         }
 
-        // Calculate units and packages sold using package-based pricing
+        // Calculate units and pieces sold using piece-based pricing
         const piecesPerPackage = item.piecesPerPackage || 1;
         const packageQuantity = item.packageQuantity || 1;
         productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
-        productStats[productId].packagesSold += packageQuantity;
+        productStats[productId].piecesSold += packageQuantity;
       });
     }
   });
@@ -1519,7 +1519,7 @@ export const calculateTopProducts = (
       name: stats.name,
       revenue: stats.revenue,
       unitsSold: stats.unitsSold,
-      packagesSold: stats.packagesSold,
+      piecesSold: stats.piecesSold,
       margin,
       productType: stats.category,
       productCategory: stats.productCategory,
@@ -1554,7 +1554,7 @@ export const AnalyticsTopProductsTable: React.FC<{
             <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
             <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Packages Sold</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
           </tr>
@@ -1573,7 +1573,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                 </span>
               </td>
               <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
-              <td className="py-3 px-4 text-center text-black">{product.packagesSold.toLocaleString()}</td>
+              <td className="py-3 px-4 text-center text-black">{product.piecesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>

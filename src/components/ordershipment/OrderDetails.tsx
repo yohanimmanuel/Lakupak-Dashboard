@@ -344,7 +344,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="text-sm font-semibold text-gray-500 mb-3">Order Details</div>
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Service price:</span>
+                  <span className="text-gray-600">Total Order price:</span>
                   <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -483,7 +483,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         }}
                         title="Click to view product details"
                       >
-                        {item.productName}
+                        {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
                       </h3>
                       
                     </div>
@@ -561,6 +561,44 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="lg:col-span-4 bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
 
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Total Quantity Card */}
+              <div className="bg-green-100 rounded-lg p-3 border border-gray-200">
+                <div className="text-sm text-gray-600 font-medium mb-1">Total Quantity Ordered</div>
+                <div className="text-lg font-bold text-black">
+                  {order.orderItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
+                </div>
+              </div>
+              
+              {/* Total Free Quantity Card */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="text-sm text-gray-600 font-medium mb-1">Total Free Quantity</div>
+                <div className="text-lg font-bold text-purple-600">
+                  {order.orderItems.reduce((total, item) => {
+                    if (item.offerApplied && item.promotionDetailsSnapshot) {
+                      try {
+                        const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
+                        if (promoDetails.minQuantity && promoDetails.freeQuantity) {
+                          const moq = promoDetails.moq || item.moqSnapshot || null;
+                          const promotionGift = calculateOrderItemPromotion(
+                            promoDetails,
+                            item.packageQuantity || 1,
+                            item.piecesPerPackage || 1,
+                            moq
+                          );
+                          return total + (promotionGift?.freeQty || 0);
+                        }
+                      } catch {
+                        // Invalid JSON, skip
+                      }
+                    }
+                    return total;
+                  }, 0)} pieces
+                </div>
+              </div>
+            </div>
+
             {/* Detailed Breakdown Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -586,7 +624,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           }}
                           title="Click to view product details"
                         >
-                          {item.productName}
+                          {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
                         </span>
                       </td>
                       <td className="py-2">{item.packageType || 'Package'}</td>
@@ -690,7 +728,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         onClick={() => window.location.href = `/products/catalog/${item.productId}`}
                         title="Click to view product details"
                       >
-                        {item.productName}
+                        {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
                       </h3>
                       <p className="text-sm text-gray-600">SKU: {item.productId}</p>
                       

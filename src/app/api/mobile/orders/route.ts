@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
         productNameSnapshot: oi.productNameSnapshot || null,
         productSkuSnapshot: oi.productSkuSnapshot || null,
         productTypeSnapshot: oi.productTypeSnapshot || null,
+        variantNameSnapshot: oi.variantNameSnapshot || null,
         // Offer snapshots from time of purchase
         offerApplied: oi.offerApplied || false,
         offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
@@ -390,11 +391,19 @@ export async function POST(request: NextRequest) {
           );
         }
         
-        // Check product-level stock (piece-based system)
-        if (product.stockQuantity < totalQtyNeeded) {
+        // Check variant-level stock (piece-based system)
+        const selectedVariant = product.variants.find(v => v.id === item.variantId);
+        if (!selectedVariant) {
+          return NextResponse.json(
+            { error: `Variant not found for product: ${product.name}` },
+            { status: 400, headers }
+          );
+        }
+        
+        if (selectedVariant.stockQuantity < totalQtyNeeded) {
           return NextResponse.json(
             { 
-              error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+              error: `Insufficient stock for ${product.name} (${selectedVariant.variantName}). Available: ${selectedVariant.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
             },
             { status: 400, headers }
           );
@@ -494,6 +503,7 @@ export async function POST(request: NextRequest) {
             productNameSnapshot: String(item.productName || 'Unknown Product'),
             productSkuSnapshot: String(item.productSku || ''),
             productTypeSnapshot: String(item.category || 'Uncategorized'),
+            variantNameSnapshot: String(item.variantName || 'Default'),
             offerApplied: false,
             offerBadgeSnapshot: null as string | null,
             offerNameSnapshot: null as string | null,

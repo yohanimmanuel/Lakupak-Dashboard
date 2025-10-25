@@ -135,10 +135,8 @@ model Product {
   lastSyncAt        DateTime?
   marketplaceStatus String?     @default("Not Published")
   publishedAt       DateTime?
-  // Stock management at product level (piece-based)
-  stockQuantity     Int         @default(0)
-  lowStockThreshold Int         @default(0)
-  stockStatus       String      @default("In Stock")
+  // Product-level stock is computed from sum of all variant stocks
+  // Use getProductTotalStock() helper function to calculate
   // Package reference (for display and fulfillment only)
   packageInfo       PackageInfo[]
   variants          ProductVariant[]
@@ -158,6 +156,10 @@ model ProductVariant {
   originalSellingPrice String? // Store original price before any discounts
   // MOQ at variant level (different distributors may have different MOQs)
   moq               Int?     // Minimum Order Quantity in pieces
+  // Stock management at variant level (piece-based)
+  stockQuantity     Int      @default(0)
+  lowStockThreshold Int      @default(0)
+  stockStatus       String   @default("In Stock")
   // Variant attributes (for actual product variations)
   attributes        Json?    // Flexible JSON for variant-specific attributes
   isDefault         Boolean  @default(false)
@@ -166,6 +168,7 @@ model ProductVariant {
   updatedAt         DateTime @updatedAt @db.Timestamptz(3)
   productId         Int
   product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems        OrderItem[]
   
   @@index([productId])
   @@index([isActive])
@@ -278,12 +281,14 @@ model OrderItem {
   id                      Int      @id @default(autoincrement())
   orderId                 String
   productId               String?
+  variantId               Int?     // Reference to ProductVariant
   subtotal                Float
   createdAt               DateTime @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime @updatedAt @db.Timestamptz(3)
   productNameSnapshot     String?
   productSkuSnapshot      String?
   productTypeSnapshot     String?
+  variantNameSnapshot     String? // Variant name at time of order
   test                    String?
   packageQuantity         Int?     @default(1)
   packageType             String?
@@ -300,6 +305,7 @@ model OrderItem {
   moqSnapshot             Int?     // MOQ at time of order (in pieces) - for accurate promotion calculation in order history
   order                   Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   product                 Product? @relation(fields: [productId], references: [productId])
+  variant                 ProductVariant? @relation(fields: [variantId], references: [id])
 }
 
 model Account {

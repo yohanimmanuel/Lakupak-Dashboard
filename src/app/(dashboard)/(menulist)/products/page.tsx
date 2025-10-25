@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import { Product, ProductImportRow, ProductTableRow } from "@/types/product";
 import { formatDate } from "@/utils/dateUtils";
 import { generateUniqueProductId } from "@/utils/product-security";
+import { getProductTotalStock } from "@/utils/stockUtils";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -118,6 +119,11 @@ export default function ProductsPage() {
     const firstVariant = product.variants?.[0];
     const firstPackage = product.packageInfo?.[0];
     
+    // Calculate total stock from all variants using the utility function
+    const productStock = getProductTotalStock(product.variants || []);
+    const totalStock = productStock.totalStock;
+    const totalLowStockThreshold = productStock.lowStockThreshold;
+    
     return {
       id: product.id || 0,
       productId: product.productId,
@@ -126,12 +132,13 @@ export default function ProductsPage() {
       productType: product.productType,
       brand: product.brand,
       supplier: product.supplier,
-      stockQuantity: product.stockQuantity || 0, // Product-level stock in pieces
-      lowStockThreshold: product.lowStockThreshold || 30, // Product-level threshold
+      stockQuantity: totalStock, // Total stock from all variants
+      lowStockThreshold: totalLowStockThreshold, // Total threshold from all variants
       purchasePrice: firstVariant?.purchasePrice || '0',
       sellingPrice: firstVariant?.sellingPrice || '0',
       packageType: firstPackage?.packageType || 'Piece', // From packageInfo
       piecesPerPackage: firstPackage?.piecesPerPackage || 1, // From packageInfo
+      variants: product.variants || [], // Include variants for stock calculation
       
       status: product.status,
       createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
@@ -254,9 +261,9 @@ export default function ProductsPage() {
       product.productType,
       product.brand,
       product.supplier,
-      product.stockQuantity,
-      product.purchasePrice,
-      product.sellingPrice,
+      getProductTotalStock(product.variants || []).totalStock,
+      product.variants?.[0]?.purchasePrice || '0',
+      product.variants?.[0]?.sellingPrice || '0',
       product.status,
       product.updatedAt ? formatDate(product.updatedAt) : 'N/A'
     ]);

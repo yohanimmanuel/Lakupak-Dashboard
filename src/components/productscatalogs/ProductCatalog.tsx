@@ -21,6 +21,7 @@ import { Product, ProductFormData } from "@/types/product";
 import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
+import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
 import { ChevronDown } from 'lucide-react';
 
 interface ProductCatalogProps {
@@ -59,10 +60,7 @@ export default function ProductCatalog({
     returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7
   });
 
-  // Product-level stock state (piece-based)
-  const [stockQuantity, setStockQuantity] = useState(product?.stockQuantity || 0);
-  const [lowStockThreshold, setLowStockThreshold] = useState(product?.lowStockThreshold || 0);
-  const [stockStatus, setStockStatus] = useState<'In Stock' | 'Low Stock' | 'Out of Stock'>(product?.stockStatus || 'In Stock');
+  // Product-level stock is computed from variants (no separate state needed)
 
   // Product variants state (for actual variations: color, size, flavor)
   const [variants, setVariants] = useState<Array<{
@@ -74,6 +72,10 @@ export default function ProductCatalog({
     sellingPrice: string;
     originalSellingPrice?: string;
     moq?: number; // Minimum Order Quantity in pieces (variant-level)
+    // Stock management at variant level (piece-based)
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
     attributes?: Record<string, unknown>;
     isDefault: boolean;
     isActive: boolean;
@@ -91,27 +93,23 @@ export default function ProductCatalog({
 
   // Initialize variants and package info from product data
   useEffect(() => {
-    // Initialize product-level stock
-    if (product) {
-      setStockQuantity(product.stockQuantity || 0);
-      setLowStockThreshold(product.lowStockThreshold || 0);
-      setStockStatus(product.stockStatus || 'In Stock');
-    }
-
-    // Initialize variants (actual product variations)
+    // Initialize variants with stock data
     if (product?.variants && product.variants.length > 0) {
       setVariants(product.variants.map(variant => ({
-        id: variant.id ? String(variant.id) : `variant-${Date.now()}`,
+        id: variant.id?.toString() || Math.random().toString(36).substr(2, 9),
         variantName: variant.variantName,
-        variantType: variant.variantType,
-        sku: variant.sku,
+        variantType: variant.variantType || '',
+        sku: variant.sku || '',
         purchasePrice: variant.purchasePrice,
         sellingPrice: variant.sellingPrice,
-        originalSellingPrice: variant.originalSellingPrice,
-        moq: variant.moq,
-        attributes: variant.attributes,
-        isDefault: variant.isDefault,
-        isActive: variant.isActive
+        originalSellingPrice: variant.originalSellingPrice || '',
+        moq: variant.moq || undefined,
+        stockQuantity: variant.stockQuantity || 0,
+        lowStockThreshold: variant.lowStockThreshold || 0,
+        stockStatus: variant.stockStatus || 'In Stock',
+        attributes: variant.attributes || {},
+        isDefault: variant.isDefault || false,
+        isActive: variant.isActive !== false
       })));
     } else {
       // Create default variant
@@ -124,6 +122,9 @@ export default function ProductCatalog({
         sellingPrice: '',
         originalSellingPrice: '',
         moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock',
         attributes: undefined,
         isDefault: true,
         isActive: true
@@ -345,6 +346,9 @@ export default function ProductCatalog({
       sellingPrice: '',
       originalSellingPrice: '',
       moq: undefined, // MOQ in pieces (variant-level)
+      stockQuantity: 0,
+      lowStockThreshold: 0,
+      stockStatus: 'In Stock' as const,
       attributes: undefined,
       isDefault: false,
       isActive: true
@@ -402,33 +406,30 @@ export default function ProductCatalog({
     }));
   };
 
-  // Product-level stock management
-  const updateProductStock = (field: 'stockQuantity' | 'lowStockThreshold', value: number) => {
-    if (field === 'stockQuantity') {
-      setStockQuantity(value);
-      // Auto-calculate stock status
-      if (value === 0) {
-        setStockStatus('Out of Stock');
-      } else if (lowStockThreshold === 0) {
-        setStockStatus('In Stock');
-      } else if (value <= lowStockThreshold) {
-        setStockStatus('Low Stock');
-      } else {
-        setStockStatus('In Stock');
+  // Variant-level stock management
+  const updateVariantStock = (variantId: string, field: 'stockQuantity' | 'lowStockThreshold', value: number) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        const updatedVariant = { ...variant };
+        if (field === 'stockQuantity') {
+          updatedVariant.stockQuantity = value;
+        } else if (field === 'lowStockThreshold') {
+          updatedVariant.lowStockThreshold = value;
+        }
+        // Auto-calculate stock status
+        updatedVariant.stockStatus = getVariantStockStatus(
+          updatedVariant.stockQuantity,
+          updatedVariant.lowStockThreshold
+        ) as 'In Stock' | 'Low Stock' | 'Out of Stock';
+        return updatedVariant;
       }
-    } else if (field === 'lowStockThreshold') {
-      setLowStockThreshold(value);
-      // Auto-calculate stock status
-      if (stockQuantity === 0) {
-        setStockStatus('Out of Stock');
-      } else if (value === 0) {
-        setStockStatus('In Stock');
-      } else if (stockQuantity <= value) {
-        setStockStatus('Low Stock');
-      } else {
-        setStockStatus('In Stock');
-      }
-    }
+      return variant;
+    }));
+  };
+
+  // Calculate product-level stock from variants
+  const getProductStock = () => {
+    return getProductTotalStock(variants);
   };
 
 
@@ -649,9 +650,8 @@ export default function ProductCatalog({
         productId: formData.productId,
         userId: user.id,
         currency: user.currency,
-        stockQuantity: stockQuantity,
-        lowStockThreshold: lowStockThreshold,
-        stockStatus: stockStatus,
+        // Product-level stock is computed from variants
+        ...getProductStock(),
         variants: variants.map(variant => ({
           variantName: variant.variantName,
           variantType: variant.variantType,
@@ -660,6 +660,9 @@ export default function ProductCatalog({
           sellingPrice: variant.sellingPrice,
           originalSellingPrice: variant.originalSellingPrice,
           moq: variant.moq,
+          stockQuantity: variant.stockQuantity,
+          lowStockThreshold: variant.lowStockThreshold,
+          stockStatus: variant.stockStatus,
           attributes: variant.attributes,
           isDefault: variant.isDefault,
           isActive: variant.isActive
@@ -776,8 +779,8 @@ export default function ProductCatalog({
       variant.sellingPrice && variant.sellingPrice.trim() !== ''
     );
 
-    // Check if product-level stock is valid
-    const stockValidation = stockQuantity >= 0;
+    // Check if all variants have valid stock
+    const stockValidation = variants.every(variant => variant.stockQuantity >= 0);
 
     const missingFields = requiredFields.filter(field => {
       if (field.field === 'images') {
@@ -1035,7 +1038,7 @@ export default function ProductCatalog({
                 variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
                 variant.sellingPrice && variant.sellingPrice.trim() !== ''
               ) },
-              { name: 'Product Stock', value: stockQuantity >= 0 }
+              { name: 'Product Stock', value: getProductStock().totalStock >= 0 }
             ];
             
             const completedFields = requiredFields.filter(field => 
@@ -1598,60 +1601,50 @@ export default function ProductCatalog({
             </div>
           </div>
 
-          {/* Row 3: Product Stock (Piece-Based) - Full Width */}
+          {/* Row 3: Product Stock Summary - Full Width */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="mb-6">
               <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2 mb-4">
                 <Package className="w-5 h-5 text-gray-500" />
-                Product Stock (Piece-Based)
-                <span className="text-xs text-gray-500 font-normal">(All stock managed at product level in pieces)</span>
+                Product Stock Summary
+                <span className="text-xs text-gray-500 font-normal">(Computed from all variants)</span>
               </h2>
               
-              {/* Product-Level Stock Management */}
-              <div className="p-4">
+              {/* Product-Level Stock Summary (Read-Only) */}
+              <div className="p-4 bg-gray-50 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Stock Quantity (Pieces)
+                      Total Stock (Pieces)
                     </label>
-                    <input
-                      type="number"
-                      value={stockQuantity}
-                      onChange={(e) => updateProductStock('stockQuantity', parseInt(e.target.value) || 0)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="0"
-                      min="0"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Total pieces available</p>
+                    <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
+                      {getProductStock().totalStock.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Sum of all variant stocks</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Low Stock Threshold (Pieces)
+                      Low Stock Threshold
                     </label>
-                    <input
-                      type="number"
-                      value={lowStockThreshold}
-                      onChange={(e) => updateProductStock('lowStockThreshold', parseInt(e.target.value) || 0)}
-                      disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="0"
-                      min="0"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Alert when stock is low</p>
+                    <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
+                      {getProductStock().lowStockThreshold.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Minimum threshold across variants</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Stock Status
+                      Overall Status
                     </label>
-                    <input
-                      type="text"
-                      value={stockStatus}
-                      disabled={true}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
-                      readOnly
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
+                    <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
+                      getProductStock().stockStatus === 'Out of Stock' 
+                        ? 'bg-red-50 border-red-200 text-red-800'
+                        : getProductStock().stockStatus === 'Low Stock'
+                        ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                        : 'bg-green-50 border-green-200 text-green-800'
+                    }`}>
+                      {getProductStock().stockStatus}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Overall product status</p>
                   </div>
                 </div>
               </div>
@@ -1963,6 +1956,61 @@ export default function ProductCatalog({
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stock Management Section */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Stock Management <span className="text-xs text-gray-500 font-medium">(per variant in pieces)</span></h4>
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Stock Quantity (Pieces)
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.stockQuantity}
+                              onChange={(e) => updateVariantStock(variant.id, 'stockQuantity', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Available pieces for {variant.variantName}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Low Stock Threshold
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.lowStockThreshold}
+                              onChange={(e) => updateVariantStock(variant.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Alert when stock is low</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Stock Status
+                            </label>
+                            <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
+                              variant.stockStatus === 'Out of Stock' 
+                                ? 'bg-red-50 border-red-200 text-red-800'
+                                : variant.stockStatus === 'Low Stock'
+                                ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                                : 'bg-green-50 border-green-200 text-green-800'
+                            }`}>
+                              {variant.stockStatus}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
                           </div>
                         </div>
                       </div>

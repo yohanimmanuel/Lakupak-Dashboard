@@ -14,7 +14,7 @@ import {
 } from '@/components/analyticsperformance/FinancialAnalytics';
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
-import { CustomerPackagesSoldCard, SalesTrendChart, calculateSalesTrend, calculateSalesMetrics } from '@/components/analyticsperformance/CustomerSalesAnalytics';
+import { CustomerPiecesSoldCard, SalesTrendChart, calculateSalesTrend, calculateSalesMetrics } from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { 
   OperationalMetricCard,
   OrderStatusDistributionChart,
@@ -243,8 +243,8 @@ export default function AnalyticsPage() {
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
             />
-            <CustomerPackagesSoldCard 
-              packagesSold={customerMetrics.totalPackagesSold} 
+            <CustomerPiecesSoldCard 
+              piecesSold={customerMetrics.totalPiecesSold || 0} 
               unitsSold={customerMetrics.totalUnitsSold} 
             />
             {/* Operational metric card reused */}

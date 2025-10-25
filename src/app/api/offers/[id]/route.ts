@@ -117,7 +117,7 @@ export async function GET(
           category: op.product.productCategory,
           price: firstVariant?.sellingPrice || '0',
           status: op.product.status,
-          stock: op.product.stockQuantity || 0,
+          stock: firstVariant?.stockQuantity || 0,
           // Add variant information for piece-based pricing
           variantName: firstVariant?.variantName || 'Default',
           packageType: op.product.packageInfo?.[0]?.packageType || 'Piece',

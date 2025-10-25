@@ -13,8 +13,15 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   // Calculate stats from products data
   const totalProducts = products.length;
   const activeProducts = products.filter(product => product.status === 'Published').length;
-  const lowStockAlerts = products.filter(product => product.stockQuantity > 0 && (product.lowStockThreshold || 0) > 0 && product.stockQuantity <= (product.lowStockThreshold || 0)).length;
-  const outOfStock = products.filter(product => product.stockQuantity === 0).length;
+  const lowStockAlerts = products.filter(product => {
+    const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+    return totalStock > 0 && totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
+  }).length;
+  const outOfStock = products.filter(product => {
+    const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    return totalStock === 0;
+  }).length;
   const productsWithOffers = products.filter(product => 
     product.hasActiveOffer || 
     product.offerBadge || 
