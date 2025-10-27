@@ -79,6 +79,18 @@ export default function ProductCatalog({
     attributes?: Record<string, unknown>;
     isDefault: boolean;
     isActive: boolean;
+    // Options within each variant
+    options?: Array<{
+      id: string;
+      name: string;
+      sku?: string;
+      purchasePrice: string;
+      sellingPrice: string;
+      moq?: number;
+      stockQuantity: number;
+      lowStockThreshold: number;
+      stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+    }>;
   }>>([]);
 
   // Initialize variants from product data
@@ -99,7 +111,18 @@ export default function ProductCatalog({
         stockStatus: variant.stockStatus || 'In Stock',
         attributes: variant.attributes || {},
         isDefault: variant.isDefault || false,
-        isActive: variant.isActive !== false
+        isActive: variant.isActive !== false,
+        options: [{
+          id: `${variant.id?.toString() || Math.random().toString(36).substr(2, 9)}-option-1`,
+          name: variant.variantName,
+          sku: variant.sku || '',
+          purchasePrice: variant.purchasePrice,
+          sellingPrice: variant.sellingPrice,
+          moq: variant.moq || undefined,
+          stockQuantity: variant.stockQuantity || 0,
+          lowStockThreshold: variant.lowStockThreshold || 0,
+          stockStatus: variant.stockStatus || 'In Stock',
+        }]
       })));
     } else {
       // Create default variant
@@ -117,7 +140,18 @@ export default function ProductCatalog({
         stockStatus: 'In Stock',
         attributes: undefined,
         isDefault: true,
-        isActive: true
+        isActive: true,
+        options: [{
+          id: 'default-option-1',
+          name: '',
+          sku: '',
+          purchasePrice: '',
+          sellingPrice: '',
+          moq: undefined,
+          stockQuantity: 0,
+          lowStockThreshold: 0,
+          stockStatus: 'In Stock',
+        }]
       }]);
     }
   }, [product]);
@@ -305,8 +339,9 @@ export default function ProductCatalog({
 
   // Variant management functions
   const addVariant = () => {
+    const variantId = `variant-${Date.now()}`;
     const newVariant = {
-      id: `variant-${Date.now()}`,
+      id: variantId,
       variantName: `Variant ${variants.length + 1}`,
       variantType: undefined,
       sku: undefined,
@@ -319,7 +354,19 @@ export default function ProductCatalog({
       stockStatus: 'In Stock' as const,
       attributes: undefined,
       isDefault: false,
-      isActive: true
+      isActive: true,
+      // Initialize with one option row
+      options: [{
+        id: `${variantId}-option-1`,
+        name: '',
+        sku: '',
+        purchasePrice: '',
+        sellingPrice: '',
+        moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock' as const,
+      }]
     };
     setVariants(prev => [...prev, newVariant]);
   };
@@ -362,6 +409,61 @@ export default function ProductCatalog({
           updatedVariant.lowStockThreshold
         ) as 'In Stock' | 'Low Stock' | 'Out of Stock';
         return updatedVariant;
+      }
+      return variant;
+    }));
+  };
+
+  // Add option row to a variant
+  const addVariantOption = (variantId: string) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        const newOption = {
+          id: `${variantId}-option-${Date.now()}`,
+          name: '',
+          sku: '',
+          purchasePrice: '',
+          sellingPrice: '',
+          moq: undefined,
+          stockQuantity: 0,
+          lowStockThreshold: 0,
+          stockStatus: 'In Stock' as const,
+        };
+        return {
+          ...variant,
+          options: [...(variant.options || []), newOption]
+        };
+      }
+      return variant;
+    }));
+  };
+
+  // Remove option row from a variant
+  const removeVariantOption = (variantId: string, optionId: string) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        return {
+          ...variant,
+          options: (variant.options || []).filter(opt => opt.id !== optionId)
+        };
+      }
+      return variant;
+    }));
+  };
+
+  // Update option row
+  const updateVariantOption = (variantId: string, optionId: string, field: string, value: string | number | undefined) => {
+    setVariants(prev => prev.map(variant => {
+      if (variant.id === variantId) {
+        return {
+          ...variant,
+          options: (variant.options || []).map(opt => {
+            if (opt.id === optionId) {
+              return { ...opt, [field]: value };
+            }
+            return opt;
+          })
+        };
       }
       return variant;
     }));
@@ -1603,247 +1705,212 @@ export default function ProductCatalog({
                 )}
               </div>
             
-            {/* Variants List */}
+            {/* Variants List - Each variant as a section with a table */}
             <div className="space-y-4">
               {variants.map((variant, index) => (
-                <div key={variant.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Variant Name
-                        </label>
-                        <input
-                          type="text"
-                          value={variant.variantName}
-                          onChange={(e) => updateVariant(variant.id, 'variantName', e.target.value)}
-                          disabled={isViewMode}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
-                          placeholder="e.g., Red, Large, Chocolate Flavor"
-                        />
+                <div key={variant.id} className="border border-gray-200 rounded-lg bg-white">
+                  {/* Variant Type Header */}
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-48">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Variant Type
+                          </label>
+                          <input
+                            type="text"
+                            value={variant.variantType || ''}
+                            onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
+                            disabled={isViewMode}
+                            className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
+                            placeholder="e.g., Color, Size, Flavor"
+                          />
+                        </div>
+                        <div className="w-40">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            MOQ
+                          </label>
+                          <input
+                            type="number"
+                            value={variant.moq || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
+                            }}
+                            disabled={isViewMode}
+                            className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                            placeholder="e.g., 10"
+                            min="0"
+                          />
+                        </div>
                       </div>
-                      {variant.isDefault && (
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
-                          Default
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {variant.isDefault && (
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
+                            Default
+                          </span>
+                        )}
+                        {!isViewMode && variants.length > 1 && index > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(variant.id)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {!isViewMode && variants.length > 1 && index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(variant.id)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Variant Information Section */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Variant Information</h4>
-                      
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Variant Type
-                            </label>
-                            <input
-                              type="text"
-                              value={variant.variantType || ''}
-                              onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
-                              disabled={isViewMode}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="e.g., Color, Size, Flavor"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Type of variation (optional)</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                  {/* Variant Information Table */}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-semibold text-gray-900">Variant Information</h4>
+                      {!isViewMode && (
+                        <button
+                          type="button"
+                          onClick={() => addVariantOption(variant.id)}
+                          className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Row
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
+                              Name
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
                               SKU
-                            </label>
-                            <input
-                              type="text"
-                              value={variant.sku || ''}
-                              onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
-                              disabled={isViewMode}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="e.g., SKU-001"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Variant-specific SKU (optional)
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* MOQ Field - Variant-level MOQ in pieces */}
-                        <div className="mt-4">
-                          <div className="max-w-xs">
-                            <div className="flex items-center mb-2">
-                              <div className="relative">
-                                <input 
-                                  type="checkbox" 
-                                  checked={!!variant.moq}
-                                  onChange={(e) => {
-                                    if (!isViewMode) {
-                                      if (e.target.checked) {
-                                        updateVariant(variant.id, 'moq', 1);
-                                      } else {
-                                        updateVariant(variant.id, 'moq', undefined);
-                                      }
-                                    }
-                                  }}
-                                  disabled={isViewMode}
-                                  className="sr-only" 
-                                />
-                                <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${!!variant.moq ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                                  {!!variant.moq && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </div>
-                              <label 
-                                className="ml-2 text-xs font-medium text-gray-700 cursor-pointer"
-                                onClick={() => {
-                                  if (!isViewMode) {
-                                    if (variant.moq) {
-                                      updateVariant(variant.id, 'moq', undefined);
-                                    } else {
-                                      updateVariant(variant.id, 'moq', 1);
-                                    }
-                                  }
-                                }}
-                              >
-                                Enable Minimum Order Quantity (MOQ)
-                              </label>
-                            </div>
-                            {variant.moq && (
-                              <>
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
+                              Selling Price
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
+                              Purchase Price
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
+                              Stock Qty
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
+                              Low Threshold
+                            </th>
+                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200 w-20">
+                              Status
+                            </th>
+                            {!isViewMode && (
+                              <th className="text-xs font-semibold text-gray-700 p-3 text-center border-b border-gray-200">
+                                Actions
+                              </th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(variant.options || []).map((option, optionIndex) => (
+                            <tr key={option.id}>
+                              <td className="p-3">
                                 <input
-                                  type="number"
-                                  value={variant.moq || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
-                                  }}
+                                  type="text"
+                                  value={option.name}
+                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
                                   disabled={isViewMode}
                                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="e.g., 10"
-                                  min="1"
+                                  placeholder="e.g., White, Black, M, L"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Minimum pieces buyers must order for {variant.variantName}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pricing Section */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Pricing <span className="text-xs text-gray-500 font-medium">(per 1-piece)</span></h4>
-                      
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Base/Selling Price 
-                            </label>
-                            <div className="relative">
-                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                {currencySymbol}
-                              </div>
-                              <input
-                                type="text"
-                                value={variant.sellingPrice}
-                                onChange={(e) => updateVariant(variant.id, 'sellingPrice', e.target.value)}
-                                disabled={isViewMode}
-                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                placeholder={getPricePlaceholder(userCurrency)}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Purchase Price
-                            </label>
-                            <div className="relative">
-                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                {currencySymbol}
-                              </div>
-                              <input
-                                type="text"
-                                value={variant.purchasePrice}
-                                onChange={(e) => updateVariant(variant.id, 'purchasePrice', e.target.value)}
-                                disabled={isViewMode}
-                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                placeholder={getPricePlaceholder(userCurrency)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Stock Management Section */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Stock Management <span className="text-xs text-gray-500 font-medium">(per variant in pieces)</span></h4>
-                      
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Stock Quantity (Pieces)
-                            </label>
-                            <input
-                              type="number"
-                              value={variant.stockQuantity}
-                              onChange={(e) => updateVariantStock(variant.id, 'stockQuantity', parseInt(e.target.value) || 0)}
-                              disabled={isViewMode}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="0"
-                              min="0"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Available pieces for {variant.variantName}</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Low Stock Threshold
-                            </label>
-                            <input
-                              type="number"
-                              value={variant.lowStockThreshold}
-                              onChange={(e) => updateVariantStock(variant.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
-                              disabled={isViewMode}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="0"
-                              min="0"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Alert when stock is low</p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-2">
-                              Stock Status
-                            </label>
-                            <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
-                              variant.stockStatus === 'Out of Stock' 
-                                ? 'bg-red-50 border-red-200 text-red-800'
-                                : variant.stockStatus === 'Low Stock'
-                                ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                : 'bg-green-50 border-green-200 text-green-800'
-                            }`}>
-                              {variant.stockStatus}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">Automatically calculated</p>
-                          </div>
-                        </div>
-                      </div>
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  type="text"
+                                  value={option.sku || ''}
+                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'sku', e.target.value)}
+                                  disabled={isViewMode}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  placeholder="SKU-001"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <div className="relative">
+                                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                    {currencySymbol}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={option.sellingPrice}
+                                    onChange={(e) => updateVariantOption(variant.id, option.id, 'sellingPrice', e.target.value)}
+                                    disabled={isViewMode}
+                                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                    placeholder={getPricePlaceholder(userCurrency)}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="relative">
+                                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                    {currencySymbol}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={option.purchasePrice}
+                                    onChange={(e) => updateVariantOption(variant.id, option.id, 'purchasePrice', e.target.value)}
+                                    disabled={isViewMode}
+                                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                    placeholder={getPricePlaceholder(userCurrency)}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  type="number"
+                                  value={option.stockQuantity}
+                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'stockQuantity', parseInt(e.target.value) || 0)}
+                                  disabled={isViewMode}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  type="number"
+                                  value={option.lowStockThreshold}
+                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
+                                  disabled={isViewMode}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <span className={`text-xs font-medium ${
+                                  option.stockStatus === 'Out of Stock' 
+                                    ? 'text-red-600'
+                                    : option.stockStatus === 'Low Stock'
+                                    ? 'text-yellow-600'
+                                    : 'text-green-600'
+                                }`}>
+                                  {option.stockStatus}
+                                </span>
+                              </td>
+                              {!isViewMode && (
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeVariantOption(variant.id, option.id)}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
