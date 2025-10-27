@@ -117,7 +117,6 @@ export default function ProductsPage() {
   const profileToTableRow = (product: Product): ProductTableRow => {
     // Get data from product level (piece-based system) and first variant for pricing
     const firstVariant = product.variants?.[0];
-    const firstPackage = product.packageInfo?.[0];
     
     // Calculate total stock from all variants using the utility function
     const productStock = getProductTotalStock(product.variants || []);
@@ -136,8 +135,8 @@ export default function ProductsPage() {
       lowStockThreshold: totalLowStockThreshold, // Total threshold from all variants
       purchasePrice: firstVariant?.purchasePrice || '0',
       sellingPrice: firstVariant?.sellingPrice || '0',
-      packageType: firstPackage?.packageType || 'Piece', // From packageInfo
-      piecesPerPackage: firstPackage?.piecesPerPackage || 1, // From packageInfo
+      packageType: 'Piece', // Default to piece-based
+      piecesPerPackage: 1, // Default to 1 piece per package
       variants: product.variants || [], // Include variants for stock calculation
       
       status: product.status,

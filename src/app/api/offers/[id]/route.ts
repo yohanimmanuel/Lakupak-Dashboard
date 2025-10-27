@@ -64,8 +64,7 @@ export async function GET(
           include: {
             product: {
               include: {
-                variants: true,
-                packageInfo: true
+                variants: true
               }
             },
           },
@@ -120,11 +119,11 @@ export async function GET(
           stock: firstVariant?.stockQuantity || 0,
           // Add variant information for piece-based pricing
           variantName: firstVariant?.variantName || 'Default',
-          packageType: op.product.packageInfo?.[0]?.packageType || 'Piece',
-          piecesPerPackage: op.product.packageInfo?.[0]?.piecesPerPackage || 1,
+          packageType: 'Piece',
+          piecesPerPackage: 1,
           // Calculate piece price (price per individual piece)
           piecePrice: firstVariant ? 
-            (parseFloat(firstVariant.sellingPrice || '0') / (op.product.packageInfo?.[0]?.piecesPerPackage || 1)) : 0
+            parseFloat(firstVariant.sellingPrice || '0') : 0
         };
       }),
       dateRanges: offer.dateRanges?.map((dr) => ({
@@ -1020,7 +1019,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     // Get all products for this user
     const products = await tx.product.findMany({
       where: { userId: userId },
-      include: { variants: true, packageInfo: true }
+      include: { variants: true }
     });
 
     for (const product of products) {
@@ -1127,7 +1126,7 @@ async function resetProductPricesFromOffers(tx: Prisma.TransactionClient, userId
           }
         }
       },
-      include: { variants: true, packageInfo: true }
+      include: { variants: true }
     });
 
     // Reset ALL products with originalSellingPrice set, regardless of active offers

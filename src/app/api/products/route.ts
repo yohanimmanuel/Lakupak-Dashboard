@@ -58,12 +58,12 @@ export async function GET(req: NextRequest) {
       if (/^\d+$/.test(id)) {
         product = await prisma.product.findFirst({
           where: { id: Number(id), userId: Number(userId) },
-          include: { variants: true, packageInfo: true }
+          include: { variants: true }
         });
       } else {
         product = await prisma.product.findFirst({
           where: { productId: id, userId: Number(userId) },
-          include: { variants: true, packageInfo: true }
+          include: { variants: true }
         });
       }
       
@@ -216,8 +216,7 @@ export async function GET(req: NextRequest) {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        variants: true,
-        packageInfo: true
+        variants: true
       }
     });
     
@@ -519,27 +518,10 @@ export async function POST(req: NextRequest) {
             isDefault: variant.isDefault || false,
             isActive: variant.isActive !== false
           }))
-        } : undefined,
-        // Package info for display/fulfillment reference
-        packageInfo: data.packageInfo ? {
-          create: data.packageInfo.map((pkg: {
-            packageName?: string;
-            packageType: string;
-            piecesPerPackage: number;
-            displayOrder: number;
-            isDefault: boolean;
-          }) => ({
-            packageName: pkg.packageName || '',
-            packageType: pkg.packageType,
-            piecesPerPackage: pkg.piecesPerPackage,
-            displayOrder: pkg.displayOrder,
-            isDefault: pkg.isDefault
-          }))
         } : undefined
       },
       include: {
-        variants: true,
-        packageInfo: true
+        variants: true
       }
     });
     
@@ -866,30 +848,10 @@ export async function PUT(req: NextRequest) {
                 isActive: variant.isActive !== false
               }))
             }
-          }),
-          // Package info for display/fulfillment
-          ...(data.packageInfo && {
-            packageInfo: {
-              deleteMany: {}, // Delete all existing package info
-              create: data.packageInfo.map((pkg: {
-                packageName?: string;
-                packageType: string;
-                piecesPerPackage: number;
-                displayOrder: number;
-                isDefault: boolean;
-              }) => ({
-                packageName: pkg.packageName || '',
-                packageType: pkg.packageType,
-                piecesPerPackage: pkg.piecesPerPackage,
-                displayOrder: pkg.displayOrder,
-                isDefault: pkg.isDefault
-              }))
-            }
           })
         },
         include: {
-          variants: true,
-          packageInfo: true
+          variants: true
         }
       });
     } else if (productId) {
@@ -932,30 +894,10 @@ export async function PUT(req: NextRequest) {
                 isActive: variant.isActive !== false
               }))
             }
-          }),
-          // Package info for display/fulfillment
-          ...(data.packageInfo && {
-            packageInfo: {
-              deleteMany: {}, // Delete all existing package info
-              create: data.packageInfo.map((pkg: {
-                packageName?: string;
-                packageType: string;
-                piecesPerPackage: number;
-                displayOrder: number;
-                isDefault: boolean;
-              }) => ({
-                packageName: pkg.packageName || '',
-                packageType: pkg.packageType,
-                piecesPerPackage: pkg.piecesPerPackage,
-                displayOrder: pkg.displayOrder,
-                isDefault: pkg.isDefault
-              }))
-            }
           })
         },
         include: {
-          variants: true,
-          packageInfo: true
+          variants: true
         }
       });
     } else {

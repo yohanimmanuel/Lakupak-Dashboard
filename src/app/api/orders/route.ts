@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
             // Get the variant first to calculate total pieces for MOQ validation
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId) },
-              include: { variants: true, packageInfo: true }
+              include: { variants: true }
             });
             
             if (!product) {
@@ -447,9 +447,8 @@ export async function POST(request: NextRequest) {
             
             const selectedVariant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
             const packageQuantity = item.packageQuantity || 1;
-            // Get piecesPerPackage from product packageInfo (piece-based system)
-            const productPackageInfo = product.packageInfo?.[0];
-            const piecesPerPackageForMOQ = productPackageInfo?.piecesPerPackage || 1;
+            // Get piecesPerPackage from item (piece-based system)
+            const piecesPerPackageForMOQ = item.piecesPerPackage || 1;
             const totalPieces = packageQuantity * piecesPerPackageForMOQ;
             
             // Validate variant using the new service with correct quantities for MOQ validation
@@ -464,9 +463,9 @@ export async function POST(request: NextRequest) {
             // Use the new price parsing utility
             const consistentUnitPrice = parseVariantPrice(variant);
             
-            // Get package info from product level (piece-based system)
-            const piecesPerPackage = item.piecesPerPackage || productPackageInfo?.piecesPerPackage || 1;
-            const packageType = item.packageType || productPackageInfo?.packageType || 'Piece';
+            // Get package info from item (piece-based system)
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageType = item.packageType || 'Piece';
             const pricePerPackage = consistentUnitPrice * piecesPerPackage;
             const consistentSubtotal = packageQuantity * pricePerPackage;
             
@@ -1030,7 +1029,7 @@ export async function PUT(request: NextRequest) {
         // Fetch the product with variants to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId },
-          include: { variants: true, packageInfo: true }
+          include: { variants: true }
         });
         
         if (!product) {

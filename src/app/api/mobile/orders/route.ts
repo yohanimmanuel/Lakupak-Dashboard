@@ -318,7 +318,7 @@ export async function POST(request: NextRequest) {
         // Get the variant first to calculate total pieces for MOQ validation
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') },
-          include: { variants: true, packageInfo: true }
+          include: { variants: true }
         });
         
         if (!product) {
@@ -330,9 +330,8 @@ export async function POST(request: NextRequest) {
         
         const variant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
         const packageQuantity = item.packageQuantity || 1;
-        // Get piecesPerPackage from product packageInfo (piece-based system)
-        const firstPackage = product.packageInfo?.[0];
-        const piecesPerPackage = firstPackage?.piecesPerPackage || 1;
+        // Get piecesPerPackage from item (piece-based system)
+        const piecesPerPackage = item.piecesPerPackage || 1;
         const totalPieces = packageQuantity * piecesPerPackage;
         
         // Use the new variant validation service with correct quantities for MOQ validation
@@ -456,10 +455,10 @@ export async function POST(request: NextRequest) {
       await prisma.$transaction(async (tx) => {
         
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-          // Fetch product with variants and packageInfo
+          // Fetch product with variants
           const product = await tx.product.findFirst({
             where: { productId: String(item.productId || '') },
-            include: { variants: true, packageInfo: true }
+            include: { variants: true }
           });
           
           if (!product) {

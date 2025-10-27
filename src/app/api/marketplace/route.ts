@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         variants: true,
-        packageInfo: true,
         user: {
           select: {
             firstName: true,
@@ -347,7 +346,7 @@ export async function GET(request: NextRequest) {
         category: product.productType || 'Uncategorized',
         productCategory: product.productCategory || 'Uncategorized',
         brand: product.brand,
-        unit: product.packageInfo?.[0]?.packageType || 'Piece',
+        unit: 'Piece',
          seller: {
            name: product.user?.company?.name || 'Unknown Company',
            avatar: '/default-avatar.png',
@@ -437,10 +436,9 @@ export async function GET(request: NextRequest) {
         isDefault: variant.isDefault,
         isActive: variant.isActive
       })),
-      // Include package info for display/fulfillment
-      packageInfo: product.packageInfo || [],
-      piecesPerPackage: product.packageInfo?.[0]?.piecesPerPackage || 1,
-      packageType: product.packageInfo?.[0]?.packageType || 'Piece'
+      // Include package info for display/fulfillment (from description or default)
+      piecesPerPackage: 1,
+      packageType: 'Piece'
       };
     }));
     
@@ -503,8 +501,7 @@ export async function POST(request: NextRequest) {
         userId: userIdNum
       },
       include: {
-        variants: true,
-        packageInfo: true
+        variants: true
       }
     });
     

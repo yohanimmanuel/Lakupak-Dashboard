@@ -1,16 +1,3 @@
-// Package reference for display and fulfillment (NOT separate SKUs)
-export interface PackageInfo {
-  id?: number;
-  packageName?: string; // e.g., "Small Box", "Large Carton"
-  packageType: string; // e.g., "Piece", "Pack", "Carton", "Box"
-  piecesPerPackage: number;
-  displayOrder: number;
-  isDefault: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-  productId?: number;
-}
-
 // Variants for actual product variations (color, size, flavor - NOT package types)
 export interface ProductVariant {
   id?: number;
@@ -59,8 +46,6 @@ export interface Product {
   stockQuantity?: number; // Computed field
   lowStockThreshold?: number; // Computed field
   stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock'; // Computed field
-  // Package reference (for display only)
-  packageInfo?: PackageInfo[];
   // Variants (for actual product variations) - STOCK IS AT VARIANT LEVEL
   variants?: ProductVariant[];
   createdAt?: Date;
@@ -91,7 +76,7 @@ export interface ProductTableRow {
   supplier: string;
   stockQuantity: number;
   lowStockThreshold: number;
-  // Package information
+  // Package information (for display only)
   packageType?: string;
   piecesPerPackage?: number;
   purchasePrice: string;

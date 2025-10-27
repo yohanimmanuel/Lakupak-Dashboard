@@ -17,7 +17,7 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     
     const product = await prisma.product.findFirst({
       where: { productId: item.productId },
-      include: { variants: true, packageInfo: true }
+      include: { variants: true }
     });
     
     if (!product) {
@@ -36,10 +36,9 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     // Use the centralized price parsing utility for consistency
     const consistentUnitPrice = parsePrice(variant.sellingPrice);
     
-    // Get package info from product level (piece-based system)
-    const firstPackage = product.packageInfo?.[0];
-    const piecesPerPackage = firstPackage?.piecesPerPackage || 1;
-    const packageType = firstPackage?.packageType || 'Piece';
+    // Get package info from item (piece-based system)
+    const piecesPerPackage = item.piecesPerPackage || 1;
+    const packageType = item.packageType || 'Piece';
     const packageQuantity = item.packageQuantity || 1;
     const pricePerPackage = consistentUnitPrice * piecesPerPackage;
     const consistentSubtotal = packageQuantity * pricePerPackage;

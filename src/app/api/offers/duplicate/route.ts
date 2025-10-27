@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true,
-                packageInfo: true
+                variants: true
               }
             }
           }
@@ -134,8 +133,7 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true,
-                packageInfo: true
+                variants: true
               }
             }
           }
@@ -180,11 +178,11 @@ export async function POST(request: NextRequest) {
           price: firstVariant?.sellingPrice || '0',
           // Add variant information for piece-based pricing
           variantName: firstVariant?.variantName || 'Default',
-          packageType: op.product.packageInfo?.[0]?.packageType || 'Piece',
-          piecesPerPackage: op.product.packageInfo?.[0]?.piecesPerPackage || 1,
+          packageType: 'Piece',
+          piecesPerPackage: 1,
           // Calculate piece price (price per individual piece)
           piecePrice: firstVariant ? 
-            (parseFloat(firstVariant.sellingPrice || '0') / (op.product.packageInfo?.[0]?.piecesPerPackage || 1)) : 0
+            parseFloat(firstVariant.sellingPrice || '0') : 0
         };
       }),
       dateRanges: createdOffer!.dateRanges?.map((dr) => ({

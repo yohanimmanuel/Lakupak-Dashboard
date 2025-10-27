@@ -137,8 +137,6 @@ model Product {
   publishedAt       DateTime?
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate
-  // Package reference (for display and fulfillment only)
-  packageInfo       PackageInfo[]
   variants          ProductVariant[]
   orderItems        OrderItem[]
   offerProducts     OfferProduct[]
@@ -172,22 +170,6 @@ model ProductVariant {
   
   @@index([productId])
   @@index([isActive])
-}
-
-// Package reference for display and fulfillment (NOT separate SKUs)
-model PackageInfo {
-  id                Int      @id @default(autoincrement())
-  packageName       String   @default("") // e.g., "Small Box", "Large Carton"
-  packageType       String   // e.g., "Piece", "Pack", "Carton", "Box"
-  piecesPerPackage  Int      @default(1)
-  displayOrder      Int      @default(0) // Order to display in UI
-  isDefault         Boolean  @default(false)
-  createdAt         DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
-  productId         Int
-  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  @@index([productId])
 }
 
 model MarketplaceUser {

@@ -155,14 +155,14 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
       const mapped: Partial<OrderDetail> = {};
       orderFields.forEach(f => {
         const col = mapping[f.key];
-        let value = col ? row[col] : '';
+        let value: string | undefined = col ? row[col] : '';
         
         // Remove currency identifier for monetary fields
         if (f.key === 'totalSpend' || f.key === 'outstanding') {
           value = removeCurrencyIdentifier(value);
         }
         
-        mapped[f.key as keyof OrderDetail] = value;
+        mapped[f.key as keyof OrderDetail] = value as never;
       });
       return mapped as OrderDetail;
     });

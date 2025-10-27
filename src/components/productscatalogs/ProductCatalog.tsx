@@ -81,17 +81,7 @@ export default function ProductCatalog({
     isActive: boolean;
   }>>([]);
 
-  // Package info state (for display/fulfillment reference)
-  const [packageInfo, setPackageInfo] = useState<Array<{
-    id: string;
-    packageName: string;
-    packageType: string;
-    piecesPerPackage: number;
-    displayOrder: number;
-    isDefault: boolean;
-  }>>([]);
-
-  // Initialize variants and package info from product data
+  // Initialize variants from product data
   useEffect(() => {
     // Initialize variants with stock data
     if (product?.variants && product.variants.length > 0) {
@@ -128,28 +118,6 @@ export default function ProductCatalog({
         attributes: undefined,
         isDefault: true,
         isActive: true
-      }]);
-    }
-
-    // Initialize package info (for display/fulfillment)
-    if (product?.packageInfo && product.packageInfo.length > 0) {
-      setPackageInfo(product.packageInfo.map(pkg => ({
-        id: pkg.id ? String(pkg.id) : `pkg-${Date.now()}`,
-        packageName: pkg.packageName || '',
-        packageType: pkg.packageType,
-        piecesPerPackage: pkg.piecesPerPackage,
-        displayOrder: pkg.displayOrder,
-        isDefault: pkg.isDefault
-      })));
-    } else {
-      // Create default package info (piece-based)
-      setPackageInfo([{
-        id: 'pkg-default',
-        packageName: '',
-        packageType: 'Piece',
-        piecesPerPackage: 1,
-        displayOrder: 0,
-        isDefault: true
       }]);
     }
   }, [product]);
@@ -375,34 +343,6 @@ export default function ProductCatalog({
         return updatedVariant;
       }
       return variant;
-    }));
-  };
-
-  // Package info management functions
-  const addPackageInfo = () => {
-    const newPackage = {
-      id: `pkg-${Date.now()}`,
-      packageName: '',
-      packageType: '',
-      piecesPerPackage: 1,
-      displayOrder: packageInfo.length,
-      isDefault: false
-    };
-    setPackageInfo(prev => [...prev, newPackage]);
-  };
-
-  const removePackageInfo = (pkgId: string) => {
-    if (packageInfo.length > 1 && pkgId !== packageInfo[0].id) {
-      setPackageInfo(prev => prev.filter(pkg => pkg.id !== pkgId));
-    }
-  };
-
-  const updatePackageInfo = (pkgId: string, field: string, value: string | number | boolean) => {
-    setPackageInfo(prev => prev.map(pkg => {
-      if (pkg.id === pkgId) {
-        return { ...pkg, [field]: value };
-      }
-      return pkg;
     }));
   };
 
@@ -666,13 +606,6 @@ export default function ProductCatalog({
           attributes: variant.attributes,
           isDefault: variant.isDefault,
           isActive: variant.isActive
-        })),
-        packageInfo: packageInfo.map(pkg => ({
-          packageName: pkg.packageName,
-          packageType: pkg.packageType,
-          piecesPerPackage: pkg.piecesPerPackage,
-          displayOrder: pkg.displayOrder,
-          isDefault: pkg.isDefault
         }))
       };
 
@@ -1647,109 +1580,6 @@ export default function ProductCatalog({
                     <p className="text-xs text-gray-500 mt-1">Overall product status</p>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Package Info Section */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                  <Package className="w-5 h-5 text-gray-500" />
-                  Package Information
-                  <span className="text-xs text-gray-500 font-normal">(For display/fulfillment reference)</span>
-                </h2>
-                {!isViewMode && (
-                  <button
-                    type="button"
-                    onClick={addPackageInfo}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Package
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                {packageInfo.map((pkg, index) => (
-                  <div key={pkg.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        {pkg.isDefault && (
-                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      {!isViewMode && packageInfo.length > 1 && index > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => removePackageInfo(pkg.id)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
-                          Package Name
-                        </label>
-                        <input
-                          type="text"
-                          value={pkg.packageName}
-                          onChange={(e) => updatePackageInfo(pkg.id, 'packageName', e.target.value)}
-                          disabled={isViewMode}
-                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="e.g., Small Box"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
-                          Package Type
-                        </label>
-                        <input
-                          type="text"
-                          value={pkg.packageType}
-                          onChange={(e) => updatePackageInfo(pkg.id, 'packageType', e.target.value)}
-                          disabled={isViewMode}
-                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="e.g., Box"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
-                          Pieces per Package
-                        </label>
-                        <input
-                          type="number"
-                          value={pkg.piecesPerPackage}
-                          onChange={(e) => updatePackageInfo(pkg.id, 'piecesPerPackage', parseInt(e.target.value) || 1)}
-                          disabled={isViewMode}
-                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="1"
-                          min="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">
-                          Display Order
-                        </label>
-                        <input
-                          type="number"
-                          value={pkg.displayOrder}
-                          onChange={(e) => updatePackageInfo(pkg.id, 'displayOrder', parseInt(e.target.value) || 0)}
-                          disabled={isViewMode}
-                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="0"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
