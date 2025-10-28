@@ -62,95 +62,52 @@ export default function ProductCatalog({
 
   // Product-level stock is computed from variants (no separate state needed)
 
-  // Product variants state (for actual variations: color, size, flavor)
+  // Simplified variants state - just type and option names
   const [variants, setVariants] = useState<Array<{
     id: string;
-    variantName: string;
-    variantType?: string;
-    sku?: string;
-    purchasePrice: string;
-    sellingPrice: string;
-    originalSellingPrice?: string;
-    moq?: number; // Minimum Order Quantity in pieces (variant-level)
-    // Stock management at variant level (piece-based)
-    stockQuantity: number;
-    lowStockThreshold: number;
-    stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-    attributes?: Record<string, unknown>;
-    isDefault: boolean;
-    isActive: boolean;
-    // Options within each variant
-    options?: Array<{
-      id: string;
+    variantType: string;
+    moq?: number;
+    options: Array<{
+    id: string;
       name: string;
-      sku?: string;
-      purchasePrice: string;
-      sellingPrice: string;
-      moq?: number;
-      stockQuantity: number;
-      lowStockThreshold: number;
-      stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
     }>;
   }>>([]);
 
+  // Final combinations table (manual entry)
+  const [combinations, setCombinations] = useState<Array<Record<string, any>>>([]);
+
+
   // Initialize variants from product data
   useEffect(() => {
-    // Initialize variants with stock data
     if (product?.variants && product.variants.length > 0) {
-      setVariants(product.variants.map(variant => ({
+      // Group variants by type
+      const groupedVariants = product.variants.reduce((acc, variant) => {
+        const type = variant.variantType || 'Default';
+        if (!acc[type]) {
+          acc[type] = {
+            id: `variant-${type}`,
+            variantType: type,
+            moq: variant.moq,
+            options: []
+          };
+        }
+        acc[type].options.push({
         id: variant.id?.toString() || Math.random().toString(36).substr(2, 9),
-        variantName: variant.variantName,
-        variantType: variant.variantType || '',
-        sku: variant.sku || '',
-        purchasePrice: variant.purchasePrice,
-        sellingPrice: variant.sellingPrice,
-        originalSellingPrice: variant.originalSellingPrice || '',
-        moq: variant.moq || undefined,
-        stockQuantity: variant.stockQuantity || 0,
-        lowStockThreshold: variant.lowStockThreshold || 0,
-        stockStatus: variant.stockStatus || 'In Stock',
-        attributes: variant.attributes || {},
-        isDefault: variant.isDefault || false,
-        isActive: variant.isActive !== false,
-        options: [{
-          id: `${variant.id?.toString() || Math.random().toString(36).substr(2, 9)}-option-1`,
-          name: variant.variantName,
-          sku: variant.sku || '',
-          purchasePrice: variant.purchasePrice,
-          sellingPrice: variant.sellingPrice,
-          moq: variant.moq || undefined,
-          stockQuantity: variant.stockQuantity || 0,
-          lowStockThreshold: variant.lowStockThreshold || 0,
-          stockStatus: variant.stockStatus || 'In Stock',
-        }]
-      })));
+          name: variant.variantName
+        });
+        return acc;
+      }, {} as Record<string, { id: string; variantType: string; moq?: number; options: Array<{ id: string; name: string }> }>);
+      
+      setVariants(Object.values(groupedVariants));
     } else {
       // Create default variant
       setVariants([{
-        id: 'default',
-        variantName: 'Default',
-        variantType: undefined,
-        sku: undefined,
-        purchasePrice: '',
-        sellingPrice: '',
-        originalSellingPrice: '',
+        id: 'variant-1',
+        variantType: '',
         moq: undefined,
-        stockQuantity: 0,
-        lowStockThreshold: 0,
-        stockStatus: 'In Stock',
-        attributes: undefined,
-        isDefault: true,
-        isActive: true,
         options: [{
-          id: 'default-option-1',
-          name: '',
-          sku: '',
-          purchasePrice: '',
-          sellingPrice: '',
-          moq: undefined,
-          stockQuantity: 0,
-          lowStockThreshold: 0,
-          stockStatus: 'In Stock',
+          id: 'option-1',
+          name: ''
         }]
       }]);
     }
@@ -342,122 +299,65 @@ export default function ProductCatalog({
     const variantId = `variant-${Date.now()}`;
     const newVariant = {
       id: variantId,
-      variantName: `Variant ${variants.length + 1}`,
-      variantType: undefined,
-      sku: undefined,
-      purchasePrice: '',
-      sellingPrice: '',
-      originalSellingPrice: '',
-      moq: undefined, // MOQ in pieces (variant-level)
-      stockQuantity: 0,
-      lowStockThreshold: 0,
-      stockStatus: 'In Stock' as const,
-      attributes: undefined,
-      isDefault: false,
-      isActive: true,
-      // Initialize with one option row
+      variantType: '',
+      moq: undefined,
       options: [{
         id: `${variantId}-option-1`,
-        name: '',
-        sku: '',
-        purchasePrice: '',
-        sellingPrice: '',
-        moq: undefined,
-        stockQuantity: 0,
-        lowStockThreshold: 0,
-        stockStatus: 'In Stock' as const,
+        name: ''
       }]
     };
     setVariants(prev => [...prev, newVariant]);
   };
 
   const removeVariant = (variantId: string) => {
-    if (variants.length > 1 && variantId !== variants[0].id) {
+    if (variants.length > 1) {
       setVariants(prev => prev.filter(variant => variant.id !== variantId));
     }
   };
 
-  const updateVariant = (variantId: string, field: string, value: string | number | boolean | undefined | Record<string, unknown>) => {
+  const updateVariant = (variantId: string, field: string, value: string | number | undefined) => {
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
-        const updatedVariant = { ...variant, [field]: value };
-        
-        // Auto-set originalSellingPrice when sellingPrice is first set
-        if (field === 'sellingPrice' && value && !variant.originalSellingPrice) {
-          updatedVariant.originalSellingPrice = String(value);
-        }
-        
-        return updatedVariant;
+        return { ...variant, [field]: value };
       }
       return variant;
     }));
   };
 
-  // Variant-level stock management
-  const updateVariantStock = (variantId: string, field: 'stockQuantity' | 'lowStockThreshold', value: number) => {
-    setVariants(prev => prev.map(variant => {
-      if (variant.id === variantId) {
-        const updatedVariant = { ...variant };
-        if (field === 'stockQuantity') {
-          updatedVariant.stockQuantity = value;
-        } else if (field === 'lowStockThreshold') {
-          updatedVariant.lowStockThreshold = value;
-        }
-        // Auto-calculate stock status
-        updatedVariant.stockStatus = getVariantStockStatus(
-          updatedVariant.stockQuantity,
-          updatedVariant.lowStockThreshold
-        ) as 'In Stock' | 'Low Stock' | 'Out of Stock';
-        return updatedVariant;
-      }
-      return variant;
-    }));
-  };
-
-  // Add option row to a variant
   const addVariantOption = (variantId: string) => {
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         const newOption = {
           id: `${variantId}-option-${Date.now()}`,
-          name: '',
-          sku: '',
-          purchasePrice: '',
-          sellingPrice: '',
-          moq: undefined,
-          stockQuantity: 0,
-          lowStockThreshold: 0,
-          stockStatus: 'In Stock' as const,
+          name: ''
         };
         return {
           ...variant,
-          options: [...(variant.options || []), newOption]
+          options: [...variant.options, newOption]
         };
       }
       return variant;
     }));
   };
 
-  // Remove option row from a variant
   const removeVariantOption = (variantId: string, optionId: string) => {
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         return {
           ...variant,
-          options: (variant.options || []).filter(opt => opt.id !== optionId)
+          options: variant.options.filter(opt => opt.id !== optionId)
         };
       }
       return variant;
     }));
   };
 
-  // Update option row
-  const updateVariantOption = (variantId: string, optionId: string, field: string, value: string | number | undefined) => {
+  const updateVariantOption = (variantId: string, optionId: string, field: string, value: string) => {
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         return {
           ...variant,
-          options: (variant.options || []).map(opt => {
+          options: variant.options.map(opt => {
             if (opt.id === optionId) {
               return { ...opt, [field]: value };
             }
@@ -469,10 +369,104 @@ export default function ProductCatalog({
     }));
   };
 
-  // Calculate product-level stock from variants
-  const getProductStock = () => {
-    return getProductTotalStock(variants);
+  // Update combination
+  const updateCombination = (combinationId: string, field: string, value: string | number | undefined) => {
+    setCombinations(prev => prev.map(combination => {
+      if (combination.id === combinationId) {
+        const updated = { ...combination, [field]: value };
+        
+        // Auto-generate variant name from selected options
+        const selectedOptions = variants.map((variant, idx) => {
+          const optionValue = updated[`variant_${variant.id}`] || 'None';
+          return `${variant.variantType || `Var ${idx + 1}`}: ${optionValue}`;
+        }).join(' | ');
+        
+        updated.variantName = selectedOptions;
+        
+        return updated;
+      }
+      return combination;
+    }));
   };
+
+  // Remove combination
+  const removeCombination = (combinationId: string) => {
+    setCombinations(prev => prev.filter(combination => combination.id !== combinationId));
+  };
+
+  // Add new combination row
+  const addCombination = () => {
+    const newCombination = {
+      id: `combination-${Date.now()}`,
+      sku: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      moq: undefined,
+      stockQuantity: 0,
+      lowStockThreshold: 0,
+      stockStatus: 'In Stock' as const
+    };
+    setCombinations(prev => [...prev, newCombination]);
+  };
+
+  // Auto-generate combinations when variant options change
+  useEffect(() => {
+    const validVariants = variants.filter(v => v.variantType && v.options.some(opt => opt.name));
+    
+    if (validVariants.length === 0) {
+      setCombinations([{
+        id: 'combination-1',
+        sku: '',
+        purchasePrice: '',
+        sellingPrice: '',
+        moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock' as const
+      }]);
+      return;
+    }
+
+    // Generate cartesian product
+    const cartesian = (arrays: string[][]): string[][] => {
+      if (arrays.length === 0) return [];
+      if (arrays.length === 1) return arrays[0].map(item => [item]);
+      const [first, ...rest] = arrays;
+      const restProduct = cartesian(rest);
+      return first.flatMap(item => restProduct.map(combination => [item, ...combination]));
+    };
+
+    const optionArrays = validVariants.map(v => v.options.filter(opt => opt.name).map(opt => opt.name));
+    const combinationsGenerated = cartesian(optionArrays);
+    
+    const newCombinations = combinationsGenerated.map((combination, index) => {
+      const combinationData: Record<string, any> = {
+        id: `combination-${index}`,
+        sku: `SKU-${String(index + 1).padStart(3, '0')}`,
+        purchasePrice: '',
+        sellingPrice: '',
+        moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock' as const
+      };
+
+      // Set variant values
+      validVariants.forEach((variant, idx) => {
+        combinationData[`variant_${variant.id}`] = combination[idx];
+      });
+
+      // Generate variant name
+      const variantName = validVariants
+        .map((v, idx) => `${v.variantType}: ${combination[idx]}`)
+        .join(' | ');
+      combinationData.variantName = variantName;
+
+      return combinationData;
+    });
+    
+    setCombinations(newCombinations);
+  }, [variants]);
 
 
   const handleImageUpload = async (files: FileList) => {
@@ -685,6 +679,13 @@ export default function ProductCatalog({
         finalData.productId = generateLKPProductId();
       }
 
+      // Calculate total stock from combinations
+      const totalStock = combinations.reduce((sum, combo) => sum + (combo.stockQuantity || 0), 0);
+      const lowStockThreshold = combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold || 0), 0);
+      const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
+      const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+      const stockStatus = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
+
       // Submit the full text values including currency symbols
       const payload = {
         ...finalData,
@@ -692,22 +693,22 @@ export default function ProductCatalog({
         productId: formData.productId,
         userId: user.id,
         currency: user.currency,
-        // Product-level stock is computed from variants
-        ...getProductStock(),
-        variants: variants.map(variant => ({
-          variantName: variant.variantName,
-          variantType: variant.variantType,
-          sku: variant.sku,
-          purchasePrice: variant.purchasePrice,
-          sellingPrice: variant.sellingPrice,
-          originalSellingPrice: variant.originalSellingPrice,
-          moq: variant.moq,
-          stockQuantity: variant.stockQuantity,
-          lowStockThreshold: variant.lowStockThreshold,
-          stockStatus: variant.stockStatus,
-          attributes: variant.attributes,
-          isDefault: variant.isDefault,
-          isActive: variant.isActive
+        totalStock,
+        lowStockThreshold,
+        stockStatus,
+        variants: combinations.map(combo => ({
+          variantName: combo.variantName,
+          variantType: '',  // Will be extracted from variantName
+          sku: combo.sku,
+          purchasePrice: combo.purchasePrice,
+          sellingPrice: combo.sellingPrice,
+          moq: combo.moq,
+          stockQuantity: combo.stockQuantity,
+          lowStockThreshold: combo.lowStockThreshold,
+          stockStatus: combo.stockStatus as 'In Stock' | 'Low Stock' | 'Out of Stock',
+          attributes: {},
+          isDefault: false,
+          isActive: true
         }))
       };
 
@@ -808,14 +809,14 @@ export default function ProductCatalog({
       { field: 'images', value: formData.images, name: 'Product Images' }
     ];
 
-    // Check if variants are properly configured
-    const variantValidation = variants.every(variant => 
-      variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
-      variant.sellingPrice && variant.sellingPrice.trim() !== ''
+    // Check if combinations are properly configured
+    const variantValidation = combinations.length > 0 && combinations.every(combo => 
+      combo.purchasePrice && combo.purchasePrice.trim() !== '' &&
+      combo.sellingPrice && combo.sellingPrice.trim() !== ''
     );
 
-    // Check if all variants have valid stock
-    const stockValidation = variants.every(variant => variant.stockQuantity >= 0);
+    // Check if all combinations have valid stock
+    const stockValidation = combinations.every(combo => combo.stockQuantity >= 0);
 
     const missingFields = requiredFields.filter(field => {
       if (field.field === 'images') {
@@ -1069,11 +1070,11 @@ export default function ProductCatalog({
               { name: 'Brand', value: String(dataSource?.brand || '').trim() },
               { name: 'Supplier', value: String(dataSource?.supplier || '').trim() },
               { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 },
-              { name: 'Product Variants', value: variants.every(variant => 
-                variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
-                variant.sellingPrice && variant.sellingPrice.trim() !== ''
+              { name: 'Product Variants', value: combinations.length > 0 && combinations.every(combo => 
+                combo.purchasePrice && combo.purchasePrice.trim() !== '' &&
+                combo.sellingPrice && combo.sellingPrice.trim() !== ''
               ) },
-              { name: 'Product Stock', value: getProductStock().totalStock >= 0 }
+              { name: 'Product Stock', value: combinations.length > 0 }
             ];
             
             const completedFields = requiredFields.filter(field => 
@@ -1653,31 +1654,46 @@ export default function ProductCatalog({
                       Total Stock (Pieces)
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {getProductStock().totalStock.toLocaleString()}
+                      {combinations.reduce((sum, combo) => sum + (combo.stockQuantity || 0), 0).toLocaleString()}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Sum of all variant stocks</p>
+                    <p className="text-xs text-gray-500 mt-1">Sum of all combination stocks</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                       Low Stock Threshold
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {getProductStock().lowStockThreshold.toLocaleString()}
+                      {combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold || 0), 0).toLocaleString()}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Minimum threshold across variants</p>
+                    <p className="text-xs text-gray-500 mt-1">Minimum threshold across combinations</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                       Overall Status
                     </label>
                     <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
-                      getProductStock().stockStatus === 'Out of Stock' 
+                      (() => {
+                        const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
+                        const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+                        const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
+                        return status;
+                      })() === 'Out of Stock' 
                         ? 'bg-red-50 border-red-200 text-red-800'
-                        : getProductStock().stockStatus === 'Low Stock'
+                        : (() => {
+                            const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
+                            const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+                            const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
+                            return status;
+                          })() === 'Low Stock'
                         ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
                         : 'bg-green-50 border-green-200 text-green-800'
                     }`}>
-                      {getProductStock().stockStatus}
+                      {(() => {
+                        const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
+                        const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+                        const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
+                        return status;
+                      })()}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Overall product status</p>
                   </div>
@@ -1687,234 +1703,420 @@ export default function ProductCatalog({
 
             {/* Product Variants Section */}
             <div className="border-t border-gray-200 pt-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-gray-500" />
                   Product Variants
-                  <span className="text-xs text-gray-500 font-normal">(Different colors, sizes, flavors, etc.)</span>
+                  <span className="text-xs text-gray-500 font-normal">(Define variants and options)</span>
                 </h2>
-                {!isViewMode && (
-                  <button
-                    type="button"
-                    onClick={addVariant}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Variant
-                  </button>
-                )}
               </div>
-            
-            {/* Variants List - Each variant as a section with a table */}
-            <div className="space-y-4">
+
+            {/* Simplified Variants Input */}
+            <div className="space-y-4 mb-6">
               {variants.map((variant, index) => (
-                <div key={variant.id} className="border border-gray-200 rounded-lg bg-white">
-                  {/* Variant Type Header */}
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="w-48">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Variant Type
-                          </label>
-                          <input
-                            type="text"
-                            value={variant.variantType || ''}
-                            onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
-                            disabled={isViewMode}
-                            className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
-                            placeholder="e.g., Color, Size, Flavor"
-                          />
-                        </div>
-                        <div className="w-40">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            MOQ
-                          </label>
-                          <input
-                            type="number"
-                            value={variant.moq || ''}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              updateVariant(variant.id, 'moq', value ? parseInt(value) : undefined);
-                            }}
-                            disabled={isViewMode}
-                            className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                            placeholder="e.g., 10"
-                            min="0"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {variant.isDefault && (
-                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
-                            Default
-                          </span>
-                        )}
-                        {!isViewMode && variants.length > 1 && index > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => removeVariant(variant.id)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
+                <div key={variant.id} className="border border-gray-200 rounded-lg bg-white p-4">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-48">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Variant Type
+                        </label>
+                        <input
+                          type="text"
+                          value={variant.variantType}
+                          onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
+                          disabled={isViewMode}
+                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
+                          placeholder="e.g., Color, Size, Flavor"
+                        />
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Variant Information Table */}
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-semibold text-gray-900">Variant Information</h4>
+                    {!isViewMode && variants.length > 1 && index > 0 && (
+                        <button
+                          type="button"
+                        onClick={() => removeVariant(variant.id)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Options
+                        </label>
+                    <div className="flex flex-wrap gap-2">
+                      {variant.options.map((option, optionIndex) => (
+                        <div key={option.id} className="flex items-center gap-1">
+                        <input
+                          type="text"
+                            value={option.name}
+                            onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
+                          disabled={isViewMode}
+                            className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                            placeholder="e.g., White"
+                            style={{ minWidth: '120px' }}
+                          />
+                          {!isViewMode && (variant.options.length > 1 || optionIndex > 0) && (
+                            <button
+                              type="button"
+                              onClick={() => removeVariantOption(variant.id, option.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                      </div>
+                      ))}
                       {!isViewMode && (
                         <button
                           type="button"
                           onClick={() => addVariantOption(variant.id)}
-                          className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+                          className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-[#0a61d7] hover:text-[#0851b8] transition-colors border border-dashed border-[#0a61d7] rounded-lg"
                         >
                           <Plus className="w-4 h-4" />
-                          Add Row
+                          Add Option
                         </button>
                       )}
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              Name
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              SKU
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              Selling Price
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              Purchase Price
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              Stock Qty
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200">
-                              Low Threshold
-                            </th>
-                            <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-gray-200 w-20">
-                              Status
-                            </th>
-                            {!isViewMode && (
-                              <th className="text-xs font-semibold text-gray-700 p-3 text-center border-b border-gray-200">
-                                Actions
-                              </th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(variant.options || []).map((option, optionIndex) => (
-                            <tr key={option.id}>
-                              <td className="p-3">
-                                <input
-                                  type="text"
-                                  value={option.name}
-                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
-                                  disabled={isViewMode}
-                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="e.g., White, Black, M, L"
-                                />
-                              </td>
-                              <td className="p-3">
-                                <input
-                                  type="text"
-                                  value={option.sku || ''}
-                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'sku', e.target.value)}
-                                  disabled={isViewMode}
-                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="SKU-001"
-                                />
-                              </td>
-                              <td className="p-3">
-                                <div className="relative">
-                                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                    {currencySymbol}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={option.sellingPrice}
-                                    onChange={(e) => updateVariantOption(variant.id, option.id, 'sellingPrice', e.target.value)}
-                                    disabled={isViewMode}
-                                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                    placeholder={getPricePlaceholder(userCurrency)}
-                                  />
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <div className="relative">
-                                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                    {currencySymbol}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={option.purchasePrice}
-                                    onChange={(e) => updateVariantOption(variant.id, option.id, 'purchasePrice', e.target.value)}
-                                    disabled={isViewMode}
-                                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                    placeholder={getPricePlaceholder(userCurrency)}
-                                  />
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <input
-                                  type="number"
-                                  value={option.stockQuantity}
-                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'stockQuantity', parseInt(e.target.value) || 0)}
-                                  disabled={isViewMode}
-                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="p-3">
-                                <input
-                                  type="number"
-                                  value={option.lowStockThreshold}
-                                  onChange={(e) => updateVariantOption(variant.id, option.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
-                                  disabled={isViewMode}
-                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="p-3">
-                                <span className={`text-xs font-medium ${
-                                  option.stockStatus === 'Out of Stock' 
-                                    ? 'text-red-600'
-                                    : option.stockStatus === 'Low Stock'
-                                    ? 'text-yellow-600'
-                                    : 'text-green-600'
-                                }`}>
-                                  {option.stockStatus}
-                                </span>
-                              </td>
-                              {!isViewMode && (
-                                <td className="p-3 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => removeVariantOption(variant.id, option.id)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
                   </div>
                 </div>
               ))}
+              
+              {!isViewMode && (
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium border-2 border-dashed border-gray-300 text-gray-700 rounded-lg hover:border-[#0a61d7] hover:text-[#0a61d7] transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Variant Type
+                </button>
+              )}
+            </div>
+
+            {/* Final Combinations Table */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="mb-4">
+                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-gray-500" />
+                  Variation Lists
+                </h2>
+              </div>
+
+              {/* Apply To All Section */}
+              {!isViewMode && combinations.length > 0 && (
+                <div className="bg-orange-50 rounded-lg p-4 mb-4">
+                  <h3 className="text-sm font-semibold text-orange-900 mb-3">Quick Action</h3>
+                  <div className="flex gap-3 items-end">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        SKU
+                      </label>
+                      <input
+                        type="text"
+                        id="apply-sku"
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                        placeholder="SKU-001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Selling Price
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          id="apply-selling"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                          placeholder={getPricePlaceholder(userCurrency)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Purchase Price
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                          {currencySymbol}
+                        </div>
+                        <input
+                          type="text"
+                          id="apply-purchase"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                          placeholder={getPricePlaceholder(userCurrency)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        MOQ
+                      </label>
+                      <input
+                        type="number"
+                        id="apply-moq"
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Stock Qty
+                      </label>
+                      <input
+                        type="number"
+                        id="apply-stock"
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Low Threshold
+                      </label>
+                      <input
+                        type="number"
+                        id="apply-threshold"
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                        placeholder="0"
+                        min="0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sku = (document.getElementById('apply-sku') as HTMLInputElement)?.value || '';
+                        const selling = (document.getElementById('apply-selling') as HTMLInputElement)?.value || '';
+                        const purchase = (document.getElementById('apply-purchase') as HTMLInputElement)?.value || '';
+                        const moq = (document.getElementById('apply-moq') as HTMLInputElement)?.value || '';
+                        const stock = (document.getElementById('apply-stock') as HTMLInputElement)?.value || '';
+                        const threshold = (document.getElementById('apply-threshold') as HTMLInputElement)?.value || '';
+                        
+                        setCombinations(prev => prev.map(combo => ({
+                          ...combo,
+                          sku: sku || combo.sku,
+                          sellingPrice: selling || combo.sellingPrice,
+                          purchasePrice: purchase || combo.purchasePrice,
+                          moq: moq ? parseInt(moq) : combo.moq,
+                          stockQuantity: stock ? parseInt(stock) : combo.stockQuantity,
+                          lowStockThreshold: threshold ? parseInt(threshold) : combo.lowStockThreshold,
+                        })));
+                      }}
+                      className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap"
+                    >
+                      Apply To All
+                    </button>
+                  </div>
+                </div>
+              )}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {variants.map((variant, index) => (
+                          <th key={variant.id} className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                            {variant.variantType || `Var ${index + 1}`}
+                          </th>
+                        ))}
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          SKU
+                        </th>
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          Selling Price
+                        </th>
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          Purchase Price
+                        </th>
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          MOQ
+                        </th>
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          Stock Qty
+                        </th>
+                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          Low Threshold
+                        </th>
+                        <th className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
+                          Status
+                        </th>
+                        {!isViewMode && (
+                          <th className="text-xs font-semibold text-gray-700 p-3 text-center border-b border-gray-300">
+                            Actions
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {combinations.map((combination, index) => {
+                        const firstVariantId = variants[0]?.id;
+                        const firstVariantValue = firstVariantId ? combination[`variant_${firstVariantId}` as keyof typeof combination]?.toString() : 'None';
+                        const prevCombination = combinations[index - 1];
+                        const prevFirstVariantValue = prevCombination && firstVariantId ? prevCombination[`variant_${firstVariantId}` as keyof typeof prevCombination]?.toString() : '';
+                        const shouldMergeFirst = firstVariantValue === prevFirstVariantValue && index > 0;
+                        
+                        return (
+                          <tr key={combination.id}>
+                            {variants.map((variant, variantIndex) => (
+                              variantIndex === 0 && shouldMergeFirst ? null : (
+                                <td 
+                                  key={variant.id} 
+                                  className="p-3 border-r border-b border-gray-300"
+                                  rowSpan={variantIndex === 0 && !shouldMergeFirst ? 
+                                    (() => {
+                                      let mergeCount = 1;
+                                      for (let i = index + 1; i < combinations.length; i++) {
+                                        const nextValue = combinations[i][`variant_${firstVariantId}` as keyof typeof combinations[number]]?.toString();
+                                        if (nextValue === firstVariantValue) mergeCount++;
+                                        else break;
+                                      }
+                                      return mergeCount > 1 ? mergeCount : undefined;
+                                    })() : undefined
+                                  }
+                                >
+                                  <span className="text-xs text-black">
+                                    {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || 'None'}
+                                  </span>
+                                </td>
+                              )
+                            ))}
+                          <td className="p-3 border-r border-b border-gray-300">
+                                <input
+                              type="text"
+                              value={combination.sku}
+                              onChange={(e) => updateCombination(combination.id, 'sku', e.target.value)}
+                                  disabled={isViewMode}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="SKU-001"
+                            />
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={combination.sellingPrice}
+                                onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
+                                disabled={isViewMode}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder={getPricePlaceholder(userCurrency)}
+                              />
+                            </div>
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={combination.purchasePrice}
+                                onChange={(e) => updateCombination(combination.id, 'purchasePrice', e.target.value)}
+                                disabled={isViewMode}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder={getPricePlaceholder(userCurrency)}
+                              />
+                            </div>
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <input
+                              type="number"
+                              value={combination.moq || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                updateCombination(combination.id, 'moq', value ? parseInt(value) : undefined);
+                              }}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <input
+                              type="number"
+                              value={combination.stockQuantity}
+                              onChange={(e) => updateCombination(combination.id, 'stockQuantity', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <input
+                              type="number"
+                              value={combination.lowStockThreshold}
+                              onChange={(e) => updateCombination(combination.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
+                              disabled={isViewMode}
+                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              placeholder="0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="p-3 border-r border-b border-gray-300">
+                            <span className={`text-xs font-medium ${
+                              combination.stockStatus === 'Out of Stock' 
+                                ? 'text-red-600'
+                                : combination.stockStatus === 'Low Stock'
+                                ? 'text-yellow-600'
+                                : 'text-green-600'
+                            }`}>
+                              {combination.stockStatus}
+                            </span>
+                          </td>
+                          {!isViewMode && (
+                            <td className="p-3 text-center border-b border-gray-300">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newCombo: Record<string, any> = {
+                                      id: `combination-${Date.now()}`,
+                                      sku: '',
+                                      purchasePrice: '',
+                                      sellingPrice: '',
+                                      moq: undefined,
+                                      stockQuantity: 0,
+                                      lowStockThreshold: 0,
+                                      stockStatus: 'In Stock' as const
+                                    };
+                                    variants.forEach(variant => {
+                                      newCombo[`variant_${variant.id}`] = '';
+                                    });
+                                    newCombo.variantName = '';
+                                    setCombinations(prev => [...prev, newCombo]);
+                                  }}
+                                  className="text-green-500 hover:text-green-700 p-1"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                                {combinations.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCombination(combination.id)}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                            </div>
             </div>
             </div>
           </div>
