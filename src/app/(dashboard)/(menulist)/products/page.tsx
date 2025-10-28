@@ -115,13 +115,56 @@ export default function ProductsPage() {
 
   // Convert product data to table row format
   const profileToTableRow = (product: Product): ProductTableRow => {
-    // Get data from product level (piece-based system) and first variant for pricing
-    const firstVariant = product.variants?.[0];
-    
     // Calculate total stock from all variants using the utility function
-    const productStock = getProductTotalStock(product.variants || []);
-    const totalStock = productStock.totalStock;
-    const totalLowStockThreshold = productStock.lowStockThreshold;
+    const legacyVariants = product.legacyVariants || [];
+    const productStock = getProductTotalStock(legacyVariants);
+    const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
+      totalStock: total.totalStock + (option.stockQuantity || 0),
+      lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+    }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
+    
+    const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
+    const totalLowStockThreshold = Math.max(productStock.lowStockThreshold, variantOptionsStock.lowStockThreshold);
+    
+    // Calculate price range for selling price
+    let sellingPrice = 'Rp 0';
+    if (product.variantOptions && product.variantOptions.length > 0) {
+      // New structure: use variantOptions
+      const prices = product.variantOptions
+        .map(option => parseFloat(option.sellingPrice) || 0)
+        .filter(price => price > 0);
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        if (minPrice === maxPrice) {
+          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+        } else {
+          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+        }
+      }
+    } else if (legacyVariants && legacyVariants.length > 0) {
+      // Legacy structure: use variants
+      const prices = legacyVariants
+        .map(variant => parseFloat(variant.sellingPrice) || 0)
+        .filter(price => price > 0);
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        if (minPrice === maxPrice) {
+          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+        } else {
+          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+        }
+      }
+    }
+    
+    // Get first variant for purchase price (usually same across variants)
+    const firstLegacyVariant = legacyVariants?.[0];
+    const firstVariantOption = product.variantOptions?.[0];
     
     return {
       id: product.id || 0,
@@ -133,11 +176,12 @@ export default function ProductsPage() {
       supplier: product.supplier,
       stockQuantity: totalStock, // Total stock from all variants
       lowStockThreshold: totalLowStockThreshold, // Total threshold from all variants
-      purchasePrice: firstVariant?.purchasePrice || '0',
-      sellingPrice: firstVariant?.sellingPrice || '0',
+      purchasePrice: firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0',
+      sellingPrice: sellingPrice, // Price range or single price
       packageType: 'Piece', // Default to piece-based
       piecesPerPackage: 1, // Default to 1 piece per package
-      variants: product.variants || [], // Include variants for stock calculation
+      variantOptions: product.variantOptions || [], // Include variantOptions for price calculation
+      variants: product.legacyVariants || [], // Include legacy variants for backward compatibility
       
       status: product.status,
       createdAt: product.createdAt ? formatDate(product.createdAt) : 'N/A',
@@ -253,19 +297,68 @@ export default function ProductsPage() {
   const handleExport = () => {
     // Export products data to XLSX
     const headers = ['Product ID', 'SKU', 'Product Name', 'Type', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
-    const rows = products.map(product => [
-      product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
-      product.sku,
-      product.name,
-      product.productType,
-      product.brand,
-      product.supplier,
-      getProductTotalStock(product.variants || []).totalStock,
-      product.variants?.[0]?.purchasePrice || '0',
-      product.variants?.[0]?.sellingPrice || '0',
-      product.status,
-      product.updatedAt ? formatDate(product.updatedAt) : 'N/A'
-    ]);
+    const rows = products.map(product => {
+      // Calculate price range for selling price
+      let sellingPrice = '0';
+      if (product.variantOptions && product.variantOptions.length > 0) {
+        // New structure: use variantOptions
+        const prices = product.variantOptions
+          .map(option => parseFloat(option.sellingPrice) || 0)
+          .filter(price => price > 0);
+        
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices);
+          const maxPrice = Math.max(...prices);
+          
+          if (minPrice === maxPrice) {
+            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+          } else {
+            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+          }
+        }
+      } else if (product.variants && product.variants.length > 0) {
+        // Legacy structure: use variants (filter for legacy variants with stock fields)
+        const legacyVariants = product.legacyVariants || [];
+        const prices = legacyVariants
+          .map(variant => parseFloat(variant.sellingPrice) || 0)
+          .filter(price => price > 0);
+        
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices);
+          const maxPrice = Math.max(...prices);
+          
+          if (minPrice === maxPrice) {
+            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+          } else {
+            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+          }
+        }
+      }
+      
+      // Calculate total stock
+      const legacyVariants = product.legacyVariants || [];
+      const productStock = getProductTotalStock(legacyVariants);
+      const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
+        totalStock: total.totalStock + (option.stockQuantity || 0),
+        lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+      }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
+      
+      const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
+      
+      return [
+        product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
+        product.sku,
+        product.name,
+        product.productType,
+        product.brand,
+        product.supplier,
+        totalStock,
+        product.variantOptions?.[0]?.purchasePrice || legacyVariants?.[0]?.purchasePrice || '0',
+        sellingPrice, // Price range or single price
+        product.status,
+        product.updatedAt ? formatDate(product.updatedAt) : 'N/A'
+      ];
+    });
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();

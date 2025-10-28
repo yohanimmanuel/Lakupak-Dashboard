@@ -10,7 +10,6 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     });
 
     if (!buyer) {
-      console.log(`Buyer ${buyerId} not found`);
       return;
     }
 
@@ -32,7 +31,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     const monthlyData: { [key: string]: { spend: number; orders: number } } = {};
 
     for (const order of orders) {
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: any) => sum + item.subtotal, 0);
+      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0);
       const totalOrderAmount = orderSpend + (order.shippingFee || 0);
       
       totalSpend += totalOrderAmount;
@@ -65,8 +64,8 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         item.productNameSnapshot || 'Unknown Product'
       ).join(', ');
       
-      const totalOrders = order.orderItemsRel.reduce((sum: number, item: any) => sum + (item.packageQuantity || 1), 0);
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: any) => sum + item.subtotal, 0);
+      const totalOrders = order.orderItemsRel.reduce((sum: number, item: { packageQuantity: number | null }) => sum + (item.packageQuantity ?? 1), 0);
+      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0);
       const orderTotal = orderSpend + (order.shippingFee || 0);
       const orderOutstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? orderTotal : 0;
       
@@ -90,8 +89,6 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       }
     });
 
-    console.log(`Synced buyer ${buyerId}: ${orderCount} orders, $${totalSpend} total spend`);
   } catch (error) {
-    console.error(`Error syncing buyer ${buyerId}:`, error);
   }
 }

@@ -1,4 +1,46 @@
-// Variants for actual product variations (color, size, flavor - NOT package types)
+// Variant definitions (variant types with options)
+export interface VariantDefinition {
+  id?: number;
+  productId?: number;
+  variantType: string; // e.g., "Color", "Size"
+  options: string[]; // e.g., ["Red", "Blue", "White"]
+  position: number; // order in UI
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Variant combinations (actual product variations)
+export interface VariantOption {
+  id?: number;
+  productId?: number;
+  variantName: string; // e.g., "Color: Red | Size: M"
+  attributes: Record<string, string>; // {"Color": "Red", "Size": "M"}
+  sku?: string;
+  purchasePrice: string;
+  sellingPrice: string;
+  originalSellingPrice?: string;
+  moq?: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// New ProductVariant (for variant definitions with position and options)
+export interface ProductVariantDefinition {
+  id?: number;
+  productId?: number;
+  variantType: string; // e.g., "Color", "Size"
+  options: string[]; // e.g., ["Red", "Blue", "White"]
+  position: number; // order 1..n in UI
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Legacy ProductVariant (for backward compatibility)
 export interface ProductVariant {
   id?: number;
   variantName: string; // e.g., "Original Flavor", "Spicy", "Red", "Size M"
@@ -46,8 +88,13 @@ export interface Product {
   stockQuantity?: number; // Computed field
   lowStockThreshold?: number; // Computed field
   stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock'; // Computed field
-  // Variants (for actual product variations) - STOCK IS AT VARIANT LEVEL
-  variants?: ProductVariant[];
+  // New variant structure
+  variantDefinitions?: VariantDefinition[]; // Variant types and options
+  variantOptions?: VariantOption[]; // Actual combinations
+  // New variants (for variant definitions with position and options)
+  variants?: ProductVariantDefinition[];
+  // Legacy variants (for backward compatibility)
+  legacyVariants?: ProductVariant[];
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
@@ -80,12 +127,14 @@ export interface ProductTableRow {
   packageType?: string;
   piecesPerPackage?: number;
   purchasePrice: string;
-  sellingPrice: string;
+  sellingPrice: string; // Can be a range like "Rp 3500 – Rp 6000"
   status: string;
   createdAt: string;
   lastUpdated: string;
   userId: number;
-  // Variants for stock calculation
+  // New variant structure for price range calculation
+  variantOptions?: VariantOption[];
+  // Legacy variants for backward compatibility
   variants?: ProductVariant[];
 }
 

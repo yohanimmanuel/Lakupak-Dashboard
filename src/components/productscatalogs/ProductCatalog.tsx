@@ -13,7 +13,9 @@ import {
   Info,
   ArrowLeft,
   Package,
-  Gift
+  Gift,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
@@ -22,7 +24,20 @@ import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/u
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
 import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
-import { ChevronDown } from 'lucide-react';
+ 
+
+interface Combination {
+  id: string;
+  variantName?: string;
+  sku: string;
+  purchasePrice: string;
+  sellingPrice: string;
+  moq?: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  [key: string]: unknown; // For variant columns like variant_color, variant_size, etc.
+}
 
 interface ProductCatalogProps {
   mode: 'add' | 'view' | 'edit';
@@ -74,14 +89,29 @@ export default function ProductCatalog({
   }>>([]);
 
   // Final combinations table (manual entry)
-  const [combinations, setCombinations] = useState<Array<Record<string, any>>>([]);
+  const [combinations, setCombinations] = useState<Combination[]>([]);
+  const combinationsRef = useRef<Combination[]>([]);
 
 
   // Initialize variants from product data
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
-      // Group variants by type
-      const groupedVariants = product.variants.reduce((acc, variant) => {
+      // New structure: load from variants (ProductVariant model) with proper ordering
+      const loadedVariants = product.variants
+        .sort((a, b) => (a.position || 0) - (b.position || 0)) // Sort by position
+        .map((def, index) => ({
+          id: `variant-${def.variantType}`,
+          variantType: def.variantType,
+          moq: undefined,
+          options: def.options.map((option: string, optIndex: number) => ({
+            id: `option-${index}-${optIndex}`,
+            name: option
+          }))
+        }));
+      setVariants(loadedVariants);
+    } else if (product?.legacyVariants && product.legacyVariants.length > 0) {
+      // Legacy structure: group variants by type
+      const groupedVariants = product.legacyVariants.reduce((acc, variant) => {
         const type = variant.variantType || 'Default';
         if (!acc[type]) {
           acc[type] = {
@@ -109,6 +139,104 @@ export default function ProductCatalog({
           id: 'option-1',
           name: ''
         }]
+      }]);
+    }
+  }, [product]);
+
+  // Initialize combinations from product data (map attributes -> current variant columns)
+  useEffect(() => {
+    if (product?.variantOptions && product.variantOptions.length > 0) {
+      // Use existing variants if available, otherwise infer from variantOptions
+      let inferredVariants;
+      if (product.variants && product.variants.length > 0) {
+        // Use the properly ordered variants from the first useEffect
+        inferredVariants = product.variants
+          .sort((a, b) => (a.position || 0) - (b.position || 0))
+          .map((def, index) => ({
+            id: `variant-${def.variantType}`,
+            variantType: def.variantType,
+            moq: undefined,
+            options: def.options.map((option: string, optIndex: number) => ({ id: `option-${index}-${optIndex}`, name: option }))
+          }));
+      } else {
+        // Fallback: infer variant definitions from the saved data
+        const attributeKeyToValues = new Map<string, Set<string>>();
+        for (const option of product.variantOptions) {
+          const attrs = option.attributes && typeof option.attributes === 'object' ? option.attributes as Record<string, unknown> : undefined;
+          if (!attrs) continue;
+          for (const [key, value] of Object.entries(attrs)) {
+            if (!attributeKeyToValues.has(key)) attributeKeyToValues.set(key, new Set<string>());
+            if (value !== undefined && value !== null) attributeKeyToValues.get(key)!.add(String(value));
+          }
+        }
+        
+        // Create variant definitions from the data
+        inferredVariants = Array.from(attributeKeyToValues.entries()).map(([key, values], index) => ({
+          id: `variant-${key}`,
+          variantType: key,
+          moq: undefined,
+          options: Array.from(values).map((val, optIndex) => ({ id: `option-${index}-${optIndex}`, name: val }))
+        }));
+      }
+      
+      // Load combinations with proper mapping
+      const loadedCombinations = product.variantOptions.map(option => {
+        const base: Combination = {
+          id: `combination-${option.id}`,
+          variantName: option.variantName,
+          sku: option.sku || '',
+          purchasePrice: option.purchasePrice || '',
+          sellingPrice: option.sellingPrice || '',
+          moq: option.moq,
+          stockQuantity: option.stockQuantity || 0,
+          lowStockThreshold: option.lowStockThreshold || 0,
+          stockStatus: option.stockStatus || 'In Stock'
+        };
+        
+        const attrs = option.attributes && typeof option.attributes === 'object' ? option.attributes as Record<string, unknown> : undefined;
+        if (attrs) {
+          for (const variant of inferredVariants) {
+            const key = variant.variantType;
+            const value = attrs[key];
+            base[`variant_${variant.id}`] = value !== undefined && value !== null ? String(value) : 'None';
+          }
+        }
+        
+        return base;
+      });
+      
+      setVariants(inferredVariants.length > 0 ? inferredVariants : [{
+        id: 'variant-1',
+        variantType: '',
+        moq: undefined,
+        options: [{ id: 'option-1', name: '' }]
+      }]);
+      setCombinations(loadedCombinations);
+    } else if (product?.legacyVariants && product.legacyVariants.length > 0) {
+      // Legacy structure: convert variants to combinations
+      const legacyCombinations: Combination[] = product.legacyVariants.map(variant => ({
+        id: `combination-${variant.id}`,
+        variantName: variant.variantName,
+        sku: variant.sku || '',
+        purchasePrice: variant.purchasePrice || '',
+        sellingPrice: variant.sellingPrice || '',
+        moq: variant.moq,
+        stockQuantity: variant.stockQuantity || 0,
+        lowStockThreshold: variant.lowStockThreshold || 0,
+        stockStatus: variant.stockStatus || 'In Stock'
+      }));
+      setCombinations(legacyCombinations);
+    } else {
+      // Create default combination
+      setCombinations([{
+        id: 'combination-1',
+        sku: '',
+        purchasePrice: '',
+        sellingPrice: '',
+        moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock' as const
       }]);
     }
   }, [product]);
@@ -389,25 +517,10 @@ export default function ProductCatalog({
     }));
   };
 
-  // Remove combination
-  const removeCombination = (combinationId: string) => {
-    setCombinations(prev => prev.filter(combination => combination.id !== combinationId));
-  };
-
-  // Add new combination row
-  const addCombination = () => {
-    const newCombination = {
-      id: `combination-${Date.now()}`,
-      sku: '',
-      purchasePrice: '',
-      sellingPrice: '',
-      moq: undefined,
-      stockQuantity: 0,
-      lowStockThreshold: 0,
-      stockStatus: 'In Stock' as const
-    };
-    setCombinations(prev => [...prev, newCombination]);
-  };
+  // Keep ref in sync with combinations state
+  useEffect(() => {
+    combinationsRef.current = combinations;
+  }, [combinations]);
 
   // Auto-generate combinations when variant options change
   useEffect(() => {
@@ -439,26 +552,56 @@ export default function ProductCatalog({
     const optionArrays = validVariants.map(v => v.options.filter(opt => opt.name).map(opt => opt.name));
     const combinationsGenerated = cartesian(optionArrays);
     
-    const newCombinations = combinationsGenerated.map((combination, index) => {
-      const combinationData: Record<string, any> = {
-        id: `combination-${index}`,
-        sku: `SKU-${String(index + 1).padStart(3, '0')}`,
-        purchasePrice: '',
-        sellingPrice: '',
-        moq: undefined,
-        stockQuantity: 0,
-        lowStockThreshold: 0,
-        stockStatus: 'In Stock' as const
-      };
+    // Create a map for existing combinations for efficient lookup
+    const existingCombinationsMap = new Map<string, Combination>();
+    combinationsRef.current.forEach(combo => {
+      const attributes: Record<string, string> = {};
+      validVariants.forEach(variant => {
+        const variantValue = combo[`variant_${variant.id}`];
+        if (typeof variantValue === 'string') {
+          attributes[variant.variantType] = variantValue;
+        }
+      });
+      const key = JSON.stringify(attributes); // Use attributes as a unique key
+      existingCombinationsMap.set(key, combo);
+    });
 
-      // Set variant values
+    const newCombinations: Combination[] = combinationsGenerated.map((combinationValues, index) => {
+      const attributes: Record<string, string> = {};
       validVariants.forEach((variant, idx) => {
-        combinationData[`variant_${variant.id}`] = combination[idx];
+        attributes[variant.variantType] = combinationValues[idx];
+      });
+      const key = JSON.stringify(attributes);
+
+      let combinationData: Combination;
+      if (existingCombinationsMap.has(key)) {
+        // Preserve existing data for this combination
+        combinationData = existingCombinationsMap.get(key)!;
+        // Remove from map to track which ones are left (i.e., removed)
+        existingCombinationsMap.delete(key);
+      } else {
+        // Create a new combination with default values
+        combinationData = {
+          id: `combination-${Date.now()}-${index}`, // Ensure unique ID
+          sku: '',
+          purchasePrice: '',
+          sellingPrice: '',
+          moq: undefined,
+          stockQuantity: 0,
+          lowStockThreshold: 0,
+          stockStatus: 'In Stock' as const,
+          variantName: '' // Will be set below
+        };
+      }
+
+      // Set variant values (dynamic columns)
+      validVariants.forEach((variant, idx) => {
+        combinationData[`variant_${variant.id}`] = combinationValues[idx];
       });
 
       // Generate variant name
       const variantName = validVariants
-        .map((v, idx) => `${v.variantType}: ${combination[idx]}`)
+        .map((v, idx) => `${v.variantType}: ${combinationValues[idx]}`)
         .join(' | ');
       combinationData.variantName = variantName;
 
@@ -680,13 +823,13 @@ export default function ProductCatalog({
       }
 
       // Calculate total stock from combinations
-      const totalStock = combinations.reduce((sum, combo) => sum + (combo.stockQuantity || 0), 0);
-      const lowStockThreshold = combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold || 0), 0);
-      const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
-      const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+      const totalStock = combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+      const lowStockThreshold = combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0);
+      const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
+      const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
       const stockStatus = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
 
-      // Submit the full text values including currency symbols
+      // Submit the new variant structure
       const payload = {
         ...finalData,
         id: formData.id,
@@ -696,9 +839,23 @@ export default function ProductCatalog({
         totalStock,
         lowStockThreshold,
         stockStatus,
-        variants: combinations.map(combo => ({
+        // New structure: variant definitions and options
+        variantDefinitions: variants.map((variant, index) => ({
+          variantType: variant.variantType,
+          options: variant.options.map(opt => opt.name).filter(name => name),
+          position: index + 1
+        })),
+        variantOptions: combinations.map(combo => ({
           variantName: combo.variantName,
-          variantType: '',  // Will be extracted from variantName
+          attributes: Object.fromEntries(
+            variants.map((variant) => {
+              const key = variant.variantType;
+              const lowerKey = `variant_${String(key).toLowerCase()}`;
+              const idKey = `variant_${variant.id}`;
+              const value = (combo as Record<string, unknown>)[lowerKey] ?? (combo as Record<string, unknown>)[idKey] ?? 'None';
+              return [key, value];
+            })
+          ),
           sku: combo.sku,
           purchasePrice: combo.purchasePrice,
           sellingPrice: combo.sellingPrice,
@@ -706,7 +863,6 @@ export default function ProductCatalog({
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
           stockStatus: combo.stockStatus as 'In Stock' | 'Low Stock' | 'Out of Stock',
-          attributes: {},
           isDefault: false,
           isActive: true
         }))
@@ -1654,7 +1810,7 @@ export default function ProductCatalog({
                       Total Stock (Pieces)
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {combinations.reduce((sum, combo) => sum + (combo.stockQuantity || 0), 0).toLocaleString()}
+                      {combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0).toLocaleString()}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Sum of all combination stocks</p>
                   </div>
@@ -1663,7 +1819,7 @@ export default function ProductCatalog({
                       Low Stock Threshold
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold || 0), 0).toLocaleString()}
+                      {combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0).toLocaleString()}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Minimum threshold across combinations</p>
                   </div>
@@ -1673,8 +1829,8 @@ export default function ProductCatalog({
                     </label>
                     <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
                       (() => {
-                        const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
-                        const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+                        const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
+                        const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
                         const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
                         return status;
                       })() === 'Out of Stock' 
@@ -1689,8 +1845,8 @@ export default function ProductCatalog({
                         : 'bg-green-50 border-green-200 text-green-800'
                     }`}>
                       {(() => {
-                        const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
-                        const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
+                        const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
+                        const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
                         const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
                         return status;
                       })()}
@@ -1731,14 +1887,53 @@ export default function ProductCatalog({
                         />
                       </div>
                     </div>
-                    {!isViewMode && variants.length > 1 && index > 0 && (
+                {!isViewMode && (
+                      <div className="flex items-center gap-2">
+                        {index > 0 && (
+                  <button
+                    type="button"
+                            onClick={() => {
+                              setVariants(prev => {
+                                const arr = [...prev];
+                                const [moved] = arr.splice(index, 1);
+                                arr.splice(index - 1, 0, moved);
+                                return arr;
+                              });
+                            }}
+                            className="text-gray-600 hover:text-black p-1"
+                            title="Move up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                  </button>
+                )}
+                        {index < variants.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVariants(prev => {
+                                const arr = [...prev];
+                                const [moved] = arr.splice(index, 1);
+                                arr.splice(index + 1, 0, moved);
+                                return arr;
+                              });
+                            }}
+                            className="text-gray-600 hover:text-black p-1"
+                            title="Move down"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        )}
+                        {variants.length > 1 && index > 0 && (
                         <button
                           type="button"
-                        onClick={() => removeVariant(variant.id)}
+                            onClick={() => removeVariant(variant.id)}
                           className="text-red-500 hover:text-red-700 p-1"
+                            title="Remove variant"
                         >
                           <X className="w-4 h-4" />
                         </button>
+                        )}
+                      </div>
                       )}
                     </div>
                     
@@ -1954,42 +2149,22 @@ export default function ProductCatalog({
                       </tr>
                     </thead>
                     <tbody>
-                      {combinations.map((combination, index) => {
-                        const firstVariantId = variants[0]?.id;
-                        const firstVariantValue = firstVariantId ? combination[`variant_${firstVariantId}` as keyof typeof combination]?.toString() : 'None';
-                        const prevCombination = combinations[index - 1];
-                        const prevFirstVariantValue = prevCombination && firstVariantId ? prevCombination[`variant_${firstVariantId}` as keyof typeof prevCombination]?.toString() : '';
-                        const shouldMergeFirst = firstVariantValue === prevFirstVariantValue && index > 0;
-                        
-                        return (
-                          <tr key={combination.id}>
-                            {variants.map((variant, variantIndex) => (
-                              variantIndex === 0 && shouldMergeFirst ? null : (
-                                <td 
-                                  key={variant.id} 
-                                  className="p-3 border-r border-b border-gray-300"
-                                  rowSpan={variantIndex === 0 && !shouldMergeFirst ? 
-                                    (() => {
-                                      let mergeCount = 1;
-                                      for (let i = index + 1; i < combinations.length; i++) {
-                                        const nextValue = combinations[i][`variant_${firstVariantId}` as keyof typeof combinations[number]]?.toString();
-                                        if (nextValue === firstVariantValue) mergeCount++;
-                                        else break;
-                                      }
-                                      return mergeCount > 1 ? mergeCount : undefined;
-                                    })() : undefined
-                                  }
-                                >
-                                  <span className="text-xs text-black">
-                                    {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || 'None'}
-                                  </span>
-                                </td>
-                              )
-                            ))}
+                       {combinations.map((combination, index) => (
+                         <tr key={combination.id}>
+                           {variants.map((variant) => (
+                             <td 
+                               key={variant.id} 
+                               className="p-3 border-r border-b border-gray-300"
+                             >
+                               <span className="text-xs text-black">
+                                 {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || 'None'}
+                               </span>
+                             </td>
+                           ))}
                           <td className="p-3 border-r border-b border-gray-300">
                                 <input
                               type="text"
-                              value={combination.sku}
+                              value={String(combination.sku)}
                               onChange={(e) => updateCombination(combination.id, 'sku', e.target.value)}
                                   disabled={isViewMode}
                                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
@@ -2003,7 +2178,7 @@ export default function ProductCatalog({
                               </div>
                               <input
                                 type="text"
-                                value={combination.sellingPrice}
+                                value={String(combination.sellingPrice)}
                                 onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
                                 disabled={isViewMode}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
@@ -2018,7 +2193,7 @@ export default function ProductCatalog({
                               </div>
                               <input
                                 type="text"
-                                value={combination.purchasePrice}
+                                value={String(combination.purchasePrice)}
                                 onChange={(e) => updateCombination(combination.id, 'purchasePrice', e.target.value)}
                                 disabled={isViewMode}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
@@ -2075,45 +2250,42 @@ export default function ProductCatalog({
                           </td>
                           {!isViewMode && (
                             <td className="p-3 text-center border-b border-gray-300">
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const newCombo: Record<string, any> = {
-                                      id: `combination-${Date.now()}`,
-                                      sku: '',
-                                      purchasePrice: '',
-                                      sellingPrice: '',
-                                      moq: undefined,
-                                      stockQuantity: 0,
-                                      lowStockThreshold: 0,
-                                      stockStatus: 'In Stock' as const
-                                    };
-                                    variants.forEach(variant => {
-                                      newCombo[`variant_${variant.id}`] = '';
-                                    });
-                                    newCombo.variantName = '';
-                                    setCombinations(prev => [...prev, newCombo]);
+                                    if (index > 0) {
+                                      const newCombinations = [...combinations];
+                                      [newCombinations[index - 1], newCombinations[index]] = [newCombinations[index], newCombinations[index - 1]];
+                                      setCombinations(newCombinations);
+                                    }
                                   }}
-                                  className="text-green-500 hover:text-green-700 p-1"
+                                  disabled={index === 0}
+                                  className="text-blue-500 hover:text-blue-700 p-1 disabled:text-gray-300"
+                                  title="Move up"
                                 >
-                                  <Plus className="w-4 h-4" />
+                                  <ChevronUp className="w-4 h-4" />
                                 </button>
-                                {combinations.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeCombination(combination.id)}
-                                    className="text-red-500 hover:text-red-700 p-1"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (index < combinations.length - 1) {
+                                      const newCombinations = [...combinations];
+                                      [newCombinations[index], newCombinations[index + 1]] = [newCombinations[index + 1], newCombinations[index]];
+                                      setCombinations(newCombinations);
+                                    }
+                                  }}
+                                  disabled={index === combinations.length - 1}
+                                  className="text-blue-500 hover:text-blue-700 p-1 disabled:text-gray-300"
+                                  title="Move down"
+                                >
+                                  <ChevronDown className="w-4 h-4" />
+                                </button>
                             </div>
                             </td>
                           )}
                         </tr>
-                        );
-                      })}
+                      ))}
                     </tbody>
                   </table>
                           </div>

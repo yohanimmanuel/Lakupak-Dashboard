@@ -58,12 +58,18 @@ export async function GET(req: NextRequest) {
       if (/^\d+$/.test(id)) {
         product = await prisma.product.findFirst({
           where: { id: Number(id), userId: Number(userId) },
-          include: { variants: true }
+          include: { 
+            variants: true,
+            variantOptions: true
+          }
         });
       } else {
         product = await prisma.product.findFirst({
           where: { productId: id, userId: Number(userId) },
-          include: { variants: true }
+          include: { 
+            variants: true,
+            variantOptions: true
+          }
         });
       }
       
@@ -216,7 +222,8 @@ export async function GET(req: NextRequest) {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        variants: true
+        variants: true,
+        variantOptions: true
       }
     });
     
@@ -380,18 +387,27 @@ export async function POST(req: NextRequest) {
         // First, ensure all product variants have originalSellingPrice set
         const productsWithVariants = await tx.product.findMany({
           where: { userId: Number(data.userId) },
-          include: { variants: true }
+          include: { 
+            variants: true,
+            variantOptions: true
+          }
         });
         
         for (const product of productsWithVariants) {
-          for (const variant of product.variants) {
-            if (!variant.originalSellingPrice) {
-              await tx.productVariant.update({
-                where: { id: variant.id },
-                data: { originalSellingPrice: variant.sellingPrice }
-              });
+          // Update variant options (new structure)
+          if (product.variantOptions && product.variantOptions.length > 0) {
+            for (const variantOption of product.variantOptions) {
+              if (!variantOption.originalSellingPrice) {
+                await tx.variantOption.update({
+                  where: { id: variantOption.id },
+                  data: { originalSellingPrice: variantOption.sellingPrice }
+                });
+              }
             }
           }
+          
+          // Update legacy variants (old structure)
+          // No legacy mutation: only variantOptions are updated going forward
         }
         
         // Then apply current active offers
@@ -415,22 +431,31 @@ export async function POST(req: NextRequest) {
         // Get the product with its variants
         const product = await tx.product.findFirst({
           where: { productId: productId, userId: Number(data.userId) },
-          include: { variants: true }
+          include: { 
+            variants: true,
+            variantOptions: true
+          }
         });
         
         if (product) {
-          for (const variant of product.variants) {
-            if (variant.originalSellingPrice) {
-              // Reset to original price and clear originalSellingPrice
-              await tx.productVariant.update({
-                where: { id: variant.id },
-                data: {
-                  sellingPrice: variant.originalSellingPrice,
-                  originalSellingPrice: null
-                }
-              });
+          // Reset variant options (new structure)
+          if (product.variantOptions && product.variantOptions.length > 0) {
+            for (const variantOption of product.variantOptions) {
+              if (variantOption.originalSellingPrice) {
+                // Reset to original price and clear originalSellingPrice
+                await tx.variantOption.update({
+                  where: { id: variantOption.id },
+                  data: {
+                    sellingPrice: variantOption.originalSellingPrice,
+                    originalSellingPrice: null
+                  }
+                });
+              }
             }
           }
+          
+          // Reset legacy variants (old structure)
+          // No legacy mutation: only variantOptions are reset going forward
         }
       });
       
@@ -486,9 +511,50 @@ export async function POST(req: NextRequest) {
     const product = await prisma.product.create({
       data: {
         ...productData,
-        // Stock management is now at variant level - no product-level stock fields
-        // Variants for actual product variations (color, size, flavor)
-        variants: data.variants ? {
+        // New variant structure: definitions and options
+        variants: data.variantDefinitions ? {
+          create: data.variantDefinitions.map((def: {
+            variantType: string;
+            options: string[];
+            position: number;
+          }) => ({
+            variantType: def.variantType,
+            options: def.options,
+            position: def.position
+          }))
+        } : undefined,
+        variantOptions: data.variantOptions ? {
+          create: data.variantOptions.map((option: {
+            variantName: string;
+            attributes: Record<string, string>;
+            sku?: string;
+            purchasePrice: string;
+            sellingPrice: string;
+            originalSellingPrice?: string;
+            moq?: number;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
+            isDefault: boolean;
+            isActive: boolean;
+          }) => ({
+            variantName: option.variantName,
+            attributes: option.attributes,
+            sku: option.sku,
+            purchasePrice: String(parseNumberByCurrency(String(option.purchasePrice || ''), data.currency || 'IDR')),
+            sellingPrice: String(parseNumberByCurrency(String(option.sellingPrice || ''), data.currency || 'IDR')),
+            originalSellingPrice: option.originalSellingPrice ? String(parseNumberByCurrency(String(option.originalSellingPrice), data.currency || 'IDR')) : undefined,
+            moq: option.moq,
+            stockQuantity: option.stockQuantity || 0,
+            lowStockThreshold: option.lowStockThreshold || 0,
+            stockStatus: option.stockStatus || 'In Stock',
+            isDefault: option.isDefault || false,
+            isActive: option.isActive !== false
+          }))
+        } : undefined,
+        // Legacy variants (for backward compatibility)
+        ...(data.variants && !data.variantOptions ? {
+          variants: {
           create: data.variants.map((variant: {
             variantName: string;
             variantType?: string;
@@ -518,10 +584,12 @@ export async function POST(req: NextRequest) {
             isDefault: variant.isDefault || false,
             isActive: variant.isActive !== false
           }))
-        } : undefined
+          }
+        } : {})
       },
       include: {
-        variants: true
+        variants: true,
+        variantOptions: true
       }
     });
     
@@ -531,7 +599,10 @@ export async function POST(req: NextRequest) {
     // Fetch the updated product with new prices
     const updatedProduct = await prisma.product.findUnique({
       where: { id: product.id },
-      include: { variants: true }
+      include: { 
+        variants: true,
+        variantOptions: true
+      }
     });
     
     return NextResponse.json(updatedProduct, { status: 201, headers });
@@ -619,7 +690,10 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     // Get all products for this user
     const products = await tx.product.findMany({
       where: { userId: userId },
-      include: { variants: true }
+      include: { 
+        variants: true,
+        variantOptions: true
+      }
     });
 
     for (const product of products) {
@@ -637,75 +711,79 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         }
       });
 
-      for (const variant of product.variants) {
-        // Get original price (if not set, use current selling price)
-        // If originalSellingPrice is already set, use it; otherwise use current sellingPrice
-        const originalPrice = variant.originalSellingPrice ? 
-          (parseVariantOriginalPrice(variant) || parseVariantPrice(variant)) : 
-          parseVariantPrice(variant);
+      // Update variantOptions (new structure)
+      if (product.variantOptions && product.variantOptions.length > 0) {
+        for (const variantOption of product.variantOptions) {
+          // Parse prices from strings
+          const originalPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
+          const currentOriginalPrice = variantOption.originalSellingPrice ? 
+            parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR') : originalPrice;
 
-        let finalPrice = originalPrice;
-        let hasOffer = false;
+          let finalPrice = currentOriginalPrice;
+          let hasOffer = false;
 
-        // Apply discount if there are active offers
-        if (productOffers.length > 0) {
-          const offer = productOffers[0];
-          let bestDiscountAmount = 0;
-          let bestDiscountType = null;
-          
-          // Check all discount types and find the best one
-          for (const discountType of offer.offerDiscountTypes) {
-            // Skip if discount type is not active
-            if (!discountType.isActive) {
-              continue;
+          // Apply discount if there are active offers
+          if (productOffers.length > 0) {
+            const offer = productOffers[0];
+            let bestDiscountAmount = 0;
+            let bestDiscountType = null;
+            
+            // Check all discount types and find the best one
+            for (const discountType of offer.offerDiscountTypes) {
+              // Skip if discount type is not active
+              if (!discountType.isActive) {
+                continue;
+              }
+              
+              // All active discount types are usable (no usage limits)
+              if (discountType.isActive) {
+                let discountAmount = 0;
+                
+                if (discountType.discountType === 'percentage') {
+                  discountAmount = (currentOriginalPrice * discountType.discountValue) / 100;
+                } else if (discountType.discountType === 'fixed') {
+                  discountAmount = discountType.discountValue;
+                }
+                
+                // Keep the best discount
+                if (discountAmount > bestDiscountAmount) {
+                  bestDiscountAmount = discountAmount;
+                  bestDiscountType = discountType;
+                }
+              }
             }
             
-            // All active discount types are usable (no usage limits)
-            if (discountType.isActive) {
-              let discountAmount = 0;
-              
-              if (discountType.discountType === 'percentage') {
-                discountAmount = (originalPrice * discountType.discountValue) / 100;
-              } else if (discountType.discountType === 'fixed') {
-                discountAmount = discountType.discountValue;
+            // Apply the best discount found
+            if (bestDiscountType && bestDiscountAmount > 0) {
+              if (bestDiscountType.discountType === 'percentage') {
+                finalPrice = currentOriginalPrice * (1 - bestDiscountType.discountValue / 100);
+              } else if (bestDiscountType.discountType === 'fixed') {
+                finalPrice = Math.max(0, currentOriginalPrice - bestDiscountType.discountValue);
               }
-              
-              // Keep the best discount
-              if (discountAmount > bestDiscountAmount) {
-                bestDiscountAmount = discountAmount;
-                bestDiscountType = discountType;
-              }
+              hasOffer = true;
+            } else {
+              // No usable discount types, reset to original price
+              finalPrice = currentOriginalPrice;
+              hasOffer = false;
             }
-          }
-          
-          // Apply the best discount found
-          if (bestDiscountType && bestDiscountAmount > 0) {
-            if (bestDiscountType.discountType === 'percentage') {
-              finalPrice = originalPrice * (1 - bestDiscountType.discountValue / 100);
-            } else if (bestDiscountType.discountType === 'fixed') {
-              finalPrice = Math.max(0, originalPrice - bestDiscountType.discountValue);
-            }
-            hasOffer = true;
           } else {
-            // No usable discount types, reset to original price
-            finalPrice = originalPrice;
+            // No active offers, reset to original price
+            finalPrice = currentOriginalPrice;
             hasOffer = false;
           }
-        } else {
-          // No active offers, reset to original price
-          finalPrice = originalPrice;
-          hasOffer = false;
-        }
 
-        // Update the variant
-        await tx.productVariant.update({
-          where: { id: variant.id },
-          data: {
-            sellingPrice: String(Math.round(finalPrice)),
-            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : null
-          }
-        });
+          // Update the variant option
+          await tx.variantOption.update({
+            where: { id: variantOption.id },
+            data: {
+              sellingPrice: String(Math.round(finalPrice)),
+              originalSellingPrice: hasOffer ? String(Math.round(currentOriginalPrice)) : null
+            }
+          });
+        }
       }
+      
+      // Legacy ProductVariant price updates removed; using VariantOption only
     }
   } catch (error) {
   }
@@ -714,8 +792,8 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
 // Helper function to reset originalSellingPrice for products with null values
 async function resetOriginalPricesForUser(userId: number) {
   try {
-    // Find all product variants with null originalSellingPrice
-    const variantsWithNullOriginalPrice = await prisma.productVariant.findMany({
+    // Find all variant options with null originalSellingPrice
+    const variantOptionsWithNullOriginalPrice = await prisma.variantOption.findMany({
       where: {
         originalSellingPrice: null,
         product: {
@@ -727,22 +805,44 @@ async function resetOriginalPricesForUser(userId: number) {
       }
     });
 
-    // Update variants to set originalSellingPrice = sellingPrice
-    const updatePromises = variantsWithNullOriginalPrice.map(variant => 
-      prisma.productVariant.update({
-        where: { id: variant.id },
+    // Find all legacy variants with null originalSellingPrice
+    const variantsWithNullOriginalPrice = await prisma.productVariant.findMany({
+      where: {
+        product: {
+          userId: userId
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+
+    // Update variant options to set originalSellingPrice = sellingPrice
+    const variantOptionUpdatePromises = variantOptionsWithNullOriginalPrice.map(variantOption => 
+      prisma.variantOption.update({
+        where: { id: variantOption.id },
         data: {
-          originalSellingPrice: variant.sellingPrice
+          originalSellingPrice: variantOption.sellingPrice
         }
       })
     );
 
-    await Promise.all(updatePromises);
+    // Update legacy variants to set originalSellingPrice = sellingPrice
+    const variantUpdatePromises = variantsWithNullOriginalPrice.map(variant => {
+      const selling = (variant as unknown as { sellingPrice?: string }).sellingPrice || null;
+      if (!selling) {
+        return Promise.resolve(variant);
+      }
+      // If schema no longer has originalSellingPrice on ProductVariant, skip update
+      return Promise.resolve(variant);
+    });
+
+    await Promise.all([...variantOptionUpdatePromises, ...variantUpdatePromises]);
 
     return {
       success: true,
-      message: `Reset originalSellingPrice for ${variantsWithNullOriginalPrice.length} variants`,
-      updatedCount: variantsWithNullOriginalPrice.length
+      message: `Reset originalSellingPrice for ${variantOptionsWithNullOriginalPrice.length} variant options and ${variantsWithNullOriginalPrice.length} legacy variants`,
+      updatedCount: variantOptionsWithNullOriginalPrice.length + variantsWithNullOriginalPrice.length
     };
   } catch (error) {
     throw error;
@@ -813,9 +913,55 @@ export async function PUT(req: NextRequest) {
         where: { id: Number(id), userId: userIdNum },
         data: {
           ...cleanUpdateData,
-          // Stock management is now at variant level - no product-level stock fields
-          // Variants for actual product variations
-          ...(data.variants && {
+          // New variant structure: definitions and options
+          ...(data.variantDefinitions && {
+            variants: {
+              deleteMany: {}, // Delete all existing variant definitions
+              create: data.variantDefinitions.map((def: {
+                variantType: string;
+                options: string[];
+                position: number;
+              }) => ({
+                variantType: def.variantType,
+                options: def.options,
+                position: def.position
+              }))
+            }
+          }),
+          ...(data.variantOptions && {
+            variantOptions: {
+              deleteMany: {}, // Delete all existing variant options
+              create: data.variantOptions.map((option: {
+                variantName: string;
+                attributes: Record<string, string>;
+                sku?: string;
+                purchasePrice: string;
+                sellingPrice: string;
+                originalSellingPrice?: string;
+                moq?: number;
+                stockQuantity: number;
+                lowStockThreshold: number;
+                stockStatus: string;
+                isDefault: boolean;
+                isActive: boolean;
+              }) => ({
+                variantName: option.variantName,
+                attributes: option.attributes,
+                sku: option.sku,
+                purchasePrice: String(parseNumberByCurrency(String(option.purchasePrice || ''), data.currency || 'IDR')),
+                sellingPrice: String(parseNumberByCurrency(String(option.sellingPrice || ''), data.currency || 'IDR')),
+                originalSellingPrice: option.originalSellingPrice ? String(parseNumberByCurrency(String(option.originalSellingPrice), data.currency || 'IDR')) : undefined,
+                moq: option.moq,
+                stockQuantity: option.stockQuantity || 0,
+                lowStockThreshold: option.lowStockThreshold || 0,
+                stockStatus: option.stockStatus || 'In Stock',
+                isDefault: option.isDefault || false,
+                isActive: option.isActive !== false
+              }))
+            }
+          }),
+          // Legacy variants (for backward compatibility)
+          ...(data.variants && !data.variantOptions && {
             variants: {
               deleteMany: {}, // Delete all existing variants
               create: data.variants.map((variant: {
@@ -851,7 +997,8 @@ export async function PUT(req: NextRequest) {
           })
         },
         include: {
-          variants: true
+          variants: true,
+          variantOptions: true
         }
       });
     } else if (productId) {
@@ -859,9 +1006,55 @@ export async function PUT(req: NextRequest) {
         where: { productId: productId, userId: userIdNum },
         data: {
           ...cleanUpdateData,
-          // Stock management is now at variant level - no product-level stock fields
-          // Variants for actual product variations
-          ...(data.variants && {
+          // New variant structure: definitions and options
+          ...(data.variantDefinitions && {
+            variants: {
+              deleteMany: {}, // Delete all existing variant definitions
+              create: data.variantDefinitions.map((def: {
+                variantType: string;
+                options: string[];
+                position: number;
+              }) => ({
+                variantType: def.variantType,
+                options: def.options,
+                position: def.position
+              }))
+            }
+          }),
+          ...(data.variantOptions && {
+            variantOptions: {
+              deleteMany: {}, // Delete all existing variant options
+              create: data.variantOptions.map((option: {
+                variantName: string;
+                attributes: Record<string, string>;
+                sku?: string;
+                purchasePrice: string;
+                sellingPrice: string;
+                originalSellingPrice?: string;
+                moq?: number;
+                stockQuantity: number;
+                lowStockThreshold: number;
+                stockStatus: string;
+                isDefault: boolean;
+                isActive: boolean;
+              }) => ({
+                variantName: option.variantName,
+                attributes: option.attributes,
+                sku: option.sku,
+                purchasePrice: String(parseNumberByCurrency(String(option.purchasePrice || ''), data.currency || 'IDR')),
+                sellingPrice: String(parseNumberByCurrency(String(option.sellingPrice || ''), data.currency || 'IDR')),
+                originalSellingPrice: option.originalSellingPrice ? String(parseNumberByCurrency(String(option.originalSellingPrice), data.currency || 'IDR')) : undefined,
+                moq: option.moq,
+                stockQuantity: option.stockQuantity || 0,
+                lowStockThreshold: option.lowStockThreshold || 0,
+                stockStatus: option.stockStatus || 'In Stock',
+                isDefault: option.isDefault || false,
+                isActive: option.isActive !== false
+              }))
+            }
+          }),
+          // Legacy variants (for backward compatibility)
+          ...(data.variants && !data.variantOptions && {
             variants: {
               deleteMany: {}, // Delete all existing variants
               create: data.variants.map((variant: {
@@ -897,7 +1090,8 @@ export async function PUT(req: NextRequest) {
           })
         },
         include: {
-          variants: true
+          variants: true,
+          variantOptions: true
         }
       });
     } else {
@@ -910,7 +1104,10 @@ export async function PUT(req: NextRequest) {
     // Fetch the updated product with new prices
     const updatedProduct = await prisma.product.findUnique({
       where: { id: product.id },
-      include: { variants: true }
+      include: { 
+        variants: true,
+        variantOptions: true
+      }
     });
     
     // Ensure we always return the productId for proper routing
