@@ -1767,35 +1767,35 @@ export default function ProductCatalog({
                               <X className="w-4 h-4" />
                             </button>
                           )}
-                      </div>
-                      ))}
-                      {!isViewMode && (
-                        <button
-                          type="button"
+                  </div>
+                ))}
+                {!isViewMode && (
+                  <button
+                    type="button"
                           onClick={() => addVariantOption(variant.id)}
                           className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-[#0a61d7] hover:text-[#0851b8] transition-colors border border-dashed border-[#0a61d7] rounded-lg"
-                        >
-                          <Plus className="w-4 h-4" />
+                  >
+                    <Plus className="w-4 h-4" />
                           Add Option
-                        </button>
-                      )}
+                  </button>
+                )}
+              </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
               ))}
               
               {!isViewMode && (
-                <button
-                  type="button"
+                      <button
+                        type="button"
                   onClick={addVariant}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium border-2 border-dashed border-gray-300 text-gray-700 rounded-lg hover:border-[#0a61d7] hover:text-[#0a61d7] transition-colors"
-                >
+                      >
                   <Plus className="w-4 h-4" />
                   Add Variant Type
-                </button>
-              )}
-            </div>
-
+                      </button>
+                    )}
+                  </div>
+                  
             {/* Final Combinations Table */}
             <div className="border-t border-gray-200 pt-6">
               <div className="mb-4">
@@ -1810,53 +1810,53 @@ export default function ProductCatalog({
                 <div className="bg-orange-50 rounded-lg p-4 mb-4">
                   <h3 className="text-sm font-semibold text-orange-900 mb-3">Quick Action</h3>
                   <div className="flex gap-3 items-end">
-                    <div>
+                          <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         SKU
-                      </label>
-                      <input
-                        type="text"
+                            </label>
+                            <input
+                              type="text"
                         id="apply-sku"
                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                         placeholder="SKU-001"
                       />
-                    </div>
-                    <div>
+                          </div>
+                          <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Selling Price
-                      </label>
+                            </label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                           {currencySymbol}
                         </div>
-                        <input
-                          type="text"
+                            <input
+                              type="text"
                           id="apply-selling"
                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                           placeholder={getPricePlaceholder(userCurrency)}
                         />
-                      </div>
-                    </div>
+                          </div>
+                        </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Purchase Price
                       </label>
-                      <div className="relative">
+                              <div className="relative">
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                           {currencySymbol}
                         </div>
-                        <input
+                                <input 
                           type="text"
                           id="apply-purchase"
                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                           placeholder={getPricePlaceholder(userCurrency)}
                         />
-                      </div>
-                    </div>
+                                </div>
+                              </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         MOQ
-                      </label>
+                              </label>
                       <input
                         type="number"
                         id="apply-moq"
@@ -1864,19 +1864,19 @@ export default function ProductCatalog({
                         placeholder="0"
                         min="0"
                       />
-                    </div>
+                            </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Stock Qty
                       </label>
-                      <input
-                        type="number"
+                                <input
+                                  type="number"
                         id="apply-stock"
                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                         placeholder="0"
                         min="0"
                       />
-                    </div>
+                          </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Low Threshold
@@ -1888,7 +1888,7 @@ export default function ProductCatalog({
                         placeholder="0"
                         min="0"
                       />
-                    </div>
+                        </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -1913,8 +1913,8 @@ export default function ProductCatalog({
                     >
                       Apply To All
                     </button>
-                  </div>
-                </div>
+                      </div>
+                    </div>
               )}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse border border-gray-300">
@@ -2108,7 +2108,7 @@ export default function ProductCatalog({
                                     <X className="w-4 h-4" />
                                   </button>
                                 )}
-                              </div>
+                            </div>
                             </td>
                           )}
                         </tr>
@@ -2116,7 +2116,7 @@ export default function ProductCatalog({
                       })}
                     </tbody>
                   </table>
-                            </div>
+                          </div>
             </div>
             </div>
           </div>
