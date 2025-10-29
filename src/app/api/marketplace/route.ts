@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: whereClause,
       include: {
-        variants: true,
+        variants: true, // ProductVariant definitions
+        variantOptions: true, // VariantOption combinations
         user: {
           select: {
             firstName: true,
@@ -173,24 +174,22 @@ export async function GET(request: NextRequest) {
     
     // Transform products for marketplace format
     const marketplaceProducts = await Promise.all(products.map(async (product) => {
-      // Get all variants for the product
-      const variants = product.variants || [];
+      // Handle both new variantOptions and legacy variants
+      const variantOptions = product.variantOptions || [];
+      // Note: product.variants now contains ProductVariant definitions (variantType, options)
+      // We need to use variantOptions for actual pricing/stock data
       
-      if (variants.length === 0) {
-        // Skip products without variants
+      // Skip products without any variant data
+      if (variantOptions.length === 0) {
         return null;
       }
       
-      // Get the first variant (default variant) for main pricing and stock info
-      const firstVariant = variants[0];
-      
-      // Use the new price parsing utilities
-      const sellingPrice = parseVariantPrice(firstVariant);
-      const purchasePrice = safeParsePrice(firstVariant.purchasePrice);
-      const originalSellingPriceValue = parseVariantOriginalPrice(firstVariant) || sellingPrice;
-      
-      // Check if variant has an active discount
-      const hasActiveDiscountInMainSystem = hasVariantDiscount(firstVariant);
+      // Get the first variant (default or first available) for main pricing and stock info
+      const firstVariantOption = variantOptions.find(vo => vo.isDefault) || variantOptions[0];
+      const sellingPrice = safeParsePrice(firstVariantOption.sellingPrice);
+      const purchasePrice = safeParsePrice(firstVariantOption.purchasePrice);
+      const originalSellingPriceValue = safeParsePrice(firstVariantOption.originalSellingPrice) || sellingPrice;
+      const hasActiveDiscountInMainSystem = originalSellingPriceValue > sellingPrice;
       
       // Check if product has active offers
       const productOffers = productOffersMap.get(product.productId) || [];
@@ -333,15 +332,18 @@ export async function GET(request: NextRequest) {
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
          soldCount: await calculateSoldCount(product.productId), // Calculate from actual orders
-        stock: product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0,
+        stock: variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0),
         stockStatus: (() => {
-          const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-          const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+          const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
+          const totalLowStockThreshold = variantOptions.reduce((max, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
           
           if (totalStock === 0) return 'Out of Stock';
           if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) return 'Low Stock';
           return 'In Stock';
         })(),
+        // Include both variant structures for marketplace
+        variants: product.variants || [], // ProductVariant definitions
+        variantOptions: product.variantOptions || [], // VariantOption combinations
         images: product.images || [],
         category: product.productType || 'Uncategorized',
         productCategory: product.productCategory || 'Uncategorized',
@@ -419,22 +421,20 @@ export async function GET(request: NextRequest) {
       supplier: product.supplier,
       publishedAt: product.publishedAt,
       lastSyncAt: product.lastSyncAt,
-      // Include all variants for variant selection (piece-based system)
-      variants: variants.map(variant => ({
-        id: variant.id,
-        variantName: variant.variantName,
-        variantType: variant.variantType,
-        sku: variant.sku,
-        purchasePrice: safeParsePrice(variant.purchasePrice),
-        sellingPrice: parseVariantPrice(variant),
-        originalSellingPrice: parseVariantOriginalPrice(variant),
-        moq: variant.moq,
-        stockQuantity: variant.stockQuantity || 0,
-        lowStockThreshold: variant.lowStockThreshold || 0,
-        stockStatus: variant.stockStatus || 'In Stock',
-        attributes: variant.attributes,
-        isDefault: variant.isDefault,
-        isActive: variant.isActive
+      // Include all variant options for variant selection (piece-based system)
+      variantOptionsFormatted: variantOptions.map(vo => ({
+        id: vo.id,
+        sku: vo.sku,
+        purchasePrice: safeParsePrice(vo.purchasePrice),
+        sellingPrice: safeParsePrice(vo.sellingPrice),
+        originalSellingPrice: safeParsePrice(vo.originalSellingPrice),
+        moq: vo.moq,
+        stockQuantity: vo.stockQuantity || 0,
+        lowStockThreshold: vo.lowStockThreshold || 0,
+        stockStatus: vo.stockStatus || 'In Stock',
+        attributes: vo.attributes,
+        isDefault: vo.isDefault,
+        isActive: vo.isActive
       })),
       // Include package info for display/fulfillment (from description or default)
       piecesPerPackage: 1,
@@ -501,7 +501,8 @@ export async function POST(request: NextRequest) {
         userId: userIdNum
       },
       include: {
-        variants: true
+        variants: true, // ProductVariant definitions
+        variantOptions: true // VariantOption combinations
       }
     });
     
@@ -530,20 +531,20 @@ export async function POST(request: NextRequest) {
       }
       
       // Check if product has at least one complete variant (piece-based system)
-      const hasCompleteVariant = product.variants && product.variants.length > 0 && 
-        product.variants.some(variant => 
-          variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
-          variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
-          variant.isActive
+      const hasCompleteVariant = product.variantOptions && product.variantOptions.length > 0 &&
+        product.variantOptions.some(vo =>
+          vo.purchasePrice && vo.purchasePrice.trim() !== '' &&
+          vo.sellingPrice && vo.sellingPrice.trim() !== '' &&
+          vo.isActive
         );
       
       // Check variant-level stock (piece-based system)
-      const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+      const totalStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
       const hasStock = totalStock > 0;
       
       // Check if variants have stock fields set
-      const hasVariantStock = product.variants?.some(variant => 
-        variant.stockQuantity !== undefined && variant.stockQuantity !== null
+      const hasVariantStock = product.variantOptions?.some(vo =>
+        vo.stockQuantity !== undefined && vo.stockQuantity !== null
       ) || false;
       
       
@@ -729,11 +730,11 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     for (const [productId, productData] of productsWithOffers) {
       if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
         const newPrice = String(productData.bestDiscount.price);
-        // Update the first variant's pricing
-        await tx.productVariant.updateMany({
+        // Update the variant options' pricing
+        await tx.variantOption.updateMany({
           where: { 
             product: { productId: productId },
-            isDefault: true // Update the default variant
+            isDefault: true // Update the default variant option
           },
           data: { 
             sellingPrice: String(newPrice),
@@ -752,22 +753,24 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       
       if (!shouldHaveDiscount) {
         // This product should NOT have a discount - restore original price
-        // Find variants with originalSellingPrice and restore them
-        const variantsToRestore = await tx.productVariant.findMany({
+        // Find variant options with originalSellingPrice and restore them
+        const variantOptionsToRestore = await tx.variantOption.findMany({
           where: {
             product: { productId: product.productId },
             originalSellingPrice: { not: null }
           }
         });
         
-        for (const variant of variantsToRestore) {
-          await tx.productVariant.update({
-            where: { id: variant.id },
-            data: { 
-              sellingPrice: variant.originalSellingPrice!,
-              originalSellingPrice: null, // Clear the original price since we're restoring it
-            },
-          });
+        for (const vo of variantOptionsToRestore) {
+          if (vo.originalSellingPrice) {
+            await tx.variantOption.update({
+              where: { id: vo.id },
+              data: { 
+                sellingPrice: vo.originalSellingPrice,
+                originalSellingPrice: '', // Clear the original price since we're restoring it
+              },
+            });
+          }
         }
       }
     }

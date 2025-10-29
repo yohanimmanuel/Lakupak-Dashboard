@@ -11,6 +11,7 @@ import { Product, ProductImportRow, ProductTableRow } from "@/types/product";
 import { formatDate } from "@/utils/dateUtils";
 import { generateUniqueProductId } from "@/utils/product-security";
 import { getProductTotalStock } from "@/utils/stockUtils";
+import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -26,6 +27,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 export default function ProductsPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const userCurrency = user?.currency || 'IDR';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -131,7 +133,7 @@ export default function ProductsPage() {
     if (product.variantOptions && product.variantOptions.length > 0) {
       // New structure: use variantOptions
       const prices = product.variantOptions
-        .map(option => parseFloat(option.sellingPrice) || 0)
+        .map(option => parsePrice(String(option.sellingPrice), userCurrency) || 0)
         .filter(price => price > 0);
       
       if (prices.length > 0) {
@@ -139,15 +141,15 @@ export default function ProductsPage() {
         const maxPrice = Math.max(...prices);
         
         if (minPrice === maxPrice) {
-          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+          sellingPrice = formatCurrency(minPrice, userCurrency);
         } else {
-          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+          sellingPrice = `${formatCurrency(minPrice, userCurrency)} – ${formatCurrency(maxPrice, userCurrency)}`;
         }
       }
     } else if (legacyVariants && legacyVariants.length > 0) {
       // Legacy structure: use variants
       const prices = legacyVariants
-        .map(variant => parseFloat(variant.sellingPrice) || 0)
+        .map(variant => parsePrice(String(variant.sellingPrice), userCurrency) || 0)
         .filter(price => price > 0);
       
       if (prices.length > 0) {
@@ -155,9 +157,9 @@ export default function ProductsPage() {
         const maxPrice = Math.max(...prices);
         
         if (minPrice === maxPrice) {
-          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
+          sellingPrice = formatCurrency(minPrice, userCurrency);
         } else {
-          sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
+          sellingPrice = `${formatCurrency(minPrice, userCurrency)} – ${formatCurrency(maxPrice, userCurrency)}`;
         }
       }
     }

@@ -7,8 +7,8 @@ import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
 import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
+import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
+import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { getProductTotalStock } from '@/utils/stockUtils';
 
 const statusTabs = [
@@ -935,9 +935,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">ID/SKU</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Product Name</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
+               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Category</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Brand</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Stock</th>
-               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Purchase Price</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Selling Price</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Last Updated</th>
@@ -1027,12 +1027,23 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      <span className="text-red-600 font-bold">Missing Product Name</span>
                    )}
                  </td>
-                 <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
+                 <td className="truncate py-3 px-4 text-xs text-gray-700">
                   {String(product.productType).trim() ? (
                      product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Category</span>
+                     <span className="text-red-600 font-bold">Missing Type</span>
                    )}
+                 </td>
+                 <td className="truncate py-3 px-4 text-xs text-gray-700">
+                  {(() => {
+                    const originalProduct = products.find(p => p.productId === product.productId);
+                    const category = originalProduct?.productCategory;
+                    return String(category || '').trim() ? (
+                      category
+                    ) : (
+                      <span className="text-red-600 font-bold">Missing Category</span>
+                    );
+                  })()}
                  </td>
                  <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
                    {String(product.brand).trim() ? (
@@ -1077,13 +1088,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      })()}
                    </div>
                  </td>
-                <td className="py-3 px-4 text-xs text-gray-700">
-                  {String(product.purchasePrice).trim() && String(product.purchasePrice) !== '0' && String(product.purchasePrice) !== '' ? (
-                    formatCurrency(parseNumberByCurrency(String(product.purchasePrice), userCurrency), userCurrency)
-                  ) : (
-                    <span className="text-red-600 font-bold">Missing Purchase Price</span>
-                  )}
-                </td>
                 <td className="py-3 px-4 text-xs">
                   <div className="flex flex-col gap-1">
                     {originalProduct?.offerBadge && (
@@ -1099,8 +1103,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                 }
                                 // Fallback to percentage calculation
                                 if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                                  const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency);
-                                  const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                                  const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency);
+                                  const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                                   if (originalPrice > currentPrice && originalPrice > 0) {
                                     const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                     return `${discountPercent}% OFF`;
@@ -1126,8 +1130,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                               }
                               // Fallback to percentage calculation
                               if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                                const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                                const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                                const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+                                const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                                 if (originalPrice > currentPrice && originalPrice > 0) {
                                   const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                   return `${discountPercent}% OFF`;
@@ -1154,9 +1158,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       {/* Show original price with strikethrough if discount is applied */}
                       {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
                        originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                       parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
+                       parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
                         <span className="text-xs text-gray-400 line-through">
-                          {formatCurrency(parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
+                          {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
                         </span>
                       ) : null}
                       <span className="text-[#0a61d7] font-semibold">
@@ -1165,8 +1169,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             // Price range - display as is
                             product.sellingPrice
                           ) : (
-                            // Single price - format it
-                            formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                            // Single price - display as is (already formatted by profileToTableRow)
+                            product.sellingPrice
                           )
                         ) : (
                           <span className="text-red-600 font-bold">Missing Selling Price</span>
@@ -1328,8 +1332,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              }
                              // Fallback to percentage calculation
                              if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                               const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                               const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                               const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+                               const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                  return `${discountPercent}% OFF`;
@@ -1355,8 +1359,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                            }
                            // Fallback to percentage calculation
                            if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                             const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                             const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                             const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+                             const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                return `${discountPercent}% OFF`;
@@ -1394,8 +1398,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.productType).trim() ? (
                     product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Category</span>
+                     <span className="text-red-600 font-bold">Missing Type</span>
                    )}
+                 </p>
+                 <p className="text-xs text-gray-500">
+                   {(() => {
+                     const originalProduct = products.find(p => p.productId === product.productId);
+                     const category = originalProduct?.productCategory;
+                     return String(category || '').trim() ? (
+                       category
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Category</span>
+                     );
+                   })()}
                  </p>
                  <p className="text-xs text-gray-500">
                    {String(product.brand).trim() ? (
@@ -1452,9 +1467,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {/* Show original price with strikethrough if discount is applied */}
                    {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
                     originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                    parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
+                    parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
                      <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
+                       {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
                      </span>
                    ) : null}
                    <div className="text-sm font-semibold text-[#0a61d7]">
@@ -1463,8 +1478,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          // Price range - display as is
                          product.sellingPrice
                        ) : (
-                         // Single price - format it
-                         formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                         // Single price - display as is (already formatted by profileToTableRow)
+                         product.sellingPrice
                        )
                      ) : (
                        <span className="text-red-600 font-bold">Missing Selling Price</span>
@@ -1481,8 +1496,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          // Price range - display as is
                          product.sellingPrice
                        ) : (
-                         // Single price - format it
-                         formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                         // Single price - display as is (already formatted by profileToTableRow)
+                         product.sellingPrice
                        )}
                      </span>
                    </div>
@@ -1643,8 +1658,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              }
                              // Fallback to percentage calculation
                              if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                               const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                               const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                               const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+                               const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                  return `${discountPercent}% OFF`;
@@ -1669,8 +1684,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                            }
                            // Fallback to percentage calculation
                            if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                             const originalPrice = parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                             const currentPrice = parseNumberByCurrency(String(product.sellingPrice), userCurrency);
+                             const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+                             const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                return `${discountPercent}% OFF`;
@@ -1708,8 +1723,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   {String(product.productType).trim() ? (
                     product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Category</span>
+                     <span className="text-red-600 font-bold">Missing Type</span>
                    )}
+                 </p>
+                 <p className="text-xs text-gray-500">
+                   {(() => {
+                     const originalProduct = products.find(p => p.productId === product.productId);
+                     const category = originalProduct?.productCategory;
+                     return String(category || '').trim() ? (
+                       category
+                     ) : (
+                       <span className="text-red-600 font-bold">Missing Category</span>
+                     );
+                   })()}
                  </p>
                  <p className="text-xs text-gray-500">
                    {String(product.brand).trim() ? (
@@ -1766,9 +1792,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {/* Show original price with strikethrough if discount is applied */}
                    {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
                     originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                    parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parseNumberByCurrency(String(product.sellingPrice), userCurrency) ? (
+                    parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
                      <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parseNumberByCurrency(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
+                       {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
                      </span>
                    ) : null}
                    <div className="text-sm font-semibold text-[#0a61d7]">
@@ -1777,8 +1803,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          // Price range - display as is
                          product.sellingPrice
                        ) : (
-                         // Single price - format it
-                         formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                         // Single price - display as is (already formatted by profileToTableRow)
+                         product.sellingPrice
                        )
                      ) : (
                        <span className="text-red-600 font-bold">Missing Selling Price</span>
@@ -1795,8 +1821,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          // Price range - display as is
                          product.sellingPrice
                        ) : (
-                         // Single price - format it
-                         formatCurrency(parseNumberByCurrency(String(product.sellingPrice), userCurrency), userCurrency)
+                         // Single price - display as is (already formatted by profileToTableRow)
+                         product.sellingPrice
                        )}
                      </span>
                    </div>

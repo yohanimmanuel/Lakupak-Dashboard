@@ -315,10 +315,13 @@ export async function POST(request: NextRequest) {
     // Validate stock availability BEFORE creating order
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       for (const item of orderItems) {
-        // Get the variant first to calculate total pieces for MOQ validation
+        // Get the variant option first to calculate total pieces for MOQ validation
         const product = await prisma.product.findFirst({
           where: { productId: String(item.productId || '') },
-          include: { variants: true }
+          include: { 
+            variants: true, // ProductVariant definitions
+            variantOptions: true // VariantOption combinations
+          }
         });
         
         if (!product) {
@@ -328,7 +331,14 @@ export async function POST(request: NextRequest) {
           );
         }
         
-        const variant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
+        // Use variantOptions for actual pricing/stock data
+        const variantOption = product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0];
+        if (!variantOption) {
+          return NextResponse.json(
+            { error: `No variant options found for product: ${item.productId}` },
+            { status: 404, headers }
+          );
+        }
         const packageQuantity = item.packageQuantity || 1;
         // Get piecesPerPackage from item (piece-based system)
         const piecesPerPackage = item.piecesPerPackage || 1;
@@ -382,28 +392,15 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // Check if sufficient stock (using first variant as default)
-        const firstVariant = product.variants[0];
-        if (!firstVariant) {
-          return NextResponse.json(
-            { error: `No variants found for product: ${product.name}` },
-            { status: 400, headers }
-          );
-        }
-        
         // Check variant-level stock (piece-based system)
-        const selectedVariant = product.variants.find(v => v.id === item.variantId);
-        if (!selectedVariant) {
-          return NextResponse.json(
-            { error: `Variant not found for product: ${product.name}` },
-            { status: 400, headers }
-          );
-        }
-        
-        if (selectedVariant.stockQuantity < totalQtyNeeded) {
+        if (variantOption.stockQuantity < totalQtyNeeded) {
+          const variantName = variantOption.attributes 
+            ? Object.entries(variantOption.attributes).map(([k, v]) => `${k}: ${v}`).join(', ')
+            : 'Default';
+          
           return NextResponse.json(
             { 
-              error: `Insufficient stock for ${product.name} (${selectedVariant.variantName}). Available: ${selectedVariant.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+              error: `Insufficient stock for ${product.name} (${variantName}). Available: ${variantOption.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
             },
             { status: 400, headers }
           );
@@ -455,23 +452,26 @@ export async function POST(request: NextRequest) {
       await prisma.$transaction(async (tx) => {
         
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-          // Fetch product with variants
+          // Fetch product with variant options
           const product = await tx.product.findFirst({
             where: { productId: String(item.productId || '') },
-            include: { variants: true }
+            include: { 
+              variants: true, // ProductVariant definitions
+              variantOptions: true // VariantOption combinations
+            }
           });
           
           if (!product) {
             throw new Error(`Product not found: ${item.productId}`);
           }
           
-          // Get the specific variant (use first variant as default, or find by variantId if provided)
-          const variant = item.variantId ? 
-            product.variants.find(v => v.id === item.variantId) || product.variants[0] :
-            product.variants[0];
+          // Get the specific variant option (use first or find by variantId if provided)
+          const variantOption = item.variantId ? 
+            product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0] :
+            product.variantOptions?.[0];
           
-          if (!variant) {
-            throw new Error(`No variants found for product: ${item.productId}.`);
+          if (!variantOption) {
+            throw new Error(`No variant options found for product: ${item.productId}.`);
           }
           
           // Calculate total amount and quantity for validation
@@ -488,7 +488,7 @@ export async function POST(request: NextRequest) {
             totalQuantity,
             tx,
             packageQuantity, // Pass package quantity for buy_x_get_y calculations
-            variant // Pass variant for accurate pricing
+            variantOption // Pass variant option for accurate pricing
           );
           
           // Initialize order item data
@@ -511,7 +511,7 @@ export async function POST(request: NextRequest) {
             discountPercentage: null as number | null,
             discountAmount: null as number | null,
             promotionDetailsSnapshot: null as string | null,
-            moqSnapshot: variant.moq || null // Save MOQ at time of order (in pieces)
+            moqSnapshot: variantOption.moq || null // Save MOQ at time of order (in pieces)
           };
           
           // If offer is valid, track usage and add snapshot data

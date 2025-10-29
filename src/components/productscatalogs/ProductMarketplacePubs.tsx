@@ -231,16 +231,16 @@ export default function ProductMarketplacePubs({
                               if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
                               
                               // Check if product has at least one complete variant (piece-based system)
-                              const hasCompleteVariant = originalProduct.variants && originalProduct.variants.length > 0 && 
-                                originalProduct.variants.some(variant => 
-                                  variant.purchasePrice && variant.purchasePrice.trim() !== '' &&
-                                  variant.sellingPrice && variant.sellingPrice.trim() !== '' &&
-                                  variant.isActive
+                              const hasCompleteVariant = originalProduct.variantOptions && originalProduct.variantOptions.length > 0 && 
+                                originalProduct.variantOptions.some(vo => 
+                                  vo.purchasePrice && vo.purchasePrice.trim() !== '' &&
+                                  vo.sellingPrice && vo.sellingPrice.trim() !== '' &&
+                                  vo.isActive
                                 );
                               
                               // Check product-level stock (piece-based system)
-                              const hasStock = originalProduct.stockQuantity !== undefined && 
-                                              originalProduct.stockQuantity !== null;
+                              const totalStock = originalProduct.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
+                              const hasStock = totalStock > 0;
                               
                               if (!hasCompleteVariant) {
                                 missingFields.push('Product Variants (Pricing)');
