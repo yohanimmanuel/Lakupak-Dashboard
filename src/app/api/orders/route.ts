@@ -13,6 +13,7 @@ import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
+import { parsePrice } from '@/utils/currencyUtils';
 
 interface OfferDiscountType {
   id: string;
@@ -438,30 +439,45 @@ export async function POST(request: NextRequest) {
             // Get the variant first to calculate total pieces for MOQ validation
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId) },
-              include: { variants: true }
+              include: { variantOptions: true, variants: true }
             });
             
             if (!product) {
               throw new Error(`Product not found: ${item.productId}`);
             }
             
-            const selectedVariant = product.variants.find(v => v.id === item.variantId) || product.variants[0];
+            // Use variantOptions for pricing/stock (new structure)
+            let selectedVariant = item.variantId 
+              ? product.variantOptions.find((v: { id: number }) => v.id === item.variantId) || null
+              : null;
+            
+            if (!selectedVariant) {
+              selectedVariant = product.variantOptions[0] || null;
+            }
+            
+            if (!selectedVariant) {
+              throw new Error(`No variants found for product: ${item.productId}`);
+            }
             const packageQuantity = item.packageQuantity || 1;
             // Get piecesPerPackage from item (piece-based system)
             const piecesPerPackageForMOQ = item.piecesPerPackage || 1;
             const totalPieces = packageQuantity * piecesPerPackageForMOQ;
             
-            // Validate variant using the new service with correct quantities for MOQ validation
-            const variantValidation = await validateVariant(String(item.productId), item.variantId, totalPieces, packageQuantity);
-            
-            if (!variantValidation.isValid || !variantValidation.variant) {
-              throw new Error(variantValidation.error);
+            // Use variantOptions for pricing/stock (new structure)
+            // MOQ validation is handled by validateOfferForProduct
+            // Use the selected variant's selling price directly
+            if (!selectedVariant || !(selectedVariant as { sellingPrice?: string }).sellingPrice) {
+              throw new Error(`No variants with pricing found for product: ${item.productId}`);
             }
             
-            const variant = variantValidation.variant;
+            // Validate MOQ if set on the variant
+            const variantMOQ = (selectedVariant as { moq?: number }).moq;
+            if (variantMOQ && totalPieces < variantMOQ) {
+              throw new Error(`Minimum order quantity is ${variantMOQ} pieces. You ordered ${totalPieces} pieces.`);
+            }
             
             // Use the new price parsing utility
-            const consistentUnitPrice = parseVariantPrice(variant);
+            const consistentUnitPrice = parsePrice((selectedVariant as { sellingPrice: string }).sellingPrice);
             
             // Get package info from item (piece-based system)
             const piecesPerPackage = item.piecesPerPackage || 1;
@@ -477,7 +493,7 @@ export async function POST(request: NextRequest) {
               packageQuantity * piecesPerPackage,
               tx,
               packageQuantity, // Pass package quantity for buy_x_get_y calculations
-              variant // Pass variant for accurate pricing
+              selectedVariant as { sellingPrice: string; moq?: number } // Pass variant for accurate pricing
             );
             
             
@@ -896,7 +912,7 @@ export async function PUT(request: NextRequest) {
             // Get the product and variant for stock restoration
             const productForRestore = await prisma.product.findFirst({
               where: { productId: orderItem.productId || '' },
-              include: { variants: true }
+              include: { variantOptions: true, variants: true }
             });
             
             if (!productForRestore) {
@@ -904,27 +920,36 @@ export async function PUT(request: NextRequest) {
             }
             
             // Find the specific variant to restore stock to
-            const variantToRestore = productForRestore.variants.find(v => v.id === orderItem.variantId) || productForRestore.variants[0];
+            // Use variantOptions for pricing/stock (new structure)
+            let variantToRestore = orderItem.variantId 
+              ? productForRestore.variantOptions.find((v: { id: number }) => v.id === orderItem.variantId) || null
+              : null;
+            
+            if (!variantToRestore) {
+              variantToRestore = productForRestore.variantOptions[0] || null;
+            }
             
             if (!variantToRestore) {
               continue; // Skip if no variant found
             }
             
             // Restore stock at variant level (piece-based system)
-            const newStock = (variantToRestore.stockQuantity || 0) + totalQtyToRestore;
-            let newStockStatus = variantToRestore.stockStatus;
+            const newStock = ((variantToRestore as { stockQuantity?: number }).stockQuantity || 0) + totalQtyToRestore;
+            let newStockStatus = (variantToRestore as { stockStatus?: string }).stockStatus || 'In Stock';
             
             // Update stock status based on threshold
+            const lowStockThreshold = (variantToRestore as { lowStockThreshold?: number }).lowStockThreshold || 0;
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
-            } else if (variantToRestore.lowStockThreshold && newStock <= variantToRestore.lowStockThreshold) {
+            } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
               newStockStatus = 'Low Stock';
             } else {
               newStockStatus = 'In Stock';
             }
             
-            await prisma.productVariant.update({
-              where: { id: variantToRestore.id },
+            // Update using variantOption model
+            await prisma.variantOption.update({
+              where: { id: (variantToRestore as { id: number }).id },
               data: {
                 stockQuantity: newStock,
                 stockStatus: newStockStatus
@@ -967,7 +992,7 @@ export async function PUT(request: NextRequest) {
             // Get the product and variant for stock deduction
             const productForDeduct = await prisma.product.findFirst({
               where: { productId: orderItem.productId || '' },
-              include: { variants: true }
+              include: { variantOptions: true, variants: true }
             });
             
             if (!productForDeduct) {
@@ -975,27 +1000,36 @@ export async function PUT(request: NextRequest) {
             }
             
             // Find the specific variant to deduct stock from
-            const variantToDeduct = productForDeduct.variants.find(v => v.id === orderItem.variantId) || productForDeduct.variants[0];
+            // Use variantOptions for pricing/stock (new structure)
+            let variantToDeduct = orderItem.variantId 
+              ? productForDeduct.variantOptions.find((v: { id: number }) => v.id === orderItem.variantId) || null
+              : null;
+            
+            if (!variantToDeduct) {
+              variantToDeduct = productForDeduct.variantOptions[0] || null;
+            }
             
             if (!variantToDeduct) {
               continue; // Skip if no variant found
             }
             
             // Deduct stock at variant level (piece-based system)
-            const newStock = (variantToDeduct.stockQuantity || 0) - totalQtyToDeduct;
-            let newStockStatus = variantToDeduct.stockStatus;
+            const newStock = ((variantToDeduct as { stockQuantity?: number }).stockQuantity || 0) - totalQtyToDeduct;
+            let newStockStatus = (variantToDeduct as { stockStatus?: string }).stockStatus || 'In Stock';
             
             // Update stock status based on threshold
+            const lowStockThreshold = (variantToDeduct as { lowStockThreshold?: number }).lowStockThreshold || 0;
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
-            } else if (variantToDeduct.lowStockThreshold && newStock <= variantToDeduct.lowStockThreshold) {
+            } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
               newStockStatus = 'Low Stock';
             } else {
               newStockStatus = 'In Stock';
             }
             
-            await prisma.productVariant.update({
-              where: { id: variantToDeduct.id },
+            // Update using variantOption model
+            await prisma.variantOption.update({
+              where: { id: (variantToDeduct as { id: number }).id },
               data: {
                 stockQuantity: Math.max(0, newStock),
                 stockStatus: newStockStatus
@@ -1029,7 +1063,7 @@ export async function PUT(request: NextRequest) {
         // Fetch the product with variants to ensure price consistency
         const product = await prisma.product.findFirst({
           where: { productId: item.productId },
-          include: { variants: true }
+          include: { variantOptions: true, variants: true }
         });
         
         if (!product) {
@@ -1037,13 +1071,14 @@ export async function PUT(request: NextRequest) {
         }
         
         // Use the first variant's sellingPrice as the unitPrice to ensure consistency
-        const firstVariant = product.variants[0];
-        if (!firstVariant) {
-          throw new Error(`No variants found for product: ${item.productId}`);
+        // Use variantOptions for pricing/stock (new structure)
+        const firstVariant = product.variantOptions[0] || null;
+        if (!firstVariant || !(firstVariant as { sellingPrice?: string }).sellingPrice) {
+          throw new Error(`No variants with pricing found for product: ${item.productId}`);
         }
         
         // Use the centralized price parsing utility
-        const consistentUnitPrice = parseVariantPrice(firstVariant);
+        const consistentUnitPrice = parsePrice((firstVariant as { sellingPrice: string }).sellingPrice);
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({

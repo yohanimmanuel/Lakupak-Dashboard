@@ -808,6 +808,7 @@ async function resetOriginalPricesForUser(userId: number) {
     // Find all legacy variants with null originalSellingPrice
     const variantsWithNullOriginalPrice = await prisma.productVariant.findMany({
       where: {
+        originalSellingPrice: null,
         product: {
           userId: userId
         }

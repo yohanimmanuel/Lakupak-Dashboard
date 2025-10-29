@@ -675,30 +675,45 @@ async function updateProductPricesAfterOfferDeactivation(
       where: {
         productId: { in: productIds },
         userId: offer.userId,
-        variants: {
-          some: {
-            originalSellingPrice: {
-              not: null
+        OR: [
+          {
+            variantOptions: {
+              some: {
+                originalSellingPrice: {
+                  not: ''
+                }
+              }
+            }
+          },
+          {
+            legacyVariants: {
+              some: {
+                originalSellingPrice: {
+                  not: null
+                }
+              }
             }
           }
-        }
+        ]
       },
-      include: { variants: true }
+      include: { variantOptions: true, variants: true }
     });
 
     // Reset prices only for variants of products associated with this specific offer
     for (const product of productsWithOriginalPrices) {
-      for (const variant of product.variants) {
-        if (variant.originalSellingPrice) {
-          await tx.productVariant.update({
-            where: { id: variant.id },
+      // Reset variantOptions (new structure)
+      for (const variantOption of product.variantOptions) {
+        if (variantOption.originalSellingPrice && variantOption.originalSellingPrice !== '') {
+          await tx.variantOption.update({
+            where: { id: variantOption.id },
             data: {
-              sellingPrice: variant.originalSellingPrice,
-              originalSellingPrice: null
+              sellingPrice: variantOption.originalSellingPrice,
+              originalSellingPrice: ''
             }
           });
         }
       }
+      
     }
   } catch (error) {
     // Error handled silently - don't fail the order

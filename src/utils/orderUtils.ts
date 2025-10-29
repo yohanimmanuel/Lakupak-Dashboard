@@ -17,20 +17,26 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     
     const product = await prisma.product.findFirst({
       where: { productId: item.productId },
-      include: { variants: true }
+      include: { variantOptions: true, variants: true }
     });
     
     if (!product) {
       throw new Error(`Product not found: ${item.productId}`);
     }
     
-    // Get the first variant (or specified variant)
-    const variant = item.variantId 
-      ? product.variants.find(v => v.id === item.variantId) || product.variants[0]
-      : product.variants[0];
+    // Get the first variant option (or specified variant)
+    // Use variantOptions for pricing/stock (new structure)
+    let variant: { sellingPrice: string } | null = null;
+    if (item.variantId) {
+      variant = product.variantOptions.find((v: { id: number; sellingPrice: string }) => v.id === item.variantId) || null;
+    }
     
     if (!variant) {
-      throw new Error(`No variants found for product: ${item.productId}`);
+      variant = product.variantOptions[0] || null;
+    }
+    
+    if (!variant || !variant.sellingPrice) {
+      throw new Error(`No variants with pricing found for product: ${item.productId}`);
     }
     
     // Use the centralized price parsing utility for consistency

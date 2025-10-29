@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true
+                variants: true,
+                variantOptions: true
               }
             }
           }
@@ -133,7 +134,8 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                variants: true
+                variants: true,
+                variantOptions: true
               }
             }
           }
@@ -168,21 +170,25 @@ export async function POST(request: NextRequest) {
       totalUsage: createdOffer!.totalUsage,
       totalDiscountGiven: createdOffer!.totalDiscountGiven,
       products: createdOffer!.offerProducts.map((op) => {
-        const firstVariant = op.product.variants?.[0];
+        // Use variantOptions first, then fallback to legacyVariants
+        const firstVariantOption = op.product.variantOptions?.[0] as { variantName?: string; sellingPrice?: string; stockQuantity?: number } | undefined;
+        const firstLegacyVariant = op.product.variants?.[0] as { variantName?: string; sellingPrice?: string; stockQuantity?: number } | undefined;
+        const variantData = firstVariantOption || firstLegacyVariant;
+        
         return {
           id: op.id,
           productId: op.product.productId,
           name: op.product.name,
           productType: op.product.productType,
           productCategory: op.product.productCategory,
-          price: firstVariant?.sellingPrice || '0',
+          price: variantData?.sellingPrice || '0',
           // Add variant information for piece-based pricing
-          variantName: firstVariant?.variantName || 'Default',
+          variantName: (firstVariantOption?.variantName || firstLegacyVariant?.variantName || 'Default'),
           packageType: 'Piece',
           piecesPerPackage: 1,
           // Calculate piece price (price per individual piece)
-          piecePrice: firstVariant ? 
-            parseFloat(firstVariant.sellingPrice || '0') : 0
+          piecePrice: variantData ? 
+            parseFloat(variantData.sellingPrice || '0') : 0
         };
       }),
       dateRanges: createdOffer!.dateRanges?.map((dr) => ({

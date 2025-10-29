@@ -1,11 +1,12 @@
-import { PrismaClient, ProductVariant } from '@/generated/prisma';
+import { PrismaClient, VariantOption } from '@/generated/prisma';
 import { parsePrice } from '@/utils/currencyUtils';
+import { VariantOption as VariantOptionType } from '@/types/product';
 
 const prisma = new PrismaClient();
 
 export interface VariantValidationResult {
   isValid: boolean;
-  variant?: ProductVariant;
+  variant?: VariantOptionType | { sellingPrice: string; moq?: number; variantName?: string; isActive?: boolean };
   error?: string;
 }
 
@@ -20,10 +21,10 @@ export const validateVariant = async (
   packageQuantity?: number
 ): Promise<VariantValidationResult> => {
   try {
-    // Get the product with its variants
+    // Get the product with its variant options (new structure)
     const product = await prisma.product.findFirst({
       where: { productId },
-      include: { variants: true }
+      include: { variantOptions: true, variants: true }
     });
 
     if (!product) {
@@ -33,17 +34,18 @@ export const validateVariant = async (
       };
     }
 
-    if (!product.variants || product.variants.length === 0) {
-      return {
-        isValid: false,
-        error: `No variants found for product: ${productId}`
-      };
+    // Prioritize variantOptions (new structure) over legacy variants
+    let targetVariant: VariantOption | null = null;
+    
+    if (variantId) {
+      targetVariant = product.variantOptions.find(v => v.id === variantId) || null;
+    } else {
+      // Get first active variant, or first default variant, or just first variant
+      targetVariant = product.variantOptions.find(v => v.isActive && v.isDefault) 
+        || product.variantOptions.find(v => v.isActive)
+        || product.variantOptions[0] 
+        || null;
     }
-
-    // If no specific variant ID provided, use the first variant
-    const targetVariant = variantId 
-      ? product.variants.find(v => v.id === variantId)
-      : product.variants[0];
 
     if (!targetVariant) {
       return {
@@ -74,7 +76,12 @@ export const validateVariant = async (
 
     return {
       isValid: true,
-      variant: targetVariant
+      variant: {
+        sellingPrice: targetVariant.sellingPrice,
+        moq: targetVariant.moq || undefined,
+        variantName: targetVariant.variantName,
+        isActive: targetVariant.isActive
+      }
     };
   } catch (error) {
     return {
@@ -87,7 +94,7 @@ export const validateVariant = async (
 /**
  * Get the best available variant for a product (prioritizes default, then first active)
  */
-export const getBestVariant = async (productId: string): Promise<ProductVariant> => {
+export const getBestVariant = async (productId: string): Promise<{ sellingPrice: string; moq?: number; variantName?: string; isActive?: boolean }> => {
   const validation = await validateVariant(productId);
   
   if (!validation.isValid || !validation.variant) {
@@ -100,38 +107,45 @@ export const getBestVariant = async (productId: string): Promise<ProductVariant>
 /**
  * Parse variant price using the existing currency utilities
  */
-export const parseVariantPrice = (variant: ProductVariant, currency?: string): number => {
-  return parsePrice(variant.sellingPrice, currency);
+export const parseVariantPrice = (variant: { sellingPrice: string } | VariantOptionType, currency?: string): number => {
+  const sellingPrice = typeof variant === 'object' && 'sellingPrice' in variant 
+    ? variant.sellingPrice 
+    : (variant as { sellingPrice: string }).sellingPrice;
+  return parsePrice(sellingPrice, currency);
 };
 
 /**
  * Parse variant original price using the existing currency utilities
  */
-export const parseVariantOriginalPrice = (variant: ProductVariant, currency?: string): number | null => {
-  if (!variant.originalSellingPrice) {
+export const parseVariantOriginalPrice = (variant: { originalSellingPrice?: string | null } | VariantOptionType, currency?: string): number | null => {
+  const originalPrice = typeof variant === 'object' && 'originalSellingPrice' in variant
+    ? variant.originalSellingPrice
+    : (variant as { originalSellingPrice?: string | null }).originalSellingPrice;
+    
+  if (!originalPrice || originalPrice === '') {
     return null;
   }
-  return parsePrice(variant.originalSellingPrice, currency);
+  return parsePrice(originalPrice, currency);
 };
 
 /**
  * Check if variant has an active discount
  */
-export const hasVariantDiscount = (variant: ProductVariant): boolean => {
-  if (!variant.originalSellingPrice) {
+export const hasVariantDiscount = (variant: { sellingPrice: string; originalSellingPrice?: string | null } | VariantOptionType): boolean => {
+  const originalPrice = parseVariantOriginalPrice(variant);
+  if (originalPrice === null) {
     return false;
   }
   
   const currentPrice = parseVariantPrice(variant);
-  const originalPrice = parseVariantOriginalPrice(variant);
   
-  return originalPrice !== null && originalPrice > currentPrice;
+  return originalPrice > currentPrice;
 };
 
 /**
  * Calculate discount percentage for a variant
  */
-export const calculateVariantDiscountPercentage = (variant: ProductVariant): number => {
+export const calculateVariantDiscountPercentage = (variant: { sellingPrice: string; originalSellingPrice?: string | null } | VariantOptionType): number => {
   if (!hasVariantDiscount(variant)) {
     return 0;
   }

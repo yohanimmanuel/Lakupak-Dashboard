@@ -64,7 +64,8 @@ export async function GET(
           include: {
             product: {
               include: {
-                variants: true
+                variants: true,
+                variantOptions: true
               }
             },
           },
@@ -106,7 +107,11 @@ export async function GET(
           priority: dt.priority,
       })),
       products: offer.offerProducts.map((op) => {
-        const firstVariant = op.product.variants?.[0];
+        // Use variantOptions first, then fallback to legacyVariants
+        const firstVariantOption = op.product.variantOptions?.[0] as { variantName?: string; sellingPrice?: string; stockQuantity?: number } | undefined;
+        const firstLegacyVariant = op.product.variants?.[0] as { variantName?: string; sellingPrice?: string; stockQuantity?: number } | undefined;
+        const variantData = firstVariantOption || firstLegacyVariant;
+        
         return {
           id: op.id,
           productId: op.product.productId,
@@ -114,16 +119,16 @@ export async function GET(
           brand: op.product.brand,
           type: op.product.productType,
           category: op.product.productCategory,
-          price: firstVariant?.sellingPrice || '0',
+          price: variantData?.sellingPrice || '0',
           status: op.product.status,
-          stock: firstVariant?.stockQuantity || 0,
+          stock: variantData?.stockQuantity || 0,
           // Add variant information for piece-based pricing
-          variantName: firstVariant?.variantName || 'Default',
+          variantName: (firstVariantOption?.variantName || firstLegacyVariant?.variantName || 'Default'),
           packageType: 'Piece',
           piecesPerPackage: 1,
           // Calculate piece price (price per individual piece)
-          piecePrice: firstVariant ? 
-            parseFloat(firstVariant.sellingPrice || '0') : 0
+          piecePrice: variantData ? 
+            parseFloat(variantData.sellingPrice || '0') : 0
         };
       }),
       dateRanges: offer.dateRanges?.map((dr) => ({
@@ -1019,7 +1024,7 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
     // Get all products for this user
     const products = await tx.product.findMany({
       where: { userId: userId },
-      include: { variants: true }
+      include: { variantOptions: true }
     });
 
     for (const product of products) {
@@ -1037,12 +1042,12 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         }
       });
 
-      for (const variant of product.variants) {
+      for (const vo of product.variantOptions) {
         // Get original price (if not set, use current selling price)
-        // If originalSellingPrice is already set, use it; otherwise use current sellingPrice
-        const originalPrice = variant.originalSellingPrice ? 
-          (parseVariantOriginalPrice(variant) || parseVariantPrice(variant)) : 
-          parseVariantPrice(variant);
+        const originalPriceStr = vo.originalSellingPrice && vo.originalSellingPrice !== '' 
+          ? vo.originalSellingPrice 
+          : vo.sellingPrice;
+        const originalPrice = parseFloat(originalPriceStr) || 0;
 
         let finalPrice = originalPrice;
         let hasOffer = false;
@@ -1097,12 +1102,12 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
           hasOffer = false;
         }
 
-        // Update the variant
-        await tx.productVariant.update({
-          where: { id: variant.id },
+        // Update the variant option
+        await tx.variantOption.update({
+          where: { id: vo.id },
           data: {
             sellingPrice: String(Math.round(finalPrice)),
-            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : null
+            originalSellingPrice: hasOffer ? String(Math.round(originalPrice)) : ''
           }
         });
       }
@@ -1114,32 +1119,32 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
 // Helper function to reset product prices when offers are removed or expired
 async function resetProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
   try {
-    // Get all products for this user that have variants with originalSellingPrice set
+    // Get all products for this user that have variantOptions with originalSellingPrice set
     const productsWithOriginalPrices = await tx.product.findMany({
       where: {
         userId: userId,
-        variants: {
+        variantOptions: {
           some: {
             originalSellingPrice: {
-              not: null
+              not: ''
             }
           }
         }
       },
-      include: { variants: true }
+      include: { variantOptions: true }
     });
 
     // Reset ALL products with originalSellingPrice set, regardless of active offers
     // This ensures that when offers are reactivated, we start with a clean slate
     for (const product of productsWithOriginalPrices) {
-      for (const variant of product.variants) {
-        if (variant.originalSellingPrice) {
+      for (const vo of product.variantOptions) {
+        if (vo.originalSellingPrice && vo.originalSellingPrice !== '') {
           // Reset selling price to original price but keep originalSellingPrice
           // The updateProductPricesFromOffers function will decide whether to clear it
-          await tx.productVariant.update({
-            where: { id: variant.id },
+          await tx.variantOption.update({
+            where: { id: vo.id },
             data: {
-              sellingPrice: variant.originalSellingPrice
+              sellingPrice: vo.originalSellingPrice
             }
           });
         }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, Clock, ChevronUp } from 'lucide-react';
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
@@ -231,7 +231,13 @@ export default function ProductIntegration({
   const calculateDiscountAmount = (product: ProductWithOffer): number => {
     if (!discountTypes || discountTypes.length === 0) return 0;
     
-    const productPrice = parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency);
+    // Use variantOptions first, then fallback to legacyVariants
+    const firstVariantOption = product.variantOptions?.[0];
+    const firstLegacyVariant = product.legacyVariants?.[0];
+    const productPrice = parseNumberByCurrency(
+      String(firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'), 
+      userCurrency
+    );
     let totalDiscount = 0;
     
     // Filter discount types based on selected offer types (if any are selected)
@@ -516,10 +522,53 @@ export default function ProductIntegration({
     }
   };
 
+  // Calculate price range for display
+  const getPriceDisplay = (product: ProductWithOffer): string => {
+    const variantOptions = product.variantOptions || [];
+    const legacyVariants = product.legacyVariants || [];
+    
+    // Collect all prices from variantOptions and legacyVariants
+    const prices: number[] = [];
+    
+    // Add prices from variantOptions
+    variantOptions.forEach(option => {
+      const price = parsePrice(String(option.sellingPrice), userCurrency);
+      if (price > 0) {
+        prices.push(price);
+      }
+    });
+    
+    // Add prices from legacyVariants
+    legacyVariants.forEach(variant => {
+      const price = parsePrice(String(variant.sellingPrice), userCurrency);
+      if (price > 0) {
+        prices.push(price);
+      }
+    });
+    
+    if (prices.length === 0) {
+      return formatCurrency(0, userCurrency);
+    }
+    
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    
+    if (minPrice === maxPrice) {
+      return formatCurrency(minPrice, userCurrency);
+    } else {
+      return `${formatCurrency(minPrice, userCurrency)} – ${formatCurrency(maxPrice, userCurrency)}`;
+    }
+  };
+
   const getStockStatus = (product: ProductWithOffer) => {
-    // Calculate total stock from all variants
-    const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    const totalLowStockThreshold = product.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+    // Calculate total stock from variantOptions and legacyVariants
+    const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
+    const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    const totalStock = variantOptionsStock + legacyVariantsStock;
+    
+    const variantOptionsThreshold = product.variantOptions?.reduce((sum, vo) => sum + (vo.lowStockThreshold || 0), 0) || 0;
+    const legacyVariantsThreshold = product.legacyVariants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+    const totalLowStockThreshold = variantOptionsThreshold + legacyVariantsThreshold;
     
     if (totalStock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
     if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
@@ -857,13 +906,17 @@ export default function ProductIntegration({
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Price:</span>
                     <span className="text-black font-medium">
-                      {formatCurrency(parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency), userCurrency)}
+                      {getPriceDisplay(product)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Stock:</span>
                     <span className={`${getStockStatus(product).color}`}>
-                      {product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0} units
+                      {(() => {
+                        const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
+                        const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+                        return variantOptionsStock + legacyVariantsStock;
+                      })()} units
                     </span>
                   </div>
                 </div>
@@ -962,11 +1015,15 @@ export default function ProductIntegration({
                     <td className="py-4 px-4 text-gray-700 truncate">{product.productCategory}</td>
                     <td className="py-4 px-4 text-gray-700 truncate">{product.brand}</td>
                     <td className="py-4 px-4 text-gray-700 font-medium text-right">
-                      {formatCurrency(parseNumberByCurrency(String(product.variants?.[0]?.sellingPrice || '0'), userCurrency), userCurrency)}
+                      {getPriceDisplay(product)}
                     </td>
                     <td className="py-4 px-4 text-right">
                       <span className={`${getStockStatus(product).color}`}>
-                        {product.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0}
+                        {(() => {
+                          const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
+                          const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+                          return variantOptionsStock + legacyVariantsStock;
+                        })()}
                       </span>
                     </td>
                     <td className="py-4 px-4">

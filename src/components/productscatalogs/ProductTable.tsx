@@ -50,6 +50,49 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
 }) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  // Helper function to calculate original price range from variantOptions and legacyVariants
+  const getOriginalPriceRange = (originalProduct: Product | undefined): string | null => {
+    if (!originalProduct) return null;
+    
+    const variantOptions = originalProduct.variantOptions || [];
+    const legacyVariants = originalProduct.legacyVariants || [];
+    
+    // Collect all originalSellingPrices
+    const originalPrices: number[] = [];
+    
+    // Add prices from variantOptions
+    variantOptions.forEach(option => {
+      if (option.originalSellingPrice && option.originalSellingPrice !== '') {
+        const price = parsePrice(String(option.originalSellingPrice), userCurrency);
+        if (price > 0) {
+          originalPrices.push(price);
+        }
+      }
+    });
+    
+    // Add prices from legacyVariants
+    legacyVariants.forEach(variant => {
+      if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
+        const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
+        if (price > 0) {
+          originalPrices.push(price);
+        }
+      }
+    });
+    
+    if (originalPrices.length === 0) return null;
+    
+    const minPrice = Math.min(...originalPrices);
+    const maxPrice = Math.max(...originalPrices);
+    
+    if (minPrice === maxPrice) {
+      return formatCurrency(minPrice, userCurrency);
+    } else {
+      return `${formatCurrency(minPrice, userCurrency)} – ${formatCurrency(maxPrice, userCurrency)}`;
+    }
+  };
+
   const tableRows = products.map(profileToTableRowAction);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -186,7 +229,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       ));
     
     // Check variant-level stock (piece-based system)
-    const productStock = getProductTotalStock(product.legacyVariants || []);
+    // Use legacyVariants (has stock data) instead of variants (definitions only)
+    const productStock = getProductTotalStock((product as Product & { legacyVariants?: Array<{ stockQuantity: number; lowStockThreshold?: number }> }).legacyVariants || []);
     const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
       totalStock: total.totalStock + (option.stockQuantity || 0),
       lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
@@ -655,7 +699,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             ));
           
           // Check variant-level stock (piece-based system)
-          const productStock = getProductTotalStock(product.legacyVariants || []);
+          // Use legacyVariants (has stock data) instead of variants (definitions only)
+          const productStock = getProductTotalStock((product as Product & { legacyVariants?: Array<{ stockQuantity: number; lowStockThreshold?: number }> }).legacyVariants || []);
           const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
             totalStock: total.totalStock + (option.stockQuantity || 0),
             lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
@@ -1156,13 +1201,49 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     )}
                     <div className="flex flex-col gap-1">
                       {/* Show original price with strikethrough if discount is applied */}
-                      {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
-                       originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                       parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
-                        <span className="text-xs text-gray-400 line-through">
-                          {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
-                        </span>
-                      ) : null}
+                      {(() => {
+                        const originalPriceRange = getOriginalPriceRange(originalProduct);
+                        if (originalPriceRange) {
+                          // Check if any original price is higher than current price
+                          const originalPrices: number[] = [];
+                          const variantOptions = originalProduct?.variantOptions || [];
+                          const legacyVariants = originalProduct?.legacyVariants || [];
+                          
+                          variantOptions.forEach(option => {
+                            if (option.originalSellingPrice && option.originalSellingPrice !== '') {
+                              const price = parsePrice(String(option.originalSellingPrice), userCurrency);
+                              if (price > 0) originalPrices.push(price);
+                            }
+                          });
+                          
+                          legacyVariants.forEach(variant => {
+                            if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
+                              const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
+                              if (price > 0) originalPrices.push(price);
+                            }
+                          });
+                          
+                          // Get current price (min if range, or single price)
+                          const currentPriceStr = String(product.sellingPrice);
+                          let currentPriceMin = 0;
+                          if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                            const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                            currentPriceMin = Math.min(...parts);
+                          } else {
+                            currentPriceMin = parsePrice(currentPriceStr, userCurrency);
+                          }
+                          
+                          const minOriginalPrice = Math.min(...originalPrices);
+                          if (minOriginalPrice > currentPriceMin && minOriginalPrice > 0) {
+                            return (
+                              <span className="text-xs text-gray-400 line-through">
+                                {originalPriceRange}
+                              </span>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
                       <span className="text-[#0a61d7] font-semibold">
                         {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
                           product.sellingPrice.includes('–') || product.sellingPrice.includes('-') ? (
@@ -1465,13 +1546,49 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Price */}
                  <div className="flex flex-col gap-1">
                    {/* Show original price with strikethrough if discount is applied */}
-                   {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
-                    originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                    parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
-                     <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
-                     </span>
-                   ) : null}
+                   {(() => {
+                     const originalPriceRange = getOriginalPriceRange(originalProduct);
+                     if (originalPriceRange) {
+                       // Check if any original price is higher than current price
+                       const originalPrices: number[] = [];
+                       const variantOptions = originalProduct?.variantOptions || [];
+                       const legacyVariants = originalProduct?.legacyVariants || [];
+                       
+                       variantOptions.forEach(option => {
+                         if (option.originalSellingPrice && option.originalSellingPrice !== '') {
+                           const price = parsePrice(String(option.originalSellingPrice), userCurrency);
+                           if (price > 0) originalPrices.push(price);
+                         }
+                       });
+                       
+                       legacyVariants.forEach(variant => {
+                         if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
+                           const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
+                           if (price > 0) originalPrices.push(price);
+                         }
+                       });
+                       
+                       // Get current price (min if range, or single price)
+                       const currentPriceStr = String(product.sellingPrice);
+                       let currentPriceMin = 0;
+                       if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                         const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                         currentPriceMin = Math.min(...parts);
+                       } else {
+                         currentPriceMin = parsePrice(currentPriceStr, userCurrency);
+                       }
+                       
+                       const minOriginalPrice = Math.min(...originalPrices);
+                       if (minOriginalPrice > currentPriceMin && minOriginalPrice > 0) {
+                         return (
+                           <span className="text-xs text-gray-400 line-through">
+                             {originalPriceRange}
+                           </span>
+                         );
+                       }
+                     }
+                     return null;
+                   })()}
                    <div className="text-sm font-semibold text-[#0a61d7]">
                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
                        product.sellingPrice.includes('–') || product.sellingPrice.includes('-') ? (
@@ -1790,13 +1907,49 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Price */}
                  <div className="flex flex-col gap-1">
                    {/* Show original price with strikethrough if discount is applied */}
-                   {originalProduct?.variantOptions?.[0]?.originalSellingPrice && 
-                    originalProduct.variantOptions[0].originalSellingPrice !== String(product.sellingPrice) && 
-                    parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency) > parsePrice(String(product.sellingPrice), userCurrency) ? (
-                     <span className="text-xs text-gray-400 line-through">
-                       {formatCurrency(parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency), userCurrency)}
-                     </span>
-                   ) : null}
+                   {(() => {
+                     const originalPriceRange = getOriginalPriceRange(originalProduct);
+                     if (originalPriceRange) {
+                       // Check if any original price is higher than current price
+                       const originalPrices: number[] = [];
+                       const variantOptions = originalProduct?.variantOptions || [];
+                       const legacyVariants = originalProduct?.legacyVariants || [];
+                       
+                       variantOptions.forEach(option => {
+                         if (option.originalSellingPrice && option.originalSellingPrice !== '') {
+                           const price = parsePrice(String(option.originalSellingPrice), userCurrency);
+                           if (price > 0) originalPrices.push(price);
+                         }
+                       });
+                       
+                       legacyVariants.forEach(variant => {
+                         if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
+                           const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
+                           if (price > 0) originalPrices.push(price);
+                         }
+                       });
+                       
+                       // Get current price (min if range, or single price)
+                       const currentPriceStr = String(product.sellingPrice);
+                       let currentPriceMin = 0;
+                       if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                         const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                         currentPriceMin = Math.min(...parts);
+                       } else {
+                         currentPriceMin = parsePrice(currentPriceStr, userCurrency);
+                       }
+                       
+                       const minOriginalPrice = Math.min(...originalPrices);
+                       if (minOriginalPrice > currentPriceMin && minOriginalPrice > 0) {
+                         return (
+                           <span className="text-xs text-gray-400 line-through">
+                             {originalPriceRange}
+                           </span>
+                         );
+                       }
+                     }
+                     return null;
+                   })()}
                    <div className="text-sm font-semibold text-[#0a61d7]">
                      {String(product.sellingPrice).trim() && String(product.sellingPrice) !== '0' && String(product.sellingPrice) !== '' ? (
                        product.sellingPrice.includes('–') || product.sellingPrice.includes('-') ? (

@@ -284,8 +284,15 @@ const FinancialAnalytics: React.FC = () => {
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+      // Prioritize variantOptions (new structure) over legacyVariants
+      const firstVariantOption = product.variantOptions?.[0];
+      const firstLegacyVariant = product.legacyVariants?.[0];
+      const sellingPrice = parseCurrencyToNumber(
+        firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
+      );
+      const purchasePrice = parseCurrencyToNumber(
+        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      );
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -385,8 +392,15 @@ const FinancialAnalytics: React.FC = () => {
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+      // Prioritize variantOptions (new structure) over legacyVariants
+      const firstVariantOption = product.variantOptions?.[0];
+      const firstLegacyVariant = product.legacyVariants?.[0];
+      const sellingPrice = parseCurrencyToNumber(
+        firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
+      );
+      const purchasePrice = parseCurrencyToNumber(
+        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      );
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -422,8 +436,15 @@ const FinancialAnalytics: React.FC = () => {
           const product = products.find(p => p.productId === productId);
           
           if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+            // Prioritize variantOptions (new structure) over legacyVariants
+            const firstVariantOption = product.variantOptions?.[0];
+            const firstLegacyVariant = product.legacyVariants?.[0];
+            const sellingPrice = parseCurrencyToNumber(
+              firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
+            );
+            const purchasePrice = parseCurrencyToNumber(
+              firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+            );
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               // Calculate revenue and cost using piece-based pricing
@@ -1437,8 +1458,15 @@ export const calculateTopProducts = (
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
-    const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-    const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+    // Prioritize variantOptions (new structure) over legacyVariants
+    const firstVariantOption = product.variantOptions?.[0];
+    const firstLegacyVariant = product.legacyVariants?.[0];
+    const sellingPrice = parseCurrencyToNumber(
+      firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
+    );
+    const purchasePrice = parseCurrencyToNumber(
+      firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+    );
     if (sellingPrice > 0 && purchasePrice > 0) {
       const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
       productMargins[product.productId] = margin;
