@@ -621,11 +621,9 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
         offerProducts: {
           include: {
             product: {
-              select: {
-                productId: true,
-              },
               include: {
-                variants: true
+                variants: true,
+                variantOptions: true,
               }
             },
           },
@@ -672,12 +670,15 @@ async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userI
       for (const offerProduct of offer.offerProducts) {
         const productId = offerProduct.product.productId;
         const product = offerProduct.product;
-        const firstVariant = product.variants?.[0];
+        // Prefer new variantOptions (with pricing) instead of legacy variants
+        const firstVariantOption = (product.variantOptions && product.variantOptions.length > 0)
+          ? (product.variantOptions.find((vo: { isDefault?: boolean }) => !!vo.isDefault) || product.variantOptions[0])
+          : undefined;
         
-        if (!firstVariant) continue; // Skip products without variants
+        if (!firstVariantOption) continue; // Skip products without priced variant option
         
         // Use originalSellingPrice if it exists, otherwise use current sellingPrice
-        const originalPrice = parseVariantOriginalPrice(firstVariant) || parseVariantPrice(firstVariant);
+        const originalPrice = parseVariantOriginalPrice(firstVariantOption) || parseVariantPrice(firstVariantOption);
         
         if (!productsWithOffers.has(productId)) {
           productsWithOffers.set(productId, {

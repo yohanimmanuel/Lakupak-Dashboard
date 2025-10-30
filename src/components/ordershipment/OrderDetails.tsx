@@ -483,11 +483,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         }}
                         title="Click to view product details"
                       >
-                        {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
+                        <div className="flex flex-col">
+                          <span>{item.productName}</span>
+                          {item.variantNameSnapshot && (
+                            <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
+                          )}
+                        </div>
                       </h3>
                       
                     </div>
-                    <p className="text-xs text-gray-600">SKU: {item.productId || item.productSkuSnapshot}</p>
+                    {/* Removed SKU label per requirements */}
                     
                     {/* Quantity with promotion details under SKU */}
                     <p className="text-xs text-gray-600">
@@ -534,7 +539,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       </div>
                     )}
                     <p className="text-xs text-gray-500">
-                      {formatCurrency(item.pricePerPackage || 0, user?.currency)} per {item.packageType || 'package'}
+                      {formatCurrency(item.pricePerPackage || 0, user?.currency)}
                     </p>
                     <p className="text-sm font-semibold text-black">
                       {formatCurrency(item.subtotal, user?.currency)}
@@ -624,7 +629,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           }}
                           title="Click to view product details"
                         >
-                          {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
+                          <div className="flex flex-col">
+                            <span>{item.productName}</span>
+                            {item.variantNameSnapshot && (
+                              <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
+                            )}
+                          </div>
                         </span>
                       </td>
                       <td className="py-2">{item.packageType || 'Package'}</td>
@@ -728,9 +738,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         onClick={() => window.location.href = `/products/catalog/${item.productId}`}
                         title="Click to view product details"
                       >
-                        {item.productName}{item.variantNameSnapshot ? ` - ${item.variantNameSnapshot}` : ''}
+                        <div className="flex flex-col">
+                          <span>{item.productName}</span>
+                          {item.variantNameSnapshot && (
+                            <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
+                          )}
+                        </div>
                       </h3>
-                      <p className="text-sm text-gray-600">SKU: {item.productId}</p>
+                      {/* Removed SKU label per requirements */}
                       
                       {/* Quantity with promotion details under SKU */}
                       <p className="text-sm text-gray-600">

@@ -8,19 +8,8 @@ import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackO
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 import { validateVariant, parseVariantPrice } from '../../../../services/variantService';
 import { parsePrice } from '../../../../utils/currencyUtils';
-import { syncOrderToBuyerProfile } from '../../../../utils/buyerSync';
+import { syncOrderToBuyerProfile, buildMobileBuyerId } from '../../../../utils/buyerSync';
 // Inline function to avoid circular imports
-// Price updates are now handled by the offers API - no longer needed here
-
-interface OfferDiscountType {
-  id: string;
-  discountType: string;
-  discountValue: number;
-  minQuantity: number | null;
-  freeQuantity: number | null;
-  isActive: boolean;
-  description: string | null;
-}
 
 interface OrderItemInput {
   productId: string;
@@ -119,11 +108,15 @@ export async function GET(request: NextRequest) {
     }
     
     // Find orders for this marketplace user by buyerId
-    const marketplaceBuyerId = `LKB-${marketplaceUser.id.toString().padStart(8, '0')}`;
+    // We now create per-distributor buyerIds: LKB-<userId>-<distributorId>
+    // So fetch any order whose buyerId starts with the base pattern
+    const baseBuyerId = buildMobileBuyerId(marketplaceUser.id);
     
     const orders = await prisma.order.findMany({
       where: {
-        buyerId: marketplaceBuyerId
+        buyerId: {
+          startsWith: baseBuyerId
+        }
       },
       skip,
       take: limit,
@@ -139,7 +132,9 @@ export async function GET(request: NextRequest) {
     
     const total = await prisma.order.count({
       where: {
-        buyerId: marketplaceBuyerId
+        buyerId: {
+          startsWith: baseBuyerId
+        }
       }
     });
     
@@ -255,51 +250,54 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get distributor userId from the products
-    let distributorUserId = null;
-    let allDistributors = new Set();
-    
+    // Group items by distributor userId (seller) so each seller receives their own order
+    const distributorToItems: Map<number, OrderItemInput[]> = new Map();
     if (Array.isArray(orderItems) && orderItems.length > 0) {
-      // Get all product IDs to check their distributors
+      // Fetch the owner (userId) for all products in the order
       const productIds = orderItems.map(item => String(item.productId));
       const products = await prisma.product.findMany({
         where: { productId: { in: productIds } },
-        select: { userId: true }
+        select: { productId: true, userId: true }
       });
+      const productIdToUserId = new Map<string, number>();
+      products.forEach(p => { if (p.userId) productIdToUserId.set(p.productId, p.userId); });
       
-      // Collect all unique distributor IDs
-      products.forEach(product => {
-        if (product.userId) {
-          allDistributors.add(product.userId);
-        }
-      });
-      
-      // For now, use the first distributor found
-      // TODO: In the future, we might need to create separate orders for each distributor
-      distributorUserId = products[0]?.userId;
+      for (const item of orderItems) {
+        const ownerId = productIdToUserId.get(String(item.productId));
+        if (!ownerId) continue; // skip items with missing owner
+        if (!distributorToItems.has(ownerId)) distributorToItems.set(ownerId, []);
+        distributorToItems.get(ownerId)!.push(item as OrderItemInput);
+      }
     }
     
-    // Validate that we found a distributor
-    if (!distributorUserId) {
+    if (distributorToItems.size === 0) {
       return NextResponse.json(
-        { error: 'Unable to determine distributor for products' },
+        { error: 'Unable to determine distributors for products' },
         { status: 400, headers }
       );
     }
     
-    // Create or find buyer record for mobile marketplace user
-    const mobileBuyerId = `LKB-${marketplaceUser.id.toString().padStart(8, '0')}`;
-    
-    // Check if buyer already exists
-    let buyer = await prisma.buyer.findUnique({
-      where: { buyerId: mobileBuyerId }
-    });
-    
-    // Create buyer if it doesn't exist
-    if (!buyer) {
-      buyer = await prisma.buyer.create({
-        data: {
-          buyerId: mobileBuyerId,
+    // Create one order per distributor group
+    const createdOrders: Array<{ orderId: string }> = [];
+    let groupIndex = 0;
+    for (const [distributorUserId, itemsForDistributor] of distributorToItems.entries()) {
+      groupIndex += 1;
+      // Always use a per-distributor buyerId so attribution never collides
+      const baseBuyerId = buildMobileBuyerId(marketplaceUser.id);
+      const buyerPerDistributorId = buildMobileBuyerId(marketplaceUser.id, distributorUserId);
+      // Upsert the distributor-scoped buyer record
+      await prisma.buyer.upsert({
+        where: { buyerId: buyerPerDistributorId },
+        update: {
+          owner: marketplaceUser.name || 'Mobile User',
+          email: marketplaceUser.email || '',
+          phone: marketplaceUser.phone || '',
+          storeName: marketplaceUser.storeName || 'Mobile Store',
+          address: marketplaceUser.chosenAddress || '',
+          userId: distributorUserId,
+        },
+        create: {
+          buyerId: buyerPerDistributorId,
           owner: marketplaceUser.name || 'Mobile User',
           email: marketplaceUser.email || '',
           phone: marketplaceUser.phone || '',
@@ -307,9 +305,127 @@ export async function POST(request: NextRequest) {
           businessType: 'Retailer',
           address: marketplaceUser.chosenAddress || '',
           status: 'Active',
-          userId: distributorUserId // Associate with the distributor
+          userId: distributorUserId,
         }
       });
+      
+      // Compute group totals from items for this distributor
+      const groupSubtotal = itemsForDistributor.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0);
+      const groupTotalOrders = itemsForDistributor.reduce((sum: number, it: OrderItemInput) => sum + parseInt(String(it.packageQuantity || 1)), 0);
+      // Evenly distribute shipping and discounts across groups
+      const groupsCount = distributorToItems.size;
+      const groupShipping = parseFloat(String(shippingFee || 0)) / groupsCount;
+      const groupDiscounts = parseFloat(String(discounts || 0)) / groupsCount;
+      const groupTotalAmount = groupSubtotal + groupShipping - groupDiscounts;
+      
+      const groupOrderId = distributorToItems.size > 1 ? `${String(orderId)}-${groupIndex}` : String(orderId);
+      const orderData = {
+        orderId: groupOrderId,
+        buyerId: buyerPerDistributorId,
+        buyerIdSnapshot: buyerPerDistributorId,
+        orderDate: new Date(orderDate || new Date()),
+        orderDateSnapshot: new Date(orderDate || new Date()),
+        orderStatus: String(orderStatus || 'Pending'),
+        paymentStatus: String(paymentStatus || 'Unpaid'),
+        deliveryMethod: String(deliveryMethod || 'Distributor Fleet'),
+        subtotal: groupSubtotal,
+        discounts: groupDiscounts,
+        shippingFee: groupShipping,
+        totalAmount: groupTotalAmount,
+        paymentTerms: String(paymentTerms || 'Cash on Delivery'),
+        totalOrders: groupTotalOrders,
+        contactPerson: String(contactPerson || marketplaceUser.name || ''),
+        contactPersonSnapshot: String(contactPerson || marketplaceUser.name || ''),
+        storeName: String(storeName || marketplaceUser.storeName || ''),
+        storeNameSnapshot: String(storeName || marketplaceUser.storeName || ''),
+        contactPhone: String(contactPhone || marketplaceUser.phone || ''),
+        contactPhoneSnapshot: String(contactPhone || marketplaceUser.phone || ''),
+        customerEmail: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
+        customerEmailSnapshot: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
+        deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        userId: distributorUserId
+      };
+      const order = await prisma.order.create({ data: orderData });
+      createdOrders.push({ orderId: order.orderId });
+      
+      // Create order items for this distributor only
+      if (itemsForDistributor.length > 0) {
+        const usedOfferIds: string[] = [];
+        await prisma.$transaction(async (tx) => {
+          const orderItemPromises = itemsForDistributor.map(async (item: OrderItemInput) => {
+            const product = await tx.product.findFirst({
+              where: { productId: String(item.productId || '') },
+              include: { variants: true, variantOptions: true }
+            });
+            if (!product) throw new Error(`Product not found: ${item.productId}`);
+            const variantOption = item.variantId ? (product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0]) : product.variantOptions?.[0];
+            if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
+            const packageQuantity = parseInt(String(item.packageQuantity || 1));
+            const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
+            const totalQuantity = packageQuantity * piecesPerPackage;
+            const orderTotal = groupTotalAmount;
+            const offerValidation = await validateOfferForProduct(
+              product.productId,
+              userIdNum,
+              orderTotal,
+              totalQuantity,
+              tx,
+              packageQuantity,
+              variantOption
+            );
+            let orderItemData = {
+              orderId: order.orderId,
+              productId: String(item.productId || ''),
+              subtotal: parseFloat(String(item.subtotal || 0)),
+              packageType: String(item.packageType || 'Box'),
+              piecesPerPackage: piecesPerPackage,
+              packageQuantity: packageQuantity,
+              pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
+              productNameSnapshot: String(item.productName || 'Unknown Product'),
+              productSkuSnapshot: String(item.productSku || ''),
+              productTypeSnapshot: String(item.category || 'Uncategorized'),
+              variantNameSnapshot: String(item.variantName || 'Default'),
+              offerApplied: false,
+              offerBadgeSnapshot: null as string | null,
+              offerNameSnapshot: null as string | null,
+              originalPriceSnapshot: null as string | null,
+              discountPercentage: null as number | null,
+              discountAmount: null as number | null,
+              promotionDetailsSnapshot: null as string | null,
+              moqSnapshot: variantOption.moq || null
+            };
+            if (offerValidation.isValid && offerValidation.offerId) {
+              if (!usedOfferIds.includes(offerValidation.offerId)) usedOfferIds.push(offerValidation.offerId);
+              if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
+                await trackOfferUsageForAllTypes(offerValidation.offerId, offerValidation.applicableDiscountTypes, userIdNum, tx);
+              } else if (offerValidation.discountTypeId) {
+                await trackOfferUsageUtil(offerValidation.offerId, offerValidation.discountTypeId, userIdNum, offerValidation.discountAmount || 0, tx);
+              }
+              orderItemData = {
+                ...orderItemData,
+                offerApplied: true,
+                offerBadgeSnapshot: offerValidation.offerBadge || null,
+                offerNameSnapshot: offerValidation.offerName || null,
+                originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
+                discountPercentage: offerValidation.discountPercentage || null,
+                discountAmount: offerValidation.discountAmount || null,
+                promotionDetailsSnapshot: offerValidation.promotionDetails ? JSON.stringify(offerValidation.promotionDetails) : null
+              };
+            }
+            return tx.orderItem.create({ data: orderItemData });
+          });
+          await Promise.all(orderItemPromises);
+        });
+        if (usedOfferIds.length > 0) {
+          await updateOfferStatusesBasedOnLimits(usedOfferIds);
+        }
+      }
+      
+      // Sync the order to the buyer profile for this distributor
+      try {
+        await syncOrderToBuyerProfile((await prisma.order.findUnique({ where: { orderId: order.orderId } }))!.buyerId!, distributorUserId);
+      } catch {}
     }
     
     // Validate stock availability BEFORE creating order
@@ -408,196 +524,16 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // For mobile orders, we'll create them in the main Order table
-    // and link them to the buyer record for proper data collection
-    const orderData = {
-      orderId: String(orderId),
-      buyerId: mobileBuyerId,
-      buyerIdSnapshot: mobileBuyerId,
-      orderDate: new Date(orderDate || new Date()),
-      orderDateSnapshot: new Date(orderDate || new Date()),
-      orderStatus: String(orderStatus || 'Pending'),
-      paymentStatus: String(paymentStatus || 'Unpaid'),
-      deliveryMethod: String(deliveryMethod || 'Distributor Fleet'),
-      subtotal: parseFloat(String(subtotal || 0)),
-      discounts: parseFloat(String(discounts || 0)),
-      shippingFee: parseFloat(String(shippingFee || 0)),
-      totalAmount: parseFloat(String(totalAmount || 0)),
-      paymentTerms: String(paymentTerms || 'Cash on Delivery'),
-      totalOrders: parseInt(String(totalOrders || 1)),
-      contactPerson: String(contactPerson || marketplaceUser.name || ''),
-      contactPersonSnapshot: String(contactPerson || marketplaceUser.name || ''),
-      storeName: String(storeName || marketplaceUser.storeName || ''),
-      storeNameSnapshot: String(storeName || marketplaceUser.storeName || ''),
-      contactPhone: String(contactPhone || marketplaceUser.phone || ''),
-      contactPhoneSnapshot: String(contactPhone || marketplaceUser.phone || ''),
-      customerEmail: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
-      customerEmailSnapshot: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
-      deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
-      deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
-      userId: distributorUserId // Associate with the distributor who owns the product
-    };
-    const order = await prisma.order.create({
-      data: orderData,
-      include: {
-        orderItemsRel: true
-      }
+    
+    // Return created orders (one per distributor). Keep legacy 'order' pointing to first for backward compatibility
+    const createdOrdersFull = await prisma.order.findMany({
+      where: { orderId: { in: createdOrders.map(o => o.orderId) } },
+      include: { orderItemsRel: { include: { product: true } } }
     });
-    
-    // Create order items if provided with offer validation and tracking
-    if (Array.isArray(orderItems) && orderItems.length > 0) {
-      // Track used offer IDs for targeted deactivation
-      const usedOfferIds: string[] = [];
-      
-      await prisma.$transaction(async (tx) => {
-        
-        const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
-          // Fetch product with variant options
-          const product = await tx.product.findFirst({
-            where: { productId: String(item.productId || '') },
-            include: { 
-              variants: true, // ProductVariant definitions
-              variantOptions: true // VariantOption combinations
-            }
-          });
-          
-          if (!product) {
-            throw new Error(`Product not found: ${item.productId}`);
-          }
-          
-          // Get the specific variant option (use first or find by variantId if provided)
-          const variantOption = item.variantId ? 
-            product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0] :
-            product.variantOptions?.[0];
-          
-          if (!variantOption) {
-            throw new Error(`No variant options found for product: ${item.productId}.`);
-          }
-          
-          // Calculate total amount and quantity for validation
-          const packageQuantity = parseInt(String(item.packageQuantity || 1));
-          const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
-          const totalQuantity = packageQuantity * piecesPerPackage;
-          const orderTotal = parseFloat(String(totalAmount || 0));
-          
-          // Validate and get offer information with usage limits check
-          const offerValidation = await validateOfferForProduct(
-            product.productId,
-            userIdNum, // marketplace user ID
-            orderTotal,
-            totalQuantity,
-            tx,
-            packageQuantity, // Pass package quantity for buy_x_get_y calculations
-            variantOption // Pass variant option for accurate pricing
-          );
-          
-          // Initialize order item data
-          let orderItemData = {
-            orderId: order.orderId,
-            productId: String(item.productId || ''),
-            subtotal: parseFloat(String(item.subtotal || 0)),
-            packageType: String(item.packageType || 'Box'),
-            piecesPerPackage: piecesPerPackage,
-            packageQuantity: packageQuantity,
-            pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
-            productNameSnapshot: String(item.productName || 'Unknown Product'),
-            productSkuSnapshot: String(item.productSku || ''),
-            productTypeSnapshot: String(item.category || 'Uncategorized'),
-            variantNameSnapshot: String(item.variantName || 'Default'),
-            offerApplied: false,
-            offerBadgeSnapshot: null as string | null,
-            offerNameSnapshot: null as string | null,
-            originalPriceSnapshot: null as string | null,
-            discountPercentage: null as number | null,
-            discountAmount: null as number | null,
-            promotionDetailsSnapshot: null as string | null,
-            moqSnapshot: variantOption.moq || null // Save MOQ at time of order (in pieces)
-          };
-          
-          // If offer is valid, track usage and add snapshot data
-          if (offerValidation.isValid && offerValidation.offerId) {
-            // Add to used offer IDs for targeted deactivation
-            if (!usedOfferIds.includes(offerValidation.offerId)) {
-              usedOfferIds.push(offerValidation.offerId);
-            }
-            
-            // Track usage for all applicable discount types
-            if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
-              await trackOfferUsageForAllTypes(
-                offerValidation.offerId,
-                offerValidation.applicableDiscountTypes,
-                userIdNum,
-                tx
-              );
-            } else if (offerValidation.discountTypeId) {
-              // Fallback to single discount type tracking for backward compatibility
-              await trackOfferUsageUtil(
-                offerValidation.offerId,
-                offerValidation.discountTypeId,
-                userIdNum,
-                offerValidation.discountAmount || 0,
-                tx
-              );
-            }
-            
-            // Add offer snapshot data
-            orderItemData = {
-              ...orderItemData,
-              offerApplied: true,
-              offerBadgeSnapshot: offerValidation.offerBadge || null,
-              offerNameSnapshot: offerValidation.offerName || null,
-              originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
-              discountPercentage: offerValidation.discountPercentage || null,
-              discountAmount: offerValidation.discountAmount || null,
-              promotionDetailsSnapshot: offerValidation.promotionDetails 
-                ? JSON.stringify(offerValidation.promotionDetails)
-                : null
-            };
-            
-          }
-          
-          return tx.orderItem.create({
-            data: orderItemData
-          });
-        });
-        
-        await Promise.all(orderItemPromises);
-        
-        // Update product prices after all offer usage tracking is complete
-          // Price updates are now handled by the offers API
-      });
-      
-      // Update offer statuses after all offer usage tracking is complete
-      // Only check offers that were actually used in this order
-      if (usedOfferIds.length > 0) {
-        await updateOfferStatusesBasedOnLimits(usedOfferIds);
-      }
-    }
-    
-    // Return the created order with items
-    const createdOrder = await prisma.order.findUnique({
-      where: { orderId: order.orderId },
-      include: {
-        orderItemsRel: {
-          include: {
-            product: true
-          }
-        }
-      }
-    });
-    
-    // Auto-sync order to buyer profile if buyerId exists
-    if (createdOrder?.buyerId && distributorUserId) {
-      try {
-        await syncOrderToBuyerProfile(createdOrder.buyerId, distributorUserId);
-      } catch (syncError) {
-        // Log error but don't fail the order creation
-      }
-    }
-
     return NextResponse.json({
       success: true,
-      order: createdOrder
+      orders: createdOrdersFull,
+      order: createdOrdersFull[0]
     }, { 
       status: 201, 
       headers: {

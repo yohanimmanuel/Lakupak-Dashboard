@@ -112,6 +112,10 @@ export async function GET(request: NextRequest) {
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
         productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
+        // Variant snapshot (at purchase time)
+        variantNameSnapshot: (oi as { variantNameSnapshot?: string | null }).variantNameSnapshot || null,
+        variantId: (oi as { variantId?: number | null }).variantId || null,
+        variantOptionId: (oi as { variantOptionId?: number | null }).variantOptionId || null,
         // Offer snapshots from time of purchase
         offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
         offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
@@ -195,6 +199,10 @@ export async function GET(request: NextRequest) {
         productNameSnapshot: (oi as { productNameSnapshot?: string }).productNameSnapshot || null,
         productSkuSnapshot: (oi as { productSkuSnapshot?: string }).productSkuSnapshot || null,
         productTypeSnapshot: (oi as { productTypeSnapshot?: string }).productTypeSnapshot || null,
+        // Variant snapshot (at purchase time)
+        variantNameSnapshot: (oi as { variantNameSnapshot?: string | null }).variantNameSnapshot || null,
+        variantId: (oi as { variantId?: number | null }).variantId || null,
+        variantOptionId: (oi as { variantOptionId?: number | null }).variantOptionId || null,
         // Offer snapshots from time of purchase
         offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
         offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,

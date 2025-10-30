@@ -1142,14 +1142,35 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             {/* Show fixed discount amount if available, otherwise calculate percentage */}
                             <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
                               {(() => {
+                                // Prefer explicit percentage from offer config
+                                if (originalProduct.discountType === 'percentage' && originalProduct.discountValue) {
+                                  return `${Math.round(Number(originalProduct.discountValue))}% OFF`;
+                                }
                                 // Show fixed discount amount if available
                                 if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
                                   return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                                 }
-                                // Fallback to percentage calculation
+                                // Fallback to percentage calculation from prices
                                 if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
                                   const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice, userCurrency);
-                                  const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
+                                  // Determine current selling price safely from variantOptions or product string
+                                  const candidatePrices: number[] = [];
+                                  (originalProduct.variantOptions || []).forEach(vo => {
+                                    const p = parsePrice(String(vo.sellingPrice || ''), userCurrency);
+                                    if (p > 0) candidatePrices.push(p);
+                                  });
+                                  let currentPrice = 0;
+                                  if (candidatePrices.length > 0) {
+                                    currentPrice = Math.min(...candidatePrices);
+                                  } else {
+                                    const currentPriceStr = String(product.sellingPrice || '');
+                                    if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                                      const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                                      currentPrice = Math.min(...parts.filter(n => !isNaN(n) && n > 0));
+                                    } else {
+                                      currentPrice = parsePrice(currentPriceStr, userCurrency);
+                                    }
+                                  }
                                   if (originalPrice > currentPrice && originalPrice > 0) {
                                     const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                     return `${discountPercent}% OFF`;
@@ -1169,14 +1190,34 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         ) : originalProduct.offerBadge === 'Discount' ? (
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
                             {(() => {
+                              // Prefer explicit percentage from offer config
+                              if (originalProduct.discountType === 'percentage' && originalProduct.discountValue) {
+                                return `${Math.round(Number(originalProduct.discountValue))}% OFF`;
+                              }
                               // Show fixed discount amount if available
                               if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
                                 return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
                               }
-                              // Fallback to percentage calculation
+                              // Fallback to percentage calculation from prices
                               if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
                                 const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                                const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
+                                const candidatePrices: number[] = [];
+                                (originalProduct.variantOptions || []).forEach(vo => {
+                                  const p = parsePrice(String(vo.sellingPrice || ''), userCurrency);
+                                  if (p > 0) candidatePrices.push(p);
+                                });
+                                let currentPrice = 0;
+                                if (candidatePrices.length > 0) {
+                                  currentPrice = Math.min(...candidatePrices);
+                                } else {
+                                  const currentPriceStr = String(product.sellingPrice || '');
+                                  if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                                    const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                                    currentPrice = Math.min(...parts.filter(n => !isNaN(n) && n > 0));
+                                  } else {
+                                    currentPrice = parsePrice(currentPriceStr, userCurrency);
+                                  }
+                                }
                                 if (originalPrice > currentPrice && originalPrice > 0) {
                                   const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                   return `${discountPercent}% OFF`;
@@ -1404,9 +1445,12 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    <div className="absolute top-2 left-2">
                      {originalProduct.offerBadge === 'All Offers' ? (
                        <div className="flex items-center gap-1">
-                         {/* Show fixed discount amount if available, otherwise calculate percentage */}
+                         {/* Prefer explicit percentage; otherwise show fixed amount or calculated percent */}
                          <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                            {(() => {
+                             if (originalProduct.discountType === 'percentage' && originalProduct.discountValue) {
+                               return `${Math.round(Number(originalProduct.discountValue))}% OFF`;
+                             }
                              // Show fixed discount amount if available
                              if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
                                return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
@@ -1414,7 +1458,23 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                              // Fallback to percentage calculation
                              if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
                                const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                               const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
+                               const candidatePrices: number[] = [];
+                               (originalProduct.variantOptions || []).forEach(vo => {
+                                 const p = parsePrice(String(vo.sellingPrice || ''), userCurrency);
+                                 if (p > 0) candidatePrices.push(p);
+                               });
+                               let currentPrice = 0;
+                               if (candidatePrices.length > 0) {
+                                 currentPrice = Math.min(...candidatePrices);
+                               } else {
+                                 const currentPriceStr = String(product.sellingPrice || '');
+                                 if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                                   const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                                   currentPrice = Math.min(...parts.filter(n => !isNaN(n) && n > 0));
+                                 } else {
+                                   currentPrice = parsePrice(currentPriceStr, userCurrency);
+                                 }
+                               }
                                if (originalPrice > currentPrice && originalPrice > 0) {
                                  const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                  return `${discountPercent}% OFF`;
@@ -1434,6 +1494,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      ) : originalProduct.offerBadge === 'Discount' ? (
                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
                          {(() => {
+                           if (originalProduct.discountType === 'percentage' && originalProduct.discountValue) {
+                             return `${Math.round(Number(originalProduct.discountValue))}% OFF`;
+                           }
                            // Show fixed discount amount if available
                            if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
                              return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
@@ -1441,7 +1504,23 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                            // Fallback to percentage calculation
                            if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
                              const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                             const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
+                             const candidatePrices: number[] = [];
+                             (originalProduct.variantOptions || []).forEach(vo => {
+                               const p = parsePrice(String(vo.sellingPrice || ''), userCurrency);
+                               if (p > 0) candidatePrices.push(p);
+                             });
+                             let currentPrice = 0;
+                             if (candidatePrices.length > 0) {
+                               currentPrice = Math.min(...candidatePrices);
+                             } else {
+                               const currentPriceStr = String(product.sellingPrice || '');
+                               if (currentPriceStr.includes('–') || currentPriceStr.includes('-')) {
+                                 const parts = currentPriceStr.split(/[–-]/).map(p => parsePrice(p.trim(), userCurrency));
+                                 currentPrice = Math.min(...parts.filter(n => !isNaN(n) && n > 0));
+                               } else {
+                                 currentPrice = parsePrice(currentPriceStr, userCurrency);
+                               }
+                             }
                              if (originalPrice > currentPrice && originalPrice > 0) {
                                const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                                return `${discountPercent}% OFF`;

@@ -2,6 +2,14 @@ import { PrismaClient } from '@/generated/prisma';
 
 const prisma = new PrismaClient();
 
+// Central helper to build mobile marketplace Buyer IDs consistently across modules
+// Base: LKB-<marketplaceUserId padded>
+// Per distributor: LKB-<marketplaceUserId padded>-<distributorUserId>
+export function buildMobileBuyerId(marketplaceUserId: number, distributorUserId?: number): string {
+  const baseId = `LKB-${marketplaceUserId.toString().padStart(8, '0')}`;
+  return typeof distributorUserId === 'number' ? `${baseId}-${distributorUserId}` : baseId;
+}
+
 export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
   try {
     // Get buyer
@@ -13,10 +21,12 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       return;
     }
 
-    // Get all orders for this buyer (excluding cancelled and returned)
+    // Get all orders for this buyer that belong ONLY to the provided distributor (userId)
+    // Exclude cancelled and returned
     const orders = await prisma.order.findMany({
       where: {
         buyerId: buyerId,
+        userId: userId,
         orderStatus: { notIn: ['Cancelled', 'Returned'] } // Exclude cancelled and returned orders
       },
       include: {
@@ -80,7 +90,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       };
     });
 
-    // Update buyer with synced order details
+    // Update buyer with synced order details - scope to this distributor
     await prisma.buyer.update({
       where: { buyerId },
       data: {
