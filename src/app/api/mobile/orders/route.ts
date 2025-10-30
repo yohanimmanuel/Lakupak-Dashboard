@@ -197,12 +197,34 @@ export async function POST(request: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
+    // Verify JWT token and bind request to authenticated marketplace user
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authorization token required' },
+        { status: 401, headers }
+      );
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const { verifyAccessToken } = await import('../../../../lib/jwt');
+    let tokenUserId: number;
+    try {
+      const payload = verifyAccessToken(token);
+      tokenUserId = payload.sub;
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401, headers }
+      );
+    }
+
     const body = await request.json();
     
     const { 
       orderId, 
       buyerId, 
       orderDate, 
+      distributorUserId: distributorUserIdFromClient,
       orderItems, 
       subtotal, 
       discounts, 
@@ -242,6 +264,13 @@ export async function POST(request: NextRequest) {
     const marketplaceUser = await prisma.marketplaceUser.findUnique({
       where: { id: userIdNum }
     });
+    // Enforce that the authenticated user matches the target userId in the payload
+    if (tokenUserId !== userIdNum) {
+      return NextResponse.json(
+        { error: 'Unauthorized access to user data' },
+        { status: 403, headers }
+      );
+    }
     
     if (!marketplaceUser) {
       return NextResponse.json(
@@ -250,7 +279,177 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // If client specifies distributorUserId, treat payload as a single-distributor order
+    // Validate that all items actually belong to that distributor
+    if (typeof distributorUserIdFromClient === 'number') {
+      const productIds = Array.isArray(orderItems) ? orderItems.map((i: OrderItemInput) => String(i.productId)) : [];
+      if (productIds.length === 0) {
+        return NextResponse.json(
+          { error: 'Order items required' },
+          { status: 400, headers }
+        );
+      }
+      const products = await prisma.product.findMany({
+        where: { productId: { in: productIds } },
+        select: { productId: true, userId: true }
+      });
+      const mismatched = products.find(p => p.userId !== distributorUserIdFromClient);
+      if (mismatched) {
+        return NextResponse.json(
+          { error: `Product ${mismatched.productId} does not belong to distributor ${distributorUserIdFromClient}` },
+          { status: 400, headers }
+        );
+      }
+
+      // Proceed to create a single order attributed to the provided distributor
+      const buyerPerDistributorId = buildMobileBuyerId(marketplaceUser.id, distributorUserIdFromClient);
+
+      await prisma.buyer.upsert({
+        where: { buyerId: buyerPerDistributorId },
+        update: {
+          owner: marketplaceUser.name || 'Mobile User',
+          email: marketplaceUser.email || '',
+          phone: marketplaceUser.phone || '',
+          storeName: marketplaceUser.storeName || 'Mobile Store',
+          address: marketplaceUser.chosenAddress || '',
+          userId: distributorUserIdFromClient,
+        },
+        create: {
+          buyerId: buyerPerDistributorId,
+          owner: marketplaceUser.name || 'Mobile User',
+          email: marketplaceUser.email || '',
+          phone: marketplaceUser.phone || '',
+          storeName: marketplaceUser.storeName || 'Mobile Store',
+          businessType: 'Retailer',
+          address: marketplaceUser.chosenAddress || '',
+          status: 'Active',
+          userId: distributorUserIdFromClient,
+        }
+      });
+
+      const groupSubtotal = Array.isArray(orderItems)
+        ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0)
+        : 0;
+      const groupTotalOrders = Array.isArray(orderItems)
+        ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseInt(String(it.packageQuantity || 1)), 0)
+        : 0;
+      const groupShipping = parseFloat(String(shippingFee || 0));
+      const groupDiscounts = parseFloat(String(discounts || 0));
+      const groupTotalAmount = groupSubtotal + groupShipping - groupDiscounts;
+
+      const groupOrderId = String(orderId);
+      const orderData = {
+        orderId: groupOrderId,
+        buyerId: buyerPerDistributorId,
+        buyerIdSnapshot: buyerPerDistributorId,
+        orderDate: new Date(orderDate || new Date()),
+        orderDateSnapshot: new Date(orderDate || new Date()),
+        orderStatus: String(orderStatus || 'Pending'),
+        paymentStatus: String(paymentStatus || 'Unpaid'),
+        deliveryMethod: String(deliveryMethod || 'Distributor Fleet'),
+        subtotal: groupSubtotal,
+        discounts: groupDiscounts,
+        shippingFee: groupShipping,
+        totalAmount: groupTotalAmount,
+        paymentTerms: String(paymentTerms || 'Cash on Delivery'),
+        totalOrders: groupTotalOrders,
+        contactPerson: String(contactPerson || marketplaceUser.name || ''),
+        contactPersonSnapshot: String(contactPerson || marketplaceUser.name || ''),
+        storeName: String(storeName || marketplaceUser.storeName || ''),
+        storeNameSnapshot: String(storeName || marketplaceUser.storeName || ''),
+        contactPhone: String(contactPhone || marketplaceUser.phone || ''),
+        contactPhoneSnapshot: String(contactPhone || marketplaceUser.phone || ''),
+        customerEmail: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
+        customerEmailSnapshot: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
+        deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        userId: distributorUserIdFromClient
+      };
+      const order = await prisma.order.create({ data: orderData });
+
+      if (Array.isArray(orderItems) && orderItems.length > 0) {
+        const usedOfferIds: string[] = [];
+        await prisma.$transaction(async (tx) => {
+          const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
+            const product = await tx.product.findFirst({
+              where: { productId: String(item.productId || '') },
+              include: { variants: true, variantOptions: true }
+            });
+            if (!product) throw new Error(`Product not found: ${item.productId}`);
+            const variantOption = item.variantId ? (product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0]) : product.variantOptions?.[0];
+            if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
+            const packageQuantity = parseInt(String(item.packageQuantity || 1));
+            const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
+            const totalQuantity = packageQuantity * piecesPerPackage;
+            const orderTotal = groupTotalAmount;
+            const offerValidation = await validateOfferForProduct(
+              product.productId,
+              userIdNum,
+              orderTotal,
+              totalQuantity,
+              tx,
+              packageQuantity,
+              variantOption
+            );
+            let orderItemData = {
+              orderId: order.orderId,
+              productId: String(item.productId || ''),
+              subtotal: parseFloat(String(item.subtotal || 0)),
+              packageType: String(item.packageType || 'Box'),
+              piecesPerPackage: piecesPerPackage,
+              packageQuantity: packageQuantity,
+              pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
+              productNameSnapshot: String(item.productName || 'Unknown Product'),
+              productSkuSnapshot: String(item.productSku || ''),
+              productTypeSnapshot: String(item.category || 'Uncategorized'),
+              variantNameSnapshot: String(item.variantName || 'Default'),
+              offerApplied: false,
+              offerBadgeSnapshot: null as string | null,
+              offerNameSnapshot: null as string | null,
+              originalPriceSnapshot: null as string | null,
+              discountPercentage: null as number | null,
+              discountAmount: null as number | null,
+              promotionDetailsSnapshot: null as string | null,
+              moqSnapshot: variantOption.moq || null
+            };
+            if (offerValidation.isValid && offerValidation.offerId) {
+              if (!usedOfferIds.includes(offerValidation.offerId)) usedOfferIds.push(offerValidation.offerId);
+              if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
+                await trackOfferUsageForAllTypes(offerValidation.offerId, offerValidation.applicableDiscountTypes, userIdNum, tx);
+              } else if (offerValidation.discountTypeId) {
+                await trackOfferUsageUtil(offerValidation.offerId, offerValidation.discountTypeId, userIdNum, offerValidation.discountAmount || 0, tx);
+              }
+              orderItemData = {
+                ...orderItemData,
+                offerApplied: true,
+                offerBadgeSnapshot: offerValidation.offerBadge || null,
+                offerNameSnapshot: offerValidation.offerName || null,
+                originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
+                discountPercentage: offerValidation.discountPercentage || null,
+                discountAmount: offerValidation.discountAmount || null,
+                promotionDetailsSnapshot: offerValidation.promotionDetails ? JSON.stringify(offerValidation.promotionDetails) : null
+              };
+            }
+            return tx.orderItem.create({ data: orderItemData });
+          });
+          await Promise.all(orderItemPromises);
+        });
+        if (usedOfferIds.length > 0) {
+          await updateOfferStatusesBasedOnLimits(usedOfferIds);
+        }
+      }
+
+      try { await syncOrderToBuyerProfile(buyerPerDistributorId, distributorUserIdFromClient); } catch {}
+
+      const createdOrdersFull = await prisma.order.findMany({
+        where: { orderId: { in: [order.orderId] } },
+        include: { orderItemsRel: { include: { product: true } } }
+      });
+      return NextResponse.json({ success: true, orders: createdOrdersFull, order: createdOrdersFull[0] }, { status: 201, headers: { ...headers, 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } });
+    }
+
     // Group items by distributor userId (seller) so each seller receives their own order
+    // Ignore any incoming buyerId from the client – we always build per-distributor IDs server-side
     const distributorToItems: Map<number, OrderItemInput[]> = new Map();
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       // Fetch the owner (userId) for all products in the order
@@ -264,7 +463,13 @@ export async function POST(request: NextRequest) {
       
       for (const item of orderItems) {
         const ownerId = productIdToUserId.get(String(item.productId));
-        if (!ownerId) continue; // skip items with missing owner
+        if (!ownerId) {
+          // Do not silently drop items; fail fast so orders never get mis-attributed
+          return NextResponse.json(
+            { error: `Unable to resolve distributor for product ${String(item.productId)}. Please retry.` },
+            { status: 400, headers }
+          );
+        }
         if (!distributorToItems.has(ownerId)) distributorToItems.set(ownerId, []);
         distributorToItems.get(ownerId)!.push(item as OrderItemInput);
       }

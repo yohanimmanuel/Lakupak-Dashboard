@@ -316,6 +316,7 @@ export async function GET(request: NextRequest) {
         id: product.productId,
         name: product.name,
         description: product.description,
+        userId: product.userId,
         sellingPrice: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
         originalSellingPrice: hasActiveOffer && hasPriceDiscounts ? originalSellingPriceValue : undefined,
         // Keep old field names for backward compatibility
