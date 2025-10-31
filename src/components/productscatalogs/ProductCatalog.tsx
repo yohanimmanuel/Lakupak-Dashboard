@@ -953,6 +953,14 @@ export default function ProductCatalog({
   const isViewMode = currentMode === 'view';
   const isEditMode = currentMode === 'edit';
 
+  // Disable price editing when product has any connected offer (discount or promotion)
+  const isOfferConnected = Boolean(product && (
+    (product as { hasActiveOffer?: boolean }).hasActiveOffer ||
+    (product as { offerBadge?: string }).offerBadge ||
+    (product as { discountType?: unknown }).discountType ||
+    (product as { promotionDetails?: unknown }).promotionDetails
+  ));
+
   // Validation function to check if all required fields are filled
   const validateRequiredFields = () => {
     const requiredFields = [
@@ -2112,6 +2120,16 @@ export default function ProductCatalog({
                     </div>
               )}
                 <div className="overflow-x-auto">
+                  {isOfferConnected && (
+                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-[#0a61d7]" />
+                        <div className="text-xs text-[#0a61d7]">
+                          Prices are locked because this product has an active offer. To modify prices, first deactivate or disconnect the offer from the product.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <table className="w-full border-collapse border border-gray-300">
                     <thead className="bg-gray-50">
                       <tr>
@@ -2180,7 +2198,7 @@ export default function ProductCatalog({
                                 type="text"
                                 value={String(combination.sellingPrice)}
                                 onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
-                                disabled={isViewMode}
+                                disabled={isViewMode || isOfferConnected}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
@@ -2195,7 +2213,7 @@ export default function ProductCatalog({
                                 type="text"
                                 value={String(combination.purchasePrice)}
                                 onChange={(e) => updateCombination(combination.id, 'purchasePrice', e.target.value)}
-                                disabled={isViewMode}
+                                disabled={isViewMode || isOfferConnected}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
