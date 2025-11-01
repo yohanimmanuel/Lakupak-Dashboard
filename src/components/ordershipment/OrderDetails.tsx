@@ -1,12 +1,14 @@
 'use client';
-import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2 } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import MapComponent from './MapComponent';
+import { geocodeAddress, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
@@ -20,6 +22,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   type DeliveryMethod = Order['deliveryMethod'];
   const [formFields, setFormFields] = useState({
     deliveryAddress: order.deliveryAddress,
@@ -68,6 +72,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const customerEmailDisplay = order.buyerId ? order.customerEmail : (order.customerEmailSnapshot || order.customerEmail);
   const orderDateDisplay = order.buyerId ? order.orderDate : (order.orderDateSnapshot || order.orderDate);
   const deliveryAddressDisplay = order.buyerId ? order.deliveryAddress : (order.deliveryAddressSnapshot || order.deliveryAddress);
+
+  useEffect(() => {
+    const geocodeDeliveryAddress = async () => {
+      if (!deliveryAddressDisplay) return;
+
+      setIsGeocoding(true);
+      try {
+        const result = await geocodeAddress(deliveryAddressDisplay);
+        setGeocodeResult(result);
+      } finally {
+        setIsGeocoding(false);
+      }
+    };
+
+    geocodeDeliveryAddress();
+  }, [deliveryAddressDisplay]);
    
   // Extract unique offer badges from order items
   const getOrderOfferBadges = () => {
@@ -387,13 +407,39 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-md font-semibold text-black mb-4">Updates and Status</h2>
             
-            {/* GPS Placeholder */}
-            <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center mb-4">
-              <div className="text-center">
-                <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">GPS Map</p>
-                <p className="text-xs text-gray-400">Location tracking</p>
-              </div>
+            {/* GPS Map */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-black mb-2">Delivery Location</h3>
+              {isGeocoding ? (
+                <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
+                    <p className="text-gray-500 text-sm">Loading map...</p>
+                    <p className="text-xs text-gray-400">Geocoding address</p>
+                  </div>
+                </div>
+              ) : geocodeResult?.coordinates ? (
+                <MapComponent
+                  markers={[{
+                    id: order.id,
+                    coordinates: geocodeResult.coordinates,
+                    label: `${order.orderId} - ${order.orderStatus}`,
+                    color: getOrderStatusMarkerColor(order.orderStatus),
+                  }]}
+                  center={geocodeResult.coordinates}
+                  zoom={14}
+                  height="320px"
+                  showControls={true}
+                />
+              ) : (
+                <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Map unavailable</p>
+                    <p className="text-xs text-gray-400">Unable to locate address</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Store & Address */}

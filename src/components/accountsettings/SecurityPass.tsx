@@ -24,6 +24,7 @@ export default function SecurityPass() {
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordStep, setPasswordStep] = useState(1); // 1: current password validation, 2: new password
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   
   // Password visibility states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -46,6 +47,20 @@ export default function SecurityPass() {
     email: '',
   });
 
+  const checkPasswordExists = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch(`/api/user/check-password?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setHasPassword(data.hasPassword);
+      }
+    } catch {
+      setHasPassword(null);
+    }
+  };
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -66,6 +81,9 @@ export default function SecurityPass() {
         twoFactorEnabled: false,
         email: user?.email || '',
       });
+      
+      // Check if user has a password set
+      checkPasswordExists();
     }
   }, [user, isClient]);
 
@@ -154,22 +172,31 @@ export default function SecurityPass() {
         return;
       }
 
-      // Update password via API
-      const response = await fetch('/api/user/change-password', {
-        method: 'PUT',
+      // Use different endpoint based on whether password exists
+      const endpoint = hasPassword ? '/api/user/change-password' : '/api/user/set-password';
+      const method = hasPassword ? 'PUT' : 'POST';
+      const body = hasPassword 
+        ? {
+            userId: user?.id,
+            currentPassword: formData.currentPassword,
+            newPassword: formData.newPassword,
+          }
+        : {
+            userId: user?.id,
+            newPassword: formData.newPassword,
+          };
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: user?.id,
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to change password');
+        throw new Error(errorData.error || 'Failed to set password');
       }
 
       // Close modal and reset
@@ -182,22 +209,37 @@ export default function SecurityPass() {
         confirmPassword: '',
       }));
 
-      setSuccess('Password changed successfully');
+      // Update hasPassword state
+      setHasPassword(true);
+
+      setSuccess(hasPassword ? 'Password changed successfully' : 'Password created successfully');
       
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
     } catch (err) {
-      setModalError('Failed to change password. Please try again.');
+      setModalError(err instanceof Error ? err.message : 'Failed to set password. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOpenPasswordModal = () => {
+  const handleOpenPasswordModal = async () => {
+    // Re-check password status when opening modal
+    const response = await fetch(`/api/user/check-password?userId=${user?.id}`);
+    let passwordExists = hasPassword;
+    
+    if (response.ok) {
+      const data = await response.json();
+      passwordExists = data.hasPassword;
+      setHasPassword(passwordExists);
+    }
+    
     setShowPasswordModal(true);
-    setPasswordStep(1);
+    // If no password exists, skip to step 2 (create password)
+    // Otherwise, start at step 1 (verify current password)
+    setPasswordStep(passwordExists ? 1 : 2);
     setFormData(prev => ({
       ...prev,
       currentPassword: '',
@@ -349,7 +391,7 @@ export default function SecurityPass() {
                 className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] transition-colors flex items-center gap-2"
               >
                 <Key className="w-4 h-4" />
-                Change Password
+                {hasPassword === false ? 'Create Password' : 'Change Password'}
               </button>
             </div>
           </div>
@@ -401,7 +443,7 @@ export default function SecurityPass() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Key className="w-5 h-5 text-gray-500" />
-                Change Password
+                {hasPassword === false ? 'Create Password' : 'Change Password'}
               </h3>
               <button
                 onClick={handleClosePasswordModal}
@@ -411,25 +453,27 @@ export default function SecurityPass() {
               </button>
             </div>
 
-            {/* Step Indicator */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="flex items-center space-x-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  passwordStep >= 1 ? 'bg-[#0a61d7] text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  1
-                </div>
-                <div className={`w-12 h-0.5 ${passwordStep >= 2 ? 'bg-[#0a61d7]' : 'bg-gray-200'}`}></div>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  passwordStep >= 2 ? 'bg-[#0a61d7] text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  2
+            {/* Step Indicator - Only show if user has password */}
+            {hasPassword && (
+              <div className="flex items-center justify-center mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    passwordStep >= 1 ? 'bg-[#0a61d7] text-white' : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    1
+                  </div>
+                  <div className={`w-12 h-0.5 ${passwordStep >= 2 ? 'bg-[#0a61d7]' : 'bg-gray-200'}`}></div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    passwordStep >= 2 ? 'bg-[#0a61d7] text-white' : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    2
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Step 1: Current Password Validation */}
-            {passwordStep === 1 && (
+            {/* Step 1: Current Password Validation - Only show if user has password */}
+            {passwordStep === 1 && hasPassword && (
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Step 1: Verify Current Password</h4>
@@ -467,12 +511,19 @@ export default function SecurityPass() {
               </div>
             )}
 
-            {/* Step 2: New Password */}
+            {/* Step 2: New Password / Create Password */}
             {passwordStep === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Step 2: Set New Password</h4>
-                  <p className="text-xs text-gray-500 mb-4">Enter your new password and confirm it</p>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">
+                    {hasPassword ? 'Step 2: Set New Password' : 'Create Password'}
+                  </h4>
+                  <p className="text-xs text-gray-500 mb-4">
+                    {hasPassword 
+                      ? 'Enter your new password and confirm it'
+                      : 'Create a password for your account. You can use this to login with your email and password.'
+                    }
+                  </p>
                   
                   <div className="space-y-3">
                     <div>
@@ -518,18 +569,23 @@ export default function SecurityPass() {
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setPasswordStep(1)}
-                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-semibold"
-                  >
-                    Back
-                  </button>
+                  {hasPassword && (
+                    <button
+                      onClick={() => setPasswordStep(1)}
+                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-semibold"
+                    >
+                      Back
+                    </button>
+                  )}
                   <button
                     onClick={handlePasswordChange}
                     disabled={isLoading || !formData.newPassword.trim() || !formData.confirmPassword.trim()}
                     className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 transition-colors flex items-center gap-2"
                   >
-                    {isLoading ? 'Saving...' : 'Save Password'}
+                    {isLoading 
+                      ? (hasPassword ? 'Saving...' : 'Creating...') 
+                      : (hasPassword ? 'Save Password' : 'Create Password')
+                    }
                   </button>
                 </div>
               </div>

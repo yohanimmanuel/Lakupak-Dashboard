@@ -166,13 +166,23 @@ export default function LoginPage() {
           />
           
           <div className="flex items-center justify-between">
-            <label className="flex items-center">
-              <input 
-                type="checkbox" 
-                className="mr-2 rounded border-gray-300" 
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
+            <label className="flex items-center cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setRememberMe(!rememberMe)}
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center mr-2 ${
+                  rememberMe
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
+                aria-label={rememberMe ? 'Deselect Remember Me' : 'Select Remember Me'}
+              >
+                {rememberMe && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
               <span className="text-sm text-gray-500">Remember Me</span>
             </label>
             <a 

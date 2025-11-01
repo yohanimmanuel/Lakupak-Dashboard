@@ -26,14 +26,25 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       try {
         const email = user?.email?.toLowerCase();
         if (!email || !account) return false;
 
+        // Extract firstName, lastName from Google profile name
+        const googleName = (profile?.name as string) || user.name || '';
+        const nameParts = googleName.trim().split(' ').filter(part => part.length > 0);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Get Google profile image (Google provider includes picture in profile)
+        const googleProfile = profile as { picture?: string } & typeof profile;
+        const googleImage = googleProfile?.picture || user.image || null;
+
         // If a user with this email already exists, ensure the Google account is linked to it
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
+          // Link Google account if not already linked
           const linked = await prisma.account.findFirst({
             where: { provider: account.provider, providerAccountId: account.providerAccountId as string },
           });
@@ -51,15 +62,107 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
+          
+          // Update user profile if firstName, lastName, or avatar are missing
+          const updateData: {
+            firstName?: string;
+            lastName?: string;
+            avatar?: string | null;
+            name?: string;
+            image?: string | null;
+          } = {};
+          
+          if ((!existing.firstName || existing.firstName.trim() === '') && firstName) {
+            updateData.firstName = firstName;
+          }
+          if ((!existing.lastName || existing.lastName.trim() === '') && lastName) {
+            updateData.lastName = lastName;
+          }
+          if ((!existing.avatar || existing.avatar.trim() === '') && googleImage) {
+            updateData.avatar = googleImage;
+          }
+          
+          // Also update NextAuth's name and image fields if missing
+          if ((!existing.name || existing.name.trim() === '') && googleName) {
+            updateData.name = googleName;
+          }
+          if ((!existing.image || existing.image.trim() === '') && googleImage) {
+            updateData.image = googleImage;
+          }
+          
+          if (Object.keys(updateData).length > 0) {
+            await prisma.user.update({
+              where: { id: existing.id },
+              data: updateData,
+            });
+          }
+        } else {
+          // New user - PrismaAdapter will create the user, but we need to update it with firstName, lastName, avatar
+          // We'll do this after the adapter creates the user in the jwt callback
         }
         return true;
       } catch (e) {
         return false;
       }
     },
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user, isNewUser }) {
       if (account?.provider === "google") {
         token.provider = "google";
+        
+        // For new Google users or when account is present (first sign-in), extract and store firstName, lastName, avatar
+        if (account && (isNewUser || user?.email) && profile) {
+          const email = ((user?.email as string) || token.email)?.toLowerCase();
+          if (!email) return token;
+          
+          // Extract name parts from Google profile
+          const googleName = (profile.name as string) || (user?.name as string) || '';
+          const nameParts = googleName.trim().split(' ').filter(part => part.length > 0);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Get Google profile image (Google provider includes picture in profile)
+          const googleProfile = profile as { picture?: string } & typeof profile;
+          const googleImage = googleProfile?.picture || (user?.image as string) || null;
+          
+          // Find the user (newly created by adapter or existing)
+          const dbUser = await prisma.user.findUnique({ where: { email } });
+          
+          if (dbUser) {
+            // Update user with firstName, lastName, avatar if missing
+            const updateData: {
+              firstName?: string;
+              lastName?: string;
+              avatar?: string | null;
+              name?: string;
+              image?: string | null;
+            } = {};
+            
+            if ((!dbUser.firstName || dbUser.firstName.trim() === '') && firstName) {
+              updateData.firstName = firstName;
+            }
+            if ((!dbUser.lastName || dbUser.lastName.trim() === '') && lastName) {
+              updateData.lastName = lastName;
+            }
+            if ((!dbUser.avatar || dbUser.avatar.trim() === '') && googleImage) {
+              updateData.avatar = googleImage;
+            }
+            
+            // Also update NextAuth's name and image fields
+            if ((!dbUser.name || dbUser.name.trim() === '') && googleName) {
+              updateData.name = googleName;
+            }
+            if ((!dbUser.image || dbUser.image.trim() === '') && googleImage) {
+              updateData.image = googleImage;
+            }
+            
+            if (Object.keys(updateData).length > 0) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: updateData,
+              });
+            }
+          }
+        }
       }
       return token;
     },
@@ -88,13 +191,13 @@ export const authOptions: NextAuthOptions = {
           };
           
           extendedUser.id = dbUser.id;
-          extendedUser.firstName = dbUser.firstName;
-          extendedUser.lastName = dbUser.lastName;
+          extendedUser.firstName = dbUser.firstName || dbUser.name?.split(' ')[0] || '';
+          extendedUser.lastName = dbUser.lastName || dbUser.name?.split(' ').slice(1).join(' ') || '';
           extendedUser.phone = dbUser.phone;
           extendedUser.bio = dbUser.bio;
           extendedUser.location = dbUser.location;
-          // Use Google profile image if available, otherwise use database avatar
-          extendedUser.avatar = session.user.image || dbUser.avatar;
+          // Use database avatar first, then NextAuth image, then session image
+          extendedUser.avatar = dbUser.avatar || dbUser.image || session.user.image || null;
           extendedUser.companyId = dbUser.companyId;
           extendedUser.company = dbUser.company;
           extendedUser.region = dbUser.region;

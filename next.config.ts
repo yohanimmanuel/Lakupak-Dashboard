@@ -17,12 +17,17 @@ const nextConfig: NextConfig = {
   },
   // Allow external connections for mobile development
   serverExternalPackages: ['@prisma/client'],
-  // Configure Cloudinary images
+  // Configure Cloudinary images and Google profile images
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
         pathname: '/**',
       },
     ],

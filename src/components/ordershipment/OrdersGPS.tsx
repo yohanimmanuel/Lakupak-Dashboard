@@ -1,19 +1,30 @@
 'use client';
-import React, { useState } from "react";
-import { MapPin, Maximize2, X } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { MapPin, Maximize2, X, Loader2 } from "lucide-react";
 import { Order } from '@/types/order';
+import MapComponent from './MapComponent';
+import { geocodeMultipleAddresses, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
 interface OrdersGPSProps {
   orders: Order[];
 }
 
+interface MapMarker {
+  id: string;
+  coordinates: MapCoordinates;
+  label: string;
+  color: string;
+}
+
+
 export default function OrdersGPS({ orders }: OrdersGPSProps) {
   const [showFullScreenModal, setShowFullScreenModal] = useState(false);
+  const [geocodeResults, setGeocodeResults] = useState<Map<string, GeocodeResult>>(new Map());
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const geocodedAddressesRef = useRef<Set<string>>(new Set());
   
-  // Validate and sanitize input
   const validOrders = Array.isArray(orders) ? orders : [];
   
-  // Mock map data - replace with actual map integration
   const activeDeliveries = validOrders.filter(o => 
     ['Shipped', 'Packed'].includes(o.orderStatus)
   ).length;
@@ -21,6 +32,77 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
   const shippedOrders = validOrders.filter(o => o.orderStatus === 'Shipped').length;
   const deliveredOrders = validOrders.filter(o => o.orderStatus === 'Delivered').length;
   const pendingOrders = validOrders.filter(o => o.orderStatus === 'Pending').length;
+
+  const activeOrders = useMemo(() => {
+    return validOrders.filter(o => 
+      ['Shipped', 'Packed', 'Pending', 'Confirmed'].includes(o.orderStatus) && 
+      o.deliveryAddress
+    );
+  }, [validOrders]);
+
+  useEffect(() => {
+    const geocodeAddresses = async () => {
+      if (activeOrders.length === 0) return;
+
+      const addresses = activeOrders
+        .map(o => o.deliveryAddress)
+        .filter((addr, index, self) => self.indexOf(addr) === index && addr);
+
+      const needGeocoding = addresses.filter(addr => !geocodedAddressesRef.current.has(addr));
+
+      if (needGeocoding.length === 0) return;
+
+      needGeocoding.forEach(addr => geocodedAddressesRef.current.add(addr));
+
+      setIsGeocoding(true);
+      try {
+        const newResults = await geocodeMultipleAddresses(needGeocoding);
+        setGeocodeResults(prev => {
+          const updated = new Map(prev);
+          newResults.forEach((result, address) => {
+            updated.set(address, result);
+          });
+          return updated;
+        });
+      } finally {
+        setIsGeocoding(false);
+      }
+    };
+
+    geocodeAddresses();
+  }, [activeOrders]);
+
+  const mapMarkers: MapMarker[] = useMemo(() => {
+    return activeOrders
+      .map((order) => {
+        const geocodeResult = geocodeResults.get(order.deliveryAddress);
+        if (!geocodeResult?.coordinates) return null;
+
+        return {
+          id: order.id,
+          coordinates: geocodeResult.coordinates,
+          label: `${order.orderId} - ${order.orderStatus}`,
+          color: getOrderStatusMarkerColor(order.orderStatus),
+        };
+      })
+      .filter((marker): marker is MapMarker => marker !== null);
+  }, [activeOrders, geocodeResults]);
+
+  const mapCenter: MapCoordinates | undefined = useMemo(() => {
+    if (mapMarkers.length === 0) return undefined;
+
+    const avgLng = mapMarkers.reduce((sum, m) => sum + m.coordinates.longitude, 0) / mapMarkers.length;
+    const avgLat = mapMarkers.reduce((sum, m) => sum + m.coordinates.latitude, 0) / mapMarkers.length;
+
+    return { longitude: avgLng, latitude: avgLat };
+  }, [mapMarkers]);
+
+  const handleMarkerClick = (markerId: string) => {
+    const order = validOrders.find(o => o.id === markerId);
+    if (order) {
+      window.location.href = `/orders/details/${order.orderId}`;
+    }
+  };
 
   return (
     <>
@@ -43,15 +125,32 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           </div>
         </div>
         
-        {/* Map Placeholder */}
-        <div className="bg-gray-100 rounded-lg h-83 flex items-center justify-center">
-          <div className="text-center">
-            <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">Interactive Map</p>
-            <p className="text-sm text-gray-400">Real-time delivery tracking</p>
-            <p className="text-xs text-gray-400 mt-1">Map integration coming soon</p>
+        {/* Map */}
+        {isGeocoding && mapMarkers.length === 0 ? (
+          <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-spin" />
+              <p className="text-gray-500 font-medium">Loading map...</p>
+              <p className="text-sm text-gray-400">Geocoding delivery addresses</p>
+            </div>
           </div>
-        </div>
+        ) : mapMarkers.length > 0 ? (
+          <MapComponent
+            markers={mapMarkers}
+            center={mapCenter}
+            height="400px"
+            showControls={true}
+            onMarkerClick={handleMarkerClick}
+          />
+        ) : (
+          <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
+            <div className="text-center">
+              <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No active deliveries</p>
+              <p className="text-sm text-gray-400">Orders with delivery addresses will appear here</p>
+            </div>
+          </div>
+        )}
         
         {/* Quick Stats Below Map */}
         <div className="grid grid-cols-3 gap-4 mt-4">
@@ -84,13 +183,33 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
             </button>
             
             {/* Full Size Map */}
-            <div className="w-full h-full min-h-[80vh] bg-gray-100 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-32 h-32 text-gray-400 mx-auto mb-6" />
-                <p className="text-2xl text-gray-500 font-medium">Interactive Map - Full Screen</p>
-                <p className="text-lg text-gray-400">Real-time delivery tracking</p>
-                <p className="text-sm text-gray-400 mt-2">Map integration coming soon</p>
-              </div>
+            <div className="w-full h-full min-h-[80vh] p-6">
+              {isGeocoding && mapMarkers.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="text-center">
+                    <Loader2 className="w-16 h-16 text-gray-400 mx-auto mb-4 animate-spin" />
+                    <p className="text-xl text-gray-500 font-medium">Loading map...</p>
+                    <p className="text-sm text-gray-400">Geocoding delivery addresses</p>
+                  </div>
+                </div>
+              ) : mapMarkers.length > 0 ? (
+                <MapComponent
+                  markers={mapMarkers}
+                  center={mapCenter}
+                  height="100%"
+                  className="min-h-[80vh]"
+                  showControls={true}
+                  onMarkerClick={handleMarkerClick}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="text-center">
+                    <MapPin className="w-32 h-32 text-gray-400 mx-auto mb-6" />
+                    <p className="text-2xl text-gray-500 font-medium">No active deliveries</p>
+                    <p className="text-lg text-gray-400">Orders with delivery addresses will appear here</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
