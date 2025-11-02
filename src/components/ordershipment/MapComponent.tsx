@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { MapCoordinates } from '@/utils/mapboxUtils';
+import { MapCoordinates, getMarkerSize, getMarkerContainerStyle } from '@/utils/mapboxUtils';
 
 const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -54,7 +54,7 @@ export default function MapComponent({
     });
 
     if (showControls) {
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
     }
 
     return () => {
@@ -79,19 +79,26 @@ export default function MapComponent({
 
         const el = document.createElement('div');
         el.className = 'custom-marker';
-        el.style.width = '32px';
-        el.style.height = '32px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor = markerData.color || '#0a61d7';
-        el.style.border = '3px solid white';
-        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        
+        const hasLabel = !!markerData.label;
+        const markerSize = getMarkerSize(hasLabel);
+        const containerStyle = getMarkerContainerStyle(hasLabel);
+        
+        el.style.width = markerSize.width;
+        el.style.height = markerSize.height;
         el.style.cursor = 'pointer';
-        el.style.display = 'flex';
-        el.style.alignItems = 'center';
-        el.style.justifyContent = 'center';
-
-        if (markerData.label) {
-          el.innerHTML = `<span style="color: white; font-size: 12px; font-weight: bold;">${markerData.label}</span>`;
+        
+        if (hasLabel) {
+          Object.assign(el.style, containerStyle);
+          el.innerHTML = `
+            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: ${markerData.color || '#0a61d7'}; border: 3px solid white; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+            <span style="color: #000000; font-size: 11px; font-weight: bold; white-space: nowrap; margin-left: 0;">${markerData.label}</span>
+          `;
+        } else {
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = markerData.color || '#0a61d7';
+          el.style.border = '3px solid white';
+          el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
         }
 
         const marker = new mapboxgl.Marker(el)

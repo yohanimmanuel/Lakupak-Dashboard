@@ -40,6 +40,57 @@ export function getOrderStatusMarkerColor(status: string): string {
   }
 }
 
+/**
+ * Determine if a color is light or dark for contrast calculation
+ */
+function isLightColor(color: string): boolean {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 155;
+}
+
+/**
+ * Get appropriate text color for a background color
+ * Returns white for dark backgrounds, black for light backgrounds
+ */
+export function getContrastingTextColor(backgroundColor: string): string {
+  return isLightColor(backgroundColor) ? '#000000' : '#ffffff';
+}
+
+/**
+ * Get optimized marker size based on whether it has a label
+ */
+export function getMarkerSize(hasLabel: boolean): { width: string; height: string } {
+  if (hasLabel) {
+    return { width: 'auto', height: '32px' };
+  }
+  return { width: '32px', height: '32px' };
+}
+
+/**
+ * Get marker container style based on whether it has a label
+ */
+export function getMarkerContainerStyle(hasLabel: boolean): React.CSSProperties {
+  if (hasLabel) {
+    return {
+      display: 'flex',
+      flexDirection: 'row' as const,
+      alignItems: 'center',
+      gap: '8px',
+      background: 'white',
+      borderRadius: '30px',
+      padding: '4px 8px 4px 4px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+      whiteSpace: 'nowrap',
+    };
+  }
+  return {};
+}
+
 const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult> {
