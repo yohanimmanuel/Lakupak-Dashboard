@@ -106,7 +106,8 @@ export default function MapComponent({
           .addTo(map.current!);
 
         if (markerData.label) {
-          const popup = new mapboxgl.Popup({ offset: 25 }).setText(markerData.label);
+          const popup = new mapboxgl.Popup({ offset: 25 })
+            .setHTML(`<div style="color: #000000;">${markerData.label}</div>`);
           marker.setPopup(popup);
         }
 
