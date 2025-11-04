@@ -79,7 +79,11 @@ export async function GET(request: NextRequest) {
         },
         include: {
           buyer: true,
-          user: true,
+          user: {
+            include: {
+              company: true
+            }
+          },
           orderItemsRel: {
             include: {
               product: true

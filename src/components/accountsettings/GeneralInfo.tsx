@@ -147,10 +147,7 @@ export default function GeneralInfo() {
         validationErrors.push('Bio must be less than 500 characters');
       }
 
-      // Location validation (optional but if provided, must be reasonable length)
-      if (formData.location.trim() && formData.location.trim().length > 100) {
-        validationErrors.push('Location must be less than 100 characters');
-      }
+      // Location validation removed - no character limit
 
       // XSS prevention
       const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
