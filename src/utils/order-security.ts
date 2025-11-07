@@ -211,6 +211,44 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
       return { valid: false, error: 'Invalid delivery method' };
     }
   }
+
+  if (orderData.deliveryOption !== undefined) {
+    const validDeliveryOptions = [
+      'standard',
+      'standard_delivery',
+      'express',
+      'express_delivery',
+      'same_day',
+      'next_day',
+      'scheduled',
+      'scheduled_delivery',
+      'scheduled_pickup',
+      'pickup',
+      'pickup_scheduled',
+      'distributor_fleet'
+    ];
+    if (String(orderData.deliveryOption).trim().length > 0 && !validDeliveryOptions.includes(String(orderData.deliveryOption).trim().toLowerCase())) {
+      return { valid: false, error: 'Invalid delivery option' };
+    }
+  }
+
+  const validateDateField = (value: unknown, fieldName: string) => {
+    if (value === undefined || value === null || String(value).trim().length === 0) {
+      return true;
+    }
+    const parsed = new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`Invalid ${fieldName} value`);
+    }
+    return true;
+  };
+
+  try {
+    validateDateField(orderData.preferredDeliveryDate, 'preferredDeliveryDate');
+    validateDateField(orderData.preferredPickupDate, 'preferredPickupDate');
+  } catch (error) {
+    return { valid: false, error: error instanceof Error ? error.message : 'Invalid date format' };
+  }
   
   // Numeric validations for provided fields
   if (orderData.subtotal !== undefined && (isNaN(Number(orderData.subtotal)) || Number(orderData.subtotal) < 0)) {
@@ -285,6 +323,23 @@ export const sanitizeOrderData = (data: unknown) => {
   if (orderData.deliveryMethod !== undefined) {
     sanitized.deliveryMethod = String(orderData.deliveryMethod).trim();
   }
+
+  if (orderData.shippingMethodLabel !== undefined) {
+    sanitized.shippingMethodLabel = orderData.shippingMethodLabel
+      ? String(orderData.shippingMethodLabel).trim()
+      : null;
+  }
+
+  if (orderData.shippingMethod !== undefined) {
+    sanitized.shippingMethod = orderData.shippingMethod
+      ? String(orderData.shippingMethod).trim()
+      : null;
+  }
+
+  if (orderData.deliveryOption !== undefined) {
+    const option = orderData.deliveryOption ? String(orderData.deliveryOption).trim().toLowerCase() : '';
+    sanitized.deliveryOption = option.length > 0 ? option : null;
+  }
   
   if (orderData.paymentTerms !== undefined) {
     sanitized.paymentTerms = String(orderData.paymentTerms).trim();
@@ -315,7 +370,8 @@ export const sanitizeOrderData = (data: unknown) => {
   }
   
   if (orderData.preferredDeliveryTime !== undefined) {
-    sanitized.preferredDeliveryTime = orderData.preferredDeliveryTime ? String(orderData.preferredDeliveryTime).trim() : null;
+    const trimmed = orderData.preferredDeliveryTime ? String(orderData.preferredDeliveryTime).trim() : '';
+    sanitized.preferredDeliveryTime = trimmed.length > 0 ? trimmed : null;
   }
   
   if (orderData.assignedLogistics !== undefined) {
@@ -334,6 +390,29 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.deliveryConfirmation = orderData.deliveryConfirmation ? String(orderData.deliveryConfirmation).trim() : null;
   }
   
+  if (orderData.preferredDeliveryDate !== undefined) {
+    const value = orderData.preferredDeliveryDate;
+    if (value === null || String(value).trim().length === 0) {
+      sanitized.preferredDeliveryDate = null;
+    } else {
+      sanitized.preferredDeliveryDate = new Date(String(value));
+    }
+  }
+
+  if (orderData.preferredPickupDate !== undefined) {
+    const value = orderData.preferredPickupDate;
+    if (value === null || String(value).trim().length === 0) {
+      sanitized.preferredPickupDate = null;
+    } else {
+      sanitized.preferredPickupDate = new Date(String(value));
+    }
+  }
+
+  if (orderData.preferredPickupTime !== undefined) {
+    const trimmed = orderData.preferredPickupTime ? String(orderData.preferredPickupTime).trim() : '';
+    sanitized.preferredPickupTime = trimmed.length > 0 ? trimmed : null;
+  }
+
   if (orderData.pod !== undefined) {
     sanitized.pod = orderData.pod ? String(orderData.pod).trim() : null;
   }

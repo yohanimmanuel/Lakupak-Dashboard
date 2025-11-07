@@ -7,6 +7,9 @@ export interface Order {
   orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
   paymentStatus: 'Unpaid' | 'Paid';
   deliveryMethod: 'Distributor Fleet' | '3rd-Party Courier' | 'Pickup';
+  deliveryOption?: string | null;
+  shippingMethodLabel?: string;
+  shippingMethod?: string;
   subtotal: number;
   discounts: number;
   shippingFee: number;
@@ -27,7 +30,10 @@ export interface Order {
 
   // ===== SECTION 5: DELIVERY SERVICE (Bottom Right) =====
   deliveryAddress: string;
+  preferredDeliveryDate?: string | Date;
   preferredDeliveryTime?: string;
+  preferredPickupDate?: string | Date;
+  preferredPickupTime?: string;
   assignedLogistics?: string;
   trackingNumber?: string;
   deliveryNote?: string;

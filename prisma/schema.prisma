@@ -208,6 +208,7 @@ model Order {
   orderStatus             String
   paymentStatus           String
   deliveryMethod          String
+  deliveryOption          String?
   subtotal                Float
   discounts               Float
   shippingFee             Float
@@ -219,12 +220,17 @@ model Order {
   contactPhone            String
   customerEmail           String?
   deliveryAddress         String
+  preferredDeliveryDate   DateTime?   @db.Timestamptz(3)
   preferredDeliveryTime   String?
+  preferredPickupDate     DateTime?   @db.Timestamptz(3)
+  preferredPickupTime     String?
   assignedLogistics       String?
   trackingNumber          String?
   deliveryNote            String?
   deliveryConfirmation    String?
   pod                     String?
+  shippingMethodLabel     String?
+  shippingMethod          String?
   createdAt               DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
   acceptedBy              String?

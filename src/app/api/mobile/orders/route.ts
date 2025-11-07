@@ -237,9 +237,16 @@ export async function POST(request: NextRequest) {
       customerEmail, 
       deliveryAddress, 
       deliveryMethod, 
+      deliveryOption,
       orderStatus, 
       paymentStatus, 
       paymentTerms, 
+      preferredDeliveryDate,
+      preferredDeliveryTime,
+      preferredPickupDate,
+      preferredPickupTime,
+      shippingMethodLabel,
+      shippingMethod,
       userId 
     } = body;
     
@@ -279,6 +286,36 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    const normalizeDeliveryOption = (value: unknown) => {
+      if (!value) return null;
+      const trimmed = String(value).trim().toLowerCase();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const parseOptionalDate = (value: unknown) => {
+      if (!value) return null;
+      const parsed = new Date(String(value));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const normalizeTimeValue = (value: unknown) => {
+      if (!value) return null;
+      const trimmed = String(value).trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const normalizedDeliveryOption = normalizeDeliveryOption(deliveryOption);
+    const normalizedShippingLabel = typeof shippingMethodLabel === 'string' && shippingMethodLabel.trim().length > 0
+      ? shippingMethodLabel.trim()
+      : null;
+    const normalizedShippingMethod = typeof shippingMethod === 'string' && shippingMethod.trim().length > 0
+      ? shippingMethod.trim()
+      : normalizedShippingLabel;
+    const normalizedPreferredDeliveryDate = parseOptionalDate(preferredDeliveryDate);
+    const normalizedPreferredPickupDate = parseOptionalDate(preferredPickupDate);
+    const normalizedPreferredDeliveryTime = normalizeTimeValue(preferredDeliveryTime);
+    const normalizedPreferredPickupTime = normalizeTimeValue(preferredPickupTime);
+
     // If client specifies distributorUserId, treat payload as a single-distributor order
     // Validate that all items actually belong to that distributor
     if (typeof distributorUserIdFromClient === 'number') {
@@ -347,6 +384,7 @@ export async function POST(request: NextRequest) {
         orderStatus: String(orderStatus || 'Pending'),
         paymentStatus: String(paymentStatus || 'Unpaid'),
         deliveryMethod: String(deliveryMethod || 'Distributor Fleet'),
+        deliveryOption: normalizedDeliveryOption,
         subtotal: groupSubtotal,
         discounts: groupDiscounts,
         shippingFee: groupShipping,
@@ -363,6 +401,12 @@ export async function POST(request: NextRequest) {
         customerEmailSnapshot: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
         deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
         deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        preferredDeliveryDate: normalizedPreferredDeliveryDate,
+        preferredDeliveryTime: normalizedPreferredDeliveryTime,
+        preferredPickupDate: normalizedPreferredPickupDate,
+        preferredPickupTime: normalizedPreferredPickupTime,
+        shippingMethodLabel: normalizedShippingLabel,
+        shippingMethod: normalizedShippingMethod,
         userId: distributorUserIdFromClient
       };
       const order = await prisma.order.create({ data: orderData });
@@ -533,6 +577,7 @@ export async function POST(request: NextRequest) {
         orderStatus: String(orderStatus || 'Pending'),
         paymentStatus: String(paymentStatus || 'Unpaid'),
         deliveryMethod: String(deliveryMethod || 'Distributor Fleet'),
+        deliveryOption: normalizedDeliveryOption,
         subtotal: groupSubtotal,
         discounts: groupDiscounts,
         shippingFee: groupShipping,
@@ -549,6 +594,12 @@ export async function POST(request: NextRequest) {
         customerEmailSnapshot: customerEmail ? String(customerEmail) : (marketplaceUser.email || ''),
         deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
         deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+        preferredDeliveryDate: normalizedPreferredDeliveryDate,
+        preferredDeliveryTime: normalizedPreferredDeliveryTime,
+        preferredPickupDate: normalizedPreferredPickupDate,
+        preferredPickupTime: normalizedPreferredPickupTime,
+        shippingMethodLabel: normalizedShippingLabel,
+        shippingMethod: normalizedShippingMethod,
         userId: distributorUserId
       };
       const order = await prisma.order.create({ data: orderData });

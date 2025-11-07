@@ -168,6 +168,78 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const endIndex = startIndex + earningsPerPage;
   const currentEarningsItems = order.orderItems.slice(startIndex, endIndex);
 
+  const formatDeliveryOption = (value: string) => {
+    if (!value) return '';
+    return value
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  };
+
+  const parseDateValue = (value?: string | Date | null) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const formatSchedule = (dateValue?: string | Date | null, timeValue?: string | null) => {
+    const parsedDate = parseDateValue(dateValue);
+    const trimmedTime = timeValue?.trim();
+
+    if (parsedDate && trimmedTime) {
+      const [hoursStr, minutesStr] = trimmedTime.split(':');
+      const hours = Number(hoursStr);
+      const minutes = Number(minutesStr);
+      if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+        const adjustedDate = new Date(parsedDate);
+        adjustedDate.setHours(hours, minutes, 0, 0);
+        return adjustedDate.toLocaleString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+      }
+    }
+
+    if (parsedDate) {
+      return parsedDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+
+    return trimmedTime || null;
+  };
+
+  const shippingMethodLabel =
+    order.shippingMethodLabel ||
+    order.shippingMethod ||
+    (typeof order.deliveryOption === 'string' ? order.deliveryOption : '') ||
+    order.deliveryMethod ||
+    '';
+  const normalizedShippingMethod = shippingMethodLabel.toLowerCase();
+  const formattedShippingOption = shippingMethodLabel ? formatDeliveryOption(shippingMethodLabel) : '';
+  const isPickupMethod = normalizedShippingMethod.includes('pickup');
+  const isScheduledMethod = normalizedShippingMethod.includes('scheduled');
+
+  const scheduleDateCandidate = isPickupMethod
+    ? order.preferredPickupDate || order.preferredDeliveryDate || null
+    : order.preferredDeliveryDate || order.preferredPickupDate || null;
+
+  const scheduleTimeCandidate = isPickupMethod
+    ? order.preferredPickupTime || order.preferredDeliveryTime || null
+    : order.preferredDeliveryTime || order.preferredPickupTime || null;
+
+  const formattedSchedule = formatSchedule(scheduleDateCandidate, scheduleTimeCandidate);
+  const shouldShowScheduleNotice = (isPickupMethod || isScheduledMethod) && Boolean(formattedSchedule);
+
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
       <div className="w-full mx-auto">
@@ -367,9 +439,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <span className="text-gray-600">Total Order price:</span>
                   <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex flex-col">
                   <span className="text-gray-600">Shipping fee:</span>
+                  </div>
+                  <div className="flex flex-col items-end">
                   <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Currency:</span>
@@ -385,6 +461,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
               </div>
             </div>
+
+            {shouldShowScheduleNotice && formattedSchedule ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                <div className="text-sm font-semibold text-yellow-800 mb-1">
+                  {isPickupMethod ? 'Scheduled Pickup' : 'Scheduled Delivery'}
+                </div>
+                <div className="text-xs text-yellow-700">
+                  {isPickupMethod
+                    ? 'Pickup has been scheduled for'
+                    : 'Delivery has been scheduled for'}{' '}
+                  <span className="font-semibold">{formattedSchedule}</span>
+                </div>
+              </div>
+            ) : null}
 
             {/* Service Provider Card */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
@@ -433,11 +523,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 />
               ) : (
                 <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <div className="text-center">
+                <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-500 text-sm">Map unavailable</p>
                     <p className="text-xs text-gray-400">Unable to locate address</p>
-                  </div>
+              </div>
                 </div>
               )}
             </div>
