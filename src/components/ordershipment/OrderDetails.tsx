@@ -238,6 +238,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
   const formattedSchedule = formatSchedule(scheduleDateCandidate, scheduleTimeCandidate);
   const shouldShowScheduleNotice = (isPickupMethod || isScheduledMethod) && Boolean(formattedSchedule);
+  const highlightShipping = isPickupMethod || isScheduledMethod;
+  const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
 
   return (
@@ -441,10 +443,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex flex-col">
-                  <span className="text-gray-600">Shipping fee:</span>
+                    <span className="text-gray-600">Shipping fee:</span>
                   </div>
                   <div className="flex flex-col items-end">
-                  <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
+                    <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
@@ -459,15 +461,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <span className="text-gray-600">Delivery Method:</span>
                   <span className="text-black font-medium">{order.deliveryMethod}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Shipping Option:</span>
+                  <span className={shippingAccentClass}>{formattedShippingOption || 'Not specified'}</span>
+                </div>
               </div>
             </div>
 
             {shouldShowScheduleNotice && formattedSchedule ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                <div className="text-sm font-semibold text-yellow-800 mb-1">
+                <div className="text-sm font-semibold text-yellow-700 mb-1">
                   {isPickupMethod ? 'Scheduled Pickup' : 'Scheduled Delivery'}
                 </div>
-                <div className="text-xs text-yellow-700">
+                <div className="text-xs text-yellow-600">
                   {isPickupMethod
                     ? 'Pickup has been scheduled for'
                     : 'Delivery has been scheduled for'}{' '}
