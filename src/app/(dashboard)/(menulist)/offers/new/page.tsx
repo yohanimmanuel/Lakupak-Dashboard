@@ -40,7 +40,6 @@ export default function CreateOfferPage() {
     timeSlots,
     startDate,
     endDate,
-    maxUsage,
     perCustomerLimit,
     selectedProducts,
     productOfferBadges,
@@ -65,7 +64,6 @@ export default function CreateOfferPage() {
     removeTimeSlot,
     setStartDate,
     setEndDate,
-    setMaxUsage,
     setPerCustomerLimit,
     addProduct,
     removeProduct,
@@ -224,7 +222,6 @@ export default function CreateOfferPage() {
                 discountValue: dt.discountValue,
                 minOrderValue: typeof dt.minOrderValue === 'number' ? String(dt.minOrderValue) : dt.minOrderValue ?? undefined,
                 minQuantity: dt.minQuantity ?? undefined,
-                maxUsage: dt.maxUsage ?? undefined,
                 perCustomerLimit: dt.perCustomerLimit ?? undefined,
                 isActive: dt.isActive,
                 priority: dt.priority ?? discountTypes.length + 1,
@@ -238,7 +235,6 @@ export default function CreateOfferPage() {
                 discountValue: updates.discountValue,
                 minOrderValue: typeof updates.minOrderValue === 'number' ? String(updates.minOrderValue) : updates.minOrderValue ?? undefined,
                 minQuantity: updates.minQuantity ?? undefined,
-                maxUsage: updates.maxUsage ?? undefined,
                 perCustomerLimit: updates.perCustomerLimit ?? undefined,
                 isActive: updates.isActive,
                 priority: updates.priority,
@@ -318,7 +314,6 @@ export default function CreateOfferPage() {
       discountValue: typeData.discountValue,
       minOrderValue: typeData.minOrderValue ?? undefined,
       minQuantity: typeData.minQuantity ?? undefined,
-      maxUsage: typeData.maxUsage ?? undefined,
       perCustomerLimit: typeData.perCustomerLimit ?? undefined,
       isActive: true,
       priority: discountTypes.length + 1,
@@ -330,7 +325,6 @@ export default function CreateOfferPage() {
     if (typeData.description) setDescription(typeData.description);
     if (typeData.minOrderValue) setMinOrderValue(typeData.minOrderValue);
     if (typeData.minQuantity) setMinQuantity(typeData.minQuantity);
-    if (typeData.maxUsage) setMaxUsage(typeData.maxUsage);
     if (typeData.perCustomerLimit) setPerCustomerLimit(typeData.perCustomerLimit);
     
     setOfferTypeConfigured(true);

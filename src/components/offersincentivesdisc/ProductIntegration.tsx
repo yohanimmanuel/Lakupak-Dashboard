@@ -282,7 +282,7 @@ export default function ProductIntegration({
         const products = productsData.products || productsData;
         const offers = offersData.offers || [];
         
-        // Get all product IDs that already have active offers
+        // Get all product IDs that already belong to any offer (active or inactive)
         // Exclude products from the CURRENT offer being edited (if in edit mode)
         const currentOfferId = offerData?.offerId;
         const productsWithOffers = new Set<string>();
@@ -290,7 +290,7 @@ export default function ProductIntegration({
           // Skip the current offer being edited
           if (offer.offerId === currentOfferId) return;
           
-          if (offer.status === 'active' && offer.products) {
+          if (offer.products && offer.products.length > 0) {
             offer.products.forEach((product: OfferProduct) => {
               productsWithOffers.add(product.productId);
             });
@@ -881,7 +881,7 @@ export default function ProductIntegration({
                       {shouldShowAsDisabled(product.productId) && (
                         <div className="mt-1">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Has Active Offer
+                          Has Offer
                           </span>
                         </div>
                       )}
@@ -1006,7 +1006,7 @@ export default function ProductIntegration({
                       {shouldShowAsDisabled(product.productId) && (
                         <div className="mt-1">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Has Active Offer
+                          Has Offer
                           </span>
                         </div>
                       )}

@@ -119,10 +119,10 @@ export default function LoginPage() {
   }, [email, password, rememberMe, router, setUser, handleError, clearError, startLoading, stopLoading]);
 
   return (
-    <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
+    <div className="min-h-screen w-full bg-white flex flex-col lg:grid lg:grid-cols-9">
       {/* Left: Login Form */}
-      <div className="col-span-4 justify-center flex flex-col p-16 bg-white animate-fade-in-left">
-        <div className="flex flex-col items-center justify-center text-center">
+      <div className="w-full lg:col-span-4 flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-16 bg-white animate-fade-in-left">
+        <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
           <a href="/" aria-label="Go to homepage">
             <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-13 mb-4" />
           </a>
@@ -143,8 +143,7 @@ export default function LoginPage() {
             onClose={() => setSuccess('')}
           />
         )}
-        
-        <form className="space-y-4" onSubmit={handleLogin}>
+        <form className="space-y-4 max-w-md mx-auto w-full" onSubmit={handleLogin}>
           <ValidatedInput
             label="Email"
             type="email"
@@ -203,12 +202,12 @@ export default function LoginPage() {
             Log In
           </LoadingButton>
         </form>
-        <div className="my-4 flex items-center">
+        <div className="my-4 flex items-center max-w-md mx-auto w-full">
           <div className="flex-grow h-px bg-gray-200" />
           <span className="mx-4 text-gray-400 text-sm">Or Login With</span>
           <div className="flex-grow h-px bg-gray-200" />
         </div>
-        <div className="flex space-x-4">
+        <div className="flex space-x-4 max-w-md mx-auto w-full">
           <button
             type="button"
             onClick={async () => {
@@ -232,7 +231,7 @@ export default function LoginPage() {
         </p>
       </div>
       {/* Right: Placeholder for Distribution/Retailing Image */}
-      <div className="col-span-5 bg-blue-600 flex items-center justify-center animate-fade-in-right">
+      <div className="hidden lg:flex lg:col-span-5 bg-blue-600 items-center justify-center animate-fade-in-right">
         <span className="text-white text-2xl font-bold">[Distribution/Retailing Image Placeholder]</span>
       </div>
     </div>

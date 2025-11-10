@@ -805,10 +805,9 @@ async function resetOriginalPricesForUser(userId: number) {
       }
     });
 
-    // Find all legacy variants with null originalSellingPrice
-    const variantsWithNullOriginalPrice = await prisma.productVariant.findMany({
+    // Find all legacy variants with null originalSellingPrice (if field still exists)
+    const legacyVariants = await prisma.productVariant.findMany({
       where: {
-        originalSellingPrice: null,
         product: {
           userId: userId
         }
@@ -816,6 +815,11 @@ async function resetOriginalPricesForUser(userId: number) {
       include: {
         product: true
       }
+    });
+
+    const variantsWithNullOriginalPrice = legacyVariants.filter((variant) => {
+      const legacyVariant = variant as { originalSellingPrice?: string | null };
+      return legacyVariant.originalSellingPrice === null;
     });
 
     // Update variant options to set originalSellingPrice = sellingPrice

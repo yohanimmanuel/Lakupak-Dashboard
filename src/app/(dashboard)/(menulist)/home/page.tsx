@@ -662,12 +662,26 @@ export default function HomePage() {
         setLoading(true);
         setError(null);
 
-        const limitQuery = user?.id ? `?userId=${user.id}&limit=1000` : '?limit=1000';
-        const [ordersResponse, productsResponse, buyersResponse, suppliersResponse] = await Promise.all([
-          fetch(`/api/orders${limitQuery}`, { signal: controller.signal }),
-          fetch(`/api/products${limitQuery}`, { signal: controller.signal }),
-          fetch(`/api/buyers${limitQuery}`, { signal: controller.signal }),
-          fetch(`/api/suppliers${limitQuery}`, { signal: controller.signal }),
+        const hasUserId = typeof user?.id === 'number' && !Number.isNaN(user.id);
+        const ordersQuery = hasUserId ? `?userId=${user!.id}&limit=1000` : '?limit=1000';
+        const productsQuery = ordersQuery;
+        const buyersUrl = hasUserId
+          ? `/api/buyers?userId=${user!.id}&limit=100`
+          : null;
+        const suppliersUrl = hasUserId
+          ? `/api/suppliers?userId=${user!.id}&limit=100`
+          : null;
+
+        const [
+          ordersResponse,
+          productsResponse,
+          buyersResponse,
+          suppliersResponse,
+        ] = await Promise.all([
+          fetch(`/api/orders${ordersQuery}`, { signal: controller.signal }),
+          fetch(`/api/products${productsQuery}`, { signal: controller.signal }),
+          buyersUrl ? fetch(buyersUrl, { signal: controller.signal }) : Promise.resolve(null),
+          suppliersUrl ? fetch(suppliersUrl, { signal: controller.signal }) : Promise.resolve(null),
         ]);
 
         if (!ordersResponse.ok) {
@@ -712,7 +726,7 @@ export default function HomePage() {
           setProducts([]);
         }
 
-        if (buyersResponse.ok) {
+        if (buyersResponse && buyersResponse.ok) {
           const rawBuyers = await buyersResponse.json();
           const buyersListRaw = Array.isArray(rawBuyers.buyers)
             ? rawBuyers.buyers
@@ -729,11 +743,13 @@ export default function HomePage() {
             }
           });
           setBuyers(normalizedBuyers);
+        } else if (buyersResponse) {
+          setBuyers([]);
         } else {
           setBuyers([]);
         }
 
-        if (suppliersResponse.ok) {
+        if (suppliersResponse && suppliersResponse.ok) {
           const rawSuppliers = await suppliersResponse.json();
           const suppliersListRaw = Array.isArray(rawSuppliers.suppliers)
             ? rawSuppliers.suppliers
@@ -750,6 +766,8 @@ export default function HomePage() {
             }
           });
           setSuppliers(normalizedSuppliers);
+        } else if (suppliersResponse) {
+          setSuppliers([]);
         } else {
           setSuppliers([]);
         }
