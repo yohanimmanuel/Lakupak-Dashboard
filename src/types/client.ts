@@ -33,6 +33,9 @@ export interface Supplier {
   notes?: string;
   supplies?: string;
   avgMonthlyPurchaseValue?: number;
+  totalPurchases?: number;
+  totalSupplies?: number;
+  onTimeDeliveryRate?: number;
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;

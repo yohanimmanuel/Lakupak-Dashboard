@@ -43,7 +43,7 @@ type WidgetId =
   | 'orders'
   | 'products'
   | 'buyers'
-  | 'clients'
+  | 'suppliers'
   | 'logistics'
   | 'inventory'
   | 'marketing';
@@ -93,7 +93,7 @@ const WIDGET_LIBRARY: WidgetDefinition[] = [
     icon: Users,
   },
   {
-    id: 'clients',
+    id: 'suppliers',
     name: 'Supplier Network',
     description: 'Stay aligned with supplier capacity and reliability.',
     defaultActive: true,
@@ -132,7 +132,7 @@ const WIDGET_LAYOUT: Record<WidgetId, string> = {
   orders: 'col-span-12 xl:col-span-5',
   products: 'col-span-12 xl:col-span-5',
   buyers: 'col-span-12',
-  clients: 'col-span-12',
+  suppliers: 'col-span-12',
   logistics: 'col-span-12 xl:col-span-6',
   inventory: 'col-span-12 xl:col-span-7',
   marketing: 'col-span-12 xl:col-span-6',
@@ -178,8 +178,57 @@ function parseNumber(value: unknown): number {
     return value;
   }
   if (typeof value === 'string') {
-    const numeric = value.replace(/[^\d.-]/g, '');
-    const parsed = Number(numeric);
+    let cleaned = value.replace(/[^\d.,-]/g, '').replace(/\s+/g, '');
+    if (!cleaned) {
+      return 0;
+    }
+
+    let sign = '';
+    if (cleaned.startsWith('-')) {
+      sign = '-';
+      cleaned = cleaned.slice(1);
+    }
+
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    let decimalSeparator: ',' | '.' | null = null;
+
+    if (lastComma !== -1 && lastDot !== -1) {
+      decimalSeparator = lastComma > lastDot ? ',' : '.';
+    } else if (lastComma !== -1) {
+      const digitsAfter = cleaned.length - lastComma - 1;
+      if (digitsAfter > 0 && digitsAfter <= 2) {
+        decimalSeparator = ',';
+      }
+    } else if (lastDot !== -1) {
+      const digitsAfter = cleaned.length - lastDot - 1;
+      if (digitsAfter > 0 && digitsAfter <= 2) {
+        decimalSeparator = '.';
+      }
+    }
+
+    let normalized = '';
+
+    if (decimalSeparator) {
+      const separatorIndex =
+        decimalSeparator === ','
+          ? cleaned.lastIndexOf(',')
+          : cleaned.lastIndexOf('.');
+      const integerPart = cleaned
+        .slice(0, separatorIndex)
+        .replace(/[.,]/g, '');
+      const decimalPart = cleaned
+        .slice(separatorIndex + 1)
+        .replace(/[^\d]/g, '');
+      normalized = `${sign}${integerPart}.${decimalPart}`;
+    } else {
+      normalized = `${sign}${cleaned.replace(/[^\d]/g, '')}`;
+    }
+
+    if (!normalized || normalized === '-' || normalized === '.')
+      return 0;
+
+    const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
@@ -521,6 +570,18 @@ function normalizeSupplier(raw: Record<string, unknown>): Supplier | null {
     avgMonthlyPurchaseValue:
       raw.avgMonthlyPurchaseValue !== undefined
         ? parseNumber(raw.avgMonthlyPurchaseValue)
+        : undefined,
+    totalPurchases:
+      raw.totalPurchases !== undefined
+        ? parseNumber(raw.totalPurchases)
+        : undefined,
+    totalSupplies:
+      raw.totalSupplies !== undefined
+        ? parseNumber(raw.totalSupplies)
+        : undefined,
+    onTimeDeliveryRate:
+      raw.onTimeDeliveryRate !== undefined
+        ? parseNumber(raw.onTimeDeliveryRate)
         : undefined,
     createdAt: raw.createdAt ? parseDate(raw.createdAt) : undefined,
     updatedAt: raw.updatedAt ? parseDate(raw.updatedAt) : undefined,
@@ -890,8 +951,6 @@ const supplierInsights = useMemo(() => {
   const valueBySupplier = new Map<string, number>();
   let onTimeSum = 0;
   let onTimeSamples = 0;
-  let monthlyValueSum = 0;
-  let monthlyValueSamples = 0;
 
   suppliers.forEach((supplier) => {
     let supplierValue = 0;
@@ -902,19 +961,62 @@ const supplierInsights = useMemo(() => {
       ) as SupplyDetail[];
       suppliesList.forEach((supply) => {
         supplierValue += parseNumber(supply.totalValue);
-        const successRate = parseNumber(supply.deliverySuccess);
-        if (successRate > 0) {
-          onTimeSum += successRate;
-          onTimeSamples += 1;
-        }
       });
     }
-    valueBySupplier.set(supplier.supplierId, supplierValue);
+    const totalPurchases = parseNumber(supplier.totalPurchases);
+    const totalSupplies = parseNumber(supplier.totalSupplies);
+    const directOnTime = parseNumber(supplier.onTimeDeliveryRate);
 
-    const monthlyValue = supplier.avgMonthlyPurchaseValue;
-    if (typeof monthlyValue === 'number' && Number.isFinite(monthlyValue)) {
-      monthlyValueSum += monthlyValue;
-      monthlyValueSamples += 1;
+    let effectiveValue = supplierValue;
+    if (effectiveValue <= 0 && totalPurchases > 0) {
+      effectiveValue = totalPurchases;
+    }
+    if (effectiveValue <= 0 && totalSupplies > 0) {
+      effectiveValue = totalSupplies;
+    }
+    valueBySupplier.set(supplier.supplierId, effectiveValue);
+
+    if (directOnTime > 0) {
+      onTimeSum += directOnTime;
+      onTimeSamples += 1;
+    } else {
+      let recordedFromLogistics = false;
+      if (supplier.logistics) {
+        const logisticsData = safeParseJSON(
+          supplier.logistics,
+          {} as Record<string, unknown>,
+        );
+        if (
+          logisticsData &&
+          typeof logisticsData === 'object' &&
+          'deliverySuccess' in logisticsData
+        ) {
+          const logisticsRate = parseNumber(
+            (logisticsData as { deliverySuccess?: unknown }).deliverySuccess,
+          );
+          if (logisticsRate > 0) {
+            onTimeSum += logisticsRate;
+            onTimeSamples += 1;
+            recordedFromLogistics = true;
+          }
+        }
+      }
+
+      if (!recordedFromLogistics && supplier.supplies) {
+        const suppliesList = safeParseJSON(
+          supplier.supplies,
+          [],
+        ) as SupplyDetail[];
+        if (Array.isArray(suppliesList)) {
+          suppliesList.forEach((supply) => {
+            const successRate = parseNumber(supply.deliverySuccess);
+            if (successRate > 0) {
+              onTimeSum += successRate;
+              onTimeSamples += 1;
+            }
+          });
+        }
+      }
     }
   });
 
@@ -930,19 +1032,16 @@ const supplierInsights = useMemo(() => {
         status: supplierRecord?.status ?? 'Unknown',
       };
     })
+    .filter((supplier) => supplier.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, 3);
 
   const onTimeRate =
     onTimeSamples > 0 ? Math.round(onTimeSum / onTimeSamples) : 0;
-  const averageMonthlyPurchase =
-    monthlyValueSamples > 0 ? monthlyValueSum / monthlyValueSamples : 0;
-
   return {
     totalSuppliers,
     activeSuppliers,
     onTimeRate,
-    averageMonthlyPurchase,
     topSuppliers,
   };
 }, [suppliers]);
@@ -1497,12 +1596,12 @@ const supplierInsights = useMemo(() => {
             </div>
           ),
         };
-      case 'clients':
+      case 'suppliers':
         return {
           subtitle: 'Supplier reliability and fulfillment performance',
           action: (
             <Link
-              href="/clients/suppliers"
+              href="/suppliers"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               Manage suppliers
@@ -1511,7 +1610,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
                   <p className="text-xs text-gray-500">Total suppliers</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
@@ -1534,18 +1633,6 @@ const supplierInsights = useMemo(() => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-                  <p className="text-xs text-gray-500">Avg. monthly purchase</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {formatCurrency(
-                      supplierInsights.averageMonthlyPurchase,
-                      userCurrency,
-                    )}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across active suppliers
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
                   <p className="text-xs text-gray-500">Top supplier value</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {formatCurrency(
@@ -1558,7 +1645,7 @@ const supplierInsights = useMemo(() => {
                   </p>
                 </div>
               </div>
-              {supplierInsights.topSuppliers.length === 0 ? (
+                    {supplierInsights.topSuppliers.length === 0 ? (
                 <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
                   <Building2 className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
@@ -1574,7 +1661,7 @@ const supplierInsights = useMemo(() => {
                     Priority suppliers
                   </h3>
                   <ul className="space-y-3">
-                    {supplierInsights.topSuppliers.map((supplier, index) => (
+                        {supplierInsights.topSuppliers.map((supplier, index) => (
                       <li
                         key={supplier.supplierId}
                         className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm"
