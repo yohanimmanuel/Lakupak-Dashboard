@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Archive, Trash } from "lucide-react";
+import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
-import { formatDateLong, formatNumber } from '@/utils/dateUtils';
+import { formatDateLong } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
@@ -28,14 +28,14 @@ const paymentTabs = [
 
 export default function OrdersTable({ 
   orders = [], 
-  setOrders, 
-  onExportXLSX, 
-  orderToTableRow 
+  setOrdersAction, 
+  onExportXLSXAction, 
+  orderToTableRowAction 
 }: { 
   orders?: Order[]; 
-  setOrders?: (fn: (prev: Order[]) => Order[]) => void; 
-  onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void; 
-  orderToTableRow: (order: Order) => OrderTableRow 
+  setOrdersAction?: (fn: (prev: Order[]) => Order[]) => void; 
+  onExportXLSXAction?: (wb: XLSX.WorkBook, filename: string) => void; 
+  orderToTableRowAction: (order: Order) => OrderTableRow 
 }) {
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);
@@ -48,7 +48,7 @@ export default function OrdersTable({
   // Get user currency for display (only on client)
   const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   
-  const tableRows = orders.map(orderToTableRow);
+  const tableRows = orders.map(orderToTableRowAction);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedStatusTab, setSelectedStatusTab] = useState("All");
@@ -133,12 +133,12 @@ export default function OrdersTable({
       return;
     }
     
-    if (onExportXLSX) {
+    if (onExportXLSXAction) {
       try {
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(filteredOrders);
         XLSX.utils.book_append_sheet(wb, ws, "Orders");
-        onExportXLSX(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+        onExportXLSXAction(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
       } catch (error) {
       }
     }
@@ -191,8 +191,8 @@ export default function OrdersTable({
         });
         if (res.ok) successes.push(orderId);
       }
-      if (successes.length > 0 && setOrders) {
-        setOrders(prev => prev.filter(o => !successes.includes(o.orderId)));
+      if (successes.length > 0 && setOrdersAction) {
+        setOrdersAction(prev => prev.filter(o => !successes.includes(o.orderId)));
       }
       setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
     } catch {}
@@ -216,8 +216,8 @@ export default function OrdersTable({
         });
         if (res.ok) successes.push(orderId);
       }
-      if (successes.length > 0 && setOrders) {
-        setOrders(prev => prev.filter(o => !successes.includes(o.orderId)));
+      if (successes.length > 0 && setOrdersAction) {
+        setOrdersAction(prev => prev.filter(o => !successes.includes(o.orderId)));
       }
       setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
       setShowDeleteModal(false);

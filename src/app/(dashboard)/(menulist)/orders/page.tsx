@@ -230,9 +230,9 @@ export default function OrdersPage() {
             {/* Orders Table Section */}
             <OrdersTable
               orders={orders}
-              setOrders={setOrders}
-              onExportXLSX={handleExportXLSX}
-              orderToTableRow={orderToTableRow}
+              setOrdersAction={setOrders}
+              onExportXLSXAction={handleExportXLSX}
+              orderToTableRowAction={orderToTableRow}
             />
           </>
         )}
