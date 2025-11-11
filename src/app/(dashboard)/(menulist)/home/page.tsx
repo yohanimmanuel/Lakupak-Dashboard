@@ -20,6 +20,8 @@ import {
   Globe2,
   Megaphone,
   Activity,
+  Loader2,
+  MapPin,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
@@ -37,6 +39,13 @@ import { getDefaultCurrency } from '@/utils/currencyUtils';
 import type { Order, OrderItem } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
+import MapComponent from '@/components/ordershipment/MapComponent';
+import {
+  geocodeMultipleAddresses,
+  GeocodeResult,
+  MapCoordinates,
+  getOrderStatusMarkerColor,
+} from '@/utils/mapboxUtils';
 
 type WidgetId =
   | 'analytics'
@@ -141,6 +150,7 @@ const WIDGET_LAYOUT: Record<WidgetId, string> = {
 const DEFAULT_WIDGET_LAYOUT = 'col-span-12 xl:col-span-6';
 
 const MAX_PIPELINE_ROWS = 4;
+const MAX_PRODUCT_PERFORMANCE_ROWS = 3;
 
 const STORAGE_KEY = 'laku-dashboard-widgets';
 
@@ -597,6 +607,13 @@ interface WidgetRenderResult {
   action?: ReactNode;
 }
 
+interface LogisticsMapMarker {
+  id: string;
+  coordinates: MapCoordinates;
+  label: string;
+  color: string;
+}
+
 const statusStyles: Record<Order['orderStatus'], string> = {
   Pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   Confirmed: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -668,6 +685,18 @@ export default function HomePage() {
 
   const userCurrency = user?.currency || getDefaultCurrency();
   const hasData = orders.length > 0;
+  const logisticsGeocodedAddressesRef = useRef<Set<string>>(new Set());
+  const [logisticsGeocodeResults, setLogisticsGeocodeResults] = useState<Map<string, GeocodeResult>>(new Map());
+  const [isLogisticsGeocoding, setIsLogisticsGeocoding] = useState(false);
+  const logisticsActiveOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const address = order.deliveryAddress?.trim();
+      if (!address || address.length === 0 || address === '—') {
+        return false;
+      }
+      return ['Shipped', 'Packed', 'Pending', 'Confirmed'].includes(order.orderStatus);
+    });
+  }, [orders]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -717,6 +746,49 @@ export default function HomePage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isWidgetManagerOpen]);
+
+  useEffect(() => {
+    const geocodeLogisticsAddresses = async () => {
+      if (logisticsActiveOrders.length === 0) {
+        return;
+      }
+
+      const addresses = logisticsActiveOrders
+        .map((order) => order.deliveryAddress?.trim() ?? '')
+        .filter((address): address is string => address.length > 0 && address !== '—');
+
+      if (addresses.length === 0) {
+        return;
+      }
+
+      const uniqueAddresses = addresses.filter((address, index, self) => self.indexOf(address) === index);
+      const addressesToGeocode = uniqueAddresses.filter(
+        (address) => !logisticsGeocodedAddressesRef.current.has(address),
+      );
+
+      if (addressesToGeocode.length === 0) {
+        return;
+      }
+
+      addressesToGeocode.forEach((address) => logisticsGeocodedAddressesRef.current.add(address));
+
+      setIsLogisticsGeocoding(true);
+      try {
+        const newResults = await geocodeMultipleAddresses(addressesToGeocode);
+        setLogisticsGeocodeResults((prev) => {
+          const updated = new Map(prev);
+          newResults.forEach((result, address) => {
+            updated.set(address, result);
+          });
+          return updated;
+        });
+      } finally {
+        setIsLogisticsGeocoding(false);
+      }
+    };
+
+    geocodeLogisticsAddresses();
+  }, [logisticsActiveOrders]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1054,7 +1126,7 @@ const supplierInsights = useMemo(() => {
   );
 
   const topProducts = useMemo(
-    () => calculateTopProducts(orders, products, hasData, 6),
+    () => calculateTopProducts(orders, products, hasData, MAX_PRODUCT_PERFORMANCE_ROWS),
     [orders, products, hasData],
   );
 
@@ -1089,6 +1161,50 @@ const supplierInsights = useMemo(() => {
     );
   return sorted.slice(0, MAX_PIPELINE_ROWS);
   }, [orders, hasData]);
+
+  const logisticsMapMarkers: LogisticsMapMarker[] = useMemo(() => {
+    return logisticsActiveOrders
+      .map((order) => {
+        const addressKey = order.deliveryAddress?.trim() ?? '';
+        if (!addressKey) {
+          return null;
+        }
+        const geocodeResult = logisticsGeocodeResults.get(addressKey);
+        if (!geocodeResult?.coordinates) {
+          return null;
+        }
+        return {
+          id: order.id,
+          coordinates: geocodeResult.coordinates,
+          label: `${order.orderId} • ${order.orderStatus}`,
+          color: getOrderStatusMarkerColor(order.orderStatus),
+        };
+      })
+      .filter((marker): marker is LogisticsMapMarker => marker !== null);
+  }, [logisticsActiveOrders, logisticsGeocodeResults]);
+
+  const logisticsMapCenter: MapCoordinates | undefined = useMemo(() => {
+    if (logisticsMapMarkers.length === 0) {
+      return undefined;
+    }
+
+    const averageLongitude =
+      logisticsMapMarkers.reduce((sum, marker) => sum + marker.coordinates.longitude, 0) / logisticsMapMarkers.length;
+    const averageLatitude =
+      logisticsMapMarkers.reduce((sum, marker) => sum + marker.coordinates.latitude, 0) / logisticsMapMarkers.length;
+
+    return {
+      longitude: averageLongitude,
+      latitude: averageLatitude,
+    };
+  }, [logisticsMapMarkers]);
+
+  const handleLogisticsMarkerClick = (markerId: string) => {
+    const order = orders.find((entry) => entry.id === markerId);
+    if (order) {
+      window.location.href = `/orders/details/${order.orderId}`;
+    }
+  };
 
   const statCards = useMemo(() => {
     return [
@@ -1709,7 +1825,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
                   <p className="text-xs text-gray-500">Total shipments</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
@@ -1739,29 +1855,36 @@ const supplierInsights = useMemo(() => {
                     Across all shipments
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-                  <p className="text-xs text-gray-500">Top carrier</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    DHL
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    Across all shipments
-                  </p>
-                </div>
               </div>
-              {/* Placeholder for logistics tracking content */}
-              <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
-                <Globe2 className="mb-3 h-8 w-8 text-gray-300" />
-                <p className="text-sm font-semibold text-gray-600">
-                  Logistics tracking feature coming soon
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  We are working on integrating real-time logistics tracking.
-                </p>
+              <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-black">Active shipments map</p>
+                  <span className="text-xs text-gray-500">
+                    {logisticsMapMarkers.length.toLocaleString()} location
+                    {logisticsMapMarkers.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                {isLogisticsGeocoding && logisticsMapMarkers.length === 0 ? (
+                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
+                    <Loader2 className="mb-3 h-8 w-8 text-gray-400 animate-spin" />
+                    <p className="text-sm font-semibold text-gray-600">Loading shipment locations</p>
+                    <p className="text-xs text-gray-500">Geocoding delivery addresses</p>
+                  </div>
+                ) : logisticsMapMarkers.length > 0 ? (
+                  <MapComponent
+                    markers={logisticsMapMarkers}
+                    center={logisticsMapCenter}
+                    height="320px"
+                    showControls
+                    onMarkerClick={handleLogisticsMarkerClick}
+                  />
+                ) : (
+                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
+                    <MapPin className="mb-3 h-10 w-10 text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-600">No active shipments to display</p>
+                    <p className="text-xs text-gray-500">Orders with delivery addresses will appear here</p>
+                  </div>
+                )}
               </div>
             </div>
           ),
