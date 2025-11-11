@@ -137,7 +137,7 @@ export default function SuppliersPage() {
         : (Array.isArray(data?.suppliers) ? data.suppliers : []);
       
       // Calculate monthly analytics for each supplier
-      const suppliersWithAnalytics = suppliersData.map(supplier => {
+      const suppliersWithAnalytics = suppliersData.map((supplier: Supplier) => {
         const supplies = supplier.supplies ? JSON.parse(supplier.supplies) : [];
         
         // Calculate monthly averages using the same logic as SupplierProfile
