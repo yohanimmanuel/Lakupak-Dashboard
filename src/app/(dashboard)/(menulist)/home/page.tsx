@@ -140,6 +140,8 @@ const WIDGET_LAYOUT: Record<WidgetId, string> = {
 
 const DEFAULT_WIDGET_LAYOUT = 'col-span-12 xl:col-span-6';
 
+const MAX_PIPELINE_ROWS = 4;
+
 const STORAGE_KEY = 'laku-dashboard-widgets';
 
 const ORDER_STATUS_VALUES: Order['orderStatus'][] = [
@@ -1085,7 +1087,7 @@ const supplierInsights = useMemo(() => {
     const sorted = [...orders].sort(
       (a, b) => b.orderDate.getTime() - a.orderDate.getTime(),
     );
-    return sorted.slice(0, 5);
+  return sorted.slice(0, MAX_PIPELINE_ROWS);
   }, [orders, hasData]);
 
   const statCards = useMemo(() => {
@@ -1336,7 +1338,7 @@ const supplierInsights = useMemo(() => {
                   year: 'numeric',
                 }).format(order.orderDate);
                 const statusClass = statusStyles[order.orderStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200';
-  return (
+                return (
                   <li
                     key={order.id}
                     className="flex flex-col gap-4 rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm transition-shadow hover:shadow"
@@ -1349,7 +1351,7 @@ const supplierInsights = useMemo(() => {
                         <p className="text-xs text-gray-500">
                           {order.contactPerson} · {orderDate}
                         </p>
-    </div>
+                     </div>
                       <span
                         className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}
                       >
