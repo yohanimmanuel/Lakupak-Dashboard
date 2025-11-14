@@ -1436,7 +1436,7 @@ const supplierInsights = useMemo(() => {
             </Link>
           ),
           content: recentOrders.length === 0 ? (
-            <div className="flex h-48 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+            <div className="flex h-90 flex-col items-center justify-center rounded-lg">
               <ShoppingCart className="mb-3 h-10 w-10 text-gray-300" />
               <p className="text-sm font-semibold text-gray-600">
                 No orders recorded yet
@@ -1507,7 +1507,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               {topProductsWithDetails.length === 0 ? (
-                <div className="flex h-48 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+                <div className="flex h-60 flex-col items-center justify-center rounded-lg">
                   <Package className="mb-3 h-10 w-10 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
                     No product performance yet
@@ -1653,7 +1653,7 @@ const supplierInsights = useMemo(() => {
                 </div>
               </div>
               {buyerInsights.topBuyers.length === 0 ? (
-                <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+                <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Users className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
                     No buyer activity yet
@@ -1764,7 +1764,7 @@ const supplierInsights = useMemo(() => {
                 </div>
               </div>
                     {supplierInsights.topSuppliers.length === 0 ? (
-                <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+                <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Building2 className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
                     Supplier data not yet available
@@ -1961,7 +1961,7 @@ const supplierInsights = useMemo(() => {
                 </div>
               </div>
               {lowStockPreview.length === 0 ? (
-                <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+                <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Layers className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-500">No low-stock products.</p>
                   <p className="mt-1 text-xs text-gray-400">Low stocks will appear here if there are any.</p>
@@ -2079,7 +2079,7 @@ const supplierInsights = useMemo(() => {
                 </div>
               </div>
               {/* Placeholder for marketing performance content */}
-              <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+              <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                 <Megaphone className="mb-3 h-8 w-8 text-gray-300" />
                 <p className="text-sm font-semibold text-gray-600">
                   Marketing performance feature coming soon
@@ -2094,7 +2094,7 @@ const supplierInsights = useMemo(() => {
       default:
         return {
           content: (
-            <div className="flex h-48 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200">
+            <div className="flex h-48 flex-col items-center justify-center rounded-lg">
               <Settings2 className="mb-3 h-10 w-10 text-gray-300" />
               <p className="text-sm font-semibold text-gray-600">
                 Widget not found
@@ -2116,7 +2116,7 @@ const supplierInsights = useMemo(() => {
   const renderedWidgets: React.ReactNode =
     activeWidgets.length === 0
       ? (
-          <div className="col-span-12 flex h-60 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white text-center shadow-sm">
+          <div className="col-span-12 flex h-60 flex-col items-center justify-center rounded-lg bg-white text-center shadow-sm">
             <Settings2 className="mb-3 h-8 w-8 text-[#0a61d7]" />
             <p className="text-sm font-semibold text-black">
               No widgets selected
