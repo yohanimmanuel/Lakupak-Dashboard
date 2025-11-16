@@ -1868,6 +1868,16 @@ export default function ProductCatalog({
             {/* Product Variants Section */}
             <div className="border-t border-gray-200 pt-6">
               <div className="mb-4">
+                {isOfferConnected && (
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4 h-4 text-[#0a61d7]" />
+                      <div className="text-xs text-[#0a61d7]">
+                        Product variants and the variation list are locked because this product has an active offer. To modify them, first deactivate or disconnect the offer from the product.
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-gray-500" />
                   Product Variants
@@ -1889,13 +1899,13 @@ export default function ProductCatalog({
                           type="text"
                           value={variant.variantType}
                           onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
-                          disabled={isViewMode}
+                          disabled={isViewMode || isOfferConnected}
                           className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
                           placeholder="e.g., Color, Size, Flavor"
                         />
                       </div>
                     </div>
-                {!isViewMode && (
+                {!isViewMode && !isOfferConnected && (
                       <div className="flex items-center gap-2">
                         {index > 0 && (
                   <button
@@ -1956,12 +1966,12 @@ export default function ProductCatalog({
                           type="text"
                             value={option.name}
                             onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
-                          disabled={isViewMode}
+                          disabled={isViewMode || isOfferConnected}
                             className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                             placeholder="e.g., White"
                             style={{ minWidth: '120px' }}
                           />
-                          {!isViewMode && (variant.options.length > 1 || optionIndex > 0) && (
+                          {!isViewMode && !isOfferConnected && (variant.options.length > 1 || optionIndex > 0) && (
                             <button
                               type="button"
                               onClick={() => removeVariantOption(variant.id, option.id)}
@@ -1972,7 +1982,7 @@ export default function ProductCatalog({
                           )}
                   </div>
                 ))}
-                {!isViewMode && (
+                {!isViewMode && !isOfferConnected && (
                   <button
                     type="button"
                           onClick={() => addVariantOption(variant.id)}
@@ -1987,7 +1997,7 @@ export default function ProductCatalog({
                     </div>
               ))}
               
-              {!isViewMode && (
+              {!isViewMode && !isOfferConnected && (
                       <button
                         type="button"
                   onClick={addVariant}
@@ -2001,6 +2011,16 @@ export default function ProductCatalog({
                   
             {/* Final Combinations Table */}
             <div className="border-t border-gray-200 pt-6">
+              {isOfferConnected && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-[#0a61d7]" />
+                    <div className="text-xs text-[#0a61d7]">
+                      Prices are locked because this product has an active offer. To modify prices, first deactivate or disconnect the offer from the product.
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Package className="w-5 h-5 text-gray-500" />
@@ -2020,7 +2040,8 @@ export default function ProductCatalog({
                             <input
                               type="text"
                         id="apply-sku"
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                         disabled={isOfferConnected}
+                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                         placeholder="SKU-001"
                       />
                           </div>
@@ -2035,7 +2056,8 @@ export default function ProductCatalog({
                             <input
                               type="text"
                           id="apply-selling"
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                           disabled={isOfferConnected}
+                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                           placeholder={getPricePlaceholder(userCurrency)}
                         />
                           </div>
@@ -2051,7 +2073,8 @@ export default function ProductCatalog({
                                 <input 
                           type="text"
                           id="apply-purchase"
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                           disabled={isOfferConnected}
+                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                           placeholder={getPricePlaceholder(userCurrency)}
                         />
                                 </div>
@@ -2063,7 +2086,8 @@ export default function ProductCatalog({
                       <input
                         type="number"
                         id="apply-moq"
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                         disabled={isOfferConnected}
+                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                         placeholder="0"
                         min="0"
                       />
@@ -2075,7 +2099,8 @@ export default function ProductCatalog({
                                 <input
                                   type="number"
                         id="apply-stock"
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                         disabled={isOfferConnected}
+                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                         placeholder="0"
                         min="0"
                       />
@@ -2087,7 +2112,8 @@ export default function ProductCatalog({
                       <input
                         type="number"
                         id="apply-threshold"
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                         disabled={isOfferConnected}
+                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                         placeholder="0"
                         min="0"
                       />
@@ -2112,7 +2138,8 @@ export default function ProductCatalog({
                           lowStockThreshold: threshold ? parseInt(threshold) : combo.lowStockThreshold,
                         })));
                       }}
-                      className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap"
+                       disabled={isOfferConnected}
+                       className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap disabled:bg-orange-300 disabled:cursor-not-allowed"
                     >
                       Apply To All
                     </button>
@@ -2120,16 +2147,6 @@ export default function ProductCatalog({
                     </div>
               )}
                 <div className="overflow-x-auto">
-                  {isOfferConnected && (
-                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                      <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 text-[#0a61d7]" />
-                        <div className="text-xs text-[#0a61d7]">
-                          Prices are locked because this product has an active offer. To modify prices, first deactivate or disconnect the offer from the product.
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   <table className="w-full border-collapse border border-gray-300">
                     <thead className="bg-gray-50">
                       <tr>
@@ -2184,7 +2201,7 @@ export default function ProductCatalog({
                               type="text"
                               value={String(combination.sku)}
                               onChange={(e) => updateCombination(combination.id, 'sku', e.target.value)}
-                                  disabled={isViewMode}
+                                  disabled={isViewMode || isOfferConnected}
                                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder="SKU-001"
                             />
@@ -2227,7 +2244,7 @@ export default function ProductCatalog({
                                 const value = e.target.value;
                                 updateCombination(combination.id, 'moq', value ? parseInt(value) : undefined);
                               }}
-                              disabled={isViewMode}
+                              disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder="0"
                               min="0"
@@ -2238,7 +2255,7 @@ export default function ProductCatalog({
                               type="number"
                               value={combination.stockQuantity}
                               onChange={(e) => updateCombination(combination.id, 'stockQuantity', parseInt(e.target.value) || 0)}
-                              disabled={isViewMode}
+                              disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder="0"
                               min="0"
@@ -2249,7 +2266,7 @@ export default function ProductCatalog({
                               type="number"
                               value={combination.lowStockThreshold}
                               onChange={(e) => updateCombination(combination.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
-                              disabled={isViewMode}
+                              disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder="0"
                               min="0"
