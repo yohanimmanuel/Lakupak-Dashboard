@@ -88,7 +88,9 @@ export async function GET(request: NextRequest) {
                 expressShippingPrice: true,
                 sameDayShippingPrice: true,
                 nextDayShippingPrice: true,
-                pickupAddress: true
+                pickupAddress: true,
+                logo: true,
+                bannerImage: true,
               }
             }
           }
@@ -365,7 +367,9 @@ export async function GET(request: NextRequest) {
              businessPhone: product.user.company.businessPhone,
              businessEmail: product.user.company.businessEmail,
              industryType: product.user.company.industryType,
-             pickupAddress: product.user.company.pickupAddress
+             pickupAddress: product.user.company.pickupAddress,
+             logo: product.user.company.logo || null,
+             bannerImage: product.user.company.bannerImage || null,
            } : undefined
          },
          shipping: {
