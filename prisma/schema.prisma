@@ -113,8 +113,8 @@ model Supplier {
 }
 
 model Product {
-  id                Int         @id @default(autoincrement())
-  productId         String      @unique
+  id                Int              @id @default(autoincrement())
+  productId         String           @unique
   sku               String
   name              String
   description       String
@@ -125,15 +125,15 @@ model Product {
   productCategory   String
   catalogName       String
   images            String[]
-  createdAt         DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
   userId            Int?
-  bpomApproved      Boolean?    @default(false)
-  halalCertified    Boolean?    @default(false)
-  originalProduct   Boolean?    @default(true)
-  returnPolicyDays  Int?        @default(7)
+  bpomApproved      Boolean?         @default(false)
+  halalCertified    Boolean?         @default(false)
+  originalProduct   Boolean?         @default(true)
+  returnPolicyDays  Int?             @default(7)
   lastSyncAt        DateTime?
-  marketplaceStatus String?     @default("Not Published")
+  marketplaceStatus String?          @default("Not Published")
   publishedAt       DateTime?
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate
@@ -141,41 +141,41 @@ model Product {
   orderItems        OrderItem[]
   offerProducts     OfferProduct[]
   // New variant modeling (definitions and options for combinations)
-  variantOptions     VariantOption[]
-  user              User?       @relation(fields: [userId], references: [id])
+  variantOptions    VariantOption[]
+  user              User?            @relation(fields: [userId], references: [id])
 }
 
 model ProductVariant {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   productId   Int
-  variantType String            // e.g. "Color", "Size"
-  options     Json              // e.g. ["Red","Blue"] for this type
-  position    Int               // order 1..n in UI
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantType String // e.g. "Color", "Size"
+  options     Json // e.g. ["Red","Blue"] for this type
+  position    Int // order 1..n in UI
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems  OrderItem[]
 
-  @@index([productId, position])
   @@unique([productId, variantType])
+  @@index([productId, position])
 }
 
 model MarketplaceUser {
-  id            Int        @id @default(autoincrement())
-  username      String     @unique
-  email         String?    @unique
-  password      String?
-  bio           String?
-  phone         String     @unique
-  country       String?
-  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
-  name          String?
-  storeName     String?
-  chosenAddress String?
-  image         String?
-  bannerImage   String?
-  addresses     Address[]
+  id             Int            @id @default(autoincrement())
+  username       String         @unique
+  email          String?        @unique
+  password       String?
+  bio            String?
+  phone          String         @unique
+  country        String?
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  name           String?
+  storeName      String?
+  chosenAddress  String?
+  image          String?
+  bannerImage    String?
+  addresses      Address[]
   userActivities UserActivity[]
 
   @@index([phone])
@@ -240,7 +240,7 @@ model Order {
   cancelledAt             DateTime?   @db.Timestamptz(3)
   cancelledBy             String?
   cancellationReason      String?
-  isDeleted               Boolean    @default(false)
+  isDeleted               Boolean     @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?
   contactPhoneSnapshot    String?
@@ -254,62 +254,62 @@ model Order {
 }
 
 model OrderItem {
-  id                      Int      @id @default(autoincrement())
-  orderId                 String
-  productId               String?
-  variantId               Int?     // Reference to ProductVariant
-  variantOptionId         Int?     // Reference to VariantOption (new combinations table)
-  subtotal                Float
-  createdAt               DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt               DateTime @updatedAt @db.Timestamptz(3)
-  productNameSnapshot     String?
-  productSkuSnapshot      String?
-  productTypeSnapshot     String?
-  variantNameSnapshot     String? // Variant name at time of order
-  test                    String?
-  packageQuantity         Int?     @default(1)
-  packageType             String?
-  piecesPerPackage        Int?     @default(1)
-  pricePerPackage         Float?
+  id                       Int             @id @default(autoincrement())
+  orderId                  String
+  productId                String?
+  variantId                Int? // Reference to ProductVariant
+  variantOptionId          Int? // Reference to VariantOption (new combinations table)
+  subtotal                 Float
+  createdAt                DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime        @updatedAt @db.Timestamptz(3)
+  productNameSnapshot      String?
+  productSkuSnapshot       String?
+  productTypeSnapshot      String?
+  variantNameSnapshot      String? // Variant name at time of order
+  test                     String?
+  packageQuantity          Int?            @default(1)
+  packageType              String?
+  piecesPerPackage         Int?            @default(1)
+  pricePerPackage          Float?
   // Offer snapshots - preserve offer status at time of purchase
-  offerApplied            Boolean? @default(false)
-  offerBadgeSnapshot      String?  // 'Discount', 'Promotion', 'All Offers', 'Offer'
-  offerNameSnapshot       String?  // Name of the offer at time of purchase
-  originalPriceSnapshot   String?  // Original price before discount (for display)
-  discountPercentage      Float?   // Calculated discount % at time of purchase (for percentage discounts)
-  discountAmount          Float?   // Fixed discount amount at time of purchase (for fixed discounts)
+  offerApplied             Boolean?        @default(false)
+  offerBadgeSnapshot       String? // 'Discount', 'Promotion', 'All Offers', 'Offer'
+  offerNameSnapshot        String? // Name of the offer at time of purchase
+  originalPriceSnapshot    String? // Original price before discount (for display)
+  discountPercentage       Float? // Calculated discount % at time of purchase (for percentage discounts)
+  discountAmount           Float? // Fixed discount amount at time of purchase (for fixed discounts)
   promotionDetailsSnapshot String? // JSON string of promotion details {minQuantity, freeQuantity, description}
-  moqSnapshot             Int?     // MOQ at time of order (in pieces) - for accurate promotion calculation in order history
-  order                   Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  product                 Product? @relation(fields: [productId], references: [productId])
-  variant                 ProductVariant? @relation(fields: [variantId], references: [id])
-  variantOption           VariantOption? @relation(fields: [variantOptionId], references: [id])
+  moqSnapshot              Int? // MOQ at time of order (in pieces) - for accurate promotion calculation in order history
+  order                    Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product                  Product?        @relation(fields: [productId], references: [productId])
+  variant                  ProductVariant? @relation(fields: [variantId], references: [id])
+  variantOption            VariantOption?  @relation(fields: [variantOptionId], references: [id])
 }
 
 /// Combination rows for a product (each row corresponds to a concrete variant combination)
 model VariantOption {
-  id                    Int      @id @default(autoincrement())
-  productId             Int
-  variantName           String           // e.g., "Color: Red | Size: M"
-  attributes            Json             // {"Color":"Red","Size":"M"}
-  sku                   String?
-  purchasePrice         String
-  sellingPrice          String
-  originalSellingPrice  String?
-  moq                   Int?
-  stockQuantity         Int      @default(0)
-  lowStockThreshold     Int      @default(0)
-  stockStatus           String   @default("In Stock")
-  isDefault             Boolean  @default(false)
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+  id                   Int      @id @default(autoincrement())
+  productId            Int
+  variantName          String // e.g., "Color: Red | Size: M"
+  attributes           Json // {"Color":"Red","Size":"M"}
+  sku                  String?
+  purchasePrice        String
+  sellingPrice         String
+  originalSellingPrice String?
+  moq                  Int?
+  stockQuantity        Int      @default(0)
+  lowStockThreshold    Int      @default(0)
+  stockStatus          String   @default("In Stock")
+  isDefault            Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
 
-  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems            OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
-  @@index([productId, isActive])
   @@unique([productId, variantName])
+  @@index([productId, isActive])
 }
 
 model Account {
@@ -364,14 +364,14 @@ model OtpCode {
 
 /// Generic user activity tracking for marketplace users
 model UserActivity {
-  id           Int      @id @default(autoincrement())
+  id           Int             @id @default(autoincrement())
   userId       Int
-  productId    String   // Reference to marketplace product ID
-  productData  Json     // Store complete product data as JSON
-  activityType String   // 'cart', 'favorite', 'viewed', 'purchased'
-  metadata     Json?    // Additional data (quantity, variant, etc.)
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  productId    String // Reference to marketplace product ID
+  productData  Json // Store complete product data as JSON
+  activityType String // 'cart', 'favorite', 'viewed', 'purchased'
+  metadata     Json? // Additional data (quantity, variant, etc.)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
   user         MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, activityType])
@@ -380,27 +380,27 @@ model UserActivity {
 }
 
 model Offer {
-  id                String      @id @default(cuid())
-  offerId           String      @unique
-  name              String
-  description       String?
-  type              String[]    // ['discount', 'promotion'] - can contain multiple types
-  status            String      // 'active' | 'expired' | 'inactive'
-  startDate         DateTime
-  endDate           DateTime
-  totalUsage        Int         @default(0)
-  totalDiscountGiven Float      @default(0)
-  userId            Int?
-  createdAt         DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
-  
+  id                 String   @id @default(cuid())
+  offerId            String   @unique
+  name               String
+  description        String?
+  type               String[] // ['discount', 'promotion'] - can contain multiple types
+  status             String // 'active' | 'expired' | 'inactive'
+  startDate          DateTime
+  endDate            DateTime
+  totalUsage         Int      @default(0)
+  totalDiscountGiven Float    @default(0)
+  userId             Int?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
   // Relations
-  user              User?       @relation(fields: [userId], references: [id])
-  offerProducts     OfferProduct[]
+  user               User?               @relation(fields: [userId], references: [id])
+  offerProducts      OfferProduct[]
   offerDiscountTypes OfferDiscountType[]
-  dateRanges        DateRange[]
-  timeSlots         TimeSlot[]
-  
+  dateRanges         DateRange[]
+  timeSlots          TimeSlot[]
+
   @@index([userId])
   @@index([status])
   @@index([type])
@@ -408,88 +408,88 @@ model Offer {
 }
 
 model OfferDiscountType {
-  id              String  @id @default(cuid())
-  offerId         String
-  discountType    String  // 'percentage' | 'fixed' | 'buy_x_get_y'
-  discountValue   Float
-  name            String? // e.g., "Summer Sale Discount"
-  description     String? // e.g., "4% discount on all items"
-  minOrderValue   Float?   // minimum order value for this discount type
-  minQuantity     Int?    // minimum quantity required
+  id            String   @id @default(cuid())
+  offerId       String
+  discountType  String // 'percentage' | 'fixed' | 'buy_x_get_y'
+  discountValue Float
+  name          String? // e.g., "Summer Sale Discount"
+  description   String? // e.g., "4% discount on all items"
+  minOrderValue Float? // minimum order value for this discount type
+  minQuantity   Int? // minimum quantity required
   // per-customer usage limit removed
-  isActive        Boolean @default(true)
-  priority        Int     @default(1) // Higher number = higher priority
-  createdAt       DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
-  
+  isActive      Boolean  @default(true)
+  priority      Int      @default(1) // Higher number = higher priority
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
   // Relations
-  offer           Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
   @@index([offerId])
   @@index([discountType])
   @@index([priority])
 }
 
 model OfferProduct {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
   offerId   String
   productId String
-  
+
   // Relations
-  offer     Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
-  
+  offer   Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
+
   @@unique([offerId, productId])
   @@index([offerId])
   @@index([productId])
 }
 
 model DateRange {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   offerId     String
   name        String
   description String?
   startDate   DateTime
   endDate     DateTime
-  isActive    Boolean @default(true)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  
+
   // Relations
-  offer       Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
   @@index([offerId])
   @@index([startDate, endDate])
 }
 
 model TimeSlot {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   offerId     String
   name        String
   description String?
-  startTime   String  // Format: "HH:MM"
-  endTime     String  // Format: "HH:MM"
+  startTime   String // Format: "HH:MM"
+  endTime     String // Format: "HH:MM"
   days        String[] // Array of days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  isActive    Boolean @default(true)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  
+
   // Relations
-  offer       Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
   @@index([offerId])
 }
 
 model OfferUsageTracking {
-  id              String   @id @default(cuid())
-  offerId         String
-  discountTypeId  String?  // Track per discount type, null for overall offer usage
-  marketplaceUserId Int?    // For marketplace users
-  usageCount      Int      @default(1)
-  lastUsedAt      DateTime @default(now()) @db.Timestamptz(3)
-  createdAt       DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
-  
+  id                String   @id @default(cuid())
+  offerId           String
+  discountTypeId    String? // Track per discount type, null for overall offer usage
+  marketplaceUserId Int? // For marketplace users
+  usageCount        Int      @default(1)
+  lastUsedAt        DateTime @default(now()) @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+
   @@unique([offerId, discountTypeId, marketplaceUserId])
   @@index([offerId])
   @@index([discountTypeId])
