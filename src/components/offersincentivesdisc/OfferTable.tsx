@@ -13,7 +13,6 @@ const statusTabs = [
   { label: "All" },
   { label: "Active" },
   { label: "Inactive" },
-  { label: "Expired" },
 ];
 
 const dateRangeFilters = [
