@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../../generated/prisma';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
+import { broadcastProductUpdate } from '../../../../utils/websocketBroadcast';
 
 const prisma = new PrismaClient();
 
@@ -121,6 +122,46 @@ export async function PUT(req: NextRequest) {
       where: { id: companyId },
       data: updateData
     });
+    
+    // Check if shipping-related fields were updated
+    const shippingFieldsChanged = 
+      baseShippingPrice !== undefined ||
+      additionalPricePerKm !== undefined ||
+      maxShippingRadius !== undefined ||
+      freeShippingThreshold !== undefined ||
+      expressShippingPrice !== undefined ||
+      sameDayShippingPrice !== undefined ||
+      nextDayShippingPrice !== undefined ||
+      shippingPreferences !== undefined ||
+      pickupAddress !== undefined;
+    
+    // If shipping fees changed, broadcast update to refresh marketplace
+    // Get all products for this company's users
+    if (shippingFieldsChanged) {
+      try {
+        const companyUsers = await prisma.user.findMany({
+          where: { companyId: companyId },
+          select: { id: true }
+        });
+        
+        // Get all products for these users
+        const products = await prisma.product.findMany({
+          where: {
+            userId: { in: companyUsers.map(u => u.id) }
+          },
+          select: { productId: true }
+        });
+        
+        const productIds = products.map(p => p.productId);
+        
+        // Broadcast product update so mobile app refreshes with new shipping fees
+        if (productIds.length > 0) {
+          await broadcastProductUpdate(productIds);
+        }
+      } catch (error) {
+        // Silently fail if broadcast fails
+      }
+    }
     
     // Return sanitized company data
     const companyData = sanitizeCompanyData(updatedCompany);
