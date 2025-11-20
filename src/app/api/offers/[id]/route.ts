@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
 import { parseVariantPrice, parseVariantOriginalPrice } from '@/services/variantService';
+import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 import type {
   DiscountTypeInput,
   DiscountTypeUpdate,
@@ -474,6 +475,19 @@ async function updateOffer(offerId: string, userId: number, data: OfferUpdateInp
     await resetProductPricesFromOffers(tx, userId);
     await updateProductPricesFromOffers(tx, userId);
   });
+
+  // Get product IDs affected by this offer update
+  const affectedProducts = await prisma.offerProduct.findMany({
+    where: { offerId: offerId },
+    select: { productId: true }
+  });
+  const productIds = affectedProducts.map(p => p.productId);
+
+  // Broadcast WebSocket update
+  await broadcastOfferUpdate(offerId, productIds);
+  if (productIds.length > 0) {
+    await broadcastPriceUpdate(productIds);
+  }
 
   // Update lastSyncAt for marketplace sync
   await prisma.product.updateMany({

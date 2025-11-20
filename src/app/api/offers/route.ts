@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { parseNumberByCurrency, formatNumberByCurrency } from '@/config/currencyConfig';
 import { updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
+import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 import { parseVariantPrice, parseVariantOriginalPrice } from '@/services/variantService';
 import type { Prisma } from '@prisma/client';
 import type {
@@ -436,6 +437,15 @@ export async function POST(request: NextRequest) {
       // Then apply current active offers
       await updateProductPricesFromOffers(tx, user.id);
     });
+
+    // Get product IDs affected by this offer
+    const affectedProductIds = productIds || [];
+
+    // Broadcast WebSocket update
+    await broadcastOfferUpdate(result.id, affectedProductIds);
+    if (affectedProductIds.length > 0) {
+      await broadcastPriceUpdate(affectedProductIds);
+    }
 
     // Update lastSyncAt for marketplace sync
     await prisma.product.updateMany({
