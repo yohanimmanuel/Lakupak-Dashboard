@@ -9,6 +9,7 @@ import {
 } from '../../../utils/product-security';
 import { parseNumberByCurrency } from '../../../config/currencyConfig';
 import { parseVariantPrice, parseVariantOriginalPrice } from '../../../services/variantService';
+import { broadcastProductUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 
 interface OfferDiscountType {
   id: string;
@@ -604,6 +605,15 @@ export async function POST(req: NextRequest) {
         variantOptions: true
       }
     });
+
+    if (updatedProduct?.productId) {
+      try {
+        await broadcastProductUpdate([updatedProduct.productId]);
+        await broadcastPriceUpdate([updatedProduct.productId]);
+      } catch (error) {
+        // Ignore broadcast errors
+      }
+    }
     
     return NextResponse.json(updatedProduct, { status: 201, headers });
   } catch (error: unknown) {
@@ -673,6 +683,16 @@ export async function DELETE(req: NextRequest) {
       await prisma.product.delete({
         where: { productId: id }
       });
+    }
+    
+    try {
+      const deletedProductId = deleted?.productId || (deleted?.id ? String(deleted.id) : null);
+      if (deletedProductId) {
+        await broadcastProductUpdate([deletedProductId]);
+        await broadcastPriceUpdate([deletedProductId]);
+      }
+    } catch (error) {
+      // Ignore broadcast errors
     }
     
     return NextResponse.json({ success: true, deleted }, { headers });
@@ -1120,6 +1140,15 @@ export async function PUT(req: NextRequest) {
       ...updatedProduct,
       productId: updatedProduct?.productId || productId
     };
+    
+    if (responseData.productId) {
+      try {
+        await broadcastProductUpdate([responseData.productId]);
+        await broadcastPriceUpdate([responseData.productId]);
+      } catch (error) {
+        // Ignore broadcast errors
+      }
+    }
     
     return NextResponse.json(responseData, { headers });
   } catch (error: unknown) {

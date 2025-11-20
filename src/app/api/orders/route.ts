@@ -14,6 +14,7 @@ import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsiste
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
+import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 
 interface OfferDiscountType {
   id: string;
@@ -641,6 +642,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    try {
+      await broadcastOrderUpdate([order.orderId]);
+    } catch (error) {
+      // Ignore broadcast errors
+    }
+
     return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
   } catch (error) {
     return NextResponse.json(
@@ -666,6 +673,11 @@ export async function PUT(request: NextRequest) {
         where: { ...baseWhere, orderId: { in: body.archiveOrderIds.map((v: unknown) => String(v)) } },
         data: { archivedAt: new Date() }
       });
+      try {
+        await broadcastOrderUpdate(body.archiveOrderIds.map((v: unknown) => String(v)));
+      } catch (error) {
+        // Ignore broadcast errors
+      }
       return NextResponse.json({ success: true, count: updated.count }, { headers });
     }
 
@@ -674,6 +686,19 @@ export async function PUT(request: NextRequest) {
       if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
       if (body.orderId) where.orderId = String(body.orderId);
       else if (body.id) where.id = Number(body.id);
+
+      const archiveBroadcastIds: string[] = [];
+      if (body.orderId) {
+        archiveBroadcastIds.push(String(body.orderId));
+      } else if (body.id) {
+        const existing = await prisma.order.findUnique({
+          where: { id: Number(body.id) },
+          select: { orderId: true }
+        });
+        if (existing?.orderId) {
+          archiveBroadcastIds.push(existing.orderId);
+        }
+      }
 
       let result = await prisma.order.updateMany({
         where,
@@ -691,9 +716,26 @@ export async function PUT(request: NextRequest) {
         }
         try {
           const single = await prisma.order.update({ where: retryWhere, data: { archivedAt: new Date() } });
+          if (archiveBroadcastIds.length === 0 && single.orderId) {
+            archiveBroadcastIds.push(single.orderId);
+          }
+          if (archiveBroadcastIds.length > 0) {
+            try {
+              await broadcastOrderUpdate(archiveBroadcastIds);
+            } catch (error) {
+              // Ignore broadcast errors
+            }
+          }
           return NextResponse.json({ success: true }, { headers });
         } catch (e) {
           return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+        }
+      }
+      if (archiveBroadcastIds.length > 0) {
+        try {
+          await broadcastOrderUpdate(archiveBroadcastIds);
+        } catch (error) {
+          // Ignore broadcast errors
         }
       }
       return NextResponse.json({ success: true }, { headers });
@@ -704,6 +746,19 @@ export async function PUT(request: NextRequest) {
       if (body.userId && !isNaN(Number(body.userId))) where.userId = Number(body.userId);
       if (body.orderId) where.orderId = String(body.orderId);
       else if (body.id) where.id = Number(body.id);
+
+      const unarchiveBroadcastIds: string[] = [];
+      if (body.orderId) {
+        unarchiveBroadcastIds.push(String(body.orderId));
+      } else if (body.id) {
+        const existing = await prisma.order.findUnique({
+          where: { id: Number(body.id) },
+          select: { orderId: true }
+        });
+        if (existing?.orderId) {
+          unarchiveBroadcastIds.push(existing.orderId);
+        }
+      }
 
       let result = await prisma.order.updateMany({
         where,
@@ -721,9 +776,26 @@ export async function PUT(request: NextRequest) {
         }
         try {
           const single = await prisma.order.update({ where: retryWhere, data: { archivedAt: null } });
+          if (unarchiveBroadcastIds.length === 0 && single.orderId) {
+            unarchiveBroadcastIds.push(single.orderId);
+          }
+          if (unarchiveBroadcastIds.length > 0) {
+            try {
+              await broadcastOrderUpdate(unarchiveBroadcastIds);
+            } catch (error) {
+              // Ignore broadcast errors
+            }
+          }
           return NextResponse.json({ success: true }, { headers });
         } catch (e) {
           return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+        }
+      }
+      if (unarchiveBroadcastIds.length > 0) {
+        try {
+          await broadcastOrderUpdate(unarchiveBroadcastIds);
+        } catch (error) {
+          // Ignore broadcast errors
         }
       }
       return NextResponse.json({ success: true }, { headers });
@@ -778,6 +850,12 @@ export async function PUT(request: NextRequest) {
             await syncOrderToBuyerProfile(updatedOrder.buyerId, Number(body.userId));
           } catch (syncError) {
           }
+        }
+
+        try {
+          await broadcastOrderUpdate([updatedOrder.orderId]);
+        } catch (error) {
+          // Ignore broadcast errors
         }
 
         return NextResponse.json({ 
@@ -1144,6 +1222,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    try {
+      await broadcastOrderUpdate([order.orderId]);
+    } catch (error) {
+      // Ignore broadcast errors
+    }
+
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
   } catch (error: unknown) {
     return NextResponse.json(
@@ -1192,6 +1276,14 @@ export async function DELETE(request: NextRequest) {
         where: { orderId: body.orderId }
       });
     });
+
+    try {
+      if (body.orderId) {
+        await broadcastOrderUpdate([String(body.orderId)]);
+      }
+    } catch (error) {
+      // Ignore broadcast errors
+    }
 
     return NextResponse.json({ message: 'Order deleted successfully' }, { headers });
   } catch (error) {

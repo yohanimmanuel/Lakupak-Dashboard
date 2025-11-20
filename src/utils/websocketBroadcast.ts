@@ -50,8 +50,25 @@ export async function broadcastOfferUpdate(
  */
 export async function broadcastProductUpdate(productIds: string[]): Promise<void> {
   try {
-    if (wsServer.getConnectedCount() > 0) {
-      wsServer.broadcastProductUpdate(productIds);
+    if (isServerRunning()) {
+      if (wsServer.getConnectedCount() > 0) {
+        wsServer.broadcastProductUpdate(productIds);
+      }
+    } else {
+      const wsPort = process.env.WS_PORT || '3001';
+      const wsHost = process.env.WS_HOST || 'localhost';
+      try {
+        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'product_updated',
+            productIds
+          })
+        });
+      } catch (error) {
+        // Silently fail
+      }
     }
   } catch (error) {
     // Silently fail if WebSocket server is not running
@@ -77,6 +94,36 @@ export async function broadcastPriceUpdate(productIds: string[]): Promise<void> 
           body: JSON.stringify({
             type: 'prices_updated',
             productIds
+          })
+        });
+      } catch (error) {
+        // Silently fail
+      }
+    }
+  } catch (error) {
+    // Silently fail
+  }
+}
+
+/**
+ * Broadcast order update to all connected WebSocket clients
+ */
+export async function broadcastOrderUpdate(orderIds: string[]): Promise<void> {
+  try {
+    if (isServerRunning()) {
+      if (wsServer.getConnectedCount() > 0) {
+        wsServer.broadcastOrderUpdate(orderIds);
+      }
+    } else {
+      const wsPort = process.env.WS_PORT || '3001';
+      const wsHost = process.env.WS_HOST || 'localhost';
+      try {
+        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'order_updated',
+            orderIds
           })
         });
       } catch (error) {

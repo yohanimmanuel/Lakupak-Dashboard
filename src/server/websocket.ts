@@ -24,10 +24,11 @@ interface ClientConnection {
 }
 
 interface WebSocketMessage {
-  type: 'offer_updated' | 'product_updated' | 'prices_updated' | 'ping' | 'pong';
+  type: 'offer_updated' | 'product_updated' | 'prices_updated' | 'order_updated' | 'ping' | 'pong';
   data?: unknown;
   productIds?: string[];
   offerIds?: string[];
+  orderIds?: string[];
 }
 
 class MarketplaceWebSocketServer {
@@ -59,6 +60,8 @@ class MarketplaceWebSocketServer {
                 this.broadcastPriceUpdate(data.productIds || []);
               } else if (data.type === 'product_updated') {
                 this.broadcastProductUpdate(data.productIds || []);
+              } else if (data.type === 'order_updated') {
+                this.broadcastOrderUpdate(data.orderIds || []);
               }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
@@ -229,6 +232,16 @@ class MarketplaceWebSocketServer {
     const message: WebSocketMessage = {
       type: 'prices_updated',
       productIds
+    };
+
+    this.broadcast(message);
+  }
+
+  // Broadcast order update to all connected clients
+  broadcastOrderUpdate(orderIds: string[]): void {
+    const message: WebSocketMessage = {
+      type: 'order_updated',
+      orderIds
     };
 
     this.broadcast(message);

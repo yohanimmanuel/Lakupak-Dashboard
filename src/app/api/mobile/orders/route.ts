@@ -10,6 +10,7 @@ import { validateVariant, parseVariantPrice } from '../../../../services/variant
 import { parsePrice } from '../../../../utils/currencyUtils';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '../../../../utils/buyerSync';
 // Inline function to avoid circular imports
+import { broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
 
 interface OrderItemInput {
   productId: string;
@@ -489,6 +490,11 @@ export async function POST(request: NextRequest) {
         where: { orderId: { in: [order.orderId] } },
         include: { orderItemsRel: { include: { product: true } } }
       });
+      try {
+        await broadcastOrderUpdate([order.orderId]);
+      } catch (error) {
+        // Ignore broadcast errors
+      }
       return NextResponse.json({ success: true, orders: createdOrdersFull, order: createdOrdersFull[0] }, { status: 201, headers: { ...headers, 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } });
     }
 
@@ -786,6 +792,13 @@ export async function POST(request: NextRequest) {
       where: { orderId: { in: createdOrders.map(o => o.orderId) } },
       include: { orderItemsRel: { include: { product: true } } }
     });
+    if (createdOrders.length > 0) {
+      try {
+        await broadcastOrderUpdate(createdOrders.map(o => o.orderId));
+      } catch (error) {
+        // Ignore broadcast errors
+      }
+    }
     return NextResponse.json({
       success: true,
       orders: createdOrdersFull,
