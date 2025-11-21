@@ -123,9 +123,22 @@ export async function GET(request: NextRequest) {
       take: limit,
       orderBy: { orderDate: 'desc' },
       include: {
+        user: {
+          include: {
+            company: true
+          }
+        },
         orderItemsRel: {
           include: {
-            product: true
+            product: {
+              include: {
+                user: {
+                  include: {
+                    company: true
+                  }
+                }
+              }
+            }
           }
         }
       }

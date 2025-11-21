@@ -367,6 +367,8 @@ export async function GET(request: NextRequest) {
              businessPhone: product.user.company.businessPhone,
              businessEmail: product.user.company.businessEmail,
              industryType: product.user.company.industryType,
+             businessDescription: product.user.company.businessDescription,
+             yearsInOperation: product.user.company.yearsInOperation,
              pickupAddress: product.user.company.pickupAddress,
              logo: product.user.company.logo || null,
              bannerImage: product.user.company.bannerImage || null,

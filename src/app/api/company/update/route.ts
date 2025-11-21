@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '../../../../generated/prisma';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
 import { parseNumberByCurrency } from '../../../../config/currencyConfig';
-import { broadcastProductUpdate } from '../../../../utils/websocketBroadcast';
+import { broadcastProductUpdate, broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
 
 const prisma = new PrismaClient();
 
@@ -135,19 +135,32 @@ export async function PUT(req: NextRequest) {
       shippingPreferences !== undefined ||
       pickupAddress !== undefined;
     
-    // If shipping fees changed, broadcast update to refresh marketplace
-    // Get all products for this company's users
-    if (shippingFieldsChanged) {
+    // Check if company info fields were updated (businessDescription, yearsInOperation, industryType, etc.)
+    const companyInfoFieldsChanged = 
+      businessDescription !== undefined ||
+      yearsInOperation !== undefined ||
+      industryType !== undefined ||
+      name !== undefined ||
+      logo !== undefined ||
+      bannerImage !== undefined ||
+      businessAddress !== undefined ||
+      businessPhone !== undefined ||
+      businessEmail !== undefined;
+    
+    // Get company users for broadcasting updates
+    const companyUsers = await prisma.user.findMany({
+      where: { companyId: companyId },
+      select: { id: true }
+    });
+    
+    const userIds = companyUsers.map(u => u.id);
+    
+    // If shipping fees changed, broadcast product update to refresh marketplace
+    if (shippingFieldsChanged && userIds.length > 0) {
       try {
-        const companyUsers = await prisma.user.findMany({
-          where: { companyId: companyId },
-          select: { id: true }
-        });
-        
-        // Get all products for these users
         const products = await prisma.product.findMany({
           where: {
-            userId: { in: companyUsers.map(u => u.id) }
+            userId: { in: userIds }
           },
           select: { productId: true }
         });
@@ -157,6 +170,42 @@ export async function PUT(req: NextRequest) {
         // Broadcast product update so mobile app refreshes with new shipping fees
         if (productIds.length > 0) {
           await broadcastProductUpdate(productIds);
+        }
+      } catch (error) {
+        // Silently fail if broadcast fails
+      }
+    }
+    
+    // If company info fields changed, broadcast updates so distributor details refresh
+    if (companyInfoFieldsChanged && userIds.length > 0) {
+      try {
+        // Broadcast product update to refresh seller company info in products (primary source)
+        const products = await prisma.product.findMany({
+          where: {
+            userId: { in: userIds }
+          },
+          select: { productId: true }
+        });
+        
+        const productIds = products.map(p => p.productId);
+        if (productIds.length > 0) {
+          await broadcastProductUpdate(productIds);
+        }
+        
+        // Also broadcast order updates for orders where this company's users are distributors (sellers)
+        // This ensures order.user.company data is refreshed in the mobile app
+        // The mobile app will refresh orders that belong to the current user and have this company as the seller
+        const orders = await prisma.order.findMany({
+          where: {
+            userId: { in: userIds },
+            isDeleted: false
+          },
+          select: { orderId: true }
+        });
+        
+        const orderIds = orders.map(o => o.orderId);
+        if (orderIds.length > 0) {
+          await broadcastOrderUpdate(orderIds);
         }
       } catch (error) {
         // Silently fail if broadcast fails
