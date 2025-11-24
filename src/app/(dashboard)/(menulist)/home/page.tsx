@@ -154,6 +154,169 @@ const MAX_PRODUCT_PERFORMANCE_ROWS = 3;
 
 const STORAGE_KEY = 'laku-dashboard-widgets';
 
+const DASHBOARD_SNAPSHOT_QUERY = `
+  query DashboardSnapshot(
+    $userId: Int!
+    $ordersLimit: Int!
+    $productsLimit: Int!
+    $contactsLimit: Int!
+  ) {
+    dashboardSnapshot(
+      userId: $userId
+      ordersLimit: $ordersLimit
+      productsLimit: $productsLimit
+      contactsLimit: $contactsLimit
+    ) {
+      orders {
+        id
+        orderId
+        buyerId
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        deliveryOption
+        shippingMethodLabel
+        shippingMethod
+        subtotal
+        discounts
+        shippingFee
+        totalAmount
+        paymentTerms
+        totalOrders
+        contactPerson
+        storeName
+        contactPhone
+        customerEmail
+        deliveryAddress
+        preferredDeliveryDate
+        preferredDeliveryTime
+        preferredPickupDate
+        preferredPickupTime
+        assignedLogistics
+        trackingNumber
+        deliveryNote
+        deliveryConfirmation
+        pod
+        orderDate
+        createdAt
+        updatedAt
+        acceptedBy
+        acceptedAt
+        orderItems {
+          productId
+          productName
+          category
+          brand
+          description
+          images
+          productDeleted
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+          subtotal
+          variantId
+          variantOptionId
+          offerApplied
+          offerBadgeSnapshot
+          offerNameSnapshot
+          promotionDetailsSnapshot
+          variantNameSnapshot
+          productNameSnapshot
+          productSkuSnapshot
+          productTypeSnapshot
+          originalPriceSnapshot
+          discountPercentage
+          discountAmount
+          moqSnapshot
+        }
+      }
+      products {
+        id
+        productId
+        sku
+        name
+        description
+        productType
+        brand
+        supplier
+        status
+        productCategory
+        catalogName
+        images
+        halalCertified
+        bpomApproved
+        originalProduct
+        returnPolicyDays
+        stockQuantity
+        lowStockThreshold
+        stockStatus
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        hasActiveOffer
+        offerBadge
+        offerId
+        offerName
+        discountType
+        discountValue
+        promotionDetails
+        originalPrice
+      }
+      buyers {
+        id
+        buyerId
+        avatar
+        owner
+        storeName
+        email
+        phone
+        businessType
+        address
+        status
+        logistics
+        notes
+        orderDetails
+        avgMonthlySpending
+        avgMonthlyOrders
+        userId
+      }
+      suppliers {
+        id
+        supplierId
+        name
+        contact
+        email
+        phone
+        businessType
+        address
+        status
+        logistics
+        notes
+        supplies
+        avgMonthlyPurchaseValue
+        totalPurchases
+        totalSupplies
+        onTimeDeliveryRate
+        userId
+      }
+    }
+  }
+`;
+
 const ORDER_STATUS_VALUES: Order['orderStatus'][] = [
   'Pending',
   'Confirmed',
@@ -798,39 +961,46 @@ export default function HomePage() {
         setError(null);
 
         const hasUserId = typeof user?.id === 'number' && !Number.isNaN(user.id);
-        const ordersQuery = hasUserId ? `?userId=${user!.id}&limit=1000` : '?limit=1000';
-        const productsQuery = ordersQuery;
-        const buyersUrl = hasUserId
-          ? `/api/buyers?userId=${user!.id}&limit=100`
-          : null;
-        const suppliersUrl = hasUserId
-          ? `/api/suppliers?userId=${user!.id}&limit=100`
-          : null;
-
-        const [
-          ordersResponse,
-          productsResponse,
-          buyersResponse,
-          suppliersResponse,
-        ] = await Promise.all([
-          fetch(`/api/orders${ordersQuery}`, { signal: controller.signal }),
-          fetch(`/api/products${productsQuery}`, { signal: controller.signal }),
-          buyersUrl ? fetch(buyersUrl, { signal: controller.signal }) : Promise.resolve(null),
-          suppliersUrl ? fetch(suppliersUrl, { signal: controller.signal }) : Promise.resolve(null),
-        ]);
-
-        if (!ordersResponse.ok) {
-          throw new Error('Unable to load orders data');
+        if (!hasUserId) {
+          setOrders([]);
+          setProducts([]);
+          setBuyers([]);
+          setSuppliers([]);
+          setLoading(false);
+          return;
         }
 
-        const rawOrders = await ordersResponse.json();
-        const ordersListRaw = Array.isArray(rawOrders.orders)
-          ? rawOrders.orders
-          : Array.isArray(rawOrders)
-            ? rawOrders
-            : [];
+        const response = await fetch('/api/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            query: DASHBOARD_SNAPSHOT_QUERY,
+            variables: {
+              userId: user!.id,
+              ordersLimit: 1000,
+              productsLimit: 1000,
+              contactsLimit: 100,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load dashboard data');
+        }
+
+        const payload = await response.json();
+        if (payload.errors && payload.errors.length > 0) {
+          throw new Error(payload.errors[0]?.message || 'Failed to load dashboard data');
+        }
+
+        const snapshot = payload.data?.dashboardSnapshot;
+        if (!snapshot) {
+          throw new Error('Dashboard data unavailable');
+        }
+
         const normalizedOrders: Order[] = [];
-        ordersListRaw.forEach((item: unknown) => {
+        (Array.isArray(snapshot.orders) ? snapshot.orders : []).forEach((item: unknown) => {
           if (item && typeof item === 'object') {
             const normalized = normalizeOrder(item as Record<string, unknown>);
             if (normalized) {
@@ -840,72 +1010,38 @@ export default function HomePage() {
         });
         setOrders(normalizedOrders);
 
-        if (productsResponse.ok) {
-          const rawProducts = await productsResponse.json();
-          const productsListRaw = Array.isArray(rawProducts.products)
-            ? rawProducts.products
-            : Array.isArray(rawProducts)
-              ? rawProducts
-              : [];
-          const normalizedProducts: Product[] = [];
-          productsListRaw.forEach((item: unknown) => {
-            if (item && typeof item === 'object') {
-              const normalized = normalizeProduct(item as Record<string, unknown>);
-              if (normalized) {
-                normalizedProducts.push(normalized);
-              }
+        const normalizedProducts: Product[] = [];
+        (Array.isArray(snapshot.products) ? snapshot.products : []).forEach((item: unknown) => {
+          if (item && typeof item === 'object') {
+            const normalized = normalizeProduct(item as Record<string, unknown>);
+            if (normalized) {
+              normalizedProducts.push(normalized);
             }
-          });
-          setProducts(normalizedProducts);
-        } else {
-          setProducts([]);
-        }
+          }
+        });
+        setProducts(normalizedProducts);
 
-        if (buyersResponse && buyersResponse.ok) {
-          const rawBuyers = await buyersResponse.json();
-          const buyersListRaw = Array.isArray(rawBuyers.buyers)
-            ? rawBuyers.buyers
-            : Array.isArray(rawBuyers)
-              ? rawBuyers
-              : [];
-          const normalizedBuyers: Buyer[] = [];
-          buyersListRaw.forEach((item: unknown) => {
-            if (item && typeof item === 'object') {
-              const normalized = normalizeBuyer(item as Record<string, unknown>);
-              if (normalized) {
-                normalizedBuyers.push(normalized);
-              }
+        const normalizedBuyers: Buyer[] = [];
+        (Array.isArray(snapshot.buyers) ? snapshot.buyers : []).forEach((item: unknown) => {
+          if (item && typeof item === 'object') {
+            const normalized = normalizeBuyer(item as Record<string, unknown>);
+            if (normalized) {
+              normalizedBuyers.push(normalized);
             }
-          });
-          setBuyers(normalizedBuyers);
-        } else if (buyersResponse) {
-          setBuyers([]);
-        } else {
-          setBuyers([]);
-        }
+          }
+        });
+        setBuyers(normalizedBuyers);
 
-        if (suppliersResponse && suppliersResponse.ok) {
-          const rawSuppliers = await suppliersResponse.json();
-          const suppliersListRaw = Array.isArray(rawSuppliers.suppliers)
-            ? rawSuppliers.suppliers
-            : Array.isArray(rawSuppliers)
-              ? rawSuppliers
-              : [];
-          const normalizedSuppliers: Supplier[] = [];
-          suppliersListRaw.forEach((item: unknown) => {
-            if (item && typeof item === 'object') {
-              const normalized = normalizeSupplier(item as Record<string, unknown>);
-              if (normalized) {
-                normalizedSuppliers.push(normalized);
-              }
+        const normalizedSuppliers: Supplier[] = [];
+        (Array.isArray(snapshot.suppliers) ? snapshot.suppliers : []).forEach((item: unknown) => {
+          if (item && typeof item === 'object') {
+            const normalized = normalizeSupplier(item as Record<string, unknown>);
+            if (normalized) {
+              normalizedSuppliers.push(normalized);
             }
-          });
-          setSuppliers(normalizedSuppliers);
-        } else if (suppliersResponse) {
-          setSuppliers([]);
-        } else {
-          setSuppliers([]);
-        }
+          }
+        });
+        setSuppliers(normalizedSuppliers);
       } catch (fetchError) {
         if (
           !(fetchError instanceof DOMException && fetchError.name === 'AbortError')

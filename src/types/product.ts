@@ -38,6 +38,14 @@ export interface ProductVariantDefinition {
   position: number; // order 1..n in UI
   createdAt?: Date;
   updatedAt?: Date;
+  // Pricing/stock metadata for compatibility with analytics calculations
+  purchasePrice?: string;
+  sellingPrice?: string;
+  originalSellingPrice?: string;
+  moq?: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  stockStatus?: 'In Stock' | 'Low Stock' | 'Out of Stock';
 }
 
 // Legacy ProductVariant (for backward compatibility)

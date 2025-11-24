@@ -45,6 +45,7 @@ import { useUserStore } from '@/store/userStore';
 import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 // Types for operational metrics
 interface OperationalMetrics {
@@ -97,6 +98,74 @@ interface QualityMetric {
   status: 'good' | 'warning' | 'critical';
 }
 
+const OPERATIONAL_ANALYTICS_QUERY = `
+  query OperationalAnalyticsData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
+    orders(userId: $userId, limit: $orderLimit) {
+      nodes {
+        orderId
+        id
+        buyerId
+        orderDate
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        deliveryOption
+        shippingMethod
+        shippingMethodLabel
+        subtotal
+        discounts
+        shippingFee
+        totalAmount
+        acceptedBy
+        acceptedAt
+        trackingNumber
+        orderItems {
+          productId
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+        }
+      }
+    }
+    products(userId: $userId, limit: $productLimit) {
+      nodes {
+        id
+        productId
+        sku
+        name
+        productType
+        productCategory
+        brand
+        supplier
+        status
+        catalogName
+        images
+        stockQuantity
+        lowStockThreshold
+        stockStatus
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        variants: variantDefinitions
+      }
+    }
+  }
+`;
+
 const OperationalPerformanceAnalytics: React.FC = () => {
   const { user } = useUserStore();
   const [loading, setLoading] = useState(true);
@@ -127,7 +196,6 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     try {
       setLoading(true);
       
-      // Only fetch data if user is authenticated
       if (!user?.id) {
         setOrders([]);
         setProducts([]);
@@ -135,25 +203,33 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         return;
       }
 
-      const [ordersResponse, productsResponse] = await Promise.all([
-        fetch(`/api/orders?userId=${user.id}&limit=1000`),
-        fetch(`/api/products?userId=${user.id}&limit=1000`)
-      ]);
+      const data = await fetchGraphQL<{
+        orders: { nodes: Order[] };
+        products: {
+          nodes: Array<
+            Product & {
+              variants?: Product['variants'];
+              legacyVariants?: Product['legacyVariants'];
+            }
+          >;
+        };
+      }>(OPERATIONAL_ANALYTICS_QUERY, {
+        userId: user.id,
+        orderLimit: 1000,
+        productLimit: 1000,
+      });
 
-      if (ordersResponse.ok && productsResponse.ok) {
-        const ordersData = await ordersResponse.json();
-        const productsData = await productsResponse.json();
-        
-        const ordersList = ordersData.orders || ordersData || [];
-        const productsList = productsData.products || productsData || [];
-        
-        setOrders(ordersList);
-        setProducts(productsList);
-        setHasData(ordersList.length > 0);
-      } else {
-        setHasData(false);
-      }
-    } catch (error) {
+      const ordersList = data.orders?.nodes ?? [];
+      const productsList = (data.products?.nodes ?? []).map((product) => ({
+        ...product,
+        variants: (product.variants ?? []) as Product['variants'],
+        legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
+      }));
+      
+      setOrders(ordersList);
+      setProducts(productsList);
+      setHasData(ordersList.length > 0);
+    } catch {
       setHasData(false);
     } finally {
       setLoading(false);

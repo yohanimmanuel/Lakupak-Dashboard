@@ -39,7 +39,8 @@ import {
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
-import { Product } from '@/types/product';
+import { Product, ProductVariant } from '@/types/product';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 // Types for financial data
 interface FinancialMetrics {
@@ -88,6 +89,92 @@ interface CashFlowData {
   netFlow: number;
 }
 
+const FINANCIAL_ANALYTICS_QUERY = `
+  query FinancialAnalyticsData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
+    orders(userId: $userId, limit: $orderLimit) {
+      nodes {
+        orderId
+        id
+        buyerId
+        orderDate
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        deliveryOption
+        shippingMethod
+        shippingMethodLabel
+        subtotal
+        discounts
+        shippingFee
+        totalAmount
+        paymentTerms
+        totalOrders
+        contactPerson
+        storeName
+        contactPhone
+        customerEmail
+        deliveryAddress
+        preferredDeliveryDate
+        preferredDeliveryTime
+        preferredPickupDate
+        preferredPickupTime
+        assignedLogistics
+        trackingNumber
+        deliveryNote
+        deliveryConfirmation
+        pod
+        orderItems {
+          productId
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+        }
+      }
+    }
+    products(userId: $userId, limit: $productLimit) {
+      nodes {
+        id
+        productId
+        sku
+        name
+        description
+        productType
+        productCategory
+        brand
+        supplier
+        status
+        catalogName
+        images
+        halalCertified
+        bpomApproved
+        originalProduct
+        returnPolicyDays
+        stockQuantity
+        lowStockThreshold
+        stockStatus
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        variants: variantDefinitions
+      }
+    }
+  }
+`;
+
 const FinancialAnalytics: React.FC = () => {
   const { user } = useUserStore();
   const [loading, setLoading] = useState(true);
@@ -133,12 +220,16 @@ const FinancialAnalytics: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Helper function to parse currency strings to numbers
-  const parseCurrencyToNumber = (currencyString: string): number => {
-    if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
+  // Helper function to parse currency strings/numbers to numbers
+  const parseCurrencyToNumber = (currencyValue: string | number): number => {
+    if (currencyValue == null) return 0;
+    if (typeof currencyValue === 'number') {
+      return Number.isFinite(currencyValue) ? currencyValue : 0;
+    }
+    if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
     
     // Remove all currency symbols, spaces, and commas, then parse
-    const cleanString = currencyString
+    const cleanString = currencyValue
       .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
       .replace(/\./g, '') // Remove dots (thousand separators)
       .trim();
@@ -160,25 +251,32 @@ const FinancialAnalytics: React.FC = () => {
         return;
       }
 
-      const [ordersResponse, productsResponse] = await Promise.all([
-        fetch(`/api/orders?userId=${user.id}&limit=1000`),
-        fetch(`/api/products?userId=${user.id}&limit=1000`)
-      ]);
+      const data = await fetchGraphQL<{
+        orders: { nodes: Order[] };
+        products: {
+          nodes: Array<
+            Product & {
+              variants?: Product['variants'];
+              legacyVariants?: Product['legacyVariants'];
+            }
+          >;
+        };
+      }>(FINANCIAL_ANALYTICS_QUERY, {
+        userId: user.id,
+        orderLimit: 1000,
+        productLimit: 1000,
+      });
 
-      if (ordersResponse.ok && productsResponse.ok) {
-        const ordersData = await ordersResponse.json();
-        const productsData = await productsResponse.json();
-        
-        // Handle different response formats
-        const ordersList = ordersData.orders || ordersData || [];
-        const productsList = productsData.products || productsData || [];
-        
-        setOrders(ordersList);
-        setProducts(productsList);
-        setHasData(ordersList.length > 0);
-      } else {
-        setHasData(false);
-      }
+      const ordersList = data.orders?.nodes ?? [];
+      const productsList = (data.products?.nodes ?? []).map((product) => ({
+        ...product,
+        variants: (product.variants ?? []) as Product['variants'],
+        legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
+      }));
+
+      setOrders(ordersList);
+      setProducts(productsList);
+      setHasData(ordersList.length > 0);
     } catch (error) {
       setHasData(false);
     } finally {
@@ -304,7 +402,10 @@ const FinancialAnalytics: React.FC = () => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
           // Calculate actual revenue and profit using product prices
-          const product = products.find(p => p.productId === item.productId);
+          const product = products.find(p => p.productId === item.productId) as Product | undefined;
+          const variantOption = product?.variantOptions?.[0];
+          const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
+          const legacyDefinition = product?.variants?.[0];
           
           // Get category based on selected filter
           let category = 'Uncategorized';
@@ -315,8 +416,18 @@ const FinancialAnalytics: React.FC = () => {
           }
           
           if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+            const sellingPrice = parseCurrencyToNumber(
+              variantOption?.sellingPrice ||
+                legacyVariant?.sellingPrice ||
+                legacyDefinition?.sellingPrice ||
+                '0'
+            );
+            const purchasePrice = parseCurrencyToNumber(
+              variantOption?.purchasePrice ||
+                legacyVariant?.purchasePrice ||
+                legacyDefinition?.purchasePrice ||
+                '0'
+            );
             
             if (sellingPrice > 0 && purchasePrice > 0) {
               // Calculate revenue and cost using piece-based pricing
@@ -416,7 +527,10 @@ const FinancialAnalytics: React.FC = () => {
           const productId = pid as string;
           if (!productStats[productId]) {
             // Find the product to get its name and category
-            const product = products.find(p => p.productId === productId);
+                const product = products.find(p => p.productId === productId) as Product | undefined;
+                const variantOption = product?.variantOptions?.[0];
+                const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
+                const legacyDefinition = product?.variants?.[0];
             
             // Get category - use the same simple logic as CustomerSalesAnalytics
             const category = product?.productCategory || 'Uncategorized';
@@ -433,17 +547,23 @@ const FinancialAnalytics: React.FC = () => {
           }
           
           // Calculate actual revenue and profit using product prices
-          const product = products.find(p => p.productId === productId);
+          const product = products.find(p => p.productId === productId) as Product | undefined;
           
           if (product) {
-            // Prioritize variantOptions (new structure) over legacyVariants
-            const firstVariantOption = product.variantOptions?.[0];
-            const firstLegacyVariant = product.legacyVariants?.[0];
+            const variantOption = product.variantOptions?.[0];
+            const legacyVariant = (product.legacyVariants as ProductVariant[] | undefined)?.[0];
+            const legacyDefinition = product.variants?.[0];
             const sellingPrice = parseCurrencyToNumber(
-              firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
+              variantOption?.sellingPrice ||
+                legacyVariant?.sellingPrice ||
+                legacyDefinition?.sellingPrice ||
+                '0'
             );
             const purchasePrice = parseCurrencyToNumber(
-              firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+              variantOption?.purchasePrice ||
+                legacyVariant?.purchasePrice ||
+                legacyDefinition?.purchasePrice ||
+                '0'
             );
             
             if (sellingPrice > 0 && purchasePrice > 0) {
@@ -1339,12 +1459,16 @@ export const AnalyticsRevenueTrendChart: React.FC<{
 
 // ===== SHARED DATA CALCULATION UTILITIES =====
 
-// Shared function to parse currency strings to numbers
-export const parseCurrencyToNumber = (currencyString: string): number => {
-  if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
+// Shared function to parse currency strings/numbers to numbers
+export const parseCurrencyToNumber = (currencyValue: string | number): number => {
+  if (currencyValue == null) return 0;
+  if (typeof currencyValue === 'number') {
+    return Number.isFinite(currencyValue) ? currencyValue : 0;
+  }
+  if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
   
   // Remove currency symbols, spaces, and commas, then parse
-  const cleanString = currencyString
+  const cleanString = currencyValue
     .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
     .replace(/\./g, '') // Remove dots (thousand separators)
     .trim();
@@ -1479,7 +1603,10 @@ export const calculateTopProducts = (
         const pid = item.productId;
         if (!pid) { return; }
         const productId = pid as string;
-        const product = products.find(p => p.productId === productId);
+        const product = products.find(p => p.productId === productId) as Product | undefined;
+        const variantOption = product?.variantOptions?.[0];
+        const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
+        const legacyDefinition = product?.variants?.[0];
         if (!product) { return; }
         if (!productStats[productId]) {
           // Get category - use the same simple logic as CustomerSalesAnalytics
@@ -1496,8 +1623,18 @@ export const calculateTopProducts = (
         }
 
         if (product) {
-          const sellingPrice = parseCurrencyToNumber(product.variants?.[0]?.sellingPrice || '0');
-          const purchasePrice = parseCurrencyToNumber(product.variants?.[0]?.purchasePrice || '0');
+          const sellingPrice = parseCurrencyToNumber(
+            variantOption?.sellingPrice ||
+              legacyVariant?.sellingPrice ||
+              legacyDefinition?.sellingPrice ||
+              '0'
+          );
+          const purchasePrice = parseCurrencyToNumber(
+            variantOption?.purchasePrice ||
+              legacyVariant?.purchasePrice ||
+              legacyDefinition?.purchasePrice ||
+              '0'
+          );
           if (sellingPrice > 0 && purchasePrice > 0) {
             // Calculate revenue and cost using package-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;

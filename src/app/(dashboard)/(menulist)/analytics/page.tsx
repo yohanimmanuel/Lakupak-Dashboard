@@ -23,6 +23,70 @@ import {
   computeOrderStatusData,
   computeProcessingTimeData
 } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+
+const ANALYTICS_PAGE_QUERY = `
+  query AnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
+    orders(userId: $userId, limit: $orderLimit) {
+      nodes {
+        orderId
+        buyerId
+        orderDate
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        shippingFee
+        totalAmount
+        acceptedBy
+        acceptedAt
+        trackingNumber
+        orderItems {
+          productId
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+        }
+      }
+    }
+    products(userId: $userId, limit: $productLimit) {
+      nodes {
+        id
+        productId
+        sku
+        name
+        description
+        productType
+        productCategory
+        brand
+        supplier
+        status
+        catalogName
+        images
+        stockQuantity
+        lowStockThreshold
+        stockStatus
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        variants: variantDefinitions
+      }
+    }
+  }
+`;
 
 export default function AnalyticsPage() {
   const { user } = useUserStore();
@@ -124,23 +188,32 @@ export default function AnalyticsPage() {
           setHasData(false);
           return;
         }
-        const ordersResponse = await fetch(`/api/orders?userId=${user.id}&limit=1000`);
-        if (ordersResponse.ok) {
-          const ordersData = await ordersResponse.json();
-          const ordersList = ordersData.orders || [];
-          setOrders(ordersList);
-          const productsResponse = await fetch(`/api/products?userId=${user.id}&limit=1000`);
-          if (productsResponse.ok) {
-            const productsData = await productsResponse.json();
-            const productsList = productsData.products || [];
-            setProducts(productsList);
-            setHasData(ordersList.length > 0);
-          } else {
-            setHasData(ordersList.length > 0);
-          }
-        } else {
-          setHasData(false);
-        }
+        const data = await fetchGraphQL<{
+          orders: { nodes: Order[] };
+          products: {
+            nodes: Array<
+              Product & {
+                variants?: Product['variants'];
+                legacyVariants?: Product['legacyVariants'];
+              }
+            >;
+          };
+        }>(ANALYTICS_PAGE_QUERY, {
+          userId: user.id,
+          orderLimit: 1000,
+          productLimit: 1000,
+        });
+
+        const ordersList = data.orders?.nodes ?? [];
+        const productsList = (data.products?.nodes ?? []).map((product) => ({
+          ...product,
+          variants: (product.variants ?? []) as Product['variants'],
+          legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
+        }));
+
+        setOrders(ordersList);
+        setProducts(productsList);
+        setHasData(ordersList.length > 0);
       } catch (error) {
         setHasData(false);
       } finally {

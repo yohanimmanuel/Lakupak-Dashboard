@@ -34,6 +34,7 @@ import {
 	formatCurrency as formatCurrencyShared,
 	parseCurrencyToNumber
 } from '@/components/analyticsperformance/FinancialAnalytics';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 interface BuyerLite {
 	buyerId: string;
@@ -210,6 +211,71 @@ export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: n
 );
 
 // ===== Main Page Component (unchanged) =====
+const CUSTOMER_ANALYTICS_QUERY = `
+  query CustomerSalesData($userId: Int!, $orderLimit: Int!, $productLimit: Int!, $buyerLimit: Int!) {
+    orders(userId: $userId, limit: $orderLimit) {
+      nodes {
+        orderId
+        buyerId
+        orderDate
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        shippingFee
+        totalAmount
+        orderItems {
+          productId
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+        }
+      }
+    }
+    products(userId: $userId, limit: $productLimit) {
+      nodes {
+        id
+        productId
+        sku
+        name
+        description
+        productType
+        productCategory
+        brand
+        supplier
+        status
+        catalogName
+        images
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        variants: variantDefinitions
+      }
+    }
+    buyers(userId: $userId, limit: $buyerLimit) {
+      nodes {
+        buyerId
+        storeName
+        owner
+        businessType
+      }
+    }
+  }
+`;
+
 const CustomerSalesAnalytics: React.FC = () => {
 	const { user } = useUserStore();
 	const [orders, setOrders] = useState<Order[]>([]);
@@ -246,8 +312,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				setLoading(true);
-				
-				// Only fetch data if user is authenticated
+
 				if (!user?.id) {
 					setOrders([]);
 					setProducts([]);
@@ -256,33 +321,38 @@ const CustomerSalesAnalytics: React.FC = () => {
 					return;
 				}
 
-				const [ordersResponse, productsResponse, buyersResponse] = await Promise.all([
-					fetch(`/api/orders?userId=${user.id}&limit=1000`),
-					fetch(`/api/products?userId=${user.id}&limit=1000`),
-					fetch(`/api/buyers?userId=${user.id}&limit=100`)
-				]);
+				const data = await fetchGraphQL<{
+					orders: { nodes: Order[] };
+					products: {
+						nodes: Array<
+							Product & {
+								variants?: Product['variants'];
+								legacyVariants?: Product['legacyVariants'];
+							}
+						>;
+					};
+					buyers: {
+						nodes: BuyerLite[];
+					};
+				}>(CUSTOMER_ANALYTICS_QUERY, {
+					userId: user.id,
+					orderLimit: 1000,
+					productLimit: 1000,
+					buyerLimit: 100,
+				});
 
-				let ordersList: Order[] = [];
-				let productsList: Product[] = [];
-				let buyersList: BuyerLite[] = [];
-
-				if (ordersResponse && ordersResponse.ok) {
-					const ordersData = await ordersResponse.json();
-					ordersList = ordersData.orders || ordersData || [];
-				}
-				if (productsResponse && productsResponse.ok) {
-					const productsData = await productsResponse.json();
-					productsList = productsData.products || productsData || [];
-				}
-				if (buyersResponse && buyersResponse.ok) {
-					const buyersData = await buyersResponse.json();
-					buyersList = buyersData.buyers || buyersData || [];
-				}
+				const ordersList = data.orders?.nodes ?? [];
+				const productsList = (data.products?.nodes ?? []).map((product) => ({
+					...product,
+					variants: (product.variants ?? []) as Product['variants'],
+					legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
+				}));
+				const buyersList = data.buyers?.nodes ?? [];
 
 				setOrders(ordersList);
 				setProducts(productsList);
 				setBuyers(buyersList);
-				setHasData((ordersList?.length || 0) > 0);
+				setHasData(ordersList.length > 0);
 			} finally {
 				setLoading(false);
 			}
