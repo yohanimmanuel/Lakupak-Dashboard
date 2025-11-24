@@ -1816,7 +1816,7 @@ const supplierInsights = useMemo(() => {
           subtitle: 'Logistics tracking and delivery milestones',
           action: (
             <Link
-              href="/logistics"
+              href="/orders"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               View logistics
