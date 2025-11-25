@@ -33,6 +33,7 @@ import {
 } from '@/utils/product-security';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { broadcastProductUpdate, broadcastPriceUpdate, broadcastOfferUpdate } from '@/utils/websocketBroadcast';
+import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
 
 // ============================================================================
 // DATABASE CLIENT & CONSTANTS
@@ -978,8 +979,6 @@ const buildSellerInfo = (product: Prisma.ProductGetPayload<typeof productSellerI
 
 // Fetches active offers for a list of product IDs and builds a map
 // Returns Map<productId, ActiveOfferPayload[]> for efficient lookup
-const SOLD_COUNT_EXCLUDED_STATUSES: string[] = ['Pending', 'Cancelled', 'Returned'];
-
 const fetchActiveOffersMap = async (
   productIds: string[],
   userScope?: number | number[]
@@ -1037,55 +1036,6 @@ const fetchActiveOffersMap = async (
   }
 
   return offerMap;
-};
-
-// Calculates sold counts for a list of product IDs
-const calculateSoldCounts = async (productIds: string[]): Promise<Map<string, string>> => {
-  if (!productIds.length) {
-    return new Map();
-  }
-
-  const orderItems = await prisma.orderItem.findMany({
-    where: {
-      productId: { in: productIds },
-      order: {
-        orderStatus: { notIn: SOLD_COUNT_EXCLUDED_STATUSES },
-      },
-    },
-    select: {
-      productId: true,
-      packageQuantity: true,
-      piecesPerPackage: true,
-    },
-  });
-
-  const soldCounts = new Map<string, number>();
-
-  for (const item of orderItems) {
-    if (!item.productId) {
-      continue;
-    }
-    const packageQuantity = Number(item.packageQuantity ?? 0);
-    const piecesPerPackage = Number(item.piecesPerPackage ?? 0);
-
-    let piecesSold = 0;
-    if (packageQuantity > 0 && piecesPerPackage > 0) {
-      piecesSold = packageQuantity * piecesPerPackage;
-    } else if (packageQuantity > 0) {
-      piecesSold = packageQuantity;
-    } else {
-      piecesSold = 1;
-    }
-
-    soldCounts.set(item.productId, (soldCounts.get(item.productId) ?? 0) + piecesSold);
-  }
-
-  const result = new Map<string, string>();
-  soldCounts.forEach((value, key) => {
-    result.set(key, String(value));
-  });
-
-  return result;
 };
 
 // ============================================================================
@@ -1209,7 +1159,7 @@ const fetchProductsConnection = async (args: {
   const productIds = products.map((product) => product.productId);
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap(productIds, userId),
-    calculateSoldCounts(productIds),
+    calculateSoldCounts(prisma, productIds),
   ]);
 
   const nodes = products.map((product) => mapProduct(product, offerMap, soldCountMap));
@@ -1243,7 +1193,7 @@ const fetchSingleProduct = async (args: { userId: number; id: string }) => {
 
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([product.productId], userId),
-    calculateSoldCounts([product.productId]),
+    calculateSoldCounts(prisma, [product.productId]),
   ]);
   return mapProduct(product, offerMap, soldCountMap);
 };
@@ -1299,7 +1249,7 @@ const fetchMarketplaceProductsConnection = async (args: {
 
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap(productIds, userIds),
-    calculateSoldCounts(productIds),
+    calculateSoldCounts(prisma, productIds),
   ]);
 
   const nodes = products
@@ -1916,120 +1866,6 @@ const buildDashboardSnapshot = async (args: {
 };
 
 // ============================================================================
-// PRODUCT MUTATION HELPERS
-// ============================================================================
-// Helper functions for product mutations (create, update, delete, price updates)
-
-// Updates product prices based on active offers
-// This function applies discount calculations to variant options when offers are active
-async function updateProductPricesFromOffers(
-  tx: Prisma.TransactionClient | PrismaClient,
-  userId: number
-): Promise<void> {
-  try {
-    // Get all products for this user
-    const products = await tx.product.findMany({
-      where: { userId },
-      include: {
-        variants: true,
-        variantOptions: true,
-      },
-    });
-
-    for (const product of products) {
-      // Get active offers for this product
-      const productOffers = await tx.offer.findMany({
-        where: {
-          userId,
-          status: 'active',
-          offerProducts: {
-            some: { productId: product.productId },
-          },
-        },
-        include: {
-          offerDiscountTypes: true,
-        },
-      });
-
-      // Update variantOptions (new structure)
-      if (product.variantOptions && product.variantOptions.length > 0) {
-        for (const variantOption of product.variantOptions) {
-          // Parse prices from strings
-          const originalPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
-          const currentOriginalPrice = variantOption.originalSellingPrice
-            ? parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR')
-            : originalPrice;
-
-          let finalPrice = currentOriginalPrice;
-          let hasOffer = false;
-
-          // Apply discount if there are active offers
-          if (productOffers.length > 0) {
-            const offer = productOffers[0];
-            let bestDiscountAmount = 0;
-            let bestDiscountType = null;
-
-            // Check all discount types and find the best one
-            for (const discountType of offer.offerDiscountTypes) {
-              // Skip if discount type is not active
-              if (!discountType.isActive) {
-                continue;
-              }
-
-              // All active discount types are usable (no usage limits)
-              if (discountType.isActive) {
-                let discountAmount = 0;
-
-                if (discountType.discountType === 'percentage') {
-                  discountAmount = (currentOriginalPrice * discountType.discountValue) / 100;
-                } else if (discountType.discountType === 'fixed') {
-                  discountAmount = discountType.discountValue;
-                }
-
-                // Keep the best discount
-                if (discountAmount > bestDiscountAmount) {
-                  bestDiscountAmount = discountAmount;
-                  bestDiscountType = discountType;
-                }
-              }
-            }
-
-            // Apply the best discount found
-            if (bestDiscountType && bestDiscountAmount > 0) {
-              if (bestDiscountType.discountType === 'percentage') {
-                finalPrice = currentOriginalPrice * (1 - bestDiscountType.discountValue / 100);
-              } else if (bestDiscountType.discountType === 'fixed') {
-                finalPrice = Math.max(0, currentOriginalPrice - bestDiscountType.discountValue);
-              }
-              hasOffer = true;
-            } else {
-              // No usable discount types, reset to original price
-              finalPrice = currentOriginalPrice;
-              hasOffer = false;
-            }
-          } else {
-            // No active offers, reset to original price
-            finalPrice = currentOriginalPrice;
-            hasOffer = false;
-          }
-
-          // Update the variant option
-          await tx.variantOption.update({
-            where: { id: variantOption.id },
-            data: {
-              sellingPrice: String(Math.round(finalPrice)),
-              originalSellingPrice: hasOffer ? String(Math.round(currentOriginalPrice)) : null,
-            },
-          });
-        }
-      }
-    }
-  } catch (error) {
-    // Silently handle errors - price updates are non-critical
-  }
-}
-
-// ============================================================================
 // PRODUCT MUTATION RESOLVERS
 // ============================================================================
 
@@ -2263,7 +2099,7 @@ async function createProduct(args: {
   // Map and return the product
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([updatedProduct.productId], userId),
-    calculateSoldCounts([updatedProduct.productId]),
+    calculateSoldCounts(prisma, [updatedProduct.productId]),
   ]);
   return mapProduct(updatedProduct, offerMap, soldCountMap);
 }
@@ -2522,7 +2358,7 @@ async function updateProduct(args: {
   // Map and return the product
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([updatedProduct.productId], userId),
-    calculateSoldCounts([updatedProduct.productId]),
+    calculateSoldCounts(prisma, [updatedProduct.productId]),
   ]);
   return mapProduct(updatedProduct, offerMap, soldCountMap);
 }
@@ -2556,7 +2392,7 @@ async function deleteProduct(args: {
   // Map product for response
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([productToDelete.productId], userId),
-    calculateSoldCounts([productToDelete.productId]),
+    calculateSoldCounts(prisma, [productToDelete.productId]),
   ]);
   const mappedProduct = mapProduct(productToDelete, offerMap, soldCountMap);
 
@@ -2668,7 +2504,7 @@ async function publishMarketplaceProduct(args: {
 
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([updatedProduct.productId], userId),
-    calculateSoldCounts([updatedProduct.productId]),
+    calculateSoldCounts(prisma, [updatedProduct.productId]),
   ]);
   const mappedProduct = mapProduct(updatedProduct, offerMap, soldCountMap);
 

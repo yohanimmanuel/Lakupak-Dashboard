@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '../../../generated/prisma';
+import { PrismaClient } from '../../../generated/prisma';
 import { getProductSecurityHeaders } from '../../../utils/product-security';
-import { parsePrice, safeParsePrice } from '../../../utils/currencyUtils';
-import { validateVariant, parseVariantPrice, parseVariantOriginalPrice, hasVariantDiscount } from '../../../services/variantService';
+import { safeParsePrice } from '../../../utils/currencyUtils';
+import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
 
 interface OfferDiscountType {
   id: string;
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
     // Get active offers for all products
     const productIds = products.map(p => p.productId);
     const userIds = [...new Set(products.map(p => p.userId).filter((id): id is number => id !== null))];
+    const soldCountMap = await calculateSoldCounts(prisma, productIds);
     
     // Get only ACTIVE offers to check real-time status
     const allOffers = await prisma.offer.findMany({
@@ -334,7 +335,7 @@ export async function GET(request: NextRequest) {
         promotionDetails,
          rating: 0, // Will be calculated from actual reviews
          reviewCount: 0, // Will be calculated from actual reviews
-         soldCount: await calculateSoldCount(product.productId), // Calculate from actual orders
+         soldCount: soldCountMap.get(product.productId) || '0',
         stock: variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0),
         stockStatus: (() => {
           const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
@@ -476,230 +477,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to update product prices based on active offers
-async function updateProductPricesFromOffers(tx: Prisma.TransactionClient, userId: number) {
-  try {
-    // Get all products for this user
-    const allProducts = await tx.product.findMany({
-      where: { userId: userId },
-      select: {
-        productId: true,
-      },
-    });
-
-    // Get all offers for this user (both active and inactive to check discount types)
-    const allOffers = await tx.offer.findMany({
-      where: {
-        userId: userId,
-        startDate: { lte: new Date() },
-        endDate: { gte: new Date() },
-      },
-      include: {
-        offerProducts: {
-          include: {
-            product: {
-              include: {
-                variants: true,
-                variantOptions: true,
-              }
-            },
-          },
-        },
-        offerDiscountTypes: true, // Get ALL discount types, not just active ones
-      },
-    });
-
-    // Create a map of products with offers
-    const productsWithOffers = new Map<string, { 
-      productId: string;
-      offerId: string; 
-      offerBadge: string;
-      originalPrice: number;
-      bestDiscount: { price: number; offerName: string } | null;
-      promotionDetails?: Array<{
-        minQuantity: number;
-        freeQuantity: number;
-        description: string;
-      }>;
-    }>();
-
-    for (const offer of allOffers) {
-      // Only process offers that are currently active
-      if (offer.status !== 'active') {
-        continue;
-      }
-
-      // Check if this offer has any active discount types that can apply price discounts
-      const activePriceDiscountTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean; discountType?: string }) => 
-        dt.isActive === true && (dt.discountType === 'percentage' || dt.discountType === 'fixed')
-      );
-      
-      // Check if this offer has any active promotion types
-      const activePromotionTypes = offer.offerDiscountTypes.filter((dt: { isActive?: boolean; discountType?: string }) => 
-        dt.isActive === true && dt.discountType === 'buy_x_get_y'
-      );
-      
-      // If no active discount types at all (neither price nor promotion), skip this offer
-      if (activePriceDiscountTypes.length === 0 && activePromotionTypes.length === 0) {
-        continue;
-      }
-
-      for (const offerProduct of offer.offerProducts) {
-        const productId = offerProduct.product.productId;
-        const product = offerProduct.product;
-        // Prefer new variantOptions (with pricing) instead of legacy variants
-        const firstVariantOption = (product.variantOptions && product.variantOptions.length > 0)
-          ? (product.variantOptions.find((vo: { isDefault?: boolean }) => !!vo.isDefault) || product.variantOptions[0])
-          : undefined;
-        
-        if (!firstVariantOption) continue; // Skip products without priced variant option
-        
-        // Use originalSellingPrice if it exists, otherwise use current sellingPrice
-        const originalPrice = parseVariantOriginalPrice(firstVariantOption) || parseVariantPrice(firstVariantOption);
-        
-        if (!productsWithOffers.has(productId)) {
-          productsWithOffers.set(productId, {
-            productId,
-            offerId: offer.id,
-            offerBadge: '',
-            originalPrice,
-            bestDiscount: null,
-          });
-        }
-
-        // Calculate discount for this offer using only ACTIVE price discount types
-        if (activePriceDiscountTypes.length > 0) {
-          for (const discountType of activePriceDiscountTypes) {
-            let discountedPrice = originalPrice;
-            
-            if (discountType.discountType === 'percentage') {
-              discountedPrice = originalPrice * (1 - discountType.discountValue / 100);
-            } else if (discountType.discountType === 'fixed') {
-              discountedPrice = Math.max(0, originalPrice - discountType.discountValue);
-            }
-
-            // Keep the best discount (lowest price)
-            const productData = productsWithOffers.get(productId);
-            if (productData && (!productData.bestDiscount || discountedPrice < productData.bestDiscount.price)) {
-              productData.bestDiscount = {
-                price: discountedPrice,
-                offerName: offer.name,
-              };
-            }
-          }
-        }
-        
-        // Handle promotions even if there are no active price discounts
-        if (activePromotionTypes.length > 0) {
-          const productData = productsWithOffers.get(productId);
-          if (productData) {
-            // Set up promotion data even without price discount
-            productData.promotionDetails = activePromotionTypes.map(dt => ({
-              minQuantity: dt.minQuantity || 1,
-              freeQuantity: dt.discountValue || 0,
-              description: dt.description || `Buy ${dt.minQuantity || 1} Get ${dt.discountValue || 0} Free`
-            }));
-          }
-        }
-      }
-    }
-
-    // Update products with offers
-    for (const [productId, productData] of productsWithOffers) {
-      if (productData.bestDiscount && productData.bestDiscount.price < productData.originalPrice) {
-        const newPrice = String(productData.bestDiscount.price);
-        // Update the variant options' pricing
-        await tx.variantOption.updateMany({
-          where: { 
-            product: { productId: productId },
-            isDefault: true // Update the default variant option
-          },
-          data: { 
-            sellingPrice: String(newPrice),
-            originalSellingPrice: String(productData.originalPrice), // Store original price
-          },
-        });
-      }
-    }
-
-    // CRITICAL FIX: Restore original prices for ALL products that should not have active discounts
-    // This includes products with no offers AND products with offers but no active discount types
-    const productIdsWithActiveDiscounts = new Set(productsWithOffers.keys());
-    
-    for (const product of allProducts) {
-      const shouldHaveDiscount = productIdsWithActiveDiscounts.has(product.productId);
-      
-      if (!shouldHaveDiscount) {
-        // This product should NOT have a discount - restore original price
-        // Find variant options with originalSellingPrice and restore them
-        const variantOptionsToRestore = await tx.variantOption.findMany({
-          where: {
-            product: { productId: product.productId },
-            originalSellingPrice: { not: null }
-          }
-        });
-        
-        for (const vo of variantOptionsToRestore) {
-          if (vo.originalSellingPrice) {
-            await tx.variantOption.update({
-              where: { id: vo.id },
-              data: { 
-                sellingPrice: vo.originalSellingPrice,
-                originalSellingPrice: '', // Clear the original price since we're restoring it
-              },
-            });
-          }
-        }
-      }
-    }
-    
-  } catch (error) {
-    // Error handled silently
-  }
-}
-
-/**
- * Calculate sold count for a product by counting total pieces sold
- * This includes both piece variants and package variants converted to pieces
- * Only counts orders that are not Pending, Cancelled, or Returned
- */
-async function calculateSoldCount(productId: string): Promise<string> {
-  try {
-    // Get all order items for this product that are not pending, cancelled, or returned
-    const orderItems = await prisma.orderItem.findMany({
-      where: {
-        productId: productId,
-        order: {
-          orderStatus: {
-            notIn: ['Pending', 'Cancelled', 'Returned']
-          }
-        }
-      },
-      select: {
-        packageQuantity: true,
-        piecesPerPackage: true
-      }
-    });
-
-    // Calculate total pieces sold
-    let totalPiecesSold = 0;
-    
-    for (const item of orderItems) {
-      // Calculate pieces sold based on packageQuantity and piecesPerPackage
-      if (item.packageQuantity && item.piecesPerPackage) {
-        // Both package and piece variants use this calculation
-        // Package variant: packageQuantity * piecesPerPackage (e.g., 3 cartons * 20 pieces = 60 pieces)
-        // Piece variant: packageQuantity * piecesPerPackage (e.g., 5 pieces * 1 piece = 5 pieces)
-        totalPiecesSold += item.packageQuantity * item.piecesPerPackage;
-      } else {
-        // Fallback: if no packageQuantity, assume 1 piece
-        totalPiecesSold += 1;
-      }
-    }
-
-    return totalPiecesSold.toString();
-  } catch (error) {
-    // Return "0" if calculation fails
-    return "0";
-  }
-}
