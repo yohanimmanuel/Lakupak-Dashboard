@@ -195,17 +195,15 @@ export default function OffersDetailsPage() {
           // Compute productOfferBadges from discount types
           const computedBadges: Record<string, 'Discount' | 'Promotion' | 'All Offers' | 'Offer'> = {};
           transformedProducts.forEach((p) => {
-            const hasPercentage = transformedDiscountTypes.some(dt => dt.discountType === 'percentage' && dt.isActive);
-            const hasFixed = transformedDiscountTypes.some(dt => dt.discountType === 'fixed' && dt.isActive);
-            const hasBuyXGetY = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
+            const hasDiscount = transformedDiscountTypes.some(dt => (dt.discountType === 'percentage' || dt.discountType === 'fixed') && dt.isActive);
+            const hasPromotion = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
             
-            if (hasPercentage && hasFixed && hasBuyXGetY) {
+            // Compute badge: "All Offers" if both discount and promotion types are present
+            if (hasDiscount && hasPromotion) {
               computedBadges[p.productId] = 'All Offers';
-            } else if (hasPercentage && hasFixed) {
-              computedBadges[p.productId] = 'Discount';
-            } else if (hasBuyXGetY) {
+            } else if (hasPromotion) {
               computedBadges[p.productId] = 'Promotion';
-            } else if (hasPercentage || hasFixed) {
+            } else if (hasDiscount) {
               computedBadges[p.productId] = 'Discount';
             } else {
               computedBadges[p.productId] = 'Offer';
@@ -330,17 +328,15 @@ export default function OffersDetailsPage() {
         // Compute productOfferBadges from discount types
         const computedBadges: Record<string, 'Discount' | 'Promotion' | 'All Offers' | 'Offer'> = {};
         transformedProducts.forEach((p) => {
-          const hasPercentage = transformedDiscountTypes.some(dt => dt.discountType === 'percentage' && dt.isActive);
-          const hasFixed = transformedDiscountTypes.some(dt => dt.discountType === 'fixed' && dt.isActive);
-          const hasBuyXGetY = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
+          const hasDiscount = transformedDiscountTypes.some(dt => (dt.discountType === 'percentage' || dt.discountType === 'fixed') && dt.isActive);
+          const hasPromotion = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
           
-          if (hasPercentage && hasFixed && hasBuyXGetY) {
+          // Compute badge: "All Offers" if both discount and promotion types are present
+          if (hasDiscount && hasPromotion) {
             computedBadges[p.productId] = 'All Offers';
-          } else if (hasPercentage && hasFixed) {
-            computedBadges[p.productId] = 'Discount';
-          } else if (hasBuyXGetY) {
+          } else if (hasPromotion) {
             computedBadges[p.productId] = 'Promotion';
-          } else if (hasPercentage || hasFixed) {
+          } else if (hasDiscount) {
             computedBadges[p.productId] = 'Discount';
           } else {
             computedBadges[p.productId] = 'Offer';
@@ -605,25 +601,22 @@ export default function OffersDetailsPage() {
 
         // Preserve productOfferBadges - compute from discount types if needed
         const updatedBadges = { ...currentOffer.productOfferBadges };
-        // Ensure all products in the offer have badges
+        // Ensure all products in the offer have badges - recompute based on active discount types
         updatedProducts.forEach((p) => {
-          if (!updatedBadges[p.productId]) {
-            // Compute badge from discount types
-            const hasPercentage = currentOffer.discountTypes?.some(dt => dt.discountType === 'percentage' && dt.isActive);
-            const hasFixed = currentOffer.discountTypes?.some(dt => dt.discountType === 'fixed' && dt.isActive);
-            const hasBuyXGetY = currentOffer.discountTypes?.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
-            
-            if (hasPercentage && hasFixed && hasBuyXGetY) {
-              updatedBadges[p.productId] = 'All Offers';
-            } else if (hasPercentage && hasFixed) {
-              updatedBadges[p.productId] = 'Discount';
-            } else if (hasBuyXGetY) {
-              updatedBadges[p.productId] = 'Promotion';
-            } else if (hasPercentage || hasFixed) {
-              updatedBadges[p.productId] = 'Discount';
-            } else {
-              updatedBadges[p.productId] = 'Offer';
-            }
+          // Always recompute badge from current discount types to ensure accuracy
+          const activeDiscountTypes = currentOffer.discountTypes?.filter(dt => dt.isActive !== false) || [];
+          const hasDiscount = activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+          const hasPromotion = activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
+          
+          // Compute badge: "All Offers" if both discount and promotion types are present
+          if (hasDiscount && hasPromotion) {
+            updatedBadges[p.productId] = 'All Offers';
+          } else if (hasPromotion) {
+            updatedBadges[p.productId] = 'Promotion';
+          } else if (hasDiscount) {
+            updatedBadges[p.productId] = 'Discount';
+          } else {
+            updatedBadges[p.productId] = 'Offer';
           }
         });
 
