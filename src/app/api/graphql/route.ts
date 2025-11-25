@@ -2815,13 +2815,14 @@ async function createOffer(args: {
     await updateProductPricesFromOffers(tx, userId);
   });
 
-  // Fetch the created offer with discount types, date ranges, and time slots
+  // Fetch the created offer with discount types, date ranges, time slots, and products
   const createdOfferWithRelations = await prisma.offer.findUnique({
     where: { id: offer.id },
     include: {
       offerDiscountTypes: true,
       dateRanges: true,
       timeSlots: true,
+      offerProducts: true,
     },
   });
 
