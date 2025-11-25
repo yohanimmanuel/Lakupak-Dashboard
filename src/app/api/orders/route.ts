@@ -14,7 +14,7 @@ import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsiste
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
-import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
+import { broadcastOrderUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 
 interface OfferDiscountType {
   id: string;
@@ -27,6 +27,27 @@ interface OfferDiscountType {
 }
 
 const prisma = new PrismaClient();
+
+async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
+  try {
+    const orderItems = await prisma.orderItem.findMany({
+      where: { orderId },
+      select: { productId: true },
+    });
+    const productIds = Array.from(
+      new Set(
+        orderItems
+          .map((item) => item.productId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    if (productIds.length > 0) {
+      await broadcastProductUpdate(productIds);
+    }
+  } catch (error) {
+    // Ignore broadcast errors to keep order flow unaffected
+  }
+}
 
 // GET /api/orders - Get all orders or get by ID
 export async function GET(request: NextRequest) {
@@ -857,6 +878,7 @@ export async function PUT(request: NextRequest) {
         } catch (error) {
           // Ignore broadcast errors
         }
+        await broadcastSoldCountUpdates(updatedOrder.orderId);
 
         return NextResponse.json({ 
           success: true, 
@@ -1226,6 +1248,9 @@ export async function PUT(request: NextRequest) {
       await broadcastOrderUpdate([order.orderId]);
     } catch (error) {
       // Ignore broadcast errors
+    }
+    if (sanitizedData.orderStatus || sanitizedData.orderItems) {
+      await broadcastSoldCountUpdates(order.orderId);
     }
 
     return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });

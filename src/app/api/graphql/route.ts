@@ -292,6 +292,7 @@ const typeDefs = /* GraphQL */ `
     discountValue: Float
     promotionDetails: JSONObject
     originalPrice: String
+    soldCount: String!
   }
 
   type ProductConnection {
@@ -318,6 +319,7 @@ const typeDefs = /* GraphQL */ `
     promotionDetails: JSONObject
     seller: SellerInfo
     variantOptions: [ProductVariantOption!]!
+    soldCount: String!
   }
 
   type MarketplaceProductConnection {
@@ -976,6 +978,8 @@ const buildSellerInfo = (product: Prisma.ProductGetPayload<typeof productSellerI
 
 // Fetches active offers for a list of product IDs and builds a map
 // Returns Map<productId, ActiveOfferPayload[]> for efficient lookup
+const SOLD_COUNT_EXCLUDED_STATUSES: string[] = ['Pending', 'Cancelled', 'Returned'];
+
 const fetchActiveOffersMap = async (
   productIds: string[],
   userScope?: number | number[]
@@ -1035,6 +1039,55 @@ const fetchActiveOffersMap = async (
   return offerMap;
 };
 
+// Calculates sold counts for a list of product IDs
+const calculateSoldCounts = async (productIds: string[]): Promise<Map<string, string>> => {
+  if (!productIds.length) {
+    return new Map();
+  }
+
+  const orderItems = await prisma.orderItem.findMany({
+    where: {
+      productId: { in: productIds },
+      order: {
+        orderStatus: { notIn: SOLD_COUNT_EXCLUDED_STATUSES },
+      },
+    },
+    select: {
+      productId: true,
+      packageQuantity: true,
+      piecesPerPackage: true,
+    },
+  });
+
+  const soldCounts = new Map<string, number>();
+
+  for (const item of orderItems) {
+    if (!item.productId) {
+      continue;
+    }
+    const packageQuantity = Number(item.packageQuantity ?? 0);
+    const piecesPerPackage = Number(item.piecesPerPackage ?? 0);
+
+    let piecesSold = 0;
+    if (packageQuantity > 0 && piecesPerPackage > 0) {
+      piecesSold = packageQuantity * piecesPerPackage;
+    } else if (packageQuantity > 0) {
+      piecesSold = packageQuantity;
+    } else {
+      piecesSold = 1;
+    }
+
+    soldCounts.set(item.productId, (soldCounts.get(item.productId) ?? 0) + piecesSold);
+  }
+
+  const result = new Map<string, string>();
+  soldCounts.forEach((value, key) => {
+    result.set(key, String(value));
+  });
+
+  return result;
+};
+
 // ============================================================================
 // PRODUCT MAPPING
 // ============================================================================
@@ -1049,7 +1102,8 @@ const mapProduct = (
       user: typeof productSellerInclude.include.user;
     };
   }>,
-  offerMap: Map<string, ActiveOfferPayload[]>
+  offerMap: Map<string, ActiveOfferPayload[]>,
+  soldCountMap?: Map<string, string>
 ) => {
   const variantOptionRows = product.variantOptions ?? [];
   const variants = variantOptionRows.map(mapVariantOption);
@@ -1096,6 +1150,7 @@ const mapProduct = (
     promotionDetails: offerMetadata?.promotionDetails ?? null,
     originalPrice: variantOptionRows[0]?.originalSellingPrice ?? null,
     seller: buildSellerInfo(product as Prisma.ProductGetPayload<typeof productSellerInclude>) ?? null,
+    soldCount: soldCountMap?.get(product.productId) ?? '0',
   };
 };
 
@@ -1151,12 +1206,13 @@ const fetchProductsConnection = async (args: {
     prisma.product.count({ where: whereClause }),
   ]);
 
-  const offerMap = await fetchActiveOffersMap(
-    products.map((product) => product.productId),
-    userId
-  );
+  const productIds = products.map((product) => product.productId);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap(productIds, userId),
+    calculateSoldCounts(productIds),
+  ]);
 
-  const nodes = products.map((product) => mapProduct(product, offerMap));
+  const nodes = products.map((product) => mapProduct(product, offerMap, soldCountMap));
 
   return {
     nodes,
@@ -1185,8 +1241,11 @@ const fetchSingleProduct = async (args: { userId: number; id: string }) => {
     return null;
   }
 
-  const offerMap = await fetchActiveOffersMap([product.productId], userId);
-  return mapProduct(product, offerMap);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap([product.productId], userId),
+    calculateSoldCounts([product.productId]),
+  ]);
+  return mapProduct(product, offerMap, soldCountMap);
 };
 
 // Fetches published marketplace products with pagination
@@ -1238,11 +1297,14 @@ const fetchMarketplaceProductsConnection = async (args: {
     .map((product) => product.userId)
     .filter((id): id is number => typeof id === 'number');
 
-  const offerMap = await fetchActiveOffersMap(productIds, userIds);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap(productIds, userIds),
+    calculateSoldCounts(productIds),
+  ]);
 
   const nodes = products
     .filter((product) => (product.variantOptions ?? []).length > 0)
-    .map((product) => mapProduct(product, offerMap));
+    .map((product) => mapProduct(product, offerMap, soldCountMap));
 
   return {
     nodes,
@@ -2199,8 +2261,11 @@ async function createProduct(args: {
   }
 
   // Map and return the product
-  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
-  return mapProduct(updatedProduct, offerMap);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap([updatedProduct.productId], userId),
+    calculateSoldCounts([updatedProduct.productId]),
+  ]);
+  return mapProduct(updatedProduct, offerMap, soldCountMap);
 }
 
 // Updates an existing product by ID or productId
@@ -2455,8 +2520,11 @@ async function updateProduct(args: {
   }
 
   // Map and return the product
-  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
-  return mapProduct(updatedProduct, offerMap);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap([updatedProduct.productId], userId),
+    calculateSoldCounts([updatedProduct.productId]),
+  ]);
+  return mapProduct(updatedProduct, offerMap, soldCountMap);
 }
 
 // Deletes a product by ID or productId
@@ -2486,8 +2554,11 @@ async function deleteProduct(args: {
   }
 
   // Map product for response
-  const offerMap = await fetchActiveOffersMap([productToDelete.productId], userId);
-  const mappedProduct = mapProduct(productToDelete, offerMap);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap([productToDelete.productId], userId),
+    calculateSoldCounts([productToDelete.productId]),
+  ]);
+  const mappedProduct = mapProduct(productToDelete, offerMap, soldCountMap);
 
   // Delete product
   await prisma.product.delete({
@@ -2595,8 +2666,11 @@ async function publishMarketplaceProduct(args: {
     },
   });
 
-  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
-  const mappedProduct = mapProduct(updatedProduct, offerMap);
+  const [offerMap, soldCountMap] = await Promise.all([
+    fetchActiveOffersMap([updatedProduct.productId], userId),
+    calculateSoldCounts([updatedProduct.productId]),
+  ]);
+  const mappedProduct = mapProduct(updatedProduct, offerMap, soldCountMap);
 
   try {
     await broadcastProductUpdate([updatedProduct.productId]);
