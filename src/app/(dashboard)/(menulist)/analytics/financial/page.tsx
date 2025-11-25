@@ -3,6 +3,7 @@ import FinancialAnalytics from '@/components/analyticsperformance/FinancialAnaly
 import { Calendar, ChevronDown, Download } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function FinancialAnalyticsPage() {
   const { user } = useUserStore();
@@ -44,22 +45,71 @@ export default function FinancialAnalyticsPage() {
 
       const userId = user.id;
 
-      // Fetch the data from the FinancialAnalytics component
-      const ordersResponse = await fetch(`/api/orders?userId=${userId}&limit=1000`);
-      const productsResponse = await fetch(`/api/products?userId=${userId}&limit=1000`);
+      // GraphQL queries to fetch orders and products
+      const ORDERS_QUERY = `
+        query GetOrders($userId: Int!, $limit: Int!) {
+          orders(userId: $userId, limit: $limit) {
+            nodes {
+              id
+              orderId
+              buyerId
+              orderDate
+              totalAmount
+              orderItems {
+                productId
+                packageQuantity
+                pricePerPackage
+                piecesPerPackage
+                packageType
+                productTypeSnapshot
+              }
+            }
+          }
+        }
+      `;
+
+      const PRODUCTS_QUERY = `
+        query GetProducts($userId: Int!, $limit: Int!) {
+          products(userId: $userId, limit: $limit) {
+            nodes {
+              productId
+              name
+              productType
+              variantOptions {
+                sellingPrice
+                purchasePrice
+              }
+            }
+          }
+        }
+      `;
+
+      // Fetch data using GraphQL
+      const [ordersData, productsData] = await Promise.all([
+        fetchGraphQL(ORDERS_QUERY, { userId, limit: 1000 }),
+        fetchGraphQL(PRODUCTS_QUERY, { userId, limit: 1000 }),
+      ]);
       
-      if (!ordersResponse.ok || !productsResponse.ok) {
-        throw new Error('Failed to fetch data');
-      }
+      const orders = (ordersData.orders?.nodes || []).map((order: any) => ({
+        ...order,
+        buyerId: order.buyerId || '',
+      }));
+      const products = productsData.products?.nodes || [];
       
-      const ordersData = await ordersResponse.json();
-      const productsData = await productsResponse.json();
-      
-      const orders = Array.isArray(ordersData.orders) ? ordersData.orders : [];
-      const products = Array.isArray(productsData.products) ? productsData.products : [];
+      // Transform GraphQL products to match expected format
+      const transformedProducts = products.map((product: any) => {
+        const firstVariant = product.variantOptions?.[0];
+        return {
+          productId: product.productId,
+          name: product.name,
+          productType: product.productType,
+          sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
+          purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
+        };
+      });
       
       // Create export content as HTML (which can be opened in Word)
-      const exportContent = createWordDocument(orders, products, timeRange);
+      const exportContent = createWordDocument(orders, transformedProducts, timeRange);
       
       // Create and download file as HTML (opens in Word)
       const blob = new Blob([exportContent], { type: 'application/msword;charset=utf-8;' });

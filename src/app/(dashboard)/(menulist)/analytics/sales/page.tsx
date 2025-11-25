@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import CustomerSalesAnalytics from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { Calendar, ChevronDown, Download } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function SalesAnalyticsPage() {
 	const { user } = useUserStore();
@@ -266,18 +267,85 @@ export default function SalesAnalyticsPage() {
 
 			const userId = user.id;
 
-			const [ordersResponse, productsResponse, buyersResponse] = await Promise.all([
-				fetch(`/api/orders?userId=${userId}&limit=1000`),
-				fetch(`/api/products?userId=${userId}&limit=1000`),
-				fetch(`/api/buyers?userId=${userId}&limit=100`)
+			// GraphQL queries to fetch orders, products, and buyers
+			const ORDERS_QUERY = `
+				query GetOrders($userId: Int!, $limit: Int!) {
+					orders(userId: $userId, limit: $limit) {
+						nodes {
+							id
+							orderId
+							buyerId
+							orderDate
+							totalAmount
+							storeName
+							contactPerson
+							orderItems {
+								productId
+								packageQuantity
+								pricePerPackage
+								piecesPerPackage
+								packageType
+								productTypeSnapshot
+							}
+						}
+					}
+				}
+			`;
+
+			const PRODUCTS_QUERY = `
+				query GetProducts($userId: Int!, $limit: Int!) {
+					products(userId: $userId, limit: $limit) {
+						nodes {
+							productId
+							name
+							productType
+							variantOptions {
+								sellingPrice
+								purchasePrice
+							}
+						}
+					}
+				}
+			`;
+
+			const BUYERS_QUERY = `
+				query GetBuyers($userId: Int!, $limit: Int!) {
+					buyers(userId: $userId, limit: $limit) {
+						nodes {
+							buyerId
+							storeName
+							owner
+							businessType
+						}
+					}
+				}
+			`;
+
+			// Fetch data using GraphQL
+			const [ordersData, productsData, buyersData] = await Promise.all([
+				fetchGraphQL(ORDERS_QUERY, { userId, limit: 1000 }),
+				fetchGraphQL(PRODUCTS_QUERY, { userId, limit: 1000 }),
+				fetchGraphQL(BUYERS_QUERY, { userId, limit: 100 }),
 			]);
-			if (!ordersResponse.ok || !productsResponse.ok || !buyersResponse.ok) throw new Error('Failed to fetch data');
-			const ordersJson = await ordersResponse.json();
-			const productsJson = await productsResponse.json();
-			const buyersJson = await buyersResponse.json();
-			const orders: ExportOrder[] = Array.isArray(ordersJson.orders) ? ordersJson.orders : (Array.isArray(ordersJson) ? ordersJson : []);
-			const products: ExportProduct[] = Array.isArray(productsJson.products) ? productsJson.products : (Array.isArray(productsJson) ? productsJson : []);
-			const buyers: ExportBuyer[] = Array.isArray(buyersJson.buyers) ? buyersJson.buyers : (Array.isArray(buyersJson) ? buyersJson : []);
+
+			const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order: any) => ({
+				...order,
+				buyerId: order.buyerId || '',
+			}));
+			const productsRaw = productsData.products?.nodes || [];
+			const buyers: ExportBuyer[] = buyersData.buyers?.nodes || [];
+
+			// Transform GraphQL products to match expected format
+			const products: ExportProduct[] = productsRaw.map((product: any) => {
+				const firstVariant = product.variantOptions?.[0];
+				return {
+					productId: product.productId,
+					name: product.name,
+					productType: product.productType,
+					sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
+					purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
+				};
+			});
 
 			const content = createWordDocument(orders, products, buyers, timeRange);
 			const blob = new Blob([content], { type: 'application/msword;charset=utf-8;' });
