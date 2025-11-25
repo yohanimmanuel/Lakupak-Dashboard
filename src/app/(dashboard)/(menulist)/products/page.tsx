@@ -139,8 +139,8 @@ export default function ProductsPage() {
       });
 
       const productsData = data.products.nodes;
-      setProducts(productsData);
-      setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
+        setProducts(productsData);
+        setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
     } catch (error) {
       setProducts([]);
       setOverlayMessage('Error loading products');

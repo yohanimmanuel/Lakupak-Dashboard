@@ -197,19 +197,19 @@ export default function OffersDetailsPage() {
           transformedProducts.forEach((p) => {
             const hasDiscount = transformedDiscountTypes.some(dt => (dt.discountType === 'percentage' || dt.discountType === 'fixed') && dt.isActive);
             const hasPromotion = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
-            
+              
             // Compute badge: "All Offers" if both discount and promotion types are present
-            if (hasDiscount && hasPromotion) {
+              if (hasDiscount && hasPromotion) {
               computedBadges[p.productId] = 'All Offers';
-            } else if (hasPromotion) {
+              } else if (hasPromotion) {
               computedBadges[p.productId] = 'Promotion';
-            } else if (hasDiscount) {
+              } else if (hasDiscount) {
               computedBadges[p.productId] = 'Discount';
-            } else {
+              } else {
               computedBadges[p.productId] = 'Offer';
             }
           });
-
+          
           const transformedOffer: Offer = {
             id: offer.id,
             offerId: offer.offerId,
@@ -330,15 +330,15 @@ export default function OffersDetailsPage() {
         transformedProducts.forEach((p) => {
           const hasDiscount = transformedDiscountTypes.some(dt => (dt.discountType === 'percentage' || dt.discountType === 'fixed') && dt.isActive);
           const hasPromotion = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
-          
+            
           // Compute badge: "All Offers" if both discount and promotion types are present
-          if (hasDiscount && hasPromotion) {
+            if (hasDiscount && hasPromotion) {
             computedBadges[p.productId] = 'All Offers';
-          } else if (hasPromotion) {
+            } else if (hasPromotion) {
             computedBadges[p.productId] = 'Promotion';
-          } else if (hasDiscount) {
+            } else if (hasDiscount) {
             computedBadges[p.productId] = 'Discount';
-          } else {
+            } else {
             computedBadges[p.productId] = 'Offer';
           }
         });
@@ -637,7 +637,7 @@ export default function OffersDetailsPage() {
         });
       } else {
         // Fallback: refresh the entire offer if mutation response doesn't include dateRanges/timeSlots
-        await refreshOffer();
+      await refreshOffer();
       }
       
       setHasUnsavedChanges(false);

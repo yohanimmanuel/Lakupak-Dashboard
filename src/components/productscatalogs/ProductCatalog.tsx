@@ -776,36 +776,36 @@ export default function ProductCatalog({
       await fetchGraphQL(UNPUBLISH_PRODUCT_MUTATION, {
         userId: user.id,
         productId: product.productId,
-        status: 'Draft',
+          status: 'Draft',
       });
 
-      // Also update marketplace status to unpublished
-      try {
-        const marketplaceResponse = await fetch('/api/marketplace', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId: product.productId,
-            userId: user.id,
-            action: 'unpublish'
-          }),
-        });
+        // Also update marketplace status to unpublished
+        try {
+          const marketplaceResponse = await fetch('/api/marketplace', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productId: product.productId,
+              userId: user.id,
+              action: 'unpublish'
+            }),
+          });
 
-        if (!marketplaceResponse.ok) {
-          const marketplaceError = await marketplaceResponse.json();
+          if (!marketplaceResponse.ok) {
+            const marketplaceError = await marketplaceResponse.json();
+            // Don't fail the entire operation, just warn
+          }
+        } catch (marketplaceError) {
           // Don't fail the entire operation, just warn
         }
-      } catch (marketplaceError) {
-        // Don't fail the entire operation, just warn
-      }
 
-      // Show success modal and reload page
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        // Force complete page reload
-        window.location.href = window.location.href;
-      }, 1000);
+        // Show success modal and reload page
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          // Force complete page reload
+          window.location.href = window.location.href;
+        }, 1000);
     } catch (error) {
       alert('Error unpublishing product. Please try again.');
     } finally {

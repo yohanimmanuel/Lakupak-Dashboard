@@ -395,16 +395,16 @@ export default function ProductIntegration({
       
       const products = productsData.products.nodes;
       const offers = offersData.offers.nodes;
-      
-      // Get all product IDs that already belong to any offer (active or inactive)
-      // Exclude products from the CURRENT offer being edited (if in edit mode)
-      const currentOfferId = offerData?.offerId;
-      const productsWithOffers = new Set<string>();
+        
+        // Get all product IDs that already belong to any offer (active or inactive)
+        // Exclude products from the CURRENT offer being edited (if in edit mode)
+        const currentOfferId = offerData?.offerId;
+        const productsWithOffers = new Set<string>();
       
       // Build productsWithOffers set by checking all offers and their products
       // This ensures we correctly identify products in OTHER offers (not the current one)
       offers.forEach((offer: { id: string; offerId: string; products?: Array<{ productId: string }> }) => {
-        // Skip the current offer being edited
+          // Skip the current offer being edited
         if (offer.offerId === currentOfferId) {
           return;
         }
@@ -412,24 +412,24 @@ export default function ProductIntegration({
         if (offer.products && Array.isArray(offer.products)) {
           offer.products.forEach((op: { productId: string }) => {
             productsWithOffers.add(op.productId);
-          });
-        }
-      });
-      
-      // Transform products to include offer information
-      const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
-        const storeHasOffer = Boolean(productOfferBadges[product.productId]);
-        const apiHasOffer = productsWithOffers.has(product.productId);
+            });
+          }
+        });
         
-        // Check if product is in current offer (for editing mode)
-        const isInCurrentOffer = currentOfferProductIds.has(product.productId);
-        
-        // Determine hasOffer based on whether product is in current offer or not:
+        // Transform products to include offer information
+        const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
+          const storeHasOffer = Boolean(productOfferBadges[product.productId]);
+          const apiHasOffer = productsWithOffers.has(product.productId);
+          
+            // Check if product is in current offer (for editing mode)
+            const isInCurrentOffer = currentOfferProductIds.has(product.productId);
+            
+            // Determine hasOffer based on whether product is in current offer or not:
         // - If in current offer: hasOffer should be false (so it's NOT blocked) - we only care about offers from OTHER offers
         // - If not in current offer: use API data to check if it has offers from other offers
         // This way, products in the current offer can always be selected/removed
         const hasOffer = isInCurrentOffer ? false : apiHasOffer;
-        const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
+          const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
         
         // Determine badge: show badge if product is in current offer OR has offer from store
         // If in current offer but no badge from store, show 'Offer' badge
@@ -441,18 +441,18 @@ export default function ProductIntegration({
         } else {
           finalBadge = undefined;
         }
-
-        return {
-          ...product,
+          
+          return {
+            ...product,
           hasOffer, // Only true if product has offers from OTHER offers (not current offer)
           offerDiscount: (isInCurrentOffer && storeHasOffer) ? calculateDiscountAmount(product as ProductWithOffer) : 0,
           offerType: (isInCurrentOffer && storeHasOffer) ? 'percentage' : undefined,
           offerBadge: finalBadge,
           isInCurrentOffer, // Add flag to track if product is in current offer
-        };
-      });
-      
-      setProducts(productsWithOfferInfo);
+          };
+        });
+        
+        setProducts(productsWithOfferInfo);
     } catch (error) {
       setProducts([]);
     } finally {
@@ -1260,12 +1260,12 @@ export default function ProductIntegration({
                         <h3 className="text-lg font-semibold text-black">
                           {allInCurrentOffer ? 'Remove Offer from Products' : 'Apply Offer to Products'}
                         </h3>
-                        <p className="text-gray-500 text-sm">
+                  <p className="text-gray-500 text-sm">
                           {allInCurrentOffer 
                             ? `Remove offer from ${selectedProducts.length} selected product${selectedProducts.length !== 1 ? 's' : ''}`
                             : `Configure offer settings for ${selectedProducts.length} selected product${selectedProducts.length !== 1 ? 's' : ''}`
                           }
-                        </p>
+                  </p>
                       </>
                     );
                   })()}
@@ -1564,112 +1564,112 @@ export default function ProductIntegration({
                   
                   // Otherwise, show apply button
                   return (
-                    <button
-                      disabled={selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)}
-                      onClick={() => {
-                        // Validate selections
-                        if (selectedOfferTypes.length === 0) {
-                          alert('Please select at least one offer type');
-                          return;
-                        }
-                        if (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0) {
-                          alert('Please select at least one active period (date range or time slot)');
-                          return;
-                        }
-                        if (isBatchEditMode && offerData) {
-                          // In batch edit mode, update parent state
-                          const existingProducts = offerData.products || [];
-                          const newProducts = selectedProducts.map(productId => ({
-                            id: `po-${Date.now()}-${productId}`,
-                            productId,
-                            offerId: offerData.id,
-                            discountType: 'percentage' as const,
-                            discountValue: 0,
-                            isActive: true
-                          }));
-                          const updatedProducts = [...existingProducts, ...newProducts];
-                          
-                          // Update product offer badges based on selected types
-                          const badge = computeOfferBadge();
-                          const updatedBadges = { ...productOfferBadges };
-                          selectedProducts.forEach(id => {
-                            updatedBadges[id] = badge;
-                          });
-                          
-                          // Filter discount types to only include selected ones
-                          const filteredDiscountTypes = offerData?.discountTypes?.map((dt) => ({
-                            ...dt,
-                            isActive: selectedOfferTypes.includes(dt.discountType) // Mark as active only if selected
-                          })) || [];
-                          
-                          onOfferChange!({ 
-                            products: updatedProducts,
-                            productOfferBadges: updatedBadges,
-                            discountTypes: filteredDiscountTypes // Update which discount types are active
-                          });
-                          
-                          // Update local UI
-                          const badgeForUI = computeOfferBadge();
-                          setProducts((prev) => prev.map((p) => {
-                            if (selectedProducts.includes(p.productId)) {
-                              const discountAmount = calculateDiscountAmount(p);
-                              return { 
-                                ...p, 
-                                hasOffer: true, 
-                                offerBadge: badgeForUI as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
-                                offerDiscount: discountAmount,
-                                offerType: 'percentage' as const
-                              };
-                            }
-                            return p;
-                          }));
-                          
-                          // Update currentOfferProductIds to add the selected products
-                          setCurrentOfferProductIds(prev => {
-                            const newSet = new Set(prev);
-                            selectedProducts.forEach(id => newSet.add(id));
-                            return newSet;
-                          });
-                        } else {
-                          // In create view, update local state
-                          const badgeForCreate = computeOfferBadge();
-                          setProducts((prev) => prev.map((p) => {
-                            if (selectedProducts.includes(p.productId)) {
-                              const discountAmount = calculateDiscountAmount(p);
-                              return { 
-                                ...p, 
-                                hasOffer: true, 
-                                offerBadge: badgeForCreate as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
-                                offerDiscount: discountAmount,
-                                offerType: 'percentage' as const
-                              };
-                            }
-                            return p;
-                          }));
-                          selectedProducts.forEach((id) => setProductOfferBadge(id, badgeForCreate));
-                          
-                          // Update currentOfferProductIds to add the selected products
-                          setCurrentOfferProductIds(prev => {
-                            const newSet = new Set(prev);
-                            selectedProducts.forEach(id => newSet.add(id));
-                            return newSet;
-                          });
-                        }
-                        setShowOfferModal(false);
-                        setSelectedProducts([]);
-                        // Reset selections
-                        setSelectedOfferTypes([]);
-                        setSelectedDateRanges([]);
-                        setSelectedTimeSlots([]);
-                      }}
-                      className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
-                        selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
-                      }`}
-                    >
-                      Apply Offer
-                    </button>
+                <button
+                  disabled={selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)}
+                  onClick={() => {
+                    // Validate selections
+                    if (selectedOfferTypes.length === 0) {
+                      alert('Please select at least one offer type');
+                      return;
+                    }
+                    if (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0) {
+                      alert('Please select at least one active period (date range or time slot)');
+                      return;
+                    }
+                  if (isBatchEditMode && offerData) {
+                    // In batch edit mode, update parent state
+                    const existingProducts = offerData.products || [];
+                    const newProducts = selectedProducts.map(productId => ({
+                      id: `po-${Date.now()}-${productId}`,
+                      productId,
+                      offerId: offerData.id,
+                      discountType: 'percentage' as const,
+                      discountValue: 0,
+                      isActive: true
+                    }));
+                    const updatedProducts = [...existingProducts, ...newProducts];
+                    
+                    // Update product offer badges based on selected types
+                    const badge = computeOfferBadge();
+                    const updatedBadges = { ...productOfferBadges };
+                    selectedProducts.forEach(id => {
+                      updatedBadges[id] = badge;
+                    });
+                    
+                    // Filter discount types to only include selected ones
+                    const filteredDiscountTypes = offerData?.discountTypes?.map((dt) => ({
+                      ...dt,
+                      isActive: selectedOfferTypes.includes(dt.discountType) // Mark as active only if selected
+                    })) || [];
+                    
+                    onOfferChange!({ 
+                      products: updatedProducts,
+                      productOfferBadges: updatedBadges,
+                      discountTypes: filteredDiscountTypes // Update which discount types are active
+                    });
+                    
+                    // Update local UI
+                    const badgeForUI = computeOfferBadge();
+                    setProducts((prev) => prev.map((p) => {
+                      if (selectedProducts.includes(p.productId)) {
+                        const discountAmount = calculateDiscountAmount(p);
+                        return { 
+                          ...p, 
+                          hasOffer: true, 
+                          offerBadge: badgeForUI as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
+                          offerDiscount: discountAmount,
+                          offerType: 'percentage' as const
+                        };
+                      }
+                      return p;
+                    }));
+                    
+                    // Update currentOfferProductIds to add the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.add(id));
+                      return newSet;
+                    });
+                  } else {
+                    // In create view, update local state
+                    const badgeForCreate = computeOfferBadge();
+                    setProducts((prev) => prev.map((p) => {
+                      if (selectedProducts.includes(p.productId)) {
+                        const discountAmount = calculateDiscountAmount(p);
+                        return { 
+                          ...p, 
+                          hasOffer: true, 
+                          offerBadge: badgeForCreate as 'Discount' | 'Promotion' | 'All Offers' | 'Offer',
+                          offerDiscount: discountAmount,
+                          offerType: 'percentage' as const
+                        };
+                      }
+                      return p;
+                    }));
+                    selectedProducts.forEach((id) => setProductOfferBadge(id, badgeForCreate));
+                    
+                    // Update currentOfferProductIds to add the selected products
+                    setCurrentOfferProductIds(prev => {
+                      const newSet = new Set(prev);
+                      selectedProducts.forEach(id => newSet.add(id));
+                      return newSet;
+                    });
+                  }
+                  setShowOfferModal(false);
+                  setSelectedProducts([]);
+                  // Reset selections
+                  setSelectedOfferTypes([]);
+                  setSelectedDateRanges([]);
+                  setSelectedTimeSlots([]);
+                }}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
+                  selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                }`}
+              >
+                Apply Offer
+              </button>
                   );
                 })()}
               </div>
@@ -1695,9 +1695,9 @@ export default function ProductIntegration({
                 
                 return (
                   <>
-                    <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700">
                       Are you sure you want to remove offers from {count} selected product{count !== 1 ? 's' : ''}?
-                    </p>
+              </p>
                     <p className="text-xs text-gray-500">This action will remove the offer from the selected products in this offer.</p>
                   </>
                 );

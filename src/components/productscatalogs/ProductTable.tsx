@@ -226,7 +226,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               id: product.productId,
             });
             if (setProductsAction) {
-              setProductsAction?.(prev => prev.filter(p => p.productId !== product.productId));
+            setProductsAction?.(prev => prev.filter(p => p.productId !== product.productId));
             }
           } catch (error) {
             // Failed to delete product
@@ -243,7 +243,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           id: productToDelete.productId,
         });
         if (setProductsAction) {
-          setProductsAction?.(prev => prev.filter(p => p.productId !== productToDelete.productId));
+        setProductsAction?.(prev => prev.filter(p => p.productId !== productToDelete.productId));
         }
       } catch (error) {
         // Failed to delete product
@@ -342,8 +342,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             userId: user.id,
             productId: productToPublish.productId,
             status: 'Published',
-          });
-          
+        });
+        
           // Update local state
           if (setProductsAction) {
             setProductsAction?.(prev => prev.map(p => 
@@ -371,14 +371,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 userId: user.id,
                 productId: product.productId,
                 status: 'Published',
-              });
-              
+            });
+            
               if (setProductsAction) {
-                setProductsAction?.(prev => prev.map(p => 
-                  p.productId === product.productId 
-                    ? { ...p, status: 'Published' }
-                    : p
-                ));
+              setProductsAction?.(prev => prev.map(p => 
+                p.productId === product.productId 
+                  ? { ...p, status: 'Published' }
+                  : p
+              ));
               }
             } catch (error) {
               // Failed to publish product
@@ -390,9 +390,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         setShowPublishModal(false);
         setSelectedProducts([]);
       }
-    } catch (error) {
-      // Error publishing products
-    }
+          } catch (error) {
+        // Error publishing products
+      }
   };
 
   const handleUnpublishProducts = async () => {
@@ -408,14 +408,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               userId: user.id,
               productId: product.productId,
               status: 'Draft',
-            });
-            
+          });
+          
             if (setProductsAction) {
-              setProductsAction?.(prev => prev.map(p => 
-                p.productId === product.productId 
-                  ? { ...p, status: 'Draft' }
-                  : p
-              ));
+            setProductsAction?.(prev => prev.map(p => 
+              p.productId === product.productId 
+                ? { ...p, status: 'Draft' }
+                : p
+            ));
             }
           } catch (error) {
             // Failed to unpublish product
@@ -429,9 +429,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       // Close the unpublish modal
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
-    } catch (error) {
-      // Error unpublishing products
-    }
+          } catch (error) {
+        // Error unpublishing products
+      }
   };
 
   const handleProductSelect = (productId: string) => {

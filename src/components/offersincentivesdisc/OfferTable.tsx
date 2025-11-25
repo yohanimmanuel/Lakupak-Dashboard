@@ -309,12 +309,12 @@ export default function OfferTable({
             userId: user.id,
             id: offerToDelete.id,
           });
-          
-          // Update UI state
-          if (setOffersAction) {
-            setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
-          }
-          setOfferToDelete(null);
+        
+        // Update UI state
+        if (setOffersAction) {
+          setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
+        }
+        setOfferToDelete(null);
         } catch (error) {
           alert('Failed to delete offer. Please try again.');
           return;
