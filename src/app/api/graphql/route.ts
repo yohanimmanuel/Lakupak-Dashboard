@@ -32,7 +32,7 @@ import {
   generateUniqueProductId,
 } from '@/utils/product-security';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
-import { broadcastProductUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
+import { broadcastProductUpdate, broadcastPriceUpdate, broadcastOfferUpdate } from '@/utils/websocketBroadcast';
 
 // ============================================================================
 // DATABASE CLIENT & CONSTANTS
@@ -335,6 +335,33 @@ const typeDefs = /* GraphQL */ `
     priority: Int!
   }
 
+  type OfferDateRange {
+    id: String!
+    name: String!
+    description: String
+    startDate: String!
+    endDate: String!
+    isActive: Boolean!
+    createdAt: String
+    updatedAt: String
+  }
+
+  type OfferTimeSlot {
+    id: String!
+    name: String!
+    description: String
+    startTime: String!
+    endTime: String!
+    days: [String!]!
+    isActive: Boolean!
+    createdAt: String
+    updatedAt: String
+  }
+
+  type OfferProduct {
+    productId: String!
+  }
+
   type Offer {
     id: String!
     offerId: String!
@@ -347,6 +374,9 @@ const typeDefs = /* GraphQL */ `
     totalUsage: Int!
     totalDiscountGiven: Float!
     discountTypes: [OfferDiscount!]!
+    dateRanges: [OfferDateRange!]!
+    timeSlots: [OfferTimeSlot!]!
+    products: [OfferProduct!]!
   }
 
   type OfferConnection {
@@ -475,6 +505,9 @@ const typeDefs = /* GraphQL */ `
       type: String
     ): OfferConnection!
 
+    # Get a single offer by ID or offerId
+    offer(userId: Int!, id: String!): Offer
+
     buyers(
       userId: Int!
       page: Int = 1
@@ -596,6 +629,95 @@ const typeDefs = /* GraphQL */ `
     # Special action: Reset prices for a specific product
     # Resets variant option prices to their original selling prices
     resetProductPrices(userId: Int!, productId: String!): ActionResult!
+
+    # ============================================================================
+    # OFFER MUTATIONS
+    # ============================================================================
+    # Mutations for creating, updating, and deleting offers/promotions
+    # These replace the REST POST, PUT, and DELETE endpoints for offers
+
+    # Create a new offer with discount types, products, date ranges, and time slots
+    # Returns the created offer with all related data
+    createOffer(
+      userId: Int!
+      name: String!
+      description: String
+      type: [String!]!
+      status: String
+      startDate: String!
+      endDate: String!
+      discountTypes: [DiscountTypeInput!]!
+      productIds: [String!]!
+      dateRanges: [DateRangeInput!]
+      timeSlots: [TimeSlotInput!]
+    ): Offer!
+
+    # Update an existing offer by ID or offerId
+    # Supports partial updates - only provided fields will be updated
+    updateOffer(
+      userId: Int!
+      id: String!
+      name: String
+      description: String
+      type: [String!]
+      status: String
+      startDate: String
+      endDate: String
+      discountTypes: [DiscountTypeInput!]
+      productIds: [String!]
+      dateRanges: [DateRangeInput!]
+      timeSlots: [TimeSlotInput!]
+    ): Offer!
+
+    # Delete an offer by ID or offerId
+    # Returns success status and deleted offer data
+    deleteOffer(
+      userId: Int!
+      id: String!
+    ): DeleteOfferResult!
+  }
+
+  # ============================================================================
+  # OFFER INPUT TYPES
+  # ============================================================================
+  # Input types for offer mutations
+
+  input DiscountTypeInput {
+    discountType: String!
+    discountValue: Float!
+    name: String
+    description: String
+    minOrderValue: Float
+    minQuantity: Int
+    isActive: Boolean
+    priority: Int
+  }
+
+  input DateRangeInput {
+    name: String!
+    description: String
+    startDate: String!
+    endDate: String!
+    isActive: Boolean
+  }
+
+  input TimeSlotInput {
+    name: String!
+    description: String
+    startTime: String!
+    endTime: String!
+    days: [String!]!
+    isActive: Boolean
+  }
+
+  # ============================================================================
+  # OFFER RESULT TYPES
+  # ============================================================================
+  # Result types for offer mutations
+
+  type DeleteOfferResult {
+    success: Boolean!
+    deleted: Offer
   }
 
   # Input types for product mutations
@@ -1120,10 +1242,14 @@ const fetchMarketplaceProductsConnection = async (args: {
 // ============================================================================
 
 // Maps Prisma Offer to GraphQL Offer type
+// Includes discount types, date ranges, time slots, and products
 const mapOffer = (
   offer: Prisma.OfferGetPayload<{
     include: {
       offerDiscountTypes: true;
+      dateRanges: true;
+      timeSlots: true;
+      offerProducts: true;
     };
   }>
 ) => ({
@@ -1145,6 +1271,30 @@ const mapOffer = (
     minQuantity: discount.minQuantity,
     isActive: discount.isActive,
     priority: discount.priority,
+  })),
+  dateRanges: (offer.dateRanges || []).map((dr) => ({
+    id: dr.id,
+    name: dr.name,
+    description: dr.description,
+    startDate: dr.startDate.toISOString(),
+    endDate: dr.endDate.toISOString(),
+    isActive: dr.isActive,
+    createdAt: dr.createdAt.toISOString(),
+    updatedAt: dr.updatedAt.toISOString(),
+  })),
+  timeSlots: (offer.timeSlots || []).map((ts) => ({
+    id: ts.id,
+    name: ts.name,
+    description: ts.description,
+    startTime: ts.startTime,
+    endTime: ts.endTime,
+    days: ts.days || [],
+    isActive: ts.isActive,
+    createdAt: ts.createdAt.toISOString(),
+    updatedAt: ts.updatedAt.toISOString(),
+  })),
+  products: (offer.offerProducts || []).map((op) => ({
+    productId: op.productId,
   })),
 });
 
@@ -1177,6 +1327,9 @@ const fetchOffersConnection = async (args: {
       orderBy: { createdAt: 'desc' },
       include: {
         offerDiscountTypes: true,
+        dateRanges: true,
+        timeSlots: true,
+        offerProducts: true,
       },
     }),
     prisma.offer.count({ where: whereClause }),
@@ -1186,6 +1339,34 @@ const fetchOffersConnection = async (args: {
     nodes: offers.map(mapOffer),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
+};
+
+// Fetches a single offer by ID (string) or offerId (string)
+// Supports both database ID and custom offerId lookup
+const fetchSingleOffer = async (args: {
+  userId: number;
+  id: string;
+}): Promise<ReturnType<typeof mapOffer> | null> => {
+  const { userId, id } = args;
+
+  const offer = await prisma.offer.findFirst({
+    where: {
+      OR: [{ id }, { offerId: id }],
+      userId,
+    },
+    include: {
+      offerDiscountTypes: true,
+      dateRanges: true,
+      timeSlots: true,
+      offerProducts: true,
+    },
+  });
+
+  if (!offer) {
+    return null;
+  }
+
+  return mapOffer(offer);
 };
 
 // ============================================================================
@@ -2446,6 +2627,529 @@ async function resetProductPrices(
 }
 
 // ============================================================================
+// OFFER MUTATION HELPERS
+// ============================================================================
+// Helper functions for offer mutations (create, update, delete)
+// These mirror the logic from the REST API endpoints
+
+// Creates a new offer with discount types, products, date ranges, and time slots
+// Returns the created offer with all related data
+async function createOffer(args: {
+  userId: number;
+  name: string;
+  description?: string | null;
+  type: string[];
+  status?: string | null;
+  startDate: string;
+  endDate: string;
+  discountTypes: Array<{
+    discountType: string;
+    discountValue: number;
+    name?: string | null;
+    description?: string | null;
+    minOrderValue?: number | null;
+    minQuantity?: number | null;
+    isActive?: boolean | null;
+    priority?: number | null;
+  }>;
+  productIds: string[];
+  dateRanges?: Array<{
+    name: string;
+    description?: string | null;
+    startDate: string;
+    endDate: string;
+    isActive?: boolean | null;
+  }> | null;
+  timeSlots?: Array<{
+    name: string;
+    description?: string | null;
+    startTime: string;
+    endTime: string;
+    days: string[];
+    isActive?: boolean | null;
+  }> | null;
+}): Promise<ReturnType<typeof mapOffer>> {
+  const {
+    userId,
+    name,
+    description,
+    type,
+    status = 'active',
+    startDate,
+    endDate,
+    discountTypes,
+    productIds,
+    dateRanges = [],
+    timeSlots = [],
+  } = args;
+
+  // Validate required fields
+  if (!name || !type || !discountTypes?.length || !startDate || !endDate || !productIds?.length) {
+    throw new Error('Missing required fields');
+  }
+
+  // Validate date range
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (start >= end) {
+    throw new Error('End date must be after start date');
+  }
+
+  // Validate discount types
+  for (const discountType of discountTypes) {
+    if (discountType.discountValue <= 0) {
+      throw new Error('Discount value must be greater than 0');
+    }
+    if (discountType.discountType === 'percentage' && discountType.discountValue > 100) {
+      throw new Error('Percentage discount cannot exceed 100%');
+    }
+  }
+
+  // Check if products exist and belong to user
+  const userProducts = await prisma.product.findMany({
+    where: {
+      userId,
+      productId: { in: productIds },
+    },
+    select: { productId: true },
+  });
+
+  if (userProducts.length !== productIds.length) {
+    throw new Error('Some products do not exist or do not belong to you');
+  }
+
+  // Generate unique offer ID
+  const offerId = `OFF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Create offer with all related data in a transaction
+  const offer = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Create the offer
+    const createdOffer = await tx.offer.create({
+      data: {
+        offerId,
+        name,
+        description: description || null,
+        type,
+        status: status || 'active',
+        startDate: start,
+        endDate: end,
+        userId,
+      },
+    });
+
+    // Create discount types
+    await tx.offerDiscountType.createMany({
+      data: discountTypes.map((dt) => ({
+        offerId: createdOffer.id,
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        name: dt.name || null,
+        description: dt.description || null,
+        minOrderValue: dt.minOrderValue || null,
+        minQuantity: dt.minQuantity || null,
+        isActive: dt.isActive !== false,
+        priority: dt.priority || 1,
+      })),
+    });
+
+    // Create offer-product relationships
+    await tx.offerProduct.createMany({
+      data: productIds.map((productId: string) => ({
+        offerId: createdOffer.id,
+        productId,
+      })),
+    });
+
+    // Create date ranges
+    if (dateRanges && dateRanges.length > 0) {
+      await tx.dateRange.createMany({
+        data: dateRanges.map((dr) => ({
+          offerId: createdOffer.id,
+          name: dr.name,
+          description: dr.description || null,
+          startDate: new Date(dr.startDate),
+          endDate: new Date(dr.endDate),
+          isActive: dr.isActive !== false,
+        })),
+      });
+    }
+
+    // Create time slots
+    if (timeSlots && timeSlots.length > 0) {
+      await tx.timeSlot.createMany({
+        data: timeSlots.map((ts) => ({
+          offerId: createdOffer.id,
+          name: ts.name,
+          description: ts.description || null,
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          days: ts.days,
+          isActive: ts.isActive !== false,
+        })),
+      });
+    }
+
+    return createdOffer;
+  });
+
+  // Update product prices based on all active offers for this user
+  await prisma.$transaction(async (tx) => {
+    // First, ensure all product variant options have originalSellingPrice set
+    const productsWithVariantOptions = await tx.product.findMany({
+      where: { userId },
+      include: { variantOptions: true },
+    });
+
+    for (const product of productsWithVariantOptions) {
+      for (const vo of product.variantOptions) {
+        if (!vo.originalSellingPrice || vo.originalSellingPrice === '') {
+          await tx.variantOption.update({
+            where: { id: vo.id },
+            data: { originalSellingPrice: vo.sellingPrice },
+          });
+        }
+      }
+    }
+
+    // Apply current active offers
+    await updateProductPricesFromOffers(tx, userId);
+  });
+
+  // Fetch the created offer with discount types, date ranges, and time slots
+  const createdOfferWithRelations = await prisma.offer.findUnique({
+    where: { id: offer.id },
+    include: {
+      offerDiscountTypes: true,
+      dateRanges: true,
+      timeSlots: true,
+    },
+  });
+
+  if (!createdOfferWithRelations) {
+    throw new Error('Failed to fetch created offer');
+  }
+
+  // ============================================================================
+  // WEBSOCKET BROADCAST FOR REAL-TIME MARKETPLACE UPDATES
+  // ============================================================================
+  // Broadcast offer update to all connected WebSocket clients (marketplace)
+  // This ensures offers appear in real-time when created/updated
+  // The marketplace listens for 'offer_updated' and 'prices_updated' messages
+  // and refreshes the product list automatically
+  try {
+    await broadcastOfferUpdate(createdOfferWithRelations.id, productIds);
+    await broadcastPriceUpdate(productIds);
+  } catch (error) {
+    // Silently fail if WebSocket server is not running or broadcast fails
+    // This should not block the mutation from completing
+  }
+
+  return mapOffer(createdOfferWithRelations);
+}
+
+// Updates an existing offer by ID or offerId
+// Supports partial updates - only provided fields will be updated
+async function updateOffer(args: {
+  userId: number;
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  type?: string[] | null;
+  status?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  discountTypes?: Array<{
+    discountType: string;
+    discountValue: number;
+    name?: string | null;
+    description?: string | null;
+    minOrderValue?: number | null;
+    minQuantity?: number | null;
+    isActive?: boolean | null;
+    priority?: number | null;
+  }> | null;
+  productIds?: string[] | null;
+  dateRanges?: Array<{
+    name: string;
+    description?: string | null;
+    startDate: string;
+    endDate: string;
+    isActive?: boolean | null;
+  }> | null;
+  timeSlots?: Array<{
+    name: string;
+    description?: string | null;
+    startTime: string;
+    endTime: string;
+    days: string[];
+    isActive?: boolean | null;
+  }> | null;
+}): Promise<ReturnType<typeof mapOffer>> {
+  const {
+    userId,
+    id,
+    name,
+    description,
+    type,
+    status,
+    startDate,
+    endDate,
+    discountTypes,
+    productIds,
+    dateRanges,
+    timeSlots,
+  } = args;
+
+  // Build where clause - support both database ID and offerId
+  const where = {
+    OR: [{ id }, { offerId: id }],
+    userId,
+  };
+
+  // Find the offer first
+  const existingOffer = await prisma.offer.findFirst({
+    where,
+    include: {
+      offerProducts: true,
+    },
+  });
+
+  if (!existingOffer) {
+    throw new Error('Offer not found or you do not have permission to update it');
+  }
+
+  // Build update data (only include provided fields)
+  const cleanUpdateData: Partial<{
+    name: string;
+    description: string | null;
+    type: string[];
+    status: string;
+    startDate: Date;
+    endDate: Date;
+  }> = {};
+
+  if (name !== undefined && name !== null) cleanUpdateData.name = name;
+  if (description !== undefined) cleanUpdateData.description = description ?? null;
+  if (type !== undefined) cleanUpdateData.type = type ?? [];
+  if (status !== undefined && status !== null) cleanUpdateData.status = status;
+  if (startDate !== undefined && startDate !== null) cleanUpdateData.startDate = new Date(startDate);
+  if (endDate !== undefined && endDate !== null) cleanUpdateData.endDate = new Date(endDate);
+
+  // Validate date range if both dates are provided
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start >= end) {
+      throw new Error('End date must be after start date');
+    }
+  }
+
+  // Update offer with related data in a transaction
+  const updatedOffer = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Update the offer
+    const offer = await tx.offer.update({
+      where: { id: existingOffer.id },
+      data: cleanUpdateData,
+    });
+
+    // Update discount types if provided
+    if (discountTypes && discountTypes.length > 0) {
+      // Delete existing discount types
+      await tx.offerDiscountType.deleteMany({
+        where: { offerId: offer.id },
+      });
+
+      // Create new discount types
+      await tx.offerDiscountType.createMany({
+        data: discountTypes.map((dt) => ({
+          offerId: offer.id,
+          discountType: dt.discountType,
+          discountValue: dt.discountValue,
+          name: dt.name || null,
+          description: dt.description || null,
+          minOrderValue: dt.minOrderValue || null,
+          minQuantity: dt.minQuantity || null,
+          isActive: dt.isActive !== false,
+          priority: dt.priority || 1,
+        })),
+      });
+    }
+
+    // Update products if provided (including empty array to remove all products)
+    if (productIds !== undefined && productIds !== null) {
+      // Delete existing offer-product relationships first
+      await tx.offerProduct.deleteMany({
+        where: { offerId: offer.id },
+      });
+
+      // If productIds array has items, validate and create new relationships
+      if (productIds.length > 0) {
+        // Validate products belong to user
+        const userProducts = await tx.product.findMany({
+          where: {
+            userId,
+            productId: { in: productIds },
+          },
+          select: { productId: true },
+        });
+
+        if (userProducts.length !== productIds.length) {
+          throw new Error('Some products do not exist or do not belong to you');
+        }
+
+        // Create new offer-product relationships
+        await tx.offerProduct.createMany({
+          data: productIds.map((productId: string) => ({
+            offerId: offer.id,
+            productId,
+          })),
+        });
+      }
+      // If productIds is empty array, we've already deleted all relationships above
+    }
+
+    // Update date ranges if provided
+    if (dateRanges !== undefined) {
+      // Delete existing date ranges
+      await tx.dateRange.deleteMany({
+        where: { offerId: offer.id },
+      });
+
+      // Create new date ranges if provided
+      if (dateRanges && dateRanges.length > 0) {
+        await tx.dateRange.createMany({
+          data: dateRanges.map((dr) => ({
+            offerId: offer.id,
+            name: dr.name,
+            description: dr.description || null,
+            startDate: new Date(dr.startDate),
+            endDate: new Date(dr.endDate),
+            isActive: dr.isActive !== false,
+          })),
+        });
+      }
+    }
+
+    // Update time slots if provided
+    if (timeSlots !== undefined) {
+      // Delete existing time slots
+      await tx.timeSlot.deleteMany({
+        where: { offerId: offer.id },
+      });
+
+      // Create new time slots if provided
+      if (timeSlots && timeSlots.length > 0) {
+        await tx.timeSlot.createMany({
+          data: timeSlots.map((ts) => ({
+            offerId: offer.id,
+            name: ts.name,
+            description: ts.description || null,
+            startTime: ts.startTime,
+            endTime: ts.endTime,
+            days: ts.days,
+            isActive: ts.isActive !== false,
+          })),
+        });
+      }
+    }
+
+    return offer;
+  });
+
+  // Update product prices based on all active offers for this user
+  await prisma.$transaction(async (tx) => {
+    await updateProductPricesFromOffers(tx, userId);
+  });
+
+  // Fetch the updated offer with discount types, date ranges, and time slots
+  const updatedOfferWithRelations = await prisma.offer.findUnique({
+    where: { id: updatedOffer.id },
+    include: {
+      offerDiscountTypes: true,
+      offerProducts: true,
+      dateRanges: true,
+      timeSlots: true,
+    },
+  });
+
+  if (!updatedOfferWithRelations) {
+    throw new Error('Failed to fetch updated offer');
+  }
+
+  // ============================================================================
+  // WEBSOCKET BROADCAST FOR REAL-TIME MARKETPLACE UPDATES
+  // ============================================================================
+  // Broadcast offer update to all connected WebSocket clients (marketplace)
+  const affectedProductIds = updatedOfferWithRelations.offerProducts.map((op) => op.productId);
+  try {
+    await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIds);
+    await broadcastPriceUpdate(affectedProductIds);
+  } catch (error) {
+    // Silently fail if WebSocket server is not running or broadcast fails
+  }
+
+  return mapOffer(updatedOfferWithRelations);
+}
+
+// Deletes an offer by ID or offerId
+// Returns success status and deleted offer data
+async function deleteOffer(args: {
+  userId: number;
+  id: string;
+}): Promise<{ success: boolean; deleted: ReturnType<typeof mapOffer> | null }> {
+  const { userId, id } = args;
+
+  // Build where clause - support both database ID and offerId
+  const where = {
+    OR: [{ id }, { offerId: id }],
+    userId,
+  };
+
+  // Find offer before deletion
+  const offerToDelete = await prisma.offer.findFirst({
+    where,
+    include: {
+      offerDiscountTypes: true,
+      offerProducts: true,
+      dateRanges: true,
+      timeSlots: true,
+    },
+  });
+
+  if (!offerToDelete) {
+    throw new Error('Offer not found or you do not have permission to delete it');
+  }
+
+  const affectedProductIds = offerToDelete.offerProducts.map((op) => op.productId);
+
+  // Delete the offer (cascade will handle related records)
+  await prisma.offer.delete({
+    where: { id: offerToDelete.id },
+  });
+
+  // Update product prices after offer deletion
+  await prisma.$transaction(async (tx) => {
+    await updateProductPricesFromOffers(tx, userId);
+  });
+
+  // ============================================================================
+  // WEBSOCKET BROADCAST FOR REAL-TIME MARKETPLACE UPDATES
+  // ============================================================================
+  // Broadcast offer deletion to all connected WebSocket clients (marketplace)
+  try {
+    await broadcastOfferUpdate(offerToDelete.id, affectedProductIds);
+    await broadcastPriceUpdate(affectedProductIds);
+  } catch (error) {
+    // Silently fail if WebSocket server is not running or broadcast fails
+  }
+
+  return {
+    success: true,
+    deleted: mapOffer(offerToDelete),
+  };
+}
+
+// ============================================================================
 // GRAPHQL RESOLVERS
 // ============================================================================
 // Maps GraphQL queries and mutations to their resolver functions
@@ -2476,6 +3180,8 @@ const resolvers = {
       fetchMarketplaceProductsConnection(args),
     offers: (_: unknown, args: Parameters<typeof fetchOffersConnection>[0]) =>
       fetchOffersConnection(args),
+    offer: (_: unknown, args: Parameters<typeof fetchSingleOffer>[0]) =>
+      fetchSingleOffer(args),
     buyers: (_: unknown, args: Parameters<typeof fetchBuyersConnection>[0]) =>
       fetchBuyersConnection(args),
     suppliers: (_: unknown, args: Parameters<typeof fetchSuppliersConnection>[0]) =>
@@ -2505,6 +3211,9 @@ const resolvers = {
     forceUpdatePrices: (_: unknown, args: { userId: number }) => forceUpdatePrices(args.userId),
     resetProductPrices: (_: unknown, args: { userId: number; productId: string }) =>
       resetProductPrices(args.userId, args.productId),
+    createOffer: (_: unknown, args: Parameters<typeof createOffer>[0]) => createOffer(args),
+    updateOffer: (_: unknown, args: Parameters<typeof updateOffer>[0]) => updateOffer(args),
+    deleteOffer: (_: unknown, args: Parameters<typeof deleteOffer>[0]) => deleteOffer(args),
   },
 };
 

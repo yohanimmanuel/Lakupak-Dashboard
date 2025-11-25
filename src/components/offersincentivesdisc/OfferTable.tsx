@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
 import { Offer, OfferTableRow, OfferDiscountType } from '@/types/offer';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 // Status tabs for filtering offers by status
 const statusTabs = [
@@ -231,18 +232,63 @@ export default function OfferTable({
     return <div className="flex flex-wrap gap-1">{badges}</div>;
   }
 
+  // GraphQL mutations for offers
+  const DELETE_OFFER_MUTATION = `
+    mutation DeleteOffer($userId: Int!, $id: String!) {
+      deleteOffer(userId: $userId, id: $id) {
+        success
+        deleted {
+          id
+          offerId
+          name
+        }
+      }
+    }
+  `;
+
+  const UPDATE_OFFER_MUTATION = `
+    mutation UpdateOffer(
+      $userId: Int!
+      $id: String!
+      $status: String
+    ) {
+      updateOffer(
+        userId: $userId
+        id: $id
+        status: $status
+      ) {
+        id
+        offerId
+        name
+        status
+      }
+    }
+  `;
+
   const handleDeleteConfirm = async () => {
     if (!user?.id) return;
     
     try {
       if (isBulkDelete) {
-        // Bulk delete - delete all selected offers
+        // Bulk delete - delete all selected offers using GraphQL
         const deletePromises = selectedOffers.map(offerId => 
-          fetch(`/api/offers/${offerId}?userId=${user?.id}`, { method: 'DELETE' })
+          fetchGraphQL<{
+            deleteOffer: {
+              success: boolean;
+              deleted: {
+                id: string;
+                offerId: string;
+                name: string;
+              } | null;
+            };
+          }>(DELETE_OFFER_MUTATION, {
+            userId: user.id,
+            id: offerId,
+          })
         );
         
-        const responses = await Promise.all(deletePromises);
-        const failedDeletes = responses.filter(response => !response.ok);
+        const results = await Promise.all(deletePromises);
+        const failedDeletes = results.filter(result => !result.deleteOffer?.success);
         
         if (failedDeletes.length > 0) {
           alert(`Failed to delete ${failedDeletes.length} offers. Please try again.`);
@@ -255,21 +301,24 @@ export default function OfferTable({
         }
         setSelectedOffers([]);
       } else {
-        // Single delete - delete one offer
+        // Single delete - delete one offer using GraphQL
         if (!offerToDelete) return;
         
-        const response = await fetch(`/api/offers/${offerToDelete.id}?userId=${user?.id}`, { method: 'DELETE' });
-        
-        if (!response.ok) {
+        try {
+          await fetchGraphQL(DELETE_OFFER_MUTATION, {
+            userId: user.id,
+            id: offerToDelete.id,
+          });
+          
+          // Update UI state
+          if (setOffersAction) {
+            setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
+          }
+          setOfferToDelete(null);
+        } catch (error) {
           alert('Failed to delete offer. Please try again.');
           return;
         }
-        
-        // Update UI state
-        if (setOffersAction) {
-          setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
-        }
-        setOfferToDelete(null);
       }
       
       setShowDeleteModal(false);
@@ -309,14 +358,15 @@ export default function OfferTable({
   };
 
   const handleBulkActivate = async () => {
-    if (selectedOffers.length === 0) return;
+    if (selectedOffers.length === 0 || !user?.id) return;
     
     try {
+      // Bulk activate - update all selected offers using GraphQL
       const updatePromises = selectedOffers.map(offerId =>
-        fetch(`/api/offers/${offerId}?type=offer&userId=${user?.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'active' })
+        fetchGraphQL(UPDATE_OFFER_MUTATION, {
+          userId: user.id,
+          id: offerId,
+          status: 'active',
         })
       );
       
@@ -336,14 +386,15 @@ export default function OfferTable({
   };
   
   const handleBulkDeactivate = async () => {
-    if (selectedOffers.length === 0) return;
+    if (selectedOffers.length === 0 || !user?.id) return;
     
     try {
+      // Bulk deactivate - update all selected offers using GraphQL
       const updatePromises = selectedOffers.map(offerId =>
-        fetch(`/api/offers/${offerId}?type=offer&userId=${user?.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'inactive' })
+        fetchGraphQL(UPDATE_OFFER_MUTATION, {
+          userId: user.id,
+          id: offerId,
+          status: 'inactive',
         })
       );
       

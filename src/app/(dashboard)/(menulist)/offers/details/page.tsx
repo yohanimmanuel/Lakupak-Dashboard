@@ -11,6 +11,7 @@ import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 import { Offer } from '@/types/offer';
 import { OfferDiscountType } from '@/types/offer';
 import { OfferProduct } from '@/types/offer';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
@@ -29,7 +30,58 @@ export default function OffersDetailsPage() {
   // Get offer ID from URL params
   const offerId = searchParams.get('id');
 
-  // Fetch specific offer by ID (following products module pattern)
+  // GraphQL query to fetch a single offer
+  const OFFER_QUERY = `
+    query GetOffer($userId: Int!, $id: String!) {
+      offer(userId: $userId, id: $id) {
+        id
+        offerId
+        name
+        description
+        type
+        status
+        startDate
+        endDate
+        totalUsage
+        totalDiscountGiven
+        discountTypes {
+          id
+          discountType
+          discountValue
+          minOrderValue
+          minQuantity
+          isActive
+          priority
+        }
+        products {
+          productId
+        }
+        dateRanges {
+          id
+          name
+          description
+          startDate
+          endDate
+          isActive
+          createdAt
+          updatedAt
+        }
+        timeSlots {
+          id
+          name
+          description
+          startTime
+          endTime
+          days
+          isActive
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  `;
+
+  // Fetch specific offer by ID using GraphQL
   useEffect(() => {
     const fetchOffer = async () => {
       if (!user?.id || !offerId) return;
@@ -37,50 +89,153 @@ export default function OffersDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`/api/offers/${offerId}?userId=${user.id}`);
         
-        if (response.ok) {
-          const data = await response.json();
-          const offer = data.offer; // Extract the offer from the response wrapper
+        const data = await fetchGraphQL<{
+          offer: {
+            id: string;
+            offerId: string;
+            name: string;
+            description: string | null;
+            type: string[];
+            status: string;
+            startDate: string;
+            endDate: string;
+            totalUsage: number;
+            totalDiscountGiven: number;
+            discountTypes: Array<{
+              id: string;
+              discountType: string;
+              discountValue: number;
+              minOrderValue: number | null;
+              minQuantity: number | null;
+              isActive: boolean;
+              priority: number;
+            }>;
+            dateRanges: Array<{
+              id: string;
+              name: string;
+              description: string | null;
+              startDate: string;
+              endDate: string;
+              isActive: boolean;
+              createdAt: string;
+              updatedAt: string;
+            }>;
+            timeSlots: Array<{
+              id: string;
+              name: string;
+              description: string | null;
+              startTime: string;
+              endTime: string;
+              days: string[];
+              isActive: boolean;
+              createdAt: string;
+              updatedAt: string;
+            }>;
+            products: Array<{
+              productId: string;
+            }>;
+          } | null;
+        }>(OFFER_QUERY, {
+          userId: user.id,
+          id: offerId,
+        });
+        
+        if (data.offer) {
+          const offer = data.offer;
           
-          // Extract product offer badges from offerProducts based on ACTIVE discount types
-          const productOfferBadges: Record<string, string> = {};
+          // Transform GraphQL response to match Offer type
+          const transformedDiscountTypes = offer.discountTypes.map((dt) => ({
+            id: dt.id,
+            discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
+            discountValue: dt.discountValue,
+            minOrderValue: dt.minOrderValue || undefined,
+            minQuantity: dt.minQuantity || undefined,
+            isActive: dt.isActive,
+            priority: dt.priority,
+          }));
           
-          // Get only active discount types
-          const activeDiscountTypes = (offer.discountTypes || [])
-            .filter((dt: OfferDiscountType) => dt.isActive !== false)
-            .map((dt: OfferDiscountType) => dt.discountType);
+          // Transform date ranges
+          const transformedDateRanges = offer.dateRanges.map((dr) => ({
+            id: dr.id,
+            name: dr.name,
+            description: dr.description || '',
+            startDate: dr.startDate,
+            endDate: dr.endDate,
+            isActive: dr.isActive,
+            offerCount: 0,
+            createdAt: dr.createdAt,
+            updatedAt: dr.updatedAt,
+          }));
           
-          offer.products?.forEach((product: OfferProduct) => {
-            if (product.productId) {
-              // Determine badge based on active discount types
-              const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
-              const hasPromotion = activeDiscountTypes.some((type: string) => type === 'buy_x_get_y');
-              
-              if (hasDiscount && hasPromotion) {
-                productOfferBadges[product.productId] = 'All Offers';
-              } else if (hasPromotion) {
-                productOfferBadges[product.productId] = 'Promotion';
-              } else if (hasDiscount) {
-                productOfferBadges[product.productId] = 'Discount';
-              } else {
-                productOfferBadges[product.productId] = 'Offer';
-              }
+          // Transform time slots
+          const transformedTimeSlots = offer.timeSlots.map((ts) => ({
+            id: ts.id,
+            name: ts.name,
+            description: ts.description || undefined,
+            startTime: ts.startTime,
+            endTime: ts.endTime,
+            days: ts.days || [],
+            isActive: ts.isActive,
+            offerCount: 0,
+            createdAt: ts.createdAt,
+            updatedAt: ts.updatedAt,
+          }));
+          
+          // Transform products from GraphQL response
+          const transformedProducts = offer.products.map((p) => ({
+            id: `po-${Date.now()}-${p.productId}`,
+            productId: p.productId,
+            offerId: offer.id,
+            discountType: 'percentage' as const,
+            discountValue: 0,
+            isActive: true
+          }));
+
+          // Compute productOfferBadges from discount types
+          const computedBadges: Record<string, 'Discount' | 'Promotion' | 'All Offers' | 'Offer'> = {};
+          transformedProducts.forEach((p) => {
+            const hasPercentage = transformedDiscountTypes.some(dt => dt.discountType === 'percentage' && dt.isActive);
+            const hasFixed = transformedDiscountTypes.some(dt => dt.discountType === 'fixed' && dt.isActive);
+            const hasBuyXGetY = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
+            
+            if (hasPercentage && hasFixed && hasBuyXGetY) {
+              computedBadges[p.productId] = 'All Offers';
+            } else if (hasPercentage && hasFixed) {
+              computedBadges[p.productId] = 'Discount';
+            } else if (hasBuyXGetY) {
+              computedBadges[p.productId] = 'Promotion';
+            } else if (hasPercentage || hasFixed) {
+              computedBadges[p.productId] = 'Discount';
+            } else {
+              computedBadges[p.productId] = 'Offer';
             }
           });
-          
-          // Add productOfferBadges to the offer data
-          const offerWithBadges = {
-            ...offer,
-            productOfferBadges
+
+          const transformedOffer: Offer = {
+            id: offer.id,
+            offerId: offer.offerId,
+            name: offer.name,
+            description: offer.description || undefined,
+            type: offer.type as ('discount' | 'promotion')[],
+            status: offer.status as 'active' | 'expired' | 'inactive',
+            startDate: offer.startDate,
+            endDate: offer.endDate,
+            totalUsage: offer.totalUsage,
+            totalDiscountGiven: offer.totalDiscountGiven,
+            discountTypes: transformedDiscountTypes,
+            dateRanges: transformedDateRanges,
+            timeSlots: transformedTimeSlots,
+            products: transformedProducts,
+            productOfferBadges: computedBadges,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
           
-          setCurrentOffer(offerWithBadges);
-          setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
-        } else if (response.status === 404) {
-          setError('Offer not found');
+          setCurrentOffer(transformedOffer);
+          setOriginalOffer(JSON.parse(JSON.stringify(transformedOffer))); // Deep clone
         } else {
-          setError('Failed to load offer');
+          setError('Offer not found');
         }
       } catch (error) {
         setError('Failed to load offer');
@@ -92,50 +247,155 @@ export default function OffersDetailsPage() {
     fetchOffer();
   }, [user?.id, offerId]);
 
-  // Helper function to refresh the current offer after saving
+  // Helper function to refresh the current offer after saving using GraphQL
   const refreshOffer = async () => {
     if (!user?.id || !offerId) return;
     
     try {
-      const response = await fetch(`/api/offers/${offerId}?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        const offer = data.offer; // Extract the offer from the response wrapper
+      const data = await fetchGraphQL<{
+        offer: {
+          id: string;
+          offerId: string;
+          name: string;
+          description: string | null;
+          type: string[];
+          status: string;
+          startDate: string;
+          endDate: string;
+          totalUsage: number;
+          totalDiscountGiven: number;
+          discountTypes: Array<{
+            id: string;
+            discountType: string;
+            discountValue: number;
+            minOrderValue: number | null;
+            minQuantity: number | null;
+            isActive: boolean;
+            priority: number;
+          }>;
+          dateRanges: Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            startDate: string;
+            endDate: string;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+          timeSlots: Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            startTime: string;
+            endTime: string;
+            days: string[];
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+          products: Array<{
+            productId: string;
+          }>;
+        } | null;
+      }>(OFFER_QUERY, {
+        userId: user.id,
+        id: offerId,
+      });
+      
+      if (data.offer) {
+        const offer = data.offer;
         
-        // Extract product offer badges from offerProducts based on ACTIVE discount types
-        const productOfferBadges: Record<string, string> = {};
+        // Transform GraphQL response to match Offer type
+        const transformedDiscountTypes = offer.discountTypes.map((dt) => ({
+          id: dt.id,
+          discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
+          discountValue: dt.discountValue,
+          minOrderValue: dt.minOrderValue || undefined,
+          minQuantity: dt.minQuantity || undefined,
+          isActive: dt.isActive,
+          priority: dt.priority,
+        }));
         
-        // Get only active discount types
-        const activeDiscountTypes = (offer.discountTypes || [])
-          .filter((dt: OfferDiscountType) => dt.isActive !== false)
-          .map((dt: OfferDiscountType) => dt.discountType);
-        
-        offer.products?.forEach((product: OfferProduct) => {
-          if (product.productId) {
-            // Determine badge based on active discount types
-            const hasDiscount = activeDiscountTypes.some((type: string) => type === 'percentage' || type === 'fixed');
-            const hasPromotion = activeDiscountTypes.some((type: string) => type === 'buy_x_get_y');
-            
-            if (hasDiscount && hasPromotion) {
-              productOfferBadges[product.productId] = 'All Offers';
-            } else if (hasPromotion) {
-              productOfferBadges[product.productId] = 'Promotion';
-            } else if (hasDiscount) {
-              productOfferBadges[product.productId] = 'Discount';
-            } else {
-              productOfferBadges[product.productId] = 'Offer';
-            }
+        // Transform products from GraphQL response
+        const transformedProducts = offer.products.map((p) => ({
+          id: `po-${Date.now()}-${p.productId}`,
+          productId: p.productId,
+          offerId: offer.id,
+          discountType: 'percentage' as const,
+          discountValue: 0,
+          isActive: true
+        }));
+
+        // Compute productOfferBadges from discount types
+        const computedBadges: Record<string, 'Discount' | 'Promotion' | 'All Offers' | 'Offer'> = {};
+        transformedProducts.forEach((p) => {
+          const hasPercentage = transformedDiscountTypes.some(dt => dt.discountType === 'percentage' && dt.isActive);
+          const hasFixed = transformedDiscountTypes.some(dt => dt.discountType === 'fixed' && dt.isActive);
+          const hasBuyXGetY = transformedDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
+          
+          if (hasPercentage && hasFixed && hasBuyXGetY) {
+            computedBadges[p.productId] = 'All Offers';
+          } else if (hasPercentage && hasFixed) {
+            computedBadges[p.productId] = 'Discount';
+          } else if (hasBuyXGetY) {
+            computedBadges[p.productId] = 'Promotion';
+          } else if (hasPercentage || hasFixed) {
+            computedBadges[p.productId] = 'Discount';
+          } else {
+            computedBadges[p.productId] = 'Offer';
           }
         });
         
-        // Add productOfferBadges to the offer data
-        const offerWithBadges = {
-          ...offer,
-          productOfferBadges
+        // Transform date ranges
+        const transformedDateRanges = offer.dateRanges.map((dr) => ({
+          id: dr.id,
+          name: dr.name,
+          description: dr.description || '',
+          startDate: dr.startDate,
+          endDate: dr.endDate,
+          isActive: dr.isActive,
+          offerCount: 0,
+          createdAt: dr.createdAt,
+          updatedAt: dr.updatedAt,
+        }));
+
+        // Transform time slots
+        const transformedTimeSlots = offer.timeSlots.map((ts) => ({
+          id: ts.id,
+          name: ts.name,
+          description: ts.description || undefined,
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          days: ts.days || [],
+          isActive: ts.isActive,
+          offerCount: 0,
+          createdAt: ts.createdAt,
+          updatedAt: ts.updatedAt,
+        }));
+        
+        const transformedOffer: Offer = {
+          id: offer.id,
+          offerId: offer.offerId,
+          name: offer.name,
+          description: offer.description || undefined,
+          type: offer.type as ('discount' | 'promotion')[],
+          status: offer.status as 'active' | 'expired' | 'inactive',
+          startDate: offer.startDate,
+          endDate: offer.endDate,
+          totalUsage: offer.totalUsage,
+          totalDiscountGiven: offer.totalDiscountGiven,
+          discountTypes: transformedDiscountTypes,
+          dateRanges: transformedDateRanges,
+          timeSlots: transformedTimeSlots,
+          products: transformedProducts,
+          productOfferBadges: computedBadges,
+          createdAt: currentOffer?.createdAt || new Date().toISOString(),
+          updatedAt: currentOffer?.updatedAt || new Date().toISOString(),
         };
         
-        setCurrentOffer(offerWithBadges);
-        setOriginalOffer(JSON.parse(JSON.stringify(offerWithBadges))); // Deep clone
+        setCurrentOffer(transformedOffer);
+        setOriginalOffer(JSON.parse(JSON.stringify(transformedOffer))); // Deep clone
       }
     } catch (error) {
       // Ignore refresh errors
@@ -150,40 +410,252 @@ export default function OffersDetailsPage() {
     }
   };
 
-  // Save all changes
+  // GraphQL mutation to update offer
+  const UPDATE_OFFER_MUTATION = `
+    mutation UpdateOffer(
+      $userId: Int!
+      $id: String!
+      $name: String
+      $description: String
+      $type: [String!]
+      $status: String
+      $startDate: String
+      $endDate: String
+      $discountTypes: [DiscountTypeInput!]
+      $productIds: [String!]
+      $dateRanges: [DateRangeInput!]
+      $timeSlots: [TimeSlotInput!]
+    ) {
+      updateOffer(
+        userId: $userId
+        id: $id
+        name: $name
+        description: $description
+        type: $type
+        status: $status
+        startDate: $startDate
+        endDate: $endDate
+        discountTypes: $discountTypes
+        productIds: $productIds
+        dateRanges: $dateRanges
+        timeSlots: $timeSlots
+      ) {
+        id
+        offerId
+        name
+        status
+        products {
+          productId
+        }
+        dateRanges {
+          id
+          name
+          description
+          startDate
+          endDate
+          isActive
+          createdAt
+          updatedAt
+        }
+        timeSlots {
+          id
+          name
+          description
+          startTime
+          endTime
+          days
+          isActive
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  `;
+
+  // Save all changes using GraphQL
   const handleSave = async () => {
-    if (!currentOffer || !hasUnsavedChanges) return;
+    if (!currentOffer || !hasUnsavedChanges || !user?.id) return;
 
     setIsSaving(true);
     try {
-      const payload = {
-        discountTypes: currentOffer.discountTypes,
-        dateRanges: currentOffer.dateRanges,
-        timeSlots: currentOffer.timeSlots,
-        products: currentOffer.products,
-        status: currentOffer.status || 'active',
-      };
+      // Transform discount types for GraphQL
+      const graphQLDiscountTypes = (currentOffer.discountTypes || []).map((dt) => ({
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        name: dt.name || null,
+        description: dt.description || null,
+        minOrderValue: dt.minOrderValue ? parseFloat(String(dt.minOrderValue).replace(/\./g, '')) : null,
+        minQuantity: dt.minQuantity || null,
+        isActive: dt.isActive !== false,
+        priority: dt.priority || 1,
+      }));
+
+      // Extract product IDs from currentOffer.products
+      // This ensures removed products are not included when saving
+      const productIds = (currentOffer.products || []).map((p) => p.productId).filter(Boolean);
       
-      const response = await fetch(`/api/offers/${currentOffer.id}?type=batch-update&userId=${user?.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      // Always send productIds (even if empty array) to ensure products are updated correctly
+      // Empty array means remove all products, array with IDs means set those products
+
+      // Transform date ranges for GraphQL
+      const graphQLDateRanges = (currentOffer.dateRanges || []).map((dr) => ({
+        name: dr.name,
+        description: dr.description || null,
+        startDate: typeof dr.startDate === 'string' ? dr.startDate : new Date(dr.startDate).toISOString(),
+        endDate: typeof dr.endDate === 'string' ? dr.endDate : new Date(dr.endDate).toISOString(),
+        isActive: dr.isActive !== false,
+      }));
+
+      // Transform time slots for GraphQL
+      const graphQLTimeSlots = (currentOffer.timeSlots || []).map((ts) => ({
+        name: ts.name,
+        description: ts.description || null,
+        startTime: ts.startTime,
+        endTime: ts.endTime,
+        days: ts.days || [],
+        isActive: ts.isActive !== false,
+      }));
+
+      const updateResult = await fetchGraphQL<{
+        updateOffer: {
+          id: string;
+          offerId: string;
+          name: string;
+          status: string;
+          products: Array<{
+            productId: string;
+          }>;
+          dateRanges: Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            startDate: string;
+            endDate: string;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+          timeSlots: Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            startTime: string;
+            endTime: string;
+            days: string[];
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        };
+      }>(UPDATE_OFFER_MUTATION, {
+        userId: user.id,
+        id: currentOffer.id,
+        name: currentOffer.name || null,
+        description: currentOffer.description || null,
+        type: currentOffer.type || null,
+        status: currentOffer.status || 'active',
+        startDate: currentOffer.startDate || null,
+        endDate: currentOffer.endDate || null,
+        discountTypes: graphQLDiscountTypes.length > 0 ? graphQLDiscountTypes : null,
+        productIds: productIds, // Always send array (even if empty) to ensure products are updated/removed
+        dateRanges: graphQLDateRanges.length > 0 ? graphQLDateRanges : null,
+        timeSlots: graphQLTimeSlots.length > 0 ? graphQLTimeSlots : null,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to save changes');
-      }
+      // Update currentOffer with the returned dateRanges and timeSlots
+      if (updateResult.updateOffer && currentOffer) {
+        const updatedDateRanges = updateResult.updateOffer.dateRanges.map((dr) => ({
+          id: dr.id,
+          name: dr.name,
+          description: dr.description || '',
+          startDate: dr.startDate,
+          endDate: dr.endDate,
+          isActive: dr.isActive,
+          offerCount: 0,
+          createdAt: dr.createdAt,
+          updatedAt: dr.updatedAt,
+        }));
 
-      // Refresh the current offer from server
-      await refreshOffer();
+        const updatedTimeSlots = updateResult.updateOffer.timeSlots.map((ts) => ({
+          id: ts.id,
+          name: ts.name,
+          description: ts.description || undefined,
+          startTime: ts.startTime,
+          endTime: ts.endTime,
+          days: ts.days || [],
+          isActive: ts.isActive,
+          offerCount: 0,
+          createdAt: ts.createdAt,
+          updatedAt: ts.updatedAt,
+        }));
+
+        // Transform products from GraphQL response
+        const updatedProducts = updateResult.updateOffer.products.map((p) => {
+          // Find existing product data to preserve discount info
+          const existingProduct = currentOffer.products?.find(ep => ep.productId === p.productId);
+          return existingProduct || {
+            id: `po-${Date.now()}-${p.productId}`,
+            productId: p.productId,
+            offerId: currentOffer.id,
+            discountType: 'percentage' as const,
+            discountValue: 0,
+            isActive: true
+          };
+        });
+
+        // Preserve productOfferBadges - compute from discount types if needed
+        const updatedBadges = { ...currentOffer.productOfferBadges };
+        // Ensure all products in the offer have badges
+        updatedProducts.forEach((p) => {
+          if (!updatedBadges[p.productId]) {
+            // Compute badge from discount types
+            const hasPercentage = currentOffer.discountTypes?.some(dt => dt.discountType === 'percentage' && dt.isActive);
+            const hasFixed = currentOffer.discountTypes?.some(dt => dt.discountType === 'fixed' && dt.isActive);
+            const hasBuyXGetY = currentOffer.discountTypes?.some(dt => dt.discountType === 'buy_x_get_y' && dt.isActive);
+            
+            if (hasPercentage && hasFixed && hasBuyXGetY) {
+              updatedBadges[p.productId] = 'All Offers';
+            } else if (hasPercentage && hasFixed) {
+              updatedBadges[p.productId] = 'Discount';
+            } else if (hasBuyXGetY) {
+              updatedBadges[p.productId] = 'Promotion';
+            } else if (hasPercentage || hasFixed) {
+              updatedBadges[p.productId] = 'Discount';
+            } else {
+              updatedBadges[p.productId] = 'Offer';
+            }
+          }
+        });
+
+        // Update currentOffer with saved products, badges, dateRanges and timeSlots
+        setCurrentOffer({
+          ...currentOffer,
+          products: updatedProducts,
+          productOfferBadges: updatedBadges,
+          dateRanges: updatedDateRanges,
+          timeSlots: updatedTimeSlots,
+        });
+        setOriginalOffer({
+          ...currentOffer,
+          products: updatedProducts,
+          productOfferBadges: updatedBadges,
+          dateRanges: updatedDateRanges,
+          timeSlots: updatedTimeSlots,
+        });
+      } else {
+        // Fallback: refresh the entire offer if mutation response doesn't include dateRanges/timeSlots
+        await refreshOffer();
+      }
+      
       setHasUnsavedChanges(false);
       
-      // Show success modal for 3 seconds
+      // Show success modal for 2 seconds, then reload page to validate saved data
       setShowSuccessModal(true);
       setTimeout(() => {
         setShowSuccessModal(false);
-      }, 3000);
+        // Reload page to validate that all data is saved correctly
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {

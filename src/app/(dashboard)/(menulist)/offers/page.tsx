@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Gift, Plus, Calendar, Download } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
 import { useRouter } from 'next/navigation';
 import { Offer } from '@/types/offer';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function OffersPage() {
   const router = useRouter();
@@ -15,13 +16,40 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // GraphQL query to fetch offers
+  const OFFERS_QUERY = `
+    query GetOffers($userId: Int!, $page: Int, $limit: Int, $status: String, $type: String) {
+      offers(userId: $userId, page: $page, limit: $limit, status: $status, type: $type) {
+        nodes {
+          id
+          offerId
+          name
+          description
+          type
+          status
+          startDate
+          endDate
+          totalUsage
+          totalDiscountGiven
+          discountTypes {
+            id
+            discountType
+            discountValue
+            minOrderValue
+            minQuantity
+            isActive
+            priority
+          }
+        }
+        pagination {
+          totalCount
+        }
+      }
+    }
+  `;
 
-  // Fetch offers from API
-  useEffect(() => {
-    fetchOffers();
-  }, [user?.id]);
-
-  const fetchOffers = async () => {
+  // Fetch offers from GraphQL API
+  const fetchOffers = useCallback(async () => {
     try {
       setLoading(true);
       if (!user?.id) {
@@ -29,18 +57,77 @@ export default function OffersPage() {
         return;
       }
       
-      const response = await fetch(`/api/offers?userId=${user.id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch offers');
-      }
-      const data = await response.json();
-      setOffers(data.offers || []);
+      const data = await fetchGraphQL<{
+        offers: {
+          nodes: Array<{
+            id: string;
+            offerId: string;
+            name: string;
+            description: string | null;
+            type: string[];
+            status: string;
+            startDate: string;
+            endDate: string;
+            totalUsage: number;
+            totalDiscountGiven: number;
+            discountTypes: Array<{
+              id: string;
+              discountType: string;
+              discountValue: number;
+              minOrderValue: number | null;
+              minQuantity: number | null;
+              isActive: boolean;
+              priority: number;
+            }>;
+          }>;
+          pagination: {
+            totalCount: number;
+          };
+        };
+      }>(OFFERS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 1000, // Fetch all offers for the offers page
+      });
+
+      // Transform GraphQL response to match Offer type
+      const transformedOffers: Offer[] = data.offers.nodes.map((offer) => ({
+        id: offer.id,
+        offerId: offer.offerId,
+        name: offer.name,
+        description: offer.description || undefined,
+        type: offer.type as ('discount' | 'promotion')[],
+        status: offer.status as 'active' | 'expired' | 'inactive',
+        startDate: offer.startDate,
+        endDate: offer.endDate,
+        totalUsage: offer.totalUsage,
+        totalDiscountGiven: offer.totalDiscountGiven,
+        discountTypes: offer.discountTypes.map((dt) => ({
+          id: dt.id,
+          discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
+          discountValue: dt.discountValue,
+          minOrderValue: dt.minOrderValue || undefined,
+          minQuantity: dt.minQuantity || undefined,
+          isActive: dt.isActive,
+          priority: dt.priority,
+        })),
+        products: [], // Products are not included in the offers query
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+
+      setOffers(transformedOffers);
     } catch (error) {
+      console.error('Failed to fetch offers:', error);
       setOffers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, OFFERS_QUERY]);
+
+  useEffect(() => {
+    fetchOffers();
+  }, [fetchOffers]);
 
   // Helper function to check if offer has discount types
   const hasDiscountType = (offer: Offer) => {

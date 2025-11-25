@@ -13,6 +13,7 @@ import CreateOfferTypeModal from '@/components/offersincentivesdisc/CreateOfferT
 import CreateDateRangeModal from '@/components/offersincentivesdisc/CreateDateRangeModal';
 import CreateTimeSlotModal from '@/components/offersincentivesdisc/CreateTimeSlotModal';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function CreateOfferPage() {
   const router = useRouter();
@@ -154,32 +155,102 @@ export default function CreateOfferPage() {
       }
 
       const productIds = Object.keys(productOfferBadges || {});
-      const offerData = {
+      
+      // GraphQL mutation to create offer
+      const CREATE_OFFER_MUTATION = `
+        mutation CreateOffer(
+          $userId: Int!
+          $name: String!
+          $description: String
+          $type: [String!]!
+          $status: String
+          $startDate: String!
+          $endDate: String!
+          $discountTypes: [DiscountTypeInput!]!
+          $productIds: [String!]!
+          $dateRanges: [DateRangeInput!]
+          $timeSlots: [TimeSlotInput!]
+        ) {
+          createOffer(
+            userId: $userId
+            name: $name
+            description: $description
+            type: $type
+            status: $status
+            startDate: $startDate
+            endDate: $endDate
+            discountTypes: $discountTypes
+            productIds: $productIds
+            dateRanges: $dateRanges
+            timeSlots: $timeSlots
+          ) {
+            id
+            offerId
+            name
+            description
+            type
+            status
+            startDate
+            endDate
+            totalUsage
+            totalDiscountGiven
+            discountTypes {
+              id
+              discountType
+              discountValue
+              minOrderValue
+              minQuantity
+              isActive
+              priority
+            }
+          }
+        }
+      `;
+
+      // Transform discount types for GraphQL
+      const graphQLDiscountTypes = discountTypes.map((dt) => ({
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        name: dt.name || null,
+        description: dt.description || null,
+        minOrderValue: dt.minOrderValue ? parseFloat(String(dt.minOrderValue).replace(/\./g, '')) : null,
+        minQuantity: dt.minQuantity || null,
+        isActive: dt.isActive !== false,
+        priority: dt.priority || discountTypes.length + 1,
+      }));
+
+      // Transform date ranges for GraphQL
+      const graphQLDateRanges = (dateRanges || []).map((dr) => ({
+        name: dr.name,
+        description: dr.description || null,
+        startDate: typeof dr.startDate === 'string' ? dr.startDate : new Date(dr.startDate).toISOString(),
+        endDate: typeof dr.endDate === 'string' ? dr.endDate : new Date(dr.endDate).toISOString(),
+        isActive: dr.isActive !== false,
+      }));
+
+      // Transform time slots for GraphQL
+      const graphQLTimeSlots = (timeSlots || []).map((ts) => ({
+        name: ts.name,
+        description: (ts as { description?: string }).description || null,
+        startTime: ts.startTime,
+        endTime: ts.endTime,
+        days: ts.days || [],
+        isActive: ts.isActive !== false,
+      }));
+
+      await fetchGraphQL(CREATE_OFFER_MUTATION, {
         userId: user?.id,
         name,
-        description,
+        description: description || null,
         type: offerTypes,
-        discountTypes,
+        status: offerStatus,
         startDate: offerStartDate,
         endDate: offerEndDate,
+        discountTypes: graphQLDiscountTypes,
         productIds,
-        dateRanges: dateRanges || [],
-        timeSlots: timeSlots || [],
-        status: offerStatus,
-      };
-
-      const response = await fetch('/api/offers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(offerData),
+        dateRanges: graphQLDateRanges.length > 0 ? graphQLDateRanges : null,
+        timeSlots: graphQLTimeSlots.length > 0 ? graphQLTimeSlots : null,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create offer');
-      }
 
       // Reset the store and redirect
       reset();
