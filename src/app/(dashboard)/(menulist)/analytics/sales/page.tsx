@@ -292,6 +292,29 @@ export default function SalesAnalyticsPage() {
 				}
 			`;
 
+			type OrdersQueryResult = {
+				orders: {
+					nodes: Array<{
+						id: number;
+						orderId: string;
+						buyerId?: string | null;
+						orderDate: string;
+						totalAmount?: number | null;
+						storeName?: string | null;
+						contactPerson?: string | null;
+						orderItems?: Array<{
+							productId: string;
+							packageQuantity?: number | null;
+							pricePerPackage?: number | null;
+							piecesPerPackage?: number | null;
+							packageType?: string | null;
+							category?: string | null;
+							productTypeSnapshot?: string | null;
+						}>;
+					}>;
+				};
+			};
+
 			const PRODUCTS_QUERY = `
 				query GetProducts($userId: Int!, $limit: Int!) {
 					products(userId: $userId, limit: $limit) {
@@ -308,6 +331,20 @@ export default function SalesAnalyticsPage() {
 				}
 			`;
 
+			type ProductsQueryResult = {
+				products: {
+					nodes: Array<{
+						productId: string;
+						name: string;
+						productType?: string | null;
+						variantOptions?: Array<{
+							sellingPrice?: string | number | null;
+							purchasePrice?: string | number | null;
+						}>;
+					}>;
+				};
+			};
+
 			const BUYERS_QUERY = `
 				query GetBuyers($userId: Int!, $limit: Int!) {
 					buyers(userId: $userId, limit: $limit) {
@@ -321,27 +358,55 @@ export default function SalesAnalyticsPage() {
 				}
 			`;
 
+			type BuyersQueryResult = {
+				buyers: {
+					nodes: Array<{
+						buyerId: string;
+						storeName?: string | null;
+						owner?: string | null;
+						businessType?: string | null;
+					}>;
+				};
+			};
+
 			// Fetch data using GraphQL
 			const [ordersData, productsData, buyersData] = await Promise.all([
-				fetchGraphQL(ORDERS_QUERY, { userId, limit: 1000 }),
-				fetchGraphQL(PRODUCTS_QUERY, { userId, limit: 1000 }),
-				fetchGraphQL(BUYERS_QUERY, { userId, limit: 100 }),
+				fetchGraphQL<OrdersQueryResult>(ORDERS_QUERY, { userId, limit: 1000 }),
+				fetchGraphQL<ProductsQueryResult>(PRODUCTS_QUERY, { userId, limit: 1000 }),
+				fetchGraphQL<BuyersQueryResult>(BUYERS_QUERY, { userId, limit: 100 }),
 			]);
 
-			const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order: any) => ({
+			const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order) => ({
 				...order,
 				buyerId: order.buyerId || '',
+				totalAmount: order.totalAmount ?? undefined,
+				storeName: order.storeName || undefined,
+				contactPerson: order.contactPerson || undefined,
+				orderItems: order.orderItems?.map((item) => ({
+					productId: item.productId,
+					packageQuantity: item.packageQuantity ?? 0,
+					pricePerPackage: item.pricePerPackage ?? 0,
+					piecesPerPackage: item.piecesPerPackage ?? undefined,
+					packageType: item.packageType ?? undefined,
+					category: item.category ?? undefined,
+					productTypeSnapshot: item.productTypeSnapshot ?? undefined,
+				})),
 			}));
 			const productsRaw = productsData.products?.nodes || [];
-			const buyers: ExportBuyer[] = buyersData.buyers?.nodes || [];
+			const buyers: ExportBuyer[] = (buyersData.buyers?.nodes || []).map((buyer) => ({
+				buyerId: buyer.buyerId,
+				storeName: buyer.storeName || undefined,
+				owner: buyer.owner || undefined,
+				businessType: buyer.businessType || undefined,
+			}));
 
 			// Transform GraphQL products to match expected format
-			const products: ExportProduct[] = productsRaw.map((product: any) => {
+			const products: ExportProduct[] = productsRaw.map((product) => {
 				const firstVariant = product.variantOptions?.[0];
 				return {
 					productId: product.productId,
 					name: product.name,
-					productType: product.productType,
+					productType: product.productType || undefined,
 					sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
 					purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
 				};

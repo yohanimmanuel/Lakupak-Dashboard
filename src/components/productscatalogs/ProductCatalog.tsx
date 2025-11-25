@@ -34,7 +34,7 @@ const MARKETPLACE_STATUS_MUTATION = `
     }
   }
 `;
-
+ 
 
 interface Combination {
   id: string;
@@ -791,7 +791,7 @@ export default function ProductCatalog({
         // Also update marketplace status to unpublished
         try {
           await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-            userId: user.id,
+              userId: user.id,
             productId: product.productId,
             action: 'unpublish',
           });
@@ -1130,7 +1130,7 @@ export default function ProductCatalog({
         if (status === 'Published') {
           try {
             await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-              userId: user.id,
+                userId: user.id,
               productId: savedProduct.productId,
               action: 'publish',
             });

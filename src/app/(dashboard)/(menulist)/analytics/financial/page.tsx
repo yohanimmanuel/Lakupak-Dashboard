@@ -68,6 +68,26 @@ export default function FinancialAnalyticsPage() {
         }
       `;
 
+      type OrdersQueryResult = {
+        orders: {
+          nodes: Array<{
+            id: number;
+            orderId: string;
+            buyerId?: string | null;
+            orderDate: string;
+            totalAmount?: number | null;
+            orderItems?: Array<{
+              productId: string;
+              packageQuantity?: number | null;
+              pricePerPackage?: number | null;
+              piecesPerPackage?: number | null;
+              packageType?: string | null;
+              productTypeSnapshot?: string | null;
+            }>;
+          }>;
+        };
+      };
+
       const PRODUCTS_QUERY = `
         query GetProducts($userId: Int!, $limit: Int!) {
           products(userId: $userId, limit: $limit) {
@@ -84,20 +104,34 @@ export default function FinancialAnalyticsPage() {
         }
       `;
 
+      type ProductsQueryResult = {
+        products: {
+          nodes: Array<{
+            productId: string;
+            name: string;
+            productType?: string | null;
+            variantOptions?: Array<{
+              sellingPrice?: string | number | null;
+              purchasePrice?: string | number | null;
+            }>;
+          }>;
+        };
+      };
+
       // Fetch data using GraphQL
       const [ordersData, productsData] = await Promise.all([
-        fetchGraphQL(ORDERS_QUERY, { userId, limit: 1000 }),
-        fetchGraphQL(PRODUCTS_QUERY, { userId, limit: 1000 }),
+        fetchGraphQL<OrdersQueryResult>(ORDERS_QUERY, { userId, limit: 1000 }),
+        fetchGraphQL<ProductsQueryResult>(PRODUCTS_QUERY, { userId, limit: 1000 }),
       ]);
       
-      const orders = (ordersData.orders?.nodes || []).map((order: any) => ({
+      const orders = (ordersData.orders?.nodes || []).map((order) => ({
         ...order,
         buyerId: order.buyerId || '',
       }));
       const products = productsData.products?.nodes || [];
       
       // Transform GraphQL products to match expected format
-      const transformedProducts = products.map((product: any) => {
+      const transformedProducts = products.map((product) => {
         const firstVariant = product.variantOptions?.[0];
         return {
           productId: product.productId,
