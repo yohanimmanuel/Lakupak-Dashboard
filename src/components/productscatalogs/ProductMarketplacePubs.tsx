@@ -6,6 +6,16 @@ import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
 import { useState, useEffect } from 'react';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+
+const PUBLISH_MARKETPLACE_MUTATION = `
+  mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
+    publishMarketplaceProduct(userId: $userId, productId: $productId, action: $action) {
+      success
+      message
+    }
+  }
+`;
 
 interface ProductMarketplacePubsProps {
   product: ProductTableRow;
@@ -54,28 +64,22 @@ export default function ProductMarketplacePubs({
       
       if (isBulkPublish) {
         // Bulk publish multiple products
-        const publishPromises = completeProducts.map(async (product) => {
-          const response = await fetch('/api/marketplace', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              productId: product.productId,
-              userId: user?.id,
-              action: 'publish'
-            })
+        const publishPromises = completeProducts.map(async (productRow) => {
+          const result = await fetchGraphQL<{
+            publishMarketplaceProduct: { success: boolean; message: string };
+          }>(PUBLISH_MARKETPLACE_MUTATION, {
+            userId: user.id,
+            productId: productRow.productId,
+            action: 'publish',
           });
-          
-          if (!response.ok) {
-            const result = await response.json();
-            throw new Error(result.error || 'Failed to publish product');
+
+          if (!result.publishMarketplaceProduct?.success) {
+            throw new Error(
+              result.publishMarketplaceProduct?.message || 'Failed to publish product',
+            );
           }
-          
-          const result = await response.json();
-          return result;
         });
-        
+
         await Promise.all(publishPromises);
       } else {
         // Single product publish - check if product is complete
@@ -83,24 +87,19 @@ export default function ProductMarketplacePubs({
           throw new Error('Cannot publish product with incomplete data. Please complete all required fields and add product images.');
         }
         
-        const response = await fetch('/api/marketplace', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            productId: product.productId,
-            userId: user?.id,
-            action: 'publish'
-          })
+        const result = await fetchGraphQL<{
+          publishMarketplaceProduct: { success: boolean; message: string };
+        }>(PUBLISH_MARKETPLACE_MUTATION, {
+          userId: user.id,
+          productId: product.productId,
+          action: 'publish',
         });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to publish product');
+
+        if (!result.publishMarketplaceProduct?.success) {
+          throw new Error(
+            result.publishMarketplaceProduct?.message || 'Failed to publish product',
+          );
         }
-        
       }
       
       if (onPublish) {

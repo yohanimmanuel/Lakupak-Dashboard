@@ -26,6 +26,15 @@ import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCatego
 import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
  
+const MARKETPLACE_STATUS_MUTATION = `
+  mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
+    publishMarketplaceProduct(userId: $userId, productId: $productId, action: $action) {
+      success
+      message
+    }
+  }
+`;
+
 
 interface Combination {
   id: string;
@@ -781,22 +790,14 @@ export default function ProductCatalog({
 
         // Also update marketplace status to unpublished
         try {
-          const marketplaceResponse = await fetch('/api/marketplace', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              productId: product.productId,
-              userId: user.id,
-              action: 'unpublish'
-            }),
+          await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
+            userId: user.id,
+            productId: product.productId,
+            action: 'unpublish',
           });
-
-          if (!marketplaceResponse.ok) {
-            const marketplaceError = await marketplaceResponse.json();
-            // Don't fail the entire operation, just warn
-          }
         } catch (marketplaceError) {
           // Don't fail the entire operation, just warn
+          console.warn('Failed to unpublish product from marketplace', marketplaceError);
         }
 
         // Show success modal and reload page
@@ -1128,22 +1129,14 @@ export default function ProductCatalog({
         // If publishing, also update marketplace status
         if (status === 'Published') {
           try {
-            const marketplaceResponse = await fetch('/api/marketplace', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                productId: savedProduct.productId,
-                userId: user.id,
-                action: 'publish'
-              }),
+            await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
+              userId: user.id,
+              productId: savedProduct.productId,
+              action: 'publish',
             });
-
-            if (!marketplaceResponse.ok) {
-              const marketplaceError = await marketplaceResponse.json();
-              // Don't fail the entire operation, just warn
-            }
           } catch (marketplaceError) {
             // Don't fail the entire operation, just warn
+            console.warn('Failed to publish product to marketplace', marketplaceError);
           }
         }
         

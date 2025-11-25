@@ -325,6 +325,12 @@ const typeDefs = /* GraphQL */ `
     pagination: PaginationInfo!
   }
 
+  type MarketplacePublishResult {
+    success: Boolean!
+    message: String!
+    product: Product
+  }
+
   type OfferDiscount {
     id: String!
     discountType: String!
@@ -629,6 +635,13 @@ const typeDefs = /* GraphQL */ `
     # Special action: Reset prices for a specific product
     # Resets variant option prices to their original selling prices
     resetProductPrices(userId: Int!, productId: String!): ActionResult!
+
+    # Publish or unpublish a product in the marketplace
+    publishMarketplaceProduct(
+      userId: Int!
+      productId: String!
+      action: String!
+    ): MarketplacePublishResult!
 
     # ============================================================================
     # OFFER MUTATIONS
@@ -2495,6 +2508,113 @@ async function deleteProduct(args: {
   };
 }
 
+// Publishes or unpublishes a product in the marketplace
+async function publishMarketplaceProduct(args: {
+  userId: number;
+  productId: string;
+  action: string;
+}): Promise<{ success: boolean; message: string; product: ReturnType<typeof mapProduct> | null }> {
+  const { userId, productId, action } = args;
+  const normalizedAction = (action || '').toLowerCase();
+
+  if (normalizedAction !== 'publish' && normalizedAction !== 'unpublish') {
+    throw new Error('Invalid action. Use "publish" or "unpublish".');
+  }
+
+  const product = await prisma.product.findFirst({
+    where: {
+      productId,
+      userId,
+    },
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  if (normalizedAction === 'publish') {
+    if (!product.name || !product.description) {
+      throw new Error('Product must have name and description');
+    }
+
+    if (!product.images || product.images.length === 0) {
+      throw new Error('Product must have at least one image');
+    }
+
+    const variantOptions = product.variantOptions ?? [];
+
+    if (!variantOptions.length) {
+      throw new Error('Product must have at least one variant option');
+    }
+
+    const hasCompleteVariant = variantOptions.some(
+      (variant) =>
+        Boolean(variant.purchasePrice && variant.purchasePrice.trim() !== '') &&
+        Boolean(variant.sellingPrice && variant.sellingPrice.trim() !== '') &&
+        variant.isActive,
+    );
+
+    if (!hasCompleteVariant) {
+      throw new Error('Product must have at least one complete variant with pricing');
+    }
+
+    const totalStock = variantOptions.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0);
+    if (totalStock <= 0) {
+      throw new Error('Product must have stock quantity greater than 0');
+    }
+
+    const hasVariantStock = variantOptions.some(
+      (variant) => variant.stockQuantity !== undefined && variant.stockQuantity !== null,
+    );
+    if (!hasVariantStock) {
+      throw new Error('Product variants must have stock quantity set');
+    }
+  }
+
+  const updateData: Prisma.ProductUpdateInput = {
+    marketplaceStatus: normalizedAction === 'publish' ? 'Published' : 'Unpublished',
+    lastSyncAt: new Date(),
+  };
+
+  if (normalizedAction === 'publish') {
+    updateData.publishedAt = new Date();
+  }
+
+  const updatedProduct = await prisma.product.update({
+    where: { id: product.id },
+    data: updateData,
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
+  const mappedProduct = mapProduct(updatedProduct, offerMap);
+
+  try {
+    await broadcastProductUpdate([updatedProduct.productId]);
+    await broadcastPriceUpdate([updatedProduct.productId]);
+  } catch (error) {
+    // Ignore broadcast errors to avoid blocking mutation completion
+  }
+
+  return {
+    success: true,
+    message:
+      normalizedAction === 'publish'
+        ? 'Product published to marketplace successfully'
+        : 'Product unpublished from marketplace successfully',
+    product: mappedProduct,
+  };
+}
+
 // Resets originalSellingPrice for all variant options of a user's products
 async function resetOriginalPrices(userId: number): Promise<{ success: boolean; message: string }> {
   try {
@@ -3212,6 +3332,10 @@ const resolvers = {
     forceUpdatePrices: (_: unknown, args: { userId: number }) => forceUpdatePrices(args.userId),
     resetProductPrices: (_: unknown, args: { userId: number; productId: string }) =>
       resetProductPrices(args.userId, args.productId),
+    publishMarketplaceProduct: (
+      _: unknown,
+      args: Parameters<typeof publishMarketplaceProduct>[0]
+    ) => publishMarketplaceProduct(args),
     createOffer: (_: unknown, args: Parameters<typeof createOffer>[0]) => createOffer(args),
     updateOffer: (_: unknown, args: Parameters<typeof updateOffer>[0]) => updateOffer(args),
     deleteOffer: (_: unknown, args: Parameters<typeof deleteOffer>[0]) => deleteOffer(args),
