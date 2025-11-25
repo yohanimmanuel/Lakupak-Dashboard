@@ -225,10 +225,10 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         variants: (product.variants ?? []) as Product['variants'],
         legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
       }));
-      
-      setOrders(ordersList);
-      setProducts(productsList);
-      setHasData(ordersList.length > 0);
+        
+        setOrders(ordersList);
+        setProducts(productsList);
+        setHasData(ordersList.length > 0);
     } catch {
       setHasData(false);
     } finally {

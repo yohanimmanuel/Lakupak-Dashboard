@@ -1010,38 +1010,38 @@ export default function HomePage() {
         });
         setOrders(normalizedOrders);
 
-        const normalizedProducts: Product[] = [];
+          const normalizedProducts: Product[] = [];
         (Array.isArray(snapshot.products) ? snapshot.products : []).forEach((item: unknown) => {
-          if (item && typeof item === 'object') {
-            const normalized = normalizeProduct(item as Record<string, unknown>);
-            if (normalized) {
-              normalizedProducts.push(normalized);
+            if (item && typeof item === 'object') {
+              const normalized = normalizeProduct(item as Record<string, unknown>);
+              if (normalized) {
+                normalizedProducts.push(normalized);
+              }
             }
-          }
-        });
-        setProducts(normalizedProducts);
+          });
+          setProducts(normalizedProducts);
 
-        const normalizedBuyers: Buyer[] = [];
+          const normalizedBuyers: Buyer[] = [];
         (Array.isArray(snapshot.buyers) ? snapshot.buyers : []).forEach((item: unknown) => {
-          if (item && typeof item === 'object') {
-            const normalized = normalizeBuyer(item as Record<string, unknown>);
-            if (normalized) {
-              normalizedBuyers.push(normalized);
+            if (item && typeof item === 'object') {
+              const normalized = normalizeBuyer(item as Record<string, unknown>);
+              if (normalized) {
+                normalizedBuyers.push(normalized);
+              }
             }
-          }
-        });
-        setBuyers(normalizedBuyers);
+          });
+          setBuyers(normalizedBuyers);
 
-        const normalizedSuppliers: Supplier[] = [];
+          const normalizedSuppliers: Supplier[] = [];
         (Array.isArray(snapshot.suppliers) ? snapshot.suppliers : []).forEach((item: unknown) => {
-          if (item && typeof item === 'object') {
-            const normalized = normalizeSupplier(item as Record<string, unknown>);
-            if (normalized) {
-              normalizedSuppliers.push(normalized);
+            if (item && typeof item === 'object') {
+              const normalized = normalizeSupplier(item as Record<string, unknown>);
+              if (normalized) {
+                normalizedSuppliers.push(normalized);
+              }
             }
-          }
-        });
-        setSuppliers(normalizedSuppliers);
+          });
+          setSuppliers(normalizedSuppliers);
       } catch (fetchError) {
         if (
           !(fetchError instanceof DOMException && fetchError.name === 'AbortError')

@@ -312,7 +312,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				setLoading(true);
-
+				
 				if (!user?.id) {
 					setOrders([]);
 					setProducts([]);

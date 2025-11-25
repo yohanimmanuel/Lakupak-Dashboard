@@ -12,6 +12,7 @@ import { formatDate } from "@/utils/dateUtils";
 import { generateUniqueProductId } from "@/utils/product-security";
 import { getProductTotalStock } from "@/utils/stockUtils";
 import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
+import { fetchGraphQL } from "@/lib/graphqlClient";
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -39,7 +40,70 @@ export default function ProductsPage() {
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch products from API
+  // GraphQL query to fetch products
+  const PRODUCTS_QUERY = `
+    query GetProducts($userId: Int!, $page: Int, $limit: Int) {
+      products(userId: $userId, page: $page, limit: $limit) {
+        nodes {
+          id
+          productId
+          sku
+          name
+          description
+          productType
+          brand
+          supplier
+          status
+          productCategory
+          catalogName
+          images
+          halalCertified
+          bpomApproved
+          originalProduct
+          returnPolicyDays
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          variantOptions {
+            id
+            variantName
+            sku
+            purchasePrice
+            sellingPrice
+            originalSellingPrice
+            moq
+            stockQuantity
+            lowStockThreshold
+            stockStatus
+            isDefault
+            isActive
+            attributes
+          }
+          variantDefinitions
+          legacyVariants
+          createdAt
+          updatedAt
+          userId
+          hasActiveOffer
+          offerBadge
+          offerId
+          offerName
+          discountType
+          discountValue
+          promotionDetails
+          originalPrice
+        }
+        pagination {
+          page
+          limit
+          totalCount
+          totalPages
+        }
+      }
+    }
+  `;
+
+  // Fetch products from GraphQL API
   const fetchProducts = useCallback(async () => {
     if (!user?.id) return;
     
@@ -58,18 +122,25 @@ export default function ProductsPage() {
     }
     
     try {
-      const response = await fetch(`/api/products?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Handle both old format (array) and new format (with pagination)
-        const productsData = data.products || data;
-        setProducts(productsData);
-        setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
-      } else {
-        setProducts([]);
-        setOverlayMessage('Failed to load products');
-        return;
-      }
+      const data = await fetchGraphQL<{
+        products: {
+          nodes: Product[];
+          pagination: {
+            page: number;
+            limit: number;
+            totalCount: number;
+            totalPages: number;
+          };
+        };
+      }>(PRODUCTS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 1000, // Fetch all products for the products page
+      });
+
+      const productsData = data.products.nodes;
+      setProducts(productsData);
+      setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
     } catch (error) {
       setProducts([]);
       setOverlayMessage('Error loading products');
@@ -237,14 +308,94 @@ export default function ProductsPage() {
           userId: user.id
         };
         
-        // Always create new product with new LKP ID
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        
-        if (!response.ok) {
+        // GraphQL mutation to create product
+        const CREATE_PRODUCT_MUTATION = `
+          mutation CreateProduct(
+            $userId: Int!
+            $productId: String
+            $sku: String
+            $name: String!
+            $description: String!
+            $productType: String!
+            $brand: String!
+            $supplier: String!
+            $status: String
+            $productCategory: String!
+            $catalogName: String
+            $images: [String!]
+            $halalCertified: Boolean
+            $bpomApproved: Boolean
+            $originalProduct: Boolean
+            $returnPolicyDays: Int
+            $currency: String
+            $variantOptions: [VariantOptionInput!]
+          ) {
+            createProduct(
+              userId: $userId
+              productId: $productId
+              sku: $sku
+              name: $name
+              description: $description
+              productType: $productType
+              brand: $brand
+              supplier: $supplier
+              status: $status
+              productCategory: $productCategory
+              catalogName: $catalogName
+              images: $images
+              halalCertified: $halalCertified
+              bpomApproved: $bpomApproved
+              originalProduct: $originalProduct
+              returnPolicyDays: $returnPolicyDays
+              currency: $currency
+              variantOptions: $variantOptions
+            ) {
+              id
+              productId
+              sku
+              name
+            }
+          }
+        `;
+
+        // Create variant option from imported data
+        const variantOption = {
+          variantName: 'Default',
+          attributes: {},
+          sku: payload.sku || null,
+          purchasePrice: payload.purchasePrice,
+          sellingPrice: payload.sellingPrice,
+          originalSellingPrice: null,
+          moq: null,
+          stockQuantity: payload.stockQuantity,
+          lowStockThreshold: payload.lowStockThreshold,
+          stockStatus: payload.stockStatus,
+          isDefault: true,
+          isActive: true,
+        };
+
+        try {
+          await fetchGraphQL(CREATE_PRODUCT_MUTATION, {
+            userId: user.id,
+            productId: payload.productId,
+            sku: payload.sku,
+            name: payload.name,
+            description: payload.description,
+            productType: payload.productType,
+            brand: payload.brand,
+            supplier: payload.supplier,
+            status: payload.status,
+            productCategory: payload.productCategory,
+            catalogName: payload.catalogName || null,
+            images: payload.images,
+            halalCertified: false,
+            bpomApproved: false,
+            originalProduct: true,
+            returnPolicyDays: 7,
+            currency: userCurrency,
+            variantOptions: [variantOption],
+          });
+        } catch (error) {
           // Failed to save product
         }
       }

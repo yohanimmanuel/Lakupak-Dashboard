@@ -24,6 +24,7 @@ import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/u
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
 import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
  
 
 interface Combination {
@@ -754,48 +755,57 @@ export default function ProductCatalog({
     setSaving(true);
     
     try {
-      const response = await fetch('/api/products', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...product,
-          status: 'Draft',
-          userId: user.id
-        }),
+      const UNPUBLISH_PRODUCT_MUTATION = `
+        mutation UpdateProduct(
+          $userId: Int!
+          $productId: String!
+          $status: String!
+        ) {
+          updateProduct(
+            userId: $userId
+            productId: $productId
+            status: $status
+          ) {
+            id
+            productId
+            status
+          }
+        }
+      `;
+
+      await fetchGraphQL(UNPUBLISH_PRODUCT_MUTATION, {
+        userId: user.id,
+        productId: product.productId,
+        status: 'Draft',
       });
 
-      if (response.ok) {
-        // Also update marketplace status to unpublished
-        try {
-          const marketplaceResponse = await fetch('/api/marketplace', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              productId: product.productId,
-              userId: user.id,
-              action: 'unpublish'
-            }),
-          });
+      // Also update marketplace status to unpublished
+      try {
+        const marketplaceResponse = await fetch('/api/marketplace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: product.productId,
+            userId: user.id,
+            action: 'unpublish'
+          }),
+        });
 
-          if (!marketplaceResponse.ok) {
-            const marketplaceError = await marketplaceResponse.json();
-            // Don't fail the entire operation, just warn
-          }
-        } catch (marketplaceError) {
+        if (!marketplaceResponse.ok) {
+          const marketplaceError = await marketplaceResponse.json();
           // Don't fail the entire operation, just warn
         }
-
-        // Show success modal and reload page
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-          // Force complete page reload
-          window.location.href = window.location.href;
-        }, 1000);
-      } else {
-        const errorData = await response?.json();
-        alert(`Error: ${errorData?.error || 'Failed to unpublish product'}`);
+      } catch (marketplaceError) {
+        // Don't fail the entire operation, just warn
       }
+
+      // Show success modal and reload page
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        // Force complete page reload
+        window.location.href = window.location.href;
+      }, 1000);
     } catch (error) {
       alert('Error unpublishing product. Please try again.');
     } finally {
@@ -830,7 +840,7 @@ export default function ProductCatalog({
       const stockStatus = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
 
       // Submit the new variant structure
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...finalData,
         id: formData.id,
         productId: formData.productId,
@@ -839,13 +849,20 @@ export default function ProductCatalog({
         totalStock,
         lowStockThreshold,
         stockStatus,
-        // New structure: variant definitions and options
-        variantDefinitions: variants.map((variant, index) => ({
+      };
+
+      // Only include variant definitions if variants exist and are not empty
+      if (variants && variants.length > 0) {
+        payload.variantDefinitions = variants.map((variant, index) => ({
           variantType: variant.variantType,
           options: variant.options.map(opt => opt.name).filter(name => name),
           position: index + 1
-        })),
-        variantOptions: combinations.map(combo => ({
+        }));
+      }
+
+      // Only include variant options if combinations exist and are not empty
+      if (combinations && combinations.length > 0) {
+        payload.variantOptions = combinations.map(combo => ({
           variantName: combo.variantName,
           attributes: Object.fromEntries(
             variants.map((variant) => {
@@ -857,37 +874,256 @@ export default function ProductCatalog({
             })
           ),
           sku: combo.sku,
-          purchasePrice: combo.purchasePrice,
-          sellingPrice: combo.sellingPrice,
+          // Convert purchasePrice and sellingPrice to strings (accept both number and string)
+          purchasePrice: typeof combo.purchasePrice === 'number' 
+            ? String(combo.purchasePrice) 
+            : String(combo.purchasePrice || '0'),
+          sellingPrice: typeof combo.sellingPrice === 'number'
+            ? String(combo.sellingPrice)
+            : String(combo.sellingPrice || '0'),
+          originalSellingPrice: combo.originalSellingPrice 
+            ? (typeof combo.originalSellingPrice === 'number' 
+                ? String(combo.originalSellingPrice) 
+                : String(combo.originalSellingPrice))
+            : null,
           moq: combo.moq,
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
           stockStatus: combo.stockStatus as 'In Stock' | 'Low Stock' | 'Out of Stock',
           isDefault: false,
           isActive: true
-        }))
-      };
+        }));
+      }
 
-      let response;
+      // GraphQL mutations
+      const CREATE_PRODUCT_MUTATION = `
+        mutation CreateProduct(
+          $userId: Int!
+          $productId: String
+          $sku: String
+          $name: String!
+          $description: String!
+          $productType: String!
+          $brand: String!
+          $supplier: String!
+          $status: String
+          $productCategory: String!
+          $catalogName: String
+          $images: [String!]
+          $halalCertified: Boolean
+          $bpomApproved: Boolean
+          $originalProduct: Boolean
+          $returnPolicyDays: Int
+          $currency: String
+          $variantDefinitions: [VariantDefinitionInput!]
+          $variantOptions: [VariantOptionInput!]
+        ) {
+          createProduct(
+            userId: $userId
+            productId: $productId
+            sku: $sku
+            name: $name
+            description: $description
+            productType: $productType
+            brand: $brand
+            supplier: $supplier
+            status: $status
+            productCategory: $productCategory
+            catalogName: $catalogName
+            images: $images
+            halalCertified: $halalCertified
+            bpomApproved: $bpomApproved
+            originalProduct: $originalProduct
+            returnPolicyDays: $returnPolicyDays
+            currency: $currency
+            variantDefinitions: $variantDefinitions
+            variantOptions: $variantOptions
+          ) {
+            id
+            productId
+            sku
+            name
+            status
+          }
+        }
+      `;
+
+      const UPDATE_PRODUCT_MUTATION = `
+        mutation UpdateProduct(
+          $userId: Int!
+          $id: String
+          $productId: String
+          $sku: String
+          $name: String
+          $description: String
+          $productType: String
+          $brand: String
+          $supplier: String
+          $status: String
+          $productCategory: String
+          $catalogName: String
+          $images: [String!]
+          $halalCertified: Boolean
+          $bpomApproved: Boolean
+          $originalProduct: Boolean
+          $returnPolicyDays: Int
+          $currency: String
+          $variantDefinitions: [VariantDefinitionInput!]
+          $variantOptions: [VariantOptionInput!]
+        ) {
+          updateProduct(
+            userId: $userId
+            id: $id
+            productId: $productId
+            sku: $sku
+            name: $name
+            description: $description
+            productType: $productType
+            brand: $brand
+            supplier: $supplier
+            status: $status
+            productCategory: $productCategory
+            catalogName: $catalogName
+            images: $images
+            halalCertified: $halalCertified
+            bpomApproved: $bpomApproved
+            originalProduct: $originalProduct
+            returnPolicyDays: $returnPolicyDays
+            currency: $currency
+            variantDefinitions: $variantDefinitions
+            variantOptions: $variantOptions
+          ) {
+            id
+            productId
+            sku
+            name
+            status
+          }
+        }
+      `;
+
+      let savedProduct;
       if (currentMode === 'add') {
-        response = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        const createVariables: Record<string, unknown> = {
+          userId: user.id,
+          productId: payload.productId,
+          sku: payload.sku,
+          name: payload.name,
+          description: payload.description,
+          productType: payload.productType,
+          brand: payload.brand,
+          supplier: payload.supplier,
+          status: payload.status,
+          productCategory: payload.productCategory,
+          images: payload.images || [],
+          halalCertified: payload.halalCertified || false,
+          bpomApproved: payload.bpomApproved || false,
+          originalProduct: payload.originalProduct !== false,
+          returnPolicyDays: payload.returnPolicyDays || 7,
+          currency: user.currency || 'IDR',
+        };
+
+        // Only include catalogName if it exists
+        if (payload.catalogName) {
+          createVariables.catalogName = payload.catalogName;
+        }
+
+        // Only include variantDefinitions if provided and not empty
+        const variantDefs = payload.variantDefinitions;
+        if (variantDefs && Array.isArray(variantDefs) && variantDefs.length > 0) {
+          createVariables.variantDefinitions = variantDefs;
+        }
+
+        // Only include variantOptions if provided and not empty
+        const variantOpts = payload.variantOptions;
+        if (variantOpts && Array.isArray(variantOpts) && variantOpts.length > 0) {
+          createVariables.variantOptions = variantOpts;
+        }
+
+        const data = await fetchGraphQL<{ createProduct: Product }>(CREATE_PRODUCT_MUTATION, createVariables);
+        savedProduct = data.createProduct;
       } else if (currentMode === 'edit' && (finalData.id || finalData.productId)) {
-        response = await fetch('/api/products', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        // Only include variantDefinitions and variantOptions if they exist and are not empty
+        // Sending empty arrays would delete all variants
+        // Include all fields from payload - GraphQL client will filter out null/undefined
+        const updateVariables: Record<string, unknown> = {
+          userId: user.id,
+          sku: payload.sku,
+          name: payload.name,
+          description: payload.description,
+          productType: payload.productType,
+          brand: payload.brand,
+          supplier: payload.supplier,
+          status: payload.status,
+          productCategory: payload.productCategory,
+          images: payload.images || [],
+          halalCertified: payload.halalCertified ?? false,
+          bpomApproved: payload.bpomApproved ?? false,
+          originalProduct: payload.originalProduct ?? true,
+          returnPolicyDays: payload.returnPolicyDays ?? 7,
+          currency: user.currency || 'IDR',
+        };
+
+        // Include id or productId (at least one must be provided)
+        // Use productId if available, otherwise use id
+        let hasId = false;
+        if (finalData.productId && String(finalData.productId).trim() !== '') {
+          updateVariables.productId = finalData.productId;
+          hasId = true;
+        } else if (finalData.id && String(finalData.id).trim() !== '') {
+          updateVariables.id = String(finalData.id);
+          hasId = true;
+        } else {
+          // Fallback: try to use productId from formData
+          if (formData.productId && String(formData.productId).trim() !== '') {
+            updateVariables.productId = formData.productId;
+            hasId = true;
+          } else if (formData.id && String(formData.id).trim() !== '') {
+            updateVariables.id = String(formData.id);
+            hasId = true;
+          }
+        }
+
+        // Validate that we have at least one ID
+        if (!hasId) {
+          alert('Cannot update product: Missing product ID');
+          setSaving(false);
+          return;
+        }
+
+        // Include catalogName only if it exists
+        if (payload.catalogName) {
+          updateVariables.catalogName = payload.catalogName;
+        }
+
+        // Only include variantDefinitions if provided and not empty
+        const variantDefs = payload.variantDefinitions;
+        if (variantDefs && Array.isArray(variantDefs) && variantDefs.length > 0) {
+          updateVariables.variantDefinitions = variantDefs;
+        }
+
+        // Only include variantOptions if provided and not empty
+        const variantOpts = payload.variantOptions;
+        if (variantOpts && Array.isArray(variantOpts) && variantOpts.length > 0) {
+          updateVariables.variantOptions = variantOpts;
+        }
+
+        try {
+          const data = await fetchGraphQL<{ updateProduct: Product }>(UPDATE_PRODUCT_MUTATION, updateVariables);
+          savedProduct = data.updateProduct;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
+          alert(`Error updating product: ${errorMessage}`);
+          setSaving(false);
+          return;
+        }
       } else if (currentMode === 'edit') {
         alert('Cannot edit product: Missing product ID');
+        setSaving(false);
         return;
       }
 
-      if (response?.ok) {
-        const savedProduct = await response.json();
+      if (savedProduct) {
         
         // If publishing, also update marketplace status
         if (status === 'Published') {
@@ -927,9 +1163,6 @@ export default function ProductCatalog({
           // Navigate back to products page for add mode
           router.push('/products');
         }
-      } else {
-        const errorData = await response?.json();
-        alert(`Error: ${errorData?.error || 'Failed to save product'}`);
       }
     } catch (error) {
       alert('Error saving product. Please try again.');
@@ -975,8 +1208,8 @@ export default function ProductCatalog({
 
     // Check if combinations are properly configured
     const variantValidation = combinations.length > 0 && combinations.every(combo => 
-      combo.purchasePrice && combo.purchasePrice.trim() !== '' &&
-      combo.sellingPrice && combo.sellingPrice.trim() !== ''
+      combo.purchasePrice && String(combo.purchasePrice).trim() !== '' &&
+      combo.sellingPrice && String(combo.sellingPrice).trim() !== ''
     );
 
     // Check if all combinations have valid stock
@@ -1235,8 +1468,8 @@ export default function ProductCatalog({
               { name: 'Supplier', value: String(dataSource?.supplier || '').trim() },
               { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 },
               { name: 'Product Variants', value: combinations.length > 0 && combinations.every(combo => 
-                combo.purchasePrice && combo.purchasePrice.trim() !== '' &&
-                combo.sellingPrice && combo.sellingPrice.trim() !== ''
+                combo.purchasePrice && String(combo.purchasePrice).trim() !== '' &&
+                combo.sellingPrice && String(combo.sellingPrice).trim() !== ''
               ) },
               { name: 'Product Stock', value: combinations.length > 0 }
             ];

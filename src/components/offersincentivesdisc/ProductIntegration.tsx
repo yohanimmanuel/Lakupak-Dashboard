@@ -7,6 +7,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
 import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 interface DiscountType {
   id: string;
@@ -262,68 +263,171 @@ export default function ProductIntegration({
     new Set(offerData?.products?.map(p => p.productId) || [])
   );
 
-  // Fetch products from API
+  // Fetch products from GraphQL API
   const fetchProducts = useCallback(async () => {
     if (!user?.id) return;
     
     setLoading(true);
     try {
-      // Fetch products and active offers
-      const [productsResponse, offersResponse] = await Promise.all([
-        fetch(`/api/products?userId=${user.id}`),
-        fetch(`/api/offers?userId=${user.id}`)
+      // GraphQL queries for products and offers
+      const PRODUCTS_QUERY = `
+        query GetProducts($userId: Int!, $page: Int, $limit: Int) {
+          products(userId: $userId, page: $page, limit: $limit) {
+            nodes {
+              id
+              productId
+              sku
+              name
+              description
+              productType
+              brand
+              supplier
+              status
+              productCategory
+              catalogName
+              images
+              variantOptions {
+                id
+                variantName
+                sku
+                purchasePrice
+                sellingPrice
+                originalSellingPrice
+                moq
+                stockQuantity
+                lowStockThreshold
+                stockStatus
+                isDefault
+                isActive
+                attributes
+              }
+              variantDefinitions
+              legacyVariants
+              hasActiveOffer
+              offerBadge
+              offerId
+              offerName
+              discountType
+              discountValue
+              promotionDetails
+              originalPrice
+            }
+            pagination {
+              totalCount
+            }
+          }
+        }
+      `;
+
+      const OFFERS_QUERY = `
+        query GetOffers($userId: Int!, $page: Int, $limit: Int) {
+          offers(userId: $userId, page: $page, limit: $limit) {
+            nodes {
+              id
+              offerId
+              name
+              status
+              type
+              startDate
+              endDate
+              discountTypes {
+                id
+                discountType
+                discountValue
+                minQuantity
+                isActive
+                priority
+              }
+            }
+            pagination {
+              totalCount
+            }
+          }
+        }
+      `;
+
+      // Fetch products and active offers using GraphQL
+      const [productsData, offersData] = await Promise.all([
+        fetchGraphQL<{
+          products: {
+            nodes: Product[];
+            pagination: { totalCount: number };
+          };
+        }>(PRODUCTS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 1000,
+        }),
+        fetchGraphQL<{
+          offers: {
+            nodes: Array<{
+              id: string;
+              offerId: string;
+              name: string;
+              status: string;
+              type: string[];
+              startDate: string;
+              endDate: string;
+              discountTypes: Array<{
+                id: string;
+                discountType: string;
+                discountValue: number;
+                minQuantity: number | null;
+                isActive: boolean;
+                priority: number;
+              }>;
+            }>;
+            pagination: { totalCount: number };
+          };
+        }>(OFFERS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 1000,
+        }),
       ]);
       
-      if (productsResponse.ok && offersResponse.ok) {
-        const productsData = await productsResponse.json();
-        const offersData = await offersResponse.json();
+      const products = productsData.products.nodes;
+      const offers = offersData.offers.nodes;
+      
+      // Get all product IDs that already belong to any offer (active or inactive)
+      // Exclude products from the CURRENT offer being edited (if in edit mode)
+      const currentOfferId = offerData?.offerId;
+      const productsWithOffers = new Set<string>();
+      
+      // Build productsWithOffers set from products that have active offers
+      // Note: We use the hasActiveOffer field from products, but we still need to check
+      // all offers to see which products are in other offers (not just active ones)
+      // For now, we'll use hasActiveOffer as a proxy, but ideally we'd query offerProducts
+      products.forEach((product: Product) => {
+        if (product.hasActiveOffer && product.offerId !== currentOfferId) {
+          productsWithOffers.add(product.productId);
+        }
+      });
+      
+      // Transform products to include offer information
+      const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
+        const storeHasOffer = Boolean(productOfferBadges[product.productId]);
+        const apiHasOffer = productsWithOffers.has(product.productId);
         
-        // Handle both old format (array) and new format (with pagination)
-        const products = productsData.products || productsData;
-        const offers = offersData.offers || [];
+        // Check if product is in current offer (for editing mode)
+        const isInCurrentOffer = currentOfferProductIds.has(product.productId);
         
-        // Get all product IDs that already belong to any offer (active or inactive)
-        // Exclude products from the CURRENT offer being edited (if in edit mode)
-        const currentOfferId = offerData?.offerId;
-        const productsWithOffers = new Set<string>();
-        offers.forEach((offer: OfferData) => {
-          // Skip the current offer being edited
-          if (offer.offerId === currentOfferId) return;
-          
-          if (offer.products && offer.products.length > 0) {
-            offer.products.forEach((product: OfferProduct) => {
-              productsWithOffers.add(product.productId);
-            });
-          }
-        });
+        // Determine hasOffer based on whether product is in current offer or not:
+        // - If in current offer: use ONLY store data (ignore API)
+        // - If not in current offer: use API data (store should be empty anyway)
+        const hasOffer = isInCurrentOffer ? storeHasOffer : apiHasOffer;
+        const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
         
-        // Transform products to include offer information
-        const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
-          const storeHasOffer = Boolean(productOfferBadges[product.productId]);
-          const apiHasOffer = productsWithOffers.has(product.productId);
-          
-            // Check if product is in current offer (for editing mode)
-            const isInCurrentOffer = currentOfferProductIds.has(product.productId);
-            
-            // Determine hasOffer based on whether product is in current offer or not:
-            // - If in current offer: use ONLY store data (ignore API)
-            // - If not in current offer: use API data (store should be empty anyway)
-            const hasOffer = isInCurrentOffer ? storeHasOffer : apiHasOffer;
-          const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
-          
-          return {
-            ...product,
-            hasOffer,
-            offerDiscount: hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0,
-            offerType: hasOffer ? 'percentage' : undefined,
-            offerBadge: (isInCurrentOffer || storeHasOffer) ? productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' : undefined,
-          };
-        });
-        
-        setProducts(productsWithOfferInfo);
-      } else {
-        setProducts([]);
-      }
+        return {
+          ...product,
+          hasOffer,
+          offerDiscount: hasOffer ? calculateDiscountAmount(product as ProductWithOffer) : 0,
+          offerType: hasOffer ? 'percentage' : undefined,
+          offerBadge: (isInCurrentOffer || storeHasOffer) ? productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' : undefined,
+        };
+      });
+      
+      setProducts(productsWithOfferInfo);
     } catch (error) {
       setProducts([]);
     } finally {

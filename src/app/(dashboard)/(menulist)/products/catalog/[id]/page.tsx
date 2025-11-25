@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 import { Product } from "@/types/product";
+import { fetchGraphQL } from "@/lib/graphqlClient";
 
 export default function ViewProductPage() {
   const params = useParams();
@@ -18,16 +19,71 @@ export default function ViewProductPage() {
       
       try {
         setLoading(true);
-        const response = await fetch(`/api/products?id=${params.id}&userId=${user.id}`);
         
-        if (response.ok) {
-          const data = await response.json();
-          setProduct(data);
-        } else if (response.status === 404) {
+        const PRODUCT_QUERY = `
+          query GetProduct($userId: Int!, $id: String!) {
+            product(userId: $userId, id: $id) {
+              id
+              productId
+              sku
+              name
+              description
+              productType
+              brand
+              supplier
+              status
+              productCategory
+              catalogName
+              images
+              halalCertified
+              bpomApproved
+              originalProduct
+              returnPolicyDays
+              stockQuantity
+              lowStockThreshold
+              stockStatus
+              variantOptions {
+                id
+                variantName
+                sku
+                purchasePrice
+                sellingPrice
+                originalSellingPrice
+                moq
+                stockQuantity
+                lowStockThreshold
+                stockStatus
+                isDefault
+                isActive
+                attributes
+              }
+              variantDefinitions
+              legacyVariants
+              createdAt
+              updatedAt
+              userId
+              hasActiveOffer
+              offerBadge
+              offerId
+              offerName
+              discountType
+              discountValue
+              promotionDetails
+              originalPrice
+            }
+          }
+        `;
+
+        const data = await fetchGraphQL<{ product: Product | null }>(PRODUCT_QUERY, {
+          userId: user.id,
+          id: String(params.id),
+        });
+        
+        if (data.product) {
+          setProduct(data.product);
+        } else {
           window.location.href = `/products/deleted?id=${params.id}`;
           return;
-        } else {
-          setError('Product not found');
         }
       } catch (error) {
         setError('Failed to load product');

@@ -1,3 +1,18 @@
+// ============================================================================
+// GRAPHQL API ROUTE - PRODUCTS, ORDERS, OFFERS, BUYERS, SUPPLIERS
+// ============================================================================
+// This file implements a GraphQL API that consolidates multiple REST endpoints
+// into a single, flexible query interface. It uses Apollo Server with Next.js
+// integration for handling GraphQL requests.
+//
+// MAIN SECTIONS:
+// 1. Imports and Configuration
+// 2. Type Definitions (Scalars, Types, Queries, Mutations)
+// 3. Helper Functions (Pagination, Data Mapping, Offer Processing)
+// 4. Resolver Functions (Query and Mutation implementations)
+// 5. Apollo Server Setup
+// ============================================================================
+
 import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
@@ -10,13 +25,30 @@ import {
   type Supplier as SupplierModel,
 } from '@/generated/prisma';
 import { buildMobileBuyerId } from '@/utils/buyerSync';
+import {
+  getProductSecurityHeaders,
+  validateProductInput,
+  sanitizeProductData,
+  generateUniqueProductId,
+} from '@/utils/product-security';
+import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { broadcastProductUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 
+// ============================================================================
+// DATABASE CLIENT & CONSTANTS
+// ============================================================================
 const prisma = new PrismaClient();
 
-const MAX_DEFAULT_LIMIT = 100;
-const MAX_PRODUCT_LIMIT = 1000;
-const MAX_MARKETPLACE_LIMIT = 200;
+// Pagination limits to prevent excessive data fetching
+const MAX_DEFAULT_LIMIT = 100;        // Default max limit for most queries
+const MAX_PRODUCT_LIMIT = 1000;      // Max limit for product queries (larger dataset)
+const MAX_MARKETPLACE_LIMIT = 200;   // Max limit for marketplace product queries
 
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+// Pagination metadata for connection-based queries
 type PaginationInfo = {
   page: number;
   limit: number;
@@ -24,10 +56,16 @@ type PaginationInfo = {
   totalPages: number;
 };
 
+// Generic connection result structure (used for paginated queries)
 type ConnectionResult<T> = {
   nodes: T[];
   pagination: PaginationInfo;
 };
+
+// ============================================================================
+// JSON SCALAR PARSING
+// ============================================================================
+// Handles parsing of JSON values from GraphQL literals (for JSONObject scalar)
 
 const parseLiteralJSON = (ast: ValueNode): unknown => {
   switch (ast.kind) {
@@ -58,6 +96,12 @@ const parseLiteralJSON = (ast: ValueNode): unknown => {
   }
 };
 
+// ============================================================================
+// JSON OBJECT SCALAR TYPE
+// ============================================================================
+// Custom scalar for handling arbitrary JSON objects in GraphQL
+// Used for flexible fields like product attributes, promotion details, etc.
+
 const JSONObjectScalar = new GraphQLScalarType({
   name: 'JSONObject',
   description: 'Arbitrary JSON object.',
@@ -72,9 +116,17 @@ const JSONObjectScalar = new GraphQLScalarType({
   },
 });
 
+// ============================================================================
+// GRAPHQL SCHEMA DEFINITION
+// ============================================================================
+// Defines all types, queries, and mutations available in the GraphQL API
+// Organized by domain: Products, Orders, Offers, Buyers, Suppliers, etc.
+
 const typeDefs = /* GraphQL */ `
+  # Custom scalar for arbitrary JSON objects
   scalar JSONObject
 
+  # Pagination metadata type
   type PaginationInfo {
     page: Int!
     limit: Int!
@@ -463,14 +515,152 @@ const typeDefs = /* GraphQL */ `
       limit: Int = 20
     ): [UserActivity!]!
   }
+
+  # ============================================================================
+  # PRODUCT MUTATIONS
+  # ============================================================================
+  # Mutations for creating, updating, and deleting products
+  # These replace the REST POST, PUT, and DELETE endpoints
+
+  type Mutation {
+    # Create a new product with variants and variant options
+    # Returns the created product with all related data
+    createProduct(
+      userId: Int!
+      productId: String
+      sku: String
+      name: String!
+      description: String!
+      productType: String!
+      brand: String!
+      supplier: String!
+      status: String
+      productCategory: String!
+      catalogName: String
+      images: [String!]
+      halalCertified: Boolean
+      bpomApproved: Boolean
+      originalProduct: Boolean
+      returnPolicyDays: Int
+      currency: String
+      variantDefinitions: [VariantDefinitionInput!]
+      variantOptions: [VariantOptionInput!]
+      variants: [LegacyVariantInput!]
+    ): Product!
+
+    # Update an existing product by ID or productId
+    # Supports partial updates - only provided fields will be updated
+    updateProduct(
+      userId: Int!
+      id: String
+      productId: String
+      sku: String
+      name: String
+      description: String
+      productType: String
+      brand: String
+      supplier: String
+      status: String
+      productCategory: String
+      catalogName: String
+      images: [String!]
+      halalCertified: Boolean
+      bpomApproved: Boolean
+      originalProduct: Boolean
+      returnPolicyDays: Int
+      currency: String
+      variantDefinitions: [VariantDefinitionInput!]
+      variantOptions: [VariantOptionInput!]
+      variants: [LegacyVariantInput!]
+    ): Product!
+
+    # Delete a product by ID or productId
+    # Returns success status and deleted product data
+    deleteProduct(
+      userId: Int!
+      id: String!
+    ): DeleteProductResult!
+
+    # Special action: Reset original prices for all products of a user
+    # Sets originalSellingPrice = sellingPrice for all variant options
+    resetOriginalPrices(userId: Int!): ActionResult!
+
+    # Special action: Apply active offers to all products
+    # Updates product prices based on active offers and discount types
+    applyOffersToAllProducts(userId: Int!): ActionResult!
+
+    # Special action: Force update prices from offers
+    # Ensures all variant options have originalSellingPrice set, then applies offers
+    forceUpdatePrices(userId: Int!): ActionResult!
+
+    # Special action: Reset prices for a specific product
+    # Resets variant option prices to their original selling prices
+    resetProductPrices(userId: Int!, productId: String!): ActionResult!
+  }
+
+  # Input types for product mutations
+  input VariantDefinitionInput {
+    variantType: String!
+    options: [String!]!
+    position: Int!
+  }
+
+  input VariantOptionInput {
+    variantName: String!
+    attributes: JSONObject!
+    sku: String
+    purchasePrice: String!
+    sellingPrice: String!
+    originalSellingPrice: String
+    moq: Int
+    stockQuantity: Int!
+    lowStockThreshold: Int!
+    stockStatus: String!
+    isDefault: Boolean!
+    isActive: Boolean!
+  }
+
+  input LegacyVariantInput {
+    variantName: String!
+    variantType: String
+    sku: String
+    purchasePrice: String!
+    sellingPrice: String!
+    originalSellingPrice: String
+    moq: Int
+    stockQuantity: Int!
+    lowStockThreshold: Int!
+    stockStatus: String!
+    attributes: JSONObject
+    isDefault: Boolean!
+    isActive: Boolean!
+  }
+
+  # Result types for mutations
+  type DeleteProductResult {
+    success: Boolean!
+    deleted: Product
+  }
+
+  type ActionResult {
+    success: Boolean!
+    message: String!
+  }
 `;
 
+// ============================================================================
+// PAGINATION HELPERS
+// ============================================================================
+
+// Sanitizes pagination parameters to ensure safe values
+// Ensures page >= 1, limit is within bounds, and respects max limit
 const sanitizePagination = (page = 1, limit = 20, max = MAX_DEFAULT_LIMIT) => {
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), max) : Math.min(20, max);
   return { page: safePage, limit: safeLimit };
 };
 
+// Builds pagination metadata object for response
 const buildPaginationInfo = (page: number, limit: number, totalCount: number): PaginationInfo => ({
   page,
   limit,
@@ -478,8 +668,15 @@ const buildPaginationInfo = (page: number, limit: number, totalCount: number): P
   totalPages: Math.max(1, Math.ceil(totalCount / limit)),
 });
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// Checks if a string ID is numeric (for determining if it's a database ID vs productId)
 const isNumericId = (value: string) => /^\d+$/.test(value);
 
+// Parses money values from strings (handles comma separators) or numbers
+// Used for converting currency strings to numbers for calculations
 const parseMoney = (value: string | number | null | undefined): number => {
   if (typeof value === 'number') {
     return value;
@@ -491,7 +688,13 @@ const parseMoney = (value: string | number | null | undefined): number => {
   return 0;
 };
 
+// Converts Date objects to ISO string format for GraphQL responses
 const asISOString = (value?: Date | null) => (value ? value.toISOString() : null);
+
+// ============================================================================
+// VARIANT OPTION MAPPING
+// ============================================================================
+// Defines which fields to select when fetching variant options from Prisma
 
 const variantOptionSelect = {
   id: true,
@@ -509,6 +712,8 @@ const variantOptionSelect = {
   attributes: true,
 } satisfies Prisma.VariantOptionSelect;
 
+// Maps Prisma VariantOption to GraphQL ProductVariantOption type
+// Handles null values and type conversions
 const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select: typeof variantOptionSelect }>) => ({
   id: variantOption.id,
   variantName: variantOption.variantName,
@@ -525,6 +730,11 @@ const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select
   attributes: variantOption.attributes,
 });
 
+// ============================================================================
+// OFFER PROCESSING
+// ============================================================================
+// Functions for handling product offers, discounts, and promotions
+
 type ActiveOfferPayload = Prisma.OfferGetPayload<{
   include: {
     offerProducts: true;
@@ -532,6 +742,8 @@ type ActiveOfferPayload = Prisma.OfferGetPayload<{
   };
 }>;
 
+// Builds offer metadata (badge, discount type, promotion details) from discount types
+// Determines the appropriate badge label based on available discount types
 const buildOfferMetadata = (discountTypes: OfferDiscountType[]): {
   offerBadge: string;
   discountType?: string;
@@ -582,6 +794,11 @@ const buildOfferMetadata = (discountTypes: OfferDiscountType[]): {
   };
 };
 
+// ============================================================================
+// SELLER INFORMATION
+// ============================================================================
+// Includes user and company data for building seller info in marketplace products
+
 const productSellerInclude = {
   include: {
     user: {
@@ -604,6 +821,7 @@ const productSellerInclude = {
   },
 };
 
+// Builds seller information object from product's user and company data
 const buildSellerInfo = (product: Prisma.ProductGetPayload<typeof productSellerInclude>) => {
   const user = product.user;
   if (!user) {
@@ -621,6 +839,8 @@ const buildSellerInfo = (product: Prisma.ProductGetPayload<typeof productSellerI
   };
 };
 
+// Fetches active offers for a list of product IDs and builds a map
+// Returns Map<productId, ActiveOfferPayload[]> for efficient lookup
 const fetchActiveOffersMap = async (
   productIds: string[],
   userScope?: number | number[]
@@ -680,6 +900,12 @@ const fetchActiveOffersMap = async (
   return offerMap;
 };
 
+// ============================================================================
+// PRODUCT MAPPING
+// ============================================================================
+// Maps Prisma Product to GraphQL Product type
+// Handles variant options, legacy variants, and offer metadata
+
 const mapProduct = (
   product: Prisma.ProductGetPayload<{
     include: {
@@ -738,6 +964,13 @@ const mapProduct = (
   };
 };
 
+// ============================================================================
+// PRODUCT QUERY RESOLVERS
+// ============================================================================
+// Functions that fetch products with pagination, filtering, and search
+
+// Fetches paginated products with optional search, status, and productType filters
+// Returns products with active offer metadata attached
 const fetchProductsConnection = async (args: {
   userId: number;
   page?: number;
@@ -796,6 +1029,8 @@ const fetchProductsConnection = async (args: {
   };
 };
 
+// Fetches a single product by ID (numeric) or productId (string)
+// Supports both database ID and custom productId lookup
 const fetchSingleProduct = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
   const where: Prisma.ProductWhereInput = isNumericId(id)
@@ -819,6 +1054,8 @@ const fetchSingleProduct = async (args: { userId: number; id: string }) => {
   return mapProduct(product, offerMap);
 };
 
+// Fetches published marketplace products with pagination
+// Only returns products that are published and have variant options
 const fetchMarketplaceProductsConnection = async (args: {
   page?: number;
   limit?: number;
@@ -878,6 +1115,11 @@ const fetchMarketplaceProductsConnection = async (args: {
   };
 };
 
+// ============================================================================
+// OFFER QUERY RESOLVERS
+// ============================================================================
+
+// Maps Prisma Offer to GraphQL Offer type
 const mapOffer = (
   offer: Prisma.OfferGetPayload<{
     include: {
@@ -906,6 +1148,7 @@ const mapOffer = (
   })),
 });
 
+// Fetches paginated offers with optional status and type filters
 const fetchOffersConnection = async (args: {
   userId: number;
   page?: number;
@@ -945,6 +1188,11 @@ const fetchOffersConnection = async (args: {
   };
 };
 
+// ============================================================================
+// BUYER QUERY RESOLVERS
+// ============================================================================
+
+// Maps Prisma Buyer to GraphQL Buyer type
 const mapBuyer = (buyer: BuyerModel) => ({
   id: buyer.id,
   buyerId: buyer.buyerId,
@@ -966,6 +1214,7 @@ const mapBuyer = (buyer: BuyerModel) => ({
   updatedAt: buyer.updatedAt.toISOString(),
 });
 
+// Fetches paginated buyers with optional search, status, and businessType filters
 const fetchBuyersConnection = async (args: {
   userId: number;
   page?: number;
@@ -1012,6 +1261,11 @@ const fetchBuyersConnection = async (args: {
   };
 };
 
+// ============================================================================
+// SUPPLIER QUERY RESOLVERS
+// ============================================================================
+
+// Maps Prisma Supplier to GraphQL Supplier type
 const mapSupplier = (supplier: SupplierModel) => ({
   id: supplier.id,
   supplierId: supplier.supplierId,
@@ -1034,6 +1288,7 @@ const mapSupplier = (supplier: SupplierModel) => ({
   updatedAt: supplier.updatedAt.toISOString(),
 });
 
+// Fetches paginated suppliers with optional search, status, and businessType filters
 const fetchSuppliersConnection = async (args: {
   userId: number;
   page?: number;
@@ -1081,6 +1336,12 @@ const fetchSuppliersConnection = async (args: {
   };
 };
 
+// ============================================================================
+// ORDER QUERY RESOLVERS
+// ============================================================================
+
+// Maps Prisma OrderItem to GraphQL OrderItem type
+// Handles both live product data and snapshot data from deleted products
 const mapOrderItems = (
   items: Prisma.OrderItemGetPayload<{
     include: { product: true };
@@ -1115,6 +1376,8 @@ const mapOrderItems = (
     moqSnapshot: item.moqSnapshot ?? null,
   }));
 
+// Maps Prisma Order to GraphQL Order type
+// Includes buyer, seller, and order items with full details
 const mapOrder = (
   order: Prisma.OrderGetPayload<{
     include: {
@@ -1190,6 +1453,8 @@ const mapOrder = (
   orderItems: mapOrderItems(order.orderItemsRel ?? []),
 });
 
+// Fetches paginated orders with optional status filter
+// Excludes deleted orders and optionally excludes archived orders
 const fetchOrdersConnection = async (args: {
   userId: number;
   page?: number;
@@ -1239,6 +1504,8 @@ const fetchOrdersConnection = async (args: {
   };
 };
 
+// Fetches paginated marketplace orders for a mobile user
+// Uses buyerId prefix matching to find orders for marketplace users
 const fetchMarketplaceOrdersConnection = async (args: {
   marketplaceUserId: number;
   page?: number;
@@ -1290,6 +1557,11 @@ const fetchMarketplaceOrdersConnection = async (args: {
   };
 };
 
+// ============================================================================
+// MARKETPLACE USER QUERY RESOLVERS
+// ============================================================================
+
+// Fetches marketplace user profile by ID
 const fetchMarketplaceUserProfile = async (userId: number) => {
   const user = await prisma.marketplaceUser.findUnique({
     where: { id: userId },
@@ -1316,6 +1588,11 @@ const fetchMarketplaceUserProfile = async (userId: number) => {
   };
 };
 
+// ============================================================================
+// USER ACTIVITY QUERY RESOLVERS
+// ============================================================================
+
+// Fetches user activities (favorites, viewed, purchased, cart) by type
 const fetchUserActivities = async (args: {
   userId: number;
   activityType: string;
@@ -1346,6 +1623,12 @@ const fetchUserActivities = async (args: {
   }));
 };
 
+// ============================================================================
+// DASHBOARD QUERY RESOLVERS
+// ============================================================================
+
+// Builds dashboard snapshot with orders, products, buyers, and suppliers
+// Used for the main dashboard home page
 const buildDashboardSnapshot = async (args: {
   userId: number;
   ordersLimit: number;
@@ -1376,8 +1659,803 @@ const buildDashboardSnapshot = async (args: {
   };
 };
 
+// ============================================================================
+// PRODUCT MUTATION HELPERS
+// ============================================================================
+// Helper functions for product mutations (create, update, delete, price updates)
+
+// Updates product prices based on active offers
+// This function applies discount calculations to variant options when offers are active
+async function updateProductPricesFromOffers(
+  tx: Prisma.TransactionClient | PrismaClient,
+  userId: number
+): Promise<void> {
+  try {
+    // Get all products for this user
+    const products = await tx.product.findMany({
+      where: { userId },
+      include: {
+        variants: true,
+        variantOptions: true,
+      },
+    });
+
+    for (const product of products) {
+      // Get active offers for this product
+      const productOffers = await tx.offer.findMany({
+        where: {
+          userId,
+          status: 'active',
+          offerProducts: {
+            some: { productId: product.productId },
+          },
+        },
+        include: {
+          offerDiscountTypes: true,
+        },
+      });
+
+      // Update variantOptions (new structure)
+      if (product.variantOptions && product.variantOptions.length > 0) {
+        for (const variantOption of product.variantOptions) {
+          // Parse prices from strings
+          const originalPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
+          const currentOriginalPrice = variantOption.originalSellingPrice
+            ? parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR')
+            : originalPrice;
+
+          let finalPrice = currentOriginalPrice;
+          let hasOffer = false;
+
+          // Apply discount if there are active offers
+          if (productOffers.length > 0) {
+            const offer = productOffers[0];
+            let bestDiscountAmount = 0;
+            let bestDiscountType = null;
+
+            // Check all discount types and find the best one
+            for (const discountType of offer.offerDiscountTypes) {
+              // Skip if discount type is not active
+              if (!discountType.isActive) {
+                continue;
+              }
+
+              // All active discount types are usable (no usage limits)
+              if (discountType.isActive) {
+                let discountAmount = 0;
+
+                if (discountType.discountType === 'percentage') {
+                  discountAmount = (currentOriginalPrice * discountType.discountValue) / 100;
+                } else if (discountType.discountType === 'fixed') {
+                  discountAmount = discountType.discountValue;
+                }
+
+                // Keep the best discount
+                if (discountAmount > bestDiscountAmount) {
+                  bestDiscountAmount = discountAmount;
+                  bestDiscountType = discountType;
+                }
+              }
+            }
+
+            // Apply the best discount found
+            if (bestDiscountType && bestDiscountAmount > 0) {
+              if (bestDiscountType.discountType === 'percentage') {
+                finalPrice = currentOriginalPrice * (1 - bestDiscountType.discountValue / 100);
+              } else if (bestDiscountType.discountType === 'fixed') {
+                finalPrice = Math.max(0, currentOriginalPrice - bestDiscountType.discountValue);
+              }
+              hasOffer = true;
+            } else {
+              // No usable discount types, reset to original price
+              finalPrice = currentOriginalPrice;
+              hasOffer = false;
+            }
+          } else {
+            // No active offers, reset to original price
+            finalPrice = currentOriginalPrice;
+            hasOffer = false;
+          }
+
+          // Update the variant option
+          await tx.variantOption.update({
+            where: { id: variantOption.id },
+            data: {
+              sellingPrice: String(Math.round(finalPrice)),
+              originalSellingPrice: hasOffer ? String(Math.round(currentOriginalPrice)) : null,
+            },
+          });
+        }
+      }
+    }
+  } catch (error) {
+    // Silently handle errors - price updates are non-critical
+  }
+}
+
+// ============================================================================
+// PRODUCT MUTATION RESOLVERS
+// ============================================================================
+
+// Creates a new product with variants and variant options
+// Handles both new variantOptions structure and legacy variants structure
+async function createProduct(args: {
+  userId: number;
+  productId?: string | null;
+  sku?: string | null;
+  name: string;
+  description: string;
+  productType: string;
+  brand: string;
+  supplier: string;
+  status?: string | null;
+  productCategory: string;
+  catalogName?: string | null;
+  images?: string[] | null;
+  halalCertified?: boolean | null;
+  bpomApproved?: boolean | null;
+  originalProduct?: boolean | null;
+  returnPolicyDays?: number | null;
+  currency?: string | null;
+  variantDefinitions?: Array<{
+    variantType: string;
+    options: string[];
+    position: number;
+  }> | null;
+  variantOptions?: Array<{
+    variantName: string;
+    attributes: Record<string, string>;
+    sku?: string | null;
+    purchasePrice: string;
+    sellingPrice: string;
+    originalSellingPrice?: string | null;
+    moq?: number | null;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: string;
+    isDefault: boolean;
+    isActive: boolean;
+  }> | null;
+  variants?: Array<{
+    variantName: string;
+    variantType?: string | null;
+    sku?: string | null;
+    purchasePrice: string;
+    sellingPrice: string;
+    originalSellingPrice?: string | null;
+    moq?: number | null;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: string;
+    attributes?: Record<string, unknown> | null;
+    isDefault: boolean;
+    isActive: boolean;
+  }> | null;
+}): Promise<ReturnType<typeof mapProduct>> {
+  const {
+    userId,
+    productId,
+    sku,
+    name,
+    description,
+    productType,
+    brand,
+    supplier,
+    status = 'Draft',
+    productCategory,
+    catalogName,
+    images = [],
+    halalCertified = false,
+    bpomApproved = false,
+    originalProduct = true,
+    returnPolicyDays = 7,
+    currency = 'IDR',
+    variantDefinitions,
+    variantOptions,
+    variants,
+  } = args;
+
+  // Generate unique productId if not provided
+  let finalProductId = productId || generateUniqueProductId();
+
+  // Check for unique productId
+  const existingProduct = await prisma.product.findFirst({
+    where: { productId: finalProductId, userId },
+  });
+
+  if (existingProduct) {
+    finalProductId = generateUniqueProductId();
+  }
+
+  // Determine final status and marketplaceStatus
+  const finalStatus = status || 'Draft';
+  const finalMarketplaceStatus = finalStatus === 'Published' ? 'Published' : 'Not Published';
+
+  // Sanitize and prepare product data
+  const productData = {
+    productId: finalProductId,
+    sku: sku || '',
+    name: name.trim(),
+    description: description.trim(),
+    productType: productType.trim(),
+    brand: brand.trim(),
+    supplier: supplier.trim(),
+    status: finalStatus,
+    marketplaceStatus: finalMarketplaceStatus, // Set marketplaceStatus based on status
+    productCategory: productCategory.trim(),
+    catalogName: catalogName?.trim() || '',
+    images: Array.isArray(images) ? images : [],
+    halalCertified: halalCertified === true,
+    bpomApproved: bpomApproved === true,
+    originalProduct: originalProduct !== false,
+    returnPolicyDays: returnPolicyDays !== undefined ? Number(returnPolicyDays) : 7,
+    userId,
+    // Set publishedAt timestamp when publishing
+    ...(finalStatus === 'Published' && { publishedAt: new Date() }),
+  };
+
+  // Create product with variants
+  const product = await prisma.product.create({
+    data: {
+      ...productData,
+      // New variant structure: definitions and options
+      variants: variantDefinitions
+        ? {
+            create: variantDefinitions.map((def) => ({
+              variantType: def.variantType,
+              options: def.options,
+              position: def.position,
+            })),
+          }
+        : undefined,
+      variantOptions: variantOptions
+        ? {
+            create: variantOptions.map((option) => ({
+              variantName: option.variantName,
+              attributes: option.attributes as Prisma.InputJsonValue,
+              sku: option.sku || null,
+              purchasePrice: String(
+                parseNumberByCurrency(option.purchasePrice || '', currency || undefined),
+              ),
+              sellingPrice: String(
+                parseNumberByCurrency(option.sellingPrice || '', currency || undefined),
+              ),
+              originalSellingPrice: option.originalSellingPrice && typeof option.originalSellingPrice === 'string'
+                ? String(parseNumberByCurrency(option.originalSellingPrice, currency || undefined))
+                : null,
+              moq: option.moq,
+              stockQuantity: option.stockQuantity || 0,
+              lowStockThreshold: option.lowStockThreshold || 0,
+              stockStatus: option.stockStatus || 'In Stock',
+              isDefault: option.isDefault || false,
+              isActive: option.isActive !== false,
+            })),
+          }
+        : undefined,
+      // Legacy variants: convert to variantOptions if provided
+      // Note: Legacy variants are now stored as variantOptions for consistency
+      ...(variants && !variantOptions && !variantDefinitions
+        ? {
+            variantOptions: {
+              create: variants.map((variant) => ({
+                variantName: variant.variantName,
+                attributes: (variant.attributes || {}) as Prisma.InputJsonValue,
+                sku: variant.sku || null,
+                purchasePrice: String(
+                  parseNumberByCurrency(variant.purchasePrice || '', currency || undefined),
+                ),
+                sellingPrice: String(
+                  parseNumberByCurrency(variant.sellingPrice || '', currency || undefined),
+                ),
+                originalSellingPrice: variant.originalSellingPrice && typeof variant.originalSellingPrice === 'string'
+                  ? String(parseNumberByCurrency(variant.originalSellingPrice, currency || undefined))
+                  : null,
+                moq: variant.moq || null,
+                stockQuantity: variant.stockQuantity || 0,
+                lowStockThreshold: variant.lowStockThreshold || 0,
+                stockStatus: variant.stockStatus || 'In Stock',
+                isDefault: variant.isDefault || false,
+                isActive: variant.isActive !== false,
+              })),
+            },
+          }
+        : {}),
+    },
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  // Update product prices based on active offers after creation
+  await updateProductPricesFromOffers(prisma, userId);
+
+  // Fetch the updated product with new prices
+  const updatedProduct = await prisma.product.findUnique({
+    where: { id: product.id },
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  if (!updatedProduct) {
+    throw new Error('Failed to fetch created product');
+  }
+
+  // ============================================================================
+  // WEBSOCKET BROADCAST FOR REAL-TIME MARKETPLACE UPDATES
+  // ============================================================================
+  // Broadcast product updates to all connected WebSocket clients (marketplace)
+  // This ensures products appear in real-time when created/published
+  // The marketplace listens for 'product_updated' and 'prices_updated' messages
+  // and refreshes the product list automatically
+  if (updatedProduct.productId) {
+    try {
+      // Always broadcast product update (marketplace will filter by status)
+      await broadcastProductUpdate([updatedProduct.productId]);
+      // Always broadcast price update (for real-time price changes)
+      await broadcastPriceUpdate([updatedProduct.productId]);
+    } catch (error) {
+      // Silently fail if WebSocket server is not running or broadcast fails
+      // This should not block the mutation from completing
+    }
+  }
+
+  // Map and return the product
+  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
+  return mapProduct(updatedProduct, offerMap);
+}
+
+// Updates an existing product by ID or productId
+// Supports partial updates - only provided fields will be updated
+async function updateProduct(args: {
+  userId: number;
+  id?: string | null;
+  productId?: string | null;
+  sku?: string | null;
+  name?: string | null;
+  description?: string | null;
+  productType?: string | null;
+  brand?: string | null;
+  supplier?: string | null;
+  status?: string | null;
+  productCategory?: string | null;
+  catalogName?: string | null;
+  images?: string[] | null;
+  halalCertified?: boolean | null;
+  bpomApproved?: boolean | null;
+  originalProduct?: boolean | null;
+  returnPolicyDays?: number | null;
+  currency?: string | null;
+  variantDefinitions?: Array<{
+    variantType: string;
+    options: string[];
+    position: number;
+  }> | null;
+  variantOptions?: Array<{
+    variantName: string;
+    attributes: Record<string, string>;
+    sku?: string | null;
+    purchasePrice: string;
+    sellingPrice: string;
+    originalSellingPrice?: string | null;
+    moq?: number | null;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: string;
+    isDefault: boolean;
+    isActive: boolean;
+  }> | null;
+  variants?: Array<{
+    variantName: string;
+    variantType?: string | null;
+    sku?: string | null;
+    purchasePrice: string;
+    sellingPrice: string;
+    originalSellingPrice?: string | null;
+    moq?: number | null;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: string;
+    attributes?: Record<string, unknown> | null;
+    isDefault: boolean;
+    isActive: boolean;
+  }> | null;
+}): Promise<ReturnType<typeof mapProduct>> {
+  const {
+    userId,
+    id,
+    productId,
+    sku,
+    name,
+    description,
+    productType,
+    brand,
+    supplier,
+    status,
+    productCategory,
+    catalogName,
+    images,
+    halalCertified,
+    bpomApproved,
+    originalProduct,
+    returnPolicyDays,
+    currency = 'IDR',
+    variantDefinitions,
+    variantOptions,
+    variants,
+  } = args;
+
+  // Build where clause - support both numeric ID and productId
+  const where = id
+    ? isNumericId(id)
+      ? { id: Number(id), userId }
+      : { productId: id, userId }
+    : productId
+      ? { productId, userId }
+      : null;
+
+  if (!where) {
+    throw new Error('Missing id or productId parameter');
+  }
+
+  // Build update data (only include provided fields)
+  const cleanUpdateData: Partial<{
+    sku: string;
+    name: string;
+    description: string;
+    productType: string;
+    brand: string;
+    supplier: string;
+    status: string;
+    productCategory: string;
+    catalogName: string;
+    images: string[];
+    halalCertified: boolean;
+    bpomApproved: boolean;
+    originalProduct: boolean;
+    returnPolicyDays: number;
+  }> = {};
+
+  if (sku !== undefined) cleanUpdateData.sku = String(sku);
+  if (name !== undefined) cleanUpdateData.name = String(name);
+  if (description !== undefined) cleanUpdateData.description = String(description);
+  if (productType !== undefined) cleanUpdateData.productType = String(productType);
+  if (brand !== undefined) cleanUpdateData.brand = String(brand);
+  if (supplier !== undefined) cleanUpdateData.supplier = String(supplier);
+  if (status !== undefined) {
+    const newStatus = String(status);
+    cleanUpdateData.status = newStatus;
+    // Sync marketplaceStatus with status: Published -> Published, otherwise -> Not Published
+    (cleanUpdateData as Record<string, unknown>).marketplaceStatus = 
+      newStatus === 'Published' ? 'Published' : 'Not Published';
+    // Set publishedAt timestamp when status changes to Published
+    if (newStatus === 'Published') {
+      (cleanUpdateData as Record<string, unknown>).publishedAt = new Date();
+    }
+  }
+  if (productCategory !== undefined) cleanUpdateData.productCategory = String(productCategory);
+  if (catalogName !== undefined) cleanUpdateData.catalogName = String(catalogName);
+  if (images !== undefined) cleanUpdateData.images = Array.isArray(images) ? images : [];
+  if (halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(halalCertified);
+  if (bpomApproved !== undefined) cleanUpdateData.bpomApproved = Boolean(bpomApproved);
+  if (originalProduct !== undefined) cleanUpdateData.originalProduct = Boolean(originalProduct);
+  if (returnPolicyDays !== undefined)
+    cleanUpdateData.returnPolicyDays = Number(returnPolicyDays);
+
+  // Update product
+  const product = await prisma.product.update({
+    where,
+    data: {
+      ...cleanUpdateData,
+      // New variant structure: definitions and options
+      // Only update variants if variantDefinitions is provided and not empty
+      ...(variantDefinitions && Array.isArray(variantDefinitions) && variantDefinitions.length > 0 && {
+        variants: {
+          deleteMany: {}, // Delete all existing variant definitions
+          create: variantDefinitions.map((def) => ({
+            variantType: def.variantType,
+            options: def.options,
+            position: def.position,
+          })),
+        },
+      }),
+      // Only update variant options if variantOptions is provided and not empty
+      ...(variantOptions && Array.isArray(variantOptions) && variantOptions.length > 0 && {
+        variantOptions: {
+          deleteMany: {}, // Delete all existing variant options
+          create: variantOptions.map((option) => ({
+            variantName: option.variantName,
+            attributes: option.attributes as Prisma.InputJsonValue,
+            sku: option.sku || null,
+            purchasePrice: String(
+              parseNumberByCurrency(option.purchasePrice || '', currency || undefined),
+            ),
+            sellingPrice: String(
+              parseNumberByCurrency(option.sellingPrice || '', currency || undefined),
+            ),
+            originalSellingPrice: option.originalSellingPrice && typeof option.originalSellingPrice === 'string'
+              ? String(parseNumberByCurrency(option.originalSellingPrice, currency || undefined))
+              : null,
+            moq: option.moq,
+            stockQuantity: option.stockQuantity || 0,
+            lowStockThreshold: option.lowStockThreshold || 0,
+            stockStatus: option.stockStatus || 'In Stock',
+            isDefault: option.isDefault || false,
+            isActive: option.isActive !== false,
+          })),
+        },
+      }),
+      // Legacy variants: convert to variantOptions if provided
+      // Note: Legacy variants are now stored as variantOptions for consistency
+      ...(variants && !variantOptions && !variantDefinitions && {
+        variantOptions: {
+          deleteMany: {}, // Delete all existing variant options
+          create: variants.map((variant) => ({
+            variantName: variant.variantName || 'Default Variant',
+            attributes: (variant.attributes || {}) as Prisma.InputJsonValue,
+            sku: variant.sku || null,
+            purchasePrice: String(
+              parseNumberByCurrency(variant.purchasePrice || '', currency || undefined),
+            ),
+            sellingPrice: String(
+              parseNumberByCurrency(variant.sellingPrice || '', currency || undefined),
+            ),
+            originalSellingPrice: variant.originalSellingPrice && typeof variant.originalSellingPrice === 'string'
+              ? String(parseNumberByCurrency(variant.originalSellingPrice, currency || undefined))
+              : null,
+            moq: variant.moq || null,
+            stockQuantity: variant.stockQuantity || 0,
+            lowStockThreshold: variant.lowStockThreshold || 0,
+            stockStatus: variant.stockStatus || 'In Stock',
+            isDefault: variant.isDefault || false,
+            isActive: variant.isActive !== false,
+          })),
+        },
+      }),
+    },
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  // Update product prices based on active offers after update
+  await updateProductPricesFromOffers(prisma, userId);
+
+  // Fetch the updated product with new prices
+  const updatedProduct = await prisma.product.findUnique({
+    where: { id: product.id },
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  if (!updatedProduct) {
+    throw new Error('Failed to fetch updated product');
+  }
+
+  // ============================================================================
+  // WEBSOCKET BROADCAST FOR REAL-TIME MARKETPLACE UPDATES
+  // ============================================================================
+  // Broadcast product updates to all connected WebSocket clients (marketplace)
+  // This ensures products appear in real-time when saved/published
+  // The marketplace listens for 'product_updated' and 'prices_updated' messages
+  // and refreshes the product list automatically
+  if (updatedProduct.productId) {
+    try {
+      // Always broadcast product update (marketplace will filter by status)
+      await broadcastProductUpdate([updatedProduct.productId]);
+      // Always broadcast price update (for real-time price changes)
+      await broadcastPriceUpdate([updatedProduct.productId]);
+    } catch (error) {
+      // Silently fail if WebSocket server is not running or broadcast fails
+      // This should not block the mutation from completing
+    }
+  }
+
+  // Map and return the product
+  const offerMap = await fetchActiveOffersMap([updatedProduct.productId], userId);
+  return mapProduct(updatedProduct, offerMap);
+}
+
+// Deletes a product by ID or productId
+async function deleteProduct(args: {
+  userId: number;
+  id: string;
+}): Promise<{ success: boolean; deleted: ReturnType<typeof mapProduct> | null }> {
+  const { userId, id } = args;
+
+  // Build where clause - support both numeric ID and productId
+  const where = isNumericId(id)
+    ? { id: Number(id), userId }
+    : { productId: id, userId };
+
+  // Find product before deletion
+  const productToDelete = await prisma.product.findFirst({
+    where,
+    include: {
+      variantOptions: { select: variantOptionSelect },
+      variants: true,
+      user: productSellerInclude.include.user,
+    },
+  });
+
+  if (!productToDelete) {
+    throw new Error('Product not found');
+  }
+
+  // Map product for response
+  const offerMap = await fetchActiveOffersMap([productToDelete.productId], userId);
+  const mappedProduct = mapProduct(productToDelete, offerMap);
+
+  // Delete product
+  await prisma.product.delete({
+    where: isNumericId(id) ? { id: Number(id) } : { productId: id },
+  });
+
+  // Broadcast product deletion via WebSocket
+  try {
+    await broadcastProductUpdate([productToDelete.productId]);
+    await broadcastPriceUpdate([productToDelete.productId]);
+  } catch (error) {
+    // Ignore broadcast errors
+  }
+
+  return {
+    success: true,
+    deleted: mappedProduct,
+  };
+}
+
+// Resets originalSellingPrice for all variant options of a user's products
+async function resetOriginalPrices(userId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const variantOptionsWithNullOriginalPrice = await prisma.variantOption.findMany({
+      where: {
+        originalSellingPrice: null,
+        product: {
+          userId,
+        },
+      },
+    });
+
+    const variantOptionUpdatePromises = variantOptionsWithNullOriginalPrice.map((variantOption) =>
+      prisma.variantOption.update({
+        where: { id: variantOption.id },
+        data: {
+          originalSellingPrice: variantOption.sellingPrice,
+        },
+      }),
+    );
+
+    await Promise.all(variantOptionUpdatePromises);
+
+    return {
+      success: true,
+      message: `Reset originalSellingPrice for ${variantOptionsWithNullOriginalPrice.length} variant options`,
+    };
+  } catch (error) {
+    throw new Error('Failed to reset original prices');
+  }
+}
+
+// Applies active offers to all products of a user
+async function applyOffersToAllProducts(
+  userId: number,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    await updateProductPricesFromOffers(prisma, userId);
+    return {
+      success: true,
+      message: 'Applied offers to all products successfully',
+    };
+  } catch (error) {
+    throw new Error('Failed to apply offers to all products');
+  }
+}
+
+// Force updates prices: ensures all variant options have originalSellingPrice, then applies offers
+async function forceUpdatePrices(userId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // First, ensure all product variants have originalSellingPrice set
+      const productsWithVariants = await tx.product.findMany({
+        where: { userId },
+        include: {
+          variants: true,
+          variantOptions: true,
+        },
+      });
+
+      for (const product of productsWithVariants) {
+        // Update variant options (new structure)
+        if (product.variantOptions && product.variantOptions.length > 0) {
+          for (const variantOption of product.variantOptions) {
+            if (!variantOption.originalSellingPrice) {
+              await tx.variantOption.update({
+                where: { id: variantOption.id },
+                data: { originalSellingPrice: variantOption.sellingPrice },
+              });
+            }
+          }
+        }
+      }
+
+      // Then apply current active offers
+      await updateProductPricesFromOffers(tx, userId);
+    });
+
+    return {
+      success: true,
+      message: 'Product prices force updated successfully',
+    };
+  } catch (error) {
+    throw new Error('Failed to force update prices');
+  }
+}
+
+// Resets prices for a specific product to their original selling prices
+async function resetProductPrices(
+  userId: number,
+  productId: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Get the product with its variants
+      const product = await tx.product.findFirst({
+        where: { productId, userId },
+        include: {
+          variants: true,
+          variantOptions: true,
+        },
+      });
+
+      if (product) {
+        // Reset variant options (new structure)
+        if (product.variantOptions && product.variantOptions.length > 0) {
+          for (const variantOption of product.variantOptions) {
+            if (variantOption.originalSellingPrice) {
+              // Reset to original price and clear originalSellingPrice
+              await tx.variantOption.update({
+                where: { id: variantOption.id },
+                data: {
+                  sellingPrice: variantOption.originalSellingPrice,
+                  originalSellingPrice: null,
+                },
+              });
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Product prices reset to original successfully',
+    };
+  } catch (error) {
+    throw new Error('Failed to reset product prices');
+  }
+}
+
+// ============================================================================
+// GRAPHQL RESOLVERS
+// ============================================================================
+// Maps GraphQL queries and mutations to their resolver functions
+// Organized by Query (read operations) and Mutation (write operations)
+
 const resolvers = {
+  // Custom scalar resolver
   JSONObject: JSONObjectScalar,
+
+  // Query resolvers (read operations)
   Query: {
     dashboardSnapshot: async (
       _: unknown,
@@ -1415,7 +2493,26 @@ const resolvers = {
       args: { userId: number; activityType: string; limit?: number }
     ) => fetchUserActivities(args),
   },
+
+  // Mutation resolvers (write operations)
+  Mutation: {
+    createProduct: (_: unknown, args: Parameters<typeof createProduct>[0]) => createProduct(args),
+    updateProduct: (_: unknown, args: Parameters<typeof updateProduct>[0]) => updateProduct(args),
+    deleteProduct: (_: unknown, args: Parameters<typeof deleteProduct>[0]) => deleteProduct(args),
+    resetOriginalPrices: (_: unknown, args: { userId: number }) => resetOriginalPrices(args.userId),
+    applyOffersToAllProducts: (_: unknown, args: { userId: number }) =>
+      applyOffersToAllProducts(args.userId),
+    forceUpdatePrices: (_: unknown, args: { userId: number }) => forceUpdatePrices(args.userId),
+    resetProductPrices: (_: unknown, args: { userId: number; productId: string }) =>
+      resetProductPrices(args.userId, args.productId),
+  },
 };
+
+// ============================================================================
+// APOLLO SERVER SETUP
+// ============================================================================
+// Initializes Apollo Server with schema and resolvers
+// Exports GET and POST handlers for Next.js API route
 
 const server = new ApolloServer({
   typeDefs,

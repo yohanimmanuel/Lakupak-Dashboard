@@ -10,6 +10,7 @@ import { Product, ProductTableRow } from "@/types/product";
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { getProductTotalStock } from '@/utils/stockUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const statusTabs = [
   { label: "All" },
@@ -198,6 +199,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
+  // GraphQL mutation to delete product
+  const DELETE_PRODUCT_MUTATION = `
+    mutation DeleteProduct($userId: Int!, $id: String!) {
+      deleteProduct(userId: $userId, id: $id) {
+        success
+        deleted {
+          id
+          productId
+        }
+      }
+    }
+  `;
+
   const handleDeleteConfirm = async () => {
     if (!user?.id) return;
     
@@ -206,9 +220,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       for (const productId of selectedProducts) {
         const product = pagedProducts.find(p => String(p.id) === productId);
         if (product) {
-          const res = await fetch(`/api/products?id=${product.productId}&userId=${user.id}`, { method: 'DELETE' });
-          if (res.ok && setProductsAction) {
-            setProductsAction?.(prev => prev.filter(p => p.productId !== product.productId));
+          try {
+            await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
+              userId: user.id,
+              id: product.productId,
+            });
+            if (setProductsAction) {
+              setProductsAction?.(prev => prev.filter(p => p.productId !== product.productId));
+            }
+          } catch (error) {
+            // Failed to delete product
           }
         }
       }
@@ -216,9 +237,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     } else {
       // Single delete - delete one product
       if (!productToDelete) return;
-      const res = await fetch(`/api/products?id=${productToDelete.productId}&userId=${user.id}`, { method: 'DELETE' });
-      if (res.ok && setProductsAction) {
-        setProductsAction?.(prev => prev.filter(p => p.productId !== productToDelete.productId));
+      try {
+        await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
+          userId: user.id,
+          id: productToDelete.productId,
+        });
+        if (setProductsAction) {
+          setProductsAction?.(prev => prev.filter(p => p.productId !== productToDelete.productId));
+        }
+      } catch (error) {
+        // Failed to delete product
       }
       setProductToDelete(null);
     }
@@ -282,23 +310,40 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     return hasRequiredFields && hasImages;
   };
 
+  // GraphQL mutation to update product
+  const UPDATE_PRODUCT_MUTATION = `
+    mutation UpdateProduct(
+      $userId: Int!
+      $id: String
+      $productId: String
+      $status: String
+    ) {
+      updateProduct(
+        userId: $userId
+        id: $id
+        productId: $productId
+        status: $status
+      ) {
+        id
+        productId
+        status
+      }
+    }
+  `;
+
   const handlePublishProduct = async () => {
     if (!user?.id) return;
     
     try {
       // If we have a specific product to publish (from modal), publish just that one
       if (productToPublish) {
-        const response = await fetch('/api/products', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...productToPublish,
+        try {
+          await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
+            userId: user.id,
+            productId: productToPublish.productId,
             status: 'Published',
-            userId: user.id
-          }),
-        });
-        
-        if (response.ok) {
+          });
+          
           // Update local state
           if (setProductsAction) {
             setProductsAction?.(prev => prev.map(p => 
@@ -311,7 +356,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           setSelectedProducts([]);
           setShowPublishModal(false);
           setProductToPublish(null);
-        } else {
+        } catch (error) {
           // Failed to publish product
         }
       } else if (selectedProducts.length > 0) {
@@ -321,22 +366,22 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           if (product && 
               (product.status === 'Draft' || product.status === 'Inactive' || product.status === 'Active') &&
               isProductComplete(product.productId)) {
-            const response = await fetch('/api/products', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...product,
+            try {
+              await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
+                userId: user.id,
+                productId: product.productId,
                 status: 'Published',
-                userId: user.id
-              }),
-            });
-            
-            if (response.ok && setProductsAction) {
-              setProductsAction?.(prev => prev.map(p => 
-                p.productId === product.productId 
-                  ? { ...p, status: 'Published' }
-                  : p
-              ));
+              });
+              
+              if (setProductsAction) {
+                setProductsAction?.(prev => prev.map(p => 
+                  p.productId === product.productId 
+                    ? { ...p, status: 'Published' }
+                    : p
+                ));
+              }
+            } catch (error) {
+              // Failed to publish product
             }
           }
         }
@@ -345,9 +390,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         setShowPublishModal(false);
         setSelectedProducts([]);
       }
-          } catch (error) {
-        // Error publishing products
-      }
+    } catch (error) {
+      // Error publishing products
+    }
   };
 
   const handleUnpublishProducts = async () => {
@@ -358,22 +403,22 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       for (const productId of selectedProducts) {
         const product = pagedProducts.find(p => String(p.id) === productId);
         if (product && product.status === 'Published') {
-          const response = await fetch('/api/products', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...product,
+          try {
+            await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
+              userId: user.id,
+              productId: product.productId,
               status: 'Draft',
-              userId: user.id
-            }),
-          });
-          
-          if (response.ok && setProductsAction) {
-            setProductsAction?.(prev => prev.map(p => 
-              p.productId === product.productId 
-                ? { ...p, status: 'Draft' }
-                : p
-            ));
+            });
+            
+            if (setProductsAction) {
+              setProductsAction?.(prev => prev.map(p => 
+                p.productId === product.productId 
+                  ? { ...p, status: 'Draft' }
+                  : p
+              ));
+            }
+          } catch (error) {
+            // Failed to unpublish product
           }
         }
       }
@@ -384,9 +429,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       // Close the unpublish modal
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
-          } catch (error) {
-        // Error unpublishing products
-      }
+    } catch (error) {
+      // Error unpublishing products
+    }
   };
 
   const handleProductSelect = (productId: string) => {
