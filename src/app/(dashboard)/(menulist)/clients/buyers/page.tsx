@@ -9,6 +9,7 @@ import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerTableRow, BuyerFormData, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -113,6 +114,39 @@ export default function BuyersPage() {
     return { avgMonthlyOrders, avgMonthlySpending };
   };
 
+  const BUYERS_QUERY = `
+    query GetBuyers($userId: Int!, $page: Int, $limit: Int) {
+      buyers(userId: $userId, page: $page, limit: $limit) {
+        nodes {
+          id
+          buyerId
+          avatar
+          owner
+          storeName
+          email
+          phone
+          businessType
+          address
+          status
+          logistics
+          notes
+          orderDetails
+          avgMonthlySpending
+          avgMonthlyOrders
+          userId
+          createdAt
+          updatedAt
+        }
+        pagination {
+          page
+          limit
+          totalCount
+          totalPages
+        }
+      }
+    }
+  `;
+
   const fetchBuyers = async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -130,17 +164,23 @@ export default function BuyersPage() {
     }
     
     try {
-      const res = await fetch(`/api/buyers?userId=${user.id}`);
-      if (!res.ok) {
-        // Failed to fetch buyers
-        setBuyers([]);
-        setLoading(false);
-        setOverlayMessage('Failed to load buyers');
-        return;
-      }
-      const data = await res.json();
-      // Handle both old format (array) and new format (object with pagination)
-      const buyersData = Array.isArray(data) ? data : (data.buyers || []);
+      const data = await fetchGraphQL<{
+        buyers: {
+          nodes: Buyer[];
+          pagination: {
+            page: number;
+            limit: number;
+            totalCount: number;
+            totalPages: number;
+          };
+        };
+      }>(BUYERS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 1000,
+      });
+      
+      const buyersData = data.buyers.nodes;
       
       // Calculate monthly analytics for each buyer
       const buyersWithAnalytics = buyersData.map((buyer: Buyer) => {
@@ -161,8 +201,10 @@ export default function BuyersPage() {
       setOverlayMessage(`Showing buyer data (${buyersWithAnalytics.length})`);
     } catch (error) {
       // Error fetching buyers
+      console.error('Error loading buyers:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setBuyers([]);
-      setOverlayMessage('Error loading buyers');
+      setOverlayMessage(`Error loading buyers: ${errorMessage}`);
     } finally {
       setLoading(false);
       
@@ -312,6 +354,8 @@ export default function BuyersPage() {
         onSave={async (data) => {
           setShowAddModal(false);
           await fetchBuyers();
+          // Force a page refresh to ensure all data is up to date
+          window.location.reload();
         }}
       />
       <ImportData
@@ -422,16 +466,58 @@ export default function BuyersPage() {
                   payload.orderDetails = JSON.stringify(extractedData.orderDetails || extractedData.orders || extractedData['Order Details']);
                 }
                 
-                const response = await fetch('/api/buyers', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload),
-                });
+                const CREATE_BUYER_MUTATION = `
+                  mutation CreateBuyer(
+                    $userId: Int!
+                    $buyerId: String
+                    $storeName: String
+                    $owner: String
+                    $email: String
+                    $phone: String
+                    $businessType: String
+                    $address: String
+                    $status: String
+                    $avatar: String
+                    $logistics: String
+                    $notes: String
+                    $orderDetails: String
+                  ) {
+                    createBuyer(
+                      userId: $userId
+                      buyerId: $buyerId
+                      storeName: $storeName
+                      owner: $owner
+                      email: $email
+                      phone: $phone
+                      businessType: $businessType
+                      address: $address
+                      status: $status
+                      avatar: $avatar
+                      logistics: $logistics
+                      notes: $notes
+                      orderDetails: $orderDetails
+                    ) {
+                      id
+                      buyerId
+                    }
+                  }
+                `;
                 
-                if (!response.ok) {
-                  const errorText = await response.text();
-                  throw new Error(`API Error: ${response.status} - ${errorText}`);
-                }
+                await fetchGraphQL(CREATE_BUYER_MUTATION, {
+                  userId: user?.id,
+                  buyerId: payload.buyerId,
+                  storeName: payload.storeName,
+                  owner: payload.owner,
+                  email: payload.email,
+                  phone: payload.phone,
+                  businessType: payload.businessType,
+                  address: payload.address,
+                  status: payload.status,
+                  avatar: payload.avatar,
+                  logistics: payload.logistics,
+                  notes: payload.notes,
+                  orderDetails: payload.orderDetails,
+                });
                 
                 successCount++;
               } catch (error) {

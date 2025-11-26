@@ -7,6 +7,7 @@ import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-security';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -91,6 +92,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           product: row.product || '',
           totalOrders: row.totalOrders || '',
           totalSpend: row.totalSpend || '',
+          shippingFee: row.shippingFee || '',
           lastOrderDate: row.lastOrderDate || '',
           outstanding: row.outstanding || '',
         })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
@@ -107,6 +109,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const [avatar, setAvatar] = useState(initialData?.avatar || '');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -207,33 +210,191 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       delete payload.lastShipment;
       delete payload.shipmentSuccess;
       
-      const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch('/api/buyers', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save buyer');
-      }
-      
-      const savedBuyer = await res.json();
-      onSave(savedBuyer);
+      let savedBuyer: Buyer | null = null;
       
       if (isEdit) {
-        const routeId = savedBuyer.buyerId || payload.buyerId;
-        handleSuccess('Buyer updated successfully!');
+        const UPDATE_BUYER_MUTATION = `
+          mutation UpdateBuyer(
+            $userId: Int!
+            $id: String
+            $buyerId: String
+            $storeName: String
+            $owner: String
+            $email: String
+            $phone: String
+            $businessType: String
+            $address: String
+            $status: String
+            $avatar: String
+            $logistics: String
+            $notes: String
+            $orderDetails: String
+          ) {
+            updateBuyer(
+              userId: $userId
+              id: $id
+              buyerId: $buyerId
+              storeName: $storeName
+              owner: $owner
+              email: $email
+              phone: $phone
+              businessType: $businessType
+              address: $address
+              status: $status
+              avatar: $avatar
+              logistics: $logistics
+              notes: $notes
+              orderDetails: $orderDetails
+            ) {
+              id
+              buyerId
+              avatar
+              owner
+              storeName
+              email
+              phone
+              businessType
+              address
+              status
+              logistics
+              notes
+              orderDetails
+              avgMonthlySpending
+              avgMonthlyOrders
+              userId
+              createdAt
+              updatedAt
+            }
+          }
+        `;
+        
+        const data = await fetchGraphQL<{ updateBuyer: Buyer }>(UPDATE_BUYER_MUTATION, {
+          userId: user?.id,
+          id: initialData?.buyerId || initialData?.id?.toString(),
+          buyerId: payload.buyerId,
+          storeName: payload.storeName,
+          owner: payload.owner,
+          email: payload.email,
+          phone: payload.phone,
+          businessType: payload.businessType,
+          address: payload.address,
+          status: payload.status,
+          avatar: payload.avatar,
+          logistics: payload.logistics,
+          notes: payload.notes,
+          orderDetails: payload.orderDetails,
+      });
+      
+        savedBuyer = data.updateBuyer;
+        onSave(savedBuyer as unknown as BuyerFormData);
+      } else {
+        const CREATE_BUYER_MUTATION = `
+          mutation CreateBuyer(
+            $userId: Int!
+            $buyerId: String
+            $storeName: String
+            $owner: String
+            $email: String
+            $phone: String
+            $businessType: String
+            $address: String
+            $status: String
+            $avatar: String
+            $logistics: String
+            $notes: String
+            $orderDetails: String
+          ) {
+            createBuyer(
+              userId: $userId
+              buyerId: $buyerId
+              storeName: $storeName
+              owner: $owner
+              email: $email
+              phone: $phone
+              businessType: $businessType
+              address: $address
+              status: $status
+              avatar: $avatar
+              logistics: $logistics
+              notes: $notes
+              orderDetails: $orderDetails
+            ) {
+              id
+              buyerId
+              avatar
+              owner
+              storeName
+              email
+              phone
+              businessType
+              address
+              status
+              logistics
+              notes
+              orderDetails
+              avgMonthlySpending
+              avgMonthlyOrders
+              userId
+              createdAt
+              updatedAt
+            }
+          }
+        `;
+        
+        const data = await fetchGraphQL<{ createBuyer: Buyer }>(CREATE_BUYER_MUTATION, {
+          userId: user?.id,
+          buyerId: payload.buyerId,
+          storeName: payload.storeName,
+          owner: payload.owner,
+          email: payload.email,
+          phone: payload.phone,
+          businessType: payload.businessType,
+          address: payload.address,
+          status: payload.status,
+          avatar: payload.avatar,
+          logistics: payload.logistics,
+          notes: payload.notes,
+          orderDetails: payload.orderDetails,
+        });
+        
+        savedBuyer = data.createBuyer;
+      onSave(savedBuyer as unknown as BuyerFormData);
+      }
+      
+      if (isEdit && savedBuyer) {
         // Close modal first
         onClose();
-        // Redirect to profile page
+        // Show success modal after modal closes
+        setTimeout(() => {
+          setShowSuccessModal(true);
+          // If we're on the details page, the onSave callback will handle the refresh
+          // Otherwise, redirect to profile page
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/clients/buyers/details/')) {
+            // Already on details page, onSave will trigger refresh via onUpdate
+            setTimeout(() => {
+              setShowSuccessModal(false);
+            }, 2000);
+          } else {
+            // Not on details page, redirect
+            const routeId = savedBuyer.buyerId || payload.buyerId as string;
+            setTimeout(() => {
+              setShowSuccessModal(false);
         router.push(`/clients/buyers/details/${routeId}`);
-        // Force page reload to show updated data
         setTimeout(() => window.location.reload(), 100);
+            }, 2000);
+          }
+        }, 100);
       } else {
-        handleSuccess('Buyer created successfully!');
+        // Close modal first
         onClose();
+        // Show success modal after modal closes
+        setTimeout(() => {
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 2000);
+        }, 100);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save buyer';
@@ -317,6 +478,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           product: row.product || '',
           totalOrders: row.totalOrders || '',
           totalSpend: row.totalSpend || '',
+          shippingFee: row.shippingFee || '',
           lastOrderDate: row.lastOrderDate || '',
           outstanding: row.outstanding || '',
         })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
@@ -328,9 +490,9 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     }
   }, [open, mode, initialData, safeParseJSON, getLatestOrderDate]);
 
-  if (!open) return null;
-
   return (
+    <>
+      {open && (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onKeyDown={handleKeyDown}
@@ -420,7 +582,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <input 
               type="text" 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" 
-              value={id} 
+              value={id || ''} 
               onChange={e => setId(e.target.value)} 
               disabled 
               aria-describedby="id-description"
@@ -437,7 +599,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="text" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.storeName} 
+                value={form.storeName || ''} 
                 onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
               />
             </div>
@@ -448,7 +610,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="text" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.owner} 
+                value={form.owner || ''} 
                 onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
               />
             </div>
@@ -463,7 +625,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="tel" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.phone} 
+                value={form.phone || ''} 
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               />
             </div>
@@ -474,7 +636,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="email" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.email} 
+                value={form.email || ''} 
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               />
             </div>
@@ -489,7 +651,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="text" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.businessType} 
+                value={form.businessType || ''} 
                 onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))}
               />
             </div>
@@ -512,7 +674,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             </label>
             <textarea 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              value={form.address} 
+              value={form.address || ''} 
               onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               rows={3}
             />
@@ -543,7 +705,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                         <input 
                           type="text" 
                           className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.product} 
+                          value={row.product || ''} 
                           onChange={e => handleOrderChange(idx, 'product', e.target.value)} 
                         />
                       </td>
@@ -551,7 +713,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                         <input 
                           type="number" 
                           className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.totalOrders} 
+                          value={row.totalOrders || ''} 
                           onChange={e => handleOrderChange(idx, 'totalOrders', e.target.value)} 
                         />
                       </td>
@@ -561,7 +723,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                           <input 
                             type="text" 
                             className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                            value={row.totalSpend} 
+                            value={row.totalSpend || ''} 
                             onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
                             placeholder="0"
                           />
@@ -573,7 +735,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                           <input 
                             type="text" 
                             className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                            value={row.shippingFee} 
+                            value={row.shippingFee || ''} 
                             onChange={e => handleOrderChange(idx, 'shippingFee', e.target.value)} 
                             placeholder="0"
                           />
@@ -583,7 +745,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                         <input 
                           type="date" 
                           className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.lastOrderDate} 
+                          value={row.lastOrderDate || ''} 
                           onChange={e => handleOrderChange(idx, 'lastOrderDate', e.target.value)} 
                         />
                       </td>
@@ -593,7 +755,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                           <input 
                             type="text" 
                             className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                            value={row.outstanding} 
+                            value={row.outstanding || ''} 
                             onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} 
                             placeholder="0"
                           />
@@ -635,7 +797,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="date" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
-                value={form.createdAt} 
+                value={form.createdAt || ''} 
                 onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} 
                 disabled 
                 aria-describedby="createdAt-description"
@@ -647,7 +809,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="text" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                value={form.preferredDays} 
+                value={form.preferredDays || ''} 
                 onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} 
                 placeholder="e.g. Mon, Wed, Fri" 
               />
@@ -665,7 +827,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="date" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
-                value={form.lastShipment} 
+                value={form.lastShipment || ''} 
                 onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} 
                 disabled 
                 aria-describedby="lastShipment-description"
@@ -679,7 +841,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 min="0" 
                 max="100" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                value={form.shipmentSuccess} 
+                value={form.shipmentSuccess || ''} 
                 onChange={e => setForm(f => ({ ...f, shipmentSuccess: e.target.value }))} 
                 placeholder="e.g. 98" 
               />
@@ -694,7 +856,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <input 
               type="text" 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-              value={form.notes} 
+              value={form.notes || ''} 
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} 
               placeholder="e.g. Good payer, Often requests promo items" 
             />
@@ -732,5 +894,24 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         </div>
       </div>
     </div>
+      )}
+
+      {/* Success Modal - Rendered outside main modal so it persists after modal closes */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">
+          <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <p className="text-xs text-white/90">
+                {mode === 'edit' ? 'Buyer has been updated successfully.' : 'Buyer has been created successfully.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

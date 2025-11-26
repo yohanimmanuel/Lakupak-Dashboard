@@ -12,6 +12,7 @@ import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 function getSupplierAnalytics(suppliesStr: string) {
   if (!suppliesStr) return [];
@@ -58,9 +59,10 @@ function getSupplierAnalytics(suppliesStr: string) {
 interface SupplierProfileProps {
   supplier: Supplier;
   onClose?: () => void;
+  onUpdate?: () => void;
 }
 
-export default function SupplierProfile({ supplier, onClose }: SupplierProfileProps) {
+export default function SupplierProfile({ supplier, onClose, onUpdate }: SupplierProfileProps) {
   const user = useUserStore(state => state.user);
   
   // Get user currency for display
@@ -381,14 +383,30 @@ export default function SupplierProfile({ supplier, onClose }: SupplierProfilePr
               const mergedSupplies = [...supplies, ...newSupplies];
               
               // Update the supplier with merged supplies
-              await fetch(`/api/suppliers`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  ...supplier, 
+              const UPDATE_SUPPLIER_MUTATION = `
+                mutation UpdateSupplier(
+                  $userId: Int!
+                  $id: String
+                  $supplierId: String
+                  $supplies: String
+                ) {
+                  updateSupplier(
+                    userId: $userId
+                    id: $id
+                    supplierId: $supplierId
+                    supplies: $supplies
+                  ) {
+                    id
+                    supplierId
+                    supplies
+                  }
+                }
+              `;
+              
+              await fetchGraphQL(UPDATE_SUPPLIER_MUTATION, {
+                userId: supplier.userId,
+                supplierId: supplier.supplierId,
                   supplies: JSON.stringify(mergedSupplies),
-                  userId: supplier.userId 
-                })
               });
               
               // Close modal and refresh the page to show updated data
@@ -663,7 +681,15 @@ export default function SupplierProfile({ supplier, onClose }: SupplierProfilePr
       <SupplierModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
-        onSave={() => setShowEditModal(false)}
+        onSave={async () => {
+          setShowEditModal(false);
+          // Trigger SWR refresh if available, otherwise reload page
+          if (onUpdate) {
+            await onUpdate();
+          } else {
+            window.location.reload();
+          }
+        }}
         initialData={supplier}
         mode="edit"
       />

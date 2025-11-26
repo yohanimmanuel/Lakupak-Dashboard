@@ -72,14 +72,14 @@ export default function ProductMarketplacePubs({
             productId: productRow.productId,
             action: 'publish',
           });
-
+          
           if (!result.publishMarketplaceProduct?.success) {
             throw new Error(
               result.publishMarketplaceProduct?.message || 'Failed to publish product',
             );
           }
         });
-
+        
         await Promise.all(publishPromises);
       } else {
         // Single product publish - check if product is complete
@@ -91,10 +91,10 @@ export default function ProductMarketplacePubs({
           publishMarketplaceProduct: { success: boolean; message: string };
         }>(PUBLISH_MARKETPLACE_MUTATION, {
           userId: user.id,
-          productId: product.productId,
+            productId: product.productId,
           action: 'publish',
         });
-
+        
         if (!result.publishMarketplaceProduct?.success) {
           throw new Error(
             result.publishMarketplaceProduct?.message || 'Failed to publish product',

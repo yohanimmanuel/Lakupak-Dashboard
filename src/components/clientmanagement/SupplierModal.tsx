@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { Trash, User, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Trash, User, X, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import useSWR, { mutate as globalMutate } from 'swr';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -25,20 +25,26 @@ interface SupplierModalProps {
 export default function SupplierModal({ open, onClose, onSave, initialData, mode }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const [isClient, setIsClient] = useState(false);
   
-  // Get currency for display
-  const userCurrency = user?.currency || getDefaultCurrency();
+  // Prevent hydration mismatch by only using user currency on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Get currency for display (only on client)
+  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
   
-  // Helper function to safely parse JSON strings
-  const safeParseJSON = (jsonStr: string, fallback: SupplyDetail[] | Record<string, unknown>) => {
+  // Helper function to safely parse JSON strings (moved to top to fix initialization error)
+  const safeParseJSON = useCallback((jsonStr: string, fallback: unknown) => {
     if (!jsonStr) return fallback;
     try {
       return JSON.parse(jsonStr);
     } catch {
       return fallback;
     }
-  };
+  }, []);
   
   const [form, setForm] = useState(() => {
     if (!initialData) {
@@ -89,15 +95,23 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     })() : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
   );
 
+  // Enhanced state management with proper typing
+  const [saving, setSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   // Function to get the latest delivery date
-  const getLatestDeliveryDate = (rows: SupplyDetail[]) => {
+  const getLatestDeliveryDate = useCallback((rows: SupplyDetail[]) => {
     if (!rows || rows.length === 0) return '';
     const dates = rows
       .map(row => row.lastDelivery)
       .filter(date => date && date.trim() !== '')
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     return dates.length > 0 ? dates[0] : '';
-  };
+  }, []);
 
   // Update lastDelivery when supplyRows change
   useEffect(() => {
@@ -105,15 +119,48 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     if (latestDate && latestDate !== form.lastDelivery) {
       setForm(prev => ({ ...prev, lastDelivery: latestDate }));
     }
-  }, [supplyRows, form.lastDelivery]);
-  const handleSupplyChange = (idx: number, field: keyof SupplyDetail, value: string) => {
+  }, [supplyRows, form.lastDelivery, getLatestDeliveryDate]);
+
+  // Enhanced form validation
+  // Client-side validation - no required fields
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
+    
+    // No validation - all fields are optional
+    setValidationErrors(errors);
+    return true;
+  }, []);
+
+  // Enhanced error handling
+  const handleError = useCallback((message: string) => {
+    setError(message);
+    setSuccess('');
+    // Auto-hide error after 5 seconds
+    setTimeout(() => setError(''), 5000);
+  }, []);
+
+  // Enhanced success handling
+  const handleSuccess = useCallback((message: string) => {
+    setSuccess(message);
+    setError('');
+    // Auto-hide success after 3 seconds
+    setTimeout(() => setSuccess(''), 3000);
+  }, []);
+
+  // Enhanced supply row management
+  const handleSupplyChange = useCallback((idx: number, field: keyof SupplyDetail, value: string) => {
     setSupplyRows((rows: SupplyDetail[]) => rows.map((row: SupplyDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
-  };
-  const addSupplyRow = () => setSupplyRows((rows: SupplyDetail[]) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
-  const deleteSupplyRow = (idx: number) => setSupplyRows((rows: SupplyDetail[]) => rows.filter((_: SupplyDetail, i: number) => i !== idx));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [redirecting, setRedirecting] = useState(false);
+  }, []);
+
+  const addSupplyRow = useCallback(() => {
+    setSupplyRows((rows: SupplyDetail[]) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
+  }, []);
+
+  const deleteSupplyRow = useCallback((idx: number) => {
+    if (supplyRows.length > 1) {
+      setSupplyRows((rows: SupplyDetail[]) => rows.filter((_: SupplyDetail, i: number) => i !== idx));
+    }
+  }, [supplyRows.length]);
 
   // Handle edit mode initialization
   useEffect(() => {
@@ -162,14 +209,19 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
       );
     }
-  }, [open, mode, initialData]);
+  }, [open, mode, initialData, safeParseJSON, getLatestDeliveryDate]);
 
-  if (!open) return null;
-
-  const handleSubmit = async (e?: React.FormEvent) => {
+  // Enhanced form submission
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     setSaving(true);
     setError('');
+    setSuccess('');
+    
     try {
       const isEdit = mode === 'edit';
       const payload: Record<string, unknown> = {
@@ -198,41 +250,200 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       // Debug: Log the payload being sent
       // Supplier payload prepared for submission
       
-      const method = isEdit ? 'PUT' : 'POST';
-      const res = await fetch('/api/suppliers', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save');
-      }
-      
-      const savedSupplier = await res.json();
-      onSave(savedSupplier);
+      let savedSupplier: Supplier | null = null;
       
       if (isEdit) {
-          // Always use the business ID (supplierId) for routing, not the database ID
-          // This prevents the URL from changing from LKS-12345678 to 5 after editing
-        const routeId = savedSupplier.supplierId || payload.supplierId;
+        const UPDATE_SUPPLIER_MUTATION = `
+          mutation UpdateSupplier(
+            $userId: Int!
+            $id: String
+            $supplierId: String
+            $name: String
+            $contact: String
+            $email: String
+            $phone: String
+            $businessType: String
+            $address: String
+            $status: String
+            $logistics: String
+            $notes: String
+            $supplies: String
+          ) {
+            updateSupplier(
+              userId: $userId
+              id: $id
+              supplierId: $supplierId
+              name: $name
+              contact: $contact
+              email: $email
+              phone: $phone
+              businessType: $businessType
+              address: $address
+              status: $status
+              logistics: $logistics
+              notes: $notes
+              supplies: $supplies
+            ) {
+              id
+              supplierId
+              name
+              contact
+              email
+              phone
+              businessType
+              address
+              status
+              logistics
+              notes
+              supplies
+              avgMonthlyPurchaseValue
+              totalPurchases
+              totalSupplies
+              onTimeDeliveryRate
+              userId
+              createdAt
+              updatedAt
+            }
+          }
+        `;
+        
+        const data = await fetchGraphQL<{ updateSupplier: Supplier }>(UPDATE_SUPPLIER_MUTATION, {
+          userId: user?.id,
+          id: initialData?.supplierId || initialData?.id?.toString(),
+          supplierId: payload.supplierId,
+          name: payload.name,
+          contact: payload.contact,
+          email: payload.email,
+          phone: payload.phone,
+          businessType: payload.businessType,
+          address: payload.address,
+          status: payload.status,
+          logistics: payload.logistics,
+          notes: payload.notes,
+          supplies: payload.supplies,
+      });
+        
+        savedSupplier = data.updateSupplier;
+        onSave(savedSupplier as unknown as SupplierFormData);
+      } else {
+        const CREATE_SUPPLIER_MUTATION = `
+          mutation CreateSupplier(
+            $userId: Int!
+            $supplierId: String
+            $name: String
+            $contact: String
+            $email: String
+            $phone: String
+            $businessType: String
+            $address: String
+            $status: String
+            $logistics: String
+            $notes: String
+            $supplies: String
+          ) {
+            createSupplier(
+              userId: $userId
+              supplierId: $supplierId
+              name: $name
+              contact: $contact
+              email: $email
+              phone: $phone
+              businessType: $businessType
+              address: $address
+              status: $status
+              logistics: $logistics
+              notes: $notes
+              supplies: $supplies
+            ) {
+              id
+              supplierId
+              name
+              contact
+              email
+              phone
+              businessType
+              address
+              status
+              logistics
+              notes
+              supplies
+              avgMonthlyPurchaseValue
+              totalPurchases
+              totalSupplies
+              onTimeDeliveryRate
+              userId
+              createdAt
+              updatedAt
+            }
+          }
+        `;
+        
+        const data = await fetchGraphQL<{ createSupplier: Supplier }>(CREATE_SUPPLIER_MUTATION, {
+          userId: user?.id,
+          supplierId: payload.supplierId,
+          name: payload.name,
+          contact: payload.contact,
+          email: payload.email,
+          phone: payload.phone,
+          businessType: payload.businessType,
+          address: payload.address,
+          status: payload.status,
+          logistics: payload.logistics,
+          notes: payload.notes,
+          supplies: payload.supplies,
+        });
+      
+        savedSupplier = data.createSupplier;
+        onSave(savedSupplier as unknown as SupplierFormData);
+      }
+      
+      if (isEdit && savedSupplier) {
         // Close modal first
         onClose();
-        // Redirect to profile page
+        // Show success modal after modal closes
+        setTimeout(() => {
+          setShowSuccessModal(true);
+          // If we're on the details page, the onSave callback will handle the refresh
+          // Otherwise, redirect to profile page
+          const currentPath = window.location.pathname;
+          if (currentPath.includes('/clients/suppliers/details/')) {
+            // Already on details page, onSave will trigger refresh via onUpdate
+            setTimeout(() => {
+              setShowSuccessModal(false);
+            }, 2000);
+          } else {
+            // Not on details page, redirect
+            const routeId = savedSupplier.supplierId || payload.supplierId as string;
+            setTimeout(() => {
+              setShowSuccessModal(false);
         router.push(`/clients/suppliers/details/${routeId}`);
-        // Force page reload to show updated data
         setTimeout(() => window.location.reload(), 100);
+            }, 2000);
+          }
+        }, 100);
       } else {
+        // Close modal first
         onClose();
+        // Show success modal after modal closes
+        setTimeout(() => {
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 2000);
+        }, 100);
       }
-    } catch (err) {
-      setError('Failed to save supplier');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save supplier';
+      handleError(errorMessage);
     } finally {
       setSaving(false);
+      setIsSubmitting(false);
     }
-  };
+  }, [form, id, supplyRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess, isSubmitting]);
 
   return (
+    <>
+      {open && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-lg shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
         <button
@@ -262,30 +473,30 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar">
           <div className="mt-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id} onChange={e => setId(e.target.value)} required disabled />
+            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id || ''} onChange={e => setId(e.target.value)} required disabled />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} required />
+            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.supplierName || ''} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} required />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required />
+            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.contact || ''} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
+              <input type="email" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
             </div>
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Business Type</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} placeholder="e.g. Manufacturer, Importer, Distributor, Trader...." />
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType || ''} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} placeholder="e.g. Manufacturer, Importer, Distributor, Trader...." />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
@@ -296,7 +507,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
-            <textarea className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required />
+            <textarea className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.address || ''} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required />
           </div>
           {/* Supplies & Product Data Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
@@ -318,16 +529,16 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                   {supplyRows.map((row: SupplyDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>
+                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku || ''} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
+                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product || ''} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
+                      <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied || ''} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>
                       <td className="py-2 px-3">
                         <div className="flex items-center">
                           <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <input type="text" className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" value={row.totalValue} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} placeholder="0" />                   
+                          <input type="text" className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" value={row.totalValue || ''} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} placeholder="0" />                   
                         </div>
                       </td>
-                      <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastDelivery} onChange={e => handleSupplyChange(idx, 'lastDelivery', e.target.value)} /></td>
+                      <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastDelivery || ''} onChange={e => handleSupplyChange(idx, 'lastDelivery', e.target.value)} /></td>
                       <td className="py-2 px-3">
                         <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteSupplyRow(idx)} disabled={supplyRows.length === 1}><Trash className="w-4 h-4" /></button>
                       </td>
@@ -345,11 +556,11 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 <span className="text-xs text-gray-400">(auto-generated)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt || ''} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder="e.g. Tue, Thu" />
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays || ''} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder="e.g. Tue, Thu" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -359,30 +570,83 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 <span className="text-xs text-gray-400">(auto from supplies)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastDelivery} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastDelivery || ''} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Delivery Success Rate (%)</label>
-              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder="e.g. 97" />
+              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess || ''} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder="e.g. 97" />
             </div>
           </div>
           <div className="mb-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span></label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Reliable partner, Quick response" />
+            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Reliable partner, Quick response" />
           </div>
-          {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
+          
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <span className="text-green-800 text-xs font-medium">{success}</span>
+            </div>
+          )}
+          
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span className="text-red-800 text-xs font-medium">{error}</span>
+            </div>
+          )}
         </form>
         {/* Footer Border */}
         <div className="border-t border-gray-200 -mx-6"></div>
         
         {/* Action Buttons */}
         <div className="flex justify-end gap-2 mt-4 text-sm">
-            <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center" onClick={handleSubmit} disabled={saving}>
-              {saving ? <span className="loader mr-2"></span> : null}Save
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors disabled:opacity-50" 
+                onClick={onClose} 
+                disabled={saving || isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center transition-colors disabled:opacity-50" 
+                onClick={handleSubmit} 
+                disabled={saving || isSubmitting}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
             </button>
         </div>
       </div>
     </div>
+      )}
+
+      {/* Success Modal - Rendered outside main modal so it persists after modal closes */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">
+          <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <p className="text-xs text-white/90">
+                {mode === 'edit' ? 'Supplier has been updated successfully.' : 'Supplier has been created successfully.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const statusTabs = [
   { label: "All" },
@@ -153,17 +154,27 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     setDeleteError('');
     
     try {
+    const DELETE_BUYER_MUTATION = `
+      mutation DeleteBuyer($userId: Int!, $id: String!) {
+        deleteBuyer(userId: $userId, id: $id) {
+          success
+          deleted {
+            id
+            buyerId
+          }
+        }
+      }
+    `;
+
     if (isBulkDelete) {
       // Bulk delete - delete all selected buyers
         const deletePromises = selectedBuyers.map(async (buyerId) => {
         const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
         if (buyer) {
-            const res = await fetch(`/api/buyers?id=${buyer.buyerId}&userId=${user.id}`, { 
-              method: 'DELETE' 
+            await fetchGraphQL(DELETE_BUYER_MUTATION, {
+              userId: user.id,
+              id: buyer.buyerId,
             });
-            if (!res.ok) {
-              throw new Error(`Failed to delete buyer ${buyer.buyerId}`);
-            }
             return buyer.buyerId;
           }
         });
@@ -178,12 +189,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     } else {
       // Single delete - delete one buyer
       if (!buyerToDelete) return;
-        const res = await fetch(`/api/buyers?id=${buyerToDelete.buyerId}&userId=${user.id}`, { 
-          method: 'DELETE' 
+        await fetchGraphQL(DELETE_BUYER_MUTATION, {
+          userId: user.id,
+          id: buyerToDelete.buyerId,
         });
-        if (!res.ok) {
-          throw new Error(`Failed to delete buyer ${buyerToDelete.buyerId}`);
-        }
         
         // After successful single delete, refresh the data
         if (onRefresh) {

@@ -1855,7 +1855,7 @@ const supplierInsights = useMemo(() => {
           subtitle: 'Supplier reliability and fulfillment performance',
           action: (
             <Link
-              href="/suppliers"
+              href="/clients/suppliers"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               Manage suppliers

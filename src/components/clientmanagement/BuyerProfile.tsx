@@ -13,6 +13,7 @@ import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 function getBuyerAnalytics(orderDetailsStr: string) {
   if (!orderDetailsStr) return [];
@@ -59,9 +60,10 @@ function getBuyerAnalytics(orderDetailsStr: string) {
 interface BuyerProfileProps {
   buyer: Buyer;
   onClose?: () => void;
+  onUpdate?: () => void;
 }
 
-export default function BuyerProfile({ buyer, onClose }: BuyerProfileProps) {
+export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);
   
@@ -473,19 +475,31 @@ export default function BuyerProfile({ buyer, onClose }: BuyerProfileProps) {
                 const mergedOrderDetails = [...orderDetails, ...newOrderDetails];
                 
                 // Update the buyer with merged order details
-                const response = await fetch(`/api/buyers`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                    ...buyer, 
-                    orderDetails: JSON.stringify(mergedOrderDetails),
-                    userId: buyer.userId 
-                  })
-                });
+                const UPDATE_BUYER_MUTATION = `
+                  mutation UpdateBuyer(
+                    $userId: Int!
+                    $id: String
+                    $buyerId: String
+                    $orderDetails: String
+                  ) {
+                    updateBuyer(
+                      userId: $userId
+                      id: $id
+                      buyerId: $buyerId
+                      orderDetails: $orderDetails
+                    ) {
+                      id
+                      buyerId
+                      orderDetails
+                    }
+                  }
+                `;
                 
-                if (!response.ok) {
-                  throw new Error('Failed to update buyer orders');
-                }
+                await fetchGraphQL(UPDATE_BUYER_MUTATION, {
+                  userId: buyer.userId,
+                  buyerId: buyer.buyerId,
+                    orderDetails: JSON.stringify(mergedOrderDetails),
+                });
                 
                 // Close modal and show success message
                 setShowImportOrders(false);
@@ -779,7 +793,15 @@ export default function BuyerProfile({ buyer, onClose }: BuyerProfileProps) {
       <BuyerModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
-        onSave={() => setShowEditModal(false)}
+        onSave={async () => {
+          setShowEditModal(false);
+          // Trigger SWR refresh if available, otherwise reload page
+          if (onUpdate) {
+            await onUpdate();
+          } else {
+            window.location.reload();
+          }
+        }}
         initialData={buyer}
         mode="edit"
       />

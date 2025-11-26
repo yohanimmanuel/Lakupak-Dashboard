@@ -10,6 +10,7 @@ import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail, SupplierFormData } from '@/types/client';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
@@ -123,18 +124,57 @@ export default function SuppliersPage() {
     }
     
     try {
-      const res = await fetch(`/api/suppliers?userId=${user.id}`);
-      if (!res.ok) {
-        // Failed to fetch suppliers
-        setSuppliers([]);
-        setLoading(false);
-        setOverlayMessage('Failed to load suppliers');
-        return;
-      }
-      const data = await res.json();
-      const suppliersData = Array.isArray(data)
-        ? data
-        : (Array.isArray(data?.suppliers) ? data.suppliers : []);
+      const SUPPLIERS_QUERY = `
+        query GetSuppliers($userId: Int!, $page: Int, $limit: Int) {
+          suppliers(userId: $userId, page: $page, limit: $limit) {
+            nodes {
+              id
+              supplierId
+              name
+              contact
+              email
+              phone
+              businessType
+              address
+              status
+              logistics
+              notes
+              supplies
+              avgMonthlyPurchaseValue
+              totalPurchases
+              totalSupplies
+              onTimeDeliveryRate
+              userId
+              createdAt
+              updatedAt
+            }
+            pagination {
+              page
+              limit
+              totalCount
+              totalPages
+            }
+          }
+        }
+      `;
+      
+      const data = await fetchGraphQL<{
+        suppliers: {
+          nodes: Supplier[];
+          pagination: {
+            page: number;
+            limit: number;
+            totalCount: number;
+            totalPages: number;
+          };
+        };
+      }>(SUPPLIERS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 1000,
+      });
+      
+      const suppliersData = data.suppliers.nodes;
       
       // Calculate monthly analytics for each supplier
       const suppliersWithAnalytics = suppliersData.map((supplier: Supplier) => {
@@ -155,8 +195,10 @@ export default function SuppliersPage() {
       setOverlayMessage(`Showing supplier data (${suppliersWithAnalytics.length})`);
     } catch (error) {
       // Error fetching suppliers
+      console.error('Error loading suppliers:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setSuppliers([]);
-      setOverlayMessage('Error loading suppliers');
+      setOverlayMessage(`Error loading suppliers: ${errorMessage}`);
     } finally {
       setLoading(false);
       
@@ -251,6 +293,8 @@ export default function SuppliersPage() {
         onSave={async (data) => {
           setShowAddModal(false);
           await fetchSuppliers();
+          // Force a page refresh to ensure all data is up to date
+          window.location.reload();
         }}
       />
       <ImportData
@@ -361,16 +405,55 @@ export default function SuppliersPage() {
                   payload.supplies = JSON.stringify(extractedData.supplies || extractedData.Supplies || extractedData.products || extractedData.Products);
                 }
                 
-                const response = await fetch('/api/suppliers', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload),
-                });
+                const CREATE_SUPPLIER_MUTATION = `
+                  mutation CreateSupplier(
+                    $userId: Int!
+                    $supplierId: String
+                    $name: String
+                    $contact: String
+                    $email: String
+                    $phone: String
+                    $businessType: String
+                    $address: String
+                    $status: String
+                    $logistics: String
+                    $notes: String
+                    $supplies: String
+                  ) {
+                    createSupplier(
+                      userId: $userId
+                      supplierId: $supplierId
+                      name: $name
+                      contact: $contact
+                      email: $email
+                      phone: $phone
+                      businessType: $businessType
+                      address: $address
+                      status: $status
+                      logistics: $logistics
+                      notes: $notes
+                      supplies: $supplies
+                    ) {
+                      id
+                      supplierId
+                    }
+                  }
+                `;
                 
-                if (!response.ok) {
-                  const errorText = await response.text();
-                  throw new Error(`API Error: ${response.status} - ${errorText}`);
-                }
+                await fetchGraphQL(CREATE_SUPPLIER_MUTATION, {
+                  userId: user?.id,
+                  supplierId: payload.supplierId,
+                  name: payload.name,
+                  contact: payload.contact,
+                  email: payload.email,
+                  phone: payload.phone,
+                  businessType: payload.businessType,
+                  address: payload.address,
+                  status: payload.status,
+                  logistics: payload.logistics,
+                  notes: payload.notes,
+                  supplies: payload.supplies,
+                });
                 
                 successCount++;
               } catch (error) {

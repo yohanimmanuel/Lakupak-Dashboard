@@ -122,13 +122,28 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const handleDeleteConfirm = async () => {
     if (!user?.id) return;
     
+    const DELETE_SUPPLIER_MUTATION = `
+      mutation DeleteSupplier($userId: Int!, $id: String!) {
+        deleteSupplier(userId: $userId, id: $id) {
+          success
+          deleted {
+            id
+            supplierId
+          }
+        }
+      }
+    `;
+    
     if (isBulkDelete) {
       // Bulk delete - delete all selected suppliers
       for (const supplierId of selectedSuppliers) {
         const supplier = pagedSuppliers.find(s => String(s.id) === supplierId);
         if (supplier) {
-          const res = await fetch(`/api/suppliers?id=${supplier.id}&userId=${user.id}`, { method: 'DELETE' });
-          if (res.ok && setSuppliers) {
+          await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
+            userId: user.id,
+            id: supplier.supplierId,
+          });
+          if (setSuppliers) {
             setSuppliers(prev => prev.filter(s => s.supplierId !== supplier.supplierId));
           }
         }
@@ -137,8 +152,11 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     } else {
       // Single delete - delete one supplier
       if (!supplierToDelete) return;
-      const res = await fetch(`/api/suppliers?id=${supplierToDelete.id}&userId=${user.id}`, { method: 'DELETE' });
-      if (res.ok && setSuppliers) {
+      await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
+        userId: user.id,
+        id: supplierToDelete.supplierId,
+      });
+      if (setSuppliers) {
         setSuppliers(prev => prev.filter(s => s.supplierId !== supplierToDelete.supplierId));
       }
       setSupplierToDelete(null);

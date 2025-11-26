@@ -191,12 +191,29 @@ export default function ProductCatalog({
       
       // Load combinations with proper mapping
       const loadedCombinations = product.variantOptions.map(option => {
+        // If originalSellingPrice exists, use it for the form (this is the original price before discount)
+        // Otherwise, use sellingPrice (which is the actual price when no offer is active)
+        // Convert to string first to handle number/null/undefined types
+        const originalPriceStr = option.originalSellingPrice 
+          ? String(option.originalSellingPrice).trim() 
+          : '';
+        const hasOffer = originalPriceStr !== '';
+        const formSellingPrice = hasOffer
+          ? originalPriceStr
+          : option.sellingPrice || '';
+        // Store the database's sellingPrice (discounted price) for display when offer is active
+        const dbSellingPrice = option.sellingPrice || '';
+        
         const base: Combination = {
           id: `combination-${option.id}`,
           variantName: option.variantName,
           sku: option.sku || '',
           purchasePrice: option.purchasePrice || '',
-          sellingPrice: option.sellingPrice || '',
+          sellingPrice: formSellingPrice,
+          // Store database sellingPrice for display (discounted price when offer is active)
+          dbSellingPrice: dbSellingPrice,
+          // Preserve originalSellingPrice if it exists, so it doesn't get lost on save
+          originalSellingPrice: hasOffer ? originalPriceStr : undefined,
           moq: option.moq,
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
@@ -224,17 +241,33 @@ export default function ProductCatalog({
       setCombinations(loadedCombinations);
     } else if (product?.legacyVariants && product.legacyVariants.length > 0) {
       // Legacy structure: convert variants to combinations
-      const legacyCombinations: Combination[] = product.legacyVariants.map(variant => ({
-        id: `combination-${variant.id}`,
-        variantName: variant.variantName,
-        sku: variant.sku || '',
-        purchasePrice: variant.purchasePrice || '',
-        sellingPrice: variant.sellingPrice || '',
-        moq: variant.moq,
-        stockQuantity: variant.stockQuantity || 0,
-        lowStockThreshold: variant.lowStockThreshold || 0,
-        stockStatus: variant.stockStatus || 'In Stock'
-      }));
+      const legacyCombinations: Combination[] = product.legacyVariants.map(variant => {
+        // If originalSellingPrice exists, use it for the form (this is the original price before discount)
+        // Otherwise, use sellingPrice (which is the actual price when no offer is active)
+        const variantData = variant as { originalSellingPrice?: string | null; sellingPrice?: string | null };
+        const hasOffer = variantData.originalSellingPrice && String(variantData.originalSellingPrice).trim() !== '';
+        const formSellingPrice = hasOffer
+          ? String(variantData.originalSellingPrice)
+          : variant.sellingPrice || '';
+        // Store the database's sellingPrice (discounted price) for display when offer is active
+        const dbSellingPrice = variant.sellingPrice || '';
+        
+        return {
+         id: `combination-${variant.id}`,
+         variantName: variant.variantName,
+         sku: variant.sku || '',
+         purchasePrice: variant.purchasePrice || '',
+          sellingPrice: formSellingPrice,
+          // Store database sellingPrice for display (discounted price when offer is active)
+          dbSellingPrice: dbSellingPrice,
+          // Preserve originalSellingPrice if it exists, so it doesn't get lost on save
+          originalSellingPrice: hasOffer ? String(variantData.originalSellingPrice) : undefined,
+         moq: variant.moq,
+         stockQuantity: variant.stockQuantity || 0,
+         lowStockThreshold: variant.lowStockThreshold || 0,
+         stockStatus: variant.stockStatus || 'In Stock'
+        };
+      });
       setCombinations(legacyCombinations);
     } else {
       // Create default combination
@@ -2432,19 +2465,30 @@ export default function ProductCatalog({
                               placeholder="SKU-001"
                             />
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
-                            <div className="relative">
-                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                {currencySymbol}
+                          <td className="p-3 border-r border-b border-gray-300 align-top">
+                            <div className="flex flex-col">
+                              <div className="relative">
+                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                  {currencySymbol}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={String(combination.sellingPrice)}
+                                  onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
+                                  disabled={isViewMode || isOfferConnected}
+                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  placeholder={getPricePlaceholder(userCurrency)}
+                                />
                               </div>
-                              <input
-                                type="text"
-                                value={String(combination.sellingPrice)}
-                                onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
-                                disabled={isViewMode || isOfferConnected}
-                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                placeholder={getPricePlaceholder(userCurrency)}
-                              />
+                              {isOfferConnected && (() => {
+                                const dbPrice = (combination as Record<string, unknown>).dbSellingPrice;
+                                if (!dbPrice) return null;
+                                return (
+                                  <div className="mt-1 text-xs text-gray-600">
+                                    Discounted: {currencySymbol} {formatCurrencyAmount(parseNumberByCurrency(String(dbPrice), userCurrency), userCurrency)}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                           <td className="p-3 border-r border-b border-gray-300">

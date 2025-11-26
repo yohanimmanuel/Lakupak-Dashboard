@@ -5,8 +5,50 @@ import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const BUYER_QUERY = `
+  query GetBuyer($userId: Int!, $id: String!) {
+    buyer(userId: $userId, id: $id) {
+      id
+      buyerId
+      avatar
+      owner
+      storeName
+      email
+      phone
+      businessType
+      address
+      status
+      logistics
+      notes
+      orderDetails
+      avgMonthlySpending
+      avgMonthlyOrders
+      userId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const fetcher = async (key: string) => {
+  const [userId, id] = key.split('|');
+  if (!userId || !id) return null;
+  
+  try {
+    const data = await fetchGraphQL<{ buyer: unknown }>(BUYER_QUERY, {
+      userId: Number(userId),
+      id,
+    });
+    return data.buyer;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('not found')) {
+      return { error: 'Buyer not found' };
+    }
+    throw error;
+  }
+};
 
 export default function BuyerDetailsPage() {
   const params = useParams();
@@ -19,7 +61,7 @@ export default function BuyerDetailsPage() {
 
   // Enhanced SWR configuration with error handling and retry logic
   const { data: buyer, error, isLoading, mutate } = useSWR(
-    user?.id && id ? `/api/buyers?id=${id}&userId=${user.id}` : null,
+    user?.id && id ? `${user.id}|${id}` : null,
     fetcher,
     { 
       revalidateOnFocus: true,
@@ -92,7 +134,7 @@ export default function BuyerDetailsPage() {
 
   return (
     <div className="p-4 w-full min-h-screen flex items-start justify-center bg-gradient-to-b from-gray-50 to-white">
-      <BuyerProfile buyer={buyer} />
+      <BuyerProfile buyer={buyer} onUpdate={mutate} />
     </div>
   );
 }
