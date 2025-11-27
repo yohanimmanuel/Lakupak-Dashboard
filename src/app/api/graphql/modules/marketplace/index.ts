@@ -54,6 +54,29 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     updatedAt: String!
   }
 
+  type MarketplaceAddress {
+    id: Int!
+    userId: Int!
+    fullName: String
+    phone: String
+    address: String
+    label: String
+    isDefault: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type MarketplaceAddressList {
+    success: Boolean!
+    addresses: [MarketplaceAddress!]!
+  }
+
+  type MarketplaceAddressResult {
+    success: Boolean!
+    message: String
+    address: MarketplaceAddress
+  }
+
   type MobileMarketplaceProduct {
     id: String!
     name: String!
@@ -199,6 +222,22 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     deletedCount: Int!
   }
 
+  input CreateMarketplaceAddressInput {
+    fullName: String!
+    phone: String!
+    address: String!
+    label: String
+    isDefault: Boolean
+  }
+
+  input UpdateMarketplaceAddressInput {
+    fullName: String
+    phone: String
+    address: String
+    label: String
+    isDefault: Boolean
+  }
+
   input UpdateMarketplaceUserInput {
     username: String
     name: String
@@ -237,6 +276,8 @@ export const marketplaceTypeDefs = /* GraphQL */ `
   extend type Query {
     marketplaceUser(userId: Int!): MarketplaceUserProfile
     
+    marketplaceAddresses(userId: Int!): MarketplaceAddressList!
+
     mobileMarketplaceProducts(
       page: Int = 1
       limit: Int = 20
@@ -264,6 +305,22 @@ export const marketplaceTypeDefs = /* GraphQL */ `
       userId: Int!
       input: UpdateMarketplaceUserInput!
     ): MarketplaceUserProfile!
+
+    createMarketplaceAddress(
+      userId: Int!
+      input: CreateMarketplaceAddressInput!
+    ): MarketplaceAddressResult!
+
+    updateMarketplaceAddress(
+      userId: Int!
+      addressId: Int!
+      input: UpdateMarketplaceAddressInput!
+    ): MarketplaceAddressResult!
+
+    deleteMarketplaceAddress(
+      userId: Int!
+      addressId: Int!
+    ): MarketplaceAddressResult!
     
     addToCart(input: AddToCartInput!): CartItemResult!
     
@@ -400,6 +457,184 @@ const updateMarketplaceUser = async (args: { userId: number; input: {
     createdAt: updatedUser.createdAt.toISOString(),
     updatedAt: updatedUser.updatedAt.toISOString(),
   };
+};
+
+type CreateMarketplaceAddressInput = {
+  fullName: string;
+  phone: string;
+  address: string;
+  label?: string | null;
+  isDefault?: boolean | null;
+};
+
+type UpdateMarketplaceAddressInput = {
+  fullName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  label?: string | null;
+  isDefault?: boolean | null;
+};
+
+type AddressRecord = NonNullable<Awaited<ReturnType<typeof prisma.address.findUnique>>>;
+
+const mapMarketplaceAddress = (address: AddressRecord) => ({
+  id: address.id,
+  userId: address.userId,
+  fullName: address.fullName,
+  phone: address.phone,
+  address: address.address,
+  label: address.label,
+  isDefault: Boolean(address.isDefault),
+  createdAt: address.createdAt.toISOString(),
+  updatedAt: address.updatedAt.toISOString(),
+});
+
+const normalizeLabel = (label?: string | null) => {
+  if (!label || typeof label !== 'string') {
+    return 'home';
+  }
+  const trimmed = label.trim();
+  return trimmed.length > 0 ? trimmed : 'home';
+};
+
+const isDuplicateAddressIdError = (error: unknown) =>
+  error instanceof PrismaClient.PrismaClientKnownRequestError &&
+  error.code === 'P2002' &&
+  Array.isArray(error.meta?.target) &&
+  (error.meta?.target as string[]).includes('Address_pkey');
+
+const resetAddressIdSequence = async () => {
+  if (!process.env.DATABASE_URL?.startsWith('postgres')) {
+    return;
+  }
+
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('"Address"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "Address"), 0),
+      true
+    );
+  `);
+};
+
+const fetchMarketplaceAddresses = async (userId: number) => {
+  const addresses = await prisma.address.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return addresses.map(mapMarketplaceAddress);
+};
+
+const createMarketplaceAddress = async (args: { userId: number; input: CreateMarketplaceAddressInput }) => {
+  const { userId, input } = args;
+
+  const executeCreate = async () =>
+    prisma.$transaction(async (tx) => {
+      const newAddress = await tx.address.create({
+        data: {
+          userId,
+          fullName: input.fullName.trim(),
+          phone: input.phone.trim(),
+          address: input.address.trim(),
+          isDefault: Boolean(input.isDefault),
+          label: normalizeLabel(input.label),
+        },
+      });
+
+      if (newAddress.isDefault) {
+        await tx.address.updateMany({
+          where: { userId, NOT: { id: newAddress.id } },
+          data: { isDefault: false },
+        });
+        await tx.marketplaceUser.update({
+          where: { id: userId },
+          data: { chosenAddress: newAddress.address },
+        });
+      }
+
+      return newAddress;
+    });
+
+  try {
+    return mapMarketplaceAddress(await executeCreate());
+  } catch (error) {
+    if (isDuplicateAddressIdError(error)) {
+      await resetAddressIdSequence();
+      return mapMarketplaceAddress(await executeCreate());
+    }
+    throw error;
+  }
+};
+
+const updateMarketplaceAddress = async (args: {
+  userId: number;
+  addressId: number;
+  input: UpdateMarketplaceAddressInput;
+}) => {
+  const { userId, addressId, input } = args;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const existing = await tx.address.findUnique({ where: { id: addressId } });
+    if (!existing || existing.userId !== userId) {
+      throw new Error('Address not found');
+    }
+
+    const updatedAddress = await tx.address.update({
+      where: { id: addressId },
+      data: {
+        ...(typeof input.fullName === 'string' ? { fullName: input.fullName.trim() } : {}),
+        ...(typeof input.phone === 'string' ? { phone: input.phone.trim() } : {}),
+        ...(typeof input.address === 'string' ? { address: input.address.trim() } : {}),
+        ...(typeof input.label === 'string' ? { label: normalizeLabel(input.label) } : {}),
+        ...(typeof input.isDefault === 'boolean' ? { isDefault: input.isDefault } : {}),
+      },
+    });
+
+    if (input.isDefault === true) {
+      await tx.address.updateMany({
+        where: { userId, NOT: { id: updatedAddress.id } },
+        data: { isDefault: false },
+      });
+      await tx.marketplaceUser.update({
+        where: { id: userId },
+        data: { chosenAddress: updatedAddress.address ?? null },
+      });
+    } else if (input.isDefault === false && existing.isDefault) {
+      await tx.marketplaceUser.update({
+        where: { id: userId },
+        data: { chosenAddress: null },
+      });
+    }
+
+    return updatedAddress;
+  });
+
+  return mapMarketplaceAddress(updated);
+};
+
+const deleteMarketplaceAddress = async (args: { userId: number; addressId: number }) => {
+  const { userId, addressId } = args;
+
+  const deleted = await prisma.$transaction(async (tx) => {
+    const existing = await tx.address.findUnique({ where: { id: addressId } });
+    if (!existing || existing.userId !== userId) {
+      throw new Error('Address not found');
+    }
+
+    await tx.address.delete({ where: { id: addressId } });
+
+    if (existing.isDefault) {
+      await tx.marketplaceUser.update({
+        where: { id: userId },
+        data: { chosenAddress: null },
+      });
+    }
+
+    return existing;
+  });
+
+  return mapMarketplaceAddress(deleted);
 };
 
 const fetchMarketplaceProducts = async (args: {
@@ -1235,6 +1470,10 @@ const fetchMobileOrders = async (args: {
 export const marketplaceResolvers = {
   Query: {
     marketplaceUser: (_: unknown, args: { userId: number }) => fetchMarketplaceUserProfile(args.userId),
+    marketplaceAddresses: async (_: unknown, args: { userId: number }) => ({
+      success: true,
+      addresses: await fetchMarketplaceAddresses(args.userId),
+    }),
     mobileMarketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProducts>[0]) => fetchMarketplaceProducts(args),
     mobileCart: (_: unknown, args: { userId: number }) => fetchMobileCart(args.userId),
     mobileUserActivity: (_: unknown, args: Parameters<typeof fetchMobileUserActivity>[0]) => fetchMobileUserActivity(args),
@@ -1242,6 +1481,21 @@ export const marketplaceResolvers = {
   },
   Mutation: {
     updateMarketplaceUser: (_: unknown, args: Parameters<typeof updateMarketplaceUser>[0]) => updateMarketplaceUser(args),
+    createMarketplaceAddress: async (_: unknown, args: Parameters<typeof createMarketplaceAddress>[0]) => ({
+      success: true,
+      message: 'Address created',
+      address: await createMarketplaceAddress(args),
+    }),
+    updateMarketplaceAddress: async (_: unknown, args: Parameters<typeof updateMarketplaceAddress>[0]) => ({
+      success: true,
+      message: 'Address updated',
+      address: await updateMarketplaceAddress(args),
+    }),
+    deleteMarketplaceAddress: async (_: unknown, args: Parameters<typeof deleteMarketplaceAddress>[0]) => ({
+      success: true,
+      message: 'Address deleted',
+      address: await deleteMarketplaceAddress(args),
+    }),
     addToCart: (_: unknown, args: { input: Parameters<typeof addToCart>[0] }) => addToCart(args.input),
     updateCartItem: (_: unknown, args: { input: Parameters<typeof updateCartItem>[0] }) => updateCartItem(args.input),
     removeCartItem: (_: unknown, args: { cartItemId: number }) => removeCartItem(args.cartItemId),
