@@ -45,6 +45,12 @@ export const ordersTypeDefs = /* GraphQL */ `
     discountPercentage: Float
     discountAmount: Float
     moqSnapshot: Int
+    product: ProductInfo
+  }
+
+  type ProductInfo {
+    userId: Int
+    name: String
   }
 
   type BuyerSummary {
@@ -59,6 +65,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     id: String
     orderId: String!
     buyerId: String
+    userId: Int
     orderStatus: String!
     paymentStatus: String!
     deliveryMethod: String
@@ -161,6 +168,7 @@ const mapOrder = (
   id: order?.id ? String(order.id) : null,
   orderId: order?.orderId ?? '',
   buyerId: order?.buyerId ?? null,
+  userId: order?.userId ?? null,
   orderStatus: order?.orderStatus ?? '',
   paymentStatus: order?.paymentStatus ?? '',
   deliveryMethod: order?.deliveryMethod ?? null,

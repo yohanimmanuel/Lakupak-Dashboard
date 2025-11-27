@@ -253,19 +253,19 @@ export default function ProductCatalog({
         const dbSellingPrice = variant.sellingPrice || '';
         
         return {
-         id: `combination-${variant.id}`,
-         variantName: variant.variantName,
-         sku: variant.sku || '',
-         purchasePrice: variant.purchasePrice || '',
+        id: `combination-${variant.id}`,
+        variantName: variant.variantName,
+        sku: variant.sku || '',
+        purchasePrice: variant.purchasePrice || '',
           sellingPrice: formSellingPrice,
           // Store database sellingPrice for display (discounted price when offer is active)
           dbSellingPrice: dbSellingPrice,
           // Preserve originalSellingPrice if it exists, so it doesn't get lost on save
           originalSellingPrice: hasOffer ? String(variantData.originalSellingPrice) : undefined,
-         moq: variant.moq,
-         stockQuantity: variant.stockQuantity || 0,
-         lowStockThreshold: variant.lowStockThreshold || 0,
-         stockStatus: variant.stockStatus || 'In Stock'
+        moq: variant.moq,
+        stockQuantity: variant.stockQuantity || 0,
+        lowStockThreshold: variant.lowStockThreshold || 0,
+        stockStatus: variant.stockStatus || 'In Stock'
         };
       });
       setCombinations(legacyCombinations);
@@ -2467,18 +2467,18 @@ export default function ProductCatalog({
                           </td>
                           <td className="p-3 border-r border-b border-gray-300 align-top">
                             <div className="flex flex-col">
-                              <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                  {currencySymbol}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={String(combination.sellingPrice)}
-                                  onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
-                                  disabled={isViewMode || isOfferConnected}
-                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder={getPricePlaceholder(userCurrency)}
-                                />
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={String(combination.sellingPrice)}
+                                onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
+                                disabled={isViewMode || isOfferConnected}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder={getPricePlaceholder(userCurrency)}
+                              />
                               </div>
                               {isOfferConnected && (() => {
                                 const dbPrice = (combination as Record<string, unknown>).dbSellingPrice;
