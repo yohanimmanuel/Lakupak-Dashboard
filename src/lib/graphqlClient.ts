@@ -24,28 +24,27 @@ export async function fetchGraphQL<T>(
     body: JSON.stringify({ query, variables: cleanVariables }),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`GraphQL request failed with status ${response.status}: ${errorText}`);
+  }
+
+  const responseText = await response.text();
+  if (!responseText || responseText.trim().length === 0) {
+    throw new Error('Empty response from GraphQL server');
+  }
+
   let payload: GraphQLResponse<T>;
   try {
-    payload = (await response.json()) as GraphQLResponse<T>;
-  } catch (error) {
-    // If response is not ok, try to get error message from response
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`GraphQL request failed with status ${response.status}: ${errorText}`);
-    }
-    throw new Error('Failed to parse GraphQL response');
+    payload = JSON.parse(responseText) as GraphQLResponse<T>;
+  } catch (parseError) {
+    throw new Error('Failed to parse GraphQL response: Invalid JSON format');
   }
 
   // Check for GraphQL errors first (even if status is 200)
   if (payload.errors && payload.errors.length > 0) {
     const aggregated = payload.errors.map((err) => err.message).join('; ');
     throw new Error(aggregated || 'GraphQL request returned errors');
-  }
-
-  // Check HTTP status after parsing (GraphQL can return 200 with errors)
-  if (!response.ok) {
-    const errorMessage = payload.errors?.[0]?.message || `GraphQL request failed with status ${response.status}`;
-    throw new Error(errorMessage);
   }
 
   if (!payload.data) {

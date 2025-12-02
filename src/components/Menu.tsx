@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
 const mainMenuItems = [
@@ -18,9 +18,19 @@ const mainMenuItems = [
   },
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
+  { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
+  {
+    label: 'Marketing',
+    icon: <MegaphoneIcon className="w-5 h-5" />,
+    submenu: [
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Team Management', href: '/marketing/teammanagement' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/marketing/campaigns' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Analytics', href: '/marketing/analytics' },
+    ],
+  },
   {
     label: 'Analytics',
-    icon: <ChartBarIcon className="w-5 h-5" />,
+    icon: <ChartAreaIcon className="w-5 h-5" />,
     submenu: [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Overview', href: '/analytics' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Financial', href: '/analytics/financial' },
@@ -28,17 +38,17 @@ const mainMenuItems = [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Operational', href: '/analytics/performance' },
     ],
   },
-  { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
 ];
 
 const secondaryMenuItems = [
   {
-    label: 'Sales',
-    icon: <BadgePercentIcon className="w-5 h-5" />,
+    label: 'Marketplace',
+    icon: <StoreIcon className="w-5 h-5" />,
+    href: '/marketplace',
     submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Team Management', href: '/sales/teammanagement' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/sales/campaigns' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Analytics', href: '/sales/analytics' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Products', href: '/marketplace/products' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Performance', href: '/marketplace/performance' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Settings', href: '/marketplace/settings' },
     ],
   },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },

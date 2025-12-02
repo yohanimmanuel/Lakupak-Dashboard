@@ -1,6 +1,7 @@
 import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -39,9 +40,42 @@ const resolvers = mergeResolvers([
 const server = new ApolloServer({
   typeDefs,
   resolvers: resolvers as never,
+  formatError: (error) => {
+    // Handle JSON parsing errors
+    if (error.message.includes('JSON') || error.message.includes('Unexpected end') || error.message.includes('Unexpected token')) {
+      return {
+        message: 'Invalid or empty request body',
+        extensions: { code: 'BAD_REQUEST' },
+      };
+    }
+    return error;
+  },
 });
 
-const handler = startServerAndCreateNextHandler<NextRequest>(server);
+const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server);
+
+// Wrapper to handle errors that might escape Apollo Server
+async function handler(request: NextRequest) {
+  try {
+    return await apolloHandler(request);
+  } catch (error) {
+    // Handle JSON parsing errors that escape Apollo Server
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      error instanceof SyntaxError ||
+      errorMessage.includes('JSON') ||
+      errorMessage.includes('Unexpected end') ||
+      errorMessage.includes('Unexpected token')
+    ) {
+      return NextResponse.json(
+        { errors: [{ message: 'Invalid or empty request body' }] },
+        { status: 400 }
+      );
+    }
+    // Re-throw other errors
+    throw error;
+  }
+}
 
 export { handler as GET, handler as POST };
 

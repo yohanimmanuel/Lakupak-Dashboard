@@ -985,11 +985,26 @@ export default function HomePage() {
           }),
         });
 
+        if (controller.signal.aborted) {
+          return;
+        }
+
         if (!response.ok) {
           throw new Error('Unable to load dashboard data');
         }
 
-        const payload = await response.json();
+        const responseText = await response.text();
+        if (!responseText || responseText.trim().length === 0) {
+          throw new Error('Empty response from server');
+        }
+
+        let payload;
+        try {
+          payload = JSON.parse(responseText);
+        } catch (parseError) {
+          throw new Error('Invalid response format from server');
+        }
+
         if (payload.errors && payload.errors.length > 0) {
           throw new Error(payload.errors[0]?.message || 'Failed to load dashboard data');
         }
