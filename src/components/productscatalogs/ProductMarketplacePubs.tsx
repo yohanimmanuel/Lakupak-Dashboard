@@ -77,7 +77,7 @@ export default function ProductMarketplacePubs({
         // Bulk publish - use single bulk mutation to avoid browser connection limits
         const productIds = completeProducts.map(p => p.productId);
         
-        const result = await fetchGraphQL<{
+          const result = await fetchGraphQL<{
           bulkPublishMarketplaceProducts: {
             success: boolean;
             message: string;
@@ -85,16 +85,16 @@ export default function ProductMarketplacePubs({
             failed: string[];
           };
         }>(BULK_PUBLISH_MARKETPLACE_MUTATION, {
-          userId: user.id,
+            userId: user.id,
           productIds,
-          action: 'publish',
-        });
-        
+            action: 'publish',
+          });
+          
         if (!result.bulkPublishMarketplaceProducts?.success && result.bulkPublishMarketplaceProducts?.failed.length > 0) {
-          throw new Error(
+            throw new Error(
             result.bulkPublishMarketplaceProducts.message || `Failed to publish ${result.bulkPublishMarketplaceProducts.failed.length} product(s)`
-          );
-        }
+            );
+          }
       } else {
         // Single product publish - check if product is complete
         if (isProductComplete && !isProductComplete(product.productId)) {

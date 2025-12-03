@@ -318,9 +318,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         success
         message
         product {
-          id
-          productId
-          status
+        id
+        productId
+        status
         }
       }
     }
@@ -359,19 +359,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       } else if (productToPublish && setProductsAction) {
         // Single product update
         setProductsAction(prev => prev.map(p => 
-          p.productId === productToPublish.productId 
+              p.productId === productToPublish.productId 
             ? { ...p, status: 'Published' as const }
-            : p
-        ));
-      }
+                : p
+            ));
+          }
       
-      // Clear selection and close modal
-      setSelectedProducts([]);
-      setShowPublishModal(false);
-      setProductToPublish(null);
-    } catch (error) {
+          // Clear selection and close modal
+          setSelectedProducts([]);
+          setShowPublishModal(false);
+          setProductToPublish(null);
+        } catch (error) {
       // Error updating state
-    }
+      }
   };
 
   const handleUnpublishProducts = async () => {
@@ -395,7 +395,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           failed: string[];
         };
       }>(BULK_PUBLISH_MARKETPLACE_MUTATION, {
-        userId: user.id,
+              userId: user.id,
         productIds,
         action: 'unpublish',
       });
@@ -405,8 +405,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         setProductsAction(prev => prev.map(p => 
           result.bulkPublishMarketplaceProducts.successful.includes(p.productId)
             ? { ...p, status: 'Draft' as const }
-            : p
-        ));
+                : p
+            ));
       }
       
       // Clear selection after unpublishing
@@ -415,9 +415,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       // Close the unpublish modal
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
-    } catch (error) {
-      // Error unpublishing products
-    }
+          } catch (error) {
+        // Error unpublishing products
+      }
   };
 
   const handleProductSelect = (productId: string) => {
