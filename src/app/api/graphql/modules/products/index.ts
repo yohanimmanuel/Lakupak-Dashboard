@@ -120,6 +120,14 @@ export const productsTypeDefs = /* GraphQL */ `
     product: Product
   }
 
+  type BulkMarketplacePublishResult {
+    success: Boolean!
+    message: String!
+    successful: [String!]!
+    failed: [String!]!
+    results: [MarketplacePublishResult!]!
+  }
+
   input VariantDefinitionInput {
     variantType: String!
     options: [String!]!
@@ -246,6 +254,8 @@ export const productsTypeDefs = /* GraphQL */ `
     resetProductPrices(userId: Int!, productId: String!): ActionResult!
 
     publishMarketplaceProduct(userId: Int!, productId: String!, action: String!): MarketplacePublishResult!
+    
+    bulkPublishMarketplaceProducts(userId: Int!, productIds: [String!]!, action: String!): BulkMarketplacePublishResult!
   }
 `;
 
@@ -1054,9 +1064,16 @@ export const updateProduct = async (args: {
   if (status !== undefined) {
     const newStatus = String(status);
     cleanUpdateData.status = newStatus;
-    cleanUpdateData.marketplaceStatus = newStatus === 'Published' ? 'Published' : 'Not Published';
+    // Update marketplaceStatus based on status change
     if (newStatus === 'Published') {
+      cleanUpdateData.marketplaceStatus = 'Published';
       cleanUpdateData.publishedAt = new Date();
+      cleanUpdateData.lastSyncAt = new Date(); // Update sync time for marketplace visibility
+    } else if (newStatus === 'Draft') {
+      cleanUpdateData.marketplaceStatus = 'Unpublished';
+      cleanUpdateData.lastSyncAt = new Date(); // Update sync time even when unpublishing
+    } else {
+      cleanUpdateData.marketplaceStatus = 'Not Published';
     }
   }
   if (productCategory !== undefined) cleanUpdateData.productCategory = String(productCategory);
@@ -1267,6 +1284,83 @@ export const resetProductPrices = async (userId: number, productId: string) => {
   }
 };
 
+export const bulkPublishMarketplaceProducts = async (args: {
+  userId: number;
+  productIds: string[];
+  action: string;
+}) => {
+  const { userId, productIds, action } = args;
+  const normalizedAction = (action || '').toLowerCase();
+
+  if (normalizedAction !== 'publish' && normalizedAction !== 'unpublish') {
+    throw new Error('Invalid action. Use "publish" or "unpublish".');
+  }
+
+  const successful: string[] = [];
+  const failed: string[] = [];
+  const results: Array<{ success: boolean; message: string; product?: unknown }> = [];
+
+  // Batch configuration for stability with large operations
+  const BATCH_SIZE = 20; // Process 15 products per batch
+  const BATCH_DELAY_MS = 50; // 50ms delay between batches to avoid overwhelming the database
+
+  // Helper to chunk array into batches
+  const chunkArray = <T>(array: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  // Helper to delay execution
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Split products into batches
+  const batches = chunkArray(productIds, BATCH_SIZE);
+
+  // Process batches sequentially, but products within each batch in parallel
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    
+    // Process all products in current batch in parallel
+    const batchPromises = batch.map(async (productId) => {
+      try {
+        const result = await publishMarketplaceProduct({ userId, productId, action });
+        successful.push(productId);
+        results.push(result);
+        return { success: true, productId, result };
+      } catch (error) {
+        failed.push(productId);
+        results.push({
+          success: false,
+          message: error instanceof Error ? error.message : 'Failed to publish product',
+        });
+        return { success: false, productId, error };
+      }
+    });
+
+    // Wait for current batch to complete
+    await Promise.allSettled(batchPromises);
+
+    // Add delay between batches (except for the last batch)
+    if (i < batches.length - 1) {
+      await delay(BATCH_DELAY_MS);
+    }
+  }
+
+  return {
+    success: failed.length === 0,
+    message:
+      failed.length === 0
+        ? `All ${productIds.length} products ${normalizedAction}ed successfully`
+        : `${successful.length} products ${normalizedAction}ed, ${failed.length} failed`,
+    successful,
+    failed,
+    results,
+  };
+};
+
 export const publishMarketplaceProduct = async (args: {
   userId: number;
   productId: string;
@@ -1394,6 +1488,8 @@ export const productsResolvers = {
       resetProductPrices(args.userId, args.productId),
     publishMarketplaceProduct: (_: unknown, args: Parameters<typeof publishMarketplaceProduct>[0]) =>
       publishMarketplaceProduct(args),
+    bulkPublishMarketplaceProducts: (_: unknown, args: Parameters<typeof bulkPublishMarketplaceProducts>[0]) =>
+      bulkPublishMarketplaceProducts(args),
   },
 };
 

@@ -17,6 +17,17 @@ const PUBLISH_MARKETPLACE_MUTATION = `
   }
 `;
 
+const BULK_PUBLISH_MARKETPLACE_MUTATION = `
+  mutation BulkPublishMarketplaceProducts($userId: Int!, $productIds: [String!]!, $action: String!) {
+    bulkPublishMarketplaceProducts(userId: $userId, productIds: $productIds, action: $action) {
+      success
+      message
+      successful
+      failed
+    }
+  }
+`;
+
 interface ProductMarketplacePubsProps {
   product: ProductTableRow;
   isOpen: boolean;
@@ -63,24 +74,27 @@ export default function ProductMarketplacePubs({
       }
       
       if (isBulkPublish) {
-        // Bulk publish multiple products
-        const publishPromises = completeProducts.map(async (productRow) => {
-          const result = await fetchGraphQL<{
-            publishMarketplaceProduct: { success: boolean; message: string };
-          }>(PUBLISH_MARKETPLACE_MUTATION, {
-            userId: user.id,
-            productId: productRow.productId,
-            action: 'publish',
-          });
-          
-          if (!result.publishMarketplaceProduct?.success) {
-            throw new Error(
-              result.publishMarketplaceProduct?.message || 'Failed to publish product',
-            );
-          }
+        // Bulk publish - use single bulk mutation to avoid browser connection limits
+        const productIds = completeProducts.map(p => p.productId);
+        
+        const result = await fetchGraphQL<{
+          bulkPublishMarketplaceProducts: {
+            success: boolean;
+            message: string;
+            successful: string[];
+            failed: string[];
+          };
+        }>(BULK_PUBLISH_MARKETPLACE_MUTATION, {
+          userId: user.id,
+          productIds,
+          action: 'publish',
         });
         
-        await Promise.all(publishPromises);
+        if (!result.bulkPublishMarketplaceProducts?.success && result.bulkPublishMarketplaceProducts?.failed.length > 0) {
+          throw new Error(
+            result.bulkPublishMarketplaceProducts.message || `Failed to publish ${result.bulkPublishMarketplaceProducts.failed.length} product(s)`
+          );
+        }
       } else {
         // Single product publish - check if product is complete
         if (isProductComplete && !isProductComplete(product.productId)) {

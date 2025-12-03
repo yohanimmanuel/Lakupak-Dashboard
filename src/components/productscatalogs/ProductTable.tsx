@@ -42,6 +42,7 @@ const getProductCategoryFilters = (products: Product[]) => {
   return ["All Categories", ...Array.from(cats)];
 };
 
+
 export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction }: { 
   products?: Product[]; 
   setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
@@ -310,117 +311,102 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     return hasRequiredFields && hasImages;
   };
 
-  // GraphQL mutation to update product
-  const UPDATE_PRODUCT_MUTATION = `
-    mutation UpdateProduct(
-      $userId: Int!
-      $id: String
-      $productId: String
-      $status: String
-    ) {
-      updateProduct(
-        userId: $userId
-        id: $id
-        productId: $productId
-        status: $status
-      ) {
-        id
-        productId
-        status
+  // GraphQL mutation to publish/unpublish marketplace product
+  const PUBLISH_MARKETPLACE_MUTATION = `
+    mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
+      publishMarketplaceProduct(userId: $userId, productId: $productId, action: $action) {
+        success
+        message
+        product {
+          id
+          productId
+          status
+        }
+      }
+    }
+  `;
+
+  const BULK_PUBLISH_MARKETPLACE_MUTATION = `
+    mutation BulkPublishMarketplaceProducts($userId: Int!, $productIds: [String!]!, $action: String!) {
+      bulkPublishMarketplaceProducts(userId: $userId, productIds: $productIds, action: $action) {
+        success
+        message
+        successful
+        failed
       }
     }
   `;
 
   const handlePublishProduct = async () => {
+    // This callback is called AFTER the modal has already published products
+    // Just update state to reflect the published status - don't republish!
     if (!user?.id) return;
     
     try {
-      // If we have a specific product to publish (from modal), publish just that one
-      if (productToPublish) {
-        try {
-          await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
-            userId: user.id,
-            productId: productToPublish.productId,
-            status: 'Published',
-        });
-        
-          // Update local state
-          if (setProductsAction) {
-            setProductsAction?.(prev => prev.map(p => 
-              p.productId === productToPublish.productId 
-                ? { ...p, status: 'Published' }
-                : p
-            ));
-          }
-          // Clear selection and close modal
-          setSelectedProducts([]);
-          setShowPublishModal(false);
-          setProductToPublish(null);
-        } catch (error) {
-          // Failed to publish product
-        }
-      } else if (selectedProducts.length > 0) {
-        // Bulk publish only complete products
-        for (const productId of selectedProducts) {
-          const product = pagedProducts.find(p => String(p.id) === productId);
-          if (product && 
-              (product.status === 'Draft' || product.status === 'Inactive' || product.status === 'Active') &&
-              isProductComplete(product.productId)) {
-            try {
-              await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
-                userId: user.id,
-                productId: product.productId,
-                status: 'Published',
-            });
-            
-              if (setProductsAction) {
-              setProductsAction?.(prev => prev.map(p => 
-                p.productId === product.productId 
-                  ? { ...p, status: 'Published' }
-                  : p
-              ));
-              }
-            } catch (error) {
-              // Failed to publish product
-            }
-          }
-        }
-        
-        // Clear selection after bulk publishing
-        setShowPublishModal(false);
-        setSelectedProducts([]);
+      // Update state for all selected products to Published status
+      // The modal already handled the actual publishing
+      if (selectedProducts.length > 0 && setProductsAction) {
+        const productIds = selectedProducts
+          .map(productId => pagedProducts.find(p => String(p.id) === productId))
+          .filter((product): product is ProductTableRow => product !== undefined)
+          .map(product => product.productId);
+
+        setProductsAction(prev => prev.map(p => 
+          productIds.includes(p.productId)
+            ? { ...p, status: 'Published' as const }
+            : p
+        ));
+      } else if (productToPublish && setProductsAction) {
+        // Single product update
+        setProductsAction(prev => prev.map(p => 
+          p.productId === productToPublish.productId 
+            ? { ...p, status: 'Published' as const }
+            : p
+        ));
       }
-          } catch (error) {
-        // Error publishing products
-      }
+      
+      // Clear selection and close modal
+      setSelectedProducts([]);
+      setShowPublishModal(false);
+      setProductToPublish(null);
+    } catch (error) {
+      // Error updating state
+    }
   };
 
   const handleUnpublishProducts = async () => {
     if (!user?.id || selectedProducts.length === 0) return;
     
     try {
-      // Update all selected published products to Draft status
-      for (const productId of selectedProducts) {
-        const product = pagedProducts.find(p => String(p.id) === productId);
-        if (product && product.status === 'Published') {
-          try {
-            await fetchGraphQL(UPDATE_PRODUCT_MUTATION, {
-              userId: user.id,
-              productId: product.productId,
-              status: 'Draft',
-          });
-          
-            if (setProductsAction) {
-            setProductsAction?.(prev => prev.map(p => 
-              p.productId === product.productId 
-                ? { ...p, status: 'Draft' }
-                : p
-            ));
-            }
-          } catch (error) {
-            // Failed to unpublish product
-          }
-        }
+      // Bulk unpublish - use single bulk mutation to avoid browser connection limits
+      const productsToUnpublish = selectedProducts
+        .map(productId => pagedProducts.find(p => String(p.id) === productId))
+        .filter((product): product is ProductTableRow => 
+          product !== undefined && product.status === 'Published'
+        );
+
+      const productIds = productsToUnpublish.map(p => p.productId);
+      
+      const result = await fetchGraphQL<{
+        bulkPublishMarketplaceProducts: {
+          success: boolean;
+          message: string;
+          successful: string[];
+          failed: string[];
+        };
+      }>(BULK_PUBLISH_MARKETPLACE_MUTATION, {
+        userId: user.id,
+        productIds,
+        action: 'unpublish',
+      });
+
+      // Update state for all successful products
+      if (setProductsAction && result.bulkPublishMarketplaceProducts?.successful.length > 0) {
+        setProductsAction(prev => prev.map(p => 
+          result.bulkPublishMarketplaceProducts.successful.includes(p.productId)
+            ? { ...p, status: 'Draft' as const }
+            : p
+        ));
       }
       
       // Clear selection after unpublishing
@@ -429,9 +415,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       // Close the unpublish modal
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
-          } catch (error) {
-        // Error unpublishing products
-      }
+    } catch (error) {
+      // Error unpublishing products
+    }
   };
 
   const handleProductSelect = (productId: string) => {
