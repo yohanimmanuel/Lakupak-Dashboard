@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import type { Buyer } from '@/types/client';
 
 const BUYER_QUERY = `
   query GetBuyer($userId: Int!, $id: String!) {
@@ -32,15 +33,22 @@ const BUYER_QUERY = `
   }
 `;
 
-const fetcher = async (key: string) => {
+type BuyerResponse = Buyer | { error: string };
+
+const fetcher = async (key: string): Promise<BuyerResponse | null> => {
   const [userId, id] = key.split('|');
   if (!userId || !id) return null;
   
   try {
-    const data = await fetchGraphQL<{ buyer: unknown }>(BUYER_QUERY, {
+    const data = await fetchGraphQL<{ buyer: Buyer | null }>(BUYER_QUERY, {
       userId: Number(userId),
       id,
     });
+    
+    if (!data.buyer) {
+      return { error: 'Buyer not found' };
+    }
+    
     return data.buyer;
   } catch (error) {
     if (error instanceof Error && error.message.includes('not found')) {
@@ -74,7 +82,7 @@ export default function BuyerDetailsPage() {
 
   // Redirect to deleted page if API indicates missing buyer
   useEffect(() => {
-    if (buyer && (buyer.error === 'Buyer not found' || buyer === null)) {
+    if (buyer && ('error' in buyer && buyer.error === 'Buyer not found')) {
       const ref = encodeURIComponent(String(id || ''));
       window.location.href = `/clients/buyers/deleted?id=${ref}`;
     }
@@ -120,13 +128,25 @@ export default function BuyerDetailsPage() {
     );
   }
 
-  if (!buyer || buyer.error === 'Buyer not found') {
+  if (!buyer || ('error' in buyer && buyer.error === 'Buyer not found')) {
     // Fallback UI in case redirect didn't happen
     return (
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">Buyer has been deleted</div>
           <div className="text-gray-600">Redirecting to deleted notice...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Type guard: ensure buyer is a valid Buyer object
+  if ('error' in buyer) {
+    return (
+      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center">
+          <div className="text-red-500 text-lg font-semibold mb-2">Error</div>
+          <div className="text-gray-600">{buyer.error}</div>
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import type { Supplier } from '@/types/client';
 
 const SUPPLIER_QUERY = `
   query GetSupplier($userId: Int!, $id: String!) {
@@ -33,15 +34,22 @@ const SUPPLIER_QUERY = `
   }
 `;
 
-const fetcher = async (key: string) => {
+type SupplierResponse = Supplier | { error: string };
+
+const fetcher = async (key: string): Promise<SupplierResponse | null> => {
   const [userId, id] = key.split('|');
   if (!userId || !id) return null;
   
   try {
-    const data = await fetchGraphQL<{ supplier: unknown }>(SUPPLIER_QUERY, {
+    const data = await fetchGraphQL<{ supplier: Supplier | null }>(SUPPLIER_QUERY, {
       userId: Number(userId),
       id,
     });
+    
+    if (!data.supplier) {
+      return { error: 'Supplier not found' };
+    }
+    
     return data.supplier;
   } catch (error) {
     if (error instanceof Error && error.message.includes('not found')) {
@@ -113,12 +121,24 @@ export default function SupplierDetailsPage() {
     );
   }
 
-  if (!supplier || supplier.error) {
+  if (!supplier) {
     return (
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">Supplier Not Found</div>
           <div className="text-gray-600">The requested supplier could not be found or you don&apos;t have permission to view it.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Type guard: check if supplier has an error
+  if ('error' in supplier) {
+    return (
+      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center">
+          <div className="text-red-500 text-lg font-semibold mb-2">Error</div>
+          <div className="text-gray-600">{supplier.error}</div>
         </div>
       </div>
     );
