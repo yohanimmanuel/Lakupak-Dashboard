@@ -696,7 +696,7 @@ const buildProductData = ({
   userId: number;
 }) => {
   const finalStatus = status || 'Draft';
-  const finalMarketplaceStatus = finalStatus === 'Published' ? 'Published' : 'Not Published';
+  const finalMarketplaceStatus = finalStatus === 'Published' ? 'Published' : 'Unpublished';
 
   return {
     productId,
@@ -1069,11 +1069,10 @@ export const updateProduct = async (args: {
       cleanUpdateData.marketplaceStatus = 'Published';
       cleanUpdateData.publishedAt = new Date();
       cleanUpdateData.lastSyncAt = new Date(); // Update sync time for marketplace visibility
-    } else if (newStatus === 'Draft') {
-      cleanUpdateData.marketplaceStatus = 'Unpublished';
-      cleanUpdateData.lastSyncAt = new Date(); // Update sync time even when unpublishing
     } else {
-      cleanUpdateData.marketplaceStatus = 'Not Published';
+      // For any non-Published status (Draft, Inactive, etc.), set marketplaceStatus to Unpublished
+      cleanUpdateData.marketplaceStatus = 'Unpublished';
+      cleanUpdateData.lastSyncAt = new Date(); // Update sync time when status changes
     }
   }
   if (productCategory !== undefined) cleanUpdateData.productCategory = String(productCategory);
@@ -1428,8 +1427,10 @@ export const publishMarketplaceProduct = async (args: {
     }
   }
 
+  // Update both status and marketplaceStatus to keep them aligned
   const updateData: Prisma.ProductUpdateInput = {
     marketplaceStatus: normalizedAction === 'publish' ? 'Published' : 'Unpublished',
+    status: normalizedAction === 'publish' ? 'Published' : 'Draft', // Sync status field
     lastSyncAt: new Date(),
   };
 

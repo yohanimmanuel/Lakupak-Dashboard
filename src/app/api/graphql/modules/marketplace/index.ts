@@ -1015,6 +1015,7 @@ const fetchMarketplaceProducts = async (args: {
 };
 
 const fetchMobileCart = async (userId: number) => {
+  // Fetch all cart items from database (keeping unpublished products in DB for history)
   const cartItems = await prisma.userActivity.findMany({
     where: { 
       userId,
@@ -1023,8 +1024,29 @@ const fetchMobileCart = async (userId: number) => {
     orderBy: { createdAt: 'desc' }
   });
 
+  // Get productIds from cart items
+  const productIds = cartItems.map(item => item.productId);
+
+  // Check which products are currently published
+  const publishedProducts = await prisma.product.findMany({
+    where: {
+      productId: { in: productIds },
+      status: 'Published',
+      marketplaceStatus: 'Published'
+    },
+    select: {
+      productId: true
+    }
+  });
+
+  const publishedProductIds = new Set(publishedProducts.map(p => p.productId));
+
+  // Filter cart items to only show published products
+  // Unpublished products stay in DB but are hidden from cart
+  const visibleCartItems = cartItems.filter(item => publishedProductIds.has(item.productId));
+
   return {
-    items: cartItems.map(item => ({
+    items: visibleCartItems.map(item => ({
       id: item.id,
       userId: item.userId,
       productId: item.productId,
