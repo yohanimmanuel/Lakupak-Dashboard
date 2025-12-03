@@ -24,10 +24,10 @@ export async function fetchGraphQL<T>(
     body: JSON.stringify({ query, variables: cleanVariables }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`GraphQL request failed with status ${response.status}: ${errorText}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`GraphQL request failed with status ${response.status}: ${errorText}`);
+    }
 
   const responseText = await response.text();
   if (!responseText || responseText.trim().length === 0) {
