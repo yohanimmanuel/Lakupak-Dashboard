@@ -449,6 +449,18 @@ export async function POST(request: NextRequest) {
               packageQuantity,
               variantOption
             );
+            
+            // Build variantNameSnapshot from variant attributes
+            let variantNameSnapshot: string | null = null;
+            if (variantOption.attributes) {
+              const attributes = variantOption.attributes as Record<string, string>;
+              variantNameSnapshot = Object.entries(attributes)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            } else {
+              variantNameSnapshot = item.variantName || 'Default';
+            }
+            
             let orderItemData = {
               orderId: order.orderId,
               productId: String(item.productId || ''),
@@ -460,7 +472,9 @@ export async function POST(request: NextRequest) {
               productNameSnapshot: String(item.productName || 'Unknown Product'),
               productSkuSnapshot: String(item.productSku || ''),
               productTypeSnapshot: String(item.category || 'Uncategorized'),
-              variantNameSnapshot: String(item.variantName || 'Default'),
+              variantId: item.variantId || null,
+              variantOptionId: variantOption.id || null,
+              variantNameSnapshot: variantNameSnapshot,
               offerApplied: false,
               offerBadgeSnapshot: null as string | null,
               offerNameSnapshot: null as string | null,
@@ -649,6 +663,18 @@ export async function POST(request: NextRequest) {
               packageQuantity,
               variantOption
             );
+            
+            // Build variantNameSnapshot from variant attributes
+            let variantNameSnapshot: string | null = null;
+            if (variantOption.attributes) {
+              const attributes = variantOption.attributes as Record<string, string>;
+              variantNameSnapshot = Object.entries(attributes)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            } else {
+              variantNameSnapshot = item.variantName || 'Default';
+            }
+            
             let orderItemData = {
               orderId: order.orderId,
               productId: String(item.productId || ''),
@@ -660,7 +686,9 @@ export async function POST(request: NextRequest) {
               productNameSnapshot: String(item.productName || 'Unknown Product'),
               productSkuSnapshot: String(item.productSku || ''),
               productTypeSnapshot: String(item.category || 'Uncategorized'),
-              variantNameSnapshot: String(item.variantName || 'Default'),
+              variantId: item.variantId || null,
+              variantOptionId: variantOption.id || null,
+              variantNameSnapshot: variantNameSnapshot,
               offerApplied: false,
               offerBadgeSnapshot: null as string | null,
               offerNameSnapshot: null as string | null,
