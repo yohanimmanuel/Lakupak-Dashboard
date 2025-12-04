@@ -535,6 +535,15 @@ export async function POST(request: NextRequest) {
             );
             
             
+            // Build variantNameSnapshot from variant attributes
+            let variantNameSnapshot: string | null = null;
+            if (selectedVariant && (selectedVariant as { attributes?: unknown }).attributes) {
+              const attributes = (selectedVariant as { attributes: Record<string, string> }).attributes;
+              variantNameSnapshot = Object.entries(attributes)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            }
+            
             // Initialize order item data with basic info
             let orderItemData: {
               orderId: string;
@@ -547,6 +556,9 @@ export async function POST(request: NextRequest) {
               productNameSnapshot?: string;
               productSkuSnapshot?: string;
               productTypeSnapshot?: string;
+              variantId?: number | null;
+              variantOptionId?: number | null;
+              variantNameSnapshot?: string | null;
               offerApplied?: boolean;
               offerBadgeSnapshot?: string | null;
               offerNameSnapshot?: string | null;
@@ -565,6 +577,9 @@ export async function POST(request: NextRequest) {
               productNameSnapshot: product.name,
               productSkuSnapshot: product.sku,
               productTypeSnapshot: product.productType,
+              variantId: item.variantId || null,
+              variantOptionId: (selectedVariant as { id?: number }).id || null,
+              variantNameSnapshot: variantNameSnapshot,
               offerApplied: false,
               offerBadgeSnapshot: null,
               offerNameSnapshot: null,
@@ -1036,11 +1051,50 @@ export async function PUT(request: NextRequest) {
             }
             
             // Find the specific variant to restore stock to
-            // Use variantOptions for pricing/stock (new structure)
-            let variantToRestore = orderItem.variantId 
-              ? productForRestore.variantOptions.find((v: { id: number }) => v.id === orderItem.variantId) || null
-              : null;
+            // Priority: 1) variantOptionId, 2) variantId, 3) match by variantNameSnapshot attributes, 4) first variant
+            let variantToRestore = null;
             
+            // First try variantOptionId (most accurate)
+            if (orderItem.variantOptionId) {
+              variantToRestore = productForRestore.variantOptions.find(
+                (v: { id: number }) => v.id === orderItem.variantOptionId
+              ) || null;
+            }
+            
+            // If not found, try variantId
+            if (!variantToRestore && orderItem.variantId) {
+              variantToRestore = productForRestore.variantOptions.find(
+                (v: { id: number }) => v.id === orderItem.variantId
+              ) || null;
+            }
+            
+            // If still not found, try to match by variantNameSnapshot attributes
+            if (!variantToRestore && orderItem.variantNameSnapshot) {
+              try {
+                // Parse variantNameSnapshot (format: "Color: Gray, Size: L" or "Color: Gray")
+                const variantAttributes: Record<string, string> = {};
+                const variantNameParts = orderItem.variantNameSnapshot.split(', ');
+                variantNameParts.forEach(part => {
+                  const [key, ...valueParts] = part.split(': ');
+                  if (key && valueParts.length > 0) {
+                    variantAttributes[key.trim()] = valueParts.join(': ').trim();
+                  }
+                });
+                
+                // Find variant that matches all attributes
+                variantToRestore = productForRestore.variantOptions.find((v: { attributes?: unknown }) => {
+                  if (!v.attributes) return false;
+                  const vAttributes = v.attributes as Record<string, string>;
+                  return Object.entries(variantAttributes).every(([key, value]) => {
+                    return vAttributes[key] === value;
+                  });
+                }) || null;
+              } catch (e) {
+                // Invalid variantNameSnapshot format, continue to fallback
+              }
+            }
+            
+            // Last resort: use first variant
             if (!variantToRestore) {
               variantToRestore = productForRestore.variantOptions[0] || null;
             }
@@ -1116,11 +1170,50 @@ export async function PUT(request: NextRequest) {
             }
             
             // Find the specific variant to deduct stock from
-            // Use variantOptions for pricing/stock (new structure)
-            let variantToDeduct = orderItem.variantId 
-              ? productForDeduct.variantOptions.find((v: { id: number }) => v.id === orderItem.variantId) || null
-              : null;
+            // Priority: 1) variantOptionId, 2) variantId, 3) match by variantNameSnapshot attributes, 4) first variant
+            let variantToDeduct = null;
             
+            // First try variantOptionId (most accurate)
+            if (orderItem.variantOptionId) {
+              variantToDeduct = productForDeduct.variantOptions.find(
+                (v: { id: number }) => v.id === orderItem.variantOptionId
+              ) || null;
+            }
+            
+            // If not found, try variantId
+            if (!variantToDeduct && orderItem.variantId) {
+              variantToDeduct = productForDeduct.variantOptions.find(
+                (v: { id: number }) => v.id === orderItem.variantId
+              ) || null;
+            }
+            
+            // If still not found, try to match by variantNameSnapshot attributes
+            if (!variantToDeduct && orderItem.variantNameSnapshot) {
+              try {
+                // Parse variantNameSnapshot (format: "Color: Gray, Size: L" or "Color: Gray")
+                const variantAttributes: Record<string, string> = {};
+                const variantNameParts = orderItem.variantNameSnapshot.split(', ');
+                variantNameParts.forEach(part => {
+                  const [key, ...valueParts] = part.split(': ');
+                  if (key && valueParts.length > 0) {
+                    variantAttributes[key.trim()] = valueParts.join(': ').trim();
+                  }
+                });
+                
+                // Find variant that matches all attributes
+                variantToDeduct = productForDeduct.variantOptions.find((v: { attributes?: unknown }) => {
+                  if (!v.attributes) return false;
+                  const vAttributes = v.attributes as Record<string, string>;
+                  return Object.entries(variantAttributes).every(([key, value]) => {
+                    return vAttributes[key] === value;
+                  });
+                }) || null;
+              } catch (e) {
+                // Invalid variantNameSnapshot format, continue to fallback
+              }
+            }
+            
+            // Last resort: use first variant
             if (!variantToDeduct) {
               variantToDeduct = productForDeduct.variantOptions[0] || null;
             }
