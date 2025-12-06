@@ -434,7 +434,21 @@ export async function POST(request: NextRequest) {
               include: { variants: true, variantOptions: true }
             });
             if (!product) throw new Error(`Product not found: ${item.productId}`);
-            const variantOption = item.variantId ? (product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0]) : product.variantOptions?.[0];
+            
+            // Find variant option - if variantId is provided, use it; otherwise use default or first
+            let variantOption = null;
+            
+            if (item.variantId) {
+              // If specific variant ID is provided, find it
+              variantOption = product.variantOptions?.find(vo => vo.id === item.variantId);
+              if (!variantOption) {
+                throw new Error(`Variant option with ID ${item.variantId} not found for product: ${item.productId}`);
+              }
+            } else {
+              // No variant ID provided, use default or first available
+              variantOption = product.variantOptions?.find(vo => vo.isDefault) || product.variantOptions?.[0];
+            }
+            
             if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
             const packageQuantity = parseInt(String(item.packageQuantity || 1));
             const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
@@ -472,7 +486,7 @@ export async function POST(request: NextRequest) {
               productNameSnapshot: String(item.productName || 'Unknown Product'),
               productSkuSnapshot: String(item.productSku || ''),
               productTypeSnapshot: String(item.category || 'Uncategorized'),
-              variantId: item.variantId || null,
+              variantId: null, // Using new variantOptions structure, so variantId (old ProductVariant) is null
               variantOptionId: variantOption.id || null,
               variantNameSnapshot: variantNameSnapshot,
               offerApplied: false,
@@ -648,7 +662,20 @@ export async function POST(request: NextRequest) {
               include: { variants: true, variantOptions: true }
             });
             if (!product) throw new Error(`Product not found: ${item.productId}`);
-            const variantOption = item.variantId ? (product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0]) : product.variantOptions?.[0];
+            
+            // Find variant option - if variantId is provided, use it; otherwise use default or first
+            let variantOption = null;
+            if (item.variantId) {
+              // If specific variant ID is provided, find it
+              variantOption = product.variantOptions?.find(vo => vo.id === item.variantId);
+              if (!variantOption) {
+                throw new Error(`Variant option with ID ${item.variantId} not found for product: ${item.productId}`);
+              }
+            } else {
+              // No variant ID provided, use default or first available
+              variantOption = product.variantOptions?.find(vo => vo.isDefault) || product.variantOptions?.[0];
+            }
+            
             if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
             const packageQuantity = parseInt(String(item.packageQuantity || 1));
             const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
@@ -686,7 +713,7 @@ export async function POST(request: NextRequest) {
               productNameSnapshot: String(item.productName || 'Unknown Product'),
               productSkuSnapshot: String(item.productSku || ''),
               productTypeSnapshot: String(item.category || 'Uncategorized'),
-              variantId: item.variantId || null,
+              variantId: null, // Using new variantOptions structure, so variantId (old ProductVariant) is null
               variantOptionId: variantOption.id || null,
               variantNameSnapshot: variantNameSnapshot,
               offerApplied: false,
@@ -751,7 +778,21 @@ export async function POST(request: NextRequest) {
         }
         
         // Use variantOptions for actual pricing/stock data
-        const variantOption = product.variantOptions?.find(vo => vo.id === item.variantId) || product.variantOptions?.[0];
+        let variantOption = null;
+        if (item.variantId) {
+          // If specific variant ID is provided, find it
+          variantOption = product.variantOptions?.find(vo => vo.id === item.variantId);
+          if (!variantOption) {
+            return NextResponse.json(
+              { error: `Variant option with ID ${item.variantId} not found for product: ${item.productId}` },
+              { status: 404, headers }
+            );
+          }
+        } else {
+          // No variant ID provided, use default or first available
+          variantOption = product.variantOptions?.find(vo => vo.isDefault) || product.variantOptions?.[0];
+        }
+        
         if (!variantOption) {
           return NextResponse.json(
             { error: `No variant options found for product: ${item.productId}` },

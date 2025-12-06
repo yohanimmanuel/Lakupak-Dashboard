@@ -143,13 +143,13 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
             onMarkerClick={handleMarkerClick}
             />
           ) : (
-          <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No active deliveries</p>
+          <div className="bg-gray-100 rounded-lg h-100 flex items-center justify-center">
+            <div className="text-center w-full">
+              <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No active deliveries</p>
               <p className="text-sm text-gray-400">Orders with delivery addresses will appear here</p>
-              </div>
             </div>
+          </div>
           )}
         
         {/* Quick Stats Below Map */}
@@ -202,11 +202,11 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
                   onMarkerClick={handleMarkerClick}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center">
-                    <MapPin className="w-32 h-32 text-gray-400 mx-auto mb-6" />
-                    <p className="text-2xl text-gray-500 font-medium">No active deliveries</p>
-                    <p className="text-lg text-gray-400">Orders with delivery addresses will appear here</p>
+                <div className="w-full h-140 flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="text-center w-full">
+                    <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-xl text-gray-500 font-medium">No active deliveries</p>
+                    <p className="text-sm text-gray-400 mt-1">Orders with delivery addresses will appear here</p>
                   </div>
                 </div>
               )}
