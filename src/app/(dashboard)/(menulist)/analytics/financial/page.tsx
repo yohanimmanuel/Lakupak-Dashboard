@@ -124,19 +124,28 @@ export default function FinancialAnalyticsPage() {
         fetchGraphQL<ProductsQueryResult>(PRODUCTS_QUERY, { userId, limit: 1000 }),
       ]);
       
-      const orders = (ordersData.orders?.nodes || []).map((order) => ({
-        ...order,
+      const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order) => ({
         buyerId: order.buyerId || '',
+        orderDate: order.orderDate,
+        totalAmount: order.totalAmount ?? undefined,
+        orderItems: order.orderItems?.map((item) => ({
+          productId: item.productId,
+          packageQuantity: item.packageQuantity ?? 0,
+          pricePerPackage: item.pricePerPackage ?? 0,
+          piecesPerPackage: item.piecesPerPackage ?? undefined,
+          packageType: item.packageType ?? undefined,
+          productTypeSnapshot: item.productTypeSnapshot ?? undefined,
+        })),
       }));
       const products = productsData.products?.nodes || [];
       
       // Transform GraphQL products to match expected format
-      const transformedProducts = products.map((product) => {
+      const transformedProducts: ExportProduct[] = products.map((product) => {
         const firstVariant = product.variantOptions?.[0];
         return {
           productId: product.productId,
           name: product.name,
-          productType: product.productType,
+          productType: product.productType ?? undefined,
           sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
           purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
         };
