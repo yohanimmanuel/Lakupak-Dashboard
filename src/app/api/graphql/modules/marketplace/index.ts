@@ -832,48 +832,38 @@ const fetchMarketplaceProducts = async (args: {
           dt.discountType === 'buy_x_get_y'
         );
         
-        const shouldShowOffer = activeDiscountTypes.length > 0 && (
-          (hasPriceDiscounts && hasActiveDiscountInMainSystem) || 
-          (hasPromotions && !hasPriceDiscounts) ||
-          (hasPriceDiscounts && hasPromotions)
-        );
-      
-        if (shouldShowOffer) {
-          if (hasPriceDiscounts && hasPromotions) {
-            offerBadge = 'All Offers';
-          } else if (hasPromotions) {
-            offerBadge = 'Promotion';
-          } else if (hasPriceDiscounts) {
-            offerBadge = 'Discount';
-          } else {
-            offerBadge = 'Offer';
-          }
-          
-          if (hasPriceDiscounts) {
-            const fixedDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
-            const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
-            discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
-            discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
-            
-            if (hasActiveDiscountInMainSystem) {
-              originalSellingPrice = originalSellingPriceValue;
-            }
-          }
-          
-          const buyXGetYPromo = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
-          if (buyXGetYPromo) {
-            promotionDetails = {
-              minQuantity: buyXGetYPromo.minQuantity,
-              freeQuantity: buyXGetYPromo.discountValue,
-              description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
-            };
-          }
-        
-          hasActiveOffer = true;
-          offerId = primaryOffer.id;
-          offerName = primaryOffer.name;
-          originalSellingPrice = hasPriceDiscounts ? originalSellingPriceValue : undefined;
+        // Determine badge type based on active discount types
+        if (hasPriceDiscounts && hasPromotions) {
+          offerBadge = 'All Offers';
+        } else if (hasPromotions) {
+          offerBadge = 'Promotion';
+        } else if (hasPriceDiscounts) {
+          offerBadge = 'Discount';
+        } else {
+          offerBadge = 'Offer';
         }
+        
+        // Set discount information if there are price discounts
+        if (hasPriceDiscounts) {
+          const fixedDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
+          const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
+          discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
+          discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+        }
+        
+        // Set promotion details if there are buy X get Y promotions
+        const buyXGetYPromo = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
+        if (buyXGetYPromo) {
+          promotionDetails = {
+            minQuantity: buyXGetYPromo.minQuantity,
+            freeQuantity: buyXGetYPromo.discountValue,
+            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+          };
+        }
+      
+        hasActiveOffer = true;
+        offerId = primaryOffer.id;
+        offerName = primaryOffer.name;
       }
     }
     
@@ -889,9 +879,9 @@ const fetchMarketplaceProducts = async (args: {
       name: product.name,
       description: product.description,
       userId: product.userId,
-      sellingPrice: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
-      originalSellingPrice: hasActiveOffer && hasPriceDiscounts ? originalSellingPriceValue : undefined,
-      price: hasActiveOffer && hasPriceDiscounts ? sellingPrice : originalSellingPriceValue,
+      sellingPrice: sellingPrice,
+      originalSellingPrice: originalSellingPriceValue > sellingPrice ? originalSellingPriceValue : undefined,
+      price: sellingPrice,
       originalPrice: purchasePrice,
       offerBadge,
       hasActiveOffer,
