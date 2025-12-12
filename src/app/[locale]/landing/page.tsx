@@ -195,11 +195,15 @@ export default function LandingPage() {
 
             {/* Right - Product Screenshot */}
             <div className="flex justify-center lg:justify-end animate-fade-in-right animate-delay-300">
-              <div className="w-[600px] h-[400px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 hover-lift">
-                <div className="text-center">
-                  <div className="text-6xl mb-4">📱</div>
-                  <p className="text-gray-500 text-lg font-medium">{t("hero.screenshot")}</p>
-                </div>
+              <div className="w-[1000px] h-[400px] rounded-2xl overflow-hidden shadow-2xl hover-lift border border-gray-200">
+                <Image
+                  src="/homepage.png"
+                  alt="Laku-Laku Dashboard Homepage"
+                  width={600}
+                  height={400}
+                  className="w-full h-full object-cover"
+                  priority
+                />
               </div>
             </div>
           </div>
@@ -290,11 +294,15 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">🖥️</div>
-                  <p className="text-gray-500 font-medium">{t("features.distributor.screenshot")}</p>
-                </div>
+              <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border border-gray-200">
+                <Image
+                  src="/buyer.png"
+                  alt="Laku-Laku Distributor Dashboard"
+                  width={600}
+                  height={300}
+                  className="w-full h-full object-cover"
+                  priority
+                />
               </div>
             </div>
 
@@ -317,10 +325,26 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">📱</div>
-                  <p className="text-gray-500 font-medium">{t("features.retailer.screenshot")}</p>
+              <div className="w-full h-[300px] grid grid-cols-2 gap-2">
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <Image
+                    src="/mobilemarketplacehome.jpg"
+                    alt="Laku-Laku Mobile Marketplace Home"
+                    width={300}
+                    height={300}
+                    className="w-full h-full object-cover"
+                    priority
+                  />
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <Image
+                    src="/categorymarketplace.jpg"
+                    alt="Laku-Laku Marketplace Categories"
+                    width={300}
+                    height={300}
+                    className="w-full h-full object-cover"
+                    priority
+                  />
                 </div>
               </div>
             </div>

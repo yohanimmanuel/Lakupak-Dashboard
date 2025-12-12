@@ -1,5 +1,6 @@
 "use client";
 import React, { useRef, useEffect, useState } from "react";
+import Image from "next/image";
 import { BarChart3Icon, ShoppingCartIcon, CreditCardIcon, PackageIcon, SmartphoneIcon, FileTextIcon, XIcon, CheckIcon, ChartAreaIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -189,17 +190,43 @@ export default function FeaturesPage() {
               <div className="bg-white/95 rounded-2xl p-2 flex flex-col shadow-none animate-fade-in-up animation-delay-100">
                 <h2 className={`text-4xl font-bold mb-2 ${color}`}>{stickyTitle}</h2>
                 <p className="text-md text-gray-500 mb-6 animate-fade-in-up animation-delay-200">{stickySubtitle}</p>
-                <div className="relative w-[500px] h-[300px]">
-                  {features.map((feature: UiFeature, idx: number) => (
-                    <div
-                      key={idx}
-                      className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-                    >
-                      <div className="w-full h-full bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-500 text-lg font-medium shadow-xl animate-fade-in-up animation-delay-300">
-                        {feature.image}
+                <div className={`relative ${color === 'text-blue-700' ? 'w-[500px] h-[300px]' : 'w-[280px] h-[590px]'} flex items-center justify-center`}>
+                  {features.map((feature: UiFeature, idx: number) => {
+                    // Determine image source based on feature type (distributor vs retailer)
+                    const getImageSrc = () => {
+                      if (color === 'text-blue-700') {
+                        // Distributor features
+                        const distributorImages = ['/homepage.png', '/buyer.png', '/analytics.png'];
+                        return distributorImages[idx] || '/homepage.png';
+                      } else {
+                        // Retailer features
+                        const retailerImages = ['/mobilehome.png', '/mobileproduct.png', '/mobileorder.png'];
+                        return retailerImages[idx] || '/mobilehome.png';
+                      }
+                    };
+                    
+                    const isMobile = color === 'text-orange-700';
+                    const containerWidth = isMobile ? 280 : 500;
+                    const containerHeight = isMobile ? 600 : 300;
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${activeIdx === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                      >
+                        <div className={`${isMobile ? 'w-[280px] h-[600px]' : 'w-full h-full'} rounded-2xl overflow-hidden border border-gray-200 shadow-xl`}>
+                          <Image
+                            src={getImageSrc()}
+                            alt={feature.title || 'Feature Image'}
+                            width={containerWidth}
+                            height={containerHeight}
+                            className="w-full h-full object-cover"
+                            priority={idx === 0}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -355,11 +382,15 @@ export default function FeaturesPage() {
                 ))}
               </div>
 
-              <div className="w-full h-[350px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">🖥️</div>
-                  <p className="text-gray-500 font-medium">{t("platforms.distributor.screenshot")}</p>
-                </div>
+              <div className="w-full h-[350px] bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
+                <Image
+                  src="/buyer.png"
+                  alt="Laku-Laku Distributor Dashboard"
+                  width={600}
+                  height={350}
+                  className="w-full h-full object-cover"
+                  priority
+                />
               </div>
             </div>
 
@@ -384,10 +415,26 @@ export default function FeaturesPage() {
                 ))}
               </div>
 
-              <div className="w-full h-[350px] bg-gray-200 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">📱</div>
-                  <p className="text-gray-500 font-medium">{t("platforms.retailer.screenshot")}</p>
+              <div className="w-full h-[350px] grid grid-cols-2 gap-2">
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <Image
+                    src="/mobilemarketplacehome.jpg"
+                    alt="Laku-Laku Mobile Marketplace Home"
+                    width={300}
+                    height={350}
+                    className="w-full h-full object-cover"
+                    priority
+                  />
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <Image
+                    src="/categorymarketplace.jpg"
+                    alt="Laku-Laku Marketplace Categories"
+                    width={300}
+                    height={350}
+                    className="w-full h-full object-cover"
+                    priority
+                  />
                 </div>
               </div>
             </div>
@@ -430,35 +477,6 @@ export default function FeaturesPage() {
               >
                 {t("cta.button")}
               </button>
-            </div>
-            <div className="flex justify-center gap-6 mt-15 w-full">
-              <div className="flex flex-col items-center">
-                <div className="w-[690px] h-[450px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">
-                  <span className="text-gray-500 text-lg font-medium">[Dashboard Screenshot]</span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-[500px] h-[450px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">
-                  <span className="text-gray-500 text-lg font-medium">[Mobile App Screenshot]</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center gap-6 mt-6 w-full">
-              <div className="flex flex-col items-center">
-                <div className="w-[389px] h-[250px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">
-                  <span className="text-gray-500 text-lg font-medium">[Dashboard Screenshot]</span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-[389px] h-[250px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">
-                  <span className="text-gray-500 text-lg font-medium">[Marketplace Screenshot]</span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-[389px] h-[250px] bg-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 mx-auto">
-                  <span className="text-gray-500 text-lg font-medium">[Mobile App Screenshot]</span>
-                </div>
-              </div>
             </div>
           </div>
         </section>
