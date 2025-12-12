@@ -11,7 +11,6 @@ import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegra
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 import CreateOfferTypeModal from '@/components/offersincentivesdisc/CreateOfferTypeModal';
 import CreateDateRangeModal from '@/components/offersincentivesdisc/CreateDateRangeModal';
-import CreateTimeSlotModal from '@/components/offersincentivesdisc/CreateTimeSlotModal';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 
@@ -24,7 +23,6 @@ export default function CreateOfferPage() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
   const [showCreateRangeModal, setShowCreateRangeModal] = useState(false);
-  const [showCreateTimeSlotModal, setShowCreateTimeSlotModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   // Get state from the centralized store
@@ -36,9 +34,7 @@ export default function CreateOfferPage() {
     minOrderValue,
     minQuantity,
     selectedDateRange,
-    selectedTimeSlot,
     dateRanges,
-    timeSlots,
     startDate,
     endDate,
     perCustomerLimit,
@@ -56,13 +52,9 @@ export default function CreateOfferPage() {
     setMinOrderValue,
     setMinQuantity,
     setSelectedDateRange,
-    setSelectedTimeSlot,
     addDateRange,
     updateDateRange,
     removeDateRange,
-    addTimeSlot,
-    updateTimeSlot,
-    removeTimeSlot,
     setStartDate,
     setEndDate,
     setPerCustomerLimit,
@@ -84,7 +76,7 @@ export default function CreateOfferPage() {
 
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
-  const isDateRangeConfiguredComputed = Boolean(selectedDateRange || selectedTimeSlot);
+  const isDateRangeConfiguredComputed = Boolean(selectedDateRange || (dateRanges && dateRanges.length > 0));
   const isProductsConfigured = Object.keys(productOfferBadges || {}).length > 0;
 
   const tabs = [
@@ -123,19 +115,13 @@ export default function CreateOfferPage() {
     setIsCreating(true);
     
     try {
-      // Get dates from selected range or time slot
+      // Get dates from selected range or use main dates
       let offerStartDate = startDate;
       let offerEndDate = endDate;
       
       if (selectedDateRange) {
         offerStartDate = selectedDateRange.startDate;
         offerEndDate = selectedDateRange.endDate;
-      } else if (selectedTimeSlot) {
-        // For time slots, we need to set a date range
-        // You might want to adjust this logic based on your requirements
-        const today = new Date();
-        offerStartDate = today.toISOString().split('T')[0];
-        offerEndDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
       }
 
       // Determine offer types based on discount types
@@ -169,7 +155,6 @@ export default function CreateOfferPage() {
           $discountTypes: [DiscountTypeInput!]!
           $productIds: [String!]!
           $dateRanges: [DateRangeInput!]
-          $timeSlots: [TimeSlotInput!]
         ) {
           createOffer(
             userId: $userId
@@ -182,7 +167,6 @@ export default function CreateOfferPage() {
             discountTypes: $discountTypes
             productIds: $productIds
             dateRanges: $dateRanges
-            timeSlots: $timeSlots
           ) {
             id
             offerId
@@ -228,16 +212,6 @@ export default function CreateOfferPage() {
         isActive: dr.isActive !== false,
       }));
 
-      // Transform time slots for GraphQL
-      const graphQLTimeSlots = (timeSlots || []).map((ts) => ({
-        name: ts.name,
-        description: (ts as { description?: string }).description || null,
-        startTime: ts.startTime,
-        endTime: ts.endTime,
-        days: ts.days || [],
-        isActive: ts.isActive !== false,
-      }));
-
       await fetchGraphQL(CREATE_OFFER_MUTATION, {
         userId: user?.id,
         name,
@@ -249,7 +223,6 @@ export default function CreateOfferPage() {
         discountTypes: graphQLDiscountTypes,
         productIds,
         dateRanges: graphQLDateRanges.length > 0 ? graphQLDateRanges : null,
-        timeSlots: graphQLTimeSlots.length > 0 ? graphQLTimeSlots : null,
       });
 
       // Reset the store and redirect
@@ -332,18 +305,7 @@ export default function CreateOfferPage() {
               offerCount: 0,
               createdAt: new Date().toISOString()
             } : undefined}
-            selectedTimeSlot={selectedTimeSlot ? {
-              id: selectedTimeSlot.id,
-              name: selectedTimeSlot.name,
-              startTime: selectedTimeSlot.startTime,
-              endTime: selectedTimeSlot.endTime,
-              days: selectedTimeSlot.days,
-              isActive: selectedTimeSlot.isActive,
-              offerCount: 0,
-              createdAt: new Date().toISOString()
-            } : undefined}
             onOpenDateModal={() => setShowCreateRangeModal(true)}
-            onOpenTimeModal={() => setShowCreateTimeSlotModal(true)}
             onSelectDateRange={(dr) => setSelectedDateRange({
               id: dr.id,
               name: dr.name,
@@ -351,14 +313,6 @@ export default function CreateOfferPage() {
               startDate: dr.startDate,
               endDate: dr.endDate,
               isActive: dr.isActive
-            })}
-            onSelectTimeSlot={(ts) => setSelectedTimeSlot({
-              id: ts.id,
-              name: ts.name,
-              startTime: ts.startTime,
-              endTime: ts.endTime,
-              days: ts.days,
-              isActive: ts.isActive
             })}
           />
         );
@@ -421,24 +375,6 @@ export default function CreateOfferPage() {
     setShowCreateRangeModal(false);
   };
 
-  const handleSaveTimeSlot = (slotData: {
-    name: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    days: string[];
-  }) => {
-    const id = `slot_${Date.now()}`;
-    addTimeSlot({
-      id,
-      name: slotData.name,
-      startTime: slotData.startTime,
-      endTime: slotData.endTime,
-      days: slotData.days || [],
-      isActive: true,
-    });
-    setShowCreateTimeSlotModal(false);
-  };
 
   return (
     <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -608,11 +544,6 @@ export default function CreateOfferPage() {
         onSave={handleSaveDateRange}
       />
 
-      <CreateTimeSlotModal
-        isOpen={showCreateTimeSlotModal}
-        onClose={() => setShowCreateTimeSlotModal(false)}
-        onSave={handleSaveTimeSlot}
-      />
 
       {/* Preview Modal */}
       {showPreview && (
@@ -678,23 +609,13 @@ export default function CreateOfferPage() {
               )}
 
               {/* Offer Validity */}
-              {(selectedDateRange || selectedTimeSlot) && (
+              {selectedDateRange && (
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <h5 className="text-sm font-semibold text-gray-900 mb-2">Valid Period:</h5>
-                  {selectedDateRange && (
-                    <div className="text-sm text-gray-600 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{selectedDateRange.name}</span>
-                    </div>
-                  )}
-                  {selectedTimeSlot && (
-                    <div className="text-sm text-gray-600 flex items-center gap-2 mt-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{selectedTimeSlot.name}</span>
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>{selectedDateRange.name}</span>
+                  </div>
                 </div>
               )}
 

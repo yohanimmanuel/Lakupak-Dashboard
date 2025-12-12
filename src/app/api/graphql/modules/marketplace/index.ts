@@ -1,7 +1,7 @@
 import { type Prisma, Prisma as PrismaClient } from '@/generated/prisma';
 import { prisma } from '../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
-import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
+import { calculateSoldCounts, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { verifyAccessToken } from '@/lib/jwt';
@@ -734,23 +734,64 @@ const fetchMarketplaceProducts = async (args: {
     },
     include: {
       offerProducts: true,
-      offerDiscountTypes: true
+      offerDiscountTypes: true,
+      dateRanges: true
     }
   });
 
-  // Filter offers - keep offer if at least one discount type is still usable
+  // Deactivate expired offers based on date ranges
+  // This will check main dates and date ranges, and deactivate offers that are expired
+  for (const userId of userIds) {
+    await deactivateExpiredOffers(prisma, userId);
+  }
+
+  // Helper function to check if current time is within any active date range
+  const isWithinActiveDateRange = (dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean => {
+    if (!dateRanges || dateRanges.length === 0) {
+      return true; // No date ranges means offer is always active (within main dates)
+    }
+    
+    const now = new Date();
+    // Normalize to start of day for date-only comparisons
+    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return dateRanges.some(range => {
+      if (!range.isActive) return false;
+      
+      // Convert to Date objects if they're strings
+      const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
+      const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
+      
+      // Normalize to start of day for date-only comparisons
+      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      
+      // Check if current date is within range (inclusive)
+      return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+    });
+  };
+
+  // Filter offers - keep offer if at least one discount type is still usable AND date constraints are met
   const validOffers = [];
+  const now = new Date();
+  
   for (const offer of allOffers) {
+    // Check main date range (already filtered in query, but double-check)
+    if (offer.startDate > now || offer.endDate < now) {
+      continue;
+    }
+    
+    // Check date ranges if they exist
+    const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
+    if (!hasActiveDateRange) {
+      continue; // Skip this offer if no active date range matches
+    }
+    
+    // Check if at least one discount type is active
     let hasValidDiscountType = false;
     
     for (const discountType of offer.offerDiscountTypes) {
-      let isDiscountTypeValid = true;
-      
-      if (discountType.isActive !== true) {
-        isDiscountTypeValid = false;
-      }
-      
-      if (isDiscountTypeValid) {
+      if (discountType.isActive === true) {
         hasValidDiscountType = true;
         break;
       }
@@ -793,8 +834,9 @@ const fetchMarketplaceProducts = async (args: {
     const firstVariantOption = variantOptions.find(vo => vo.isDefault) || variantOptions[0];
     const sellingPrice = safeParsePrice(firstVariantOption.sellingPrice);
     const purchasePrice = safeParsePrice(firstVariantOption.purchasePrice);
-    const originalSellingPriceValue = safeParsePrice(firstVariantOption.originalSellingPrice) || sellingPrice;
-    const hasActiveDiscountInMainSystem = originalSellingPriceValue > sellingPrice;
+    const storedOriginalPrice = firstVariantOption.originalSellingPrice 
+      ? safeParsePrice(firstVariantOption.originalSellingPrice) 
+      : null;
     
     const productOffers = productOffersMap.get(product.productId) || [];
     let offerBadge = undefined;
@@ -867,6 +909,16 @@ const fetchMarketplaceProducts = async (args: {
       }
     }
     
+    // Only show originalSellingPrice (strikethrough) if:
+    // 1. There's an active offer with price discounts, AND
+    // 2. The stored original price exists and is greater than selling price
+    // Otherwise, don't show strikethrough (no offer or no price discount)
+    if (hasActiveOffer && hasPriceDiscounts && storedOriginalPrice && storedOriginalPrice > sellingPrice) {
+      originalSellingPrice = storedOriginalPrice;
+    } else {
+      originalSellingPrice = undefined; // No strikethrough when no offer
+    }
+    
     const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
     const totalLowStockThreshold = variantOptions.reduce((max, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
     
@@ -880,7 +932,7 @@ const fetchMarketplaceProducts = async (args: {
       description: product.description,
       userId: product.userId,
       sellingPrice: sellingPrice,
-      originalSellingPrice: originalSellingPriceValue > sellingPrice ? originalSellingPriceValue : undefined,
+      originalSellingPrice: originalSellingPrice, // Only set if there's an active offer with price discount
       price: sellingPrice,
       originalPrice: purchasePrice,
       offerBadge,

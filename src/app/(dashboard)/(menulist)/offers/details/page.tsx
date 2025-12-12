@@ -66,17 +66,6 @@ export default function OffersDetailsPage() {
           createdAt
           updatedAt
         }
-        timeSlots {
-          id
-          name
-          description
-          startTime
-          endTime
-          days
-          isActive
-          createdAt
-          updatedAt
-        }
       }
     }
   `;
@@ -121,17 +110,6 @@ export default function OffersDetailsPage() {
               createdAt: string;
               updatedAt: string;
             }>;
-            timeSlots: Array<{
-              id: string;
-              name: string;
-              description: string | null;
-              startTime: string;
-              endTime: string;
-              days: string[];
-              isActive: boolean;
-              createdAt: string;
-              updatedAt: string;
-            }>;
             products: Array<{
               productId: string;
             }>;
@@ -168,28 +146,14 @@ export default function OffersDetailsPage() {
             updatedAt: dr.updatedAt,
           }));
           
-          // Transform time slots
-          const transformedTimeSlots = offer.timeSlots.map((ts) => ({
-            id: ts.id,
-            name: ts.name,
-            description: ts.description || undefined,
-            startTime: ts.startTime,
-            endTime: ts.endTime,
-            days: ts.days || [],
-            isActive: ts.isActive,
-            offerCount: 0,
-            createdAt: ts.createdAt,
-            updatedAt: ts.updatedAt,
-          }));
-          
           // Transform products from GraphQL response
-          const transformedProducts = offer.products.map((p) => ({
+          const transformedProducts: OfferProduct[] = offer.products.map((p) => ({
             id: `po-${Date.now()}-${p.productId}`,
             productId: p.productId,
-            offerId: offer.id,
-            discountType: 'percentage' as const,
-            discountValue: 0,
-            isActive: true
+            name: '', // Will be populated from product data if needed
+            productType: '',
+            productCategory: '',
+            sellingPrice: 0
           }));
 
           // Compute productOfferBadges from discount types
@@ -223,7 +187,6 @@ export default function OffersDetailsPage() {
             totalDiscountGiven: offer.totalDiscountGiven,
             discountTypes: transformedDiscountTypes,
             dateRanges: transformedDateRanges,
-            timeSlots: transformedTimeSlots,
             products: transformedProducts,
             productOfferBadges: computedBadges,
             createdAt: new Date().toISOString(),
@@ -316,13 +279,13 @@ export default function OffersDetailsPage() {
         }));
         
         // Transform products from GraphQL response
-        const transformedProducts = offer.products.map((p) => ({
+        const transformedProducts: OfferProduct[] = offer.products.map((p) => ({
           id: `po-${Date.now()}-${p.productId}`,
           productId: p.productId,
-          offerId: offer.id,
-          discountType: 'percentage' as const,
-          discountValue: 0,
-          isActive: true
+          name: '', // Will be populated from product data if needed
+          productType: '',
+          productCategory: '',
+          sellingPrice: 0
         }));
 
         // Compute productOfferBadges from discount types
@@ -356,20 +319,6 @@ export default function OffersDetailsPage() {
           updatedAt: dr.updatedAt,
         }));
 
-        // Transform time slots
-        const transformedTimeSlots = offer.timeSlots.map((ts) => ({
-          id: ts.id,
-          name: ts.name,
-          description: ts.description || undefined,
-          startTime: ts.startTime,
-          endTime: ts.endTime,
-          days: ts.days || [],
-          isActive: ts.isActive,
-          offerCount: 0,
-          createdAt: ts.createdAt,
-          updatedAt: ts.updatedAt,
-        }));
-        
         const transformedOffer: Offer = {
           id: offer.id,
           offerId: offer.offerId,
@@ -383,7 +332,6 @@ export default function OffersDetailsPage() {
           totalDiscountGiven: offer.totalDiscountGiven,
           discountTypes: transformedDiscountTypes,
           dateRanges: transformedDateRanges,
-          timeSlots: transformedTimeSlots,
           products: transformedProducts,
           productOfferBadges: computedBadges,
           createdAt: currentOffer?.createdAt || new Date().toISOString(),
@@ -420,7 +368,6 @@ export default function OffersDetailsPage() {
       $discountTypes: [DiscountTypeInput!]
       $productIds: [String!]
       $dateRanges: [DateRangeInput!]
-      $timeSlots: [TimeSlotInput!]
     ) {
       updateOffer(
         userId: $userId
@@ -434,7 +381,6 @@ export default function OffersDetailsPage() {
         discountTypes: $discountTypes
         productIds: $productIds
         dateRanges: $dateRanges
-        timeSlots: $timeSlots
       ) {
         id
         offerId
@@ -449,17 +395,6 @@ export default function OffersDetailsPage() {
           description
           startDate
           endDate
-          isActive
-          createdAt
-          updatedAt
-        }
-        timeSlots {
-          id
-          name
-          description
-          startTime
-          endTime
-          days
           isActive
           createdAt
           updatedAt
@@ -500,16 +435,6 @@ export default function OffersDetailsPage() {
         startDate: typeof dr.startDate === 'string' ? dr.startDate : new Date(dr.startDate).toISOString(),
         endDate: typeof dr.endDate === 'string' ? dr.endDate : new Date(dr.endDate).toISOString(),
         isActive: dr.isActive !== false,
-      }));
-
-      // Transform time slots for GraphQL
-      const graphQLTimeSlots = (currentOffer.timeSlots || []).map((ts) => ({
-        name: ts.name,
-        description: ts.description || null,
-        startTime: ts.startTime,
-        endTime: ts.endTime,
-        days: ts.days || [],
-        isActive: ts.isActive !== false,
       }));
 
       const updateResult = await fetchGraphQL<{
@@ -555,10 +480,9 @@ export default function OffersDetailsPage() {
         discountTypes: graphQLDiscountTypes.length > 0 ? graphQLDiscountTypes : null,
         productIds: productIds, // Always send array (even if empty) to ensure products are updated/removed
         dateRanges: graphQLDateRanges.length > 0 ? graphQLDateRanges : null,
-        timeSlots: graphQLTimeSlots.length > 0 ? graphQLTimeSlots : null,
       });
 
-      // Update currentOffer with the returned dateRanges and timeSlots
+      // Update currentOffer with the returned dateRanges
       if (updateResult.updateOffer && currentOffer) {
         const updatedDateRanges = updateResult.updateOffer.dateRanges.map((dr) => ({
           id: dr.id,
@@ -572,30 +496,17 @@ export default function OffersDetailsPage() {
           updatedAt: dr.updatedAt,
         }));
 
-        const updatedTimeSlots = updateResult.updateOffer.timeSlots.map((ts) => ({
-          id: ts.id,
-          name: ts.name,
-          description: ts.description || undefined,
-          startTime: ts.startTime,
-          endTime: ts.endTime,
-          days: ts.days || [],
-          isActive: ts.isActive,
-          offerCount: 0,
-          createdAt: ts.createdAt,
-          updatedAt: ts.updatedAt,
-        }));
-
         // Transform products from GraphQL response
-        const updatedProducts = updateResult.updateOffer.products.map((p) => {
-          // Find existing product data to preserve discount info
+        const updatedProducts: OfferProduct[] = updateResult.updateOffer.products.map((p) => {
+          // Find existing product data to preserve all fields
           const existingProduct = currentOffer.products?.find(ep => ep.productId === p.productId);
           return existingProduct || {
             id: `po-${Date.now()}-${p.productId}`,
             productId: p.productId,
-            offerId: currentOffer.id,
-            discountType: 'percentage' as const,
-            discountValue: 0,
-            isActive: true
+            name: '', // Will be populated from product data if needed
+            productType: '',
+            productCategory: '',
+            sellingPrice: 0
           };
         });
 
@@ -620,23 +531,21 @@ export default function OffersDetailsPage() {
           }
         });
 
-        // Update currentOffer with saved products, badges, dateRanges and timeSlots
+        // Update currentOffer with saved products, badges, and dateRanges
         setCurrentOffer({
           ...currentOffer,
           products: updatedProducts,
           productOfferBadges: updatedBadges,
           dateRanges: updatedDateRanges,
-          timeSlots: updatedTimeSlots,
         });
         setOriginalOffer({
           ...currentOffer,
           products: updatedProducts,
           productOfferBadges: updatedBadges,
           dateRanges: updatedDateRanges,
-          timeSlots: updatedTimeSlots,
         });
       } else {
-        // Fallback: refresh the entire offer if mutation response doesn't include dateRanges/timeSlots
+        // Fallback: refresh the entire offer if mutation response doesn't include dateRanges
       await refreshOffer();
       }
       

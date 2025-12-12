@@ -138,6 +138,21 @@ export default function OfferTable({
     // Create color-coded usage display for each discount type
     const usageDisplay = createUsageDisplay(offer);
 
+    // Use date range dates if available, otherwise use main offer dates
+    let displayStartDate = offer.startDate;
+    let displayEndDate = offer.endDate;
+    
+    if (offer.dateRanges && offer.dateRanges.length > 0) {
+      // Find the earliest start date and latest end date from active date ranges
+      const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
+      if (activeDateRanges.length > 0) {
+        const startDates = activeDateRanges.map(dr => new Date(dr.startDate));
+        const endDates = activeDateRanges.map(dr => new Date(dr.endDate));
+        displayStartDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
+        displayEndDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+      }
+    }
+
     return {
       id: offer.id,
       offerId: offer.offerId,
@@ -145,8 +160,8 @@ export default function OfferTable({
       type: offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown',
       discount: discountDisplay,
       status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
-      startDate: format(new Date(offer.startDate), 'MMM dd, yyyy'),
-      endDate: format(new Date(offer.endDate), 'MMM dd, yyyy'),
+      startDate: format(new Date(displayStartDate), 'MMM dd, yyyy'),
+      endDate: format(new Date(displayEndDate), 'MMM dd, yyyy'),
       usage: usageDisplay as string, // Cast to string for the table row
       totalDiscount: formatCurrency(calculatedTotalDiscount, userCurrency),
       actions: 'actions'

@@ -40,6 +40,16 @@ export default function OffersPage() {
             isActive
             priority
           }
+          dateRanges {
+            id
+            name
+            description
+            startDate
+            endDate
+            isActive
+            createdAt
+            updatedAt
+          }
         }
         pagination {
           totalCount
@@ -79,6 +89,16 @@ export default function OffersPage() {
               isActive: boolean;
               priority: number;
             }>;
+            dateRanges: Array<{
+              id: string;
+              name: string;
+              description: string | null;
+              startDate: string;
+              endDate: string;
+              isActive: boolean;
+              createdAt: string;
+              updatedAt: string;
+            }>;
           }>;
           pagination: {
             totalCount: number;
@@ -110,6 +130,16 @@ export default function OffersPage() {
           minQuantity: dt.minQuantity || undefined,
           isActive: dt.isActive,
           priority: dt.priority,
+        })),
+        dateRanges: offer.dateRanges?.map((dr) => ({
+          id: dr.id,
+          name: dr.name,
+          description: dr.description || undefined,
+          startDate: dr.startDate,
+          endDate: dr.endDate,
+          isActive: dr.isActive,
+          createdAt: dr.createdAt,
+          updatedAt: dr.updatedAt,
         })),
         products: [], // Products are not included in the offers query
         createdAt: new Date().toISOString(),

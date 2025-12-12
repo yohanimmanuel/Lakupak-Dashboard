@@ -1,6 +1,6 @@
 import { type Prisma } from '@/generated/prisma';
 import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
-import { updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
+import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 
@@ -26,18 +26,6 @@ export const offersTypeDefs = /* GraphQL */ `
     updatedAt: String
   }
 
-  type OfferTimeSlot {
-    id: String!
-    name: String!
-    description: String
-    startTime: String!
-    endTime: String!
-    days: [String!]!
-    isActive: Boolean!
-    createdAt: String
-    updatedAt: String
-  }
-
   type OfferProduct {
     productId: String!
   }
@@ -55,7 +43,6 @@ export const offersTypeDefs = /* GraphQL */ `
     totalDiscountGiven: Float!
     discountTypes: [OfferDiscount!]!
     dateRanges: [OfferDateRange!]!
-    timeSlots: [OfferTimeSlot!]!
     products: [OfferProduct!]!
   }
 
@@ -80,15 +67,6 @@ export const offersTypeDefs = /* GraphQL */ `
     description: String
     startDate: String!
     endDate: String!
-    isActive: Boolean
-  }
-
-  input TimeSlotInput {
-    name: String!
-    description: String
-    startTime: String!
-    endTime: String!
-    days: [String!]!
     isActive: Boolean
   }
 
@@ -121,7 +99,6 @@ export const offersTypeDefs = /* GraphQL */ `
       discountTypes: [DiscountTypeInput!]!
       productIds: [String!]!
       dateRanges: [DateRangeInput!]
-      timeSlots: [TimeSlotInput!]
     ): Offer!
 
     updateOffer(
@@ -136,7 +113,6 @@ export const offersTypeDefs = /* GraphQL */ `
       discountTypes: [DiscountTypeInput!]
       productIds: [String!]
       dateRanges: [DateRangeInput!]
-      timeSlots: [TimeSlotInput!]
     ): Offer!
 
     deleteOffer(userId: Int!, id: String!): DeleteOfferResult!
@@ -148,7 +124,6 @@ const mapOffer = (
     include: {
       offerDiscountTypes: true;
       dateRanges: true;
-      timeSlots: true;
       offerProducts: true;
     };
   }>,
@@ -182,17 +157,6 @@ const mapOffer = (
     createdAt: dr.createdAt.toISOString(),
     updatedAt: dr.updatedAt.toISOString(),
   })),
-  timeSlots: (offer.timeSlots || []).map((ts) => ({
-    id: ts.id,
-    name: ts.name,
-    description: ts.description,
-    startTime: ts.startTime,
-    endTime: ts.endTime,
-    days: ts.days || [],
-    isActive: ts.isActive,
-    createdAt: ts.createdAt.toISOString(),
-    updatedAt: ts.updatedAt.toISOString(),
-  })),
   products: (offer.offerProducts || []).map((op) => ({
     productId: op.productId,
   })),
@@ -207,6 +171,12 @@ const fetchOffersConnection = async (args: {
 }) => {
   const { userId, page = 1, limit = 10, status, type } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
+
+  // Deactivate expired offers before fetching (this also restores prices)
+  await deactivateExpiredOffers(prisma, userId);
+  
+  // Ensure prices are updated after deactivation
+  await updateProductPricesFromOffers(prisma, userId);
 
   const whereClause: Prisma.OfferWhereInput = { userId };
 
@@ -227,7 +197,6 @@ const fetchOffersConnection = async (args: {
       include: {
         offerDiscountTypes: true,
         dateRanges: true,
-        timeSlots: true,
         offerProducts: true,
       },
     }),
@@ -251,7 +220,6 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
     include: {
       offerDiscountTypes: true,
       dateRanges: true,
-      timeSlots: true,
       offerProducts: true,
     },
   });
@@ -289,14 +257,6 @@ const createOffer = async (args: {
     endDate: string;
     isActive?: boolean | null;
   }> | null;
-  timeSlots?: Array<{
-    name: string;
-    description?: string | null;
-    startTime: string;
-    endTime: string;
-    days: string[];
-    isActive?: boolean | null;
-  }> | null;
 }) => {
   const {
     userId,
@@ -309,7 +269,6 @@ const createOffer = async (args: {
     discountTypes,
     productIds,
     dateRanges = [],
-    timeSlots = [],
   } = args;
 
   if (!name || !type || !discountTypes?.length || !startDate || !endDate || !productIds?.length) {
@@ -393,20 +352,6 @@ const createOffer = async (args: {
       });
     }
 
-    if (timeSlots && timeSlots.length > 0) {
-      await tx.timeSlot.createMany({
-        data: timeSlots.map((ts) => ({
-          offerId: createdOffer.id,
-          name: ts.name,
-          description: ts.description || null,
-          startTime: ts.startTime,
-          endTime: ts.endTime,
-          days: ts.days,
-          isActive: ts.isActive !== false,
-        })),
-      });
-    }
-
     return createdOffer;
   });
 
@@ -416,17 +361,16 @@ const createOffer = async (args: {
 
   const createdOfferWithRelations = await prisma.offer.findUnique({
     where: { id: offer.id },
-    include: {
-      offerDiscountTypes: true,
-      dateRanges: true,
-      timeSlots: true,
-      offerProducts: true,
-    },
-  });
+      include: {
+        offerDiscountTypes: true,
+        dateRanges: true,
+        offerProducts: true,
+      },
+    });
 
-  if (!createdOfferWithRelations) {
-    throw new Error('Failed to fetch created offer');
-  }
+    if (!createdOfferWithRelations) {
+      throw new Error('Failed to fetch created offer');
+    }
 
   try {
     await broadcastOfferUpdate(createdOfferWithRelations.id, productIds);
@@ -465,14 +409,6 @@ const updateOffer = async (args: {
     endDate: string;
     isActive?: boolean | null;
   }> | null;
-  timeSlots?: Array<{
-    name: string;
-    description?: string | null;
-    startTime: string;
-    endTime: string;
-    days: string[];
-    isActive?: boolean | null;
-  }> | null;
 }) => {
   const {
     userId,
@@ -486,7 +422,6 @@ const updateOffer = async (args: {
     discountTypes,
     productIds,
     dateRanges,
-    timeSlots,
   } = args;
 
   const where = {
@@ -601,26 +536,6 @@ const updateOffer = async (args: {
       }
     }
 
-    if (timeSlots !== undefined) {
-      await tx.timeSlot.deleteMany({
-        where: { offerId: offer.id },
-      });
-
-      if (timeSlots && timeSlots.length > 0) {
-        await tx.timeSlot.createMany({
-          data: timeSlots.map((ts) => ({
-            offerId: offer.id,
-            name: ts.name,
-            description: ts.description || null,
-            startTime: ts.startTime,
-            endTime: ts.endTime,
-            days: ts.days,
-            isActive: ts.isActive !== false,
-          })),
-        });
-      }
-    }
-
     return offer;
   });
 
@@ -634,7 +549,6 @@ const updateOffer = async (args: {
       offerDiscountTypes: true,
       offerProducts: true,
       dateRanges: true,
-      timeSlots: true,
     },
   });
 
@@ -663,17 +577,16 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
 
   const offerToDelete = await prisma.offer.findFirst({
     where,
-    include: {
-      offerDiscountTypes: true,
-      offerProducts: true,
-      dateRanges: true,
-      timeSlots: true,
-    },
-  });
+      include: {
+        offerDiscountTypes: true,
+        offerProducts: true,
+        dateRanges: true,
+      },
+    });
 
-  if (!offerToDelete) {
-    throw new Error('Offer not found or you do not have permission to delete it');
-  }
+    if (!offerToDelete) {
+      throw new Error('Offer not found or you do not have permission to delete it');
+    }
 
   const affectedProductIds = offerToDelete.offerProducts.map((op) => op.productId);
 

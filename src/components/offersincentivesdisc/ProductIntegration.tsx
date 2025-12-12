@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, Clock, ChevronUp } from 'lucide-react';
+import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, ChevronUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
@@ -37,19 +37,6 @@ interface DateRange {
   updatedAt?: string;
 }
 
-interface TimeSlot {
-  id: string;
-  name: string;
-  description?: string | null | undefined;
-  startTime: string;
-  endTime: string;
-  days: string[];
-  isActive: boolean;
-  offerCount?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 interface OfferProduct {
   id: string;
   productId: string;
@@ -68,7 +55,6 @@ interface OfferData {
   status: string;
   discountTypes: DiscountType[];
   dateRanges?: DateRange[];
-  timeSlots?: TimeSlot[];
   products: OfferProduct[];
   [key: string]: unknown;
   startDate: Date | string;
@@ -119,20 +105,18 @@ export default function ProductIntegration({
   const [forceRender, setForceRender] = useState(0);
   const rowsPerPage = 8;
   
-  // Ranges/time slots and configured offer types come from centralized offer creation store
+  // Ranges and configured offer types come from centralized offer creation store
   const store = useOfferCreationStore();
-  const { dateRanges: storeDateRanges, timeSlots: storeTimeSlots, discountTypes: storeDiscountTypes, productOfferBadges: storeProductOfferBadges, setProductOfferBadge, clearProductOfferBadge } = store;
+  const { dateRanges: storeDateRanges, discountTypes: storeDiscountTypes, productOfferBadges: storeProductOfferBadges, setProductOfferBadge, clearProductOfferBadge } = store;
   
   // Use offerData if provided (details view), otherwise use store data (create view)
   const dateRanges = offerData?.dateRanges || storeDateRanges;
-  const timeSlots = offerData?.timeSlots || storeTimeSlots;
   const discountTypes = offerData?.discountTypes || storeDiscountTypes;
   const productOfferBadges = offerData?.productOfferBadges || storeProductOfferBadges;
   const isDetailsView = Boolean(offerData); // Flag to determine if we're in details view
   const isBatchEditMode = Boolean(offerData && onOfferChange);
   
   // Modal states
-  const [rangeTab, setRangeTab] = useState<'date' | 'time'>('date');
   const [showMoreOfferTypes, setShowMoreOfferTypes] = useState(false);
   const [showMoreRanges, setShowMoreRanges] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -140,7 +124,6 @@ export default function ProductIntegration({
   // Selection states for flexible offer/period application
   const [selectedOfferTypes, setSelectedOfferTypes] = useState<string[]>([]);
   const [selectedDateRanges, setSelectedDateRanges] = useState<string[]>([]);
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
 
   // Map real discount types from store to display-friendly items
   const getTypeLabel = (t: 'percentage' | 'fixed' | 'buy_x_get_y') => {
@@ -180,13 +163,6 @@ export default function ProductIntegration({
     );
   };
 
-  const toggleTimeSlot = (slotId: string) => {
-    setSelectedTimeSlots(prev =>
-      prev.includes(slotId)
-        ? prev.filter(id => id !== slotId)
-        : [...prev, slotId]
-    );
-  };
 
   const selectAllOfferTypes = () => {
     if (selectedOfferTypes.length === offerTypes.length) {
@@ -204,13 +180,6 @@ export default function ProductIntegration({
     }
   };
 
-  const selectAllTimeSlots = () => {
-    if (selectedTimeSlots.length === timeSlots.length) {
-      setSelectedTimeSlots([]);
-    } else {
-      setSelectedTimeSlots(timeSlots.map((ts) => ts.id));
-    }
-  };
 
   // Determine badge label to apply to selected products
   const computeOfferBadge = (): string => {
@@ -1366,11 +1335,11 @@ export default function ProductIntegration({
                   )}
                 </div>
 
-                {/* Date & Time Ranges Section */}
+                {/* Date Ranges Section */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h5 className="text-sm font-medium text-gray-700">Active Periods</h5>
-                    {rangeTab === 'date' && dateRanges && dateRanges.length > 0 && (
+                    {dateRanges && dateRanges.length > 0 && (
                       <button
                         onClick={selectAllDateRanges}
                         className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
@@ -1378,133 +1347,50 @@ export default function ProductIntegration({
                         {selectedDateRanges.length === dateRanges.length ? 'Deselect All' : 'Select All'}
                       </button>
                     )}
-                    {rangeTab === 'time' && timeSlots && timeSlots.length > 0 && (
-                      <button
-                        onClick={selectAllTimeSlots}
-                        className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
-                      >
-                        {selectedTimeSlots.length === timeSlots.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    )}
                   </div>
                   
-                  {/* Range Tabs */}
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setRangeTab('date')}
-                      className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-colors ${
-                        rangeTab === 'date'
-                          ? 'bg-[#0a61d7] text-white'
-                          : 'text-gray-600 hover:text-black hover:bg-gray-100'
-                      }`}
-                    >
-                      <Calendar className="w-3 h-3" />
-                      Date Ranges
-                    </button>
-                    <button
-                      onClick={() => setRangeTab('time')}
-                      className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-colors ${
-                        rangeTab === 'time'
-                          ? 'bg-[#0a61d7] text-white'
-                          : 'text-gray-600 hover:text-black hover:bg-gray-100'
-                      }`}
-                    >
-                      <Clock className="w-3 h-3" />
-                      Time Slots
-                    </button>
-                  </div>
-
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    {rangeTab === 'date' ? (
-                      <div className="space-y-3">
-                        {/* Show all date ranges with checkboxes */}
-                        {dateRanges && dateRanges.length > 0 ? (
-                          dateRanges.map((range, index: number) => (
-                            <div key={range.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
-                              <div className="flex items-start gap-3">
-                                <button
-                                  onClick={() => toggleDateRange(range.id)}
-                                  className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
-                                    selectedDateRanges.includes(range.id)
-                                      ? 'bg-[#0a61d7] border-[#0a61d7]'
-                                      : 'bg-white border-gray-300 hover:border-[#0a61d7]'
-                                  }`}
-                                >
-                                  {selectedDateRanges.includes(range.id) && (
-                                    <Check className="w-3 h-3 text-white" />
-                                  )}
-                                </button>
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-600">Active Period:</span>
-                                    <span className="text-xs font-medium text-black">{range.name}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-600">Duration:</span>
-                                    <span className="text-xs font-medium text-black">
-                                      {new Date(range.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(range.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </span>
-                                  </div>
+                    <div className="space-y-3">
+                      {/* Show all date ranges with checkboxes */}
+                      {dateRanges && dateRanges.length > 0 ? (
+                        dateRanges.map((range, index: number) => (
+                          <div key={range.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggleDateRange(range.id)}
+                                className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
+                                  selectedDateRanges.includes(range.id)
+                                    ? 'bg-[#0a61d7] border-[#0a61d7]'
+                                    : 'bg-white border-gray-300 hover:border-[#0a61d7]'
+                                }`}
+                              >
+                                {selectedDateRanges.includes(range.id) && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </button>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">Active Period:</span>
+                                  <span className="text-xs font-medium text-black">{range.name}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">Duration:</span>
+                                  <span className="text-xs font-medium text-black">
+                                    {new Date(range.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(range.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </span>
                                 </div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-gray-500">No date ranges configured.</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {/* Show all time slots with checkboxes */}
-                        {timeSlots && timeSlots.length > 0 ? (
-                          timeSlots.map((slot, index: number) => (
-                            <div key={slot.id} className={`${index > 0 ? 'pt-3 border-t border-gray-300' : ''}`}>
-                              <div className="flex items-start gap-3">
-                                <button
-                                  onClick={() => toggleTimeSlot(slot.id)}
-                                  className={`mt-0.5 w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
-                                    selectedTimeSlots.includes(slot.id)
-                                      ? 'bg-[#0a61d7] border-[#0a61d7]'
-                                      : 'bg-white border-gray-300 hover:border-[#0a61d7]'
-                                  }`}
-                                >
-                                  {selectedTimeSlots.includes(slot.id) && (
-                                    <Check className="w-3 h-3 text-white" />
-                                  )}
-                                </button>
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-600">Time Slot:</span>
-                                    <span className="text-xs font-medium text-black">{slot.name}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-600">Schedule:</span>
-                                    <span className="text-xs font-medium text-black">
-                                      {slot.startTime} - {slot.endTime}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-600">Days:</span>
-                                    <span className="text-xs font-medium text-black">{slot.days.join(', ')}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-gray-500">No time slots configured.</div>
-                        )}
-                      </div>
-                    )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-gray-500">No date ranges configured.</div>
+                      )}
+                    </div>
                   </div>
-                  {rangeTab === 'date' && selectedDateRanges.length > 0 && (
+                  {selectedDateRanges.length > 0 && (
                     <div className="text-xs text-[#0a61d7] font-medium">
                       {selectedDateRanges.length} date range{selectedDateRanges.length !== 1 ? 's' : ''} selected
-                    </div>
-                  )}
-                  {rangeTab === 'time' && selectedTimeSlots.length > 0 && (
-                    <div className="text-xs text-[#0a61d7] font-medium">
-                      {selectedTimeSlots.length} time slot{selectedTimeSlots.length !== 1 ? 's' : ''} selected
                     </div>
                   )}
                 </div>
@@ -1514,9 +1400,9 @@ export default function ProductIntegration({
             {/* Footer */}
             <div className="flex flex-col gap-3 p-4 border-t border-gray-200 text-sm flex-shrink-0 rounded-b-lg">
               {/* Validation Message */}
-              {(selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)) && (
+              {(selectedOfferTypes.length === 0 || selectedDateRanges.length === 0) && (
                 <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  ⚠️ Please select at least one offer type and one active period (date range or time slot)
+                  ⚠️ Please select at least one offer type and one date range
                 </div>
               )}
               
@@ -1527,7 +1413,6 @@ export default function ProductIntegration({
                     // Reset selections
                     setSelectedOfferTypes([]);
                     setSelectedDateRanges([]);
-                    setSelectedTimeSlots([]);
                   }}
                   className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
                 >
@@ -1552,7 +1437,6 @@ export default function ProductIntegration({
                           setSelectedProducts([]);
                           setSelectedOfferTypes([]);
                           setSelectedDateRanges([]);
-                          setSelectedTimeSlots([]);
                         }}
                         className="flex items-center gap-2 px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                       >
@@ -1565,15 +1449,15 @@ export default function ProductIntegration({
                   // Otherwise, show apply button
                   return (
                 <button
-                  disabled={selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)}
+                  disabled={selectedOfferTypes.length === 0 || selectedDateRanges.length === 0}
                   onClick={() => {
                     // Validate selections
                     if (selectedOfferTypes.length === 0) {
                       alert('Please select at least one offer type');
                       return;
                     }
-                    if (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0) {
-                      alert('Please select at least one active period (date range or time slot)');
+                    if (selectedDateRanges.length === 0) {
+                      alert('Please select at least one date range');
                       return;
                     }
                   if (isBatchEditMode && offerData) {
@@ -1660,10 +1544,9 @@ export default function ProductIntegration({
                   // Reset selections
                   setSelectedOfferTypes([]);
                   setSelectedDateRanges([]);
-                  setSelectedTimeSlots([]);
                 }}
                 className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
-                  selectedOfferTypes.length === 0 || (selectedDateRanges.length === 0 && selectedTimeSlots.length === 0)
+                  selectedOfferTypes.length === 0 || selectedDateRanges.length === 0
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
                 }`}

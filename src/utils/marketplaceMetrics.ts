@@ -56,6 +56,121 @@ export async function calculateSoldCounts(
   return result;
 }
 
+/**
+ * Deactivate expired offers based on main dates and date ranges
+ * This function should be called periodically or when checking offers
+ */
+export async function deactivateExpiredOffers(
+  tx: Prisma.TransactionClient | PrismaClient,
+  userId?: number
+): Promise<{ deactivatedCount: number; affectedUserIds: number[] }> {
+  try {
+    const now = new Date();
+    const affectedUserIds = new Set<number>();
+    let deactivatedCount = 0;
+
+    // Get all active offers (optionally filtered by userId)
+    const whereClause: Prisma.OfferWhereInput = {
+      status: 'active',
+    };
+    
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    const activeOffers = await tx.offer.findMany({
+      where: whereClause,
+      include: {
+        dateRanges: true,
+        offerDiscountTypes: true,
+        offerProducts: {
+          select: {
+            productId: true,
+          },
+        },
+      },
+    });
+
+    const offersToDeactivate: string[] = [];
+
+    for (const offer of activeOffers) {
+      // Check main date range
+      if (offer.startDate > now || offer.endDate < now) {
+        offersToDeactivate.push(offer.id);
+        if (offer.userId) affectedUserIds.add(offer.userId);
+        continue;
+      }
+
+      // Check date ranges if they exist
+      // If offer has date ranges, at least one must be active
+      if (offer.dateRanges && offer.dateRanges.length > 0) {
+        // Normalize to start of day for date-only comparisons
+        const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        const hasActiveDateRange = offer.dateRanges.some(range => {
+          if (!range.isActive) return false;
+          
+          // Convert to Date objects if they're strings
+          const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
+          const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
+          
+          // Normalize to start of day for date-only comparisons
+          const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+          const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+          
+          // Check if current date is within range (inclusive)
+          return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+        });
+        
+        if (!hasActiveDateRange) {
+          offersToDeactivate.push(offer.id);
+          if (offer.userId) affectedUserIds.add(offer.userId);
+          continue;
+        }
+      }
+
+      // Check if at least one discount type is active
+      const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);
+      if (!hasActiveDiscountType) {
+        offersToDeactivate.push(offer.id);
+        if (offer.userId) affectedUserIds.add(offer.userId);
+        continue;
+      }
+    }
+
+    // Deactivate expired offers
+    if (offersToDeactivate.length > 0) {
+      await tx.offer.updateMany({
+        where: {
+          id: { in: offersToDeactivate },
+        },
+        data: {
+          status: 'inactive',
+        },
+      });
+
+      deactivatedCount = offersToDeactivate.length;
+      
+      // Restore product prices for all affected users
+      // This ensures prices are restored when offers expire
+      for (const affectedUserId of affectedUserIds) {
+        await updateProductPricesFromOffers(tx, affectedUserId);
+      }
+    }
+
+    return {
+      deactivatedCount,
+      affectedUserIds: Array.from(affectedUserIds),
+    };
+  } catch (error) {
+    // Silently handle errors - deactivation is non-critical
+    return {
+      deactivatedCount: 0,
+      affectedUserIds: [],
+    };
+  }
+}
+
 export async function updateProductPricesFromOffers(
   tx: Prisma.TransactionClient | PrismaClient,
   userId: number,
@@ -69,6 +184,9 @@ export async function updateProductPricesFromOffers(
       },
     });
 
+    const now = new Date();
+    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     for (const product of products) {
       const productOffers = await tx.offer.findMany({
         where: {
@@ -80,21 +198,61 @@ export async function updateProductPricesFromOffers(
         },
         include: {
           offerDiscountTypes: true,
+          dateRanges: true,
         },
+      });
+
+      // Filter offers to only include those with valid date ranges
+      const validProductOffers = productOffers.filter(offer => {
+        // Check main date range
+        if (offer.startDate > now || offer.endDate < now) {
+          return false;
+        }
+
+        // Check date ranges if they exist
+        if (offer.dateRanges && offer.dateRanges.length > 0) {
+          const hasActiveDateRange = offer.dateRanges.some(range => {
+            if (!range.isActive) return false;
+            
+            const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
+            const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
+            
+            const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+            
+            return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+          });
+          
+          if (!hasActiveDateRange) {
+            return false;
+          }
+        }
+
+        // Check if at least one discount type is active
+        return offer.offerDiscountTypes.some(dt => dt.isActive === true);
       });
 
       if (product.variantOptions && product.variantOptions.length > 0) {
         for (const variantOption of product.variantOptions) {
-          const originalPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
-          const currentOriginalPrice = variantOption.originalSellingPrice
+          // Get the true original price - preserve it if it exists, otherwise use current sellingPrice as baseline
+          // If originalSellingPrice exists, it's the true original price before any discounts
+          // If it doesn't exist, the current sellingPrice might already be discounted, so we need to be careful
+          const currentSellingPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
+          const storedOriginalPrice = variantOption.originalSellingPrice
             ? parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR')
-            : originalPrice;
+            : null;
 
-          let finalPrice = currentOriginalPrice;
+          // Determine the true original price:
+          // 1. If originalSellingPrice exists, use it (it's the true original)
+          // 2. If not, and sellingPrice > 0, use sellingPrice as the original (no discount applied yet)
+          // 3. This prevents price corruption by always preserving the true original
+          const trueOriginalPrice = storedOriginalPrice ?? currentSellingPrice;
+
+          let finalPrice = trueOriginalPrice;
           let hasOffer = false;
 
-          if (productOffers.length > 0) {
-            const offer = productOffers[0];
+          if (validProductOffers.length > 0) {
+            const offer = validProductOffers[0];
             let bestDiscountAmount = 0;
             let bestDiscountType: typeof offer.offerDiscountTypes[number] | null = null;
 
@@ -106,7 +264,7 @@ export async function updateProductPricesFromOffers(
               let discountAmount = 0;
 
               if (discountType.discountType === 'percentage') {
-                discountAmount = (currentOriginalPrice * discountType.discountValue) / 100;
+                discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
               } else if (discountType.discountType === 'fixed') {
                 discountAmount = discountType.discountValue;
               }
@@ -119,25 +277,32 @@ export async function updateProductPricesFromOffers(
 
             if (bestDiscountType && bestDiscountAmount > 0) {
               if (bestDiscountType.discountType === 'percentage') {
-                finalPrice = currentOriginalPrice * (1 - bestDiscountType.discountValue / 100);
+                finalPrice = trueOriginalPrice * (1 - bestDiscountType.discountValue / 100);
               } else if (bestDiscountType.discountType === 'fixed') {
-                finalPrice = Math.max(0, currentOriginalPrice - bestDiscountType.discountValue);
+                finalPrice = Math.max(0, trueOriginalPrice - bestDiscountType.discountValue);
               }
               hasOffer = true;
             } else {
-              finalPrice = currentOriginalPrice;
+              // No valid discount type, restore to original price
+              finalPrice = trueOriginalPrice;
               hasOffer = false;
             }
           } else {
-            finalPrice = currentOriginalPrice;
+            // No offers, restore to original price
+            finalPrice = trueOriginalPrice;
             hasOffer = false;
           }
 
+          // Update prices:
+          // - If hasOffer: set sellingPrice to discounted price, set originalSellingPrice to true original
+          // - If !hasOffer: restore sellingPrice to true original, clear originalSellingPrice
           await tx.variantOption.update({
             where: { id: variantOption.id },
             data: {
               sellingPrice: String(Math.round(finalPrice)),
-              originalSellingPrice: hasOffer ? String(Math.round(currentOriginalPrice)) : null,
+              // Set originalSellingPrice only when offer is active (to preserve true original)
+              // Clear it when no offer (sellingPrice becomes the original again)
+              originalSellingPrice: hasOffer ? String(Math.round(trueOriginalPrice)) : null,
             },
           });
         }
