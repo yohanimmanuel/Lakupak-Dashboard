@@ -67,6 +67,44 @@ export default function OfferTable({
     return activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
   };
 
+  // Helper function to check if date ranges are expired
+  const hasExpiredDateRanges = (offer: Offer): boolean => {
+    if (!offer.dateRanges || offer.dateRanges.length === 0) {
+      return false; // No date ranges means not expired
+    }
+
+    const now = new Date();
+    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Check if ALL active date ranges are expired
+    const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
+    if (activeDateRanges.length === 0) {
+      return true; // No active date ranges means expired
+    }
+
+    // If all active date ranges are expired, return true
+    const allExpired = activeDateRanges.every(range => {
+      const startDate = new Date(range.startDate);
+      const endDate = new Date(range.endDate);
+      
+      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      
+      // Check if current date is AFTER the range (expired)
+      return nowStartOfDay > rangeEnd;
+    });
+
+    return allExpired;
+  };
+
+  // Check if any selected offers have expired date ranges
+  const hasSelectedOffersWithExpiredRanges = React.useMemo(() => {
+    return selectedOffers.some(offerId => {
+      const offer = offers.find(o => o.id === offerId);
+      return offer ? hasExpiredDateRanges(offer) : false;
+    });
+  }, [selectedOffers, offers]);
+
   // Filter offers based on activeTab
   const filteredOffers = React.useMemo(() => {
     let filtered = offers;
@@ -572,19 +610,32 @@ export default function OfferTable({
             <div className="flex gap-2">
               <button
                 onClick={handleBulkActivate}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
+                disabled={hasSelectedOffersWithExpiredRanges}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
+                  hasSelectedOffersWithExpiredRanges
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+                title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
               >
                 Activate
               </button>
               <button
                 onClick={handleBulkDeactivate}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-yellow-600 text-white font-semibold text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+                disabled={hasSelectedOffersWithExpiredRanges}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
+                  hasSelectedOffersWithExpiredRanges
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                }`}
+                title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
               >
                 Deactivate
               </button>
               <button
                 onClick={handleBulkRemove}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                title="Remove selected offers"
               >
                 <Trash className="w-4 h-4 text-white" />
                 Remove
@@ -611,19 +662,32 @@ export default function OfferTable({
               <div className="flex gap-2">
                 <button
                   onClick={handleBulkActivate}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
+                  disabled={hasSelectedOffersWithExpiredRanges}
+                  className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
+                    hasSelectedOffersWithExpiredRanges
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                  title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
                 >
                   Activate
                 </button>
                 <button
                   onClick={handleBulkDeactivate}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white font-semibold text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+                  disabled={hasSelectedOffersWithExpiredRanges}
+                  className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
+                    hasSelectedOffersWithExpiredRanges
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                  }`}
+                  title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
                 >
                   Deactivate
                 </button>
                 <button
                   onClick={handleBulkRemove}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                  title="Remove selected offers"
                 >
                   <Trash className="w-4 h-4 text-white" />
                   Remove

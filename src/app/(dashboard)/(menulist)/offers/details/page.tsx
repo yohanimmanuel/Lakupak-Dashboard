@@ -30,6 +30,36 @@ export default function OffersDetailsPage() {
   // Get offer ID from URL params
   const offerId = searchParams.get('id');
 
+  // Helper function to check if date ranges are expired
+  const hasExpiredDateRanges = (offer: Offer | null): boolean => {
+    if (!offer || !offer.dateRanges || offer.dateRanges.length === 0) {
+      return false; // No date ranges means not expired
+    }
+
+    const now = new Date();
+    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Check if ALL active date ranges are expired
+    const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
+    if (activeDateRanges.length === 0) {
+      return true; // No active date ranges means expired
+    }
+
+    // If all active date ranges are expired, return true
+    const allExpired = activeDateRanges.every(range => {
+      const startDate = new Date(range.startDate);
+      const endDate = new Date(range.endDate);
+      
+      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      
+      // Check if current date is AFTER the range (expired)
+      return nowStartOfDay > rangeEnd;
+    });
+
+    return allExpired;
+  };
+
   // GraphQL query to fetch a single offer
   const OFFER_QUERY = `
     query GetOffer($userId: Int!, $id: String!) {
@@ -192,6 +222,26 @@ export default function OffersDetailsPage() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
+
+          // Check if date ranges are expired and set status to inactive
+          const expired = hasExpiredDateRanges(transformedOffer);
+          if (expired && transformedOffer.status !== 'inactive') {
+            transformedOffer.status = 'inactive';
+            // Optionally update in database (async, don't block)
+            fetchGraphQL(`
+              mutation UpdateOfferStatus($userId: Int!, $id: String!, $status: String!) {
+                updateOffer(userId: $userId, id: $id, status: $status) {
+                  id
+                }
+              }
+            `, {
+              userId: user.id,
+              id: transformedOffer.id,
+              status: 'inactive',
+            }).catch(() => {
+              // Ignore errors, just try to update
+            });
+          }
           
           setCurrentOffer(transformedOffer);
           setOriginalOffer(JSON.parse(JSON.stringify(transformedOffer))); // Deep clone
@@ -710,6 +760,7 @@ export default function OffersDetailsPage() {
               <button
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                title="Change offer status"
               >
                 {(currentOffer.status || 'active').charAt(0).toUpperCase() + (currentOffer.status || 'active').slice(1)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
@@ -718,27 +769,39 @@ export default function OffersDetailsPage() {
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow z-20">
                   <button
                     onClick={() => {
-                      handleOfferChange({ status: 'active' });
-                      setShowStatusDropdown(false);
+                      if (!hasExpiredDateRanges(currentOffer)) {
+                        handleOfferChange({ status: 'active' });
+                        setShowStatusDropdown(false);
+                      }
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      (currentOffer.status || 'active') === 'active'
+                    disabled={hasExpiredDateRanges(currentOffer)}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg ${
+                      hasExpiredDateRanges(currentOffer)
+                        ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                        : (currentOffer.status || 'active') === 'active'
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
+                    title={hasExpiredDateRanges(currentOffer) ? 'Cannot activate: All date ranges are expired' : 'Set to Active'}
                   >
                     Active
                   </button>
                   <button
                     onClick={() => {
-                      handleOfferChange({ status: 'inactive' });
-                      setShowStatusDropdown(false);
+                      if (!hasExpiredDateRanges(currentOffer)) {
+                        handleOfferChange({ status: 'inactive' });
+                        setShowStatusDropdown(false);
+                      }
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      (currentOffer.status || 'active') === 'inactive'
+                    disabled={hasExpiredDateRanges(currentOffer)}
+                    className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg ${
+                      hasExpiredDateRanges(currentOffer)
+                        ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                        : (currentOffer.status || 'active') === 'inactive'
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
+                    title={hasExpiredDateRanges(currentOffer) ? 'Cannot change: All date ranges are expired' : 'Set to Inactive'}
                   >
                     Inactive
                   </button>

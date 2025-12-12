@@ -101,33 +101,9 @@ export async function deactivateExpiredOffers(
         continue;
       }
 
-      // Check date ranges if they exist
-      // If offer has date ranges, at least one must be active
-      if (offer.dateRanges && offer.dateRanges.length > 0) {
-        // Normalize to start of day for date-only comparisons
-        const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        const hasActiveDateRange = offer.dateRanges.some(range => {
-          if (!range.isActive) return false;
-          
-          // Convert to Date objects if they're strings
-          const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
-          const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
-          
-          // Normalize to start of day for date-only comparisons
-          const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          
-          // Check if current date is within range (inclusive)
-          return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
-        });
-        
-        if (!hasActiveDateRange) {
-          offersToDeactivate.push(offer.id);
-          if (offer.userId) affectedUserIds.add(offer.userId);
-          continue;
-        }
-      }
+      // Note: Date ranges are NOT used for auto-deactivation
+      // Date ranges can extend beyond main offer dates for flexibility
+      // When date ranges expire, the offer remains active but UI actions are blocked
 
       // Check if at least one discount type is active
       const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);

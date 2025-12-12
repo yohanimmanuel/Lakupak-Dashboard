@@ -758,9 +758,9 @@ const fetchMarketplaceProducts = async (args: {
     return dateRanges.some(range => {
       if (!range.isActive) return false;
       
-      // Convert to Date objects if they're strings
-      const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
-      const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
+      // Convert to Date objects (they come as strings from database)
+      const startDate = new Date(range.startDate);
+      const endDate = new Date(range.endDate);
       
       // Normalize to start of day for date-only comparisons
       const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
@@ -782,9 +782,11 @@ const fetchMarketplaceProducts = async (args: {
     }
     
     // Check date ranges if they exist
+    // Note: Date ranges are used for filtering active offers in marketplace
+    // If offer has date ranges, at least one must be active for the offer to be valid
     const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
     if (!hasActiveDateRange) {
-      continue; // Skip this offer if no active date range matches
+      continue; // Skip this offer if no active date range matches (for marketplace display only)
     }
     
     // Check if at least one discount type is active

@@ -119,6 +119,33 @@ export const offersTypeDefs = /* GraphQL */ `
   }
 `;
 
+// Helper function to check if date ranges are expired
+const hasExpiredDateRanges = (dateRanges: Array<{ startDate: Date; endDate: Date; isActive: boolean }>): boolean => {
+  if (!dateRanges || dateRanges.length === 0) {
+    return false; // No date ranges means not expired
+  }
+
+  const now = new Date();
+  const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Check if ALL active date ranges are expired
+  const activeDateRanges = dateRanges.filter(dr => dr.isActive);
+  if (activeDateRanges.length === 0) {
+    return true; // No active date ranges means expired
+  }
+
+  // If all active date ranges are expired, return true
+  const allExpired = activeDateRanges.every(range => {
+    const rangeStart = new Date(range.startDate.getFullYear(), range.startDate.getMonth(), range.startDate.getDate());
+    const rangeEnd = new Date(range.endDate.getFullYear(), range.endDate.getMonth(), range.endDate.getDate());
+    
+    // Check if current date is AFTER the range (expired)
+    return nowStartOfDay > rangeEnd;
+  });
+
+  return allExpired;
+};
+
 const mapOffer = (
   offer: Prisma.OfferGetPayload<{
     include: {
@@ -127,40 +154,58 @@ const mapOffer = (
       offerProducts: true;
     };
   }>,
-) => ({
-  id: offer.id,
-  offerId: offer.offerId,
-  name: offer.name,
-  description: offer.description,
-  type: offer.type,
-  status: offer.status,
-  startDate: offer.startDate.toISOString(),
-  endDate: offer.endDate.toISOString(),
-  totalUsage: offer.totalUsage,
-  totalDiscountGiven: offer.totalDiscountGiven,
-  discountTypes: offer.offerDiscountTypes.map((discount) => ({
-    id: discount.id,
-    discountType: discount.discountType,
-    discountValue: discount.discountValue,
-    minOrderValue: discount.minOrderValue,
-    minQuantity: discount.minQuantity,
-    isActive: discount.isActive,
-    priority: discount.priority,
-  })),
-  dateRanges: (offer.dateRanges || []).map((dr) => ({
-    id: dr.id,
-    name: dr.name,
-    description: dr.description,
-    startDate: dr.startDate.toISOString(),
-    endDate: dr.endDate.toISOString(),
-    isActive: dr.isActive,
-    createdAt: dr.createdAt.toISOString(),
-    updatedAt: dr.updatedAt.toISOString(),
-  })),
-  products: (offer.offerProducts || []).map((op) => ({
-    productId: op.productId,
-  })),
-});
+) => {
+  // Check if date ranges are expired and set status to inactive if needed
+  let finalStatus = offer.status;
+  if (offer.dateRanges && offer.dateRanges.length > 0) {
+    const expired = hasExpiredDateRanges(offer.dateRanges);
+    if (expired && offer.status !== 'inactive') {
+      finalStatus = 'inactive';
+      // Update in database asynchronously (don't block)
+      prisma.offer.update({
+        where: { id: offer.id },
+        data: { status: 'inactive' },
+      }).catch(() => {
+        // Ignore errors
+      });
+    }
+  }
+
+  return {
+    id: offer.id,
+    offerId: offer.offerId,
+    name: offer.name,
+    description: offer.description,
+    type: offer.type,
+    status: finalStatus,
+    startDate: offer.startDate.toISOString(),
+    endDate: offer.endDate.toISOString(),
+    totalUsage: offer.totalUsage,
+    totalDiscountGiven: offer.totalDiscountGiven,
+    discountTypes: offer.offerDiscountTypes.map((discount) => ({
+      id: discount.id,
+      discountType: discount.discountType,
+      discountValue: discount.discountValue,
+      minOrderValue: discount.minOrderValue,
+      minQuantity: discount.minQuantity,
+      isActive: discount.isActive,
+      priority: discount.priority,
+    })),
+    dateRanges: (offer.dateRanges || []).map((dr) => ({
+      id: dr.id,
+      name: dr.name,
+      description: dr.description,
+      startDate: dr.startDate.toISOString(),
+      endDate: dr.endDate.toISOString(),
+      isActive: dr.isActive,
+      createdAt: dr.createdAt.toISOString(),
+      updatedAt: dr.updatedAt.toISOString(),
+    })),
+    products: (offer.offerProducts || []).map((op) => ({
+      productId: op.productId,
+    })),
+  };
+};
 
 const fetchOffersConnection = async (args: {
   userId: number;
