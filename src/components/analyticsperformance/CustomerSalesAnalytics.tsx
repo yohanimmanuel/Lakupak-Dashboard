@@ -438,6 +438,11 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 	const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6', '#F97316', '#06B6D4'];
 
+	// Don't render content until data is loaded to avoid showing 0 values
+	if (loading) {
+		return null;
+	}
+
 	return (
 		<div className="space-y-4">
 			{/* Key Metrics */}

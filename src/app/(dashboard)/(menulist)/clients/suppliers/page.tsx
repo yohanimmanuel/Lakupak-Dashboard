@@ -285,8 +285,8 @@ export default function SuppliersPage() {
           </button>
         </div>
       </div>
-      <Statcards type="supplier" data={suppliers} />
-      <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+          <Statcards type="supplier" data={suppliers} />
+          <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
       <SupplierModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

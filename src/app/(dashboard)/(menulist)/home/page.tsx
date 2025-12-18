@@ -1358,6 +1358,10 @@ const supplierInsights = useMemo(() => {
   };
 
   const statCards = useMemo(() => {
+    // Don't calculate if still loading to avoid showing 0 values
+    if (loading) {
+      return [];
+    }
     return [
       {
         id: 'totalRevenue',
@@ -1392,7 +1396,7 @@ const supplierInsights = useMemo(() => {
         color: 'bg-white',
       },
     ];
-  }, [orders.length, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
+  }, [loading, orders.length, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
@@ -2466,18 +2470,20 @@ const supplierInsights = useMemo(() => {
             </button>
           </header>
 
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {statCards.map((card) => (
-              <AnalyticsMetricCard
-                key={card.id}
-                title={card.title}
-                value={card.value}
-                change={card.change}
-                icon={card.icon}
-                color={card.color}
-              />
-            ))}
-          </section>
+          {statCards.length > 0 && (
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {statCards.map((card) => (
+                <AnalyticsMetricCard
+                  key={card.id}
+                  title={card.title}
+                  value={card.value}
+                  change={card.change}
+                  icon={card.icon}
+                  color={card.color}
+                />
+              ))}
+            </section>
+          )}
 
           <section
             className="grid grid-cols-1 gap-4 xl:grid-cols-12"

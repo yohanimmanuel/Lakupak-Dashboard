@@ -108,6 +108,7 @@ export default function OperationalPerformancePage() {
         setLoading(true);
         if (!user?.id) {
           setHasData(false);
+          setLoading(false);
           return;
         }
         const data = await fetchGraphQL<{
@@ -128,9 +129,9 @@ export default function OperationalPerformancePage() {
 
         const ordersList = data.orders?.nodes ?? [];
         setHasData(ordersList.length > 0);
+        setLoading(false);
       } catch (error) {
         setHasData(false);
-      } finally {
         setLoading(false);
       }
     };

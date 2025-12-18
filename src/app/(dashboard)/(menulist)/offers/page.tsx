@@ -315,12 +315,12 @@ export default function OffersPage() {
       </div>
 
       {/* Table */}
-      <OfferTable 
-        offers={offers}
-        setOffersAction={setOffers}
-        activeTab={activeTab}
-        onSelectOfferAction={handleSelectOffer}
-      />
+        <OfferTable 
+          offers={offers}
+          setOffersAction={setOffers}
+          activeTab={activeTab}
+          onSelectOfferAction={handleSelectOffer}
+        />
     </div>
   );
 }

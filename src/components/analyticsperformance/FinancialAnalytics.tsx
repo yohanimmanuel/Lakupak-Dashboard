@@ -742,6 +742,11 @@ const FinancialAnalytics: React.FC = () => {
     </div>
   );
 
+  // Don't render content until data is loaded to avoid showing 0 values
+  if (loading) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
 

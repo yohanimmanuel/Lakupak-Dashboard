@@ -345,8 +345,8 @@ export default function BuyersPage() {
         </div>
       )}
       
-      <Statcards type="buyer" data={buyers} />
-      <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
+          <Statcards type="buyer" data={buyers} />
+          <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
       <BuyerModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
