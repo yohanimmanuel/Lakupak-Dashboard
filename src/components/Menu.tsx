@@ -23,9 +23,9 @@ const mainMenuItems = [
     label: 'Marketing',
     icon: <MegaphoneIcon className="w-5 h-5" />,
     submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Team Management', href: '/marketing/teammanagement' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/marketing/team' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/marketing/campaigns' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Analytics', href: '/marketing/analytics' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Automations', href: '/marketing/automation' },
     ],
   },
   {
