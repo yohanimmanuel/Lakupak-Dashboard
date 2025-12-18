@@ -226,11 +226,10 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-          <div className="h-32 bg-gray-200 rounded-xl"></div>
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading analytics...</p>
         </div>
       </div>
     );

@@ -246,6 +246,17 @@ export default function OffersPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading offers...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
@@ -303,23 +314,13 @@ export default function OffersPage() {
         </div>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="bg-white rounded-lg border border-[#e6e6e6] p-8 text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading offers...</p>
-        </div>
-      )}
-
       {/* Table */}
-      {!loading && (
-        <OfferTable 
-          offers={offers}
-          setOffersAction={setOffers}
-          activeTab={activeTab}
-          onSelectOfferAction={handleSelectOffer}
-        />
-      )}
+      <OfferTable 
+        offers={offers}
+        setOffersAction={setOffers}
+        activeTab={activeTab}
+        onSelectOfferAction={handleSelectOffer}
+      />
     </div>
   );
 }

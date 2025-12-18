@@ -2334,16 +2334,10 @@ const supplierInsights = useMemo(() => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 w-64 rounded-lg bg-gray-200" />
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="h-40 rounded-lg bg-gray-200" />
-              <div className="h-40 rounded-lg bg-gray-200" />
-            </div>
-            <div className="h-96 rounded-lg bg-gray-200" />
-          </div>
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );

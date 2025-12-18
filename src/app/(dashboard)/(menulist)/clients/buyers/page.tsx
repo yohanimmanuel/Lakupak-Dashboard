@@ -258,6 +258,16 @@ export default function BuyersPage() {
     }
   }, [updateError]);
 
+  if (loading) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading buyers...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
@@ -335,19 +345,8 @@ export default function BuyersPage() {
         </div>
       )}
       
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading buyers...</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Statcards type="buyer" data={buyers} />
-          <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
-        </>
-      )}
+      <Statcards type="buyer" data={buyers} />
+      <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
       <BuyerModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}

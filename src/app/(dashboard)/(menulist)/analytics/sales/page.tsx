@@ -2,15 +2,82 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import CustomerSalesAnalytics from '@/components/analyticsperformance/CustomerSalesAnalytics';
-import { Calendar, ChevronDown, Download } from 'lucide-react';
+import { Calendar, ChevronDown, Download, Users } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { Order } from '@/types/order';
+import { Product } from '@/types/product';
+
+const SALES_ANALYTICS_PAGE_QUERY = `
+  query SalesAnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
+    orders(userId: $userId, limit: $orderLimit) {
+      nodes {
+        orderId
+        buyerId
+        orderDate
+        orderStatus
+        paymentStatus
+        deliveryMethod
+        shippingFee
+        totalAmount
+        acceptedBy
+        acceptedAt
+        trackingNumber
+        orderItems {
+          productId
+          packageQuantity
+          packageType
+          piecesPerPackage
+          pricePerPackage
+        }
+      }
+    }
+    products(userId: $userId, limit: $productLimit) {
+      nodes {
+        id
+        productId
+        sku
+        name
+        description
+        productType
+        productCategory
+        brand
+        supplier
+        status
+        catalogName
+        images
+        stockQuantity
+        lowStockThreshold
+        stockStatus
+        variantOptions {
+          id
+          variantName
+          sku
+          purchasePrice
+          sellingPrice
+          originalSellingPrice
+          moq
+          stockQuantity
+          lowStockThreshold
+          stockStatus
+          isDefault
+          isActive
+          attributes
+        }
+        legacyVariants
+        variants: variantDefinitions
+      }
+    }
+  }
+`;
 
 export default function SalesAnalyticsPage() {
 	const { user } = useUserStore();
 	const [timeRange, setTimeRange] = useState('1M');
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
+	const [loading, setLoading] = useState(true);
+	const [hasData, setHasData] = useState(false);
 
 	const timeRanges = [
 		{ value: '1M', label: 'Last Month' },
@@ -30,6 +97,43 @@ export default function SalesAnalyticsPage() {
 		document.addEventListener('mousedown', onClick);
 		return () => document.removeEventListener('mousedown', onClick);
 	}, []);
+
+	// Fetch data to check if we have data
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				setLoading(true);
+				if (!user?.id) {
+					setHasData(false);
+					return;
+				}
+				const data = await fetchGraphQL<{
+					orders: { nodes: Order[] };
+					products: {
+						nodes: Array<
+							Product & {
+								variants?: Product['variants'];
+								legacyVariants?: Product['legacyVariants'];
+							}
+						>;
+					};
+				}>(SALES_ANALYTICS_PAGE_QUERY, {
+					userId: user.id,
+					orderLimit: 1000,
+					productLimit: 1000,
+				});
+
+				const ordersList = data.orders?.nodes ?? [];
+				setHasData(ordersList.length > 0);
+			} catch (error) {
+				setHasData(false);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchData();
+	}, [user?.id]);
 
 	// ===== Types for export calculations (explicit, no any) =====
 	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string; productTypeSnapshot?: string }
@@ -426,6 +530,43 @@ export default function SalesAnalyticsPage() {
 			alert('Failed to export data. Please try again.');
 		}
 	};
+
+	if (loading) {
+		return (
+			<div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+				<div className="text-center">
+					<div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+					<p className="text-gray-600">Loading sales analytics...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!hasData) {
+		return (
+			<div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+				<div className="mb-6">
+					<h1 className="text-2xl font-bold text-gray-900 mb-2">Customer & Sales Analytics</h1>
+					<p className="text-sm text-gray-600">Insights on customers, sales volume, and product performance</p>
+				</div>
+				<div className="text-center mt-30">
+					<div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+						<Users className="w-10 h-10 text-gray-400" />
+					</div>
+					<h3 className="text-xl font-semibold text-gray-900 mb-2">No Customer/Sales Data</h3>
+					<p className="text-gray-500 max-w-md mx-auto">Add products and track orders to see customer and sales analytics.</p>
+				</div>
+				<div className="flex flex-col sm:flex-row mt-6 justify-center">
+					<button 
+						onClick={() => window.location.href = '/products'}
+						className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+					>
+						Add Products
+					</button>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">

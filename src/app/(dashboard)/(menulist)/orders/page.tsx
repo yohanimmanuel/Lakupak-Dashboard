@@ -146,6 +146,17 @@ export default function OrdersPage() {
     XLSX.writeFile(workbook, filename);
   };
 
+  if (loading) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto">
@@ -184,16 +195,6 @@ export default function OrdersPage() {
             </div>
           </div>
         </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0a61d7] mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading orders...</p>
-            </div>
-          </div>
-        )}
 
         {/* Error State */}
         {error && !loading && (
