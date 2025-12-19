@@ -12,7 +12,7 @@ export default cloudinary;
 export const uploadImage = async (file: string, folder: string = 'products') => {
   try {
     const result = await cloudinary.uploader.upload(file, {
-      folder: `laku-laku/${folder}`,
+      folder: `laku/${folder}`,
       resource_type: 'auto',
       transformation: [
         { width: 1200, height: 1200, crop: 'limit' }, // Max dimensions

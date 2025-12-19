@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       // Generate upload parameters
       const uploadParams = {
         timestamp: timestamp,
-        folder: `laku-laku/${folder}`,
+        folder: `laku/${folder}`,
       };
 
       // Generate signature

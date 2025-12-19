@@ -218,7 +218,7 @@ export default function RegisterPage() {
       <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
         <div>
           <a href="/" aria-label="Go to homepage">
-            <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-13 mb-4" />
+            <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-13 mb-4" />
           </a>
         </div>
         <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>

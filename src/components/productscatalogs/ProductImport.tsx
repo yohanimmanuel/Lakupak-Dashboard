@@ -125,7 +125,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         mapped[f.key as keyof ProductImportRow] = col ? row[col] : '';
       });
       
-      // Always overwrite Product ID with LKP format (Laku-Laku standard)
+      // Always overwrite Product ID with LKP format (Laku standard)
       mapped['Product ID'] = generateProductId();
       // Set default values for required fields
       mapped['Status'] = 'Draft'; // Always set status to Draft for imported products

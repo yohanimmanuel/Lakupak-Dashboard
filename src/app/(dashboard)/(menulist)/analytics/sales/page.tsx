@@ -353,7 +353,7 @@ export default function SalesAnalyticsPage() {
   </div>
 
   <div class="footer">
-    <p>This report was generated automatically by the Laku-Laku Sales Analytics System.</p>
+    <p>This report was generated automatically by the Laku Sales Analytics System.</p>
     <p>For questions or support, please contact your system administrator.</p>
   </div>
 </body>

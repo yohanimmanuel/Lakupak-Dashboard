@@ -57,8 +57,8 @@ export default function TeamManagement() {
     {
       id: '1',
       name: 'Sarah Johnson',
-      email: 'sarah.johnson@laku-laku.com',
-      role: 'Sales Manager',
+      email: 'sarah.johnson@laku.com',
+      role: 'Sales Manager',  
       territory: 'Jakarta & West Java',
       status: 'active',
       phone: '+62 21 1234 5678',
@@ -71,7 +71,7 @@ export default function TeamManagement() {
     {
       id: '2',
       name: 'Michael Chen',
-      email: 'michael.chen@laku-laku.com',
+      email: 'michael.chen@laku.com',
       role: 'Sales Rep',
       territory: 'Surabaya & East Java',
       status: 'active',
@@ -85,7 +85,7 @@ export default function TeamManagement() {
     {
       id: '3',
       name: 'Lisa Rodriguez',
-      email: 'lisa.rodriguez@laku-laku.com',
+      email: 'lisa.rodriguez@laku.com',
       role: 'Lead Gen',
       territory: 'Bali & Nusa Tenggara',
       status: 'pending',
@@ -99,7 +99,7 @@ export default function TeamManagement() {
     {
       id: '4',
       name: 'David Kim',
-      email: 'david.kim@laku-laku.com',
+      email: 'david.kim@laku.com',
       role: 'Account Manager',
       territory: 'Medan & North Sumatra',
       status: 'active',

@@ -307,7 +307,7 @@ export default function ProductMarketplacePubs({
           <div className="text-center mb-4 p-4">
              <p className="text-sm text-gray-600 mb-2">This is how your products will appear to customers:</p>
              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-               📱 Laku-Laku Marketplace App
+               📱 Laku Marketplace App
              </div>
            </div>
 
@@ -423,7 +423,7 @@ export default function ProductMarketplacePubs({
             <div>
               <h5 className="text-sm font-medium text-gray-900 mb-2">Description</h5>
               <p className="text-sm text-gray-600 leading-relaxed">
-                This is a sample product description that shows how your product information will be displayed to customers in the Laku-Laku marketplace app. The description will include all the details you've provided about your product, features, specifications, and benefits.
+                This is a sample product description that shows how your product information will be displayed to customers in the Laku marketplace app. The description will include all the details you've provided about your product, features, specifications, and benefits.
               </p>
             </div>
           </div>
@@ -520,7 +520,7 @@ export default function ProductMarketplacePubs({
                </div>
                <div>
                  <div className="flex items-center gap-2 mb-1">
-                   <p className="font-medium text-gray-900">Laku-Laku Official Store</p>
+                   <p className="font-medium text-gray-900">Laku Official Store</p>
                    <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">OFFICIAL STORE</div>
                  </div>
                  <div className="flex items-center gap-2">
@@ -558,7 +558,7 @@ export default function ProductMarketplacePubs({
                <div>
                  <p className="text-sm text-blue-800 font-medium">Complete Marketplace Template</p>
                  <p className="text-xs text-blue-700 mt-1">
-                   This shows the comprehensive design template that will be applied to all your published products in the Laku-Laku marketplace app. Your actual product details, images, pricing, and seller information will replace these sample placeholders.
+                   This shows the comprehensive design template that will be applied to all your published products in the Laku marketplace app. Your actual product details, images, pricing, and seller information will replace these sample placeholders.
                  </p>
                </div>
              </div>

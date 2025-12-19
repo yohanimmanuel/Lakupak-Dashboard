@@ -81,14 +81,14 @@ export default function BillingPayment() {
 
   // Billing address state
   const [billingAddress, setBillingAddress] = useState<BillingAddress>({
-    companyName: 'PT Laku-Laku Indonesia',
+    companyName: 'PT Laku Indonesia',
     address: 'Jl. Sudirman No. 123',
     city: 'Jakarta',
     state: 'DKI Jakarta',
     postalCode: '12190',
     country: 'Indonesia',
     phone: '+62 21 1234 5678',
-    email: 'billing@laku-laku.com'
+    email: 'billing@laku.com'
   });
 
   // Invoices state

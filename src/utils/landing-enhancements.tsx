@@ -113,10 +113,10 @@ export const createSEOMetaData = (page: {
     title: page.title,
     description: page.description,
     keywords: page.keywords,
-    canonical: `https://laku-laku.com/${page.locale}/landing/${page.path}`,
+    canonical: `https://laku.com/${page.locale}/landing/${page.path}`,
     ogTitle: page.title,
     ogDescription: page.description,
-    ogUrl: `https://laku-laku.com/${page.locale}/landing/${page.path}`,
+    ogUrl: `https://laku.com/${page.locale}/landing/${page.path}`,
     twitterTitle: page.title,
     twitterDescription: page.description,
     structuredData: page.structuredData || {}

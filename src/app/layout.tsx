@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Laku-Laku",
+  title: "Laku",
   icons: {
-    icon: "/LakuLakuIcon.svg",
+    icon: "/LakuIcon.svg",
   },
 };
 

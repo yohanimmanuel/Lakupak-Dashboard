@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Laku-Laku | Registration'
+    title: 'Laku | Register'
   }
   
   export default function RegisterLayout({

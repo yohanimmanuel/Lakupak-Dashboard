@@ -379,7 +379,7 @@ export async function POST(request: NextRequest) {
           update: {
             // Update buyer info if it exists (in case contact details changed)
             owner: String(sanitizedData.contactPerson || 'Unknown'),
-            email: String(sanitizedData.customerEmail || 'unknown@lakulaku.com'),
+            email: String(sanitizedData.customerEmail || 'unknown@laku.com'),
             phone: String(sanitizedData.contactPhone || '0000000000'),
             storeName: String(sanitizedData.storeName || 'Unknown Store'),
             address: String(sanitizedData.deliveryAddress || 'Unknown Address'),
@@ -388,7 +388,7 @@ export async function POST(request: NextRequest) {
           create: {
             buyerId: String(sanitizedData.buyerId || ''),
             owner: String(sanitizedData.contactPerson || 'Unknown'),
-            email: String(sanitizedData.customerEmail || 'unknown@lakulaku.com'),
+            email: String(sanitizedData.customerEmail || 'unknown@laku.com'),
             phone: String(sanitizedData.contactPhone || '0000000000'),
             storeName: String(sanitizedData.storeName || 'Unknown Store'),
             businessType: 'Retail',

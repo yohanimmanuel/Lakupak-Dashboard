@@ -18,30 +18,30 @@ export default function LandingLayout({
     <>
       <Head>
         {/* SEO Meta Tags */}
-        <title>Laku-Laku - B2B Marketplace & SaaS Platform for Indonesian FMCG Distributors</title>
+        <title>Laku - B2B Marketplace & SaaS Platform for Indonesian FMCG Distributors</title>
         <meta 
           name="description" 
-          content="Laku-Laku is Indonesia's leading B2B marketplace and SaaS platform for FMCG distributors. Streamline operations, manage inventory, and grow your distribution business with our trusted digital platform." 
+          content="Laku is Indonesia's leading B2B marketplace and SaaS platform for FMCG distributors. Streamline operations, manage inventory, and grow your distribution business with our trusted digital platform." 
         />
         <meta name="keywords" content="B2B marketplace Indonesia, FMCG distributor, warung supplier, distribution software, inventory management, B2B SaaS Indonesia" />
         <meta name="robots" content="index, follow" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="canonical" href={`https://laku-laku.com/${locale}/landing`} />
+        <link rel="canonical" href={`https://laku.com/${locale}/landing`} />
         
         {/* Open Graph Tags for Social Sharing */}
-        <meta property="og:title" content="Laku-Laku - B2B Marketplace for Indonesian FMCG" />
-        <meta property="og:description" content="Transform your distribution business with Laku-Laku's digital platform. Connect with thousands of warungs and small retailers across Indonesia." />
-        <meta property="og:image" content="https://laku-laku.com/og-image.jpg" />
-        <meta property="og:url" content={`https://laku-laku.com/${locale}/landing`} />
+        <meta property="og:title" content="Laku - B2B Marketplace for Indonesian FMCG" />
+        <meta property="og:description" content="Transform your distribution business with Laku's digital platform. Connect with thousands of warungs and small retailers across Indonesia." />
+        <meta property="og:image" content="https://laku.com/og-image.jpg" />
+        <meta property="og:url" content={`https://laku.com/${locale}/landing`} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Laku-Laku" />
+        <meta property="og:site_name" content="Laku" />
         
         {/* Twitter Card Tags */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@lakulaku" />
-        <meta name="twitter:title" content="Laku-Laku - B2B Marketplace for Indonesian FMCG" />
-        <meta name="twitter:description" content="Transform your distribution business with Laku-Laku's digital platform." />
-        <meta name="twitter:image" content="https://laku-laku.com/twitter-image.jpg" />
+        <meta name="twitter:site" content="@laku" />
+        <meta name="twitter:title" content="Laku - B2B Marketplace for Indonesian FMCG" />
+        <meta name="twitter:description" content="Transform your distribution business with Laku's digital platform." />
+        <meta name="twitter:image" content="https://laku.com/twitter-image.jpg" />
         
         {/* Structured Data for Search Engines */}
         <script
@@ -50,7 +50,7 @@ export default function LandingLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              "name": "Laku-Laku",
+              "name": "Laku",
               "description": "B2B marketplace and SaaS platform for FMCG distributors in Indonesia",
               "applicationCategory": "BusinessApplication",
               "operatingSystem": "Web",
@@ -98,7 +98,7 @@ export default function LandingLayout({
         
         {/* Preload critical resources */}
         <link rel="preload" href="/LakuLakuIcon.svg" as="image" />
-        <link rel="preload" href="/LakuLakuTextLogo.svg" as="image" />
+        <link rel="preload" href="/LakuTextLogo.svg" as="image" />
         
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
@@ -116,7 +116,7 @@ export default function LandingLayout({
             {/* Company Info */}
             <div className="col-span-2 animate-fade-in-up">
               <div className="flex items-center mb-4">
-                <Image src="/LakuLakuwTextLogo.svg" alt="Laku-Laku Logo" width={200} height={10} />
+                <Image src="/LakuWTextLogo.svg" alt="Laku Logo" width={150} height={10} />
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 {t("company.description1")}<br />

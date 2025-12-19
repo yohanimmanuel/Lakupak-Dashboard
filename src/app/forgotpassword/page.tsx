@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div className="flex flex-col items-center justify-center text-center mb-8">
               <a href="/" aria-label="Go to homepage">
-                <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+                <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
               </a>
             </div>
             <h2 className="text-2xl font-bold text-center text-black mb-4">Forgot Password</h2>
@@ -166,7 +166,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div className="flex flex-col items-center justify-center text-center mb-8">
               <a href="/" aria-label="Go to homepage">
-                <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+                <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
               </a>
             </div>
             <h2 className="text-2xl font-bold text-center text-black mb-4">Set New Password</h2>

@@ -124,7 +124,7 @@ export default function LoginPage() {
       <div className="w-full lg:col-span-4 flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-16 bg-white animate-fade-in-left">
         <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
           <a href="/" aria-label="Go to homepage">
-            <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-13 mb-4" />
+            <img src="/LakuIcon.svg" alt="Laku Logo" className="h-13 mb-4" />
           </a>
           <h2 className="text-3xl text-black font-bold mb-2">Welcome Back</h2>
           <p className="mb-6 text-gray-500">Enter your email and password to access your account.</p>

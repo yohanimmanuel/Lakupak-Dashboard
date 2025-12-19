@@ -828,7 +828,7 @@ export default function FinancialAnalyticsPage() {
     </div>
 
     <div class="footer">
-        <p>This report was generated automatically by the Laku-Laku Financial Analytics System.</p>
+        <p>This report was generated automatically by the Laku Financial Analytics System.</p>
         <p>For questions or support, please contact your system administrator.</p>
     </div>
 </body>

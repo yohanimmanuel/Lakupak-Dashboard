@@ -165,14 +165,14 @@ export default function LandingPage() {
                  <button
                    onClick={handleRegisterClick}
                    className="bg-[#0a61d7] text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#084ba6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 animate-fade-in-up"
-                   aria-label="Register for Laku-Laku platform"
+                   aria-label="Register for Laku platform"
                  >
                    {t("hero.cta")}
                  </button>
                  <button 
                    onClick={handleLearnMoreClick}
                    className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:border-orange-500 hover:text-orange-500 transition-all duration-200 animate-fade-in-up animate-delay-500"
-                   aria-label="Learn more about Laku-Laku features"
+                   aria-label="Learn more about Laku features"
                  >
                    {t("hero.learnmore")}
                  </button>
@@ -198,7 +198,7 @@ export default function LandingPage() {
               <div className="w-[1000px] h-[400px] rounded-2xl overflow-hidden shadow-2xl hover-lift border border-gray-200">
                 <Image
                   src="/homepage.png"
-                  alt="Laku-Laku Dashboard Homepage"
+                  alt="Laku Dashboard Homepage"
                   width={600}
                   height={400}
                   className="w-full h-full object-cover"
@@ -223,7 +223,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-12">
-            {/* Without Laku-Laku */}
+            {/* Without Laku */}
             <div className="bg-red-50 rounded-2xl p-8 border border-red-100 animate-fade-in-left hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
@@ -241,7 +241,7 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* With Laku-Laku */}
+            {/* With Laku */}
             <div className="bg-green-50 rounded-2xl p-8 border border-green-100 animate-fade-in-right hover-lift">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
@@ -297,7 +297,7 @@ export default function LandingPage() {
               <div className="w-full h-[300px] bg-gray-200 rounded-xl flex items-center justify-center border border-gray-200">
                 <Image
                   src="/buyer.png"
-                  alt="Laku-Laku Distributor Dashboard"
+                  alt="Laku Distributor Dashboard"
                   width={600}
                   height={300}
                   className="w-full h-full object-cover"
@@ -329,7 +329,7 @@ export default function LandingPage() {
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
                     src="/mobilemarketplacehome.jpg"
-                    alt="Laku-Laku Mobile Marketplace Home"
+                    alt="Laku Mobile Marketplace Home"
                     width={300}
                     height={300}
                     className="w-full h-full object-cover"
@@ -339,7 +339,7 @@ export default function LandingPage() {
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
                     src="/categorymarketplace.jpg"
-                    alt="Laku-Laku Marketplace Categories"
+                    alt="Laku Marketplace Categories"
                     width={300}
                     height={300}
                     className="w-full h-full object-cover"
@@ -444,7 +444,7 @@ export default function LandingPage() {
           <button
             onClick={handleRegisterClick}
             className="bg-orange-500 text-white px-12 py-5 rounded-lg text-xl font-bold hover:bg-orange-600 transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-1 animate-fade-in-up"
-            aria-label="Start free trial with Laku-Laku"
+            aria-label="Start free trial with Laku"
           >
             {t("finalcta.cta")}
           </button>

@@ -222,7 +222,7 @@ const Menu = () => {
             <Link href="/home" className="flex items-center min-w-0 group">
               <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
                 <div className="bg-white">
-                  <img src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" className="h-10" />
+                  <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
                 </div>
               </div>
             </Link>
@@ -239,7 +239,7 @@ const Menu = () => {
           <div className="flex flex-col items-center space-y-3 mt-4 -mb-2">
             <Link href="/home" className="flex items-center justify-center group">
               <div className="bg-white">
-                <img src="/LakuLakuIcon.svg" alt="Laku-Laku Logo" className="h-10 w-10" />
+                <img src="/LakuIcon.svg" alt="Laku Logo" className="h-10 w-10" />
               </div>
             </Link>
             {/* Mobile Close Button for collapsed view */}
@@ -274,7 +274,7 @@ const Menu = () => {
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="text-white text-md font-semibold mb-1 w-38">Loving Laku-Laku Free?</div>
+            <div className="text-white text-md font-semibold mb-1 w-38">Loving Laku Free?</div>
             <div className="text-gray-200 text-xs mb-4">Go <span className="text-teal-300">Premium</span> to access priority support, real-time tracking, and full analytics.</div>
             <button className="w-full bg-white text-[#0a61d7] font-bold p-2 rounded-lg shadow hover:bg-gray-200 transition text-sm">Go Premium Today</button>
           </div>

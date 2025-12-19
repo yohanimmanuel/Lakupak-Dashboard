@@ -27,16 +27,16 @@
     },
     "painpoints": {
       "title": "Transformasi Bisnis Distribusi Anda",
-      "subtitle": "Lihat bagaimana Laku-Laku menyelesaikan tantangan terbesar di distribusi FMCG",
+      "subtitle": "Lihat bagaimana Laku menyelesaikan tantangan terbesar di distribusi FMCG",
       "without": {
-        "title": "Tanpa Laku-Laku",
+        "title": "Tanpa Laku",
         "1": "Proses order manual dengan spreadsheet dan WhatsApp",
         "2": "Tidak ada visibilitas stok & performa penjualan",
         "3": "Perang harga & margin menipis karena persaingan terbuka",
         "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
       },
       "with": {
-        "title": "Dengan Laku-Laku",
+        "title": "Dengan Laku",
         "1": "Order digital otomatis dengan sinkronisasi stok real-time",
         "2": "Analitik & insight performa menyeluruh",
         "3": "Harga terlindungi & akses marketplace terkontrol",
@@ -65,14 +65,14 @@
     },
     "socialproof": {
       "title": "Dipercaya Distributor Terkemuka",
-      "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah berkembang bersama Laku-Laku",
+      "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah berkembang bersama Laku",
       "logo": "Logo {number}"
     },
     "testimonials": {
       "1": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "Laku-Laku mengubah bisnis distribusi kami. Sekarang kami kelola 3x lebih banyak produk dengan setengah usaha."
+        "text": "Laku mengubah bisnis distribusi kami. Sekarang kami kelola 3x lebih banyak produk dengan setengah usaha."
       },
       "2": {
         "name": "Siti Nurhaliza",
@@ -82,7 +82,7 @@
     },
     "howitworks": {
       "title": "Mulai dalam 3 Langkah Mudah",
-      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku-Laku",
+      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku",
       "1": {
         "title": "Daftar & verifikasi",
         "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
@@ -105,25 +105,25 @@
   },
   "features": {
     "header": {
-      "title": "Fitur Laku-Laku",
+      "title": "Fitur Laku",
       "subtitle": "Temukan alat yang memberdayakan distributor dan retailer untuk tumbuh, otomatisasi, dan berkembang di pasar FMCG Indonesia.",
       "cta1": "Konsultasi Sekarang",
       "cta2": "Daftar Sekarang",
       "socialproof": "4.9 bintang • 2.000+ ulasan",
-      "video": "Video Produk Laku-Laku"
+      "video": "Video Produk Laku"
     },
     "painpoints": {
       "title": "Transformasi Bisnis Distribusi Anda",
-      "subtitle": "Lihat bagaimana Laku-Laku menyelesaikan tantangan terbesar di distribusi FMCG",
+      "subtitle": "Lihat bagaimana Laku menyelesaikan tantangan terbesar di distribusi FMCG",
       "without": {
-        "title": "Tanpa Laku-Laku",
+        "title": "Tanpa Laku",
         "1": "Proses order manual dengan spreadsheet dan WhatsApp",
         "2": "Tidak ada visibilitas stok & performa penjualan",
         "3": "Perang harga & margin menipis karena persaingan terbuka",
         "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
       },
       "with": {
-        "title": "Dengan Laku-Laku",
+        "title": "Dengan Laku",
         "1": "Order digital otomatis dengan sinkronisasi stok real-time",
         "2": "Analitik & insight performa menyeluruh",
         "3": "Harga terlindungi & akses marketplace terkontrol",
@@ -359,7 +359,7 @@
       "subtitle": "Semua yang perlu Anda ketahui tentang harga kami",
       "1": {
         "q": "Apakah saya harus membayar biaya bulanan dan komisi?",
-        "a": "Ya, Laku-Laku menggunakan model monetisasi ganda. Biaya bulanan untuk fitur SaaS, dan komisi per transaksi untuk mendukung pertumbuhan marketplace."
+        "a": "Ya, Laku menggunakan model monetisasi ganda. Biaya bulanan untuk fitur SaaS, dan komisi per transaksi untuk mendukung pertumbuhan marketplace."
       },
       "2": {
         "q": "Apakah ada uji coba gratis?",
@@ -388,7 +388,7 @@
     },
     "cta": {
       "title": "Siap mulai?",
-      "subtitle": "Bergabunglah dengan ribuan penjual yang mengembangkan bisnisnya bersama Laku-Laku",
+      "subtitle": "Bergabunglah dengan ribuan penjual yang mengembangkan bisnisnya bersama Laku",
       "trial": "Coba Gratis",
       "contact": "Hubungi Sales"
     }
@@ -396,7 +396,7 @@
   "solutions": {
     "hero": {
       "title": "Solusi untuk Distributor & Retailer",
-      "subtitle": "Laku-Laku menghubungkan grosir dengan retailer kecil di seluruh Indonesia, membuat belanja grosir jadi mudah, efisien, dan menguntungkan.",
+      "subtitle": "Laku menghubungkan grosir dengan retailer kecil di seluruh Indonesia, membuat belanja grosir jadi mudah, efisien, dan menguntungkan.",
       "cta": "Mulai Sekarang"
     },
     "badges": {
@@ -411,7 +411,7 @@
     },
     "twocol": {
       "title": "Solusi untuk Setiap Bisnis",
-      "subtitle": "Baik Anda distributor maupun retailer, Laku-Laku membantu Anda tumbuh, hemat, dan sukses di pasar grosir Indonesia.",
+      "subtitle": "Baik Anda distributor maupun retailer, Laku membantu Anda tumbuh, hemat, dan sukses di pasar grosir Indonesia.",
       "distributor": {
         "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)",
         "1": { "label": "Akses ke Ribuan Retailer", "desc": "Produk Anda tampil di jaringan retail nasional terverifikasi." },
@@ -434,7 +434,7 @@
       "1": {
         "name": "Andi",
         "role": "Distributor dari Surabaya",
-        "text": "Laku-Laku membantu kami 3x lipat jangkauan tanpa tambah staf sales. Order diproses setengah waktu."
+        "text": "Laku membantu kami 3x lipat jangkauan tanpa tambah staf sales. Order diproses setengah waktu."
       },
       "2": {
         "name": "Rina",
@@ -444,7 +444,7 @@
       "3": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "Laku-Laku mengubah bisnis distribusi kami. Sekarang kelola 3x produk dengan setengah usaha."
+        "text": "Laku mengubah bisnis distribusi kami. Sekarang kelola 3x produk dengan setengah usaha."
       },
       "4": {
         "name": "Siti Nurhaliza",
@@ -464,7 +464,7 @@
     },
     "steps": {
       "title": "Mulai dalam 3 Langkah Mudah",
-      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku-Laku",
+      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku",
       "1": {
         "title": "Daftar & verifikasi",
         "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
@@ -480,13 +480,13 @@
     },
     "cta": {
       "title": "Siap Naik Level Bisnis Grosir Anda?",
-      "subtitle": "Bergabunglah dengan ribuan retailer & distributor yang berkembang bersama Laku-Laku.",
+      "subtitle": "Bergabunglah dengan ribuan retailer & distributor yang berkembang bersama Laku.",
       "button": "Mulai Sekarang"
     }
   },
   "about": {
     "hero": {
-      "title": "Kisah Kami: Mengapa Kami Membangun Laku-Laku",
+      "title": "Kisah Kami: Mengapa Kami Membangun Laku",
       "subtitle": "Memberdayakan distributor dan retailer Indonesia dengan teknologi yang benar-benar membantu mereka."
     },
     "story": {
@@ -495,12 +495,12 @@
       "3": "Di sisi lain, retailer kecil — warung, kios, toko kelontong — juga punya tantangan berat. Banyak yang kesulitan dapat pasokan andal, tergantung distributor lokal atau makelar, akses produk terbatas, harga fluktuatif. Mereka tak tahu pasti kapan order sampai. Margin tipis, gangguan kecil saja bisa bikin rugi dan pelanggan kecewa.",
       "4": "Tantangan lain yang saya lihat adalah proses penjualan di lapangan. Sales distributor harus keliling toko, antre dengan sales merek lain. Pemilik toko dibanjiri penawaran produk berturut-turut, jadi overload informasi dan lelah. Seringkali sales harus pergi sebelum sempat presentasi, karena pembeli sudah kewalahan atau kehabisan waktu. Akhirnya, banyak produk dan promo bagus terlewat.",
       "5": "Saya sadar masalahnya bukan di orangnya, tapi di sistemnya. Penjualan, stok, logistik berjalan sendiri-sendiri. Tidak ada satu platform yang menyatukan. Akibatnya, pertumbuhan jadi lebih sulit. Distributor susah scale, retailer susah bersaing.",
-      "vision": "Dari situlah visi Laku-Laku lahir.",
-      "6": "Saya tidak ingin sekadar bikin marketplace B2B. Saya ingin membayangkan ulang distribusi dan retail jika teknologi benar-benar memberdayakan kedua sisi. Laku-Laku bukan sekadar tempat transaksi. Distributor bisa jual lebih cerdas, kelola stok real-time, jadwalkan & lacak pengiriman, analisa performa — semua di satu platform. Retailer pun lebih mudah cari produk, order, dan restock dengan percaya diri.",
-      "7": "Nama <b>Laku-Laku</b> sendiri mencerminkan semangat ini. Dalam bahasa Indonesia, “laku” berarti terjual dan bergerak. Perdagangan adalah pergerakan — barang, peluang, penghidupan. Platform kami hadir agar pergerakan ini lancar, transparan, dan penuh kepercayaan.",
-      "8": "Yang paling mendorong saya adalah keyakinan bahwa teknologi harus memudahkan hidup, bukan mempersulit. Laku-Laku membawa alat modern — otomatisasi, visibilitas real-time, data cerdas — ke ruang yang lama terabaikan. Distributor dapat waktu & kejelasan untuk fokus tumbuh. Retailer dapat akses & keandalan untuk layani pelanggan lebih baik.",
-      "9": "Setiap fitur Laku-Laku lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
-      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya — yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku-Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
+      "vision": "Dari situlah visi Laku lahir.",
+      "6": "Saya tidak ingin sekadar bikin marketplace B2B. Saya ingin membayangkan ulang distribusi dan retail jika teknologi benar-benar memberdayakan kedua sisi. Laku bukan sekadar tempat transaksi. Distributor bisa jual lebih cerdas, kelola stok real-time, jadwalkan & lacak pengiriman, analisa performa — semua di satu platform. Retailer pun lebih mudah cari produk, order, dan restock dengan percaya diri.",
+      "7": "Nama <b>Laku</b> sendiri mencerminkan semangat ini. Dalam bahasa Indonesia, “laku” berarti terjual dan bergerak. Perdagangan adalah pergerakan — barang, peluang, penghidupan. Platform kami hadir agar pergerakan ini lancar, transparan, dan penuh kepercayaan.",
+      "8": "Yang paling mendorong saya adalah keyakinan bahwa teknologi harus memudahkan hidup, bukan mempersulit. Laku membawa alat modern — otomatisasi, visibilitas real-time, data cerdas — ke ruang yang lama terabaikan. Distributor dapat waktu & kejelasan untuk fokus tumbuh. Retailer dapat akses & keandalan untuk layani pelanggan lebih baik.",
+      "9": "Setiap fitur Laku lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
+      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya — yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
       "10": "Ini bukan sekadar software. Ini tentang membangun kepercayaan, efisiensi, dan peluang bagi jutaan bisnis yang menggerakkan ekonomi kita setiap hari.",
       "end": "Dan ini baru permulaan."
     },
@@ -520,13 +520,13 @@
         "3": "Perdagangan yang adil membangun komunitas yang kuat."
       },
       "4": {
-        "title": "Kenapa 'Laku-Laku'?",
-        "content": "Dalam bahasa Indonesia, laku berarti 'terjual' atau 'bergerak.' Laku-Laku adalah tentang menciptakan momentum — membantu produk bergerak, bisnis berkembang, dan perdagangan tumbuh."
+        "title": "Kenapa 'Laku'?",
+        "content": "Dalam bahasa Indonesia, laku berarti 'terjual' atau 'bergerak.' Laku adalah tentang menciptakan momentum — membantu produk bergerak, bisnis berkembang, dan perdagangan tumbuh."
       }
     },
     "cta": {
       "title": "Bergabunglah membangun masa depan distribusi & retail.",
-      "subtitle": "Di Laku-Laku, kami bukan sekadar membuat software — kami membangun marketplace yang lebih cerdas & adil untuk semua.",
+      "subtitle": "Di Laku, kami bukan sekadar membuat software — kami membangun marketplace yang lebih cerdas & adil untuk semua.",
       "button": "Lihat Solusi Kami"
     }
   },
@@ -549,6 +549,6 @@
       "docs": "Dokumentasi",
       "status": "Status Sistem"
     },
-    "copyright": "© 2024 Laku-Laku. Hak cipta dilindungi. Dibuat dengan ❤️ untuk distribusi & retail Indonesia."
+    "copyright": "© 2024 Laku. Hak cipta dilindungi. Dibuat dengan ❤️ untuk distribusi & retail Indonesia."
   }
 }

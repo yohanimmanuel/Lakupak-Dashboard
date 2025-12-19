@@ -272,7 +272,7 @@ export default function ProductsPage() {
     try {
       // Process imported data and save to database
       for (const product of data) {
-        // Always generate new LKP Product ID for imported products (Laku-Laku standard)
+        // Always generate new LKP Product ID for imported products (Laku standard)
         // Calculate stock status dynamically
         const stockQuantity = parseInt(product['Stock Quantity']) || 0;
         const lowStockThreshold = parseInt(product['Low Stock Threshold']) || 30;

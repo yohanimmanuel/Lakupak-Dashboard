@@ -49,7 +49,7 @@ export default function LandingNavbar() {
           {/* Logo */}
           <div className="flex items-center">
             <a href="/">
-              <Image src="/LakuLakuTextLogo.svg" alt="Laku-Laku Logo" width={200} height={100} />
+              <Image src="/LakuTextLogo.svg" alt="Laku Logo" width={150} height={80} />
             </a>
           </div>
           {/* Desktop Navigation */}

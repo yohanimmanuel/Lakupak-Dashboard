@@ -1,4 +1,4 @@
-// Category utility for Laku-Laku Dashboard
+// Category utility for Laku Dashboard
 // Provides dynamic category management for product forms
 
 import { 

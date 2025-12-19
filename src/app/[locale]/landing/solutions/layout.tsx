@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Laku-Laku | Solutions'
+    title: 'Laku | Solutions'
   }
   
   export default function LandingLayout({
@@ -10,4 +10,4 @@ export const metadata: Metadata = {
     children: React.ReactNode
   }) {
     return children;
-  }
+  } 
