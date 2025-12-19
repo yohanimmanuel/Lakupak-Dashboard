@@ -418,7 +418,7 @@ export default function FeaturesPage() {
               <div className="w-full h-[350px] grid grid-cols-2 gap-2">
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
-                    src="/mobilemarketplacehome.jpg"
+                    src="/mobilehome.png"
                     alt="Laku Mobile Marketplace Home"
                     width={300}
                     height={350}
@@ -428,7 +428,7 @@ export default function FeaturesPage() {
                 </div>
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
-                    src="/categorymarketplace.jpg"
+                    src="/mobileproduct.png"
                     alt="Laku Marketplace Categories"
                     width={300}
                     height={350}

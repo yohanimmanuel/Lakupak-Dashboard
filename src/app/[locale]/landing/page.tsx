@@ -328,7 +328,7 @@ export default function LandingPage() {
               <div className="w-full h-[300px] grid grid-cols-2 gap-2">
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
-                    src="/mobilemarketplacehome.jpg"
+                    src="/mobilehome.png"
                     alt="Laku Mobile Marketplace Home"
                     width={300}
                     height={300}
@@ -338,7 +338,7 @@ export default function LandingPage() {
                 </div>
                 <div className="rounded-xl overflow-hidden border border-gray-200">
                   <Image
-                    src="/categorymarketplace.jpg"
+                    src="/mobileorder.png"
                     alt="Laku Marketplace Categories"
                     width={300}
                     height={300}
