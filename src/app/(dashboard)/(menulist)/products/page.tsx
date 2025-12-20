@@ -555,13 +555,13 @@ export default function ProductsPage() {
           </button>
 
           {/* Import Button */}
-          <button
+          {/*<button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <Upload className="w-4 h-4" />
             Import Data
-          </button>
+          </button>*/}
 
           {/* Export Button */}
           <button
