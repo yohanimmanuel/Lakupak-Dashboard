@@ -23,15 +23,6 @@ export interface DateRange {
   isActive: boolean;
 }
 
-export interface TimeSlot {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-  isActive: boolean;
-}
-
 export interface SelectedProduct {
   productId: string;
   name: string;
@@ -57,9 +48,7 @@ export interface OfferCreationState {
   
   // Date Range
   selectedDateRange: DateRange | null;
-  selectedTimeSlot: TimeSlot | null;
   dateRanges: DateRange[];
-  timeSlots: TimeSlot[];
   startDate: string;
   endDate: string;
   
@@ -96,13 +85,9 @@ interface OfferCreationActions {
   
   // Date Range
   setSelectedDateRange: (dateRange: DateRange | null) => void;
-  setSelectedTimeSlot: (timeSlot: TimeSlot | null) => void;
   addDateRange: (dateRange: DateRange) => void;
   updateDateRange: (id: string, updates: Partial<DateRange>) => void;
   removeDateRange: (id: string) => void;
-  addTimeSlot: (timeSlot: TimeSlot) => void;
-  updateTimeSlot: (id: string, updates: Partial<TimeSlot>) => void;
-  removeTimeSlot: (id: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
   
@@ -144,9 +129,7 @@ const initialState: OfferCreationState = {
   
   // Date Range
   selectedDateRange: null,
-  selectedTimeSlot: null,
   dateRanges: [],
-  timeSlots: [],
   startDate: '',
   endDate: '',
   
@@ -244,11 +227,6 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         get().updateReadyToCreate();
       },
       
-      setSelectedTimeSlot: (timeSlot) => {
-        set({ selectedTimeSlot: timeSlot });
-        get().updateReadyToCreate();
-      },
-
       addDateRange: (dateRange) => {
         set((state) => ({
           dateRanges: [...state.dateRanges, dateRange],
@@ -275,37 +253,7 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
           return {
             dateRanges: filtered,
             selectedDateRange: selectedRemoved ? null : state.selectedDateRange,
-            isDateRangeConfigured: filtered.length > 0 || Boolean(state.selectedTimeSlot),
-          };
-        });
-        get().updateReadyToCreate();
-      },
-
-      addTimeSlot: (timeSlot) => {
-        set((state) => ({
-          timeSlots: [...state.timeSlots, timeSlot],
-          selectedTimeSlot: timeSlot,
-          isDateRangeConfigured: true,
-        }));
-        get().updateReadyToCreate();
-      },
-
-      updateTimeSlot: (id, updates) => {
-        set((state) => ({
-          timeSlots: state.timeSlots.map((ts) => (ts.id === id ? { ...ts, ...updates } : ts)),
-          selectedTimeSlot: state.selectedTimeSlot && state.selectedTimeSlot.id === id ? { ...state.selectedTimeSlot, ...updates } : state.selectedTimeSlot,
-        }));
-        get().updateReadyToCreate();
-      },
-
-      removeTimeSlot: (id) => {
-        set((state) => {
-          const filtered = state.timeSlots.filter((ts) => ts.id !== id);
-          const selectedRemoved = state.selectedTimeSlot?.id === id;
-          return {
-            timeSlots: filtered,
-            selectedTimeSlot: selectedRemoved ? null : state.selectedTimeSlot,
-            isDateRangeConfigured: filtered.length > 0 || Boolean(state.selectedDateRange),
+            isDateRangeConfigured: filtered.length > 0,
           };
         });
         get().updateReadyToCreate();
@@ -394,13 +342,12 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
       updateReadyToCreate: () => {
         const state = get();
         const hasDateRange = Boolean(state.selectedDateRange && state.selectedDateRange.startDate && state.selectedDateRange.endDate);
-        const hasTimeSlot = Boolean(state.selectedTimeSlot && state.selectedTimeSlot.startTime && state.selectedTimeSlot.endTime);
         const hasLegacyDates = Boolean(state.startDate && state.endDate && state.startDate !== '' && state.endDate !== '');
         
         const isReady = 
           state.name.trim() !== '' &&
           state.discountTypes.length > 0 &&
-          (hasDateRange || hasTimeSlot || hasLegacyDates) &&
+          (hasDateRange || hasLegacyDates) &&
           Object.keys(state.productOfferBadges || {}).length > 0;
         
         set({ isReadyToCreate: isReady });
@@ -428,9 +375,7 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         minOrderValue: state.minOrderValue,
         minQuantity: state.minQuantity,
         dateRanges: state.dateRanges,
-        timeSlots: state.timeSlots,
         selectedDateRange: state.selectedDateRange,
-        selectedTimeSlot: state.selectedTimeSlot,
         startDate: state.startDate,
         endDate: state.endDate,
         perCustomerLimit: state.perCustomerLimit,

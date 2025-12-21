@@ -31,7 +31,6 @@ interface OfferData {
   type?: string | string[];
   discountTypes: DiscountTypeData[];
   dateRanges?: unknown[];
-  timeSlots?: unknown[];
   products?: unknown[];
   [key: string]: unknown;
 }

@@ -31,19 +31,6 @@ export interface DateRangeUpdate extends DateRangeInput {
   id?: string;
 }
 
-export interface TimeSlotInput {
-  name?: string;
-  description?: string;
-  startTime?: string;
-  endTime?: string;
-  days?: string;
-  isActive?: boolean;
-}
-
-export interface TimeSlotUpdate extends TimeSlotInput {
-  id?: string;
-}
-
 export interface ProductInput {
   productId: string;
 }
@@ -64,7 +51,6 @@ export interface BatchOfferUpdate {
   offer?: OfferUpdateInput;
   discountTypes?: DiscountTypeInput[];
   dateRanges?: DateRangeInput[];
-  timeSlots?: TimeSlotInput[];
   products?: ProductInput[];
 }
 
@@ -114,14 +100,6 @@ export interface DateRangeResult {
   isActive: boolean;
 }
 
-export interface TimeSlotResult {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  isActive: boolean;
-}
-
 export interface OfferWithRelations {
   id: string;
   offerName: string;
@@ -136,7 +114,6 @@ export interface OfferWithRelations {
   offerDiscountTypes: OfferDiscountTypeResult[];
   offerProducts: OfferProductResult[];
   dateRanges: DateRangeResult[];
-  timeSlots: TimeSlotResult[];
 }
 
 // Transaction type for Prisma operations

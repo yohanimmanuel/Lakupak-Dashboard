@@ -294,17 +294,6 @@ export default function OffersDetailsPage() {
             createdAt: string;
             updatedAt: string;
           }>;
-          timeSlots: Array<{
-            id: string;
-            name: string;
-            description: string | null;
-            startTime: string;
-            endTime: string;
-            days: string[];
-            isActive: boolean;
-            createdAt: string;
-            updatedAt: string;
-          }>;
           products: Array<{
             productId: string;
           }>;
@@ -502,17 +491,6 @@ export default function OffersDetailsPage() {
             description: string | null;
             startDate: string;
             endDate: string;
-            isActive: boolean;
-            createdAt: string;
-            updatedAt: string;
-          }>;
-          timeSlots: Array<{
-            id: string;
-            name: string;
-            description: string | null;
-            startTime: string;
-            endTime: string;
-            days: string[];
             isActive: boolean;
             createdAt: string;
             updatedAt: string;

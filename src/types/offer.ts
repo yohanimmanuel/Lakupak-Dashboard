@@ -36,19 +36,6 @@ export interface DateRange {
   updatedAt?: string;
 }
 
-export interface TimeSlot {
-  id: string;
-  name: string;
-  description?: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-  isActive: boolean;
-  offerCount?: number;
-  createdAt: string;
-  updatedAt?: string;
-}
-
 export interface Offer {
   id: string;
   offerId: string;
@@ -65,7 +52,6 @@ export interface Offer {
   products: OfferProduct[];
   discountTypes: OfferDiscountType[];
   dateRanges?: DateRange[];
-  timeSlots?: TimeSlot[];
   productOfferBadges?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
