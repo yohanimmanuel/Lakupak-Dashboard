@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft } from 'lucide-react';
+import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft, Filter } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
@@ -68,16 +68,39 @@ export default function TeamList({
   const agentsPerPage = 8;
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const [selectedRole, setSelectedRole] = useState<string>('All Roles');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All Status');
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   // Prevent hydration mismatch by only using user currency on client
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Reset pagination when search or tab changes
+  // Reset pagination when search, tab, or filters change
   useEffect(() => {
     setPage(1);
-  }, [search, selectedTab]);
+  }, [search, selectedTab, selectedRole, selectedStatus]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
+        setShowRoleDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Get user currency for display (only on client)
   const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
@@ -229,15 +252,27 @@ export default function TeamList({
   };
 
 
+  // Get unique roles and statuses from agents
+  const uniqueRoles = Array.from(new Set(agents.map(agent => agent.role))).sort();
+  const roleOptions = ['All Roles', ...uniqueRoles];
+  const statusOptions = ['All Status', 'Active', 'Inactive'];
+
   const filteredAgents = agents.filter(agent => {
     const searchLower = search.toLowerCase();
-    return (
+    const matchesSearch = (
       agent.name.toLowerCase().includes(searchLower) ||
       agent.email.toLowerCase().includes(searchLower) ||
       agent.phone.toLowerCase().includes(searchLower) ||
       agent.role.toLowerCase().includes(searchLower) ||
       (agent.territory && agent.territory.toLowerCase().includes(searchLower))
     );
+    
+    const matchesRole = selectedRole === 'All Roles' || agent.role === selectedRole;
+    const matchesStatus = selectedStatus === 'All Status' || 
+      (selectedStatus === 'Active' && agent.status === 'active') ||
+      (selectedStatus === 'Inactive' && agent.status === 'inactive');
+    
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   // Pagination for individuals table
@@ -277,18 +312,6 @@ export default function TeamList({
           <h2 className="text-xl font-bold text-gray-900">
             Agents <span className="font-medium text-gray-400">{agents.length}</span>
           </h2>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Start typing agent's name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
-          />
         </div>
       </div>
 
@@ -332,6 +355,93 @@ export default function TeamList({
           </div>
         </div>
       </div>
+
+      {/* Search and Filters - Below Tabs */}
+      {selectedTab === 'individuals' && (
+        <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-center">
+          {/* Search Bar */}
+          <div className="relative w-full md:w-150">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search agents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            />
+          </div>
+
+          {/* Role Filter Dropdown */}
+          <div className="relative" ref={roleDropdownRef}>
+            <button
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              onClick={() => {
+                setShowRoleDropdown(v => !v);
+                setShowStatusDropdown(false);
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedRole}
+              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+            </button>
+            {showRoleDropdown && (
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+                {roleOptions.map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      setSelectedRole(role);
+                      setShowRoleDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedRole === role
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Status Filter Dropdown */}
+          <div className="relative" ref={statusDropdownRef}>
+            <button
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              onClick={() => {
+                setShowStatusDropdown(v => !v);
+                setShowRoleDropdown(false);
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedStatus}
+              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+            </button>
+            {showStatusDropdown && (
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+                {statusOptions.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setSelectedStatus(status);
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                      selectedStatus === status
+                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Bulk Action Bar */}
       {selectedTab === 'individuals' && selectedAgents.size > 0 && (
