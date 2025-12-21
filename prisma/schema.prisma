@@ -398,7 +398,6 @@ model Offer {
   offerProducts      OfferProduct[]
   offerDiscountTypes OfferDiscountType[]
   dateRanges         DateRange[]
-  timeSlots          TimeSlot[]
 
   @@index([userId])
   @@index([status])
@@ -459,24 +458,6 @@ model DateRange {
 
   @@index([offerId])
   @@index([startDate, endDate])
-}
-
-model TimeSlot {
-  id          String   @id @default(cuid())
-  offerId     String
-  name        String
-  description String?
-  startTime   String // Format: "HH:MM"
-  endTime     String // Format: "HH:MM"
-  days        String[] // Array of days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-
-  // Relations
-  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-
-  @@index([offerId])
 }
 
 model OfferUsageTracking {
