@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone } from 'lucide-react';
+import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
@@ -64,6 +64,8 @@ export default function TeamList({
   const [search, setSearch] = useState('');
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const agentsPerPage = 8;
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
@@ -71,6 +73,11 @@ export default function TeamList({
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Reset pagination when search or tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedTab]);
 
   // Get user currency for display (only on client)
   const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
@@ -232,6 +239,12 @@ export default function TeamList({
       (agent.territory && agent.territory.toLowerCase().includes(searchLower))
     );
   });
+
+  // Pagination for individuals table
+  const totalPages = Math.ceil(filteredAgents.length / agentsPerPage);
+  const fromRow = (page - 1) * agentsPerPage + 1;
+  const toRow = Math.min(page * agentsPerPage, filteredAgents.length);
+  const paginatedAgents = filteredAgents.slice((page - 1) * agentsPerPage, page * agentsPerPage);
 
   const filteredTeams = teams.filter(team => {
     const searchLower = search.toLowerCase();
@@ -422,7 +435,7 @@ export default function TeamList({
                   </tr>
                 </thead>
                 <tbody className="bg-white">
-                  {filteredAgents.map((agent) => (
+                  {paginatedAgents.map((agent) => (
                     <tr 
                       key={agent.id} 
                       className={`border-b transition cursor-pointer ${
@@ -485,6 +498,75 @@ export default function TeamList({
               </table>
             </div>
           )}
+
+          {/* Pagination for Individuals Table */}
+          {filteredAgents.length > 0 && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+              {/* Left: Showing X to Y of Z */}
+              <div className="text-sm text-gray-500">
+                Showing {fromRow} to {toRow} of {filteredAgents.length}
+              </div>
+              {/* Right: Pagination Controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || totalPages === 0}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-500" />
+                </button>
+                {totalPages > 0 && Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 7) {
+                    pageNum = i + 1;
+                  } else if (page <= 4) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 3) {
+                    pageNum = totalPages - 6 + i;
+                  } else {
+                    pageNum = page - 3 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                        pageNum === page 
+                          ? 'bg-[#0a61d7] text-white' 
+                          : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                      }`}
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                {totalPages > 7 && page < totalPages - 3 && (
+                  <span className="px-2 text-gray-500">...</span>
+                )}
+                {totalPages > 7 && page < totalPages - 3 && (
+                  <button
+                    className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                      page === totalPages
+                        ? 'bg-[#0a61d7] text-white'
+                        : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                    }`}
+                    onClick={() => setPage(totalPages)}
+                  >
+                    {totalPages}
+                  </button>
+                )}
+                <button
+                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || totalPages === 0}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -502,11 +584,11 @@ export default function TeamList({
                 return (
                   <div key={team.id} className="border border-gray-200 rounded-lg overflow-hidden">
                     {/* Team Header */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center justify-between p-4 transition-colors">
                       <div className="flex items-center gap-4 flex-1">
                         <button
                           onClick={() => toggleTeam(team.id)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          className="p-1 rounded transition-colors hover:bg-gray-50"
                         >
                           {isExpanded ? (
                             <ChevronDown className="w-5 h-5 text-gray-600" />
@@ -547,7 +629,7 @@ export default function TeamList({
                     {/* Team Members */}
                     {isExpanded && (
                       <div className="bg-white border-t border-gray-200">
-                        <div className="overflow-x-auto rounded-lg">
+                        <div className="overflow-x-auto">
                           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
                               <tr>
@@ -571,12 +653,12 @@ export default function TeamList({
                                           {member.name.split(' ').map(n => n[0]).join('')}
                                         </span>
                                       </div>
-                                      <span className="text-sm font-medium text-gray-900">{member.name}</span>
+                                      <span className="text-xs font-medium text-black">{member.name}</span>
                                     </div>
                                   </td>
-                                  <td className="py-3 px-4 text-sm text-gray-600">{member.phone}</td>
-                                  <td className="py-3 px-4 text-sm text-gray-600">{member.email}</td>
-                                  <td className="py-3 px-4 text-sm text-gray-600">{member.role}</td>
+                                  <td className="py-3 px-4 text-xs text-black">{member.phone}</td>
+                                  <td className="py-3 px-4 text-xs text-black">{member.email}</td>
+                                  <td className="py-3 px-4 text-xs text-black">{member.role}</td>
                                   <td className="py-3 px-4 text-center">
                                     <button
                                       onClick={() => handleViewAgent(member)}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Eye, ChevronDown, ChevronUp, Package, X, Clock, User, Building2, Target, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Eye, Package, X, Clock, User, Building2, Target, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -51,11 +51,14 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [isClient, setIsClient] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['reports', 'targets']));
   const [selectedMonth, setSelectedMonth] = useState('October, 2024');
   const [selectedYear, setSelectedYear] = useState('This year (2024)');
   const [selectedReport, setSelectedReport] = useState<FieldReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportPage, setReportPage] = useState(1);
+  const reportsPerPage = 5;
+  const [targetPage, setTargetPage] = useState(1);
+  const targetsPerPage = 4;
 
   // Prevent hydration mismatch by only using user currency on client
   useEffect(() => {
@@ -175,17 +178,6 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     }
   };
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(section)) {
-        newSet.delete(section);
-      } else {
-        newSet.add(section);
-      }
-      return newSet;
-    });
-  };
 
   const formatCurrencyAmount = (amount: number) => {
     return formatCurrency(amount, userCurrency);
@@ -241,21 +233,18 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           <div className="lg:col-span-1 space-y-4">
           {/* Profile Card */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex flex-col items-center mb-6">
+            {/* Profile Header */}
+            <div className="flex flex-col items-center pb-4 border-b border-gray-200">
               <div className="relative mb-4">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-2xl font-medium text-gray-600">
-                    {agent.name.split(' ').map(n => n[0]).join('')}
-                  </span>
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-md">
+                  {agent.avatar ? (
+                    <img src={agent.avatar} alt={agent.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-medium text-gray-600">
+                      {agent.name.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  )}
                 </div>
-                {onEdit && (
-                  <button
-                    onClick={onEdit}
-                    className="absolute bottom-0 right-0 w-8 h-8 bg-[#0a61d7] rounded-full flex items-center justify-center border-2 border-white hover:bg-[#0851b8] transition-colors"
-                  >
-                    <Edit className="w-4 h-4 text-white" />
-                  </button>
-                )}
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">{agent.name}</h2>
               <p className="text-sm text-gray-600">{agent.role}</p>
@@ -263,81 +252,74 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
             {/* Sales Target Summary */}
             {agent.salesTarget && agent.currentSales && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">October sales target</span>
                   <span className="text-sm font-semibold text-gray-900">
                     {Math.round((agent.currentSales / agent.salesTarget) * 100)}% achieved
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
-                  <div
-                    className="bg-[#0a61d7] h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3 overflow-hidden">
+                  <div className="flex h-full">
+                    <div
+                      className="bg-[#0a61d7] h-full transition-all duration-300"
+                      style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                    />
+                    <div
+                      className="bg-orange-500 h-full transition-all duration-300"
+                      style={{ width: `${Math.max(0, 100 - progressPercentage)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Target {formatCurrencyAmount(agent.salesTarget)}</span>
-                  <span>Achieved {formatCurrencyAmount(agent.currentSales)}</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-orange-500 rounded"></div>
+                    <span className="text-xs text-gray-500">Target</span>
+                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(agent.salesTarget)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-[#0a61d7] rounded"></div>
+                    <span className="text-xs text-gray-500">Achieved</span>
+                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(agent.currentSales)}</span>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Other Info */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">Other Info</h3>
-                {onEdit && (
-                  <button onClick={onEdit} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                    <Edit className="w-3 h-3 text-gray-600" />
-                  </button>
-                )}
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{agent.phone}</span>
+            <div className="py-4 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Other Info</h3>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 justify-between">
+                  <span className="text-sm text-gray-500">Phone:</span>
+                  <span className="text-sm text-gray-900 text-right">{agent.phone}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">Sex:</span>
-                  <span className="text-sm text-gray-900">-</span>
+                <div className="flex items-center gap-2 justify-between">
+                  <span className="text-sm text-gray-500">Sex:</span>
+                  <span className="text-sm text-gray-900 text-right">-</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{agent.email}</span>
+                <div className="flex items-center gap-2 justify-between">
+                  <span className="text-sm text-gray-500">Email:</span>
+                  <span className="text-sm text-gray-900">{agent.email}</span>
                 </div>
               </div>
             </div>
 
             {/* Employee Status */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">Employee Status</h3>
-                {onEdit && (
-                  <button onClick={onEdit} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                    <Edit className="w-3 h-3 text-gray-600" />
-                  </button>
-                )}
-              </div>
-              <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
+            <div className="py-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Employee Location & Status</h3>
+              <div className="flex items-center gap-2 justify-between">
+                <span className="text-sm text-gray-500">Location:</span>
+                <span className="text-sm ml-22 text-gray-900">{agent.territory}</span>
+                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
                 agent.status === 'active'
-                  ? 'bg-green-100 text-green-500'
-                  : 'bg-gray-100 text-gray-500'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-700'
               }`}>
                 {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
               </span>
-            </div>
-
-            {/* Location */}
-            {agent.territory && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-sm font-semibold text-gray-900">Location</h3>
-                </div>
-                <p className="text-sm text-gray-600 ml-6">{agent.territory}</p>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Favourite Products to be Sold - Separate Section */}
@@ -347,14 +329,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                 <Package className="w-4 h-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-900">Favourite Product to be Sold</h3>
               </div>
-              {onEdit && (
-                <button onClick={onEdit} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                  <Edit className="w-3 h-3 text-gray-600" />
-                </button>
-              )}
             </div>
             <div className="space-y-3">
-              {favoriteProducts.map((product) => (
+              {favoriteProducts.slice(0, 3).map((product) => (
                 <div key={product.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
@@ -375,14 +352,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
         {/* Right Column - Detailed Information */}
         <div className="lg:col-span-2 space-y-4">
           {/* About Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">About {agent.name.split(' ')[0]}</h3>
-              {onEdit && (
-                <button onClick={onEdit} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                  <Edit className="w-4 h-4 text-gray-600" />
-                </button>
-              )}
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
@@ -391,120 +363,229 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           </div>
 
           {/* Daily Field Report */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <button
-              onClick={() => toggleSection('reports')}
-              className="flex items-center justify-between w-full mb-4"
-            >
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Daily Field Report</h3>
-              {expandedSections.has('reports') ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              )}
-            </button>
+            </div>
             
-            {expandedSections.has('reports') && (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{selectedMonth}</span>
-                </div>
-                
-                <div className="space-y-3">
-                  {fieldReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${
-                          report.status === 'reviewed' ? 'bg-green-500' : 'bg-gray-400'
-                        }`} />
-                        <span className="text-sm text-gray-900">{report.date}</span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          report.status === 'reviewed'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-gray-50 text-gray-700'
-                        }`}>
-                          {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
-                        </span>
-                      </div>
-                      <button 
-                        onClick={() => handleViewReport(report)}
-                        className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
-                      >
-                        View report
-                      </button>
-                    </div>
-                  ))}
-                </div>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-600">{selectedMonth}</span>
+            </div>
+            
 
-                {/* Pagination */}
-                <div className="flex items-center justify-center gap-2 mt-6">
-                  <button className="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                    1
-                  </button>
-                  <button className="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                    2
-                  </button>
-                  <button className="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                    3
-                  </button>
-                  <button className="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                    4
-                  </button>
-                  <span className="px-3 py-1 text-sm text-gray-400">...</span>
-                </div>
-              </>
-            )}
+            {/* Pagination */}
+            {(() => {
+              const totalReportPages = Math.ceil(fieldReports.length / reportsPerPage);
+              const fromReport = (reportPage - 1) * reportsPerPage + 1;
+              const toReport = Math.min(reportPage * reportsPerPage, fieldReports.length);
+              const paginatedReports = fieldReports.slice((reportPage - 1) * reportsPerPage, reportPage * reportsPerPage);
+              
+              return (
+                <>
+                  <div className="space-y-3">
+                    {paginatedReports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-900">{report.date}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleViewReport(report)}
+                          className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
+                        >
+                          View report
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {fieldReports.length > 0 && (
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+                      {/* Left: Showing X to Y of Z */}
+                      <div className="text-sm text-gray-500">
+                        Showing {fromReport} to {toReport} of {fieldReports.length}
+                      </div>
+                      {/* Right: Pagination Controls */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setReportPage(p => Math.max(1, p - 1))}
+                          disabled={reportPage === 1 || totalReportPages === 0}
+                          aria-label="Previous page"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-gray-500" />
+                        </button>
+                        {totalReportPages > 0 && Array.from({ length: Math.min(7, totalReportPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalReportPages <= 7) {
+                            pageNum = i + 1;
+                          } else if (reportPage <= 4) {
+                            pageNum = i + 1;
+                          } else if (reportPage >= totalReportPages - 3) {
+                            pageNum = totalReportPages - 6 + i;
+                          } else {
+                            pageNum = reportPage - 3 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                                pageNum === reportPage 
+                                  ? 'bg-[#0a61d7] text-white' 
+                                  : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                              }`}
+                              onClick={() => setReportPage(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        {totalReportPages > 7 && reportPage < totalReportPages - 3 && (
+                          <span className="px-2 text-gray-500">...</span>
+                        )}
+                        {totalReportPages > 7 && reportPage < totalReportPages - 3 && (
+                          <button
+                            className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                              reportPage === totalReportPages
+                                ? 'bg-[#0a61d7] text-white'
+                                : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                            }`}
+                            onClick={() => setReportPage(totalReportPages)}
+                          >
+                            {totalReportPages}
+                          </button>
+                        )}
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))}
+                          disabled={reportPage === totalReportPages || totalReportPages === 0}
+                          aria-label="Next page"
+                        >
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Sales Target */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <button
-              onClick={() => toggleSection('targets')}
-              className="flex items-center justify-between w-full mb-4"
-            >
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Sales Target</h3>
-              {expandedSections.has('targets') ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              )}
-            </button>
+            </div>
             
-            {expandedSections.has('targets') && (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{selectedYear}</span>
-                </div>
-                
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-100 border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
-                        <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Goal ({userCurrency})</th>
-                        <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Achieved ({userCurrency})</th>
-                        <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Sold</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {salesTargets.map((target, idx) => (
-                        <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4 text-xs font-medium text-gray-900">{target.period}</td>
-                          <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.goal)}</td>
-                          <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.achieved)}</td>
-                          <td className="py-3 px-4 text-xs text-black text-right">{target.unitsSold} Units</td>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-600">{selectedYear}</span>
+            </div>
+            
+            {(() => {
+              const totalTargetPages = Math.ceil(salesTargets.length / targetsPerPage);
+              const fromTarget = (targetPage - 1) * targetsPerPage + 1;
+              const toTarget = Math.min(targetPage * targetsPerPage, salesTargets.length);
+              const paginatedTargets = salesTargets.slice((targetPage - 1) * targetsPerPage, targetPage * targetsPerPage);
+              
+              return (
+                <>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-100 border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Goal ({userCurrency})</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Achieved ({userCurrency})</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Sold</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                      </thead>
+                      <tbody>
+                        {paginatedTargets.map((target, idx) => (
+                          <tr key={idx} className="border-b border-gray-100 transition-colors">
+                            <td className="py-3 px-4 text-xs font-medium text-gray-900">{target.period}</td>
+                            <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.goal)}</td>
+                            <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.achieved)}</td>
+                            <td className="py-3 px-4 text-xs text-black text-right">{target.unitsSold} Units</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {salesTargets.length > 0 && (
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-5 gap-2">
+                      {/* Left: Showing X to Y of Z */}
+                      <div className="text-sm text-gray-500">
+                        Showing {fromTarget} to {toTarget} of {salesTargets.length}
+                      </div>
+                      {/* Right: Pagination Controls */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setTargetPage(p => Math.max(1, p - 1))}
+                          disabled={targetPage === 1 || totalTargetPages === 0}
+                          aria-label="Previous page"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-gray-500" />
+                        </button>
+                        {totalTargetPages > 0 && Array.from({ length: Math.min(7, totalTargetPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalTargetPages <= 7) {
+                            pageNum = i + 1;
+                          } else if (targetPage <= 4) {
+                            pageNum = i + 1;
+                          } else if (targetPage >= totalTargetPages - 3) {
+                            pageNum = totalTargetPages - 6 + i;
+                          } else {
+                            pageNum = targetPage - 3 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                                pageNum === targetPage 
+                                  ? 'bg-[#0a61d7] text-white' 
+                                  : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                              }`}
+                              onClick={() => setTargetPage(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        {totalTargetPages > 7 && targetPage < totalTargetPages - 3 && (
+                          <span className="px-2 text-gray-500">...</span>
+                        )}
+                        {totalTargetPages > 7 && targetPage < totalTargetPages - 3 && (
+                          <button
+                            className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                              targetPage === totalTargetPages
+                                ? 'bg-[#0a61d7] text-white'
+                                : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                            }`}
+                            onClick={() => setTargetPage(totalTargetPages)}
+                          >
+                            {totalTargetPages}
+                          </button>
+                        )}
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setTargetPage(p => Math.min(totalTargetPages, p + 1))}
+                          disabled={targetPage === totalTargetPages || totalTargetPages === 0}
+                          aria-label="Next page"
+                        >
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
           </div>
         </div>
@@ -534,23 +615,6 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             {/* Modal Content */}
             <div className="p-4 overflow-y-auto max-h-[100vh]">
               <div className="space-y-4">
-                {/* Status Badge */}
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
-                    selectedReport.status === 'reviewed'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {selectedReport.status === 'reviewed' && <CheckCircle className="w-4 h-4" />}
-                    {selectedReport.status.charAt(0).toUpperCase() + selectedReport.status.slice(1)}
-                  </span>
-                  {selectedReport.reviewedBy && (
-                    <span className="text-sm text-gray-500">
-                      Reviewed by {selectedReport.reviewedBy} on {selectedReport.reviewedAt}
-                    </span>
-                  )}
-                </div>
-
                 {/* Time and Location */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -613,16 +677,6 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     </p>
                   </div>
                 )}
-
-                {/* Agent Info */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Building2 className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">Reported by</p>
-                    <p className="text-sm font-medium text-gray-900">{agent.name}</p>
-                    <p className="text-xs text-gray-500">{agent.role}</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

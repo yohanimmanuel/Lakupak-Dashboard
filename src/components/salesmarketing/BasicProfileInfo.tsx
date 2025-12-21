@@ -1,0 +1,302 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Mail, Phone, MapPin, Upload, X, ChevronDown } from 'lucide-react';
+import { SalesAgent } from './TeamList';
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+
+interface BasicProfileInfoProps {
+  formData: Partial<SalesAgent>;
+  onFormChange: (updates: Partial<SalesAgent>) => void;
+  onTabCompletion: (tabId: 'profile', isComplete: boolean) => void;
+  mode: 'create' | 'edit';
+}
+
+const roleOptions: SalesAgent['role'][] = [
+  'Sales Manager',
+  'Sales Rep',
+  'Sales Support',
+  'Lead Gen',
+  'Account Manager',
+];
+
+const statusOptions: SalesAgent['status'][] = ['active', 'inactive'];
+
+export default function BasicProfileInfo({
+  formData,
+  onFormChange,
+  onTabCompletion,
+  mode,
+}: BasicProfileInfoProps) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(formData.avatar || null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Validate tab completion
+  useEffect(() => {
+    const isComplete = Boolean(
+      formData.name?.trim() &&
+      formData.email?.trim() &&
+      formData.phone?.trim() &&
+      formData.role
+    );
+    onTabCompletion('profile', isComplete);
+  }, [formData.name, formData.email, formData.phone, formData.role]); // Removed onTabCompletion from deps
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
+        setShowRoleDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadToCloudinaryDirect(file, 'sales-agents/avatars');
+      if (result.success && result.url) {
+        setAvatarPreview(result.url);
+        onFormChange({ avatar: result.url });
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      alert(`Failed to upload avatar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarPreview(null);
+    onFormChange({ avatar: undefined });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Basic Profile Information</h3>
+        <p className="text-sm text-gray-500">Enter the agent's personal and contact details</p>
+      </div>
+
+      {/* Avatar Upload */}
+      <div className="flex flex-col items-center">
+        <div className="relative mb-4">
+          <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-md">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl font-medium text-gray-600">
+                {formData.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'SA'}
+              </span>
+            )}
+          </div>
+          {avatarPreview && (
+            <button
+              onClick={handleRemoveAvatar}
+              className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white hover:bg-red-600 transition-colors"
+            >
+              <X className="w-3 h-3 text-white" />
+            </button>
+          )}
+        </div>
+        <label className="cursor-pointer">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleAvatarUpload(file);
+            }}
+            className="hidden"
+            disabled={isUploading}
+          />
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
+            <Upload className="w-4 h-4" />
+            {isUploading ? 'Uploading...' : avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+          </div>
+        </label>
+      </div>
+
+      {/* Form Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Name */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Full Name <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={formData.name || ''}
+              onChange={(e) => onFormChange({ name: e.target.value })}
+              placeholder="Enter full name"
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => onFormChange({ email: e.target.value })}
+              placeholder="agent@example.com"
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Phone <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="tel"
+              value={formData.phone || ''}
+              onChange={(e) => onFormChange({ phone: e.target.value })}
+              placeholder="+62 21 1234 5678"
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Role */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Role <span className="text-red-500">*</span>
+          </label>
+          <div className="relative" ref={roleDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowRoleDropdown(!showRoleDropdown);
+                setShowStatusDropdown(false);
+              }}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
+            >
+              <span className={formData.role ? 'text-black' : 'text-gray-500'}>
+                {formData.role || 'Select role'}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            {showRoleDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {roleOptions.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => {
+                      onFormChange({ role });
+                      setShowRoleDropdown(false);
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
+                      formData.role === role ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Status <span className="text-red-500">*</span>
+          </label>
+          <div className="relative" ref={statusDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowStatusDropdown(!showStatusDropdown);
+                setShowRoleDropdown(false);
+              }}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
+            >
+              <span className={formData.status ? 'text-black' : 'text-gray-500'}>
+                {formData.status ? (formData.status.charAt(0).toUpperCase() + formData.status.slice(1)) : 'Select status'}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            {showStatusDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {statusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      onFormChange({ status });
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
+                      formData.status === status ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Territory */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Territory / Location
+          </label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={formData.territory || ''}
+              onChange={(e) => onFormChange({ territory: e.target.value })}
+              placeholder="e.g., Jakarta & West Java"
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <p className="text-xs text-blue-800">
+          <strong>Note:</strong> Fields marked with <span className="text-red-500">*</span> are required. 
+          The agent will be able to update their profile information later.
+        </p>
+      </div>
+    </div>
+  );
+}
+

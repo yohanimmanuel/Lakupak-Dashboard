@@ -107,9 +107,7 @@ export default function MarketingTeamPage() {
   };
 
   const handleCreateAgent = () => {
-    // Navigate to create agent page or open modal
-    console.log('Create new agent');
-    // router.push('/marketing/team/create');
+    router.push('/marketing/team/create');
   };
 
   const handleEditAgent = (agent: SalesAgent) => {

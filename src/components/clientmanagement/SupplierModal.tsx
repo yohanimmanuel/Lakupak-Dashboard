@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
-import { Trash, User, X, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Trash, User, X, Loader2, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
@@ -102,6 +102,9 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   const [success, setSuccess] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   // Function to get the latest delivery date
   const getLatestDeliveryDate = useCallback((rows: SupplyDetail[]) => {
@@ -120,6 +123,20 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       setForm(prev => ({ ...prev, lastDelivery: latestDate }));
     }
   }, [supplyRows, form.lastDelivery, getLatestDeliveryDate]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Enhanced form validation
   // Client-side validation - no required fields
@@ -500,9 +517,37 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-              <select className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
-              </select>
+              <div className="relative" ref={statusDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-black text-left flex items-center justify-between"
+                >
+                  <span className={form.status ? 'text-black' : 'text-gray-500'}>
+                    {form.status || 'Select status'}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+                {showStatusDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {statusOptions.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, status }));
+                          setShowStatusDropdown(false);
+                        }}
+                        className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
+                          form.status === status ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div>

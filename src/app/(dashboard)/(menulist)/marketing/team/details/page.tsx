@@ -82,8 +82,7 @@ export default function SalesDetailsPage() {
           agent={agent}
           onBack={() => router.push('/marketing/team')}
           onEdit={() => {
-            // Handle edit - could navigate to edit page or open modal
-            console.log('Edit agent:', agent.id);
+            router.push(`/marketing/team/edit?id=${agent.id}`);
           }}
         />
       </div>
