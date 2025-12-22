@@ -217,11 +217,18 @@ const fetchOffersConnection = async (args: {
   const { userId, page = 1, limit = 10, status, type } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
 
-  // Deactivate expired offers before fetching (this also restores prices)
-  await deactivateExpiredOffers(prisma, userId);
-  
-  // Ensure prices are updated after deactivation
-  await updateProductPricesFromOffers(prisma, userId);
+  // Only deactivate expired offers and update prices on first page load (page 1)
+  // This significantly improves performance for pagination and filtering
+  if (safePage === 1) {
+    // Run these operations asynchronously without blocking the query
+    // This allows the offers to load quickly while maintenance runs in background
+    Promise.all([
+      deactivateExpiredOffers(prisma, userId),
+      updateProductPricesFromOffers(prisma, userId),
+    ]).catch(() => {
+      // Silently handle errors - these are maintenance operations
+    });
+  }
 
   const whereClause: Prisma.OfferWhereInput = { userId };
 
@@ -509,6 +516,12 @@ const updateOffer = async (args: {
     }
   }
 
+  // Check if only status is being updated (most common case for bulk operations)
+  const isStatusOnlyUpdate = status !== undefined && status !== null &&
+    name === undefined && description === undefined && type === undefined &&
+    startDate === undefined && endDate === undefined && discountTypes === undefined &&
+    productIds === undefined && dateRanges === undefined;
+
   const updatedOffer = await prisma.$transaction(async (tx) => {
     const offer = await tx.offer.update({
       where: { id: existingOffer.id },
@@ -584,9 +597,21 @@ const updateOffer = async (args: {
     return offer;
   });
 
-  await prisma.$transaction(async (tx) => {
-    await updateProductPricesFromOffers(tx, userId);
-  });
+  // For status-only updates (common in bulk operations), run price update asynchronously
+  // to avoid blocking the response. For other updates, wait for price update to complete.
+  if (isStatusOnlyUpdate) {
+    // Run price update asynchronously without blocking the response
+    prisma.$transaction(async (tx) => {
+      await updateProductPricesFromOffers(tx, userId);
+    }).catch(() => {
+      // Silently handle errors - price updates are non-critical
+    });
+  } else {
+    // For other updates, wait for price update to ensure consistency
+    await prisma.$transaction(async (tx) => {
+      await updateProductPricesFromOffers(tx, userId);
+    });
+  }
 
   const updatedOfferWithRelations = await prisma.offer.findUnique({
     where: { id: updatedOffer.id },

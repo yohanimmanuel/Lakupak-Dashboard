@@ -436,11 +436,31 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     handleProductSelect(productId);
   };
 
+  // Check if all filtered products are selected (not just current page)
+  const allFilteredProductIds = React.useMemo(() => 
+    filteredProducts.map(product => String(product.id)), 
+    [filteredProducts]
+  );
+  const allFilteredSelected = React.useMemo(() => 
+    allFilteredProductIds.length > 0 && allFilteredProductIds.every(id => selectedProducts.includes(id)),
+    [allFilteredProductIds, selectedProducts]
+  );
+
   const handleSelectAll = () => {
-    if (selectedProducts.length === pagedProducts.length) {
-      setSelectedProducts([]);
+    if (allFilteredSelected) {
+      // Deselect all filtered products
+      setSelectedProducts(prev => prev.filter(id => !allFilteredProductIds.includes(id)));
     } else {
-      setSelectedProducts(pagedProducts.map(product => String(product.id)));
+      // Select all filtered products (add to existing selection)
+      setSelectedProducts(prev => {
+        const newSelection = [...prev];
+        allFilteredProductIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
     }
   };
 
@@ -1024,12 +1044,12 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <button
                    onClick={handleSelectAll}
                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                     selectedProducts.length === pagedProducts.length && pagedProducts.length > 0
+                     allFilteredSelected
                        ? 'bg-green-500 border-green-500'
                        : 'bg-white border-gray-300 hover:border-green-400'
                    }`}
                  >
-                   {selectedProducts.length === pagedProducts.length && pagedProducts.length > 0 && (
+                   {allFilteredSelected && (
                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                      </svg>
@@ -1326,19 +1346,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              <button
                onClick={handleSelectAll}
                className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                 selectedProducts.length === pagedProducts.length && pagedProducts.length > 0
+                 allFilteredSelected
                    ? 'bg-green-500 border-green-500'
                    : 'bg-white border-gray-300 hover:border-green-400'
                }`}
              >
-               {selectedProducts.length === pagedProducts.length && pagedProducts.length > 0 && (
+               {allFilteredSelected && (
                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                  </svg>
                )}
              </button>
              <span className="text-sm font-medium text-gray-700">
-               Select All ({pagedProducts.length} products)
+               Select All ({filteredProducts.length} products)
              </span>
            </div>
            
@@ -1658,19 +1678,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
            <button
              onClick={handleSelectAll}
              className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-               selectedProducts.length === pagedProducts.length && pagedProducts.length > 0
+               allFilteredSelected
                  ? 'bg-green-500 border-green-500'
                  : 'bg-white border-gray-300 hover:border-green-400'
              }`}
            >
-             {selectedProducts.length === pagedProducts.length && pagedProducts.length > 0 && (
+             {allFilteredSelected && (
                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                </svg>
              )}
            </button>
            <span className="text-sm font-medium text-gray-700">
-             Select All ({pagedProducts.length} products)
+             Select All ({filteredProducts.length} products)
            </span>
          </div>
          

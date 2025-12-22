@@ -164,11 +164,31 @@ export default function OrdersTable({
     handleOrderSelect(orderId);
   };
 
+  // Check if all filtered orders are selected (not just current page)
+  const allFilteredOrderIds = React.useMemo(() => 
+    filteredOrders.map(order => order.orderId), 
+    [filteredOrders]
+  );
+  const allFilteredSelected = React.useMemo(() => 
+    allFilteredOrderIds.length > 0 && allFilteredOrderIds.every(id => selectedOrders.includes(id)),
+    [allFilteredOrderIds, selectedOrders]
+  );
+
   const handleSelectAll = () => {
-    if (selectedOrders.length === pagedOrders.length) {
-      setSelectedOrders([]);
+    if (allFilteredSelected) {
+      // Deselect all filtered orders
+      setSelectedOrders(prev => prev.filter(id => !allFilteredOrderIds.includes(id)));
     } else {
-      setSelectedOrders(pagedOrders.map(order => order.orderId));
+      // Select all filtered orders (add to existing selection)
+      setSelectedOrders(prev => {
+        const newSelection = [...prev];
+        allFilteredOrderIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
     }
   };
 
@@ -345,12 +365,12 @@ export default function OrdersTable({
                 <button
                   onClick={handleSelectAll}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    selectedOrders.length === pagedOrders.length && pagedOrders.length > 0
+                    allFilteredSelected
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
                 >
-                  {selectedOrders.length === pagedOrders.length && pagedOrders.length > 0 && (
+                  {allFilteredSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -436,19 +456,19 @@ export default function OrdersTable({
           <button
             onClick={handleSelectAll}
             className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-              selectedOrders.length === pagedOrders.length && pagedOrders.length > 0
+              allFilteredSelected
                 ? 'bg-green-500 border-green-500'
                 : 'bg-white border-gray-300 hover:border-green-400'
             }`}
           >
-            {selectedOrders.length === pagedOrders.length && pagedOrders.length > 0 && (
+            {allFilteredSelected && (
               <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             )}
           </button>
           <span className="text-sm font-medium text-gray-700">
-            Select All ({pagedOrders.length} orders)
+            Select All ({filteredOrders.length} orders)
           </span>
         </div>
         

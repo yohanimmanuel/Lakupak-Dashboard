@@ -239,13 +239,33 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     handleBuyerSelect(buyerId);
   }, [handleBuyerSelect]);
 
+  // Check if all filtered buyers are selected (not just current page)
+  const allFilteredBuyerIds = React.useMemo(() => 
+    filteredBuyers.map(buyer => String(buyer.id)), 
+    [filteredBuyers]
+  );
+  const allFilteredSelected = React.useMemo(() => 
+    allFilteredBuyerIds.length > 0 && allFilteredBuyerIds.every(id => selectedBuyers.includes(id)),
+    [allFilteredBuyerIds, selectedBuyers]
+  );
+
   const handleSelectAll = useCallback(() => {
-    if (selectedBuyers.length === pagedBuyers.length) {
-      setSelectedBuyers([]);
+    if (allFilteredSelected) {
+      // Deselect all filtered buyers
+      setSelectedBuyers(prev => prev.filter(id => !allFilteredBuyerIds.includes(id)));
     } else {
-      setSelectedBuyers(pagedBuyers.map(buyer => String(buyer.id)));
+      // Select all filtered buyers (add to existing selection)
+      setSelectedBuyers(prev => {
+        const newSelection = [...prev];
+        allFilteredBuyerIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
     }
-  }, [selectedBuyers.length, pagedBuyers]);
+  }, [allFilteredSelected, allFilteredBuyerIds]);
 
   const handleBulkRemove = useCallback(() => {
     setIsBulkDelete(true);
@@ -640,13 +660,13 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <button
                   onClick={handleSelectAll}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
+                    allFilteredSelected
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
-                  aria-label={selectedBuyers.length === pagedBuyers.length ? 'Deselect all buyers' : 'Select all buyers'}
+                  aria-label={allFilteredSelected ? 'Deselect all buyers' : 'Select all buyers'}
                 >
-                  {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
+                  {allFilteredSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -823,20 +843,20 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           <button
             onClick={handleSelectAll}
             className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0
+              allFilteredSelected
                 ? 'bg-green-500 border-green-500'
                 : 'bg-white border-gray-300 hover:border-green-400'
             }`}
-            aria-label={selectedBuyers.length === pagedBuyers.length ? 'Deselect all buyers' : 'Select all buyers'}
+            aria-label={allFilteredSelected ? 'Deselect all buyers' : 'Select all buyers'}
           >
-            {selectedBuyers.length === pagedBuyers.length && pagedBuyers.length > 0 && (
+            {allFilteredSelected && (
               <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             )}
           </button>
           <span className="text-sm font-medium text-gray-700">
-            Select All ({pagedBuyers.length} buyers)
+            Select All ({filteredBuyers.length} buyers)
           </span>
         </div>
         

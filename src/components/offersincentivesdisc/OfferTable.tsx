@@ -402,11 +402,31 @@ export default function OfferTable({
     handleOfferSelect(offerId);
   };
 
+  // Check if all filtered offers are selected (not just current page)
+  const allFilteredOfferIds = React.useMemo(() => 
+    filteredRows.map(row => row.id), 
+    [filteredRows]
+  );
+  const allFilteredSelected = React.useMemo(() => 
+    allFilteredOfferIds.length > 0 && allFilteredOfferIds.every(id => selectedOffers.includes(id)),
+    [allFilteredOfferIds, selectedOffers]
+  );
+
   const handleSelectAll = () => {
-    if (selectedOffers.length === pagedRows.length) {
-      setSelectedOffers([]);
+    if (allFilteredSelected) {
+      // Deselect all filtered offers
+      setSelectedOffers(prev => prev.filter(id => !allFilteredOfferIds.includes(id)));
     } else {
-      setSelectedOffers(pagedRows.map(offer => offer.id));
+      // Select all filtered offers (add to existing selection)
+      setSelectedOffers(prev => {
+        const newSelection = [...prev];
+        allFilteredOfferIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
     }
   };
 
@@ -414,26 +434,63 @@ export default function OfferTable({
     if (selectedOffers.length === 0 || !user?.id) return;
     
     try {
-      // Bulk activate - update all selected offers using GraphQL
-      const updatePromises = selectedOffers.map(offerId =>
-        fetchGraphQL(UPDATE_OFFER_MUTATION, {
-          userId: user.id,
-          id: offerId,
-          status: 'active',
-        })
-      );
+      // Batch updates to avoid overwhelming the server (process 3 at a time)
+      const BATCH_SIZE = 3;
+      const failedOffers: string[] = [];
+      const successfulOffers: string[] = [];
       
-      await Promise.all(updatePromises);
+      for (let i = 0; i < selectedOffers.length; i += BATCH_SIZE) {
+        const batch = selectedOffers.slice(i, i + BATCH_SIZE);
+        
+        // Process batch with individual error handling
+        const batchResults = await Promise.allSettled(
+          batch.map(offerId =>
+            fetchGraphQL(UPDATE_OFFER_MUTATION, {
+              userId: user.id,
+              id: offerId,
+              status: 'active',
+            })
+          )
+        );
+        
+        // Track successes and failures
+        batchResults.forEach((result, index) => {
+          const offerId = batch[index];
+          if (result.status === 'fulfilled') {
+            successfulOffers.push(offerId);
+          } else {
+            failedOffers.push(offerId);
+            console.error(`Failed to activate offer ${offerId}:`, result.reason);
+          }
+        });
+        
+        // Small delay between batches to prevent database overload
+        if (i + BATCH_SIZE < selectedOffers.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
       
-      // Update UI state
-      if (setOffersAction) {
+      // Update UI state for successful activations
+      if (setOffersAction && successfulOffers.length > 0) {
         setOffersAction(prev => prev.map(offer => 
-          selectedOffers.includes(offer.id) ? { ...offer, status: 'active' } : offer
+          successfulOffers.includes(offer.id) ? { ...offer, status: 'active' } : offer
         ));
       }
       
-      setSelectedOffers([]);
+      // Clear selection for successful offers only
+      setSelectedOffers(prev => prev.filter(id => !successfulOffers.includes(id)));
+      
+      // Show appropriate message
+      if (failedOffers.length > 0) {
+        const message = successfulOffers.length > 0
+          ? `Successfully activated ${successfulOffers.length} offer(s). Failed to activate ${failedOffers.length} offer(s). Please try again.`
+          : `Failed to activate ${failedOffers.length} offer(s). Please try again.`;
+        alert(message);
+      } else if (successfulOffers.length > 0) {
+        // All succeeded - no need to show message for better UX
+      }
     } catch (error) {
+      console.error('Bulk activation error:', error);
       alert('Failed to activate offers. Please try again.');
     }
   };
@@ -442,26 +499,63 @@ export default function OfferTable({
     if (selectedOffers.length === 0 || !user?.id) return;
     
     try {
-      // Bulk deactivate - update all selected offers using GraphQL
-      const updatePromises = selectedOffers.map(offerId =>
-        fetchGraphQL(UPDATE_OFFER_MUTATION, {
-          userId: user.id,
-          id: offerId,
-          status: 'inactive',
-        })
-      );
+      // Batch updates to avoid overwhelming the server (process 3 at a time)
+      const BATCH_SIZE = 10;
+      const failedOffers: string[] = [];
+      const successfulOffers: string[] = [];
       
-      await Promise.all(updatePromises);
+      for (let i = 0; i < selectedOffers.length; i += BATCH_SIZE) {
+        const batch = selectedOffers.slice(i, i + BATCH_SIZE);
+        
+        // Process batch with individual error handling
+        const batchResults = await Promise.allSettled(
+          batch.map(offerId =>
+            fetchGraphQL(UPDATE_OFFER_MUTATION, {
+              userId: user.id,
+              id: offerId,
+              status: 'inactive',
+            })
+          )
+        );
+        
+        // Track successes and failures
+        batchResults.forEach((result, index) => {
+          const offerId = batch[index];
+          if (result.status === 'fulfilled') {
+            successfulOffers.push(offerId);
+          } else {
+            failedOffers.push(offerId);
+            console.error(`Failed to deactivate offer ${offerId}:`, result.reason);
+          }
+        });
+        
+        // Small delay between batches to prevent database overload
+        if (i + BATCH_SIZE < selectedOffers.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
       
-      // Update UI state
-      if (setOffersAction) {
+      // Update UI state for successful deactivations
+      if (setOffersAction && successfulOffers.length > 0) {
         setOffersAction(prev => prev.map(offer => 
-          selectedOffers.includes(offer.id) ? { ...offer, status: 'inactive' } : offer
+          successfulOffers.includes(offer.id) ? { ...offer, status: 'inactive' } : offer
         ));
       }
       
-      setSelectedOffers([]);
+      // Clear selection for successful offers only
+      setSelectedOffers(prev => prev.filter(id => !successfulOffers.includes(id)));
+      
+      // Show appropriate message
+      if (failedOffers.length > 0) {
+        const message = successfulOffers.length > 0
+          ? `Successfully deactivated ${successfulOffers.length} offer(s). Failed to deactivate ${failedOffers.length} offer(s). Please try again.`
+          : `Failed to deactivate ${failedOffers.length} offer(s). Please try again.`;
+        alert(message);
+      } else if (successfulOffers.length > 0) {
+        // All succeeded - no need to show message for better UX
+      }
     } catch (error) {
+      console.error('Bulk deactivation error:', error);
       alert('Failed to deactivate offers. Please try again.');
     }
   };
@@ -707,12 +801,12 @@ export default function OfferTable({
                 <button
                   onClick={handleSelectAll}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    selectedOffers.length === pagedRows.length && pagedRows.length > 0
+                    allFilteredSelected
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
                 >
-                  {selectedOffers.length === pagedRows.length && pagedRows.length > 0 && (
+                  {allFilteredSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -724,7 +818,6 @@ export default function OfferTable({
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Usage</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">Total Discount</th>
               <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
             </tr>
@@ -790,12 +883,6 @@ export default function OfferTable({
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-700 truncate">
                   {row.startDate} - {row.endDate}
-                </td>
-                <td className="py-4 px-4 text-xs text-gray-900">
-                  {(() => {
-                    const offer = offers.find(o => o.id === row.id);
-                    return offer ? createUsageDisplay(offer) : row.usage;
-                  })()}
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-900">{row.totalDiscount}</td>
                 <td className="py-4 px-4 text-xs text-gray-700">
