@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft, Filter } from 'lucide-react';
+import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
@@ -33,12 +33,9 @@ export interface SalesAgent {
 
 export interface SalesTeam {
   id: string;
-  name: string;
-  manager: string;
-  managerId: string;
-  members: SalesAgent[];
-  monthlyTarget?: number;
-  currentSales?: number;
+  name: string; // Region name (e.g., "Jakarta Team", "Regional Team")
+  memberIds: string[]; // IDs of agents in this region
+  members: SalesAgent[]; // Populated members for display
 }
 
 interface TeamListProps {
@@ -83,6 +80,12 @@ export default function TeamList({
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Team modal state
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<SalesTeam | null>(null);
+  const [teamName, setTeamName] = useState('');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
 
   // Reset pagination when search, tab, or filters change
   useEffect(() => {
@@ -157,29 +160,32 @@ export default function TeamList({
     },
   ];
 
+  // Helper to get teams with populated members
+  const getTeamsWithMembers = (teams: SalesTeam[]): SalesTeam[] => {
+    return teams.map(team => ({
+      ...team,
+      members: agents.filter(agent => team.memberIds.includes(agent.id))
+    }));
+  };
+
   const defaultTeams: SalesTeam[] = salesTeams.length > 0 ? salesTeams : [
     {
       id: '1',
       name: 'Jakarta Team',
-      manager: 'Sarah Johnson',
-      managerId: '1',
+      memberIds: ['1', '2'],
       members: [defaultAgents[0], defaultAgents[1]],
-      monthlyTarget: 150000000,
-      currentSales: 120000000,
     },
     {
       id: '2',
       name: 'Regional Team',
-      manager: 'Michael Chen',
-      managerId: '2',
+      memberIds: ['2', '4'],
       members: [defaultAgents[1], defaultAgents[3]],
-      monthlyTarget: 200000000,
-      currentSales: 180000000,
     },
   ];
 
   const agents = salesAgents.length > 0 ? salesAgents : defaultAgents;
-  const teams = salesTeams.length > 0 ? salesTeams : defaultTeams;
+  const teamsData = salesTeams.length > 0 ? salesTeams : defaultTeams;
+  const teams = getTeamsWithMembers(teamsData);
 
   // Update indicator position when tab changes
   useLayoutEffect(() => {
@@ -255,6 +261,77 @@ export default function TeamList({
     }
   };
 
+  // Team modal handlers
+  const handleOpenCreateTeam = () => {
+    setEditingTeam(null);
+    setTeamName('');
+    setSelectedMemberIds(new Set());
+    setShowTeamModal(true);
+  };
+
+  const handleOpenEditTeam = (team: SalesTeam) => {
+    setEditingTeam(team);
+    setTeamName(team.name);
+    setSelectedMemberIds(new Set(team.memberIds));
+    setShowTeamModal(true);
+  };
+
+  const handleCloseTeamModal = () => {
+    setShowTeamModal(false);
+    setEditingTeam(null);
+    setTeamName('');
+    setSelectedMemberIds(new Set());
+  };
+
+  const handleToggleMember = (agentId: string) => {
+    setSelectedMemberIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId);
+      } else {
+        newSet.add(agentId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllMembers = () => {
+    if (selectedMemberIds.size === agents.length && agents.length > 0) {
+      setSelectedMemberIds(new Set());
+    } else {
+      setSelectedMemberIds(new Set(agents.map(agent => agent.id)));
+    }
+  };
+
+  const handleSaveTeam = () => {
+    if (!teamName.trim()) {
+      alert('Please enter a team/region name');
+      return;
+    }
+
+    if (selectedMemberIds.size === 0) {
+      alert('Please select at least one sales agent');
+      return;
+    }
+
+    const teamData: SalesTeam = {
+      id: editingTeam?.id || `team-${Date.now()}`,
+      name: teamName.trim(),
+      memberIds: Array.from(selectedMemberIds),
+      members: agents.filter(agent => selectedMemberIds.has(agent.id))
+    };
+
+    if (editingTeam && onEditTeam) {
+      onEditTeam(teamData);
+    } else if (onCreateTeam) {
+      onCreateTeam();
+      // In production, this would call an API to create the team
+      console.log('Creating team:', teamData);
+    }
+
+    handleCloseTeamModal();
+  };
+
 
   // Get unique roles and statuses from agents
   const uniqueRoles = Array.from(new Set(agents.map(agent => agent.role))).sort();
@@ -289,7 +366,6 @@ export default function TeamList({
     const searchLower = search.toLowerCase();
     return (
       team.name.toLowerCase().includes(searchLower) ||
-      team.manager.toLowerCase().includes(searchLower) ||
       team.members.some(member => 
         member.name.toLowerCase().includes(searchLower) ||
         member.email.toLowerCase().includes(searchLower)
@@ -730,14 +806,12 @@ export default function TeamList({
                           </div>
                         </div>
                       </div>
-                      {onEditTeam && (
-                        <button
-                          onClick={() => onEditTeam(team)}
-                          className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleOpenEditTeam(team)}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Team Members */}
@@ -805,19 +879,162 @@ export default function TeamList({
               })}
               
               {/* Create New Team Button */}
-              {onCreateTeam && (
-                <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <button
-                    onClick={onCreateTeam}
-                    className="flex items-center gap-2 text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create New Team
-                  </button>
-                </div>
-              )}
+              <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={handleOpenCreateTeam}
+                  className="flex items-center gap-2 text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Team
+                </button>
+              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Create/Edit Team Modal */}
+      {showTeamModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseTeamModal();
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={handleCloseTeamModal}
+              className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-[#0a61d7] rounded-lg flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-black">
+                  {editingTeam ? 'Edit Team' : 'Create New Team'}
+                </h2>
+                <p className="text-gray-500 text-sm">
+                  {editingTeam ? 'Update team/region information' : 'Assign sales agents to a region'}
+                </p>
+              </div>
+            </div>
+            <div className="border-b border-gray-200 -mx-6 mb-4"></div>
+
+            {/* Form */}
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar">
+              {/* Team/Region Name */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Team/Region Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="e.g., Jakarta Team, Regional Team"
+                  className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
+                />
+              </div>
+
+              {/* Select Agents */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Sales Agents <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllMembers}
+                    className="text-xs text-[#0a61d7] hover:text-[#0851b8] font-medium"
+                  >
+                    {selectedMemberIds.size === agents.length && agents.length > 0 ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                  {agents.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-xs">
+                      No sales agents available
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {agents.map((agent) => (
+                        <label
+                          key={agent.id}
+                          className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMember(agent.id)}
+                            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              selectedMemberIds.has(agent.id)
+                                ? 'bg-green-500 border-green-500'
+                                : 'bg-white border-gray-300 hover:border-green-400'
+                            }`}
+                            aria-label={selectedMemberIds.has(agent.id) ? `Deselect ${agent.name}` : `Select ${agent.name}`}
+                          >
+                            {selectedMemberIds.has(agent.id) && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-medium text-gray-600">
+                              {agent.name.split(' ').map(n => n[0]).join('')}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-gray-900">{agent.name}</div>
+                            <div className="text-xs text-gray-500">{agent.email}</div>
+                          </div>
+                          <div className="text-xs text-gray-500">{agent.role}</div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {selectedMemberIds.size > 0 && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {selectedMemberIds.size} agent{selectedMemberIds.size !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-gray-200 -mx-4 px-4">
+              <button
+                type="button"
+                onClick={handleCloseTeamModal}
+                className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTeam}
+                className="px-4 py-2 text-xs font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
+              >
+                {editingTeam ? 'Update Team' : 'Create Team'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
