@@ -65,15 +65,9 @@ interface BuyerProfileProps {
 
 export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  // Get user currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get user currency for display - safe to use on both server and client
+  const userCurrency = user?.currency || getDefaultCurrency();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);

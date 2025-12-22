@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   DollarSign, 
   Tag, 
@@ -314,31 +314,41 @@ export default function ProductCatalog({
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
-  // Derive current mode and status from props
-  const derivedMode = useMemo(() => {
+  // Derive current mode and status from props - use directly instead of state
+  // Logic: Published products are view-only, Draft products are editable
+  const currentMode = useMemo(() => {
     if (product?.status === 'Published') return 'view';
+    if (product && product.status === 'Draft') return 'edit';
     return mode;
-  }, [mode, product?.status]);
+  }, [mode, product, product?.status]);
 
-  const derivedStatus = useMemo(() => {
+  const currentProductStatus = useMemo(() => {
     return product?.status || 'Draft';
   }, [product?.status]);
 
-  // Internal state management for mode and product status
-  const [currentMode, setCurrentMode] = useState(derivedMode);
-  const [currentProductStatus, setCurrentProductStatus] = useState(derivedStatus);
+  // Track previous product ID to detect when product actually changes
+  const prevProductIdRef = useRef<number | undefined>(undefined);
 
-  // Effect to synchronize internal mode/status with props after a refresh
+  // Track previous product status to detect status changes
+  const prevProductStatusRef = useRef<string | undefined>(product?.status);
+
+  // Effect to synchronize formData when product changes (legitimate use case)
   useEffect(() => {
-    if (product) {
-      const newStatus = product.status;
-      const newMode = newStatus === 'Published' ? 'view' : 'edit';
+    const currentProductId = product?.id;
+    const currentProductStatus = product?.status;
+    const productChanged = product && currentProductId !== prevProductIdRef.current;
+    const statusChanged = currentProductStatus !== prevProductStatusRef.current;
+    
+    if (product && (productChanged || statusChanged)) {
+      // Update refs to track current state
+      if (productChanged) {
+        prevProductIdRef.current = currentProductId;
+      }
+      if (statusChanged) {
+        prevProductStatusRef.current = currentProductStatus;
+      }
       
-      // Update status and mode based on product props
-      setCurrentProductStatus(newStatus);
-      setCurrentMode(newMode);
-      
-      // Update formData with fresh product data only if product actually changed
+      // Update formData with fresh product data when product or status changes
       const freshFormData: ProductFormData = {
         id: product.id,
         productId: product.productId || '',
@@ -365,12 +375,11 @@ export default function ProductCatalog({
       
       setOriginalFormData({ ...freshFormData });
       setHasUnsavedChanges(false);
-    } else {
-      // No product - use mode prop and default status
-      setCurrentMode(mode);
-      setCurrentProductStatus('Draft');
+    } else if (!product) {
+      prevProductIdRef.current = undefined;
+      prevProductStatusRef.current = undefined;
     }
-  }, [mode, product]);
+  }, [product, product?.status]);
 
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
@@ -839,31 +848,37 @@ export default function ProductCatalog({
         }
       `;
 
-      await fetchGraphQL(UNPUBLISH_PRODUCT_MUTATION, {
+      const result = await fetchGraphQL<{ updateProduct: { id: number; productId: string; status: string } }>(UNPUBLISH_PRODUCT_MUTATION, {
         userId: user.id,
         productId: product.productId,
-          status: 'Draft',
+        status: 'Draft',
       });
 
-        // Also update marketplace status to unpublished
-        try {
-          await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-              userId: user.id,
-            productId: product.productId,
-            action: 'unpublish',
-          });
-        } catch (marketplaceError) {
-          // Don't fail the entire operation, just warn
-          console.warn('Failed to unpublish product from marketplace', marketplaceError);
-        }
+      // Also update marketplace status to unpublished
+      try {
+        await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
+          userId: user.id,
+          productId: product.productId,
+          action: 'unpublish',
+        });
+      } catch (marketplaceError) {
+        // Don't fail the entire operation, just warn
+        console.warn('Failed to unpublish product from marketplace', marketplaceError);
+      }
 
-        // Show success modal and reload page
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-          // Force complete page reload
-          window.location.href = window.location.href;
-        }, 1000);
+      // Optimistically update local state immediately
+      if (result?.updateProduct) {
+        setFormData(prev => ({ ...prev, status: 'Draft' }));
+        prevProductStatusRef.current = 'Draft';
+      }
+
+      // Show success modal and reload page
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        // Force complete page reload to get fresh data
+        window.location.href = window.location.href;
+      }, 1000);
     } catch (error) {
       alert('Error unpublishing product. Please try again.');
     } finally {

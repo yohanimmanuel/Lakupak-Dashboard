@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
 
 export function useAuthHydration() {
   const { hydrate, isHydrated } = useUserStore();
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
     if (!isHydrated) {
       hydrate();
     }
   }, [hydrate, isHydrated]);
 
-  return { isHydrated: isClient && isHydrated };
+  // useEffect only runs on client, so if we're here and hydrated, we're good
+  // For SSR, isHydrated will be false initially, which is correct
+  return { isHydrated };
 }

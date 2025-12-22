@@ -29,15 +29,9 @@ interface BuyerTableProps {
 export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow, onRefresh }: BuyerTableProps) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
   
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  // Get user currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get user currency for display - safe to use on both server and client
+  const userCurrency = user?.currency || getDefaultCurrency();
   
   // Enhanced state management
   const [search, setSearch] = useState("");

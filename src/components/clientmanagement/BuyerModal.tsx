@@ -22,15 +22,9 @@ interface BuyerModalProps {
 export default function BuyerModal({ open, onClose, onSave, initialData, mode }: BuyerModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  // Get currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get currency for display - safe to use on both server and client
+  const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
   
   // Helper function to safely parse JSON strings (moved to top to fix initialization error)

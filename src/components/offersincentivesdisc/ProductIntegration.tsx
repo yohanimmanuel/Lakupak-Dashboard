@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, ChevronUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -229,9 +229,13 @@ export default function ProductIntegration({
   };
 
   // Track products that are currently part of the offer being edited
+  // This can be modified by user actions, so it needs to be state
   const [currentOfferProductIds, setCurrentOfferProductIds] = useState<Set<string>>(
     new Set(offerData?.products?.map(p => p.productId) || [])
   );
+  
+  // Track previous offer ID to only sync when editing a different offer
+  const prevOfferIdRef = useRef<string | undefined>(offerData?.id);
 
   // Fetch products from GraphQL API
   const fetchProducts = useCallback(async () => {
@@ -433,11 +437,33 @@ export default function ProductIntegration({
     fetchProducts();
   }, [fetchProducts]);
 
-  const productTypes = ['All Types', ...Array.from(new Set(products.map(p => p.productType).filter(Boolean)))];
-  const productCategories = ['All Categories', ...Array.from(new Set(products.map(p => p.productCategory).filter(Boolean)))];
-  const brands = ['All Brands', ...Array.from(new Set(products.map(p => p.brand)))];
+  // Transform products with offer data - computed during render instead of useEffect
+  // This replaces the useEffect that was transforming products based on offerData props
+  const displayProducts = useMemo(() => {
+    if (!offerData?.productOfferBadges) return products;
+    
+    return products.map((p) => {
+      const hasOfferFromParent = Boolean(offerData.productOfferBadges![p.productId]);
+      const isInCurrentOffer = Boolean(offerData.products?.find(op => op.productId === p.productId));
+      
+      // Update hasOffer based on parent state
+      // If product is in current offer, set hasOffer to false so it's NOT blocked
+      // Only set hasOffer to true if product has offers from OTHER offers (not current offer)
+      const badge = offerData.productOfferBadges![p.productId] || (isInCurrentOffer ? 'Offer' : undefined);
+      return {
+        ...p,
+        hasOffer: isInCurrentOffer ? false : p.hasOffer, // Keep existing hasOffer if not in current offer, set to false if in current offer
+        offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined,
+        isInCurrentOffer, // Add flag to track if product is in current offer
+      };
+    });
+  }, [products, offerData?.productOfferBadges, offerData?.products]);
 
-  const filteredProducts = products.filter(product => {
+  const productTypes = ['All Types', ...Array.from(new Set(displayProducts.map(p => p.productType).filter(Boolean)))];
+  const productCategories = ['All Categories', ...Array.from(new Set(displayProducts.map(p => p.productCategory).filter(Boolean)))];
+  const brands = ['All Brands', ...Array.from(new Set(displayProducts.map(p => p.brand)))];
+
+  const filteredProducts = displayProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.productType.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.productCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -464,35 +490,21 @@ export default function ProductIntegration({
   // Determine if we're editing an existing offer
   const isEditingOffer = Boolean(offerData?.id);
 
-  // Update currentOfferProductIds when offerData changes
+  // Sync currentOfferProductIds when offerData.id changes (switching to different offer)
+  // This is acceptable because the state can also be modified by user actions
   useEffect(() => {
-    setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
-  }, [offerData?.products]);
-
-  // Sync local products state with parent offerData changes
-  useEffect(() => {
-    if (offerData?.productOfferBadges) {
-      setProducts((prev) => prev.map((p) => {
-        const hasOfferFromParent = Boolean(offerData.productOfferBadges![p.productId]);
-        const isInCurrentOffer = Boolean(offerData.products?.find(op => op.productId === p.productId));
-        
-        // Update hasOffer based on parent state
-        // If product is in current offer, set hasOffer to false so it's NOT blocked
-        // Only set hasOffer to true if product has offers from OTHER offers (not current offer)
-        const badge = offerData.productOfferBadges![p.productId] || (isInCurrentOffer ? 'Offer' : undefined);
-        return {
-          ...p,
-          hasOffer: isInCurrentOffer ? false : p.hasOffer, // Keep existing hasOffer if not in current offer, set to false if in current offer
-          offerBadge: badge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined,
-          isInCurrentOffer, // Add flag to track if product is in current offer
-        };
-      }));
+    const currentOfferId = offerData?.id;
+    if (currentOfferId !== prevOfferIdRef.current) {
+      prevOfferIdRef.current = currentOfferId;
+      // Reset to products from the new offer
+      setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
     }
-  }, [offerData?.productOfferBadges, offerData?.products]);
+  }, [offerData?.id, offerData?.products]);
+
   
   // Check if product can be selected
   const canSelectProduct = (productId: string) => {
-    const product = products.find(p => p.productId === productId);
+    const product = displayProducts.find(p => p.productId === productId);
     if (!product) return false;
     
     // If product has an offer from a DIFFERENT offer, it cannot be selected
@@ -502,7 +514,7 @@ export default function ProductIntegration({
 
   // Helper function to check if product should show as disabled in UI
   const shouldShowAsDisabled = (productId: string) => {
-    const product = products.find(p => p.productId === productId);
+    const product = displayProducts.find(p => p.productId === productId);
     if (!product) return false;
     
     // Check if product has offers from OTHER offers (not the current offer being edited)
@@ -1255,7 +1267,7 @@ export default function ProductIntegration({
                 <h4 className="text-sm font-semibold text-blue-900 mb-2">Selected Products</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {selectedProducts.slice(0, 4).map((productId) => {
-                    const product = products.find(p => p.productId === productId);
+                    const product = displayProducts.find(p => p.productId === productId);
                     return product ? (
                       <div key={productId} className="flex items-center gap-2 text-xs">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

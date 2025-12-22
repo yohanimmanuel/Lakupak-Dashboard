@@ -20,19 +20,13 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const { user, checkSession } = useUserStore();
   const { isHydrated } = useAuthHydration();
 
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   // Simple authentication check - wait for hydration
   useEffect(() => {
-    if (!isClient || !isHydrated) return;
+    if (!isHydrated) return;
 
     // Small delay to ensure everything is properly loaded
     const timeoutId = setTimeout(() => {
@@ -47,7 +41,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
     }, 200);
     
     return () => clearTimeout(timeoutId);
-  }, [user, checkSession, router, isClient, isHydrated]);
+  }, [user, checkSession, router, isHydrated]);
 
   // Check if screen is mobile size
   useEffect(() => {

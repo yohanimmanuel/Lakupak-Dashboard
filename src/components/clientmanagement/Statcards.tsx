@@ -60,15 +60,10 @@ function cleanDecimals(value: number): number {
 
 export default function Statcards({ type, data }: StatcardsProps) {
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  // Get user currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get user currency for display - safe to use on both server and client
+  // getDefaultCurrency() works on both, and user?.currency is safe to access
+  const userCurrency = user?.currency || getDefaultCurrency();
   
   const stats = useMemo(() => {
     try {

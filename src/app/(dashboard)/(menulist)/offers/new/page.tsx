@@ -70,9 +70,12 @@ export default function CreateOfferPage() {
   } = useOfferCreationStore();
 
   // Reset store to fresh state when component mounts (for new offer creation)
+  // Using useEffect with empty deps is acceptable here since we want it to run once on mount
+  // However, if this page can be reused (e.g., React Router), consider using a key prop on the route
   useEffect(() => {
     resetToDefaults();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
