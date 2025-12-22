@@ -482,10 +482,26 @@ export default function ProductIntegration({
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
 
-  // Reset page when filters change
-  useEffect(() => {
+  // Handlers that reset page when filters change (better than useEffect)
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
     setPage(1);
-  }, [searchTerm, selectedType, selectedCategory, selectedBrand]);
+  };
+
+  const handleTypeChange = (type: string) => {
+    setSelectedType(type);
+    setPage(1);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setPage(1);
+  };
+
+  const handleBrandChange = (brand: string) => {
+    setSelectedBrand(brand);
+    setPage(1);
+  };
 
   // Determine if we're editing an existing offer
   const isEditingOffer = Boolean(offerData?.id);
@@ -735,7 +751,7 @@ export default function ProductIntegration({
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
               />
               <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
@@ -760,7 +776,7 @@ export default function ProductIntegration({
                     <button
                       key={type}
                       onClick={() => {
-                        setSelectedType(type);
+                        handleTypeChange(type);
                         setShowTypeDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
@@ -795,7 +811,7 @@ export default function ProductIntegration({
                     <button
                       key={category}
                       onClick={() => {
-                        setSelectedCategory(category);
+                        handleCategoryChange(category);
                         setShowCategoryDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
@@ -932,10 +948,10 @@ export default function ProductIntegration({
           {searchTerm || selectedType !== 'All Types' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' ? (
             <button
               onClick={() => {
-                setSearchTerm('');
-                setSelectedType('All Types');
-                setSelectedCategory('All Categories');
-                setSelectedBrand('All Brands');
+                handleSearchChange('');
+                handleTypeChange('All Types');
+                handleCategoryChange('All Categories');
+                handleBrandChange('All Brands');
               }}
               className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
             >

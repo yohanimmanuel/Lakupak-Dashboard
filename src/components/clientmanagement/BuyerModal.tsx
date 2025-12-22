@@ -121,16 +121,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   }, []);
 
   // Compute lastShipment during render (not in useEffect) - follows React best practices
+  // Use computed value directly instead of storing in state
   const computedLastShipment = useMemo(() => {
     return getLatestOrderDate(orderRows);
   }, [orderRows, getLatestOrderDate]);
-
-  // Update form.lastShipment only when computed value changes and is different
-  useEffect(() => {
-    if (computedLastShipment && computedLastShipment !== form.lastShipment) {
-      setForm(prev => ({ ...prev, lastShipment: computedLastShipment }));
-    }
-  }, [computedLastShipment, form.lastShipment]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -209,7 +203,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
-          lastShipment: form.lastShipment || '',
+          lastShipment: computedLastShipment || '',
           shipmentSuccess: form.shipmentSuccess || ''
         }),
         userId: user?.id,
@@ -865,7 +859,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <input 
                 type="date" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
-                value={form.lastShipment || ''} 
+                value={computedLastShipment || ''} 
                 onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} 
                 disabled 
                 aria-describedby="lastShipment-description"

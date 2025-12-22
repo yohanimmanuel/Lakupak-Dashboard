@@ -51,10 +51,13 @@ export default function GeneralInfo() {
   });
 
   const [originalData, setOriginalData] = useState<GeneralInfoData>(formData);
+  const prevUserIdRef = useRef<number | undefined>(user?.id);
 
-  // Sync formData when user changes (using key prop would reset component, but we want to sync)
+  // Sync formData when user changes - track user ID to only sync when user actually changes
+  // This is acceptable for syncing external data (from store) to form state
   useEffect(() => {
-    if (user) {
+    if (user && user.id !== prevUserIdRef.current) {
+      prevUserIdRef.current = user.id;
       // Check if avatar is a blob URL (temporary) and treat as null
       const avatar = user?.avatar && !user.avatar.startsWith('blob:') ? user.avatar : null;
       
@@ -71,7 +74,7 @@ export default function GeneralInfo() {
       setFormData(newFormData);
       setOriginalData(newFormData);
     }
-  }, [user]);
+  }, [user, user?.id]);
 
   const handleInputChange = (field: keyof GeneralInfoData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

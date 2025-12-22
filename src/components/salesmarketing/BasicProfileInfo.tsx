@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { User, Mail, Phone, MapPin, Upload, X, ChevronDown } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
@@ -34,6 +34,7 @@ export default function BasicProfileInfo({
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const prevIsCompleteRef = useRef<boolean | undefined>(undefined);
 
   // Calculate tab completion during render (not in useEffect)
   const isComplete = useMemo(() => {
@@ -45,11 +46,14 @@ export default function BasicProfileInfo({
     );
   }, [formData.name, formData.email, formData.phone, formData.role]);
 
-  // Only call onTabCompletion when completion status actually changes
-  useEffect(() => {
-    onTabCompletion('profile', isComplete);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isComplete]);
+  // Notify parent when completion status changes - use useLayoutEffect to sync before paint
+  // This is better than useEffect for parent notifications as it happens synchronously
+  useLayoutEffect(() => {
+    if (prevIsCompleteRef.current !== isComplete) {
+      prevIsCompleteRef.current = isComplete;
+      onTabCompletion('profile', isComplete);
+    }
+  }, [isComplete, onTabCompletion]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

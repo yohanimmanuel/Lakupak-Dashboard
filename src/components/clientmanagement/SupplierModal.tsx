@@ -111,16 +111,10 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   }, []);
 
   // Compute lastDelivery during render (not in useEffect) - follows React best practices
+  // Use computed value directly instead of storing in state
   const computedLastDelivery = useMemo(() => {
     return getLatestDeliveryDate(supplyRows);
   }, [supplyRows, getLatestDeliveryDate]);
-
-  // Update form.lastDelivery only when computed value changes and is different
-  useEffect(() => {
-    if (computedLastDelivery && computedLastDelivery !== form.lastDelivery) {
-      setForm(prev => ({ ...prev, lastDelivery: computedLastDelivery }));
-    }
-  }, [computedLastDelivery, form.lastDelivery]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -249,7 +243,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
-          lastDelivery: form.lastDelivery || '',
+          lastDelivery: computedLastDelivery || '',
           deliverySuccess: form.deliverySuccess || ''
         }),
         userId: user?.id,
@@ -613,7 +607,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 <span className="text-xs text-gray-400">(auto from supplies)</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.lastDelivery || ''} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
+              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={computedLastDelivery || ''} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">Delivery Success Rate (%)</label>

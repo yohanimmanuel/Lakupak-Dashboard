@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
 import { ChevronDownIcon, GlobeIcon, CheckIcon } from 'lucide-react';
@@ -59,9 +59,19 @@ export default function LanguageRegion() {
     };
   }, []);
 
-  // Sync formData when user changes
+  // Compute currency from region during render (not in useEffect) - follows React best practices
+  // Use computed value directly instead of storing in state
+  const computedCurrency = useMemo(() => {
+    const selectedRegion = getRegionByCode(formData.region);
+    return selectedRegion?.currency || formData.currency;
+  }, [formData.region, formData.currency]);
+
+  // Sync formData when user changes - use key prop would reset component, but we need to sync
+  // This is acceptable for syncing external data (user prop) to form state
+  const prevUserIdRef = useRef<number | undefined>(user?.id);
   useEffect(() => {
-    if (user) {
+    if (user && user.id !== prevUserIdRef.current) {
+      prevUserIdRef.current = user.id;
       const userData = {
         language: user.language || 'en',
         region: user.region || 'ID',
@@ -70,23 +80,7 @@ export default function LanguageRegion() {
       setFormData(userData);
       setOriginalData(userData);
     }
-  }, [user]);
-
-  // Compute currency from region during render (not in useEffect) - follows React best practices
-  const computedCurrency = useMemo(() => {
-    const selectedRegion = getRegionByCode(formData.region);
-    return selectedRegion?.currency || formData.currency;
-  }, [formData.region, formData.currency]);
-
-  // Update formData.currency only when computed value changes and is different
-  useEffect(() => {
-    if (computedCurrency !== formData.currency) {
-      setFormData(prev => ({
-        ...prev,
-        currency: computedCurrency
-      }));
-    }
-  }, [computedCurrency, formData.currency]);
+  }, [user, user?.id]);
 
   const handleLanguageChange = async (languageCode: string) => {
     const newFormData = {
@@ -164,7 +158,7 @@ export default function LanguageRegion() {
           userId: user.id,
           language: data.language,
           region: data.region,
-          currency: data.currency,
+          currency: data.region ? (getRegionByCode(data.region)?.currency || data.currency) : data.currency,
         }),
       });
 
