@@ -497,7 +497,7 @@ export default function ProductIntegration({
     if (currentOfferId !== prevOfferIdRef.current) {
       prevOfferIdRef.current = currentOfferId;
       // Reset to products from the new offer
-      setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
+    setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
     }
   }, [offerData?.id, offerData?.products]);
 

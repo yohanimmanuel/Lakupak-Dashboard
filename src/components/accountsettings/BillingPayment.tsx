@@ -57,7 +57,6 @@ export default function BillingPayment() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
 
   // Payment methods state
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
@@ -116,9 +115,6 @@ export default function BillingPayment() {
   const [showEditAddressModal, setShowEditAddressModal] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Auto-dismiss success messages
   useEffect(() => {
@@ -199,21 +195,6 @@ export default function BillingPayment() {
         return <CreditCard className="h-4 w-4" />;
     }
   };
-
-  if (!isClient) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-4">

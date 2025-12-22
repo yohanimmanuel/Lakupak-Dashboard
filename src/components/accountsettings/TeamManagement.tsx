@@ -50,7 +50,6 @@ export default function TeamManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
 
   // Sales team members state
   const [salesMembers, setSalesMembers] = useState<SalesMember[]>([
@@ -139,9 +138,6 @@ export default function TeamManagement() {
     trackPerformance: true,
   });
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Auto-dismiss success messages
   useEffect(() => {
@@ -237,20 +233,6 @@ export default function TeamManagement() {
     return Math.min((current / target) * 100, 100);
   };
 
-  if (!isClient) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-4">

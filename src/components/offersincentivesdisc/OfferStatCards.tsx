@@ -15,13 +15,8 @@ interface OfferStatCardsProps {
 
 export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  const userCurrency = user?.currency || getDefaultCurrency();
 
   const stats = React.useMemo(() => {
     const totalOffers = offers.length;

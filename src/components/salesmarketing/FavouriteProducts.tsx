@@ -33,7 +33,6 @@ export default function FavouriteProducts({
 }: FavouriteProductsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [isClient, setIsClient] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,13 +53,9 @@ export default function FavouriteProducts({
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   // Fetch products from GraphQL API
   const fetchProducts = useCallback(async () => {
-    if (!user?.id || !isClient) return;
+    if (!user?.id) return;
     
     setLoading(true);
     try {
@@ -123,13 +118,11 @@ export default function FavouriteProducts({
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isClient]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (isClient) {
-      fetchProducts();
-    }
-  }, [isClient, fetchProducts]);
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Update tab completion - products are optional, so always complete
   useEffect(() => {

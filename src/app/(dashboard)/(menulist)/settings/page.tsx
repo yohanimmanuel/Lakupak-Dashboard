@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, Globe, CreditCard, Users, Building2 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { useAuthHydration } from '@/hooks/useAuthHydration';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
 import DistributorOperations from '@/components/accountsettings/DistributorOperations';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
@@ -24,15 +25,10 @@ const settingsTabs = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { user, isAuthenticated } = useUserStore();
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
+  const { isHydrated } = useAuthHydration();
 
   // Show loading state while user data is being loaded
-  if (!isClient || !user) {
+  if (!isHydrated || !user) {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">

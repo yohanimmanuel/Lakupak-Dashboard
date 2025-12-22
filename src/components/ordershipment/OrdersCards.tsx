@@ -13,12 +13,6 @@ interface OrdersCardsProps {
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
-  
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
   
   // Validate and sanitize input
   const validOrders = Array.isArray(orders) ? orders : [];
@@ -39,7 +33,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
     }, 0);
   
   // Use user's currency or server default (only on client)
-  const displayCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  const displayCurrency = user?.currency || getDefaultCurrency();
 
   return (
     <div className="space-y-4">

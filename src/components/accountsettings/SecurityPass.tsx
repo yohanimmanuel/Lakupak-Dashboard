@@ -19,8 +19,6 @@ export default function SecurityPass() {
   const [error, setError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
-  
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordStep, setPasswordStep] = useState(1); // 1: current password validation, 2: new password
@@ -62,11 +60,7 @@ export default function SecurityPass() {
   };
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient && user) {
+    if (user) {
       setFormData({
         currentPassword: '',
         newPassword: '',
@@ -85,7 +79,7 @@ export default function SecurityPass() {
       // Check if user has a password set
       checkPasswordExists();
     }
-  }, [user, isClient]);
+  }, [user]);
 
   const handleInputChange = (field: keyof SecurityData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -297,21 +291,6 @@ export default function SecurityPass() {
     }
   };
 
-
-  if (!isClient) {
-    return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 p-4">

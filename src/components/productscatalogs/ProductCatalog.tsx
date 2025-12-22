@@ -851,20 +851,20 @@ export default function ProductCatalog({
       const result = await fetchGraphQL<{ updateProduct: { id: number; productId: string; status: string } }>(UNPUBLISH_PRODUCT_MUTATION, {
         userId: user.id,
         productId: product.productId,
-        status: 'Draft',
+          status: 'Draft',
       });
 
-      // Also update marketplace status to unpublished
-      try {
-        await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-          userId: user.id,
-          productId: product.productId,
-          action: 'unpublish',
-        });
-      } catch (marketplaceError) {
-        // Don't fail the entire operation, just warn
-        console.warn('Failed to unpublish product from marketplace', marketplaceError);
-      }
+        // Also update marketplace status to unpublished
+        try {
+          await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
+              userId: user.id,
+            productId: product.productId,
+            action: 'unpublish',
+          });
+        } catch (marketplaceError) {
+          // Don't fail the entire operation, just warn
+          console.warn('Failed to unpublish product from marketplace', marketplaceError);
+        }
 
       // Optimistically update local state immediately
       if (result?.updateProduct) {
@@ -872,13 +872,13 @@ export default function ProductCatalog({
         prevProductStatusRef.current = 'Draft';
       }
 
-      // Show success modal and reload page
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
+        // Show success modal and reload page
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
         // Force complete page reload to get fresh data
-        window.location.href = window.location.href;
-      }, 1000);
+          window.location.href = window.location.href;
+        }, 1000);
     } catch (error) {
       alert('Error unpublishing product. Please try again.');
     } finally {

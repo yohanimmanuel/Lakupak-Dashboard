@@ -28,7 +28,6 @@ export default function SalesTarget({
   mode,
 }: SalesTargetProps) {
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   const [targetRows, setTargetRows] = useState<SalesTargetRow[]>(() => {
     // Show 1 placeholder row for new agents, or existing targets for edit mode
     if (mode === 'edit' && formData.salesTarget) {
@@ -55,11 +54,7 @@ export default function SalesTarget({
     ];
   });
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  const userCurrency = user?.currency || getDefaultCurrency();
 
   // Update tab completion
   useEffect(() => {

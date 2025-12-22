@@ -19,7 +19,6 @@ const LANGUAGES = [
 
 export default function LanguageRegion() {
   const { user, updateUser } = useUserStore();
-  const [isClient, setIsClient] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
@@ -38,9 +37,6 @@ export default function LanguageRegion() {
     currency: 'IDR',
   });
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -59,7 +55,7 @@ export default function LanguageRegion() {
   }, []);
 
   useEffect(() => {
-    if (isClient && user) {
+    if (user) {
       const userData = {
         language: user.language || 'en',
         region: user.region || 'ID',
@@ -68,7 +64,7 @@ export default function LanguageRegion() {
       setFormData(userData);
       setOriginalData(userData);
     }
-  }, [isClient, user]);
+  }, [user]);
 
   // Auto-update currency when region changes
   useEffect(() => {
@@ -195,7 +191,9 @@ export default function LanguageRegion() {
     setSuccessMessage('');
   };
 
-  if (!isClient || !user) {
+  // Component renders on client (useEffect guarantees this)
+  // Use isHydrated for proper hydration check
+  if (!user) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

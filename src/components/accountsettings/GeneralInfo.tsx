@@ -34,14 +34,9 @@ export default function GeneralInfo() {
   });
 
   const [originalData, setOriginalData] = useState<GeneralInfoData>(formData);
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient && user) {
+    if (user) {
       // Check if avatar is a blob URL (temporary) and treat as null
       const avatar = user?.avatar && !user.avatar.startsWith('blob:') ? user.avatar : null;
       
@@ -58,7 +53,7 @@ export default function GeneralInfo() {
       setFormData(newFormData);
       setOriginalData(newFormData);
     }
-  }, [user, isClient]);
+  }, [user]);
 
   const handleInputChange = (field: keyof GeneralInfoData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -211,40 +206,6 @@ export default function GeneralInfo() {
   };
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalData);
-
-  if (!isClient) {
-    return (
-      <div className="w-full p-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="h-6 bg-gray-200 rounded w-32 mb-4"></div>
-              <div className="flex flex-col items-center">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mb-4"></div>
-                <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-48"></div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="h-6 bg-gray-200 rounded w-40 mb-4"></div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="h-10 bg-gray-200 rounded"></div>
-                  <div className="h-10 bg-gray-200 rounded"></div>
-                </div>
-                <div className="h-10 bg-gray-200 rounded"></div>
-                <div className="h-10 bg-gray-200 rounded"></div>
-                <div className="h-20 bg-gray-200 rounded"></div>
-                <div className="h-10 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full p-4">

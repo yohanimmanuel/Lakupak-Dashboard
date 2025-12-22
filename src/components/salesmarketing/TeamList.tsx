@@ -59,7 +59,6 @@ export default function TeamList({
 }: TeamListProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   const [selectedTab, setSelectedTab] = useState('individuals');
   const [search, setSearch] = useState('');
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
@@ -74,11 +73,6 @@ export default function TeamList({
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Reset pagination when search, tab, or filters change
   useEffect(() => {
@@ -102,8 +96,8 @@ export default function TeamList({
     };
   }, []);
 
-  // Get user currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get user currency for display - safe to use on both server and client
+  const userCurrency = user?.currency || getDefaultCurrency();
 
   // Sample data if not provided
   const defaultAgents: SalesAgent[] = salesAgents.length > 0 ? salesAgents : [

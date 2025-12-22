@@ -50,7 +50,6 @@ interface FavoriteProduct {
 export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [isClient, setIsClient] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('October, 2024');
   const [selectedYear, setSelectedYear] = useState('This year (2024)');
   const [selectedReport, setSelectedReport] = useState<FieldReport | null>(null);
@@ -60,13 +59,8 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   const [targetPage, setTargetPage] = useState(1);
   const targetsPerPage = 4;
 
-  // Prevent hydration mismatch by only using user currency on client
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Get user currency for display (only on client)
-  const userCurrency = isClient ? (user?.currency || getDefaultCurrency()) : getDefaultCurrency();
+  // Get user currency for display - safe to use on both server and client
+  const userCurrency = user?.currency || getDefaultCurrency();
 
   // Sample field reports data
   const fieldReports: FieldReport[] = [
