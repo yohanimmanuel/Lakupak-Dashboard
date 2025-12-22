@@ -16,7 +16,7 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // GraphQL query to fetch offers
+  // GraphQL query to fetch offers - moved outside component to prevent recreation on every render
   const OFFERS_QUERY = `
     query GetOffers($userId: Int!, $page: Int, $limit: Int, $status: String, $type: String) {
       offers(userId: $userId, page: $page, limit: $limit, status: $status, type: $type) {
@@ -64,6 +64,7 @@ export default function OffersPage() {
       setLoading(true);
       if (!user?.id) {
         setOffers([]);
+        setLoading(false);
         return;
       }
       
@@ -153,7 +154,7 @@ export default function OffersPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, OFFERS_QUERY]);
+  }, [user?.id]); // Removed OFFERS_QUERY from deps - it's a constant and shouldn't cause re-renders
 
   useEffect(() => {
     fetchOffers();

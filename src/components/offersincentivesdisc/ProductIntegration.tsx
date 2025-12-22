@@ -508,14 +508,16 @@ export default function ProductIntegration({
 
   // Sync currentOfferProductIds when offerData.id changes (switching to different offer)
   // This is acceptable because the state can also be modified by user actions
+  // Only depend on offerData?.id to avoid re-running when products array reference changes
+  // The products will be synced when the offer ID actually changes
   useEffect(() => {
     const currentOfferId = offerData?.id;
     if (currentOfferId !== prevOfferIdRef.current) {
       prevOfferIdRef.current = currentOfferId;
       // Reset to products from the new offer
-    setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
+      setCurrentOfferProductIds(new Set(offerData?.products?.map(p => p.productId) || []));
     }
-  }, [offerData?.id, offerData?.products]);
+  }, [offerData?.id]); // Removed offerData?.products - array reference changes don't indicate actual change
 
   
   // Check if product can be selected
