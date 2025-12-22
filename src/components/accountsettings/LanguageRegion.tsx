@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
 import { ChevronDownIcon, GlobeIcon, CheckIcon } from 'lucide-react';
@@ -25,18 +25,23 @@ export default function LanguageRegion() {
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
 
-  const [formData, setFormData] = useState<LanguageRegionData>({
-    language: 'en',
-    region: 'ID',
-    currency: 'IDR',
+  // Initialize formData from user prop using initializer function (not useEffect)
+  const [formData, setFormData] = useState<LanguageRegionData>(() => {
+    if (!user) {
+      return {
+        language: 'en',
+        region: 'ID',
+        currency: 'IDR',
+      };
+    }
+    return {
+      language: user.language || 'en',
+      region: user.region || 'ID',
+      currency: user.currency || 'IDR',
+    };
   });
 
-  const [originalData, setOriginalData] = useState<LanguageRegionData>({
-    language: 'en',
-    region: 'ID',
-    currency: 'IDR',
-  });
-
+  const [originalData, setOriginalData] = useState<LanguageRegionData>(formData);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function LanguageRegion() {
     };
   }, []);
 
+  // Sync formData when user changes
   useEffect(() => {
     if (user) {
       const userData = {
@@ -66,16 +72,21 @@ export default function LanguageRegion() {
     }
   }, [user]);
 
-  // Auto-update currency when region changes
-  useEffect(() => {
+  // Compute currency from region during render (not in useEffect) - follows React best practices
+  const computedCurrency = useMemo(() => {
     const selectedRegion = getRegionByCode(formData.region);
-    if (selectedRegion) {
+    return selectedRegion?.currency || formData.currency;
+  }, [formData.region, formData.currency]);
+
+  // Update formData.currency only when computed value changes and is different
+  useEffect(() => {
+    if (computedCurrency !== formData.currency) {
       setFormData(prev => ({
         ...prev,
-        currency: selectedRegion.currency
+        currency: computedCurrency
       }));
     }
-  }, [formData.region]);
+  }, [computedCurrency, formData.currency]);
 
   const handleLanguageChange = async (languageCode: string) => {
     const newFormData = {

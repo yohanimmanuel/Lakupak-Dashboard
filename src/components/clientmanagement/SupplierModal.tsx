@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Trash, User, X, Loader2, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
@@ -110,13 +110,17 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     return dates.length > 0 ? dates[0] : '';
   }, []);
 
-  // Update lastDelivery when supplyRows change
+  // Compute lastDelivery during render (not in useEffect) - follows React best practices
+  const computedLastDelivery = useMemo(() => {
+    return getLatestDeliveryDate(supplyRows);
+  }, [supplyRows, getLatestDeliveryDate]);
+
+  // Update form.lastDelivery only when computed value changes and is different
   useEffect(() => {
-    const latestDate = getLatestDeliveryDate(supplyRows);
-    if (latestDate && latestDate !== form.lastDelivery) {
-      setForm(prev => ({ ...prev, lastDelivery: latestDate }));
+    if (computedLastDelivery && computedLastDelivery !== form.lastDelivery) {
+      setForm(prev => ({ ...prev, lastDelivery: computedLastDelivery }));
     }
-  }, [supplyRows, form.lastDelivery, getLatestDeliveryDate]);
+  }, [computedLastDelivery, form.lastDelivery]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

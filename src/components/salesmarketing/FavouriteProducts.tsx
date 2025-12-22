@@ -42,6 +42,7 @@ export default function FavouriteProducts({
   
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const prevFormDataFavoriteProductsRef = useRef<FavoriteProduct[] | undefined>(formData.favoriteProducts);
 
   // Fetch products from GraphQL API
   const fetchProducts = useCallback(async () => {
@@ -115,13 +116,22 @@ export default function FavouriteProducts({
   }, [fetchProducts]);
 
   // Sync selectedProducts with formData when formData changes (e.g., when navigating back to this tab)
-  // Only update if formData has favoriteProducts and it's different from current state
+  // Use ref to track previous value and avoid unnecessary updates
   useEffect(() => {
-    if (formData.favoriteProducts && 
-        JSON.stringify(formData.favoriteProducts) !== JSON.stringify(selectedProducts)) {
-      setSelectedProducts(formData.favoriteProducts);
+    const currentFavoriteProducts = formData.favoriteProducts;
+    const prevFavoriteProducts = prevFormDataFavoriteProductsRef.current;
+    
+    // Only update if formData.favoriteProducts actually changed
+    if (currentFavoriteProducts && 
+        JSON.stringify(currentFavoriteProducts) !== JSON.stringify(prevFavoriteProducts)) {
+      setSelectedProducts(currentFavoriteProducts);
+      prevFormDataFavoriteProductsRef.current = currentFavoriteProducts;
+    } else if (!currentFavoriteProducts && prevFavoriteProducts) {
+      // Clear selection if formData.favoriteProducts was removed
+      setSelectedProducts([]);
+      prevFormDataFavoriteProductsRef.current = undefined;
     }
-  }, [formData.favoriteProducts]); // Only depend on formData.favoriteProducts
+  }, [formData.favoriteProducts]);
 
   // Update tab completion - products are optional, so always complete
   useEffect(() => {

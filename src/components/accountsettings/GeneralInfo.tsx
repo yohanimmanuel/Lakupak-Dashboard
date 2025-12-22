@@ -23,18 +23,36 @@ export default function GeneralInfo() {
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<GeneralInfoData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    bio: '',
-    location: '',
-    avatar: null,
+  // Initialize formData from user prop using initializer function (not useEffect)
+  const [formData, setFormData] = useState<GeneralInfoData>(() => {
+    if (!user) {
+      return {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        bio: '',
+        location: '',
+        avatar: null,
+      };
+    }
+    // Check if avatar is a blob URL (temporary) and treat as null
+    const avatar = user?.avatar && !user.avatar.startsWith('blob:') ? user.avatar : null;
+    
+    return {
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      bio: user?.bio || '',
+      location: user?.location || '',
+      avatar: avatar,
+    };
   });
 
   const [originalData, setOriginalData] = useState<GeneralInfoData>(formData);
 
+  // Sync formData when user changes (using key prop would reset component, but we want to sync)
   useEffect(() => {
     if (user) {
       // Check if avatar is a blob URL (temporary) and treat as null

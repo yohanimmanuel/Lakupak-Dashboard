@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Trash, User, Upload, X, AlertCircle, CheckCircle, Loader2, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
@@ -120,13 +120,17 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     return dates.length > 0 ? dates[0] : '';
   }, []);
 
-  // Update lastShipment when orderRows change
+  // Compute lastShipment during render (not in useEffect) - follows React best practices
+  const computedLastShipment = useMemo(() => {
+    return getLatestOrderDate(orderRows);
+  }, [orderRows, getLatestOrderDate]);
+
+  // Update form.lastShipment only when computed value changes and is different
   useEffect(() => {
-    const latestDate = getLatestOrderDate(orderRows);
-    if (latestDate && latestDate !== form.lastShipment) {
-      setForm(prev => ({ ...prev, lastShipment: latestDate }));
+    if (computedLastShipment && computedLastShipment !== form.lastShipment) {
+      setForm(prev => ({ ...prev, lastShipment: computedLastShipment }));
     }
-  }, [orderRows, form.lastShipment, getLatestOrderDate]);
+  }, [computedLastShipment, form.lastShipment]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

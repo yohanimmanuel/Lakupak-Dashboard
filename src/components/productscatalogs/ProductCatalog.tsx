@@ -310,7 +310,6 @@ export default function ProductCatalog({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
@@ -325,6 +324,12 @@ export default function ProductCatalog({
   const currentProductStatus = useMemo(() => {
     return product?.status || 'Draft';
   }, [product?.status]);
+
+  // Compute hasUnsavedChanges during render (not in useEffect) - follows React best practices
+  const hasUnsavedChanges = useMemo(() => {
+    if (mode !== 'edit' || !originalFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(originalFormData);
+  }, [formData, originalFormData, mode]);
 
   // Track previous product ID to detect when product actually changes
   const prevProductIdRef = useRef<number | undefined>(undefined);
@@ -374,7 +379,7 @@ export default function ProductCatalog({
       });
       
       setOriginalFormData({ ...freshFormData });
-      setHasUnsavedChanges(false);
+      // hasUnsavedChanges is now computed from formData and originalFormData, so no need to set it
     } else if (!product) {
       prevProductIdRef.current = undefined;
       prevProductStatusRef.current = undefined;
@@ -412,14 +417,6 @@ export default function ProductCatalog({
       setOriginalFormData(JSON.parse(JSON.stringify(initial)));
     }
   }, [mode, product]);
-
-  // Track changes
-  useEffect(() => {
-    if (mode === 'edit' && originalFormData) {
-      const hasChanges = JSON.stringify(formData) !== JSON.stringify(originalFormData);
-      setHasUnsavedChanges(hasChanges);
-    }
-  }, [formData, originalFormData, mode]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -1214,7 +1211,7 @@ export default function ProductCatalog({
         
         if (currentMode === 'edit') {
           // Show success modal and reload page
-          setHasUnsavedChanges(false);
+          // Update originalFormData to match current formData - this will make hasUnsavedChanges false
           setOriginalFormData(JSON.parse(JSON.stringify(formData)));
           setShowSuccessModal(true);
           setTimeout(() => {
@@ -1244,7 +1241,7 @@ export default function ProductCatalog({
   const handleCancel = () => {
     if (originalFormData) {
       setFormData(JSON.parse(JSON.stringify(originalFormData)));
-      setHasUnsavedChanges(false);
+      // hasUnsavedChanges will be false after formData matches originalFormData
     }
   };
 
