@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import SupplierTable from "@/components/clientmanagement/SupplierTable";
 import SupplierModal from '@/components/clientmanagement/SupplierModal';
@@ -107,7 +107,42 @@ export default function SuppliersPage() {
     return { avgMonthlyPurchaseValue, avgMonthlySupplied };
   };
 
-  const fetchSuppliers = async () => {
+  // GraphQL query to fetch suppliers - moved outside function to prevent recreation
+  const SUPPLIERS_QUERY = `
+    query GetSuppliers($userId: Int!, $page: Int, $limit: Int) {
+      suppliers(userId: $userId, page: $page, limit: $limit) {
+        nodes {
+          id
+          supplierId
+          name
+          contact
+          email
+          phone
+          businessType
+          address
+          status
+          logistics
+          notes
+          supplies
+          avgMonthlyPurchaseValue
+          totalPurchases
+          totalSupplies
+          onTimeDeliveryRate
+          userId
+          createdAt
+          updatedAt
+        }
+        pagination {
+          page
+          limit
+          totalCount
+          totalPages
+        }
+      }
+    }
+  `;
+
+  const fetchSuppliers = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     
@@ -124,40 +159,6 @@ export default function SuppliersPage() {
     }
     
     try {
-      const SUPPLIERS_QUERY = `
-        query GetSuppliers($userId: Int!, $page: Int, $limit: Int) {
-          suppliers(userId: $userId, page: $page, limit: $limit) {
-            nodes {
-              id
-              supplierId
-              name
-              contact
-              email
-              phone
-              businessType
-              address
-              status
-              logistics
-              notes
-              supplies
-              avgMonthlyPurchaseValue
-              totalPurchases
-              totalSupplies
-              onTimeDeliveryRate
-              userId
-              createdAt
-              updatedAt
-            }
-            pagination {
-              page
-              limit
-              totalCount
-              totalPages
-            }
-          }
-        }
-      `;
-      
       const data = await fetchGraphQL<{
         suppliers: {
           nodes: Supplier[];
@@ -220,7 +221,7 @@ export default function SuppliersPage() {
         }, 500);
       }, 2500);
     }
-  };
+  }, [user?.id, suppliers.length]); // Removed SUPPLIERS_QUERY - it's now a constant outside the function
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -235,7 +236,7 @@ export default function SuppliersPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, [user?.id]);
+  }, [fetchSuppliers]); // Now fetchSuppliers is properly memoized, so we can include it
 
   if (loading) {
     return (

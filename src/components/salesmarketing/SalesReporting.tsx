@@ -80,8 +80,7 @@ export default function SalesReporting({
   // Update tab completion - reporting is optional
   useEffect(() => {
     onTabCompletion('reporting', true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [onTabCompletion]); // onTabCompletion is a prop function - should be in dependencies
 
   const handleAddReport = () => {
     const newReport: FieldReport = {

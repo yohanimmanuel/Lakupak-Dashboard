@@ -66,8 +66,7 @@ export default function SalesTarget({
   // Only call onTabCompletion when completion status actually changes
   useEffect(() => {
     onTabCompletion('target', hasValidTargets);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasValidTargets]);
+  }, [hasValidTargets, onTabCompletion]); // Added onTabCompletion to dependencies
 
   const handleAddRow = () => {
     const newRow: SalesTargetRow = {

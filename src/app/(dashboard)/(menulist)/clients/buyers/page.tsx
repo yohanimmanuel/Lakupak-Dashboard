@@ -226,7 +226,7 @@ export default function BuyersPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, buyers.length]);
+  }, [user?.id, buyers.length]); // Removed BUYERS_QUERY - it's a constant and shouldn't cause re-renders
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load

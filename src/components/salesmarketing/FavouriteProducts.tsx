@@ -136,8 +136,7 @@ export default function FavouriteProducts({
   // Update tab completion - products are optional, so always complete
   useEffect(() => {
     onTabCompletion('products', true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [onTabCompletion]); // onTabCompletion is a prop function - should be in dependencies
 
   // Close dropdowns when clicking outside
   useEffect(() => {

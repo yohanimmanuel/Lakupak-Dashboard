@@ -704,7 +704,7 @@ const FinancialAnalytics: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user?.id]); // Added user?.id dependency since fetchData uses it
 
   useEffect(() => {
     setMetrics(calculateMetrics);

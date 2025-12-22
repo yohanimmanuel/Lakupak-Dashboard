@@ -100,7 +100,7 @@ export default function MarketingTeamPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, []);
+  }, [fetchData]); // Added fetchData to dependencies
 
   const handleViewAgent = (agent: SalesAgent) => {
     router.push(`/marketing/team/details?id=${agent.id}`);

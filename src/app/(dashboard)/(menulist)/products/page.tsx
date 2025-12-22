@@ -165,11 +165,7 @@ export default function ProductsPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, products.length]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  }, [user?.id, products.length]); // Removed PRODUCTS_QUERY - it's a constant and shouldn't cause re-renders
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -184,7 +180,7 @@ export default function ProductsPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, [user?.id]);
+  }, [fetchProducts]); // Use fetchProducts instead of user?.id since fetchProducts is properly memoized
 
   // Convert product data to table row format
   const profileToTableRow = (product: Product): ProductTableRow => {

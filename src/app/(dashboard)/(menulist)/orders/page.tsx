@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -26,7 +26,7 @@ export default function OrdersPage() {
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Unified fetch function (used on load and by Refresh button)
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       // Clear any existing timeouts
@@ -74,7 +74,7 @@ export default function OrdersPage() {
         }, 500);
       }, 2500);
     }
-  };
+  }, [user?.id, orders.length]); // Wrapped in useCallback - added proper dependencies
 
   // Fetch orders from database on mount/user change
   useEffect(() => {
@@ -84,8 +84,7 @@ export default function OrdersPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [fetchOrders]); // Now fetchOrders is properly memoized, so we can include it
 
   const fetchArchived = async () => {
     try {
