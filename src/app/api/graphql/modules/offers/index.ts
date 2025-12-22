@@ -608,9 +608,9 @@ const updateOffer = async (args: {
     });
   } else {
     // For other updates, wait for price update to ensure consistency
-    await prisma.$transaction(async (tx) => {
-      await updateProductPricesFromOffers(tx, userId);
-    });
+  await prisma.$transaction(async (tx) => {
+    await updateProductPricesFromOffers(tx, userId);
+  });
   }
 
   const updatedOfferWithRelations = await prisma.offer.findUnique({

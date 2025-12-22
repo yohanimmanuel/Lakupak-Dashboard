@@ -445,11 +445,11 @@ export default function OfferTable({
         // Process batch with individual error handling
         const batchResults = await Promise.allSettled(
           batch.map(offerId =>
-            fetchGraphQL(UPDATE_OFFER_MUTATION, {
-              userId: user.id,
-              id: offerId,
-              status: 'active',
-            })
+        fetchGraphQL(UPDATE_OFFER_MUTATION, {
+          userId: user.id,
+          id: offerId,
+          status: 'active',
+        })
           )
         );
         
@@ -510,11 +510,11 @@ export default function OfferTable({
         // Process batch with individual error handling
         const batchResults = await Promise.allSettled(
           batch.map(offerId =>
-            fetchGraphQL(UPDATE_OFFER_MUTATION, {
-              userId: user.id,
-              id: offerId,
-              status: 'inactive',
-            })
+        fetchGraphQL(UPDATE_OFFER_MUTATION, {
+          userId: user.id,
+          id: offerId,
+          status: 'inactive',
+        })
           )
         );
         
