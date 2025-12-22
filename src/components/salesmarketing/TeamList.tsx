@@ -6,6 +6,15 @@ import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 
+export interface FavoriteProduct {
+  productId: string;
+  name: string;
+  productType: string;
+  brand?: string;
+  images?: string[];
+  sellingPrice?: string;
+}
+
 export interface SalesAgent {
   id: string;
   name: string;
@@ -19,6 +28,7 @@ export interface SalesAgent {
   currentSales?: number;
   teamId?: string;
   teamName?: string;
+  favoriteProducts?: FavoriteProduct[];
 }
 
 export interface SalesTeam {

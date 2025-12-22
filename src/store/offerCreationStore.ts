@@ -226,7 +226,7 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
         }
         get().updateReadyToCreate();
       },
-      
+
       addDateRange: (dateRange) => {
         set((state) => ({
           dateRanges: [...state.dateRanges, dateRange],

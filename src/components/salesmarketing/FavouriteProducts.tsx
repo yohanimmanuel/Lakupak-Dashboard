@@ -2,21 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Package, Plus, Search, X, Trash2, Grid, List, Check, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { SalesAgent } from './TeamList';
+import { SalesAgent, FavoriteProduct } from './TeamList';
 import { Product } from '@/types/product';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
-
-interface FavoriteProduct {
-  productId: string;
-  name: string;
-  productType: string;
-  brand?: string;
-  images?: string[];
-  sellingPrice?: string;
-}
 
 interface FavouriteProductsProps {
   formData: Partial<SalesAgent>;
@@ -37,9 +28,8 @@ export default function FavouriteProducts({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProducts, setSelectedProducts] = useState<FavoriteProduct[]>(() => {
-    // In production, this would come from formData.favoriteProducts
-    // For now, using empty array
-    return [];
+    // Initialize from formData if available
+    return formData.favoriteProducts || [];
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All Types');
@@ -123,6 +113,15 @@ export default function FavouriteProducts({
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Sync selectedProducts with formData when formData changes (e.g., when navigating back to this tab)
+  // Only update if formData has favoriteProducts and it's different from current state
+  useEffect(() => {
+    if (formData.favoriteProducts && 
+        JSON.stringify(formData.favoriteProducts) !== JSON.stringify(selectedProducts)) {
+      setSelectedProducts(formData.favoriteProducts);
+    }
+  }, [formData.favoriteProducts]); // Only depend on formData.favoriteProducts
 
   // Update tab completion - products are optional, so always complete
   useEffect(() => {
@@ -212,12 +211,18 @@ export default function FavouriteProducts({
         images: product.images,
         sellingPrice: getPriceDisplay(product),
       };
-      setSelectedProducts([...selectedProducts, favoriteProduct]);
+      const updatedProducts = [...selectedProducts, favoriteProduct];
+      setSelectedProducts(updatedProducts);
+      // Update formData immediately in event handler (not in useEffect)
+      onFormChange({ favoriteProducts: updatedProducts });
     }
   };
 
   const handleRemoveProduct = (productId: string) => {
-    setSelectedProducts(selectedProducts.filter(p => p.productId !== productId));
+    const updatedProducts = selectedProducts.filter(p => p.productId !== productId);
+    setSelectedProducts(updatedProducts);
+    // Update formData immediately in event handler (not in useEffect)
+    onFormChange({ favoriteProducts: updatedProducts });
   };
 
   const isProductSelected = (productId: string) => {
@@ -226,10 +231,12 @@ export default function FavouriteProducts({
 
   const handleSelectAll = () => {
     const allSelected = pagedProducts.every(p => isProductSelected(p.productId));
+    let updatedProducts: FavoriteProduct[];
+    
     if (allSelected) {
       // Deselect all products on current page
       const currentPageProductIds = pagedProducts.map(p => p.productId);
-      setSelectedProducts(selectedProducts.filter(p => !currentPageProductIds.includes(p.productId)));
+      updatedProducts = selectedProducts.filter(p => !currentPageProductIds.includes(p.productId));
     } else {
       // Select all products on current page that aren't already selected
       const newProducts = pagedProducts
@@ -242,8 +249,12 @@ export default function FavouriteProducts({
           images: product.images,
           sellingPrice: getPriceDisplay(product),
         }));
-      setSelectedProducts([...selectedProducts, ...newProducts]);
+      updatedProducts = [...selectedProducts, ...newProducts];
     }
+    
+    setSelectedProducts(updatedProducts);
+    // Update formData immediately in event handler (not in useEffect)
+    onFormChange({ favoriteProducts: updatedProducts });
   };
 
   if (loading) {
@@ -383,7 +394,10 @@ export default function FavouriteProducts({
                 {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected as favorites
               </span>
               <button
-                onClick={() => setSelectedProducts([])}
+                onClick={() => {
+                  setSelectedProducts([]);
+                  onFormChange({ favoriteProducts: [] });
+                }}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium"
               >
                 Clear All

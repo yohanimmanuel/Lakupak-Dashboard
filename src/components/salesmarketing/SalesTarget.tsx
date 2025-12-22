@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Target, Plus, Trash2, DollarSign } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
@@ -56,13 +56,18 @@ export default function SalesTarget({
 
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  // Update tab completion
-  useEffect(() => {
-    const hasValidTargets = targetRows.some(row => 
+  // Calculate tab completion during render (not in useEffect)
+  const hasValidTargets = useMemo(() => {
+    return targetRows.some(row => 
       row.period.trim() && row.goal > 0
     );
+  }, [targetRows]);
+
+  // Only call onTabCompletion when completion status actually changes
+  useEffect(() => {
     onTabCompletion('target', hasValidTargets);
-  }, [targetRows]); // Removed onTabCompletion from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasValidTargets]);
 
   const handleAddRow = () => {
     const newRow: SalesTargetRow = {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Mail, Phone, MapPin, Upload, X, ChevronDown } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
@@ -35,16 +35,21 @@ export default function BasicProfileInfo({
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Validate tab completion
-  useEffect(() => {
-    const isComplete = Boolean(
+  // Calculate tab completion during render (not in useEffect)
+  const isComplete = useMemo(() => {
+    return Boolean(
       formData.name?.trim() &&
       formData.email?.trim() &&
       formData.phone?.trim() &&
       formData.role
     );
+  }, [formData.name, formData.email, formData.phone, formData.role]);
+
+  // Only call onTabCompletion when completion status actually changes
+  useEffect(() => {
     onTabCompletion('profile', isComplete);
-  }, [formData.name, formData.email, formData.phone, formData.role]); // Removed onTabCompletion from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isComplete]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
