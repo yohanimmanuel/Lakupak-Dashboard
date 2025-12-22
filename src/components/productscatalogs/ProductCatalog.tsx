@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { 
   DollarSign, 
   Tag, 
@@ -34,6 +34,28 @@ const MARKETPLACE_STATUS_MUTATION = `
     }
   }
 `;
+
+// Helper function for deep equality check (more efficient than JSON.stringify)
+const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean => {
+  return (
+    a.id === b.id &&
+    a.productId === b.productId &&
+    a.sku === b.sku &&
+    a.name === b.name &&
+    a.description === b.description &&
+    a.productType === b.productType &&
+    a.brand === b.brand &&
+    a.supplier === b.supplier &&
+    a.status === b.status &&
+    a.productCategory === b.productCategory &&
+    a.catalogName === b.catalogName &&
+    JSON.stringify(a.images) === JSON.stringify(b.images) &&
+    a.halalCertified === b.halalCertified &&
+    a.bpomApproved === b.bpomApproved &&
+    a.originalProduct === b.originalProduct &&
+    a.returnPolicyDays === b.returnPolicyDays
+  );
+};
  
 
 interface Combination {
@@ -292,9 +314,19 @@ export default function ProductCatalog({
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
+  // Derive current mode and status from props
+  const derivedMode = useMemo(() => {
+    if (product?.status === 'Published') return 'view';
+    return mode;
+  }, [mode, product?.status]);
+
+  const derivedStatus = useMemo(() => {
+    return product?.status || 'Draft';
+  }, [product?.status]);
+
   // Internal state management for mode and product status
-  const [currentMode, setCurrentMode] = useState(mode);
-  const [currentProductStatus, setCurrentProductStatus] = useState(product?.status || 'Draft');
+  const [currentMode, setCurrentMode] = useState(derivedMode);
+  const [currentProductStatus, setCurrentProductStatus] = useState(derivedStatus);
 
   // Effect to synchronize internal mode/status with props after a refresh
   useEffect(() => {
@@ -302,16 +334,12 @@ export default function ProductCatalog({
       const newStatus = product.status;
       const newMode = newStatus === 'Published' ? 'view' : 'edit';
       
-      // Only update if status or mode actually changed
-      if (currentProductStatus !== newStatus) {
-        setCurrentProductStatus(newStatus);
-      }
-      if (currentMode !== newMode) {
-        setCurrentMode(newMode);
-      }
+      // Update status and mode based on product props
+      setCurrentProductStatus(newStatus);
+      setCurrentMode(newMode);
       
       // Update formData with fresh product data only if product actually changed
-      const freshFormData = {
+      const freshFormData: ProductFormData = {
         id: product.id,
         productId: product.productId || '',
         sku: product.sku || '',
@@ -330,21 +358,17 @@ export default function ProductCatalog({
         returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
       };
       
-      // Only update form data if it's actually different
+      // Only update form data if it's actually different (using efficient comparison)
       setFormData(prev => {
-        const isDifferent = JSON.stringify(prev) !== JSON.stringify(freshFormData);
-        return isDifferent ? freshFormData : prev;
+        return isFormDataEqual(prev, freshFormData) ? prev : freshFormData;
       });
       
-      setOriginalFormData(JSON.parse(JSON.stringify(freshFormData)));
+      setOriginalFormData({ ...freshFormData });
       setHasUnsavedChanges(false);
     } else {
-      if (currentMode !== mode) {
-        setCurrentMode(mode);
-      }
-      if (currentProductStatus !== 'Draft') {
-        setCurrentProductStatus('Draft');
-      }
+      // No product - use mode prop and default status
+      setCurrentMode(mode);
+      setCurrentProductStatus('Draft');
     }
   }, [mode, product]);
 

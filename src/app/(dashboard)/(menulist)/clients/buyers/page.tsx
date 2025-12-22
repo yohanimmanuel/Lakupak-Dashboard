@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import BuyerModal from '@/components/clientmanagement/BuyerModal';
@@ -147,7 +147,7 @@ export default function BuyersPage() {
     }
   `;
 
-  const fetchBuyers = async () => {
+  const fetchBuyers = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     
@@ -226,7 +226,7 @@ export default function BuyersPage() {
         }, 500);
       }, 2500);
     }
-  };
+  }, [user?.id, buyers.length]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -241,7 +241,7 @@ export default function BuyersPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, [user?.id]);
+  }, [user?.id, fetchBuyers]);
 
   // Auto-hide success and error messages
   useEffect(() => {
