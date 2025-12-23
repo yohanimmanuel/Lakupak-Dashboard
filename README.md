@@ -51,11 +51,9 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - **Optional Value-Added Services** – Logistics integration, financing, supplier leads
 
 ## Technical Architecture
-Frontend (Distributor SaaS Dashboard)
-- Next.js (React)
-Mobile App (Buyer Marketplace)
-- React Native (Expo)
-Backend / APIs
+- Frontend (Distributor SaaS Dashboard) - Next.js (React)
+- Mobile App (Buyer Marketplace) - React Native (Expo)
+Backend / APIs 
 - GraphQL (complex queries, dashboards, analytics)
 - REST API (transactions, orders, mutations)
 Database
