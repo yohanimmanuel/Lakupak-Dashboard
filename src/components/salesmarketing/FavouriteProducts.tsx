@@ -249,16 +249,17 @@ export default function FavouriteProducts({
   };
 
   const handleSelectAll = () => {
-    const allSelected = pagedProducts.every(p => isProductSelected(p.productId));
+    // Check if all filtered products (across all pages) are selected
+    const allFilteredSelected = filteredProducts.every(p => isProductSelected(p.productId));
     let updatedProducts: FavoriteProduct[];
     
-    if (allSelected) {
-      // Deselect all products on current page
-      const currentPageProductIds = pagedProducts.map(p => p.productId);
-      updatedProducts = selectedProducts.filter(p => !currentPageProductIds.includes(p.productId));
+    if (allFilteredSelected) {
+      // Deselect all filtered products
+      const filteredProductIds = filteredProducts.map(p => p.productId);
+      updatedProducts = selectedProducts.filter(p => !filteredProductIds.includes(p.productId));
     } else {
-      // Select all products on current page that aren't already selected
-      const newProducts = pagedProducts
+      // Select all filtered products that aren't already selected
+      const newProducts = filteredProducts
         .filter(p => !isProductSelected(p.productId))
         .map(product => ({
           productId: product.productId,
@@ -428,22 +429,22 @@ export default function FavouriteProducts({
       </div>
 
       {/* Select All Button */}
-      {pagedProducts.length > 0 && (
+      {filteredProducts.length > 0 && (
         <div className="flex items-center gap-2">
           <button
             onClick={handleSelectAll}
             className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-              pagedProducts.every(p => isProductSelected(p.productId)) && pagedProducts.length > 0
+              filteredProducts.every(p => isProductSelected(p.productId)) && filteredProducts.length > 0
                 ? 'bg-green-500 border-green-500'
                 : 'bg-white border-gray-300 hover:border-green-400'
             }`}
           >
-            {pagedProducts.every(p => isProductSelected(p.productId)) && pagedProducts.length > 0 && (
+            {filteredProducts.every(p => isProductSelected(p.productId)) && filteredProducts.length > 0 && (
               <Check className="w-3 h-3 text-white" />
             )}
           </button>
           <span className="text-sm text-gray-700">
-            Select All on This Page ({pagedProducts.filter(p => isProductSelected(p.productId)).length}/{pagedProducts.length})
+            Select All ({filteredProducts.filter(p => isProductSelected(p.productId)).length}/{filteredProducts.length})
           </span>
         </div>
       )}

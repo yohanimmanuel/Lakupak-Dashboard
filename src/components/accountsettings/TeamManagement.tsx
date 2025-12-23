@@ -15,6 +15,8 @@ import {
   Settings,
   Filter,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle,
   Clock,
   X
@@ -204,6 +206,10 @@ export default function TeamManagement() {
   const [selectedMember, setSelectedMember] = useState<SalesMember | null>(null);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
+  const agentsPerPage = 4;
+  const [teamsPage, setTeamsPage] = useState(1);
+  const teamsPerPage = 4;
   
   // Permissions state
   const [permissions, setPermissions] = useState({
@@ -501,6 +507,17 @@ export default function TeamManagement() {
     return matchesSearch && matchesTeam;
   });
 
+  // Reset pagination when search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedTeam]);
+
+  // Pagination for agents
+  const totalPages = Math.ceil(filteredMembers.length / agentsPerPage);
+  const fromRow = (page - 1) * agentsPerPage + 1;
+  const toRow = Math.min(page * agentsPerPage, filteredMembers.length);
+  const paginatedMembers = filteredMembers.slice((page - 1) * agentsPerPage, page * agentsPerPage);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -566,31 +583,112 @@ export default function TeamManagement() {
             <h3 className="text-md font-semibold text-black">Sales Performance Overview</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {salesTeams.map((team) => (
-              <div key={team.id} className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-sm text-black">{team.name}</h4>
-                  <Users className="h-4 w-4 text-gray-400" />
+          {/* Paginated Teams Grid */}
+          {(() => {
+            const totalTeamsPages = Math.ceil(salesTeams.length / teamsPerPage);
+            const fromTeam = (teamsPage - 1) * teamsPerPage + 1;
+            const toTeam = Math.min(teamsPage * teamsPerPage, salesTeams.length);
+            const paginatedTeams = salesTeams.slice((teamsPage - 1) * teamsPerPage, teamsPage * teamsPerPage);
+
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {paginatedTeams.map((team) => (
+                    <div key={team.id} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-sm text-black">{team.name}</h4>
+                        <Users className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <p className="text-xl font-bold text-black mb-1">{team.memberCount}</p>
+                      <p className="text-xs text-gray-600">sales reps</p>
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Target: {formatCurrency(team.monthlyTarget)}</span>
+                          <span>{getSalesProgress(team.currentSales, team.monthlyTarget).toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-[#0a61d7] h-2 rounded-full" 
+                            style={{ width: `${getSalesProgress(team.currentSales, team.monthlyTarget)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Manager: {team.manager}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xl font-bold text-black mb-1">{team.memberCount}</p>
-                <p className="text-xs text-gray-600">sales reps</p>
-                <div className="mt-2">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>Target: {formatCurrency(team.monthlyTarget)}</span>
-                    <span>{getSalesProgress(team.currentSales, team.monthlyTarget).toFixed(1)}%</span>
+
+                {/* Pagination for Teams */}
+                {salesTeams.length > 0 && (
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+                    {/* Left: Showing X to Y of Z */}
+                    <div className="text-sm text-gray-500">
+                      Showing {fromTeam} to {toTeam} of {salesTeams.length}
+                    </div>
+                    {/* Right: Pagination Controls */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setTeamsPage(p => Math.max(1, p - 1))}
+                        disabled={teamsPage === 1 || totalTeamsPages === 0}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-gray-500" />
+                      </button>
+                      {totalTeamsPages > 0 && Array.from({ length: Math.min(7, totalTeamsPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalTeamsPages <= 7) {
+                          pageNum = i + 1;
+                        } else if (teamsPage <= 4) {
+                          pageNum = i + 1;
+                        } else if (teamsPage >= totalTeamsPages - 3) {
+                          pageNum = totalTeamsPages - 6 + i;
+                        } else {
+                          pageNum = teamsPage - 3 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                              pageNum === teamsPage 
+                                ? 'bg-[#0a61d7] text-white' 
+                                : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                            }`}
+                            onClick={() => setTeamsPage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      {totalTeamsPages > 7 && teamsPage < totalTeamsPages - 3 && (
+                        <span className="px-2 text-gray-500">...</span>
+                      )}
+                      {totalTeamsPages > 7 && teamsPage < totalTeamsPages - 3 && (
+                        <button
+                          className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                            teamsPage === totalTeamsPages
+                              ? 'bg-[#0a61d7] text-white'
+                              : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                          }`}
+                          onClick={() => setTeamsPage(totalTeamsPages)}
+                        >
+                          {totalTeamsPages}
+                        </button>
+                      )}
+                      <button
+                        className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => setTeamsPage(p => Math.min(totalTeamsPages, p + 1))}
+                        disabled={teamsPage === totalTeamsPages || totalTeamsPages === 0}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-[#0a61d7] h-2 rounded-full" 
-                      style={{ width: `${getSalesProgress(team.currentSales, team.monthlyTarget)}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Manager: {team.manager}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Sales Team Directory */}
@@ -652,52 +750,132 @@ export default function TeamManagement() {
 
           {/* Sales Team Members List */}
           <div className="space-y-3">
-            {filteredMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-medium text-gray-600">
-                      {member.name.split(' ').map(n => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-medium text-sm text-black">{member.name}</span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 ${getStatusColor(member.status)}`}>
-                        {getStatusIcon(member.status)}
-                        {member.status}
-                      </span>
+            {paginatedMembers.length > 0 ? (
+              paginatedMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                      {member.avatar ? (
+                        <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-medium text-gray-600">
+                          {member.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-600">{member.role} • {member.territory}</p>
-                    <p className="text-xs text-gray-500">{member.email}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <div className="text-xs">
-                        <span className="text-gray-500">Target: </span>
-                        <span className="font-medium text-black">{formatCurrency(member.salesTarget)}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium text-sm text-black">{member.name}</span>
+                        <span className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 ${getStatusColor(member.status)}`}>
+                          {getStatusIcon(member.status)}
+                          {member.status}
+                        </span>
                       </div>
-                      <div className="text-xs">
-                        <span className="text-gray-500">Sales: </span>
-                        <span className="font-medium text-black">{formatCurrency(member.currentSales)}</span>
+                      <p className="text-xs text-gray-600">{member.role} • {member.territory}</p>
+                      <p className="text-xs text-gray-500">{member.email}</p>
+                      <div className="flex items-center space-x-4 mt-2">
+                        <div className="text-xs">
+                          <span className="text-gray-500">Target: </span>
+                          <span className="font-medium text-black">{formatCurrency(member.salesTarget)}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-500">Sales: </span>
+                          <span className="font-medium text-black">{formatCurrency(member.currentSales)}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-gray-500">Conversion: </span>
+                          <span className="font-medium text-black">{member.conversionRate}%</span>
+                        </div>
                       </div>
-                      <div className="text-xs">
-                        <span className="text-gray-500">Conversion: </span>
-                        <span className="font-medium text-black">{member.conversionRate}%</span>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                        <div 
+                          className="bg-[#0a61d7] h-1.5 rounded-full" 
+                          style={{ width: `${getSalesProgress(member.currentSales, member.salesTarget)}%` }}
+                        ></div>
                       </div>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                      <div 
-                        className="bg-[#0a61d7] h-1.5 rounded-full" 
-                        style={{ width: `${getSalesProgress(member.currentSales, member.salesTarget)}%` }}
-                      ></div>
                     </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm">No sales team members found</p>
               </div>
-            ))}
+            )}
           </div>
+
+          {/* Pagination */}
+          {filteredMembers.length > 0 && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+              {/* Left: Showing X to Y of Z */}
+              <div className="text-sm text-gray-500">
+                Showing {fromRow} to {toRow} of {filteredMembers.length}
+              </div>
+              {/* Right: Pagination Controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || totalPages === 0}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-500" />
+                </button>
+                {totalPages > 0 && Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 7) {
+                    pageNum = i + 1;
+                  } else if (page <= 4) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 3) {
+                    pageNum = totalPages - 6 + i;
+                  } else {
+                    pageNum = page - 3 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                        pageNum === page 
+                          ? 'bg-[#0a61d7] text-white' 
+                          : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                      }`}
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                {totalPages > 7 && page < totalPages - 3 && (
+                  <span className="px-2 text-gray-500">...</span>
+                )}
+                {totalPages > 7 && page < totalPages - 3 && (
+                  <button
+                    className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                      page === totalPages
+                        ? 'bg-[#0a61d7] text-white'
+                        : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                    }`}
+                    onClick={() => setPage(totalPages)}
+                  >
+                    {totalPages}
+                  </button>
+                )}
+                <button
+                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || totalPages === 0}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sales Access Control & Territories */}

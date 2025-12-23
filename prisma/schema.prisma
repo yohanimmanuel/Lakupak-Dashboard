@@ -489,6 +489,8 @@ model SalesAgent {
   status        String          // 'active', 'inactive'
   avatar        String?
   territory     String?
+  bio           String?         // About me / biography
+  sex           String?         // Gender (e.g., 'Male', 'Female', 'Other')
   teamId       String?
   userId       Int?
   createdAt     DateTime        @default(now()) @db.Timestamptz(3)

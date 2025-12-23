@@ -18,6 +18,8 @@ const GET_SALES_AGENT_QUERY = `
       status
       avatar
       territory
+      bio
+      sex
       teamId
       teamName
       favoriteProducts {

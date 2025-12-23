@@ -118,6 +118,8 @@ export const salesTypeDefs = /* GraphQL */ `
     status: String!
     avatar: String
     territory: String
+    bio: String
+    sex: String
     teamId: String
     teamName: String
     userId: Int
@@ -149,6 +151,7 @@ export const salesTypeDefs = /* GraphQL */ `
   }
 
   input FieldReportInput {
+    id: String
     date: String!
     location: String
     startTime: String
@@ -158,6 +161,7 @@ export const salesTypeDefs = /* GraphQL */ `
   }
 
   input SalesTargetInput {
+    id: String
     period: String!
     goal: Float!
     achieved: Float
@@ -172,6 +176,8 @@ export const salesTypeDefs = /* GraphQL */ `
     status: String!
     avatar: String
     territory: String
+    bio: String
+    sex: String
     teamId: String
     fieldReports: [FieldReportInput!]
     salesTargets: [SalesTargetInput!]
@@ -187,6 +193,8 @@ export const salesTypeDefs = /* GraphQL */ `
     status: String
     avatar: String
     territory: String
+    bio: String
+    sex: String
     teamId: String
     fieldReports: [FieldReportInput!]
     salesTargets: [SalesTargetInput!]
@@ -348,6 +356,7 @@ type SalesAgentModel = {
     updatedAt: Date;
   }>;
   favoriteProducts: Array<{
+    productId: number; // Foreign key from FavoriteProduct model
     product: {
       productId: string;
       name: string;
@@ -360,6 +369,8 @@ type SalesAgentModel = {
       }>;
     };
   }>;
+  bio: string | null;
+  sex: string | null;
 };
 
 type SalesTeamModel = {
@@ -381,12 +392,14 @@ const mapSalesAgent = (agent: SalesAgentModel) => {
     status: agent.status,
     avatar: agent.avatar,
     territory: agent.territory,
+    bio: agent.bio,
+    sex: agent.sex,
     teamId: agent.teamId,
     teamName: agent.team?.name || undefined,
     userId: agent.userId,
     favoriteProducts: (agent.favoriteProducts || []).map((fp) => ({
       productId: fp.product.productId,
-      productDbId: fp.productId, // Database ID from FavoriteProduct relation
+      productDbId: (fp as { productId: number }).productId, // Database ID from FavoriteProduct relation (foreign key)
       name: fp.product.name,
       productType: fp.product.productType,
       brand: fp.product.brand,
@@ -637,6 +650,8 @@ const createSalesAgent = async (args: {
     status: string;
     avatar?: string | null;
     territory?: string | null;
+    bio?: string | null;
+    sex?: string | null;
     teamId?: string | null;
     fieldReports?: Array<{
       date: string;
@@ -685,6 +700,8 @@ const createSalesAgent = async (args: {
         status: input.status || 'active',
         avatar: input.avatar,
         territory: input.territory,
+        bio: input.bio,
+        sex: input.sex,
         teamId: input.teamId,
         userId,
         fieldReports: input.fieldReports
@@ -762,6 +779,8 @@ const updateSalesAgent = async (args: {
     status?: string | null;
     avatar?: string | null;
     territory?: string | null;
+    bio?: string | null;
+    sex?: string | null;
     teamId?: string | null;
     fieldReports?: Array<{
       id?: string | null;
@@ -819,6 +838,8 @@ const updateSalesAgent = async (args: {
     if (input.status !== undefined) updateData.status = input.status;
     if (input.avatar !== undefined) updateData.avatar = input.avatar;
     if (input.territory !== undefined) updateData.territory = input.territory;
+    if (input.bio !== undefined) updateData.bio = input.bio;
+    if (input.sex !== undefined) updateData.sex = input.sex;
     if (input.teamId !== undefined) updateData.teamId = input.teamId;
 
     const salesAgentModel = (tx as unknown as Record<string, unknown>).salesAgent;
@@ -1226,6 +1247,8 @@ export const salesResolvers = {
         status: string;
         avatar?: string | null;
         territory?: string | null;
+        bio?: string | null;
+        sex?: string | null;
         teamId?: string | null;
         fieldReports?: Array<{
           date: string;
@@ -1257,6 +1280,8 @@ export const salesResolvers = {
         status?: string | null;
         avatar?: string | null;
         territory?: string | null;
+        bio?: string | null;
+        sex?: string | null;
         teamId?: string | null;
         fieldReports?: Array<{
           id?: string | null;

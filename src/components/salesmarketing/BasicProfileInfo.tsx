@@ -32,8 +32,10 @@ export default function BasicProfileInfo({
   const [isUploading, setIsUploading] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showSexDropdown, setShowSexDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const sexDropdownRef = useRef<HTMLDivElement>(null);
   const prevIsCompleteRef = useRef<boolean | undefined>(undefined);
 
   // Calculate tab completion during render (not in useEffect)
@@ -63,6 +65,9 @@ export default function BasicProfileInfo({
       }
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
         setShowStatusDropdown(false);
+      }
+      if (sexDropdownRef.current && !sexDropdownRef.current.contains(event.target as Node)) {
+        setShowSexDropdown(false);
       }
     };
 
@@ -296,6 +301,62 @@ export default function BasicProfileInfo({
             />
           </div>
         </div>
+
+        {/* Sex/Gender */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Sex / Gender
+          </label>
+          <div className="relative" ref={sexDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSexDropdown(!showSexDropdown);
+                setShowRoleDropdown(false);
+                setShowStatusDropdown(false);
+              }}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
+            >
+              <span className={formData.sex ? 'text-black' : 'text-gray-500'}>
+                {formData.sex || 'Select gender'}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            {showSexDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
+                  <button
+                    key={gender}
+                    type="button"
+                    onClick={() => {
+                      onFormChange({ sex: gender });
+                      setShowSexDropdown(false);
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
+                      formData.sex === gender ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                    }`}
+                  >
+                    {gender}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* About Me / Bio */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-2">
+          About Me / Biography
+        </label>
+        <textarea
+          value={formData.bio || ''}
+          onChange={(e) => onFormChange({ bio: e.target.value })}
+          placeholder="Enter a brief biography or description about this sales agent..."
+          rows={4}
+          className="w-full text-black text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent resize-none"
+        />
       </div>
 
       {/* Additional Info */}

@@ -215,11 +215,11 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                 </div>
                 <div className="flex items-center gap-2 justify-between">
                   <span className="text-sm text-gray-500">Sex:</span>
-                  <span className="text-sm text-gray-900 text-right">-</span>
+                  <span className="text-sm text-gray-900 text-right">{agent.sex || '-'}</span>
                 </div>
                 <div className="flex items-center gap-2 justify-between">
                   <span className="text-sm text-gray-500">Email:</span>
-                  <span className="text-sm text-gray-900">{agent.email}</span>
+                  <span className="text-sm text-gray-900 text-right">{agent.email}</span>
                 </div>
               </div>
             </div>
@@ -227,16 +227,20 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             {/* Employee Status */}
             <div className="py-4">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Employee Location & Status</h3>
-              <div className="flex items-center gap-2 justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-sm text-gray-500">Location:</span>
-                <span className="text-sm ml-22 text-gray-900">{agent.territory}</span>
-                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
-                agent.status === 'active'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
-              </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-900">{agent.territory || '-'}</span>
+                  <span
+                    className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
+                      agent.status === 'active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -253,8 +257,26 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
               {favoriteProducts.length > 0 ? (
                 favoriteProducts.map((product) => (
                   <div key={product.productId} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
+                    <div className="flex items-start gap-3">
+                      {/* Product Image */}
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                        {product.images && product.images.length > 0 ? (
+                          <img 
+                            src={product.images[0]} 
+                            alt={product.name} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/placeholder-product.png';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 mb-1">{product.name}</p>
                         <p className="text-xs text-gray-500">{product.productType}</p>
                         {product.brand && (
@@ -262,12 +284,6 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                         )}
                       </div>
                     </div>
-                    {product.sellingPrice && (
-                      <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
-                        <span className="text-gray-500">Price:</span>
-                        <span className="font-semibold text-gray-900">{product.sellingPrice}</span>
-                      </div>
-                    )}
                   </div>
                 ))
               ) : (
@@ -285,8 +301,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
               <h3 className="text-lg font-semibold text-gray-900">About {agent.name.split(' ')[0]}</h3>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-              Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+              {agent.bio || 'No biography available.'}
             </p>
           </div>
 

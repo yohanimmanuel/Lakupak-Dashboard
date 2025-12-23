@@ -165,6 +165,8 @@ export default function CreateSalesAgentPage() {
           status: formData.status || 'active',
           avatar: formData.avatar || null,
           territory: formData.territory || null,
+          bio: formData.bio || null,
+          sex: formData.sex || null,
           teamId: formData.teamId || null,
           fieldReports: fieldReports.length > 0 ? fieldReports : null,
           salesTargets: salesTargets.length > 0 ? salesTargets : null,

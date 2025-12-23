@@ -44,6 +44,8 @@ export interface SalesAgent {
   status: 'active' | 'inactive';
   avatar?: string;
   territory?: string;
+  bio?: string;
+  sex?: string;
   teamId?: string;
   teamName?: string;
   userId?: number;

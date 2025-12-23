@@ -154,6 +154,8 @@ export default function EditSalesAgentPage() {
           status: data.salesAgent.status,
           territory: data.salesAgent.territory,
           avatar: data.salesAgent.avatar,
+          bio: data.salesAgent.bio,
+          sex: data.salesAgent.sex,
           teamId: data.salesAgent.teamId,
           teamName: data.salesAgent.teamName,
           favoriteProducts: data.salesAgent.favoriteProducts || [],
@@ -227,25 +229,51 @@ export default function EditSalesAgentPage() {
 
     setIsSaving(true);
     try {
-      // Prepare field reports
-      const fieldReports = (formData.fieldReports || []).map(report => ({
-        id: report.id || null,
-        date: report.date,
-        location: report.location,
-        startTime: report.startTime,
-        endTime: report.endTime,
-        activities: report.activities || null,
-        notes: report.notes,
-      }));
+      // Prepare field reports (id is optional, only include if it exists)
+      const fieldReports = (formData.fieldReports || []).map(report => {
+        const reportData: {
+          id?: string;
+          date: string;
+          location?: string | null;
+          startTime?: string | null;
+          endTime?: string | null;
+          activities?: Record<string, unknown> | null;
+          notes?: string | null;
+        } = {
+          date: report.date,
+          location: report.location || null,
+          startTime: report.startTime || null,
+          endTime: report.endTime || null,
+          activities: report.activities || null,
+          notes: report.notes || null,
+        };
+        // Only include id if it exists (for updates)
+        if (report.id) {
+          reportData.id = report.id;
+        }
+        return reportData;
+      });
 
-      // Prepare sales targets
-      const salesTargets = (formData.salesTargets || []).map(target => ({
-        id: target.id || null,
-        period: target.period,
-        goal: target.goal,
-        achieved: target.achieved || 0,
-        unitsSold: target.unitsSold || 0,
-      }));
+      // Prepare sales targets (id is optional, only include if it exists)
+      const salesTargets = (formData.salesTargets || []).map(target => {
+        const targetData: {
+          id?: string;
+          period: string;
+          goal: number;
+          achieved: number;
+          unitsSold: number;
+        } = {
+          period: target.period,
+          goal: target.goal,
+          achieved: target.achieved || 0,
+          unitsSold: target.unitsSold || 0,
+        };
+        // Only include id if it exists (for updates)
+        if (target.id) {
+          targetData.id = target.id;
+        }
+        return targetData;
+      });
 
       // Prepare favorite product IDs (database IDs)
       const favoriteProductIds = (formData.favoriteProducts || [])
@@ -265,6 +293,8 @@ export default function EditSalesAgentPage() {
           status: formData.status,
           avatar: formData.avatar || null,
           territory: formData.territory || null,
+          bio: formData.bio || null,
+          sex: formData.sex || null,
           teamId: formData.teamId || null,
           fieldReports: fieldReports.length > 0 ? fieldReports : null,
           salesTargets: salesTargets.length > 0 ? salesTargets : null,
