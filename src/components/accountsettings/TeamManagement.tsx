@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   Search, 
@@ -198,10 +198,12 @@ export default function TeamManagement() {
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState('all');
+  const [selectedTeam, setSelectedTeam] = useState('All Roles');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<SalesMember | null>(null);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
   
   // Permissions state
   const [permissions, setPermissions] = useState({
@@ -334,6 +336,20 @@ export default function TeamManagement() {
 
     fetchData();
   }, [user?.id]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
+        setShowRoleDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Auto-dismiss success messages
   useEffect(() => {
@@ -473,12 +489,15 @@ export default function TeamManagement() {
     }
   };
 
+  // Get unique roles from members for filter options
+  const roleOptions = ['All Roles', ...Array.from(new Set(salesMembers.map(m => m.role)))];
+
   const filteredMembers = salesMembers.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.territory.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTeam = selectedTeam === 'all' || member.role === selectedTeam;
+    const matchesTeam = selectedTeam === 'All Roles' || member.role === selectedTeam;
     return matchesSearch && matchesTeam;
   });
 
@@ -581,13 +600,6 @@ export default function TeamManagement() {
               <h3 className="text-md font-semibold text-black mb-1">Sales Team Directory</h3>
               <p className="text-xs text-gray-600">Search and manage your sales team members and their performance</p>
             </div>
-            <button
-              onClick={handleAddMember}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white text-sm font-medium rounded-lg hover:bg-[#0a52c0] transition-colors"
-            >
-              <UserPlus className="h-4 w-4" />
-              Add Sales Rep
-            </button>
           </div>
 
           {/* Search and Filter */}
@@ -599,23 +611,42 @@ export default function TeamManagement() {
                 placeholder="Search sales team members, territories, or roles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border text-sm text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border text-sm text-black border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
               />
             </div>
-            <div className="relative">
-              <select
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
-                className="appearance-none bg-white border text-sm text-black border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+            {/* Role Filter Dropdown */}
+            <div className="relative" ref={roleDropdownRef}>
+              <button
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                aria-haspopup="true"
+                aria-expanded={showRoleDropdown}
+                aria-label="Filter by role"
               >
-                <option value="all">All Roles</option>
-                <option value="Sales Manager">Sales Manager</option>
-                <option value="Sales Rep">Sales Rep</option>
-                <option value="Sales Support">Sales Support</option>
-                <option value="Lead Gen">Lead Gen</option>
-                <option value="Account Manager">Account Manager</option>
-              </select>
-              <ChevronDown className="h-4 w-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <Filter className="w-4 h-4" />
+                {selectedTeam}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showRoleDropdown && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+                  {roleOptions.map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => {
+                        setSelectedTeam(role);
+                        setShowRoleDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                        selectedTeam === role
+                          ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -663,38 +694,6 @@ export default function TeamManagement() {
                       ></div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => window.open(`mailto:${member.email}`)}
-                    className="p-2 text-gray-400 hover:text-[#0a61d7] transition-colors"
-                    title="Send email"
-                  >
-                    <Mail className="h-4 w-4" />
-                  </button>
-                  {member.phone && (
-                    <button
-                      onClick={() => window.open(`tel:${member.phone}`)}
-                      className="p-2 text-gray-400 hover:text-[#0a61d7] transition-colors"
-                      title="Call"
-                    >
-                      <Phone className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleEditMember(member)}
-                    className="p-2 text-gray-400 hover:text-[#0a61d7] transition-colors"
-                    title="Edit"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMember(member.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                    title="Remove"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             ))}
