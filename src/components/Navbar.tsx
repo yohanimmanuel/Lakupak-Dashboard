@@ -9,15 +9,15 @@ import ReactDOM from 'react-dom';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const DROPDOWN_WIDTH = 300;
 
-const salesmen = [
-  { name: 'Jane Doe', avatar: 'https://randomuser.me/api/portraits/women/44.jpg' },
-  { name: 'Anna Smith', avatar: 'https://randomuser.me/api/portraits/women/47.jpg' },
-  { name: 'John Lee', avatar: 'https://randomuser.me/api/portraits/men/32.jpg' },
-  { name: 'Mike Brown', avatar: 'https://randomuser.me/api/portraits/men/45.jpg' },
-];
+interface SalesAgent {
+  id: string;
+  name: string;
+  avatar?: string | null;
+}
 
 type DropdownPortalProps = { anchorRef: React.RefObject<HTMLElement | null>; show: boolean; children: React.ReactNode };
 const DropdownPortal = ({ anchorRef, show, children }: DropdownPortalProps) => {
@@ -44,12 +44,25 @@ const DropdownPortal = ({ anchorRef, show, children }: DropdownPortalProps) => {
   );
 };
 
+const SALES_AGENTS_QUERY = `
+  query GetSalesAgents($userId: Int!, $page: Int, $limit: Int) {
+    salesAgents(userId: $userId, page: $page, limit: $limit) {
+      nodes {
+        id
+        name
+        avatar
+      }
+    }
+  }
+`;
+
 const Navbar = () => {
   const user = useUserStore(state => state.user);
   const clearUser = useUserStore(state => state.clearUser);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showMsgDropdown, setShowMsgDropdown] = useState(false);
+  const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
@@ -60,6 +73,30 @@ const Navbar = () => {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  // Fetch sales agents for navbar
+  useEffect(() => {
+    const fetchSalesAgents = async () => {
+      if (!user?.id) return;
+      try {
+        const data = await fetchGraphQL<{
+          salesAgents: {
+            nodes: SalesAgent[];
+          };
+        }>(SALES_AGENTS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 4, // Only fetch first 4 for navbar display
+        });
+        setSalesAgents(data.salesAgents.nodes);
+      } catch (error) {
+        console.error('Error fetching sales agents:', error);
+        // Keep empty array on error
+        setSalesAgents([]);
+      }
+    };
+    fetchSalesAgents();
+  }, [user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -97,7 +134,15 @@ const Navbar = () => {
   };
 
   const handleAddSalesman = () => {
-    alert('Add new salesman (functionality to be implemented)');
+    router.push('/marketing/team/create');
+  };
+
+  const handleSalesmanClick = (agentId: string) => {
+    router.push(`/marketing/team/details?id=${agentId}`);
+  };
+
+  const handleSalesTeamClick = () => {
+    router.push('/marketing/team');
   };
 
   const formatRole = (role: string) => {
@@ -108,7 +153,7 @@ const Navbar = () => {
   if (!hasMounted) return null;
 
   const maxAvatars = 3;
-  const extraCount = salesmen.length - maxAvatars;
+  const extraCount = salesAgents.length - maxAvatars;
 
   return (
     <div className="flex items-center justify-between px-4 py-3 z-30 relative bg-white border-b border-gray-200 h-16">
@@ -136,26 +181,46 @@ const Navbar = () => {
       {/* NAVBAR GROUPS */}
       <div className="flex items-center gap-2 justify-end">
         {/* Salesmen Avatars Group */}
-        <div className="flex items-center gap-1 mr-2 sm:mr-4 pr-2 sm:pr-4 border-r border-gray-200">
-          {salesmen.slice(0, maxAvatars).map((s, i) => (
-            <img
-              key={s.name}
-              src={s.avatar}
-              alt={s.name}
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white -ml-1 sm:-ml-2 first:ml-0 shadow-sm object-cover`}
-              title={s.name}
+        <div className="flex items-center mr-2 sm:mr-4 pr-2 sm:pr-4 border-r border-gray-200">
+          {salesAgents.slice(0, maxAvatars).map((agent, i) => (
+            <button
+              key={agent.id}
+              onClick={() => handleSalesmanClick(agent.id)}
+              className={`cursor-pointer hover:opacity-80 transition-opacity relative flex-shrink-0 ${i > 0 ? '-ml-2 sm:-ml-3' : ''}`}
               style={{ zIndex: 10 - i }}
-            />
+              title={agent.name}
+            >
+              {agent.avatar ? (
+                <img
+                  src={agent.avatar}
+                  alt={agent.name}
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm object-cover"
+                />
+              ) : (
+                <div
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600"
+                  title={agent.name}
+                >
+                  {agent.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </button>
           ))}
           {extraCount > 0 && (
-            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-1 sm:-ml-2" style={{ zIndex: 8 }}>
+            <button
+              onClick={handleSalesTeamClick}
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-2 sm:-ml-3 cursor-pointer hover:bg-gray-200 transition-colors relative flex-shrink-0"
+              style={{ zIndex: 8 }}
+              title={`View all ${salesAgents.length} sales agents`}
+            >
               +{extraCount}
-            </span>
+            </button>
           )}
           <button
             onClick={handleAddSalesman}
-            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 ml-1 shadow-sm"
-            title="Add Salesman"
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 ml-2 sm:ml-2 shadow-sm transition-colors relative flex-shrink-0"
+            style={{ zIndex: 7 }}
+            title="Add Sales Agent"
           >
             <Plus size={14} className="sm:w-4 sm:h-4" />
           </button>
