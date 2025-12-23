@@ -8,6 +8,8 @@ import FavouriteProducts from '@/components/salesmarketing/FavouriteProducts';
 import SalesReporting from '@/components/salesmarketing/SalesReporting';
 import SalesTarget from '@/components/salesmarketing/SalesTarget';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
 
@@ -18,8 +20,26 @@ interface Tab {
   description: string;
 }
 
+const CREATE_SALES_AGENT_MUTATION = `
+  mutation CreateSalesAgent($userId: Int!, $input: CreateSalesAgentInput!) {
+    createSalesAgent(userId: $userId, input: $input) {
+      id
+      name
+      email
+      phone
+      role
+      status
+      avatar
+      territory
+      teamId
+      teamName
+    }
+  }
+`;
+
 export default function CreateSalesAgentPage() {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [isCreating, setIsCreating] = useState(false);
   
@@ -31,9 +51,10 @@ export default function CreateSalesAgentPage() {
     role: 'Sales Rep',
     status: 'active',
     territory: '',
-    salesTarget: undefined,
-    currentSales: undefined,
     avatar: undefined,
+    favoriteProducts: [],
+    fieldReports: [],
+    salesTargets: [],
   });
 
   // Tab completion status
@@ -102,21 +123,61 @@ export default function CreateSalesAgentPage() {
       return;
     }
 
+    if (!user?.id) {
+      alert('User not authenticated');
+      return;
+    }
+
     setIsCreating(true);
     try {
-      // In production, replace with actual API call:
-      // await fetchGraphQL(CREATE_AGENT_MUTATION, { ...formData });
-      
-      // For now, just log and redirect
-      console.log('Creating agent:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      router.push('/marketing/team');
+      // Prepare field reports
+      const fieldReports = (formData.fieldReports || []).map(report => ({
+        date: report.date,
+        location: report.location,
+        startTime: report.startTime,
+        endTime: report.endTime,
+        activities: report.activities || null,
+        notes: report.notes,
+      }));
+
+      // Prepare sales targets
+      const salesTargets = (formData.salesTargets || []).map((target: { id?: string; period: string; goal: number; achieved?: number; unitsSold?: number }) => ({
+        period: target.period,
+        goal: target.goal,
+        achieved: target.achieved || 0,
+        unitsSold: target.unitsSold || 0,
+      }));
+
+      // Prepare favorite product IDs (database IDs)
+      const favoriteProductIds = (formData.favoriteProducts || [])
+        .map(fp => fp.productDbId)
+        .filter((id): id is number => id !== undefined && id !== null);
+
+      const result = await fetchGraphQL<{
+        createSalesAgent: SalesAgent;
+      }>(CREATE_SALES_AGENT_MUTATION, {
+        userId: user.id,
+        input: {
+          name: formData.name!,
+          email: formData.email!,
+          phone: formData.phone!,
+          role: formData.role!,
+          status: formData.status || 'active',
+          avatar: formData.avatar || null,
+          territory: formData.territory || null,
+          teamId: formData.teamId || null,
+          fieldReports: fieldReports.length > 0 ? fieldReports : null,
+          salesTargets: salesTargets.length > 0 ? salesTargets : null,
+          favoriteProductIds: favoriteProductIds.length > 0 ? favoriteProductIds : null,
+        },
+      });
+
+      if (result.createSalesAgent) {
+        router.push('/marketing/team');
+      }
     } catch (error) {
       console.error('Error creating agent:', error);
-      alert('Failed to create agent. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to create agent. Please try again.');
     } finally {
       setIsCreating(false);
     }

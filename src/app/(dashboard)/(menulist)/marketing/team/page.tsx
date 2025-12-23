@@ -6,6 +6,9 @@ import { RefreshCcw, Download, Plus, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import TeamList from '@/components/salesmarketing/TeamList';
 import { SalesAgent, SalesTeam } from '@/components/salesmarketing/TeamList';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+import type { SalesAgentConnection, SalesTeamConnection } from '@/types/sales';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -18,8 +21,78 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
+const SALES_AGENTS_QUERY = `
+  query GetSalesAgents($userId: Int!, $page: Int, $limit: Int, $search: String, $role: String, $status: String) {
+    salesAgents(userId: $userId, page: $page, limit: $limit, search: $search, role: $role, status: $status) {
+      nodes {
+        id
+        name
+        email
+        phone
+        role
+        status
+        avatar
+        territory
+        teamId
+        teamName
+        userId
+        favoriteProducts {
+          productId
+          name
+          productType
+          brand
+          images
+          sellingPrice
+        }
+        createdAt
+        updatedAt
+      }
+      pagination {
+        page
+        limit
+        totalCount
+        totalPages
+      }
+    }
+  }
+`;
+
+const SALES_TEAMS_QUERY = `
+  query GetSalesTeams($userId: Int!, $page: Int, $limit: Int, $search: String) {
+    salesTeams(userId: $userId, page: $page, limit: $limit, search: $search) {
+      nodes {
+        id
+        name
+        memberIds
+        members {
+          id
+          name
+          email
+          phone
+          role
+          status
+          avatar
+          territory
+          teamId
+          teamName
+        }
+        userId
+        createdAt
+        updatedAt
+      }
+      pagination {
+        page
+        limit
+        totalCount
+        totalPages
+      }
+    }
+  }
+`;
+
 export default function MarketingTeamPage() {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [loading, setLoading] = useState(true);
   const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
   const [salesTeams, setSalesTeams] = useState<SalesTeam[]>([]);
@@ -32,6 +105,13 @@ export default function MarketingTeamPage() {
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!user?.id) {
+      setSalesAgents([]);
+      setSalesTeams([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     
     // Clear any existing timeouts
@@ -44,26 +124,33 @@ export default function MarketingTeamPage() {
     setIsSlidingIn(true);
     setOverlayMessage('Refreshing team data');
     
-    // In production, fetch from API
-    // For now, using empty arrays - TeamList will use default sample data
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const [agentsData, teamsData] = await Promise.all([
+        fetchGraphQL<{ salesAgents: SalesAgentConnection }>(SALES_AGENTS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 1000,
+        }),
+        fetchGraphQL<{ salesTeams: SalesTeamConnection }>(SALES_TEAMS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 1000,
+        }),
+      ]);
+
+      const agents = agentsData.salesAgents?.nodes || [];
+      const teams = teamsData.salesTeams?.nodes || [];
+
+      setSalesAgents(agents);
+      setSalesTeams(teams);
       
-      // In production, replace with actual API call:
-      // const data = await fetchGraphQL(...);
-      // setSalesAgents(data.agents);
-      // setSalesTeams(data.teams);
-      
-      // Calculate total count - only count agents
-      // Since TeamList uses default data when empty, we need to count those defaults
-      const agentCount = salesAgents.length > 0 ? salesAgents.length : 4;
-      
+      const agentCount = agents.length;
       setOverlayMessage(`Showing team data (${agentCount} sales agents loaded)`);
     } catch (error) {
       console.error('Error fetching team data:', error);
       setOverlayMessage('Error loading teams');
+      setSalesAgents([]);
+      setSalesTeams([]);
     } finally {
       setLoading(false);
       
@@ -85,7 +172,7 @@ export default function MarketingTeamPage() {
         }, 500);
       }, 2500);
     }
-  }, [salesAgents.length, salesTeams.length]);
+  }, [user?.id]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -111,89 +198,65 @@ export default function MarketingTeamPage() {
   };
 
   const handleEditAgent = (agent: SalesAgent) => {
-    // Navigate to edit agent page or open modal
-    console.log('Edit agent:', agent.id);
-    // router.push(`/marketing/team/edit?id=${agent.id}`);
+    // Navigate to edit agent page
+    router.push(`/marketing/team/edit?id=${agent.id}`);
   };
 
-  const handleDeleteAgent = (agentId: string) => {
-    // Handle delete agent
+  const handleDeleteAgent = async (agentId: string) => {
+    if (!user?.id) return;
+    
     if (confirm('Are you sure you want to delete this agent?')) {
-      setSalesAgents(prev => prev.filter(agent => agent.id !== agentId));
-      console.log('Delete agent:', agentId);
+      try {
+        const DELETE_AGENT_MUTATION = `
+          mutation DeleteSalesAgent($userId: Int!, $id: String!) {
+            deleteSalesAgent(userId: $userId, id: $id) {
+              success
+            }
+          }
+        `;
+
+        await fetchGraphQL(DELETE_AGENT_MUTATION, {
+          userId: user.id,
+          id: agentId,
+        });
+
+        // Refresh data
+        await fetchData();
+      } catch (error) {
+        console.error('Error deleting agent:', error);
+        alert('Failed to delete agent. Please try again.');
+      }
     }
   };
 
-  const handleEditTeam = (team: SalesTeam) => {
-    // Handle edit team
-    console.log('Edit team:', team.id);
+  const handleEditTeam = async (team: SalesTeam) => {
+    // This will be handled by the TeamList modal
+    // Just refresh data after edit
+    await fetchData();
   };
 
-  const handleCreateTeam = () => {
-    // Handle create team
-    console.log('Create new team');
+  const handleCreateTeam = async () => {
+    // This will be handled by the TeamList modal
+    // Just refresh data after create
+    await fetchData();
   };
 
   const handleExport = () => {
-    // Get all agents (use default if empty)
-    const agents = salesAgents.length > 0 ? salesAgents : [
-      {
-        id: '1',
-        name: 'Sarah Johnson',
-        email: 'sarah.johnson@laku.com',
-        phone: '+62 21 1234 5678',
-        role: 'Sales Manager',
-        status: 'active',
-        territory: 'Jakarta & West Java',
-        salesTarget: 50000000,
-        currentSales: 42000000,
-      },
-      {
-        id: '2',
-        name: 'Michael Chen',
-        email: 'michael.chen@laku.com',
-        phone: '+62 21 2345 6789',
-        role: 'Sales Rep',
-        status: 'active',
-        territory: 'Surabaya & East Java',
-        salesTarget: 30000000,
-        currentSales: 28000000,
-      },
-      {
-        id: '3',
-        name: 'Lisa Rodriguez',
-        email: 'lisa.rodriguez@laku.com',
-        phone: '+62 21 3456 7890',
-        role: 'Lead Gen',
-        status: 'inactive',
-        territory: 'Bali & Nusa Tenggara',
-        salesTarget: 20000000,
-        currentSales: 0,
-      },
-      {
-        id: '4',
-        name: 'David Kim',
-        email: 'david.kim@laku.com',
-        phone: '+62 21 4567 8901',
-        role: 'Account Manager',
-        status: 'active',
-        territory: 'Medan & North Sumatra',
-        salesTarget: 40000000,
-        currentSales: 35000000,
-      },
-    ];
+    if (salesAgents.length === 0) {
+      alert('No agents to export');
+      return;
+    }
 
     // Export agents data to XLSX
-    const headers = ['Name', 'Email', 'Phone', 'Role', 'Status', 'Territory', 'Sales Target', 'Current Sales'];
-    const rows = agents.map(agent => [
+    const headers = ['Name', 'Email', 'Phone', 'Role', 'Status', 'Territory', 'Team'];
+    const rows = salesAgents.map(agent => [
       agent.name,
       agent.email,
       agent.phone,
       agent.role,
       agent.status,
       agent.territory || 'N/A',
-      agent.salesTarget || 0,
-      agent.currentSales || 0,
+      agent.teamName || 'N/A',
     ]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -274,12 +337,11 @@ export default function MarketingTeamPage() {
             )}
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
-              <p className="text-xs text-gray-500">
-                {loading ? 'Please wait...' : (() => {
-                  const agentCount = salesAgents.length > 0 ? salesAgents.length : 4;
-                  return `${agentCount} sales agent${agentCount !== 1 ? 's' : ''} loaded`;
-                })()}
-              </p>
+              {!loading && (
+                <p className="text-xs text-gray-500">
+                  <span className="text-gray-400">{salesAgents.length}</span> sales agent{salesAgents.length !== 1 ? 's' : ''} loaded
+                </p>
+              )}
             </div>
       </div>
         </div>

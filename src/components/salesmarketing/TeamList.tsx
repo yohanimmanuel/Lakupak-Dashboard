@@ -5,14 +5,43 @@ import { useRouter } from 'next/navigation';
 import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export interface FavoriteProduct {
   productId: string;
+  productDbId?: number; // Database ID for GraphQL mutations
   name: string;
   productType: string;
   brand?: string;
   images?: string[];
   sellingPrice?: string;
+}
+
+export interface FieldReport {
+  id: string;
+  date: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  activities?: {
+    visits: number;
+    customersMet: number;
+    productsDemonstrated: number;
+    salesMade: number;
+  };
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SalesTarget {
+  id?: string;
+  period: string;
+  goal: number;
+  achieved: number;
+  unitsSold: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SalesAgent {
@@ -29,6 +58,11 @@ export interface SalesAgent {
   teamId?: string;
   teamName?: string;
   favoriteProducts?: FavoriteProduct[];
+  fieldReports?: FieldReport[];
+  salesTargets?: SalesTarget[];
+  userId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SalesTeam {
@@ -112,80 +146,16 @@ export default function TeamList({
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  // Sample data if not provided
-  const defaultAgents: SalesAgent[] = salesAgents.length > 0 ? salesAgents : [
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@laku.com',
-      phone: '+62 21 1234 5678',
-      role: 'Sales Manager',
-      status: 'active',
-      territory: 'Jakarta & West Java',
-      salesTarget: 50000000,
-      currentSales: 42000000,
-    },
-    {
-      id: '2',
-      name: 'Michael Chen',
-      email: 'michael.chen@laku.com',
-      phone: '+62 21 2345 6789',
-      role: 'Sales Rep',
-      status: 'active',
-      territory: 'Surabaya & East Java',
-      salesTarget: 30000000,
-      currentSales: 28000000,
-    },
-    {
-      id: '3',
-      name: 'Lisa Rodriguez',
-      email: 'lisa.rodriguez@laku.com',
-      phone: '+62 21 3456 7890',
-      role: 'Lead Gen',
-      status: 'inactive',
-      territory: 'Bali & Nusa Tenggara',
-      salesTarget: 20000000,
-      currentSales: 0,
-    },
-    {
-      id: '4',
-      name: 'David Kim',
-      email: 'david.kim@laku.com',
-      phone: '+62 21 4567 8901',
-      role: 'Account Manager',
-      status: 'active',
-      territory: 'Medan & North Sumatra',
-      salesTarget: 40000000,
-      currentSales: 35000000,
-    },
-  ];
-
   // Helper to get teams with populated members
   const getTeamsWithMembers = (teams: SalesTeam[]): SalesTeam[] => {
     return teams.map(team => ({
       ...team,
-      members: agents.filter(agent => team.memberIds.includes(agent.id))
+      members: salesAgents.filter(agent => team.memberIds.includes(agent.id))
     }));
   };
 
-  const defaultTeams: SalesTeam[] = salesTeams.length > 0 ? salesTeams : [
-    {
-      id: '1',
-      name: 'Jakarta Team',
-      memberIds: ['1', '2'],
-      members: [defaultAgents[0], defaultAgents[1]],
-    },
-    {
-      id: '2',
-      name: 'Regional Team',
-      memberIds: ['2', '4'],
-      members: [defaultAgents[1], defaultAgents[3]],
-    },
-  ];
-
-  const agents = salesAgents.length > 0 ? salesAgents : defaultAgents;
-  const teamsData = salesTeams.length > 0 ? salesTeams : defaultTeams;
-  const teams = getTeamsWithMembers(teamsData);
+  const agents = salesAgents;
+  const teams = getTeamsWithMembers(salesTeams);
 
   // Update indicator position when tab changes
   useLayoutEffect(() => {
@@ -303,7 +273,7 @@ export default function TeamList({
     }
   };
 
-  const handleSaveTeam = () => {
+  const handleSaveTeam = async () => {
     if (!teamName.trim()) {
       alert('Please enter a team/region name');
       return;
@@ -314,22 +284,72 @@ export default function TeamList({
       return;
     }
 
-    const teamData: SalesTeam = {
-      id: editingTeam?.id || `team-${Date.now()}`,
-      name: teamName.trim(),
-      memberIds: Array.from(selectedMemberIds),
-      members: agents.filter(agent => selectedMemberIds.has(agent.id))
-    };
+    try {
+      const user = useUserStore.getState().user;
+      if (!user?.id) {
+        alert('User not authenticated');
+        return;
+      }
 
-    if (editingTeam && onEditTeam) {
-      onEditTeam(teamData);
-    } else if (onCreateTeam) {
-      onCreateTeam();
-      // In production, this would call an API to create the team
-      console.log('Creating team:', teamData);
+      if (editingTeam) {
+        // Update team
+        const UPDATE_TEAM_MUTATION = `
+          mutation UpdateSalesTeam($userId: Int!, $input: UpdateSalesTeamInput!) {
+            updateSalesTeam(userId: $userId, input: $input) {
+              id
+              name
+              memberIds
+            }
+          }
+        `;
+
+        await fetchGraphQL(UPDATE_TEAM_MUTATION, {
+          userId: user.id,
+          input: {
+            id: editingTeam.id,
+            name: teamName.trim(),
+            memberIds: Array.from(selectedMemberIds),
+          },
+        });
+
+        if (onEditTeam) {
+          onEditTeam({
+            id: editingTeam.id,
+            name: teamName.trim(),
+            memberIds: Array.from(selectedMemberIds),
+            members: agents.filter(agent => selectedMemberIds.has(agent.id)),
+          });
+        }
+      } else {
+        // Create team
+        const CREATE_TEAM_MUTATION = `
+          mutation CreateSalesTeam($userId: Int!, $input: CreateSalesTeamInput!) {
+            createSalesTeam(userId: $userId, input: $input) {
+              id
+              name
+              memberIds
+            }
+          }
+        `;
+
+        await fetchGraphQL(CREATE_TEAM_MUTATION, {
+          userId: user.id,
+          input: {
+            name: teamName.trim(),
+            memberIds: Array.from(selectedMemberIds),
+          },
+        });
+
+        if (onCreateTeam) {
+          onCreateTeam();
+        }
+      }
+
+      handleCloseTeamModal();
+    } catch (error) {
+      console.error('Error saving team:', error);
+      alert(error instanceof Error ? error.message : 'Failed to save team. Please try again.');
     }
-
-    handleCloseTeamModal();
   };
 
 
@@ -657,10 +677,14 @@ export default function TeamList({
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-medium text-black">
-                              {agent.name.split(' ').map(n => n[0]).join('')}
-                            </span>
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                            {agent.avatar ? (
+                              <img src={agent.avatar} alt={agent.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-medium text-black">
+                                {agent.name.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs font-medium text-black">{agent.name}</span>
                         </div>
@@ -765,7 +789,14 @@ export default function TeamList({
           {filteredTeams.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-sm">No teams found</p>
+              <p className="text-sm mb-4">No teams found</p>
+              <button
+                onClick={handleOpenCreateTeam}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors font-medium text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Create New Team
+              </button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -791,12 +822,16 @@ export default function TeamList({
                             {team.members.slice(0, 5).map((member, idx) => (
                               <div
                                 key={member.id}
-                                className="w-8 h-8 bg-gray-200 rounded-full border-2 border-white flex items-center justify-center"
+                                className="w-8 h-8 bg-gray-200 rounded-full border-2 border-white flex items-center justify-center overflow-hidden"
                                 style={{ zIndex: team.members.length - idx }}
                               >
-                                <span className="text-xs font-medium text-gray-600">
-                                  {member.name.split(' ').map(n => n[0]).join('')}
-                                </span>
+                                {member.avatar ? (
+                                  <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-xs font-medium text-gray-600">
+                                    {member.name.split(' ').map(n => n[0]).join('')}
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -836,10 +871,14 @@ export default function TeamList({
                                 >
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                        <span className="text-xs font-medium text-gray-600">
-                                          {member.name.split(' ').map(n => n[0]).join('')}
-                                        </span>
+                                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                                        {member.avatar ? (
+                                          <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <span className="text-xs font-medium text-gray-600">
+                                            {member.name.split(' ').map(n => n[0]).join('')}
+                                          </span>
+                                        )}
                                       </div>
                                       <span className="text-xs font-medium text-black">{member.name}</span>
                                     </div>
@@ -947,7 +986,7 @@ export default function TeamList({
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="e.g., Jakarta Team, Regional Team"
-                  className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
+                  className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
 
@@ -994,10 +1033,14 @@ export default function TeamList({
                               </svg>
                             )}
                           </button>
-                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-medium text-gray-600">
-                              {agent.name.split(' ').map(n => n[0]).join('')}
-                            </span>
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {agent.avatar ? (
+                              <img src={agent.avatar} alt={agent.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-medium text-gray-600">
+                                {agent.name.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-medium text-gray-900">{agent.name}</div>

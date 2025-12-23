@@ -4,49 +4,93 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import SalesDetails from '@/components/salesmarketing/SalesDetails';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+
+const GET_SALES_AGENT_QUERY = `
+  query GetSalesAgent($userId: Int!, $id: String!) {
+    salesAgent(userId: $userId, id: $id) {
+      id
+      name
+      email
+      phone
+      role
+      status
+      avatar
+      territory
+      teamId
+      teamName
+      favoriteProducts {
+        productId
+        name
+        productType
+        brand
+        images
+        sellingPrice
+      }
+      fieldReports {
+        id
+        date
+        location
+        startTime
+        endTime
+        activities
+        notes
+      }
+      salesTargets {
+        id
+        period
+        goal
+        achieved
+        unitsSold
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
 
 export default function SalesDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<SalesAgent | null>(null);
 
   useEffect(() => {
     const agentId = searchParams.get('id');
     
-    if (!agentId) {
-      // If no ID provided, redirect back to team list
-      router.push('/marketing/team');
+    if (!agentId || !user?.id) {
+      if (!agentId) router.push('/marketing/team');
       return;
     }
 
-    // Fetch agent data - for now using sample data
-    // In production, this would fetch from API
     const fetchAgent = async () => {
       setLoading(true);
       
-      // Sample agent data - replace with actual API call
-      const sampleAgent: SalesAgent = {
-        id: agentId,
-        name: 'Sarah Johnson',
-        email: 'sarah.johnson@laku.com',
-        phone: '+62 21 1234 5678',
-        role: 'Sales Manager',
-        status: 'active',
-        territory: 'Jakarta & West Java',
-        salesTarget: 50000000,
-        currentSales: 42000000,
-      };
+      try {
+        const data = await fetchGraphQL<{
+          salesAgent: SalesAgent | null;
+        }>(GET_SALES_AGENT_QUERY, {
+          userId: user.id,
+          id: agentId,
+        });
 
-      // Simulate API call
-      setTimeout(() => {
-        setAgent(sampleAgent);
+        if (!data.salesAgent) {
+          setAgent(null);
+        } else {
+          setAgent(data.salesAgent);
+        }
+      } catch (error) {
+        console.error('Error fetching agent:', error);
+        setAgent(null);
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     };
 
     fetchAgent();
-  }, [searchParams, router]);
+  }, [searchParams, user?.id, router]);
 
   if (loading) {
     return (

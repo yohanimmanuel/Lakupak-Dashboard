@@ -1,4 +1,4 @@
-import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/generated/prisma';
+import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, isNumericId } from '../common/utils';
 import {

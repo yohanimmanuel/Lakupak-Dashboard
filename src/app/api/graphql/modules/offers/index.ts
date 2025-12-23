@@ -1,4 +1,4 @@
-import { type Prisma } from '@/generated/prisma';
+import { type Prisma } from '@/lib/db';
 import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { prisma } from '../common/prisma';

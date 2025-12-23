@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@/generated/prisma';
+import type { Prisma, PrismaClient } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 
 export const SOLD_COUNT_EXCLUDED_STATUSES = ['Pending', 'Cancelled', 'Returned'] as const;

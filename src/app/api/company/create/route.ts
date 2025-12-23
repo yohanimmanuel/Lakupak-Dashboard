@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../../generated/prisma';
+import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
-
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();

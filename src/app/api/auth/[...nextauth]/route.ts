@@ -1,13 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { PrismaClient } from "@/generated/prisma";
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as ReturnType<typeof PrismaAdapter>,

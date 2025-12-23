@@ -1,4 +1,4 @@
-import { PrismaClient } from '@/generated/prisma'
+import { PrismaClient, type Prisma } from '@/generated/prisma'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
@@ -14,5 +14,17 @@ export const prisma: PrismaClient = globalForPrisma.prisma ?? new PrismaClient({
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
+
+// Re-export commonly used types for convenience (single source of truth)
+export type { Prisma, PrismaClient }
+
+// Re-export model types and enums that are commonly used
+export type {
+  VariantOption,
+  Buyer,
+  Supplier,
+  Company,
+  OfferDiscountType,
+} from '@/generated/prisma'
 
 

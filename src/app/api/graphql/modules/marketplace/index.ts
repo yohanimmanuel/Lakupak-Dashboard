@@ -1,4 +1,5 @@
-import { type Prisma, Prisma as PrismaClient } from '@/generated/prisma';
+import type { Prisma } from '@/lib/db';
+import { Prisma as PrismaNamespace } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
 import { calculateSoldCounts, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
@@ -497,11 +498,15 @@ const normalizeLabel = (label?: string | null) => {
   return trimmed.length > 0 ? trimmed : 'home';
 };
 
-const isDuplicateAddressIdError = (error: unknown) =>
-  error instanceof PrismaClient.PrismaClientKnownRequestError &&
-  error.code === 'P2002' &&
-  Array.isArray(error.meta?.target) &&
-  (error.meta?.target as string[]).includes('Address_pkey');
+const isDuplicateAddressIdError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const prismaError = error as { code?: string; meta?: { target?: unknown } };
+  return (
+    prismaError.code === 'P2002' &&
+    Array.isArray(prismaError.meta?.target) &&
+    (prismaError.meta?.target as string[]).includes('Address_pkey')
+  );
+};
 
 const resetAddressIdSequence = async () => {
   if (!process.env.DATABASE_URL?.startsWith('postgres')) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '../../../../generated/prisma';
+import type { Prisma } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { 
   getSecurityHeaders, 
   validateAuthInput 
@@ -28,7 +29,6 @@ interface OrderItemInput {
   category?: string;
 }
 
-const prisma = new PrismaClient();
 
 // GET /api/mobile/orders - Get mobile marketplace user's orders
 export async function GET(request: NextRequest) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@/generated/prisma';
+import type { Prisma } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { OrderItem } from '@/types/order';
 import { 
   getOrderSecurityHeaders, 
@@ -10,7 +11,8 @@ import {
   validateOrderAccess
 } from '@/utils/order-security';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
-import { recalculateEntireOrder, validateAndCorrectOrder, ensureAllPriceConsistency } from '@/utils/orderUtils';
+import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderCalculations';
+import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
@@ -26,7 +28,6 @@ interface OfferDiscountType {
   description: string | null;
 }
 
-const prisma = new PrismaClient();
 
 async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
   try {
@@ -37,10 +38,10 @@ async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
     const productIds = Array.from(
       new Set(
         orderItems
-          .map((item) => item.productId)
-          .filter((id): id is string => Boolean(id)),
+          .map((item: { productId: string | null }) => item.productId)
+          .filter((id: string | null): id is string => Boolean(id)),
       ),
-    );
+    ) as string[];
     if (productIds.length > 0) {
       await broadcastProductUpdate(productIds);
     }
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
           }
         });
         
-        const existingOrderIds = existingOrders.map(order => order.orderId);
+        const existingOrderIds = existingOrders.map((order: { orderId: string }) => order.orderId);
         return NextResponse.json({ existingOrderIds }, { headers });
       } catch (error) {
         return NextResponse.json(
@@ -122,7 +123,20 @@ export async function GET(request: NextRequest) {
       }
 
       // Build items directly from relational rows with snapshot fallbacks
-      const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
+        productId: string | null;
+        subtotal: number;
+        packageType?: string | null;
+        piecesPerPackage?: number | null;
+        packageQuantity?: number | null;
+        pricePerPackage?: number | null;
+        product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
+        productNameSnapshot?: string | null;
+        productSkuSnapshot?: string | null;
+        productTypeSnapshot?: string | null;
+        variantNameSnapshot?: string | null;
+        variantId?: number | null;
+      }) => ({
         productId: oi.productId ?? null,
         subtotal: oi.subtotal,
         packageType: oi.packageType,
@@ -208,8 +222,37 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Build items from relational rows for each order (with snapshots)
-    const ordersWithParsedItems = orders.map((order) => {
-      const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+    const ordersWithParsedItems = orders.map((order: {
+      orderItemsRel?: Array<{
+        productId: string | null;
+        subtotal: number;
+        packageType?: string | null;
+        piecesPerPackage?: number | null;
+        packageQuantity?: number | null;
+        pricePerPackage?: number | null;
+        product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
+        productNameSnapshot?: string | null;
+        productSkuSnapshot?: string | null;
+        productTypeSnapshot?: string | null;
+        variantNameSnapshot?: string | null;
+        variantId?: number | null;
+      }>;
+      [key: string]: unknown;
+    }) => {
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
+        productId: string | null;
+        subtotal: number;
+        packageType?: string | null;
+        piecesPerPackage?: number | null;
+        packageQuantity?: number | null;
+        pricePerPackage?: number | null;
+        product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
+        productNameSnapshot?: string | null;
+        productSkuSnapshot?: string | null;
+        productTypeSnapshot?: string | null;
+        variantNameSnapshot?: string | null;
+        variantId?: number | null;
+      }) => ({
         productId: oi.productId ?? null,
         subtotal: oi.subtotal,
         packageType: oi.packageType,
@@ -470,7 +513,7 @@ export async function POST(request: NextRequest) {
         const usedOfferIds: string[] = [];
         
         // Use a single transaction for all offer validation, tracking, and price updates
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           
           // Process all order items
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
@@ -644,7 +687,20 @@ export async function POST(request: NextRequest) {
     }
     
     // Build items from relational rows for response
-    const enrichedOrderItems = (order.orderItemsRel || []).map(oi => ({
+    const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
+      productId: string | null;
+      subtotal: number;
+      packageType?: string | null;
+      piecesPerPackage?: number | null;
+      packageQuantity?: number | null;
+      pricePerPackage?: number | null;
+      product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
+      productNameSnapshot?: string | null;
+      productSkuSnapshot?: string | null;
+      productTypeSnapshot?: string | null;
+      variantNameSnapshot?: string | null;
+      variantId?: number | null;
+    }) => ({
       productId: oi.productId ?? null,
       subtotal: oi.subtotal,
       packageType: oi.packageType,
@@ -1074,7 +1130,7 @@ export async function PUT(request: NextRequest) {
                 // Parse variantNameSnapshot (format: "Color: Gray, Size: L" or "Color: Gray")
                 const variantAttributes: Record<string, string> = {};
                 const variantNameParts = orderItem.variantNameSnapshot.split(', ');
-                variantNameParts.forEach(part => {
+                variantNameParts.forEach((part: string) => {
                   const [key, ...valueParts] = part.split(': ');
                   if (key && valueParts.length > 0) {
                     variantAttributes[key.trim()] = valueParts.join(': ').trim();
@@ -1193,7 +1249,7 @@ export async function PUT(request: NextRequest) {
                 // Parse variantNameSnapshot (format: "Color: Gray, Size: L" or "Color: Gray")
                 const variantAttributes: Record<string, string> = {};
                 const variantNameParts = orderItem.variantNameSnapshot.split(', ');
-                variantNameParts.forEach(part => {
+                variantNameParts.forEach((part: string) => {
                   const [key, ...valueParts] = part.split(': ');
                   if (key && valueParts.length > 0) {
                     variantAttributes[key.trim()] = valueParts.join(': ').trim();
@@ -1380,7 +1436,7 @@ export async function DELETE(request: NextRequest) {
     
 
     // Use transaction to ensure atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // First, reverse any offer usage before deleting the order
       await reverseOfferUsage(body.orderId, tx);
       

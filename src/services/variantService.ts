@@ -1,8 +1,8 @@
-import { PrismaClient, VariantOption } from '@/generated/prisma';
+import type { VariantOption } from '@/lib/db';
 import { parsePrice } from '@/utils/currencyUtils';
 import { VariantOption as VariantOptionType } from '@/types/product';
 
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export interface VariantValidationResult {
   isValid: boolean;

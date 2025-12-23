@@ -8,6 +8,8 @@ import FavouriteProducts from '@/components/salesmarketing/FavouriteProducts';
 import SalesReporting from '@/components/salesmarketing/SalesReporting';
 import SalesTarget from '@/components/salesmarketing/SalesTarget';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
 
@@ -27,6 +29,8 @@ export default function EditSalesAgentPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  const user = useUserStore(state => state.user);
+
   // Form state
   const [formData, setFormData] = useState<Partial<SalesAgent>>({
     name: '',
@@ -35,9 +39,10 @@ export default function EditSalesAgentPage() {
     role: 'Sales Rep',
     status: 'active',
     territory: '',
-    salesTarget: undefined,
-    currentSales: undefined,
     avatar: undefined,
+    favoriteProducts: [],
+    fieldReports: [],
+    salesTargets: [],
   });
 
   // Tab completion status
@@ -75,49 +80,89 @@ export default function EditSalesAgentPage() {
     },
   ];
 
+  const GET_SALES_AGENT_QUERY = `
+    query GetSalesAgent($userId: Int!, $id: String!) {
+      salesAgent(userId: $userId, id: $id) {
+        id
+        name
+        email
+        phone
+        role
+        status
+        avatar
+        territory
+        teamId
+        teamName
+        favoriteProducts {
+          productId
+          productDbId
+          name
+          productType
+          brand
+          images
+          sellingPrice
+        }
+        fieldReports {
+          id
+          date
+          location
+          startTime
+          endTime
+          activities
+          notes
+        }
+        salesTargets {
+          id
+          period
+          goal
+          achieved
+          unitsSold
+        }
+      }
+    }
+  `;
+
   // Fetch agent data
   useEffect(() => {
-    if (!agentId) {
-      router.push('/marketing/team');
+    if (!agentId || !user?.id) {
+      if (!agentId) router.push('/marketing/team');
       return;
     }
 
     const fetchAgent = async () => {
       setLoading(true);
       try {
-        // In production, replace with actual API call:
-        // const data = await fetchGraphQL(GET_AGENT_QUERY, { id: agentId });
-        
-        // For now, using sample data
-        const sampleAgent: SalesAgent = {
+        const data = await fetchGraphQL<{
+          salesAgent: SalesAgent | null;
+        }>(GET_SALES_AGENT_QUERY, {
+          userId: user.id,
           id: agentId,
-          name: 'Sarah Johnson',
-          email: 'sarah.johnson@laku.com',
-          phone: '+62 21 1234 5678',
-          role: 'Sales Manager',
-          status: 'active',
-          territory: 'Jakarta & West Java',
-          salesTarget: 50000000,
-          currentSales: 42000000,
-        };
+        });
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        if (!data.salesAgent) {
+          alert('Sales agent not found');
+          router.push('/marketing/team');
+          return;
+        }
+
         setFormData({
-          name: sampleAgent.name || '',
-          email: sampleAgent.email || '',
-          phone: sampleAgent.phone || '',
-          role: sampleAgent.role || 'Sales Rep',
-          status: sampleAgent.status || 'active',
-          territory: sampleAgent.territory || '',
-          salesTarget: sampleAgent.salesTarget,
-          currentSales: sampleAgent.currentSales,
-          avatar: sampleAgent.avatar,
+          id: data.salesAgent.id,
+          name: data.salesAgent.name,
+          email: data.salesAgent.email,
+          phone: data.salesAgent.phone,
+          role: data.salesAgent.role,
+          status: data.salesAgent.status,
+          territory: data.salesAgent.territory,
+          avatar: data.salesAgent.avatar,
+          teamId: data.salesAgent.teamId,
+          teamName: data.salesAgent.teamName,
+          favoriteProducts: data.salesAgent.favoriteProducts || [],
+          fieldReports: data.salesAgent.fieldReports || [],
+          salesTargets: data.salesAgent.salesTargets || [],
         });
       } catch (error) {
         console.error('Error fetching agent:', error);
-        alert('Failed to load agent data');
+        alert(error instanceof Error ? error.message : 'Failed to load agent data');
         router.push('/marketing/team');
       } finally {
         setLoading(false);
@@ -125,7 +170,7 @@ export default function EditSalesAgentPage() {
     };
 
     fetchAgent();
-  }, [agentId, router]);
+  }, [agentId, user?.id, router]);
 
   const handleFormChange = useCallback((updates: Partial<SalesAgent>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -152,27 +197,87 @@ export default function EditSalesAgentPage() {
 
   const isReadyToSave = validateForm();
 
+  const UPDATE_SALES_AGENT_MUTATION = `
+    mutation UpdateSalesAgent($userId: Int!, $input: UpdateSalesAgentInput!) {
+      updateSalesAgent(userId: $userId, input: $input) {
+        id
+        name
+        email
+        phone
+        role
+        status
+        avatar
+        territory
+        teamId
+        teamName
+      }
+    }
+  `;
+
   const handleSave = async () => {
     if (!isReadyToSave) {
       alert('Please complete all required fields before saving.');
       return;
     }
 
+    if (!user?.id || !agentId) {
+      alert('User not authenticated or agent ID missing');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // In production, replace with actual API call:
-      // await fetchGraphQL(UPDATE_AGENT_MUTATION, { id: agentId, ...formData });
-      
-      // For now, just log and redirect
-      console.log('Updating agent:', agentId, formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      router.push(`/marketing/team/details?id=${agentId}`);
+      // Prepare field reports
+      const fieldReports = (formData.fieldReports || []).map(report => ({
+        id: report.id || null,
+        date: report.date,
+        location: report.location,
+        startTime: report.startTime,
+        endTime: report.endTime,
+        activities: report.activities || null,
+        notes: report.notes,
+      }));
+
+      // Prepare sales targets
+      const salesTargets = (formData.salesTargets || []).map(target => ({
+        id: target.id || null,
+        period: target.period,
+        goal: target.goal,
+        achieved: target.achieved || 0,
+        unitsSold: target.unitsSold || 0,
+      }));
+
+      // Prepare favorite product IDs (database IDs)
+      const favoriteProductIds = (formData.favoriteProducts || [])
+        .map(fp => fp.productDbId)
+        .filter((id): id is number => id !== undefined && id !== null);
+
+      const result = await fetchGraphQL<{
+        updateSalesAgent: SalesAgent;
+      }>(UPDATE_SALES_AGENT_MUTATION, {
+        userId: user.id,
+        input: {
+          id: agentId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+          status: formData.status,
+          avatar: formData.avatar || null,
+          territory: formData.territory || null,
+          teamId: formData.teamId || null,
+          fieldReports: fieldReports.length > 0 ? fieldReports : null,
+          salesTargets: salesTargets.length > 0 ? salesTargets : null,
+          favoriteProductIds: favoriteProductIds.length > 0 ? favoriteProductIds : null,
+        },
+      });
+
+      if (result.updateSalesAgent) {
+        router.push(`/marketing/team/details?id=${agentId}`);
+      }
     } catch (error) {
       console.error('Error updating agent:', error);
-      alert('Failed to update agent. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to update agent. Please try again.');
     } finally {
       setIsSaving(false);
     }

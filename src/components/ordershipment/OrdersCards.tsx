@@ -4,7 +4,7 @@ import { Package, CheckCircle, Clock, DollarSign, TrendingUp, TrendingDown } fro
 import { Order } from '@/types/order';
 import { formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { calculateOrderTotalAmount } from '@/utils/orderUtils';
+import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import { useUserStore } from '@/store/userStore';
 
 interface OrdersCardsProps {

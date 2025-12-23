@@ -118,6 +118,6 @@ export interface OfferWithRelations {
 
 // Transaction type for Prisma operations
 // Note: Using Prisma.TransactionClient which properly types all delegates
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@/lib/db';
 export type PrismaTransaction = Prisma.TransactionClient;
 

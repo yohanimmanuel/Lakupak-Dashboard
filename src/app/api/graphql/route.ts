@@ -14,6 +14,7 @@ import { contactsTypeDefs, contactsResolvers } from './modules/contacts';
 import { dashboardTypeDefs, dashboardResolvers } from './modules/dashboard';
 import { userActivityTypeDefs, userActivityResolvers } from './modules/userActivity';
 import { marketplaceTypeDefs, marketplaceResolvers } from './modules/marketplace';
+import { salesTypeDefs, salesResolvers } from './modules/sales';
 
 const typeDefs = mergeTypeDefs([
   baseTypeDefs,
@@ -24,6 +25,7 @@ const typeDefs = mergeTypeDefs([
   dashboardTypeDefs,
   userActivityTypeDefs,
   marketplaceTypeDefs,
+  salesTypeDefs,
 ]);
 
 const resolvers = mergeResolvers([
@@ -35,6 +37,7 @@ const resolvers = mergeResolvers([
   dashboardResolvers,
   userActivityResolvers,
   marketplaceResolvers,
+  salesResolvers,
 ]);
 
 const server = new ApolloServer({

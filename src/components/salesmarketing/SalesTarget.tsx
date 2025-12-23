@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Target, Plus, Trash2, DollarSign } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
@@ -29,20 +29,17 @@ export default function SalesTarget({
 }: SalesTargetProps) {
   const user = useUserStore(state => state.user);
   const [targetRows, setTargetRows] = useState<SalesTargetRow[]>(() => {
-    // Show 1 placeholder row for new agents, or existing targets for edit mode
-    if (mode === 'edit' && formData.salesTarget) {
-      // In production, this would come from formData or API
-      return [
-        {
-          id: 'target-1',
-          period: 'October',
-          goal: formData.salesTarget || 0,
-          achieved: formData.currentSales || 0,
-          unitsSold: 0,
-        },
-      ];
+    // Use existing targets from formData if available (both create and edit mode)
+    if (formData.salesTargets && formData.salesTargets.length > 0) {
+      return formData.salesTargets.map(t => ({
+        id: t.id || `target-${Date.now()}-${Math.random()}`,
+        period: t.period,
+        goal: t.goal,
+        achieved: t.achieved || 0,
+        unitsSold: t.unitsSold || 0,
+      }));
     }
-    // For create mode, show 1 placeholder
+    // For create mode or when no targets exist, show 1 placeholder
     return [
       {
         id: 'target-placeholder-1',
@@ -56,6 +53,42 @@ export default function SalesTarget({
 
   const userCurrency = user?.currency || getDefaultCurrency();
 
+  // Use ref to track previous formData.salesTargets to avoid unnecessary updates
+  const prevFormDataTargetsRef = useRef<typeof formData.salesTargets>();
+  const targetRowsRef = useRef(targetRows);
+  targetRowsRef.current = targetRows; // Keep ref in sync
+
+  // Sync targets with formData when it changes (both create and edit mode)
+  useEffect(() => {
+    // Only update if formData.salesTargets actually changed
+    if (formData.salesTargets !== prevFormDataTargetsRef.current) {
+      prevFormDataTargetsRef.current = formData.salesTargets;
+      
+      if (formData.salesTargets && formData.salesTargets.length > 0) {
+        const formTargets = formData.salesTargets.map(t => ({
+          id: t.id || `target-${Date.now()}-${Math.random()}`,
+          period: t.period,
+          goal: t.goal,
+          achieved: t.achieved || 0,
+          unitsSold: t.unitsSold || 0,
+        }));
+        // Use shallow comparison for length and key fields to avoid JSON.stringify
+        const currentTargets = targetRowsRef.current;
+        const hasChanged = currentTargets.length !== formTargets.length ||
+          currentTargets.some((t, idx) => 
+            t.id !== formTargets[idx]?.id || 
+            t.period !== formTargets[idx]?.period || 
+            t.goal !== formTargets[idx]?.goal
+          );
+        if (hasChanged) {
+          setTargetRows(formTargets);
+        }
+      }
+      // If formData was cleared, keep local state (user might be editing)
+      // Don't reset to placeholder if user has entered data
+    }
+  }, [formData.salesTargets]); // Only depend on formData.salesTargets
+
   // Calculate tab completion during render (not in useEffect)
   const hasValidTargets = useMemo(() => {
     return targetRows.some(row => 
@@ -64,9 +97,10 @@ export default function SalesTarget({
   }, [targetRows]);
 
   // Only call onTabCompletion when completion status actually changes
+  // onTabCompletion is wrapped in useCallback in parent, so it's stable
   useEffect(() => {
     onTabCompletion('target', hasValidTargets);
-  }, [hasValidTargets, onTabCompletion]); // Added onTabCompletion to dependencies
+  }, [hasValidTargets, onTabCompletion]);
 
   const handleAddRow = () => {
     const newRow: SalesTargetRow = {
@@ -76,19 +110,52 @@ export default function SalesTarget({
       achieved: 0,
       unitsSold: 0,
     };
-    setTargetRows([...targetRows, newRow]);
+    const updatedRows = [...targetRows, newRow];
+    setTargetRows(updatedRows);
+    // Sync with formData
+    onFormChange({ 
+      salesTargets: updatedRows.map(r => ({
+        id: r.id,
+        period: r.period,
+        goal: r.goal,
+        achieved: r.achieved,
+        unitsSold: r.unitsSold,
+      }))
+    });
   };
 
   const handleDeleteRow = (rowId: string) => {
     if (targetRows.length > 1) {
-      setTargetRows(targetRows.filter(r => r.id !== rowId));
+      const updatedRows = targetRows.filter(r => r.id !== rowId);
+      setTargetRows(updatedRows);
+      // Sync with formData
+      onFormChange({ 
+        salesTargets: updatedRows.map(r => ({
+          id: r.id,
+          period: r.period,
+          goal: r.goal,
+          achieved: r.achieved,
+          unitsSold: r.unitsSold,
+        }))
+      });
     }
   };
 
   const handleUpdateRow = (rowId: string, field: keyof SalesTargetRow, value: string | number) => {
-    setTargetRows(targetRows.map(r => 
+    const updatedRows = targetRows.map(r => 
       r.id === rowId ? { ...r, [field]: value } : r
-    ));
+    );
+    setTargetRows(updatedRows);
+    // Sync with formData
+    onFormChange({ 
+      salesTargets: updatedRows.map(r => ({
+        id: r.id,
+        period: r.period,
+        goal: r.goal,
+        achieved: r.achieved,
+        unitsSold: r.unitsSold,
+      }))
+    });
   };
 
   const formatCurrencyAmount = (amount: number) => {

@@ -7,7 +7,7 @@ import OrdersCards from '@/components/ordershipment/OrdersCards';
 import OrdersGPS from '@/components/ordershipment/OrdersGPS';
 import OrdersTable from '@/components/ordershipment/OrdersTable';
 import { Order, OrderTableRow } from '@/types/order';
-import { calculateOrderTotalAmount } from '@/utils/orderUtils';
+import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 

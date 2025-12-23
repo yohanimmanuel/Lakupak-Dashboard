@@ -2,7 +2,7 @@
 import { useSession } from "next-auth/react";
 import { useUserStore } from "@/store/userStore";
 import { useEffect } from "react";
-import type { Company as PrismaCompany } from "@/generated/prisma";
+import type { Company as PrismaCompany } from "@/lib/db";
 
 export function AuthSync() {
   const { data: session, status } = useSession();

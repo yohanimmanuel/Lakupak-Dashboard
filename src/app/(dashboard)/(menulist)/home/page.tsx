@@ -945,6 +945,15 @@ export default function HomePage() {
           });
           return updated;
         });
+      } catch (error) {
+        // Handle geocoding errors gracefully - remove failed addresses from tracking
+        addressesToGeocode.forEach((address) => {
+          logisticsGeocodedAddressesRef.current.delete(address);
+        });
+        // Log error for debugging but don't show to user (non-critical feature)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to geocode addresses:', error);
+        }
       } finally {
         setIsLogisticsGeocoding(false);
       }

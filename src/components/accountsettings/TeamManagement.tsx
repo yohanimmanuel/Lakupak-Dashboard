@@ -19,6 +19,8 @@ import {
   Clock,
   X
 } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 interface SalesMember {
   id: string;
@@ -46,78 +48,153 @@ interface SalesTeam {
   conversionRate: number;
 }
 
+const SALES_AGENTS_QUERY = `
+  query GetSalesAgents($userId: Int!, $page: Int, $limit: Int) {
+    salesAgents(userId: $userId, page: $page, limit: $limit) {
+      nodes {
+        id
+        name
+        email
+        phone
+        role
+        status
+        avatar
+        territory
+        teamId
+        teamName
+        salesTargets {
+          id
+          period
+          goal
+          achieved
+          unitsSold
+        }
+        fieldReports {
+          id
+          date
+          location
+        }
+      }
+      pagination {
+        totalCount
+      }
+    }
+  }
+`;
+
+const SALES_TEAMS_QUERY = `
+  query GetSalesTeams($userId: Int!, $page: Int, $limit: Int) {
+    salesTeams(userId: $userId, page: $page, limit: $limit) {
+      nodes {
+        id
+        name
+        memberIds
+        members {
+          id
+          name
+          role
+          status
+        }
+      }
+      pagination {
+        totalCount
+      }
+    }
+  }
+`;
+
+type AgentData = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: string;
+  avatar?: string | null;
+  territory?: string | null;
+  salesTargets: Array<{
+    id: string;
+    period: string;
+    goal: number;
+    achieved: number;
+    unitsSold: number;
+  }>;
+  fieldReports: Array<{
+    id: string;
+    date: string;
+    location?: string | null;
+  }>;
+};
+
+// Helper function to transform agent data to SalesMember
+const transformAgentToMember = (agent: AgentData): SalesMember => {
+  // Calculate sales metrics from targets
+  const latestTarget = agent.salesTargets
+    .sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime())[0];
+  const salesTarget = latestTarget?.goal || 0;
+  const currentSales = latestTarget?.achieved || 0;
+  const conversionRate = salesTarget > 0 ? (currentSales / salesTarget) * 100 : 0;
+
+  // Get last active from field reports
+  const lastReport = agent.fieldReports
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const lastActiveDate = lastReport ? new Date(lastReport.date) : null;
+  const now = new Date();
+  let lastActive = 'Never';
+  if (lastActiveDate) {
+    const diffMs = now.getTime() - lastActiveDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays > 0) {
+      lastActive = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+      lastActive = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else {
+      lastActive = 'Just now';
+    }
+  }
+
+  // Map role to permissions (simplified - can be enhanced with actual permission system)
+  const getPermissions = (role: string): string[] => {
+    const basePermissions = ['view_orders'];
+    if (role === 'Sales Manager') {
+      return [...basePermissions, 'manage_customers', 'view_analytics', 'manage_team'];
+    } else if (role === 'Sales Rep' || role === 'Account Manager') {
+      return [...basePermissions, 'manage_customers', 'view_analytics'];
+    } else if (role === 'Lead Gen') {
+      return [...basePermissions, 'manage_leads'];
+    }
+    return basePermissions;
+  };
+
+  return {
+    id: agent.id,
+    name: agent.name,
+    email: agent.email,
+    role: agent.role as SalesMember['role'],
+    territory: agent.territory || 'Unassigned',
+    status: agent.status as SalesMember['status'],
+    avatar: agent.avatar || undefined,
+    phone: agent.phone || undefined,
+    lastActive,
+    salesTarget,
+    currentSales,
+    conversionRate: Math.round(conversionRate * 10) / 10,
+    permissions: getPermissions(agent.role),
+  };
+};
+
 export default function TeamManagement() {
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useUserStore();
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Sales team members state
-  const [salesMembers, setSalesMembers] = useState<SalesMember[]>([
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@laku.com',
-      role: 'Sales Manager',  
-      territory: 'Jakarta & West Java',
-      status: 'active',
-      phone: '+62 21 1234 5678',
-      lastActive: '2 hours ago',
-      salesTarget: 50000000,
-      currentSales: 42000000,
-      conversionRate: 15.2,
-      permissions: ['view_orders', 'manage_customers', 'view_analytics', 'manage_team']
-    },
-    {
-      id: '2',
-      name: 'Michael Chen',
-      email: 'michael.chen@laku.com',
-      role: 'Sales Rep',
-      territory: 'Surabaya & East Java',
-      status: 'active',
-      phone: '+62 21 2345 6789',
-      lastActive: '1 hour ago',
-      salesTarget: 30000000,
-      currentSales: 28000000,
-      conversionRate: 12.8,
-      permissions: ['view_orders', 'manage_customers', 'view_analytics']
-    },
-    {
-      id: '3',
-      name: 'Lisa Rodriguez',
-      email: 'lisa.rodriguez@laku.com',
-      role: 'Lead Gen',
-      territory: 'Bali & Nusa Tenggara',
-      status: 'pending',
-      phone: '+62 21 3456 7890',
-      lastActive: 'Never',
-      salesTarget: 20000000,
-      currentSales: 0,
-      conversionRate: 0,
-      permissions: ['view_orders', 'manage_leads']
-    },
-    {
-      id: '4',
-      name: 'David Kim',
-      email: 'david.kim@laku.com',
-      role: 'Account Manager',
-      territory: 'Medan & North Sumatra',
-      status: 'active',
-      phone: '+62 21 4567 8901',
-      lastActive: '30 minutes ago',
-      salesTarget: 40000000,
-      currentSales: 35000000,
-      conversionRate: 18.5,
-      permissions: ['view_orders', 'manage_customers', 'view_analytics']
-    }
-  ]);
+  const [salesMembers, setSalesMembers] = useState<SalesMember[]>([]);
 
   // Sales teams state
-  const [salesTeams, setSalesTeams] = useState<SalesTeam[]>([
-    { id: '1', name: 'Jakarta Team', memberCount: 4, manager: 'Sarah Johnson', monthlyTarget: 150000000, currentSales: 120000000, conversionRate: 16.2 },
-    { id: '2', name: 'Regional Team', memberCount: 6, manager: 'Michael Chen', monthlyTarget: 200000000, currentSales: 180000000, conversionRate: 14.8 },
-    { id: '3', name: 'Enterprise Team', memberCount: 3, manager: 'David Kim', monthlyTarget: 100000000, currentSales: 95000000, conversionRate: 19.1 },
-    { id: '4', name: 'Lead Gen Team', memberCount: 2, manager: 'Lisa Rodriguez', monthlyTarget: 50000000, currentSales: 25000000, conversionRate: 8.5 }
-  ]);
+  const [salesTeams, setSalesTeams] = useState<SalesTeam[]>([]);
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,6 +215,125 @@ export default function TeamManagement() {
     trackPerformance: true,
   });
 
+
+  // Fetch sales agents and teams from API
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch sales agents and teams in parallel
+        const [agentsData, teamsData] = await Promise.all([
+          fetchGraphQL<{
+            salesAgents: {
+              nodes: Array<{
+                id: string;
+                name: string;
+                email: string;
+                phone: string;
+                role: string;
+                status: string;
+                avatar?: string | null;
+                territory?: string | null;
+                teamId?: string | null;
+                teamName?: string | null;
+                salesTargets: Array<{
+                  id: string;
+                  period: string;
+                  goal: number;
+                  achieved: number;
+                  unitsSold: number;
+                }>;
+                fieldReports: Array<{
+                  id: string;
+                  date: string;
+                  location?: string | null;
+                }>;
+              }>;
+            };
+          }>(SALES_AGENTS_QUERY, {
+            userId: user.id,
+            page: 1,
+            limit: 100,
+          }),
+          fetchGraphQL<{
+            salesTeams: {
+              nodes: Array<{
+                id: string;
+                name: string;
+                memberIds: string[];
+                members: Array<{
+                  id: string;
+                  name: string;
+                  role: string;
+                  status: string;
+                }>;
+              }>;
+            };
+          }>(SALES_TEAMS_QUERY, {
+            userId: user.id,
+            page: 1,
+            limit: 100,
+          }),
+        ]);
+
+        // Transform sales agents to SalesMember format
+        const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map(transformAgentToMember);
+
+        // Transform sales teams to SalesTeam format
+        const transformedTeams: SalesTeam[] = teamsData.salesTeams.nodes.map((team) => {
+          const members = team.members;
+          const manager = members.find((m) => m.role === 'Sales Manager')?.name || members[0]?.name || 'Unassigned';
+          
+          // Calculate team metrics from member targets
+          const teamMetrics = members.reduce(
+            (acc, member) => {
+              const memberData = transformedMembers.find((m) => m.id === member.id);
+              if (memberData) {
+                acc.monthlyTarget += memberData.salesTarget;
+                acc.currentSales += memberData.currentSales;
+              }
+              return acc;
+            },
+            { monthlyTarget: 0, currentSales: 0 }
+          );
+
+          const conversionRate =
+            teamMetrics.monthlyTarget > 0
+              ? (teamMetrics.currentSales / teamMetrics.monthlyTarget) * 100
+              : 0;
+
+          return {
+            id: team.id,
+            name: team.name,
+            memberCount: members.length,
+            manager,
+            monthlyTarget: teamMetrics.monthlyTarget,
+            currentSales: teamMetrics.currentSales,
+            conversionRate: Math.round(conversionRate * 10) / 10,
+          };
+        });
+
+        setSalesMembers(transformedMembers);
+        setSalesTeams(transformedTeams);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load team data');
+        // Set empty arrays on error to show empty state
+        setSalesMembers([]);
+        setSalesTeams([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
 
   // Auto-dismiss success messages
   useEffect(() => {
@@ -169,9 +365,75 @@ export default function TeamManagement() {
     setShowAddMemberModal(true);
   };
 
-  const handleDeleteMember = (id: string) => {
-    setSalesMembers(prev => prev.filter(member => member.id !== id));
+  const handleDeleteMember = async (id: string) => {
+    if (!user?.id) {
+      setError('User not authenticated');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const DELETE_SALES_AGENT_MUTATION = `
+        mutation DeleteSalesAgent($userId: Int!, $id: String!) {
+          deleteSalesAgent(userId: $userId, id: $id) {
+            success
+            deleted {
+              id
+              name
+            }
+          }
+        }
+      `;
+
+      await fetchGraphQL(DELETE_SALES_AGENT_MUTATION, {
+        userId: user.id,
+        id,
+      });
+
+      // Refresh data after deletion
+      const agentsData = await fetchGraphQL<{
+        salesAgents: {
+          nodes: Array<{
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: string;
+            status: string;
+            avatar?: string | null;
+            territory?: string | null;
+            salesTargets: Array<{
+              id: string;
+              period: string;
+              goal: number;
+              achieved: number;
+              unitsSold: number;
+            }>;
+            fieldReports: Array<{
+              id: string;
+              date: string;
+              location?: string | null;
+            }>;
+          }>;
+        };
+      }>(SALES_AGENTS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 100,
+      });
+
+      // Transform and update members (reuse transformation logic)
+      const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map(transformAgentToMember);
+
+      setSalesMembers(transformedMembers);
     setSuccess('Sales team member removed successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete team member');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInviteMember = (id: string) => {
@@ -233,6 +495,19 @@ export default function TeamManagement() {
     return Math.min((current / target) * 100, 100);
   };
 
+
+  if (isLoading && salesMembers.length === 0) {
+    return (
+      <div className="p-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading team data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">

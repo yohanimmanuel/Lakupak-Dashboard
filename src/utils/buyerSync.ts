@@ -1,6 +1,4 @@
-import { PrismaClient } from '@/generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 // Central helper to build mobile marketplace Buyer IDs consistently across modules
 // Base: LKB-<marketplaceUserId padded>

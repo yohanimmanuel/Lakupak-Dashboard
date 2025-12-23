@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
-import { PrismaClient } from '../../../../generated/prisma';
+import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
   getSecurityHeaders, 
@@ -8,7 +8,6 @@ import {
 } from '../../../../utils/auth-security';
 import { getRegionByCode } from '@/config/regionConfig';
 
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();

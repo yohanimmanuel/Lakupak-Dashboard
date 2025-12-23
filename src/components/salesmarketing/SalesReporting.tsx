@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Calendar, Clock, MapPin, Trash2, Edit } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 
 interface FieldReport {
   id: string;
   date: string;
-  status: 'pending' | 'reviewed';
   activities?: {
     visits: number;
     customersMet: number;
@@ -18,8 +17,6 @@ interface FieldReport {
   location?: string;
   startTime?: string;
   endTime?: string;
-  reviewedBy?: string;
-  reviewedAt?: string;
 }
 
 interface SalesReportingProps {
@@ -36,33 +33,23 @@ export default function SalesReporting({
   mode,
 }: SalesReportingProps) {
   const [reports, setReports] = useState<FieldReport[]>(() => {
-    // Show 1 placeholder row for new agents, or existing reports for edit mode
-    if (mode === 'edit' && formData.id) {
-      // In production, this would come from formData or API
-      return [
-        {
-          id: '1',
-          date: new Date().toISOString().split('T')[0],
-          status: 'pending',
-          activities: {
-            visits: 0,
-            customersMet: 0,
-            productsDemonstrated: 0,
-            salesMade: 0,
-          },
-          notes: '',
-          location: formData.territory || '',
-          startTime: '08:00',
-          endTime: '17:00',
-        },
-      ];
+    // Use existing reports from formData if available (both create and edit mode)
+    if (formData.fieldReports && formData.fieldReports.length > 0) {
+      return formData.fieldReports.map(r => ({
+        id: r.id || `report-${Date.now()}-${Math.random()}`,
+        date: r.date,
+        location: r.location,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        activities: r.activities,
+        notes: r.notes,
+      }));
     }
-    // For create mode, show 1 placeholder
+    // For create mode or when no reports exist, show 1 placeholder
     return [
       {
         id: 'placeholder-1',
         date: new Date().toISOString().split('T')[0],
-        status: 'pending',
         activities: {
           visits: 0,
           customersMet: 0,
@@ -70,23 +57,57 @@ export default function SalesReporting({
           salesMade: 0,
         },
         notes: '',
-        location: '',
+        location: formData.territory || '',
         startTime: '08:00',
         endTime: '17:00',
       },
     ];
   });
 
+  // Use ref to track previous formData.fieldReports to avoid unnecessary updates
+  const prevFormDataReportsRef = useRef<typeof formData.fieldReports>();
+  const reportsRef = useRef(reports);
+  reportsRef.current = reports; // Keep ref in sync
+
+  // Sync reports with formData when it changes (both create and edit mode)
+  useEffect(() => {
+    // Only update if formData.fieldReports actually changed
+    if (formData.fieldReports !== prevFormDataReportsRef.current) {
+      prevFormDataReportsRef.current = formData.fieldReports;
+      
+      if (formData.fieldReports && formData.fieldReports.length > 0) {
+        const formReports = formData.fieldReports.map(r => ({
+          id: r.id || `report-${Date.now()}-${Math.random()}`,
+          date: r.date,
+          location: r.location,
+          startTime: r.startTime,
+          endTime: r.endTime,
+          activities: r.activities,
+          notes: r.notes,
+        }));
+        // Use shallow comparison for length and IDs to avoid JSON.stringify
+        const currentReports = reportsRef.current;
+        const hasChanged = currentReports.length !== formReports.length ||
+          currentReports.some((r, idx) => r.id !== formReports[idx]?.id || r.date !== formReports[idx]?.date);
+        if (hasChanged) {
+          setReports(formReports);
+        }
+      }
+      // If formData was cleared, keep local state (user might be editing)
+      // Don't reset to placeholder if user has entered data
+    }
+  }, [formData.fieldReports]); // Only depend on formData.fieldReports
+
   // Update tab completion - reporting is optional
+  // onTabCompletion is wrapped in useCallback in parent, so it's stable
   useEffect(() => {
     onTabCompletion('reporting', true);
-  }, [onTabCompletion]); // onTabCompletion is a prop function - should be in dependencies
+  }, [onTabCompletion]);
 
   const handleAddReport = () => {
     const newReport: FieldReport = {
       id: `report-${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      status: 'pending',
       activities: {
         visits: 0,
         customersMet: 0,
@@ -98,17 +119,56 @@ export default function SalesReporting({
       startTime: '08:00',
       endTime: '17:00',
     };
-    setReports([...reports, newReport]);
+    const updatedReports = [...reports, newReport];
+    setReports(updatedReports);
+    // Sync with formData
+    onFormChange({ 
+      fieldReports: updatedReports.map(r => ({
+        id: r.id,
+        date: r.date,
+        location: r.location,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        activities: r.activities,
+        notes: r.notes,
+      }))
+    });
   };
 
   const handleDeleteReport = (reportId: string) => {
     if (reports.length > 1) {
-      setReports(reports.filter(r => r.id !== reportId));
+      const updatedReports = reports.filter(r => r.id !== reportId);
+      setReports(updatedReports);
+      // Sync with formData
+      onFormChange({ 
+        fieldReports: updatedReports.map(r => ({
+          id: r.id,
+          date: r.date,
+          location: r.location,
+          startTime: r.startTime,
+          endTime: r.endTime,
+          activities: r.activities,
+          notes: r.notes,
+        }))
+      });
     }
   };
 
   const handleUpdateReport = (reportId: string, updates: Partial<FieldReport>) => {
-    setReports(reports.map(r => r.id === reportId ? { ...r, ...updates } : r));
+    const updatedReports = reports.map(r => r.id === reportId ? { ...r, ...updates } : r);
+    setReports(updatedReports);
+    // Sync with formData
+    onFormChange({ 
+      fieldReports: updatedReports.map(r => ({
+        id: r.id,
+        date: r.date,
+        location: r.location,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        activities: r.activities,
+        notes: r.notes,
+      }))
+    });
   };
 
   return (

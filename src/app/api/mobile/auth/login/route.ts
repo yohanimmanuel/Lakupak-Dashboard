@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
-import { PrismaClient } from '../../../../../generated/prisma';
+import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
   getSecurityHeaders, 
   sanitizeUserData 
 } from '../../../../../utils/auth-security';
 
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();

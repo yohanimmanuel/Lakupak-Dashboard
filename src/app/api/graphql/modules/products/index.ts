@@ -1,4 +1,4 @@
-import { type Prisma, type OfferDiscountType } from '@/generated/prisma';
+import { type Prisma, type OfferDiscountType } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';

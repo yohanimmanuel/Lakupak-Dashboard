@@ -121,15 +121,24 @@ export default function FavouriteProducts({
     const currentFavoriteProducts = formData.favoriteProducts;
     const prevFavoriteProducts = prevFormDataFavoriteProductsRef.current;
     
-    // Only update if formData.favoriteProducts actually changed
-    if (currentFavoriteProducts && 
-        JSON.stringify(currentFavoriteProducts) !== JSON.stringify(prevFavoriteProducts)) {
-      setSelectedProducts(currentFavoriteProducts);
-      prevFormDataFavoriteProductsRef.current = currentFavoriteProducts;
-    } else if (!currentFavoriteProducts && prevFavoriteProducts) {
-      // Clear selection if formData.favoriteProducts was removed
-      setSelectedProducts([]);
-      prevFormDataFavoriteProductsRef.current = undefined;
+    // Only update if formData.favoriteProducts reference actually changed
+    if (currentFavoriteProducts !== prevFavoriteProducts) {
+      if (currentFavoriteProducts && currentFavoriteProducts.length > 0) {
+        // Use shallow comparison for productIds to avoid JSON.stringify
+        const currentIds = currentFavoriteProducts.map(p => p.productId).sort().join(',');
+        const prevIds = prevFavoriteProducts?.map(p => p.productId).sort().join(',') || '';
+        if (currentIds !== prevIds) {
+          setSelectedProducts(currentFavoriteProducts);
+          prevFormDataFavoriteProductsRef.current = currentFavoriteProducts;
+        }
+      } else if (!currentFavoriteProducts && prevFavoriteProducts) {
+        // Clear selection if formData.favoriteProducts was removed
+        setSelectedProducts([]);
+        prevFormDataFavoriteProductsRef.current = undefined;
+      } else {
+        // Update ref even if no change to avoid re-checking
+        prevFormDataFavoriteProductsRef.current = currentFavoriteProducts;
+      }
     }
   }, [formData.favoriteProducts]);
 
@@ -214,6 +223,7 @@ export default function FavouriteProducts({
     if (!selectedProducts.find(p => p.productId === product.productId)) {
       const favoriteProduct: FavoriteProduct = {
         productId: product.productId,
+        productDbId: product.id, // Store database ID for GraphQL mutations
         name: product.name,
         productType: product.productType,
         brand: product.brand,
@@ -252,6 +262,7 @@ export default function FavouriteProducts({
         .filter(p => !isProductSelected(p.productId))
         .map(product => ({
           productId: product.productId,
+          productDbId: product.id, // Store database ID for GraphQL mutations
           name: product.name,
           productType: product.productType,
           brand: product.brand,

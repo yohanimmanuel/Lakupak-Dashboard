@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Eye, Package, X, Clock,
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatDateLong } from '@/utils/dateUtils';
 
 interface SalesDetailsProps {
   agent: SalesAgent;
@@ -16,8 +17,6 @@ interface SalesDetailsProps {
 interface FieldReport {
   id: string;
   date: string;
-  status: 'pending' | 'reviewed';
-  // Detailed report information
   activities?: {
     visits: number;
     customersMet: number;
@@ -28,11 +27,10 @@ interface FieldReport {
   location?: string;
   startTime?: string;
   endTime?: string;
-  reviewedBy?: string;
-  reviewedAt?: string;
 }
 
 interface SalesTarget {
+  id?: string;
   period: string;
   goal: number;
   achieved: number;
@@ -40,11 +38,12 @@ interface SalesTarget {
 }
 
 interface FavoriteProduct {
-  id: string;
+  productId: string;
   name: string;
-  category: string;
-  unitsSold: number;
-  totalRevenue: number;
+  productType: string;
+  brand?: string;
+  images?: string[];
+  sellingPrice?: string;
 }
 
 export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProps) {
@@ -62,107 +61,34 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  // Sample field reports data
-  const fieldReports: FieldReport[] = [
-    { 
-      id: '1', 
-      date: '06 October, 2024', 
-      status: 'pending',
-      activities: {
-        visits: 8,
-        customersMet: 6,
-        productsDemonstrated: 12,
-        salesMade: 4
-      },
-      notes: 'Visited several retail stores in Jakarta area. Focused on promoting new product line. Received positive feedback from 3 potential buyers.',
-      location: 'Jakarta & West Java',
-      startTime: '08:00',
-      endTime: '17:30',
-    },
-    { 
-      id: '2', 
-      date: '05 October, 2024', 
-      status: 'reviewed',
-      activities: {
-        visits: 10,
-        customersMet: 8,
-        productsDemonstrated: 15,
-        salesMade: 6
-      },
-      notes: 'Excellent day with high customer engagement. Successfully closed 6 deals including 2 large orders. Follow-up scheduled for next week.',
-      location: 'Jakarta & West Java',
-      startTime: '08:15',
-      endTime: '18:00',
-      reviewedBy: 'Manager John Doe',
-      reviewedAt: '05 October, 2024 19:30'
-    },
-    { 
-      id: '3', 
-      date: '04 October, 2024', 
-      status: 'reviewed',
-      activities: {
-        visits: 7,
-        customersMet: 5,
-        productsDemonstrated: 10,
-        salesMade: 3
-      },
-      notes: 'Regular field visit to maintain relationships with existing clients. Discussed upcoming promotions and seasonal products.',
-      location: 'Jakarta & West Java',
-      startTime: '09:00',
-      endTime: '16:45',
-      reviewedBy: 'Manager John Doe',
-      reviewedAt: '04 October, 2024 18:00'
-    },
-    { 
-      id: '4', 
-      date: '03 October, 2024', 
-      status: 'reviewed',
-      activities: {
-        visits: 9,
-        customersMet: 7,
-        productsDemonstrated: 14,
-        salesMade: 5
-      },
-      notes: 'Productive day visiting new prospects. Introduced premium product line to 3 new potential clients. One client showed strong interest.',
-      location: 'Jakarta & West Java',
-      startTime: '08:30',
-      endTime: '17:15',
-      reviewedBy: 'Manager John Doe',
-      reviewedAt: '03 October, 2024 18:30'
-    },
-    { 
-      id: '5', 
-      date: '02 October, 2024', 
-      status: 'reviewed',
-      activities: {
-        visits: 6,
-        customersMet: 4,
-        productsDemonstrated: 8,
-        salesMade: 2
-      },
-      notes: 'Focused on follow-up visits with existing customers. Collected feedback on product quality and delivery service.',
-      location: 'Jakarta & West Java',
-      startTime: '09:30',
-      endTime: '16:00',
-      reviewedBy: 'Manager John Doe',
-      reviewedAt: '02 October, 2024 17:00'
-    },
-  ];
+  // Use field reports from agent data, format dates properly
+  const fieldReports: FieldReport[] = (agent.fieldReports || []).map(report => ({
+    id: report.id,
+    date: formatDateLong(report.date) || report.date, // Format ISO date to readable format
+    location: report.location,
+    startTime: report.startTime,
+    endTime: report.endTime,
+    activities: report.activities as {
+      visits: number;
+      customersMet: number;
+      productsDemonstrated: number;
+      salesMade: number;
+    } | undefined,
+    notes: report.notes,
+  }));
 
-  // Sample sales targets data
-  const salesTargets: SalesTarget[] = [
-    { period: 'October', goal: 200000000, achieved: 170000000, unitsSold: 230 },
-    { period: 'September', goal: 200000000, achieved: 180000000, unitsSold: 250 },
-    { period: 'August', goal: 200000000, achieved: 190000000, unitsSold: 270 },
-    { period: 'July', goal: 200000000, achieved: 175000000, unitsSold: 240 },
-  ];
+  // Use sales targets from agent data
+  const salesTargets: SalesTarget[] = agent.salesTargets || [];
 
-  // Sample favorite products data
-  const favoriteProducts: FavoriteProduct[] = [
-    { id: '1', name: 'Premium Rice 5kg', category: 'Food & Beverages', unitsSold: 145, totalRevenue: 43500000 },
-    { id: '2', name: 'Cooking Oil 2L', category: 'Food & Beverages', unitsSold: 98, totalRevenue: 29400000 },
-    { id: '3', name: 'Instant Noodles Pack', category: 'Food & Beverages', unitsSold: 87, totalRevenue: 26100000 },
-  ];
+  // Use favorite products from agent data (limit to 3 for display)
+  const favoriteProducts: FavoriteProduct[] = (agent.favoriteProducts || []).slice(0, 3);
+
+  // Find current month target based on selectedMonth
+  // Extract month name from selectedMonth (e.g., "October, 2024" -> "October")
+  const currentMonthName = selectedMonth.split(',')[0]?.trim() || '';
+  const currentMonthTarget = salesTargets.find(target => 
+    target.period && target.period.toLowerCase().includes(currentMonthName.toLowerCase())
+  ) || (salesTargets.length > 0 ? salesTargets[0] : null);
 
   const handleBack = () => {
     if (onBack) {
@@ -191,9 +117,8 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     setSelectedReport(null);
   };
 
-  const currentMonthTarget = salesTargets[0];
-  const progressPercentage = agent.salesTarget && agent.currentSales
-    ? getProgressPercentage(agent.currentSales, agent.salesTarget)
+  const progressPercentage = currentMonthTarget && currentMonthTarget.goal > 0
+    ? getProgressPercentage(currentMonthTarget.achieved, currentMonthTarget.goal)
     : 0;
 
   return (
@@ -245,12 +170,12 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             </div>
 
             {/* Sales Target Summary */}
-            {agent.salesTarget && agent.currentSales && (
+            {currentMonthTarget && (
               <div className="py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">October sales target</span>
+                  <span className="text-sm font-medium text-gray-700">{currentMonthTarget.period} sales target</span>
                   <span className="text-sm font-semibold text-gray-900">
-                    {Math.round((agent.currentSales / agent.salesTarget) * 100)}% achieved
+                    {Math.round(progressPercentage)}% achieved
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3 overflow-hidden">
@@ -269,12 +194,12 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-orange-500 rounded"></div>
                     <span className="text-xs text-gray-500">Target</span>
-                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(agent.salesTarget)}</span>
+                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(currentMonthTarget.goal)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-[#0a61d7] rounded"></div>
                     <span className="text-xs text-gray-500">Achieved</span>
-                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(agent.currentSales)}</span>
+                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(currentMonthTarget.achieved)}</span>
                   </div>
                 </div>
               </div>
@@ -325,20 +250,29 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
               </div>
             </div>
             <div className="space-y-3">
-              {favoriteProducts.slice(0, 3).map((product) => (
-                <div key={product.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 mb-1">{product.name}</p>
-                      <p className="text-xs text-gray-500">{product.category}</p>
+              {favoriteProducts.length > 0 ? (
+                favoriteProducts.map((product) => (
+                  <div key={product.productId} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 mb-1">{product.name}</p>
+                        <p className="text-xs text-gray-500">{product.productType}</p>
+                        {product.brand && (
+                          <p className="text-xs text-gray-400 mt-1">Brand: {product.brand}</p>
+                        )}
+                      </div>
                     </div>
+                    {product.sellingPrice && (
+                      <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
+                        <span className="text-gray-500">Price:</span>
+                        <span className="font-semibold text-gray-900">{product.sellingPrice}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
-                    <span>{product.unitsSold} units sold</span>
-                    <span className="font-semibold text-gray-900">{formatCurrencyAmount(product.totalRevenue)}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No favorite products selected</p>
+              )}
             </div>
           </div>
         </div>

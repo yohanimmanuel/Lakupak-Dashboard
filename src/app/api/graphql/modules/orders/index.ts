@@ -1,5 +1,5 @@
 import { buildMobileBuyerId } from '@/utils/buyerSync';
-import type { Prisma } from '@/generated/prisma';
+import type { Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 

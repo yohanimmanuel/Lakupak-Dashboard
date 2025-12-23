@@ -34,6 +34,8 @@ model User {
   suppliers     Supplier[]
   offers        Offer[]
   company       Company?   @relation(fields: [companyId], references: [id])
+  salesAgents   SalesAgent[]
+  salesTeams    SalesTeam[]
 }
 
 model Company {
@@ -141,6 +143,7 @@ model Product {
   offerProducts     OfferProduct[]
   // New variant modeling (definitions and options for combinations)
   variantOptions    VariantOption[]
+  favoriteProducts  FavoriteProduct[]
   user              User?            @relation(fields: [userId], references: [id])
 }
 
@@ -474,4 +477,93 @@ model OfferUsageTracking {
   @@index([offerId])
   @@index([discountTypeId])
   @@index([marketplaceUserId])
+}
+
+// Sales Module Models
+model SalesAgent {
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  phone         String
+  role          String          // 'Sales Manager', 'Sales Rep', 'Sales Support', 'Lead Gen', 'Account Manager'
+  status        String          // 'active', 'inactive'
+  avatar        String?
+  territory     String?
+  teamId       String?
+  userId       Int?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  
+  team          SalesTeam?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user          User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fieldReports  FieldReport[]
+  salesTargets  SalesTarget[]
+  favoriteProducts FavoriteProduct[]
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([status])
+  @@index([role])
+}
+
+model SalesTeam {
+  id            String          @id @default(uuid())
+  name          String          // Region name (e.g., "Jakarta Team", "Regional Team")
+  userId       Int?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  
+  user          User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  members       SalesAgent[]
+
+  @@index([userId])
+}
+
+model FieldReport {
+  id            String          @id @default(uuid())
+  salesAgentId  String
+  date          DateTime        @db.Timestamptz(3)
+  location      String?
+  startTime     String?         // e.g., "08:00"
+  endTime       String?          // e.g., "17:00"
+  activities    Json?            // { visits, customersMet, productsDemonstrated, salesMade }
+  notes         String?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  
+  salesAgent    SalesAgent      @relation(fields: [salesAgentId], references: [id], onDelete: Cascade)
+
+  @@index([salesAgentId])
+  @@index([date])
+}
+
+model SalesTarget {
+  id            String          @id @default(uuid())
+  salesAgentId  String
+  period        String          // e.g., "October", "Q4 2024"
+  goal          Float
+  achieved     Float            @default(0)
+  unitsSold     Int              @default(0)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  
+  salesAgent    SalesAgent      @relation(fields: [salesAgentId], references: [id], onDelete: Cascade)
+
+  @@index([salesAgentId])
+  @@index([period])
+}
+
+model FavoriteProduct {
+  id            String          @id @default(uuid())
+  salesAgentId  String
+  productId     Int
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  
+  salesAgent    SalesAgent      @relation(fields: [salesAgentId], references: [id], onDelete: Cascade)
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([salesAgentId, productId])
+  @@index([salesAgentId])
+  @@index([productId])
 }

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2 } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
-import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderUtils';
+import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderCalculations';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
