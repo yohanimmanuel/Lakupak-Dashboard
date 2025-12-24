@@ -53,7 +53,7 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 ## Technical Architecture
 - Frontend Distributor SaaS Dashboard (Next.js React)
 - Mobile App Buyer Marketplace (React Native Expo)
-- Backend / APIs (GraphQL, REST API)
+- Backend / APIs (Node.js, GraphQL, REST API)
 - Database (Supabase PostgreSQL)
 - Real-Time Communication (WebSockets) 
 - Authentication & Authorization (Supabase Auth)
