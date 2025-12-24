@@ -51,11 +51,14 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - **Optional Value-Added Services** – Logistics integration, financing, supplier leads
 
 ## Technical Architecture
-Built with Next.js and modern web technologies, Laku features:
-- **Secure Role-Based Access Control** - Ensuring data isolation between distributors
-- **Mobile-First Design** - Optimized for field sales and mobile ordering
-- **Real-Time Analytics** - Live business insights and reporting
-- **API-First Architecture** - Ready for future integrations
+- Frontend Distributor SaaS Dashboard (Next.js React)
+- Mobile App Buyer Marketplace (React Native Expo)
+- Backend / APIs (GraphQL, REST API)
+- Database (Supabase PostgreSQL)
+- Real-Time Communication (WebSockets) 
+- Authentication & Authorization (Supabase Auth)
+- Messaging & Sales Integration (WhatsApp Business API)
+- Infrastructure / Deployment (Cloud-hosted Supabase + server hosting)
 
 ## Target Market
 - **Distributors**: FMCG distributors serving Indonesia's retail network
