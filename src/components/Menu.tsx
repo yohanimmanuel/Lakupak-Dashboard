@@ -30,9 +30,9 @@ const mainMenuItems = [
   },
   {
     label: 'Analytics',
+    href: '/analytics',
     icon: <ChartAreaIcon className="w-5 h-5" />,
     submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Overview', href: '/analytics' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Financial', href: '/analytics/financial' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Sales', href: '/analytics/sales' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Operational', href: '/analytics/performance' },
@@ -86,13 +86,38 @@ const Menu = () => {
   type SubItem = { icon: React.ReactNode; label: string; href: string };
   type MenuItem = { label: string; href?: string; color?: string; icon: React.ReactNode; submenu?: SubItem[] };
 
+  // Helper function to get text color classes
+  const getTextColorClasses = (isActive: boolean | undefined) => 
+    isActive ? 'text-[#007bff]' : 'text-gray-500 group-hover:text-blue-400';
+
+  // Helper function to render icon with color
+  const renderIcon = (icon: React.ReactNode, isActive: boolean | undefined) => (
+    <span className={`w-[20px] h-[20px] flex items-center justify-center flex-shrink-0 [&>svg]:text-current ${getTextColorClasses(isActive)}`}>
+      {icon}
+    </span>
+  );
+
+  // Helper function to render line block
+  const renderLineBlock = (isActive: boolean | undefined, showHover = false) => {
+    if (isActive) {
+      return <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] rounded-r"></div>;
+    }
+    if (showHover) {
+      return <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-200 rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-100"></div>;
+    }
+    return null;
+  };
+
   const renderMenuItem = (item: MenuItem) => {
-    const isActive = pathname === item.href || (item.href && pathname.startsWith(item.href));
+    const isActive: boolean = Boolean(pathname === item.href || (item.href && pathname.startsWith(item.href)));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
       const isAnySubActive = item.submenu.some((sub: SubItem) => pathname === sub.href);
-      // For items with submenus, highlight parent if any submenu is active OR if the parent itself is active
-      const shouldHighlightParent = isAnySubActive || isActive;
+      // For items with submenus:
+      // - Parent is active if: (parent itself is active AND no submenu is active) OR (menu is collapsed AND submenu is active)
+      // - When expanded and submenu is active: parent is inactive (gray), only submenu shows as active
+      // - When collapsed and submenu is active: parent is active (blue) to represent the active submenu
+      const shouldHighlightParent = (isActive && !isAnySubActive) || (!shouldShowExpanded && isAnySubActive);
       // Collapsed: floating submenu on hover
       const handleMouseEnter = () => {
         if (!shouldShowExpanded) {
@@ -123,26 +148,59 @@ const Menu = () => {
       return (
         <div
           key={item.label}
-          className="overflow-hidden relative"
+          className="overflow-visible relative"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           ref={el => { if (item.submenu) menuItemRefs.current[item.label] = el; }}
         >
-          <button
-            onClick={() => shouldShowExpanded && handleToggle(item.label)}
-            className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 group relative ${
-              shouldHighlightParent ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-            }`}
-            title={!shouldShowExpanded ? item.label : undefined}
-          >
-            <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{item.icon}</span>
-            {shouldShowExpanded && <span className="menu-text whitespace-nowrap font-medium transition-all duration-100">{item.label}</span>}
-            {shouldShowExpanded && (
-              <span className="ml-auto">
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
+          {/* Continuous line from parent through all submenu items (expanded mode only) - spans full height */}
+          {/* Show when: parent is active OR any submenu is active */}
+          {shouldShowExpanded && isOpen && (isActive || isAnySubActive) && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] z-0"></div>
+          )}
+          <div className="flex items-center w-full relative group">
+            {renderLineBlock(shouldHighlightParent, !isAnySubActive)}
+            {item.href ? (
+              <Link
+                href={item.href}
+                className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium flex-1 text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
+                title={!shouldShowExpanded ? item.label : undefined}
+              >
+                {renderIcon(item.icon, shouldHighlightParent)}
+                {shouldShowExpanded && (
+                  <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
+                    {item.label}
+                  </span>
+                )}
+              </Link>
+            ) : (
+              <button
+                onClick={() => shouldShowExpanded && handleToggle(item.label)}
+                className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
+                title={!shouldShowExpanded ? item.label : undefined}
+              >
+                {renderIcon(item.icon, shouldHighlightParent)}
+                {shouldShowExpanded && (
+                  <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
+                    {item.label}
+                  </span>
+                )}
+              </button>
             )}
-          </button>
+            {shouldShowExpanded && item.submenu && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleToggle(item.label);
+                }}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                aria-label="Toggle submenu"
+              >
+                {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
+              </button>
+            )}
+          </div>
           {/* Tooltip for collapsed state */}
           {!shouldShowExpanded && (
             <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-100 whitespace-nowrap z-50 shadow-lg">
@@ -158,41 +216,42 @@ const Menu = () => {
               onMouseEnter={handleSubmenuEnter}
               onMouseLeave={handleSubmenuLeave}
             >
-              {item.submenu.map((sub: SubItem) => (
-                <Link
-                  key={sub.label}
-                  href={sub.href}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${
-                    pathname === sub.href
-                      ? 'bg-blue-200 text-[#007bff] shadow-sm'
-                      : 'text-gray-500 hover:bg-blue-100 hover:text-[#007bff]'
-                  }`}
-                >
-                  <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
-                  <span className="font-medium">{sub.label}</span>
-                </Link>
-              ))}
+              {item.submenu.map((sub: SubItem) => {
+                const isSubActive = pathname === sub.href;
+                return (
+                  <Link
+                    key={sub.label}
+                    href={sub.href}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${getTextColorClasses(isSubActive)}`}
+                  >
+                    {renderLineBlock(isSubActive, true)}
+                    {renderIcon(sub.icon, isSubActive)}
+                    <span className="font-medium">{sub.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
           {/* Submenu Items (expanded mode) */}
           {item.submenu && shouldShowExpanded && isOpen && (
-            <div className="ml-2 mt-1 space-y-1 pl-1">
-              {item.submenu.map((sub: SubItem) => (
-                <Link
-                  key={sub.label}
-                  href={sub.href}
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${
-                    pathname === sub.href
-                      ? 'bg-blue-200 text-[#007bff] shadow-sm'
-                      : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-                  }`}
-                >
-                  <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{sub.icon}</span>
-                  <span className="whitespace-nowrap font-medium transition-all duration-100">
-                    {sub.label}
-                  </span>
-                </Link>
-              ))}
+            <div className="ml-2 mt-1 space-y-1 pl-1 relative">
+              {item.submenu.map((sub: SubItem) => {
+                const isSubActive = pathname === sub.href;
+                return (
+                  <Link
+                    key={sub.label}
+                    href={sub.href}
+                    className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${getTextColorClasses(isSubActive)}`}
+                  >
+                    {/* Only show hover line if not active and continuous line is not showing */}
+                    {!isSubActive && !isAnySubActive && renderLineBlock(false, true)}
+                    {renderIcon(sub.icon, isSubActive)}
+                    <span className={`whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(isSubActive)}`}>
+                      {sub.label}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -202,13 +261,16 @@ const Menu = () => {
       <Link
         key={item.label}
         href={item.href || '#'}
-        className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 ${
-          isActive ? 'bg-blue-100 text-[#007bff] shadow-sm' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-        } ${item.color || ''}`}
+        className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 relative group ${getTextColorClasses(isActive)} ${item.color || ''}`}
         title={!shouldShowExpanded ? item.label : undefined}
       >
-        <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">{item.icon}</span>
-        {shouldShowExpanded && <span className="menu-text whitespace-nowrap font-medium transition-all duration-100">{item.label}</span>}
+        {renderLineBlock(isActive, true)}
+        {renderIcon(item.icon, isActive)}
+        {shouldShowExpanded && (
+          <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(isActive)}`}>
+            {item.label}
+          </span>
+        )}
       </Link>
     );
   };
@@ -216,7 +278,7 @@ const Menu = () => {
   return (
     <div className="text-sm h-full flex flex-col bg-white relative" data-menu>
       {/* Logo Section */}
-      <div className={`${shouldShowExpanded ? 'mb-2' : 'mb-2'}`}>
+      <div className="mb-2">
         {shouldShowExpanded ? (
           <div className="flex items-center justify-between px-4 mt-4 mb-2">
             <Link href="/home" className="flex items-center min-w-0 group">
