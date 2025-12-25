@@ -8,15 +8,7 @@ import {
   ArrowRight,
   UserPlus,
   Handshake,
-  Building2,
-  Package,
-  FileText,
-  Gift,
-  ChartBar,
-  TrendingUp,
-  ShoppingCart,
-  Megaphone,
-  Zap
+  Building2
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -27,11 +19,13 @@ interface ClientTip {
   description: string;
   actionLabel: string;
   actionLink: string;
+  mainPurpose?: string;
+  fullDetails?: string[];
 }
 
 export default function ClientsPage() {
   const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
-  const [showAllTipsModal, setShowAllTipsModal] = useState(false);
+  const [selectedTip, setSelectedTip] = useState<ClientTip | null>(null);
 
   const highPriorityTips: ClientTip[] = [
     {
@@ -41,6 +35,14 @@ export default function ClientsPage() {
       description: 'Expand your customer network by adding new buyers to your client list. Building a strong buyer base helps increase sales and revenue growth.',
       actionLabel: 'Add buyers',
       actionLink: '/clients/buyers',
+      mainPurpose: 'Expand your customer base and increase sales opportunities by systematically adding new buyers to your network. Buyers who bought products from you are considered as your clients and recorded automatically from the marketplace to the dashboard.',
+      fullDetails: [
+        'Access the Buyers section to view your current client list and add new contacts',
+        'Automatically record complete buyer information including store name, contact details, and business address',
+        'Categorize buyers by business type to better understand your customer segments',
+        'Set buyer status to track active, inactive, or potential clients',
+        'Import multiple buyers at once using bulk import functionality'
+      ],
     },
     {
       id: 'manage-suppliers',
@@ -49,15 +51,17 @@ export default function ClientsPage() {
       description: 'Keep your supplier information up to date to ensure smooth procurement. Track supply details and maintain accurate product sourcing.',
       actionLabel: 'Manage suppliers',
       actionLink: '/clients/suppliers',
-    },
-    {
-      id: 'buyer-relationships',
-      icon: Handshake,
-      title: 'Build Buyer Relationships',
-      description: 'Strengthen relationships with existing buyers through personalized communication. Track order history and preferences to offer better service.',
-      actionLabel: 'View buyers',
-      actionLink: '/clients/buyers',
-    },
+      mainPurpose: 'Maintain accurate supplier relationships and ensure reliable product sourcing for your business operations. Suppliers provide your products and services to your customers. You may also add new suppliers to your network to keep your supply record up to date without managing different suppliers through different software applications.',
+      fullDetails: [
+        'Store supplier contact information, business details, and addresses up to date',
+        'Track supply details including products they provide and pricing agreements',
+        'Monitor supplier performance metrics such as delivery times and reliability',
+        'Record logistics preferences and shipping arrangements for each supplier',
+        'Maintain notes about supplier terms, conditions, and special agreements',
+        'Update supplier status to reflect active partnerships or changes',
+        'Use supplier data to optimize procurement decisions and inventory planning'
+      ],
+    }
   ];
 
   const clientTools = [
@@ -77,93 +81,6 @@ export default function ClientsPage() {
     },
   ];
 
-  const allTipsByModule: { module: string; tips: ClientTip[] }[] = [
-    {
-      module: 'Clients',
-      tips: highPriorityTips,
-    },
-    {
-      module: 'Products',
-      tips: [
-        {
-          id: 'product-catalog',
-          icon: Package,
-          title: 'Update Product Catalog',
-          description: 'Regularly update your product catalog with accurate pricing and inventory levels. Keep product images and descriptions current to attract buyers.',
-          actionLabel: 'Manage products',
-          actionLink: '/products',
-        },
-        {
-          id: 'low-stock',
-          icon: TrendingUp,
-          title: 'Monitor Low Stock',
-          description: 'Set up inventory alerts to prevent stockouts. Keep your best-selling products well-stocked to maintain customer satisfaction.',
-          actionLabel: 'View inventory',
-          actionLink: '/products',
-        },
-      ],
-    },
-    {
-      module: 'Orders',
-      tips: [
-        {
-          id: 'pending-orders',
-          icon: FileText,
-          title: 'Process Pending Orders',
-          description: 'Review and process pending orders to keep your fulfillment cycle running smoothly. Quick processing leads to faster delivery and happier customers.',
-          actionLabel: 'View orders',
-          actionLink: '/orders',
-        },
-      ],
-    },
-    {
-      module: 'Offers',
-      tips: [
-        {
-          id: 'seasonal-promotions',
-          icon: Gift,
-          title: 'Create Seasonal Promotions',
-          description: 'Launch targeted promotions during peak seasons to maximize sales. Use discount strategies to clear inventory and attract new customers.',
-          actionLabel: 'Create offers',
-          actionLink: '/offers',
-        },
-      ],
-    },
-    {
-      module: 'Marketing',
-      tips: [
-        {
-          id: 'new-customers',
-          icon: UserPlus,
-          title: 'Invite New Customers',
-          description: 'Reach out to potential buyers who recently joined the platform to expand your customer base. Building relationships early can lead to long-term partnerships.',
-          actionLabel: 'Invite customers',
-          actionLink: '/marketing',
-        },
-        {
-          id: 'cart-reminders',
-          icon: ShoppingCart,
-          title: 'Cart Abandonment',
-          description: 'Follow up with customers who added products to their cart but haven\'t completed their purchase. Cart abandonment campaigns can recover lost sales.',
-          actionLabel: 'View campaigns',
-          actionLink: '/marketing/campaigns',
-        },
-      ],
-    },
-    {
-      module: 'Analytics',
-      tips: [
-        {
-          id: 'sales-insights',
-          icon: ChartBar,
-          title: 'Review Sales Analytics',
-          description: 'Analyze your sales performance to identify trends and opportunities. Use data insights to make informed business decisions and optimize revenue.',
-          actionLabel: 'View analytics',
-          actionLink: '/analytics',
-        },
-      ],
-    },
-  ];
 
   const handleDismissTip = (tipId: string) => {
     setDismissedTips((prev) => new Set(prev).add(tipId));
@@ -184,14 +101,8 @@ export default function ClientsPage() {
       {/* Tips Section */}
       {visibleTips.length > 0 && (
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold text-black">Tips</h2>
-            <button 
-              onClick={() => setShowAllTipsModal(true)}
-              className="text-sm font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
-            >
-              Show all
-            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleTips.map((tip) => {
@@ -213,9 +124,12 @@ export default function ClientsPage() {
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-black mb-1">
+                      <button
+                        onClick={() => setSelectedTip(tip)}
+                        className="text-sm font-semibold text-black mb-1 hover:text-[#0a61d7] transition-colors text-left"
+                      >
                         {tip.title}
-                      </h3>
+                      </button>
                       <p className="text-xs text-gray-600 mb-3">
                         {tip.description}
                       </p>
@@ -238,7 +152,7 @@ export default function ClientsPage() {
       {/* Tools Section */}
       <section>
         <h2 className="text-lg font-semibold text-black mb-4">Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {clientTools.map((tool) => {
             const IconComponent = tool.icon;
             return (
@@ -264,24 +178,32 @@ export default function ClientsPage() {
         </div>
       </section>
 
-      {/* All Tips Modal */}
-      {showAllTipsModal && (
+      {/* Tip Detail Modal */}
+      {selectedTip && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setShowAllTipsModal(false);
+              setSelectedTip(null);
             }
           }}
         >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-black">
-                Client Management Tips & Best Practices
-              </h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
+                  {(() => {
+                    const IconComponent = selectedTip.icon;
+                    return <IconComponent className="w-5 h-5" />;
+                  })()}
+                </div>
+                <h2 className="text-xl font-bold text-black">
+                  {selectedTip.title}
+                </h2>
+              </div>
               <button
-                onClick={() => setShowAllTipsModal(false)}
+                onClick={() => setSelectedTip(null)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Close modal"
               >
@@ -291,47 +213,45 @@ export default function ClientsPage() {
 
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
-              <div className="space-y-8">
-                {allTipsByModule.map((moduleGroup) => (
-                  <div key={moduleGroup.module}>
-                    <h3 className="text-lg font-semibold text-black mb-4">
-                      {moduleGroup.module}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {moduleGroup.tips.map((tip) => {
-                        const IconComponent = tip.icon;
-                        return (
-                          <div
-                            key={tip.id}
-                            className="rounded-lg border border-gray-100 bg-blue-50 p-4 shadow-sm transition-shadow hover:shadow"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
-                                <IconComponent className="w-5 h-5" />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="text-sm font-semibold text-black mb-1">
-                                  {tip.title}
-                                </h4>
-                                <p className="text-xs text-gray-600 mb-3">
-                                  {tip.description}
-                                </p>
-                                <Link
-                                  href={tip.actionLink}
-                                  onClick={() => setShowAllTipsModal(false)}
-                                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
-                                >
-                                  {tip.actionLabel}
-                                  <ArrowRight className="w-3 h-3" />
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+              <div className="space-y-6">
+                {/* Main Purpose */}
+                {selectedTip.mainPurpose && (
+                  <div>
+                    <h3 className="text-base font-semibold text-black mb-2">Main Purpose</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {selectedTip.mainPurpose}
+                    </p>
                   </div>
-                ))}
+                )}
+
+                 {/* Full Details */}
+                 {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
+                   <div>
+                     <h3 className="text-base font-semibold text-black mb-3">Details</h3>
+                     <ul className="space-y-2">
+                       {selectedTip.fullDetails.map((detail, index) => (
+                         <li key={index} className="flex items-start gap-3">
+                           <span className="text-[#0a61d7] flex-shrink-0 mt-0.5">•</span>
+                           <span className="text-sm text-gray-600 leading-relaxed flex-1">
+                             {detail}
+                           </span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 )}
+
+                 {/* Action Button */}
+                 <div className="pt-4 -mx-6 px-6 border-t border-gray-200">
+                  <Link
+                    href={selectedTip.actionLink}
+                    onClick={() => setSelectedTip(null)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-semibold"
+                  >
+                    {selectedTip.actionLabel}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

@@ -8,16 +8,9 @@ import {
   Zap, 
   X, 
   ArrowRight,
-  ArrowLeft,
   UserPlus,
   Gift,
-  ShoppingCart,
-  Package,
-  FileText,
-  Handshake,
-  ChartBar,
-  Store,
-  TrendingUp
+  ShoppingCart
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -28,11 +21,13 @@ interface MarketingTip {
   description: string;
   actionLabel: string;
   actionLink: string;
+  mainPurpose?: string;
+  fullDetails?: string[];
 }
 
 export default function MarketingPage() {
   const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
-  const [showAllTipsModal, setShowAllTipsModal] = useState(false);
+  const [selectedTip, setSelectedTip] = useState<MarketingTip | null>(null);
 
   const marketingTips: MarketingTip[] = [
     {
@@ -42,6 +37,16 @@ export default function MarketingPage() {
       description: 'Reach out to potential buyers who recently joined the platform to expand your customer base. Building relationships early can lead to long-term partnerships and increased order volume.',
       actionLabel: 'Invite customers',
       actionLink: '/clients',
+      mainPurpose: 'Grow your customer base by proactively reaching out to new buyers who recently joined the platform and converting them into active customers. Reach out to new buyers who have recently registered on the platform and send them personalized invitations to showcase your product catalog and services.',
+      fullDetails: [
+        'Identify potential buyers who have recently registered on the platform',
+        'Send personalized invitations to showcase your product catalog and services',
+        'Highlight unique value propositions and competitive advantages',
+        'Offer welcome incentives or special discounts for first-time orders',
+        'Build initial relationships through direct communication and follow-up',
+        'Track invitation responses and conversion rates',
+        'Convert new platform users into loyal, repeat customers'
+      ],
     },
     {
       id: 'promotions',
@@ -50,6 +55,17 @@ export default function MarketingPage() {
       description: 'Boost your sales by creating special offers and discounts for your products. Set up percentage discounts, fixed amount reductions, or bundle deals to attract buyers and drive immediate sales.',
       actionLabel: 'Create promotion',
       actionLink: '/offers',
+      mainPurpose: 'Create percentage-based discounts for selected products or categories, set up fixed amount reductions for specific items, design bundle deals and buy-one-get-one promotions, define promotion periods with start and end dates, target specific customer segments or buyer groups, set minimum order quantities or spending thresholds, track promotion performance and conversion metrics, schedule promotions for peak seasons or special events.',
+      fullDetails: [
+        'Create percentage-based discounts for selected products or categories',
+        'Set up fixed amount reductions for specific items',
+        'Design bundle deals and buy-one-get-one promotions',
+        'Define promotion periods with start and end dates',
+        'Target specific customer segments or buyer groups',
+        'Set minimum order quantities or spending thresholds',
+        'Track promotion performance and conversion metrics',
+        'Schedule promotions for peak seasons or special events'
+      ],
     },
     {
       id: 'cart-reminders',
@@ -58,6 +74,17 @@ export default function MarketingPage() {
       description: 'Follow up with customers who added products to their cart but haven\'t completed their purchase. Cart abandonment campaigns can recover lost sales by sending timely reminders and offering incentives.',
       actionLabel: 'View campaigns',
       actionLink: '/marketing/campaigns',
+      mainPurpose: 'Identify customers and send automated reminder emails or notifications to WhatsApp Messaging, offer time-limited incentives or discounts to encourage completion, personalize follow-up messages based on cart contents. You can also create urgency with limited-time offers or stock availability alerts, A/B test different messaging and incentive strategies, convert abandoned carts into completed orders and revenue.',
+      fullDetails: [
+        'Identify customers with abandoned carts and incomplete purchases',
+        'Send automated reminder emails or notifications',
+        'Offer time-limited incentives or discounts to encourage completion',
+        'Personalize follow-up messages based on cart contents',
+        'Create urgency with limited-time offers or stock availability alerts',
+        'Track cart abandonment rates and recovery success metrics',
+        'A/B test different messaging and incentive strategies',
+        'Convert abandoned carts into completed orders and revenue'
+      ],
     },
   ];
 
@@ -85,93 +112,6 @@ export default function MarketingPage() {
     },
   ];
 
-  const allTipsByModule: { module: string; tips: MarketingTip[] }[] = [
-    {
-      module: 'Marketing',
-      tips: marketingTips,
-    },
-    {
-      module: 'Clients',
-      tips: [
-        {
-          id: 'new-buyers',
-          icon: UserPlus,
-          title: 'Add New Buyers',
-          description: 'Expand your customer network by adding new buyers to your client list. Track their order history and preferences to build stronger relationships.',
-          actionLabel: 'Add buyers',
-          actionLink: '/clients/buyers',
-        },
-        {
-          id: 'supplier-network',
-          icon: Handshake,
-          title: 'Manage Suppliers',
-          description: 'Keep your supplier information up to date to ensure smooth procurement. Track supply details and maintain accurate product sourcing.',
-          actionLabel: 'Manage suppliers',
-          actionLink: '/clients/suppliers',
-        },
-      ],
-    },
-    {
-      module: 'Products',
-      tips: [
-        {
-          id: 'product-catalog',
-          icon: Package,
-          title: 'Update Product Catalog',
-          description: 'Regularly update your product catalog with accurate pricing and inventory levels. Keep product images and descriptions current to attract buyers.',
-          actionLabel: 'Manage products',
-          actionLink: '/products',
-        },
-        {
-          id: 'low-stock',
-          icon: TrendingUp,
-          title: 'Monitor Low Stock',
-          description: 'Set up inventory alerts to prevent stockouts. Keep your best-selling products well-stocked to maintain customer satisfaction.',
-          actionLabel: 'View inventory',
-          actionLink: '/products',
-        },
-      ],
-    },
-    {
-      module: 'Orders',
-      tips: [
-        {
-          id: 'pending-orders',
-          icon: FileText,
-          title: 'Process Pending Orders',
-          description: 'Review and process pending orders to keep your fulfillment cycle running smoothly. Quick processing leads to faster delivery and happier customers.',
-          actionLabel: 'View orders',
-          actionLink: '/orders',
-        },
-      ],
-    },
-    {
-      module: 'Offers',
-      tips: [
-        {
-          id: 'seasonal-promotions',
-          icon: Gift,
-          title: 'Create Seasonal Promotions',
-          description: 'Launch targeted promotions during peak seasons to maximize sales. Use discount strategies to clear inventory and attract new customers.',
-          actionLabel: 'Create offers',
-          actionLink: '/offers',
-        },
-      ],
-    },
-    {
-      module: 'Analytics',
-      tips: [
-        {
-          id: 'sales-insights',
-          icon: ChartBar,
-          title: 'Review Sales Analytics',
-          description: 'Analyze your sales performance to identify trends and opportunities. Use data insights to make informed business decisions and optimize revenue.',
-          actionLabel: 'View analytics',
-          actionLink: '/analytics',
-        },
-      ],
-    },
-  ];
 
   const handleDismissTip = (tipId: string) => {
     setDismissedTips((prev) => new Set(prev).add(tipId));
@@ -192,14 +132,8 @@ export default function MarketingPage() {
       {/* Tips Section */}
       {visibleTips.length > 0 && (
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold text-black">Tips</h2>
-            <button 
-              onClick={() => setShowAllTipsModal(true)}
-              className="text-sm font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
-            >
-              Show all
-            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleTips.map((tip) => {
@@ -221,9 +155,12 @@ export default function MarketingPage() {
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-black mb-1">
+                      <button
+                        onClick={() => setSelectedTip(tip)}
+                        className="text-sm font-semibold text-black mb-1 hover:text-[#0a61d7] transition-colors text-left"
+                      >
                         {tip.title}
-                      </h3>
+                      </button>
                       <p className="text-xs text-gray-600 mb-3">
                         {tip.description}
                       </p>
@@ -272,24 +209,32 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      {/* All Tips Modal */}
-      {showAllTipsModal && (
+      {/* Tip Detail Modal */}
+      {selectedTip && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setShowAllTipsModal(false);
+              setSelectedTip(null);
             }
           }}
         >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-black">
-                Marketing Tips & Best Practices
-              </h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
+                  {(() => {
+                    const IconComponent = selectedTip.icon;
+                    return <IconComponent className="w-5 h-5" />;
+                  })()}
+                </div>
+                <h2 className="text-xl font-bold text-black">
+                  {selectedTip.title}
+                </h2>
+              </div>
               <button
-                onClick={() => setShowAllTipsModal(false)}
+                onClick={() => setSelectedTip(null)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Close modal"
               >
@@ -299,47 +244,45 @@ export default function MarketingPage() {
 
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
-              <div className="space-y-8">
-                {allTipsByModule.map((moduleGroup) => (
-                  <div key={moduleGroup.module}>
-                    <h3 className="text-lg font-semibold text-black mb-4">
-                      {moduleGroup.module}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {moduleGroup.tips.map((tip) => {
-                        const IconComponent = tip.icon;
-                        return (
-                          <div
-                            key={tip.id}
-                            className="rounded-lg border border-gray-100 bg-blue-50 p-4 shadow-sm transition-shadow hover:shadow"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
-                                <IconComponent className="w-5 h-5" />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="text-sm font-semibold text-black mb-1">
-                                  {tip.title}
-                                </h4>
-                                <p className="text-xs text-gray-600 mb-3">
-                                  {tip.description}
-                                </p>
-                                <Link
-                                  href={tip.actionLink}
-                                  onClick={() => setShowAllTipsModal(false)}
-                                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
-                                >
-                                  {tip.actionLabel}
-                                  <ArrowRight className="w-3 h-3" />
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+              <div className="space-y-4">
+                {/* Main Purpose */}
+                {selectedTip.mainPurpose && (
+                  <div>
+                    <h3 className="text-base font-semibold text-black mb-2">Main Purpose</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {selectedTip.mainPurpose}
+                    </p>
                   </div>
-                ))}
+                )}
+
+                 {/* Full Details */}
+                 {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
+                   <div>
+                     <h3 className="text-base font-semibold text-black mb-3">Details</h3>
+                     <ul className="space-y-2">
+                       {selectedTip.fullDetails.map((detail, index) => (
+                         <li key={index} className="flex items-start gap-3">
+                           <span className="text-[#0a61d7] flex-shrink-0 mt-0.5">•</span>
+                           <span className="text-sm text-gray-600 leading-relaxed flex-1">
+                             {detail}
+                           </span>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 )}
+
+                 {/* Action Button */}
+                 <div className="pt-4 -mx-6 px-6 border-t border-gray-200">
+                  <Link
+                    href={selectedTip.actionLink}
+                    onClick={() => setSelectedTip(null)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-semibold"
+                  >
+                    {selectedTip.actionLabel}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
