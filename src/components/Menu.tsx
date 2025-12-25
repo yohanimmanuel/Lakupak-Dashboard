@@ -10,6 +10,7 @@ const mainMenuItems = [
   { label: 'Home', href: '/home', color: 'text-[#0a61d7]', icon: <HomeIcon className="w-5 h-5" /> },
   {
     label: 'Clients',
+    href: '/clients',
     icon: <HandshakeIcon className="w-5 h-5" />,
     submenu: [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Buyers', href: '/clients/buyers' },
@@ -21,6 +22,7 @@ const mainMenuItems = [
   { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
   {
     label: 'Marketing',
+    href: '/marketing',
     icon: <MegaphoneIcon className="w-5 h-5" />,
     submenu: [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/marketing/team' },
@@ -156,7 +158,7 @@ const Menu = () => {
           {/* Continuous line from parent through all submenu items (expanded mode only) - spans full height */}
           {/* Show when: parent is active OR any submenu is active */}
           {shouldShowExpanded && isOpen && (isActive || isAnySubActive) && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] z-0"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] z-0 rounded-r"></div>
           )}
           <div className="flex items-center w-full relative group">
             {renderLineBlock(shouldHighlightParent, !isAnySubActive)}

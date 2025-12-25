@@ -286,7 +286,7 @@ export default function MarketingTeamPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Marketing Team</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Teams</h1>
           <p className="text-sm text-gray-500 mb-4">Manage your marketing team members and roles</p>
         </div>
         {/* Action Buttons */}
