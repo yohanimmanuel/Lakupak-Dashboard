@@ -80,7 +80,7 @@ export default function CampaignTable({
   }, [tableRows, selectedTab]);
 
   // Pagination
-  const rowsPerPage = 10;
+  const rowsPerPage = 5;
   const totalRows = filteredCampaigns.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedCampaigns = useMemo(() => {
@@ -309,7 +309,29 @@ export default function CampaignTable({
               <p className="text-gray-500 text-sm">No campaigns found</p>
             </div>
           ) : (
-            pagedCampaigns.map((campaign, index) => (
+            <>
+              {/* Select All Header */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
+                <button
+                  onClick={handleSelectAll}
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 focus:outline-none ${
+                    allFilteredSelected
+                      ? 'bg-green-500 border-green-500'
+                      : 'bg-white border-gray-300 hover:border-green-400'
+                  }`}
+                  aria-label={allFilteredSelected ? 'Deselect all campaigns' : 'Select all campaigns'}
+                >
+                  {allFilteredSelected && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <span className="text-sm font-medium text-gray-700">
+                  {allFilteredSelected ? 'Deselect all' : 'Select all'} ({filteredCampaigns.length})
+                </span>
+              </div>
+              {pagedCampaigns.map((campaign, index) => (
               <div
                 key={campaign.id}
                 className={`flex items-start justify-between py-4 px-4 ${
@@ -386,12 +408,13 @@ export default function CampaignTable({
                   </div>
                 </div>
               </div>
-            ))
+              ))}
+            </>
           )}
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 pt-6 border-t border-gray-200 -mx-4 px-4 gap-2">
             {/* Left: Showing X to Y of Z */}
             <div className="text-sm text-gray-500">
               Showing {fromRow} to {toRow} of {totalRows}

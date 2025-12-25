@@ -144,7 +144,7 @@ export default function MarketingCampaignsPage() {
           </button>
           <div className="pr-8">
             <p className="text-sm text-gray-700 mb-2">
-              Invite 22 customers who joined Faire in the past week to shop—if they place an order, you could earn new customers through Faire Direct Rewards.
+              Invite 22 customers who joined Faire in the past week to shop if they place an order, you could earn new customers through Faire Direct Rewards.
             </p>
             <Link
               href="/marketing/campaigns/create"
