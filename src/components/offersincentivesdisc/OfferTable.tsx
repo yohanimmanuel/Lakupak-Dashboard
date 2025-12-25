@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Edit, MoreHorizontal } from 'lucide-react';
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
@@ -892,10 +892,20 @@ export default function OfferTable({
                         e.stopPropagation();
                         handleView(row);
                       }}
-                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
-                      title="View Offer"
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                      title="Edit Offer"
                     >
-                      <Eye className="w-4 h-4 text-[#0a61d7]" />
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(row);
+                      }}
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                      title="Delete Offer"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 </td>
@@ -965,25 +975,27 @@ export default function OfferTable({
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-black mb-4">Delete Offer</h3>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? 'Delete Offers' : 'Delete Offer'}
+            </h2>
+            <p className="mb-4 text-gray-500">
               {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedOffers.length} selected offers? This action cannot be undone.`
-                : `Are you sure you want to delete "${offerToDelete?.name}"? This action cannot be undone.`
+                ? `Are you sure you want to delete ${selectedOffers.length} offer${selectedOffers.length === 1 ? '' : 's'}? This action cannot be undone.`
+                : `Are you sure you want to delete ${offerToDelete?.name || 'this offer'}? This action cannot be undone.`
               }
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex justify-end gap-2">
               <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                 onClick={handleDeleteCancel}
-                className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
                 Delete
               </button>

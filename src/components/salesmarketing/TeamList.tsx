@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Plus, ChevronDown, ChevronRight, Users, User, Edit, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin } from 'lucide-react';
+import { Search, Edit, Plus, ChevronDown, ChevronRight, Users, User, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -116,6 +116,9 @@ export default function TeamList({
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<SalesAgent | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
   
   // Team modal state
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -223,14 +226,39 @@ export default function TeamList({
 
   const handleBulkDelete = () => {
     if (selectedAgents.size === 0) return;
-    if (confirm(`Are you sure you want to delete ${selectedAgents.size} agent${selectedAgents.size > 1 ? 's' : ''}?`)) {
+    setIsBulkDelete(true);
+    setAgentToDelete(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = (agent: SalesAgent) => {
+    setAgentToDelete(agent);
+    setIsBulkDelete(false);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (isBulkDelete) {
       selectedAgents.forEach(agentId => {
         if (onDeleteAgent) {
           onDeleteAgent(agentId);
         }
       });
       setSelectedAgents(new Set());
+    } else {
+      if (agentToDelete && onDeleteAgent) {
+        onDeleteAgent(agentToDelete.id);
+      }
     }
+    setShowDeleteModal(false);
+    setAgentToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setAgentToDelete(null);
+    setIsBulkDelete(false);
   };
 
   // Team modal handlers
@@ -624,7 +652,7 @@ export default function TeamList({
                     <th className="py-3 px-4 font-medium uppercase">
                       <button
                         onClick={handleSelectAll}
-                        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                           selectedAgents.size === filteredAgents.length && filteredAgents.length > 0
                             ? 'bg-green-500 border-green-500'
                             : 'bg-white border-gray-300 hover:border-green-400'
@@ -663,7 +691,7 @@ export default function TeamList({
                             e.stopPropagation();
                             handleAgentSelect(agent.id);
                           }}
-                          className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                             selectedAgents.has(agent.id)
                               ? 'bg-green-500 border-green-500'
                               : 'bg-white border-gray-300 hover:border-green-400'
@@ -700,13 +728,27 @@ export default function TeamList({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleViewAgent(agent)}
-                          className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          aria-label={`View ${agent.name}`}
-                        >
-                          <Eye className="w-4 h-4 text-[#0a61d7]" />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleViewAgent(agent)}
+                            className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                            aria-label={`Edit ${agent.name}`}
+                          >
+                            <Edit className="w-4 h-4 text-gray-500" />
+                          </button>
+                          {onDeleteAgent && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(agent);
+                              }}
+                              className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                              aria-label={`Delete ${agent.name}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -889,13 +931,27 @@ export default function TeamList({
                                   <td className="py-3 px-4 text-xs text-black">{member.email}</td>
                                   <td className="py-3 px-4 text-xs text-black">{member.role}</td>
                                   <td className="py-3 px-4 text-center">
-                                    <button
-                                      onClick={() => handleViewAgent(member)}
-                                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      aria-label={`View ${member.name}`}
-                                    >
-                                      <Eye className="w-4 h-4 text-[#0a61d7]" />
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        onClick={() => handleViewAgent(member)}
+                                        className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                                        aria-label={`Edit ${member.name}`}
+                                      >
+                                        <Edit className="w-4 h-4 text-gray-500" />
+                                      </button>
+                                      {onDeleteAgent && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(member);
+                                          }}
+                                          className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                                          aria-label={`Delete ${member.name}`}
+                                        >
+                                          <Trash2 className="w-4 h-4 text-red-600" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -1022,7 +1078,7 @@ export default function TeamList({
                           <button
                             type="button"
                             onClick={() => handleToggleMember(agent.id)}
-                            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                               selectedMemberIds.has(agent.id)
                                 ? 'bg-green-500 border-green-500'
                                 : 'bg-white border-gray-300 hover:border-green-400'
@@ -1077,6 +1133,37 @@ export default function TeamList({
                 className="px-4 py-2 text-xs font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
               >
                 {editingTeam ? 'Update Team' : 'Create Team'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? 'Delete Agents' : 'Delete Agent'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {isBulkDelete 
+                ? `Are you sure you want to delete ${selectedAgents.size} agent${selectedAgents.size === 1 ? '' : 's'}? This action cannot be undone.`
+                : `Are you sure you want to delete ${agentToDelete?.name || 'this agent'}? This action cannot be undone.`
+              }
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                onClick={handleDeleteConfirm}
+              >
+                Delete
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
@@ -637,12 +637,23 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
                 </td>
                 <td className="py-3 px-4 text-center">
-                  <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
-                    onClick={() => handleView(supplier)}
-                  >
-                    <Eye className="w-4 h-4 text-[#0a61d7]" />
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                      onClick={() => handleView(supplier)}
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(supplier);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
                 </td>
                               </tr>
               );
@@ -776,12 +787,21 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   )}
                 </span>
               <div className="flex items-center gap-2">
-              <button
-                className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
-                onClick={() => handleView(supplier)}
-              >
-                <Eye className="w-4 h-4 text-[#0a61d7]" />
-              </button>
+                <button
+                  className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                  onClick={() => handleView(supplier)}
+                >
+                  <Edit className="w-4 h-4 text-gray-500" />
+                </button>
+                <button
+                  className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(supplier);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </button>
               </div>
             </div>
                             <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">

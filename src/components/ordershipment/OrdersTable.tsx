@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash } from "lucide-react";
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
@@ -85,6 +85,7 @@ export default function OrdersTable({
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // stores orderId values
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<OrderTableRow | null>(null);
   
   // Handle tab indicator animation
   useLayoutEffect(() => {
@@ -212,17 +213,32 @@ export default function OrdersTable({
     } catch {}
   };
 
+  const handleDelete = (order: OrderTableRow) => {
+    // Only allow deleting cancelled orders
+    if (order.orderStatus !== 'Cancelled') {
+      return;
+    }
+    setOrderToDelete(order);
+    setShowDeleteModal(true);
+  };
+
   const handleBulkDelete = async () => {
-    if (selectedOrders.length === 0) return;
+    const ordersToDelete = orderToDelete 
+      ? [orderToDelete.orderId]
+      : selectedOrders.filter(orderId => {
+          const order = pagedOrders.find(o => o.orderId === orderId);
+          return order?.orderStatus === 'Cancelled';
+        });
+    
+    if (ordersToDelete.length === 0) {
+      setShowDeleteModal(false);
+      setOrderToDelete(null);
+      return;
+    }
+    
     try {
-      // Only delete cancelled orders from the selection
-      const cancelledOrders = selectedOrders.filter(orderId => {
-        const order = pagedOrders.find(o => o.orderId === orderId);
-        return order?.orderStatus === 'Cancelled';
-      });
-      
       const successes: string[] = [];
-      for (const orderId of cancelledOrders) {
+      for (const orderId of ordersToDelete) {
         const res = await fetch('/api/orders', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -235,6 +251,7 @@ export default function OrdersTable({
       }
       setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
       setShowDeleteModal(false);
+      setOrderToDelete(null);
     } catch {}
   };
 
@@ -434,14 +451,29 @@ export default function OrdersTable({
                    </span>
                  </td>
                  <td className="py-3 px-4 text-center">
-                  <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
-                    onClick={() => handleOrderClick(order)}
-                    aria-label={`View details for order ${order.orderId}`}
-                    title={`View details for order ${order.orderId}`}
-                  >
-                    <Eye className="w-4 h-4 text-[#0a61d7]" />
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                      onClick={() => handleOrderClick(order)}
+                      aria-label={`Edit order ${order.orderId}`}
+                      title={`Edit order ${order.orderId}`}
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    {order.orderStatus === 'Cancelled' && (
+                      <button
+                        className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(order);
+                        }}
+                        aria-label={`Delete order ${order.orderId}`}
+                        title={`Delete order ${order.orderId}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -509,13 +541,26 @@ export default function OrdersTable({
                 <span className="font-bold text-[#0a61d7]">{order.buyerName}</span>
                 <div className="flex items-center gap-2">
                   <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                     onClick={() => handleOrderClick(order)}
-                    aria-label={`View details for order ${order.orderId}`}
-                    title={`View details for order ${order.orderId}`}
+                    aria-label={`Edit order ${order.orderId}`}
+                    title={`Edit order ${order.orderId}`}
                   >
-                    <Eye className="w-4 h-4 text-[#0a61d7]" />
+                    <Edit className="w-4 h-4 text-gray-500" />
                   </button>
+                  {order.orderStatus === 'Cancelled' && (
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(order);
+                      }}
+                      aria-label={`Delete order ${order.orderId}`}
+                      title={`Delete order ${order.orderId}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  )}
                 </div>
               </div>
                              <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
@@ -570,27 +615,36 @@ export default function OrdersTable({
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (() => {
-        const cancelledCount = selectedOrders.filter(orderId => {
-          const order = pagedOrders.find(o => o.orderId === orderId);
-          return order?.orderStatus === 'Cancelled';
-        }).length;
+        const isSingleDelete = orderToDelete !== null;
+        const cancelledCount = isSingleDelete 
+          ? 1
+          : selectedOrders.filter(orderId => {
+              const order = pagedOrders.find(o => o.orderId === orderId);
+              return order?.orderStatus === 'Cancelled';
+            }).length;
         
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
               <h2 className="text-lg font-bold mb-2 text-red-500">
-                Delete Cancelled Orders
+                {isSingleDelete ? 'Delete Cancelled Order' : `Delete Cancelled Order${cancelledCount === 1 ? '' : 's'}`}
               </h2>
               <p className="mb-4 text-gray-500">
-                Are you sure you want to permanently delete {cancelledCount} cancelled order{cancelledCount === 1 ? '' : 's'}? This action cannot be undone.
+                {isSingleDelete 
+                  ? 'Are you sure you want to permanently delete this cancelled order? This action cannot be undone.'
+                  : `Are you sure you want to permanently delete ${cancelledCount} cancelled order${cancelledCount === 1 ? '' : 's'}? This action cannot be undone.`
+                }
               </p>
             <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-              <strong>Warning:</strong> This will permanently remove the orders from the system.
+              <strong>Warning:</strong> This will permanently remove {isSingleDelete ? 'this order' : `the order${cancelledCount === 1 ? '' : 's'}`} from the system.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setOrderToDelete(null);
+                }}
               >
                 Cancel
               </button>

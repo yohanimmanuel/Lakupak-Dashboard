@@ -1,0 +1,467 @@
+'use client';
+
+import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Campaign, CampaignTableRow } from '@/types/campaign';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useUserStore } from '@/store/userStore';
+import { format } from 'date-fns';
+
+const statusTabs = [
+  { label: 'All' },
+  { label: 'Draft' },
+  { label: 'Scheduled' },
+  { label: 'Completed' },
+];
+
+interface CampaignTableProps {
+  campaigns?: Campaign[];
+  onViewCampaign?: (campaign: Campaign) => void;
+  onDuplicateCampaign?: (campaign: Campaign) => void;
+  onDeleteCampaign?: (campaign: Campaign) => void;
+  campaignToTableRow: (campaign: Campaign) => CampaignTableRow;
+}
+
+export default function CampaignTable({
+  campaigns = [],
+  onViewCampaign,
+  onDuplicateCampaign,
+  onDeleteCampaign,
+  campaignToTableRow,
+}: CampaignTableProps) {
+  const user = useUserStore((state) => state.user);
+  const router = useRouter();
+  const userCurrency = user?.currency || getDefaultCurrency();
+
+  const [selectedTab, setSelectedTab] = useState('All');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<CampaignTableRow | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const updateIndicator = () => {
+      const activeIndex = statusTabs.findIndex((tab) => tab.label === selectedTab);
+      if (activeIndex === -1 || !tabRefs.current[activeIndex]) return;
+
+      const activeTab = tabRefs.current[activeIndex];
+      if (activeTab) {
+        setIndicatorStyle({
+          left: activeTab.offsetLeft,
+          width: activeTab.offsetWidth,
+        });
+      }
+    };
+
+    updateIndicator();
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [selectedTab]);
+
+  const tableRows = useMemo(() => campaigns.map(campaignToTableRow), [campaigns, campaignToTableRow]);
+
+  const filteredCampaigns = useMemo(() => {
+    let filtered = tableRows;
+
+    if (selectedTab !== 'All') {
+      if (selectedTab === 'Completed') {
+        filtered = filtered.filter((c) => c.status === 'Sent' || c.status === 'Completed');
+      } else {
+        filtered = filtered.filter((c) => c.status === selectedTab);
+      }
+    }
+
+    return filtered;
+  }, [tableRows, selectedTab]);
+
+  // Pagination
+  const rowsPerPage = 10;
+  const totalRows = filteredCampaigns.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const pagedCampaigns = useMemo(() => {
+    return filteredCampaigns.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  }, [filteredCampaigns, page, rowsPerPage]);
+
+  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const toRow = Math.min(page * rowsPerPage, totalRows);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTab]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      All: tableRows.length,
+      Draft: tableRows.filter((c) => c.status === 'Draft').length,
+      Scheduled: tableRows.filter((c) => c.status === 'Scheduled').length,
+      Completed: tableRows.filter((c) => c.status === 'Sent' || c.status === 'Completed').length,
+    };
+    return counts;
+  }, [tableRows]);
+
+  const statusBadge = useCallback((status: string) => {
+    if (status === 'Sent' || status === 'Completed') return 'bg-green-100 text-green-700 border-green-200';
+    if (status === 'Scheduled') return 'bg-blue-100 text-blue-700 border-blue-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
+  }, []);
+
+  const handleDelete = (campaign: CampaignTableRow) => {
+    setCampaignToDelete(campaign);
+    setIsBulkDelete(false);
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedCampaigns.size === 0) return;
+    setIsBulkDelete(true);
+    setCampaignToDelete(null);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (isBulkDelete) {
+      selectedCampaigns.forEach(campaignId => {
+        const campaign = campaigns.find((c) => c.id === campaignId);
+        if (campaign && onDeleteCampaign) {
+          onDeleteCampaign(campaign);
+        }
+      });
+      setSelectedCampaigns(new Set());
+    } else {
+      if (campaignToDelete && onDeleteCampaign) {
+        const originalCampaign = campaigns.find((c) => c.id === campaignToDelete.id);
+        if (originalCampaign) {
+          onDeleteCampaign(originalCampaign);
+        }
+      }
+    }
+    setShowDeleteModal(false);
+    setCampaignToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setCampaignToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  const handleCampaignSelect = (campaignId: string) => {
+    setSelectedCampaigns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(campaignId)) {
+        newSet.delete(campaignId);
+      } else {
+        newSet.add(campaignId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCampaigns.size === filteredCampaigns.length && filteredCampaigns.length > 0) {
+      setSelectedCampaigns(new Set());
+    } else {
+      setSelectedCampaigns(new Set(filteredCampaigns.map(c => c.id)));
+    }
+  };
+
+  const allFilteredSelected = selectedCampaigns.size === filteredCampaigns.length && filteredCampaigns.length > 0;
+
+  const handleView = (campaign: CampaignTableRow) => {
+    if (onViewCampaign) {
+      const originalCampaign = campaigns.find((c) => c.id === campaign.id);
+      if (originalCampaign) {
+        onViewCampaign(originalCampaign);
+      }
+    } else {
+      router.push(`/marketing/campaigns/details?id=${campaign.id}`);
+    }
+  };
+
+  const handleDuplicate = (campaign: CampaignTableRow) => {
+    if (onDuplicateCampaign) {
+      const originalCampaign = campaigns.find((c) => c.id === campaign.id);
+      if (originalCampaign) {
+        onDuplicateCampaign(originalCampaign);
+      }
+    }
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'MMMM d, yyyy \'at\' h:mm a');
+    } catch {
+      return dateString;
+    }
+  };
+
+  return (
+    <>
+      <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+        {/* Status Tabs */}
+        <div className="mb-4">
+          <div className="relative w-full md:w-auto flex items-center">
+            <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+              <div
+                className="absolute top-0 h-full transition-all duration-300"
+                style={{
+                  left: indicatorStyle.left,
+                  width: indicatorStyle.width,
+                  background: '#0a61d7',
+                  borderRadius: '0.75rem',
+                  zIndex: 1,
+                }}
+              />
+              {statusTabs.map((tab, idx) => (
+                <button
+                  key={tab.label}
+                  ref={(el) => {
+                    tabRefs.current[idx] = el;
+                  }}
+                  onClick={() => setSelectedTab(tab.label)}
+                  className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                    selectedTab === tab.label ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
+                  } ${idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''}`}
+                  style={{
+                    background: 'transparent',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bulk Action Bar */}
+        {selectedCampaigns.size > 0 && (
+          <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+            <div className="md:hidden space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-center text-sm font-semibold text-white">
+                    {selectedCampaigns.size}
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {selectedCampaigns.size === 1 ? 'campaign' : 'campaigns'} selected
+                  </span>
+                </div>
+              </div>
+              <div className="text-white text-xs font-semibold leading-relaxed">
+                {selectedCampaigns.size === 1 
+                  ? 'Select campaign to be removed.'
+                  : 'Select campaigns to be removed.'
+                }
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+              >
+                <Trash2 className="w-4 h-4" />
+                {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+              </button>
+            </div>
+            
+            <div className="hidden md:flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <div className="text-white flex items-center justify-center text-sm font-semibold">
+                    {selectedCampaigns.size}
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    {selectedCampaigns.size === 1 ? 'campaign' : 'campaigns'} selected
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-white text-xs md:text-sm font-semibold">
+                  {selectedCampaigns.size === 1 
+                    ? 'Select campaign to be removed. '
+                    : 'Select campaigns to be removed. '
+                  }
+                </span>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Campaign List */}
+        <div className="space-y-0 -mx-4">
+          {pagedCampaigns.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-sm">No campaigns found</p>
+            </div>
+          ) : (
+            pagedCampaigns.map((campaign, index) => (
+              <div
+                key={campaign.id}
+                className={`flex items-start justify-between py-4 px-4 ${
+                  index !== pagedCampaigns.length - 1 ? 'border-b border-gray-200' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <button
+                    onClick={() => handleCampaignSelect(campaign.id)}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 mt-1 focus:outline-none ${
+                      selectedCampaigns.has(campaign.id)
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                    aria-label={selectedCampaigns.has(campaign.id) ? `Deselect ${campaign.name}` : `Select ${campaign.name}`}
+                  >
+                    {selectedCampaigns.has(campaign.id) && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-black mb-2">{campaign.name}</h3>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    {campaign.sentDate && (
+                      <p>Sent on {formatDate(campaign.sentDate)}</p>
+                    )}
+                    {campaign.lastEdited && !campaign.sentDate && (
+                      <p>Last edited {formatDate(campaign.lastEdited)}</p>
+                    )}
+                    <p>Recipients: {campaign.recipients}</p>
+                    {campaign.status === 'Sent' || campaign.status === 'Completed' ? (
+                      <div className="flex items-center gap-4 mt-2">
+                        <span>{campaign.openedPercent}% Opened</span>
+                        <span>{campaign.clickedPercent}% Clicked</span>
+                        <span>{formatCurrency(campaign.revenue, userCurrency)} Revenue</span>
+                        <span>{campaign.orders} Orders</span>
+                      </div>
+                    ) : (
+                      campaign.lastEdited && <p className="text-gray-500">No recipients yet</p>
+                    )}
+                  </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 ml-4">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(campaign.status)}`}
+                  >
+                    {campaign.status}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDuplicate(campaign)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      aria-label="Duplicate campaign"
+                    >
+                      <Copy className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={() => handleView(campaign)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
+                      aria-label="Edit campaign details"
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(campaign)}
+                      className="p-2 hover:bg-red-100 rounded-lg transition-colors focus:outline-none"
+                      aria-label="Delete campaign"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+            {/* Left: Showing X to Y of Z */}
+            <div className="text-sm text-gray-500">
+              Showing {fromRow} to {toRow} of {totalRows}
+            </div>
+            {/* Right: Pagination Controls */}
+            <div className="flex items-center gap-3">
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage(page - 1)}
+                disabled={page === 1}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setPage(p)}
+                  aria-label={`Page ${p}`}
+                  aria-current={p === page ? 'page' : undefined}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage(page + 1)}
+                disabled={page === totalPages}
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? 'Delete Campaigns' : 'Delete Campaign'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {isBulkDelete 
+                ? `Are you sure you want to delete ${selectedCampaigns.size} campaign${selectedCampaigns.size === 1 ? '' : 's'}? This action cannot be undone.`
+                : `Are you sure you want to delete ${campaignToDelete?.name || 'this campaign'}? This action cannot be undone.`
+              }
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                onClick={confirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+

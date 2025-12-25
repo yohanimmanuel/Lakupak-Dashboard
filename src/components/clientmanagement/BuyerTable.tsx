@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, AlertCircle, Loader2 } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
@@ -659,7 +659,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <th className="py-3 px-4 font-medium uppercase">
                 <button
                   onClick={handleSelectAll}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                     allFilteredSelected
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
@@ -775,7 +775,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <td className="py-3 px-4 text-xs">
                   <button
                     onClick={() => handleBuyerSelect(String(buyer.id))}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                       selectedBuyers.includes(String(buyer.id))
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
@@ -821,13 +821,25 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   </span>
                 </td>
                 <td className="py-3 px-4 text-center">
-                  <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onClick={() => handleView(buyer)}
-                    aria-label={getAriaLabel('View', buyer)}
-                  >
-                    <Eye className="w-4 h-4 text-[#0a61d7]" />
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                      onClick={() => handleView(buyer)}
+                      aria-label={getAriaLabel('Edit', buyer)}
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(buyer);
+                      }}
+                      aria-label={getAriaLabel('Delete', buyer)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
                 </td>
               </tr>
               );
@@ -842,7 +854,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={handleSelectAll}
-            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
               allFilteredSelected
                 ? 'bg-green-500 border-green-500'
                 : 'bg-white border-gray-300 hover:border-green-400'
@@ -954,7 +966,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   e.stopPropagation();
                   handleBuyerSelect(String(buyer.id));
                 }}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
                   selectedBuyers.includes(String(buyer.id))
                     ? 'bg-green-500 border-green-500'
                     : 'bg-white border-gray-300 hover:border-green-400'
@@ -979,13 +991,23 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   )}
                 </span>
               <div className="flex items-center gap-2">
-              <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onClick={() => handleView(buyer)}
-                    aria-label={getAriaLabel('View', buyer)}
-              >
-                <Eye className="w-4 h-4 text-[#0a61d7]" />
-              </button>
+                <button
+                  className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
+                  onClick={() => handleView(buyer)}
+                  aria-label={getAriaLabel('Edit', buyer)}
+                >
+                  <Edit className="w-4 h-4 text-gray-500" />
+                </button>
+                <button
+                  className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(buyer);
+                  }}
+                  aria-label={getAriaLabel('Delete', buyer)}
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </button>
               </div>
             </div>
               <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
