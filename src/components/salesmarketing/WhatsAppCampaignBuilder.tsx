@@ -579,10 +579,10 @@ export default function WhatsAppCampaignBuilder({
           <div className="bg-[#075e54] text-white p-4 rounded-t-lg">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                <span className="text-[#075e54] font-bold text-sm">LL</span>
+                <span className="text-[#075e54] font-bold text-sm">L</span>
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Laku-Laku</h3>
+                <h3 className="font-semibold text-sm">Laku</h3>
                 <p className="text-xs opacity-90">Online</p>
               </div>
             </div>
