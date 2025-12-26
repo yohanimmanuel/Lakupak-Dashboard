@@ -12,7 +12,8 @@ import {
 	XAxis,
 	YAxis,
 	Cell,
-	Legend
+	Legend,
+	Line
 } from 'recharts';
 import {
 	Users,
@@ -30,11 +31,26 @@ import { useUserStore } from '@/store/userStore';
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
 import {
-	AnalyticsMetricCard,
-	formatCurrency as formatCurrencyShared,
-	parseCurrencyToNumber
+	AnalyticsMetricCard
 } from '@/components/analyticsperformance/FinancialAnalytics';
+import { formatCurrency as formatCurrencyShared } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { forecastSales } from '@/utils/forecasting';
+
+// Helper function to parse currency to number (matching FinancialAnalytics)
+const parseCurrencyToNumber = (currencyValue: string | number): number => {
+	if (currencyValue == null) return 0;
+	if (typeof currencyValue === 'number') {
+		return Number.isFinite(currencyValue) ? currencyValue : 0;
+	}
+	if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
+	const cleanString = currencyValue
+		.replace(/[^\d.-]/g, '')
+		.replace(/\./g, '')
+		.trim();
+	const parsed = parseFloat(cleanString);
+	return isNaN(parsed) ? 0 : parsed;
+};
 
 interface BuyerLite {
 	buyerId: string;
@@ -127,26 +143,52 @@ export const calculateSalesMetrics = (
 	};
 };
 
-export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: boolean }> = ({ data, showSeeMore = false }) => (
-	<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-		<div className="flex items-center justify-between mb-4">
-			<h3 className="text-lg font-semibold text-gray-900">Sales Trend</h3>
-			<div className="flex items-center space-x-4">
-				<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div><span className="text-sm text-gray-600 font-medium">Orders</span></div>
-				<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#10B981] mr-2"></div><span className="text-sm text-gray-600 font-medium">Units</span></div>
-				{showSeeMore && (
-					<button 
-						onClick={() => (window.location.href = '/analytics/sales')}
-						className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
-					>
-						See More
-						<ArrowRight className="w-4 h-4 ml-1" />
-					</button>
-				)}
+export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: boolean; showForecast?: boolean }> = ({ data, showSeeMore = false, showForecast = true }) => {
+	const salesForecast = showForecast && data.length >= 2 
+		? forecastSales(data, 'orders', 3) 
+		: null;
+
+	const chartData = useMemo(() => {
+		if (!salesForecast) return data;
+		const combined: Array<{ month: string; orders: number; pieces: number; units: number; isForecast?: boolean }> = [];
+		
+		data.forEach((d) => {
+			combined.push({ ...d, isForecast: false });
+		});
+		
+		if (salesForecast.forecast.length > 0 && data.length > 0) {
+			const lastHistorical = data[data.length - 1];
+			combined.push({ ...lastHistorical, isForecast: false });
+			salesForecast.forecast.forEach(f => {
+				combined.push({ month: f.date, orders: f.value, pieces: 0, units: 0, isForecast: true });
+			});
+		}
+		return combined;
+	}, [data, salesForecast]);
+
+	return (
+		<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+			<div className="flex items-center justify-between mb-4">
+				<h3 className="text-lg font-semibold text-gray-900">Sales Trend{salesForecast ? ' & Forecast' : ''}</h3>
+				<div className="flex items-center space-x-4">
+					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div><span className="text-sm text-gray-600 font-medium">Orders</span></div>
+					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#10B981] mr-2"></div><span className="text-sm text-gray-600 font-medium">Units</span></div>
+					{salesForecast && (
+						<div className="flex items-center"><div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div><span className="text-sm text-gray-600 font-medium">Forecast</span></div>
+					)}
+					{showSeeMore && (
+						<button 
+							onClick={() => (window.location.href = '/analytics/sales')}
+							className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+						>
+							See More
+							<ArrowRight className="w-4 h-4 ml-1" />
+						</button>
+					)}
+				</div>
 			</div>
-		</div>
-		<ResponsiveContainer width="100%" height={320}>
-			<BarChart data={data} margin={{ top: 20, right: 30, left: 40, bottom: 20 }}>
+			<ResponsiveContainer width="100%" height={330}>
+				<BarChart data={chartData} margin={{ top: 20, right: 30, left: 40, bottom: 20 }}>
 				<defs>
 					<linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
 						<stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
@@ -193,12 +235,24 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 					}}
 					cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
 				/>
-				<Bar dataKey="orders" name="Orders" fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
-				<Bar dataKey="units" name="Pieces" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
-			</BarChart>
-		</ResponsiveContainer>
-	</div>
-);
+					<Bar dataKey="orders" name="Orders" fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+					<Bar dataKey="units" name="Pieces" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+					{salesForecast && salesForecast.forecast.length > 0 && (
+						<Line
+							type="monotone"
+							dataKey="orders"
+							stroke="#9CA3AF"
+							strokeWidth={2}
+							strokeDasharray="5 5"
+							dot={{ fill: '#9CA3AF', r: 3 }}
+							connectNulls={true}
+						/>
+					)}
+				</BarChart>
+			</ResponsiveContainer>
+		</div>
+	);
+};
 
 export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; userCurrency?: string }> = ({ piecesSold, unitsSold }) => (
 	<AnalyticsMetricCard
@@ -366,6 +420,12 @@ const CustomerSalesAnalytics: React.FC = () => {
 	// Sales trend
 	const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData), [orders, hasData]);
 
+	// Sales forecast
+	const salesForecast = useMemo(() => {
+		if (salesTrend.length < 2) return null;
+		return forecastSales(salesTrend, 'orders', 3);
+	}, [salesTrend]);
+
 	// Category units (better than duplicating Top Products already in financial)
 	const unitsByCategory = useMemo(() => {
 		if (!hasData || orders.length === 0) return [] as { category: string; units: number }[];
@@ -393,14 +453,15 @@ const CustomerSalesAnalytics: React.FC = () => {
 	}, [orders, products, hasData, categoryFilter]);
 
 	// Top customers (exclude deleted/missing buyers)
-	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number };
+	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; totalValue: number };
 	const topCustomers: TopCustomer[] = useMemo(() => {
 		if (!hasData || orders.length === 0) return [] as TopCustomer[];
-		const map = new Map<string | number, { orders: number }>();
+		const map = new Map<string | number, { orders: number; totalValue: number }>();
 		orders.forEach(o => {
 			const buyerKey = String(o.buyerId);
-			const cur = map.get(buyerKey) || { orders: 0 };
-			map.set(buyerKey, { orders: cur.orders + 1 });
+			const cur = map.get(buyerKey) || { orders: 0, totalValue: 0 };
+			const orderAmount = parseFloat(String(o.totalAmount || 0));
+			map.set(buyerKey, { orders: cur.orders + 1, totalValue: cur.totalValue + orderAmount });
 		});
 		const buyerIndex = new Map<string, BuyerLite>();
 		buyers.forEach(b => buyerIndex.set(b.buyerId, b));
@@ -420,7 +481,8 @@ const CustomerSalesAnalytics: React.FC = () => {
 					buyerId,
 					name: displayName,
 					businessType: displayBusinessType,
-					orders: v.orders
+					orders: v.orders,
+					totalValue: v.totalValue
 				};
 			})
 			.filter((x): x is TopCustomer => x !== null)
@@ -550,6 +612,135 @@ const CustomerSalesAnalytics: React.FC = () => {
 				</div>
 			</div>
 
+			{/* Sales Trend Forecast */}
+			<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+				<div className="flex items-center justify-between mb-6">
+					<h3 className="text-lg font-semibold text-gray-900">Sales Trend Forecast</h3>
+					{salesForecast && salesForecast.forecast.length > 0 && (
+						<div className="flex items-center space-x-4">
+							<div className="flex items-center">
+								<div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div>
+								<span className="text-sm text-gray-600 font-medium">Historical Orders</span>
+							</div>
+							<div className="flex items-center">
+								<div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
+								<span className="text-sm text-gray-600 font-medium">Forecast</span>
+							</div>
+						</div>
+					)}
+				</div>
+				{salesForecast && salesForecast.forecast.length > 0 ? (
+					<>
+						<ResponsiveContainer width="100%" height={320}>
+							<BarChart 
+								data={[
+									...salesTrend.map(d => ({ month: d.month, orders: d.orders, pieces: d.pieces, units: d.units, isForecast: false })),
+									...(salesTrend.length > 0 ? [{ ...salesTrend[salesTrend.length - 1], isForecast: false }] : []),
+									...salesForecast.forecast.map(f => ({ month: f.date, orders: f.value, pieces: 0, units: 0, isForecast: true }))
+								]} 
+								margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
+							>
+								<defs>
+									<linearGradient id="salesForecastOrdersGradient" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
+										<stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.7}/>
+									</linearGradient>
+								</defs>
+								<CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+								<XAxis 
+									dataKey="month" 
+									stroke="#64748B" 
+									fontSize={12}
+									fontWeight={500}
+									tickLine={false}
+									axisLine={false}
+								/>
+								<YAxis 
+									stroke="#64748B" 
+									fontSize={12}
+									fontWeight={500}
+									tickLine={false}
+									axisLine={false}
+								/>
+								<Tooltip 
+									content={({ active, payload, label }) => {
+										if (active && payload && payload.length) {
+											return (
+												<div className="bg-white border-none rounded-xl shadow-lg p-4">
+													<div className="flex items-center mb-2">
+														<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
+														<p className="font-semibold text-gray-900">{label}</p>
+													</div>
+													{payload.map((entry: { dataKey: string; value: number; payload?: { isForecast?: boolean } }, index: number) => {
+														if (entry.dataKey === 'orders') {
+															const isForecast = entry.payload?.isForecast;
+															return (
+																<div key={index} className="flex items-center space-x-2 mb-1">
+																	<div className={`w-3 h-3 rounded-full ${isForecast ? 'border-2 border-dashed border-[#9CA3AF]' : 'bg-[#3B82F6]'}`} />
+																	<span className="text-gray-700">
+																		Orders: {entry.value} {isForecast ? '(Forecast)' : ''}
+																	</span>
+																</div>
+															);
+														}
+														return null;
+													})}
+												</div>
+											);
+										}
+										return null;
+									}}
+									cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+								/>
+								<Bar 
+									dataKey="orders" 
+									name="Orders" 
+									fill="url(#salesForecastOrdersGradient)" 
+									radius={[6, 6, 0, 0]} 
+									maxBarSize={40}
+								/>
+								<Line
+									type="monotone"
+									dataKey="orders"
+									stroke="#9CA3AF"
+									strokeWidth={2}
+									strokeDasharray="5 5"
+									dot={{ fill: '#9CA3AF', r: 3 }}
+									data={salesForecast.forecast.map(f => ({ month: f.date, orders: f.value, isForecast: true }))}
+									connectNulls={true}
+								/>
+							</BarChart>
+						</ResponsiveContainer>
+						<div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+							<div className="flex items-center gap-4">
+								<div>
+									<span className="text-xs text-gray-500">Trend: </span>
+									<span className={`text-sm font-semibold ${
+										salesForecast.trend === 'increasing' ? 'text-green-600' : 
+										salesForecast.trend === 'decreasing' ? 'text-red-600' : 
+										'text-gray-600'
+									}`}>
+										{salesForecast.trend.charAt(0).toUpperCase() + salesForecast.trend.slice(1)}
+									</span>
+								</div>
+								<div>
+									<span className="text-xs text-gray-500">Confidence: </span>
+									<span className="text-sm font-semibold text-black">{(salesForecast.confidence * 100).toFixed(1)}%</span>
+								</div>
+							</div>
+						</div>
+					</>
+				) : (
+					<div className="h-[320px] flex items-center justify-center">
+						<div className="text-center">
+							<TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+							<p className="text-gray-500 text-sm">Insufficient data for forecast</p>
+							<p className="text-gray-400 text-xs">Need at least 2 months of data</p>
+						</div>
+					</div>
+				)}
+			</div>
+
 			{/* Top Customers Table */}
 			<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
 				<h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
@@ -561,6 +752,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 								<th className="py-3 px-4 font-medium uppercase text-left">Name</th>
 								<th className="py-3 px-4 font-medium uppercase text-left">Business Type</th>
 								<th className="py-3 px-4 font-medium uppercase text-center">Orders</th>
+								<th className="py-3 px-4 font-medium uppercase text-right">Total Value</th>
 							</tr>
 						</thead>
 						<tbody className="bg-white">
@@ -570,6 +762,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 									<td className="py-3 px-4 text-left text-black">{c.name}</td>
 									<td className="py-3 px-4 text-left text-black">{c.businessType}</td>
 									<td className="py-3 px-4 text-center text-black">{c.orders}</td>
+									<td className="py-3 px-4 text-right text-black">{formatCurrencyShared(c.totalValue, userCurrency)}</td>
 								</tr>
 							))}
 						</tbody>

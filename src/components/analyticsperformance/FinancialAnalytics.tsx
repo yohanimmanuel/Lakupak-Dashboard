@@ -41,6 +41,7 @@ import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/uti
 import { Order, OrderItem } from '@/types/order';
 import { Product, ProductVariant } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { forecastRevenue } from '@/utils/forecasting';
 
 // Types for financial data
 interface FinancialMetrics {
@@ -183,18 +184,7 @@ const FinancialAnalytics: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
-  const [metrics, setMetrics] = useState<FinancialMetrics>({
-    totalRevenue: 0,
-    totalProfit: 0,
-    profitMargin: 0,
-    totalOrders: 0,
-    averageOrderValue: 0,
-    totalProducts: 0,
-    totalBuyers: 0,
-    totalSuppliers: 0,
-    monthlyGrowth: 0,
-    orderGrowth: 0
-  });
+  // Metrics are calculated directly via useMemo - no need for state
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [hasData, setHasData] = useState(false);
@@ -302,7 +292,7 @@ const FinancialAnalytics: React.FC = () => {
     }
 
     // Use consistent revenue calculation with Orders module
-    const totalRevenue = calculateTotalRevenue(orders, products);
+    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(String(order.totalAmount || 0)), 0);
 
     // Build quick lookup for product purchase prices (as numbers)
     const productCostById: Record<string, number> = {};
@@ -368,8 +358,69 @@ const FinancialAnalytics: React.FC = () => {
 
   // Calculate real revenue data by month using actual product margins
   const revenueData: RevenueData[] = useMemo(() => {
-    return calculateRevenueData(orders, products, hasData);
+    if (!hasData || orders.length === 0) {
+      return [];
+    }
+
+    // Precompute product costs from recorded data only (no estimates)
+    const productCostById: Record<string, number> = {};
+    products.forEach(p => {
+      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
+      if (!isNaN(cost) && cost > 0) {
+        productCostById[p.productId] = cost;
+      }
+    });
+
+    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
+    
+    orders.forEach(order => {
+      const date = new Date(order.orderDate);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
+      const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
+      
+      if (!monthlyData[key]) {
+        monthlyData[key] = { revenue: 0, profit: 0, orders: 0, label };
+      }
+      
+      monthlyData[key].orders += 1;
+      
+      // Use order totals to match Orders module
+      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      monthlyData[key].revenue += orderAmount;
+
+      // Compute actual profit = revenue - COGS - shipping(if 3rd-party)
+      let orderCogs = 0;
+      if (order.orderItems && Array.isArray(order.orderItems)) {
+        order.orderItems.forEach(item => {
+          const pid = item.productId;
+          if (!pid) { return; }
+          const cost = productCostById[pid];
+          if (typeof cost === 'number' && cost > 0) {
+            // Calculate COGS using package-based pricing
+            const piecesPerPackage = item.piecesPerPackage || 1;
+            const packageQuantity = item.packageQuantity || 1;
+            orderCogs += cost * packageQuantity * piecesPerPackage;
+          }
+        });
+      }
+      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
+      const orderProfit = orderAmount - orderCogs - shippingExpense;
+      monthlyData[key].profit += orderProfit;
+    });
+
+    const sorted = Object.entries(monthlyData)
+      .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-6)
+      .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
+    return sorted;
   }, [orders, products, hasData, userCurrency]);
+
+  // Calculate revenue forecast
+  const revenueForecast = useMemo(() => {
+    if (revenueData.length < 2) return null;
+    return forecastRevenue(revenueData, 3);
+  }, [revenueData]);
 
   // Calculate real category revenue using actual product margins
   const categoryData: CategoryData[] = useMemo(() => {
@@ -689,7 +740,7 @@ const FinancialAnalytics: React.FC = () => {
   }, [orders, products, hasData, userCurrency]);
 
   // Pagination logic for Top Products
-  const productsPerPage = 5;
+  const productsPerPage = 6;
   const totalProducts = allTopProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalProducts / productsPerPage));
   const fromProduct = totalProducts === 0 ? 0 : (currentPage - 1) * productsPerPage + 1;
@@ -705,10 +756,6 @@ const FinancialAnalytics: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [user?.id]); // Added user?.id dependency since fetchData uses it
-
-  useEffect(() => {
-    setMetrics(calculateMetrics);
-  }, [calculateMetrics]);
 
   // Reusable MetricCard component for both Analytics pages
   const MetricCard: React.FC<{
@@ -754,39 +801,39 @@ const FinancialAnalytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Revenue"
-          value={utilsFormatCurrency(metrics.totalRevenue, userCurrency)}
-          change={metrics.monthlyGrowth}
+          value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
+          change={calculateMetrics.monthlyGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Total Profit"
-          value={utilsFormatCurrency(metrics.totalProfit, userCurrency)}
+          value={utilsFormatCurrency(calculateMetrics.totalProfit, userCurrency)}
           change={15.2}
           icon={<TrendingUp className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
           title="Profit Margin"
-          value={`${metrics.profitMargin.toFixed(1)}%`}
+          value={`${calculateMetrics.profitMargin.toFixed(1)}%`}
           change={2.1}
           icon={<TrendingUp className="w-6 h-6 text-yellow-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Average Order Value"
-          value={utilsFormatCurrency(metrics.averageOrderValue, userCurrency)}
+          value={utilsFormatCurrency(calculateMetrics.averageOrderValue, userCurrency)}
           change={-1.8}
           icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
           color="bg-[#e6e6e6]"
         />
       </div>
 
-             {/* Charts Grid */}
+      {/* Charts Grid */}
        <div className="space-y-4">
          {/* Second Row - Revenue Trend (smaller) + Revenue by Category (larger) */}
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
-           <div className="lg:col-span-5">
+           <div className="lg:col-span-7">
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
            <div className="flex items-center justify-between mb-6">
@@ -900,7 +947,7 @@ const FinancialAnalytics: React.FC = () => {
                       </ResponsiveContainer>
          </div>
            </div>
-           <div className="lg:col-span-6">
+           <div className="lg:col-span-4">
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
            <div className="flex items-center justify-between mb-6">
@@ -935,7 +982,7 @@ const FinancialAnalytics: React.FC = () => {
                )}
              </div>
            </div>
-           <ResponsiveContainer width="100%" height={284}>
+           <ResponsiveContainer width="100%" height={275}>
              <PieChart>
                <defs>
                  <linearGradient id="electronicsGradient" x1="0" y1="0" x2="1" y2="1">
@@ -1031,92 +1078,8 @@ const FinancialAnalytics: React.FC = () => {
            </div>
          </div>
 
-         {/* Third Row - Top Products (larger) + Cash Flow Trend (smaller) */}
+         {/* Third Row - Cash Flow Trend + Revenue Forecast */}
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
-           <div className="lg:col-span-6">
-                  {/* Top Products */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
-           <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
-           <div className="flex-1 overflow-x-auto rounded-lg">
-             <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
-                               <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
-                  <tr>
-                    <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
-                    <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">CR</th>
-                  </tr>
-                </thead>
-               <tbody className="bg-white">
-                 {pagedProducts.map((product, index) => (
-                   <tr key={index} className="border-b transition-colors">
-                     <td className="py-3 px-4 text-left text-black">
-                       {(currentPage - 1) * productsPerPage + index + 1}
-                     </td>
-                      <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
-                         <span 
-                           className="cursor-pointer transition-all duration-200 hover:text-blue-800"
-                           onClick={() => window.location.href = `/products/catalog/${product.productId}`}
-                           title="Click to view product details"
-                         >
-                            {product.name}
-                          </span>
-                      </td>
-                      <td className="py-3 px-4 text-center text-gray-600">
-                        {product.productCategory}
-                      </td>
-                      <td className="py-3 px-4 text-center text-black">
-                        {product.piecesSold.toLocaleString()}
-                      </td>
-                     <td className="py-3 px-4 text-center font-semibold text-black">
-                       {utilsFormatCurrency(product.revenue, userCurrency)}
-                     </td>
-                     <td className="py-3 px-4 text-center text-black">
-                       {product.margin.toFixed(2)}%
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-           
-           {/* Pagination */}
-           <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
-             {/* Left: Showing X to Y of Z */}
-             <div className="text-sm text-gray-500">
-               Showing {fromProduct} to {toProduct} of {totalProducts} products
-             </div>
-             {/* Right: Pagination Controls */}
-             <div className="flex items-center gap-3">
-               <button
-                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 onClick={() => handlePageChange(currentPage - 1)}
-                 disabled={currentPage === 1}
-                 aria-label="Previous page"
-               >
-                 <ChevronLeft className="w-4 h-4 text-gray-500" />
-               </button>
-               <button
-                 className="px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#0a61d7] text-white"
-                 aria-label={`Page ${currentPage}`}
-                 aria-current="page"
-               >
-                 {currentPage}
-               </button>
-               <button
-                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 onClick={() => handlePageChange(currentPage + 1)}
-                 disabled={currentPage === totalPages}
-                 aria-label="Next page"
-               >
-                 <ChevronRight className="w-4 h-4 text-gray-500" />
-               </button>
-             </div>
-           </div>
-          </div>
-           </div>
            <div className="lg:col-span-5">
                   {/* Cash Flow Trend */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
@@ -1137,7 +1100,7 @@ const FinancialAnalytics: React.FC = () => {
                </div>
              </div>
            </div>
-           <ResponsiveContainer width="100%" height={312}>
+           <ResponsiveContainer width="100%" height={320}>
              <ComposedChart data={cashFlowData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                <defs>
                  <linearGradient id="netFlowGradient" x1="0" y1="0" x2="1" y2="0">
@@ -1248,10 +1211,218 @@ const FinancialAnalytics: React.FC = () => {
                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
                  }}
                />
-                          </ComposedChart>
+             </ComposedChart>
            </ResponsiveContainer>
          </div>
            </div>
+           <div className="lg:col-span-6">
+         {/* Revenue Forecast */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Revenue Forecast</h3>
+                {revenueForecast && revenueForecast.forecast.length > 0 && (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-600 font-medium">Historical</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-600 font-medium">Forecast</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {revenueForecast && revenueForecast.forecast.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart 
+                      data={[
+                        ...revenueData.map(d => ({ month: d.month, revenue: d.revenue, isForecast: false })),
+                        ...(revenueData.length > 0 ? [{ month: revenueData[revenueData.length - 1].month, revenue: revenueData[revenueData.length - 1].revenue, isForecast: false }] : []),
+                        ...revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))
+                      ]} 
+                      margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
+                    >
+                      <defs>
+                        <linearGradient id="revenueForecastGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
+                          <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
+                          <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                      <XAxis 
+                        dataKey="month" 
+                        stroke="#64748B" 
+                        fontSize={12}
+                        fontWeight={500}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="#64748B" 
+                        fontSize={12}
+                        fontWeight={500}
+                        tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        formatter={(value: number) => [
+                          utilsFormatCurrency(value, userCurrency), 
+                          'Revenue'
+                        ]}
+                        labelStyle={{ color: '#374151', fontWeight: '600' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#0a61d7" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#revenueForecastGradient)" 
+                        dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: 'white' }}
+                        activeDot={{ 
+                          r: 6, 
+                          stroke: '#3B82F6', 
+                          strokeWidth: 3,
+                          fill: 'white'
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#9CA3AF"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ fill: '#9CA3AF', r: 3 }}
+                        data={revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))}
+                        connectNulls={true}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">Trend: </span>
+                        <span className={`text-sm font-semibold ${
+                          revenueForecast.trend === 'increasing' ? 'text-green-600' : 
+                          revenueForecast.trend === 'decreasing' ? 'text-red-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {revenueForecast.trend.charAt(0).toUpperCase() + revenueForecast.trend.slice(1)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">Confidence: </span>
+                        <span className="text-sm font-semibold text-black">{revenueForecast.confidence.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="h-[312px] flex items-center justify-center">
+                  <div className="text-center">
+                    <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Insufficient data for forecast</p>
+                    <p className="text-gray-400 text-xs">Need at least 2 months of data</p>
+                  </div>
+                </div>
+              )}
+            </div>
+           </div>
+         </div>
+
+         {/* Fourth Row - Top Performing Products Table */}
+         <div className="mt-4">
+           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
+            <div className="flex-1 overflow-x-auto rounded-lg">
+              <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
+                                <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                  <tr>
+                    <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
+                    <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">CR</th>
+                  </tr>
+                </thead>
+               <tbody className="bg-white">
+                 {pagedProducts.map((product, index) => (
+                   <tr key={index} className="border-b transition-colors">
+                     <td className="py-3 px-4 text-left text-black">
+                       {(currentPage - 1) * productsPerPage + index + 1}
+                     </td>
+                      <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
+                         <span 
+                           className="cursor-pointer transition-all duration-200 hover:text-blue-800"
+                           onClick={() => window.location.href = `/products/catalog/${product.productId}`}
+                           title="Click to view product details"
+                         >
+                            {product.name}
+                          </span>
+                      </td>
+                      <td className="py-3 px-4 text-center text-gray-600">
+                        {product.productCategory}
+                      </td>
+                      <td className="py-3 px-4 text-center text-black">
+                        {product.piecesSold.toLocaleString()}
+                      </td>
+                     <td className="py-3 px-4 text-center font-semibold text-black">
+                       {utilsFormatCurrency(product.revenue, userCurrency)}
+                     </td>
+                     <td className="py-3 px-4 text-center text-black">
+                       {product.margin.toFixed(2)}%
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+           
+           {/* Pagination */}
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+             {/* Left: Showing X to Y of Z */}
+             <div className="text-sm text-gray-500">
+               Showing {fromProduct} to {toProduct} of {totalProducts} products
+             </div>
+             {/* Right: Pagination Controls */}
+             <div className="flex items-center gap-3">
+               <button
+                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 onClick={() => handlePageChange(currentPage - 1)}
+                 disabled={currentPage === 1}
+                 aria-label="Previous page"
+               >
+                 <ChevronLeft className="w-4 h-4 text-gray-500" />
+               </button>
+               <button
+                 className="px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#0a61d7] text-white"
+                 aria-label={`Page ${currentPage}`}
+                 aria-current="page"
+               >
+                 {currentPage}
+               </button>
+               <button
+                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 onClick={() => handlePageChange(currentPage + 1)}
+                 disabled={currentPage === totalPages}
+                 aria-label="Next page"
+               >
+                 <ChevronRight className="w-4 h-4 text-gray-500" />
+               </button>
+             </div>
+           </div>
+          </div>
          </div>
        </div>
      </div>
@@ -1323,97 +1494,92 @@ export const AnalyticsRevenueTrendChart: React.FC<{
     {hasData && revenueData.length > 0 ? (
       <ResponsiveContainer width="100%" height={320}>
         <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 60, bottom: 20 }}>
-          <defs>
-            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
-              <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
-              <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
-            </linearGradient>
-            <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
-              <stop offset="50%" stopColor="#10B981" stopOpacity={0.2}/>
-              <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
-          <XAxis 
-            dataKey="month"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            tickMargin={10}
-          />
-          <YAxis 
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
-          />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #E5E7EB',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }}
-            formatter={(value: number, name: string) => [
-              utilsFormatCurrency(value, userCurrency), 
-              name === 'revenue' ? 'Revenue' : 'Profit'
-            ]}
-            labelStyle={{ color: '#374151', fontWeight: '600' }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="revenue" 
-            stroke="#0a61d7" 
-            strokeWidth={2}
-            fillOpacity={1} 
-            fill="url(#revenueGradient)" 
-            dot={{ 
-              fill: '#3B82F6', 
-              strokeWidth: 2, 
-              r: 4,
-              stroke: 'white'
-            }}
-            activeDot={{ 
-              r: 6, 
-              stroke: '#3B82F6', 
-              strokeWidth: 3,
-              fill: 'white'
-            }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="profit" 
-            stroke="#10B981" 
-            strokeWidth={2}
-            fillOpacity={1} 
-            fill="url(#profitGradient)" 
-            dot={{ 
-              fill: '#10B981', 
-              strokeWidth: 2, 
-              r: 4,
-              stroke: 'white'
-            }}
-            activeDot={{ 
-              r: 6, 
-              stroke: '#10B981', 
-              strokeWidth: 3,
-              fill: 'white'
-            }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    ) : (
-      <div className="h-80 flex items-center justify-center">
-        <div className="text-center">
-          <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500 text-sm">No revenue data available</p>
-          <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
-        </div>
+        <defs>
+          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
+            <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
+            <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+          </linearGradient>
+          <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
+            <stop offset="50%" stopColor="#10B981" stopOpacity={0.2}/>
+            <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+        <XAxis 
+          dataKey="month"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickMargin={10}
+        />
+        <YAxis 
+          axisLine={false}
+          tickLine={false}
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+        />
+        <Tooltip 
+          contentStyle={{
+            backgroundColor: 'white',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}
+          formatter={(value: number, name: string) => [
+            utilsFormatCurrency(value, userCurrency), 
+            name === 'revenue' ? 'Revenue' : 'Profit'
+          ]}
+          labelStyle={{ color: '#374151', fontWeight: '600' }}
+        />
+        <Area 
+          type="monotone" 
+          dataKey="revenue" 
+          stroke="#0a61d7" 
+          strokeWidth={2}
+          fillOpacity={1} 
+          fill="url(#revenueGradient)" 
+          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: 'white' }}
+          activeDot={{ 
+            r: 6, 
+            stroke: '#3B82F6', 
+            strokeWidth: 3,
+            fill: 'white'
+          }}
+        />
+        <Area 
+          type="monotone" 
+          dataKey="profit" 
+          stroke="#10B981" 
+          strokeWidth={2}
+          fillOpacity={1} 
+          fill="url(#profitGradient)" 
+          dot={{ 
+            fill: '#10B981', 
+            strokeWidth: 2, 
+            r: 4,
+            stroke: 'white'
+          }}
+          activeDot={{ 
+            r: 6, 
+            stroke: '#10B981', 
+            strokeWidth: 3,
+            fill: 'white'
+          }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  ) : (
+    <div className="h-80 flex items-center justify-center">
+      <div className="text-center">
+        <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">No revenue data available</p>
+        <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
       </div>
-    )}
-  </div>
+    </div>
+  )}
+</div>
 );
 
 // ===== SHARED DATA CALCULATION UTILITIES =====
@@ -1698,7 +1864,7 @@ export const AnalyticsTopProductsTable: React.FC<{
               </td>
               <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
               <td className="py-3 px-4 text-center text-black">{product.piecesSold.toLocaleString()}</td>
-              <td className="py-3 px-4 text-center font-semibold text-black">{formatCurrency(product.revenue, userCurrency)}</td>
+              <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.revenue, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>
           ))}

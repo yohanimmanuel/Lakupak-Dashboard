@@ -171,20 +171,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('6M');
   const [currentPage, setCurrentPage] = useState(1);
-  const [metrics, setMetrics] = useState<OperationalMetrics>({
-    totalOrders: 0,
-    completedOrders: 0,
-    pendingOrders: 0,
-    completionRate: 0,
-    averageProcessingTime: 0,
-    onTimeDeliveryRate: 0,
-    orderAcceptanceRate: 0,
-    trackingCoverageRate: 0,
-    lowStockPieces: 0,
-    stockoutRate: 0,
-    activeProducts: 0,
-    dataCompletenessScore: 0
-  });
+  // Metrics are calculated directly via useMemo - no need for state
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [hasData, setHasData] = useState(false);
@@ -462,6 +449,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     }).sort((a, b) => b.totalPieces - a.totalPieces);
   }, [products, hasData]);
 
+
   // Calculate quality metrics
   const qualityMetrics: QualityMetric[] = useMemo(() => {
     const getStatus = (value: number, target: number): 'good' | 'warning' | 'critical' => {
@@ -473,38 +461,34 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     return [
       {
         metric: 'Order Acceptance Rate',
-        value: metrics.orderAcceptanceRate,
+        value: calculateMetrics.orderAcceptanceRate,
         target: 95,
-        status: getStatus(metrics.orderAcceptanceRate, 95)
+        status: getStatus(calculateMetrics.orderAcceptanceRate, 95)
       },
       {
         metric: 'Tracking Coverage',
-        value: metrics.trackingCoverageRate,
+        value: calculateMetrics.trackingCoverageRate,
         target: 90,
-        status: getStatus(metrics.trackingCoverageRate, 90)
+        status: getStatus(calculateMetrics.trackingCoverageRate, 90)
       },
       {
         metric: 'Data Completeness',
-        value: metrics.dataCompletenessScore,
+        value: calculateMetrics.dataCompletenessScore,
         target: 85,
-        status: getStatus(metrics.dataCompletenessScore, 85)
+        status: getStatus(calculateMetrics.dataCompletenessScore, 85)
       },
       {
         metric: 'Stock Health',
-        value: 100 - metrics.stockoutRate,
+        value: 100 - calculateMetrics.stockoutRate,
         target: 95,
-        status: getStatus(100 - metrics.stockoutRate, 95)
+        status: getStatus(100 - calculateMetrics.stockoutRate, 95)
       }
     ];
-  }, [metrics]);
+  }, [calculateMetrics]);
 
   useEffect(() => {
     fetchData();
   }, [user?.id]); // Added user?.id dependency since fetchData uses it
-
-  useEffect(() => {
-    setMetrics(calculateMetrics);
-  }, [calculateMetrics]);
 
   // Reusable MetricCard component
   const MetricCard: React.FC<{
@@ -549,28 +533,28 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Order Completion Rate"
-          value={`${metrics.completionRate.toFixed(1)}%`}
+          value={`${calculateMetrics.completionRate.toFixed(1)}%`}
           change={5.2}
           icon={<CheckCircle className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
           title="Avg Processing Time"
-          value={`${metrics.averageProcessingTime.toFixed(1)}h`}
+          value={`${calculateMetrics.averageProcessingTime.toFixed(1)}h`}
           change={-8.5}
           icon={<Clock className="w-6 h-6 text-blue-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Tracking Coverage"
-          value={`${metrics.trackingCoverageRate.toFixed(1)}%`}
+          value={`${calculateMetrics.trackingCoverageRate.toFixed(1)}%`}
           change={12.3}
           icon={<Truck className="w-6 h-6 text-purple-500" />}
           color="bg-[#f3f4f6]"
         />
         <MetricCard
           title="Stock Health"
-          value={`${(100 - metrics.stockoutRate).toFixed(1)}%`}
+          value={`${(100 - calculateMetrics.stockoutRate).toFixed(1)}%`}
           change={-2.1}
           icon={<Package className="w-6 h-6 text-orange-500" />}
           color="bg-[#fff7ed]"
