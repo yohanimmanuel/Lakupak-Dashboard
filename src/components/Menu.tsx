@@ -114,7 +114,7 @@ const Menu = () => {
     const isActive: boolean = Boolean(pathname === item.href || (item.href && pathname.startsWith(item.href)));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
-      const isAnySubActive = item.submenu.some((sub: SubItem) => pathname === sub.href);
+      const isAnySubActive = item.submenu.some((sub: SubItem) => pathname === sub.href || (sub.href && pathname.startsWith(sub.href + '/')));
       // For items with submenus:
       // - Parent is active if: (parent itself is active AND no submenu is active) OR (menu is collapsed AND submenu is active)
       // - When expanded and submenu is active: parent is inactive (gray), only submenu shows as active
@@ -219,7 +219,7 @@ const Menu = () => {
               onMouseLeave={handleSubmenuLeave}
             >
               {item.submenu.map((sub: SubItem) => {
-                const isSubActive = pathname === sub.href;
+                const isSubActive = pathname === sub.href || (sub.href && pathname.startsWith(sub.href + '/'));
                 return (
                   <Link
                     key={sub.label}
@@ -238,7 +238,7 @@ const Menu = () => {
           {item.submenu && shouldShowExpanded && isOpen && (
             <div className="ml-2 mt-1 space-y-1 pl-1 relative">
               {item.submenu.map((sub: SubItem) => {
-                const isSubActive = pathname === sub.href;
+                const isSubActive = pathname === sub.href || (sub.href && pathname.startsWith(sub.href + '/'));
                 return (
                   <Link
                     key={sub.label}
