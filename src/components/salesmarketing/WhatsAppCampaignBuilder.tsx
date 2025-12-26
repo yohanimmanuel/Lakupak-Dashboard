@@ -1000,16 +1000,6 @@ export default function WhatsAppCampaignBuilder({
                   <img src={selectedBlock.imageUrl} alt="Preview" className="w-full rounded-lg max-h-32 object-cover" />
                 </div>
               )}
-              <div className="mt-2">
-                <label className="block text-xs font-medium text-black mb-2">Image URL (or paste URL)</label>
-                <input
-                  type="text"
-                  value={selectedBlock.imageUrl || ''}
-                  onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-black"
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
               <div>
                 <label className="block text-xs font-medium text-black mb-2">Alt Text</label>
                 <input
