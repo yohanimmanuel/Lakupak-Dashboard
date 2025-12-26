@@ -47,6 +47,20 @@ const recipientOptions = [
   'Custom List',
 ];
 
+// Helper function for deep equality check (more efficient than JSON.stringify)
+const isFormDataEqual = (a: CampaignFormData, b: CampaignFormData): boolean => {
+  return (
+    a.id === b.id &&
+    a.campaignId === b.campaignId &&
+    a.name === b.name &&
+    a.description === b.description &&
+    a.status === b.status &&
+    a.recipients === b.recipients &&
+    a.scheduledDate === b.scheduledDate &&
+    a.scheduledTime === b.scheduledTime
+  );
+};
+
 export default function CampaignDetails({
   mode = 'add',
   campaign,
@@ -80,13 +94,15 @@ export default function CampaignDetails({
   const hasInitializedRef = useRef(false);
 
   // Initialize form data when campaign changes (legitimate use case for synchronizing with external prop)
+  // This follows the same pattern as ProductCatalog component
+  // According to React best practices: Use Effects to synchronize with external systems (props in this case)
   useEffect(() => {
     const currentCampaignId = campaign?.id;
     const campaignChanged = campaign && currentCampaignId !== prevCampaignIdRef.current;
     
     if (campaign && campaignChanged) {
       prevCampaignIdRef.current = currentCampaignId;
-      const initialData: CampaignFormData = {
+      const freshFormData: CampaignFormData = {
         id: campaign.id,
         campaignId: campaign.campaignId || '',
         name: campaign.name || '',
@@ -96,8 +112,14 @@ export default function CampaignDetails({
         scheduledDate: campaign.sentDate ? new Date(campaign.sentDate).toISOString().split('T')[0] : '',
         scheduledTime: campaign.sentDate ? new Date(campaign.sentDate).toTimeString().slice(0, 5) : '',
       };
-      setFormData(initialData);
-      setOriginalFormData({ ...initialData });
+      
+      // Only update form data if it's actually different (using efficient comparison)
+      // This prevents unnecessary re-renders
+      setFormData(prev => {
+        return isFormDataEqual(prev, freshFormData) ? prev : freshFormData;
+      });
+      
+      setOriginalFormData({ ...freshFormData });
       hasInitializedRef.current = true;
     } else if (!campaign && mode === 'add' && !hasInitializedRef.current) {
       // Generate campaign ID for new campaigns only once
@@ -117,6 +139,8 @@ export default function CampaignDetails({
       };
       setFormData(initialData);
       hasInitializedRef.current = true;
+    } else if (!campaign) {
+      prevCampaignIdRef.current = undefined;
     }
   }, [campaign, mode]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Eye, Package, X, Clock, User, Building2, Target, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SalesAgent } from './TeamList';

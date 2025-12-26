@@ -187,7 +187,7 @@ export default function MarketingTeamPage() {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, [fetchData]); // Added fetchData to dependencies
+  }, [fetchData]); // fetchData is memoized with useCallback and depends on user?.id
 
   const handleViewAgent = (agent: SalesAgent) => {
     router.push(`/marketing/team/details?id=${agent.id}`);

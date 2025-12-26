@@ -172,7 +172,9 @@ export default function EditSalesAgentPage() {
     };
 
     fetchAgent();
-  }, [agentId, user?.id, router]);
+    // router is stable, only need agentId and user?.id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, user?.id]);
 
   const handleFormChange = useCallback((updates: Partial<SalesAgent>) => {
     setFormData(prev => ({ ...prev, ...updates }));

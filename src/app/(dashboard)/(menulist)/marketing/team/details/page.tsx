@@ -56,12 +56,11 @@ export default function SalesDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const agentId = searchParams.get('id');
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<SalesAgent | null>(null);
 
   useEffect(() => {
-    const agentId = searchParams.get('id');
-    
     if (!agentId || !user?.id) {
       if (!agentId) router.push('/marketing/team');
       return;
@@ -92,7 +91,7 @@ export default function SalesDetailsPage() {
     };
 
     fetchAgent();
-  }, [searchParams, user?.id, router]);
+  }, [agentId, user?.id, router]);
 
   if (loading) {
     return (
