@@ -1,0 +1,641 @@
+'use client';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  X,
+  Save,
+  CheckCircle,
+  ArrowLeft,
+  Mail,
+  Calendar,
+  Users,
+  ChevronDown,
+  Info,
+  Edit,
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useUserStore } from '@/store/userStore';
+import { Campaign } from '@/types/campaign';
+import { format } from 'date-fns';
+
+interface CampaignFormData {
+  id?: string;
+  campaignId: string;
+  name: string;
+  description: string;
+  status: 'Draft' | 'Scheduled' | 'Sent' | 'Completed';
+  recipients: string;
+  scheduledDate?: string;
+  scheduledTime?: string;
+}
+
+interface CampaignDetailsProps {
+  mode: 'add' | 'view' | 'edit';
+  campaign?: Campaign;
+  onSave?: (data: Campaign) => void;
+  onCancel?: () => void;
+}
+
+const statusOptions: Array<'Draft' | 'Scheduled' | 'Sent' | 'Completed'> = ['Draft', 'Scheduled', 'Sent', 'Completed'];
+
+const recipientOptions = [
+  'All Contacts',
+  'All Buyers',
+  'Not signed up',
+  'Unused credit',
+  'No recipients yet',
+  'Custom List',
+];
+
+export default function CampaignDetails({
+  mode = 'add',
+  campaign,
+  onSave,
+  onCancel,
+}: CampaignDetailsProps) {
+  const router = useRouter();
+  const user = useUserStore((state) => state.user);
+  const [formData, setFormData] = useState<CampaignFormData>({
+    id: campaign?.id,
+    campaignId: campaign?.campaignId || '',
+    name: campaign?.name || '',
+    description: campaign?.description || '',
+    status: campaign?.status || 'Draft',
+    recipients: campaign?.recipients || 'No recipients yet',
+    scheduledDate: campaign?.sentDate ? new Date(campaign.sentDate).toISOString().split('T')[0] : '',
+    scheduledTime: campaign?.sentDate ? new Date(campaign.sentDate).toTimeString().slice(0, 5) : '',
+  });
+
+  const [originalFormData, setOriginalFormData] = useState<CampaignFormData | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showRecipientsDropdown, setShowRecipientsDropdown] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const recipientsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const isViewMode = mode === 'view';
+
+  // Track previous campaign ID to detect when campaign actually changes
+  const prevCampaignIdRef = useRef<string | undefined>(undefined);
+  const hasInitializedRef = useRef(false);
+
+  // Initialize form data when campaign changes (legitimate use case for synchronizing with external prop)
+  useEffect(() => {
+    const currentCampaignId = campaign?.id;
+    const campaignChanged = campaign && currentCampaignId !== prevCampaignIdRef.current;
+    
+    if (campaign && campaignChanged) {
+      prevCampaignIdRef.current = currentCampaignId;
+      const initialData: CampaignFormData = {
+        id: campaign.id,
+        campaignId: campaign.campaignId || '',
+        name: campaign.name || '',
+        description: campaign.description || '',
+        status: campaign.status || 'Draft',
+        recipients: campaign.recipients || 'No recipients yet',
+        scheduledDate: campaign.sentDate ? new Date(campaign.sentDate).toISOString().split('T')[0] : '',
+        scheduledTime: campaign.sentDate ? new Date(campaign.sentDate).toTimeString().slice(0, 5) : '',
+      };
+      setFormData(initialData);
+      setOriginalFormData({ ...initialData });
+      hasInitializedRef.current = true;
+    } else if (!campaign && mode === 'add' && !hasInitializedRef.current) {
+      // Generate campaign ID for new campaigns only once
+      const generateCampaignId = () => {
+        const randomNumbers = Math.floor(Math.random() * 900000) + 100000; // 6 digits
+        return `CAMP${randomNumbers}`;
+      };
+      const newCampaignId = generateCampaignId();
+      const initialData: CampaignFormData = {
+        campaignId: newCampaignId,
+        name: '',
+        description: '',
+        status: 'Draft',
+        recipients: 'No recipients yet',
+        scheduledDate: '',
+        scheduledTime: '',
+      };
+      setFormData(initialData);
+      hasInitializedRef.current = true;
+    }
+  }, [campaign, mode]);
+
+  // Track unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (mode !== 'edit' || !originalFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(originalFormData);
+  }, [formData, originalFormData, mode]);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+      if (recipientsDropdownRef.current && !recipientsDropdownRef.current.contains(event.target as Node)) {
+        setShowRecipientsDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (mode !== 'edit') return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, mode]);
+
+  const handleInputChange = (field: keyof CampaignFormData, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isViewMode) return;
+
+    setSaving(true);
+    try {
+      const campaignData: Campaign = {
+        id: formData.id || '',
+        campaignId: formData.campaignId,
+        name: formData.name,
+        description: formData.description,
+        status: formData.status,
+        recipients: formData.recipients,
+        sentDate: formData.status === 'Scheduled' && formData.scheduledDate && formData.scheduledTime
+          ? new Date(`${formData.scheduledDate}T${formData.scheduledTime}`).toISOString()
+          : undefined,
+        lastEdited: mode === 'edit' ? new Date().toISOString() : undefined,
+        openedPercent: campaign?.openedPercent || 0,
+        clickedPercent: campaign?.clickedPercent || 0,
+        revenue: campaign?.revenue || 0,
+        orders: campaign?.orders || 0,
+        userId: user?.id || undefined,
+        createdAt: campaign?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (onSave) {
+        await onSave(campaignData);
+      } else {
+        // Default behavior: navigate back
+        router.push('/marketing/campaigns');
+      }
+    } catch (error) {
+      // Handle error
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.push('/marketing/campaigns');
+    }
+  };
+
+  // Validation
+  const validation = useMemo(() => {
+    const missingFields: string[] = [];
+    if (!formData.name.trim()) missingFields.push('Campaign Name');
+    if (!formData.campaignId.trim()) missingFields.push('Campaign ID');
+    if (formData.status === 'Scheduled' && !formData.scheduledDate) {
+      missingFields.push('Scheduled Date');
+    }
+    return {
+      isValid: missingFields.length === 0,
+      missingFields,
+    };
+  }, [formData]);
+
+  // Completion percentage
+  const completionPercentage = useMemo(() => {
+    const requiredFields = [
+      { name: 'Campaign Name', value: formData.name.trim() },
+      { name: 'Campaign ID', value: formData.campaignId.trim() },
+      { name: 'Recipients', value: formData.recipients.trim() },
+    ];
+    const completedFields = requiredFields.filter((field) => field.value !== '');
+    return Math.round((completedFields.length / requiredFields.length) * 100);
+  }, [formData]);
+
+  return (
+    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {mode === 'add' && 'Create Campaign'}
+              {mode === 'view' && 'Campaign Details'}
+              {mode === 'edit' && 'Edit Campaign'}
+            </h1>
+            {mode === 'view' && (
+              <span
+                className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                  formData.status === 'Sent' || formData.status === 'Completed'
+                    ? 'bg-green-100 text-green-700'
+                    : formData.status === 'Scheduled'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {formData.status}
+              </span>
+            )}
+            {mode === 'edit' && hasUnsavedChanges && (
+              <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {mode === 'view' && campaign?.status === 'Draft' && (
+            <button
+              type="button"
+              onClick={() => {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('mode', 'edit');
+                window.location.href = currentUrl.toString();
+              }}
+              className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
+          )}
+          {!isViewMode && (
+            <>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const draftData = { ...formData, status: 'Draft' as const };
+                  if (saving) return;
+                  setSaving(true);
+                  try {
+                    const campaignData: Campaign = {
+                      id: draftData.id || '',
+                      campaignId: draftData.campaignId,
+                      name: draftData.name,
+                      description: draftData.description,
+                      status: draftData.status,
+                      recipients: draftData.recipients,
+                      sentDate: undefined,
+                      lastEdited: mode === 'edit' ? new Date().toISOString() : undefined,
+                      openedPercent: campaign?.openedPercent || 0,
+                      clickedPercent: campaign?.clickedPercent || 0,
+                      revenue: campaign?.revenue || 0,
+                      orders: campaign?.orders || 0,
+                      userId: user?.id || undefined,
+                      createdAt: campaign?.createdAt || new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    };
+
+                    if (onSave) {
+                      await onSave(campaignData);
+                    } else {
+                      router.push('/marketing/campaigns');
+                    }
+                  } catch (error) {
+                    // Handle error
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </>
+                )}
+              </button>
+              <button
+                type="submit"
+                form="campaign-form"
+                disabled={saving || !validation.isValid}
+                className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    {formData.status === 'Scheduled' ? 'Schedule Campaign' : 'Save Campaign'}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Mode Description */}
+      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+        {mode === 'add' && (
+          <p className="text-sm text-gray-600">
+            Create a new marketing campaign by filling out the form below. All required fields must be completed before saving.
+          </p>
+        )}
+        {mode === 'view' && (
+          <p className="text-sm text-gray-600">
+            View detailed information about this campaign. You can see all campaign details, recipients, and current status.
+          </p>
+        )}
+        {mode === 'edit' && (
+          <p className="text-sm text-gray-600">
+            Modify existing campaign information. Update any fields as needed and save your changes.
+          </p>
+        )}
+      </div>
+
+      {/* Completion Progress */}
+      {!isViewMode && (
+        <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-black">Campaign Completion</h3>
+            <span
+              className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}
+            >
+              {completionPercentage}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-300 ${
+                completionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'
+              }`}
+              style={{ width: `${completionPercentage}%` }}
+            ></div>
+          </div>
+          <div className="text-xs text-gray-600">
+            {validation.missingFields.length === 0
+              ? 'All required fields completed'
+              : `Missing: ${validation.missingFields.join(', ')}`}
+          </div>
+        </div>
+      )}
+
+      <form id="campaign-form" onSubmit={handleSubmit} className="p-4">
+        {/* Campaign Information */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
+            <Mail className="w-5 h-5 text-gray-500" />
+            Campaign Information
+          </h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">
+                  Campaign ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.campaignId}
+                  disabled={true}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  placeholder="Auto-generated Campaign ID"
+                />
+                {mode === 'add' && (
+                  <p className="text-xs text-gray-500 mt-1">Campaign ID is automatically generated</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">
+                  Status
+                </label>
+                <div className="relative" ref={statusDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isViewMode) {
+                        setShowStatusDropdown(!showStatusDropdown);
+                        setShowRecipientsDropdown(false);
+                      }
+                    }}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                  >
+                    <span className="text-black">{formData.status}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+
+                  {showStatusDropdown && !isViewMode && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {statusOptions.map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            handleInputChange('status', status);
+                            setShowStatusDropdown(false);
+                          }}
+                          className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black"
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-black mb-2">
+                Campaign Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                disabled={isViewMode}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                placeholder="Enter campaign name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-black mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                disabled={isViewMode}
+                rows={4}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                placeholder="Enter campaign description"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Recipients & Scheduling */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-gray-500" />
+            Recipients & Scheduling
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-black mb-2">
+                Recipients <span className="text-red-500">*</span>
+              </label>
+              <div className="relative" ref={recipientsDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isViewMode) {
+                      setShowRecipientsDropdown(!showRecipientsDropdown);
+                      setShowStatusDropdown(false);
+                    }
+                  }}
+                  disabled={isViewMode}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                >
+                  <span className="text-black">{formData.recipients}</span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+
+                {showRecipientsDropdown && !isViewMode && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {recipientOptions.map((recipient) => (
+                      <button
+                        key={recipient}
+                        type="button"
+                        onClick={() => {
+                          handleInputChange('recipients', recipient);
+                          setShowRecipientsDropdown(false);
+                        }}
+                        className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black"
+                      >
+                        {recipient}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {formData.status === 'Scheduled' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-black mb-2">
+                    Scheduled Date <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={formData.scheduledDate}
+                      onChange={(e) => handleInputChange('scheduledDate', e.target.value)}
+                      disabled={isViewMode}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-black mb-2">
+                    Scheduled Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.scheduledTime}
+                    onChange={(e) => handleInputChange('scheduledTime', e.target.value)}
+                    disabled={isViewMode}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  />
+                </div>
+              </div>
+            )}
+
+            {mode === 'view' && campaign?.sentDate && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Info className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-medium text-blue-900">Sent Date</span>
+                </div>
+                <p className="text-xs text-blue-700">
+                  {format(new Date(campaign.sentDate), 'PPpp')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Campaign Metrics (View Only) */}
+        {mode === 'view' && campaign && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-md font-semibold text-black mb-4">Campaign Performance</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Opened</p>
+                <p className="text-lg font-semibold text-black">{campaign.openedPercent}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Clicked</p>
+                <p className="text-lg font-semibold text-black">{campaign.clickedPercent}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Revenue</p>
+                <p className="text-lg font-semibold text-black">${campaign.revenue.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Orders</p>
+                <p className="text-lg font-semibold text-black">{campaign.orders}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+

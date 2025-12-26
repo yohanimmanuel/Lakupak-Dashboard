@@ -90,7 +90,9 @@ export default function MarketingCampaignsPage() {
   };
 
   const handleViewCampaign = (campaign: Campaign) => {
-    router.push(`/marketing/campaigns/details?id=${campaign.id}`);
+    // If campaign is Draft, open in edit mode, otherwise view mode
+    const mode = campaign.status === 'Draft' ? 'edit' : 'view';
+    router.push(`/marketing/campaigns/details?id=${campaign.id}&mode=${mode}`);
   };
 
   const handleDuplicateCampaign = (campaign: Campaign) => {
