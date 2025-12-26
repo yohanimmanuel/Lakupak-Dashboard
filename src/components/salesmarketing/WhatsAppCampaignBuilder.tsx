@@ -1237,11 +1237,11 @@ export default function WhatsAppCampaignBuilder({
               }
             }}
             disabled={currentPage === 0}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1.5 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden mx-11">
             <div
               ref={templatesContainerRef}
               className="flex transition-transform duration-300 ease-in-out"
@@ -1300,9 +1300,9 @@ export default function WhatsAppCampaignBuilder({
               }
             }}
             disabled={currentPage >= maxPageIndex}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1.5 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white border border-gray-300 rounded-full shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-5 h-5 text-gray-600" />
           </button>
         </div>
       </div>
