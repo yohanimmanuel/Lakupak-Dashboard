@@ -53,7 +53,7 @@ export default function OfferTable({
   
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 6;
+  const rowsPerPage = 5;
 
   // Helper function to check if offer has discount types
   const hasDiscountType = (offer: Offer) => {
