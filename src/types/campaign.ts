@@ -14,6 +14,8 @@ export interface Campaign {
   createdAt?: string;
   updatedAt?: string;
   userId?: number;
+  // WhatsApp campaign design content
+  contentBlocks?: CampaignContentBlock[];
 }
 
 export interface CampaignTableRow {
@@ -30,3 +32,47 @@ export interface CampaignTableRow {
   orders: number;
 }
 
+// WhatsApp Campaign Content Blocks
+export type ContentBlockType = 
+  | 'text' 
+  | 'image' 
+  | 'product' 
+  | 'button' 
+  | 'list' 
+  | 'header' 
+  | 'divider' 
+  | 'spacing';
+
+export interface CampaignContentBlock {
+  id: string;
+  type: ContentBlockType;
+  order: number;
+  // Text block
+  text?: string;
+  textStyle?: 'normal' | 'bold' | 'italic';
+  // Image block
+  imageUrl?: string;
+  imageAlt?: string;
+  // Product block
+  productId?: string;
+  productName?: string;
+  productImage?: string;
+  productPrice?: number;
+  productButtonText?: string;
+  productButtonLink?: string;
+  // Button block
+  buttonText?: string;
+  buttonLink?: string;
+  buttonStyle?: 'primary' | 'secondary';
+  // List block
+  listItems?: Array<{
+    id: string;
+    title: string;
+    description?: string;
+  }>;
+  // Header block
+  headerText?: string;
+  headerImage?: string;
+  // Spacing
+  spacingSize?: 'small' | 'medium' | 'large';
+}

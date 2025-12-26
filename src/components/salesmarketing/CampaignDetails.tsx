@@ -12,11 +12,13 @@ import {
   ChevronDown,
   Info,
   Edit,
+  Smartphone,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
-import { Campaign } from '@/types/campaign';
+import { Campaign, CampaignContentBlock } from '@/types/campaign';
 import { format } from 'date-fns';
+import WhatsAppCampaignBuilder from './WhatsAppCampaignBuilder';
 
 interface CampaignFormData {
   id?: string;
@@ -86,6 +88,9 @@ export default function CampaignDetails({
   const [showRecipientsDropdown, setShowRecipientsDropdown] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const recipientsDropdownRef = useRef<HTMLDivElement>(null);
+  const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
+    campaign?.contentBlocks || []
+  );
 
   const isViewMode = mode === 'view';
 
@@ -112,6 +117,11 @@ export default function CampaignDetails({
         scheduledDate: campaign.sentDate ? new Date(campaign.sentDate).toISOString().split('T')[0] : '',
         scheduledTime: campaign.sentDate ? new Date(campaign.sentDate).toTimeString().slice(0, 5) : '',
       };
+      
+      // Update content blocks when campaign changes
+      if (campaign.contentBlocks) {
+        setContentBlocks(campaign.contentBlocks);
+      }
       
       // Only update form data if it's actually different (using efficient comparison)
       // This prevents unnecessary re-renders
@@ -213,6 +223,7 @@ export default function CampaignDetails({
         userId: user?.id || undefined,
         createdAt: campaign?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        contentBlocks: contentBlocks,
       };
 
       if (onSave) {
@@ -347,6 +358,7 @@ export default function CampaignDetails({
                       userId: user?.id || undefined,
                       createdAt: campaign?.createdAt || new Date().toISOString(),
                       updatedAt: new Date().toISOString(),
+                      contentBlocks: contentBlocks,
                     };
 
                     if (onSave) {
@@ -634,10 +646,41 @@ export default function CampaignDetails({
           </div>
         </div>
 
-        {/* Campaign Metrics (View Only) */}
-        {mode === 'view' && campaign && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Campaign Performance</h2>
+        {/* WhatsApp Campaign Design */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-gray-500" />
+            WhatsApp Campaign Design
+          </h2>
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <WhatsAppCampaignBuilder
+              campaign={campaign ? {
+                ...campaign,
+                contentBlocks,
+              } : {
+                id: '',
+                campaignId: formData.campaignId,
+                name: formData.name,
+                status: formData.status,
+                recipients: formData.recipients,
+                openedPercent: 0,
+                clickedPercent: 0,
+                revenue: 0,
+                orders: 0,
+                contentBlocks,
+              } as Campaign}
+              embedded={true}
+              onContentBlocksChange={(blocks) => {
+                setContentBlocks(blocks);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Campaign Metrics */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h2 className="text-md font-semibold text-black mb-4">Campaign Performance</h2>
+          {mode === 'view' && campaign ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-gray-600 mb-1">Opened</p>
@@ -656,8 +699,20 @@ export default function CampaignDetails({
                 <p className="text-lg font-semibold text-black">{campaign.orders}</p>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Performance metrics will be available after sending</p>
+                  <p className="text-xs text-gray-500">
+                    Campaign performance metrics including open rates, click rates, revenue, and orders will be generated once you successfully send your campaign to recipients.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </form>
     </div>
   );

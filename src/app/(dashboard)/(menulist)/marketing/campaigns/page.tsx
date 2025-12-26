@@ -122,7 +122,7 @@ export default function MarketingCampaignsPage() {
         <div>
           <h1 className="text-2xl font-bold text-black mb-2">Campaigns</h1>
           <p className="text-sm text-gray-600">
-            Send one-time rich content emails to your retailers.
+            Send one-time rich content message campaigns to your retailers.
           </p>
         </div>
         <Link
