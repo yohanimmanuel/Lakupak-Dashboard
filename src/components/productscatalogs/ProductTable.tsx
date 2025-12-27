@@ -936,7 +936,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 </span>
               </div>
             </div>
-                        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
                 {(() => {
                   const buttons = { canPublish: false, canUnpublish: false, canRemove: true };

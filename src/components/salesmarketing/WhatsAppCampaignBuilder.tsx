@@ -42,6 +42,7 @@ interface WhatsAppCampaignBuilderProps {
   onCancel?: () => void;
   onContentBlocksChange?: (contentBlocks: CampaignContentBlock[]) => void;
   embedded?: boolean;
+  previewOnly?: boolean;
 }
 
 const CONTENT_BLOCKS: Array<{
@@ -317,7 +318,8 @@ export default function WhatsAppCampaignBuilder({
   onSave,
   onCancel,
   onContentBlocksChange,
-  embedded = false
+  embedded = false,
+  previewOnly = false
 }: WhatsAppCampaignBuilderProps) {
   const [campaignName, setCampaignName] = useState(campaign?.name || 'Untitled campaign');
   const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
@@ -1210,7 +1212,8 @@ export default function WhatsAppCampaignBuilder({
         </div>
       )}
 
-      {/* Templates Section - Always visible */}
+      {/* Templates Section - Hide when previewOnly */}
+      {!previewOnly && (
       <div className="p-4 border-b border-gray-200 bg-white">
         <div className="mb-3">
           <p className="text-sm text-gray-600 mb-1">
@@ -1296,15 +1299,17 @@ export default function WhatsAppCampaignBuilder({
           </button>
         </div>
       </div>
+      )}
 
       {/* Main Content */}
       <div className={`${embedded ? 'flex min-h-[600px]' : 'flex-1'} flex overflow-hidden`}>
         {/* Left: WhatsApp Preview */}
-        <div className={`${embedded ? 'flex-1 min-h-[600px]' : 'flex-1'} bg-gray-100 ${embedded ? '' : 'border-r-2 border-gray-300'}`}>
+        <div className={`${previewOnly ? 'w-full' : embedded ? 'flex-1 min-h-[600px]' : 'flex-1'} bg-gray-100 ${embedded ? '' : 'border-r-2 border-gray-300'}`}>
           {renderWhatsAppPreview()}
         </div>
 
-        {/* Right: Content Blocks Palette */}
+        {/* Right: Content Blocks Palette - Hide when previewOnly */}
+        {!previewOnly && (
         <div className={`${embedded ? 'w-80' : 'w-80'} bg-white ${embedded ? '' : 'border-l-2 border-gray-300'} flex flex-col`}>
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-semibold text-black mb-1">Content</h2>
@@ -1346,6 +1351,7 @@ export default function WhatsAppCampaignBuilder({
           {/* Block Editor */}
           {selectedBlockId && renderBlockEditor()}
         </div>
+        )}
       </div>
     </div>
   );

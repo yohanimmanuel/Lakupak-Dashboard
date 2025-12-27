@@ -2,11 +2,12 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
+import SendCampaignModal from './SendCampaignModal';
 
 const statusTabs = [
   { label: 'All' },
@@ -40,6 +41,8 @@ export default function CampaignTable({
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [campaignToSend, setCampaignToSend] = useState<Campaign | null>(null);
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -122,6 +125,27 @@ export default function CampaignTable({
     setIsBulkDelete(true);
     setCampaignToDelete(null);
     setShowDeleteModal(true);
+  };
+
+  const handleBulkSend = () => {
+    if (selectedCampaigns.size === 0) return;
+    // For bulk send, we'll send the first selected campaign
+    // In a real implementation, you might want to handle multiple campaigns differently
+    const firstCampaignId = Array.from(selectedCampaigns)[0];
+    const campaignToSend = campaigns.find((c) => c.id === firstCampaignId);
+    if (campaignToSend) {
+      setCampaignToSend(campaignToSend);
+      setShowSendModal(true);
+    }
+  };
+
+  const handleSendCampaign = async (campaignData: Campaign) => {
+    // Update campaign status to Sent
+    // In a real implementation, you would call an API here
+    setShowSendModal(false);
+    setCampaignToSend(null);
+    // Clear selection after sending
+    setSelectedCampaigns(new Set());
   };
 
   const confirmDelete = () => {
@@ -257,18 +281,28 @@ export default function CampaignTable({
               </div>
               <div className="text-white text-xs font-semibold leading-relaxed">
                 {selectedCampaigns.size === 1 
-                  ? 'Select campaign to be removed.'
-                  : 'Select campaigns to be removed.'
+                  ? 'Select campaign to be removed or sent.'
+                  : 'Select campaigns to be removed or sent.'
                 }
               </div>
-              <button
-                onClick={handleBulkDelete}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
-              >
-                <Trash2 className="w-4 h-4" />
-                {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleBulkSend}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                >
+                  <Send className="w-4 h-4" />
+                  {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+                </button>
+              </div>
             </div>
             
             <div className="hidden md:flex items-center justify-between">
@@ -285,10 +319,18 @@ export default function CampaignTable({
               <div className="flex items-center gap-4">
                 <span className="text-white text-xs md:text-sm font-semibold">
                   {selectedCampaigns.size === 1 
-                    ? 'Select campaign to be removed. '
-                    : 'Select campaigns to be removed. '
+                    ? 'Select campaign to be removed or sent. '
+                    : 'Select campaigns to be removed or sent. '
                   }
                 </span>
+                <button
+                  onClick={handleBulkSend}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                >
+                  <Send className="w-4 h-4" />
+                  {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
+                </button>
                 <button
                   onClick={handleBulkDelete}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -484,6 +526,17 @@ export default function CampaignTable({
           </div>
         </div>
       )}
+
+      {/* Send Campaign Modal */}
+      <SendCampaignModal
+        open={showSendModal}
+        onClose={() => {
+          setShowSendModal(false);
+          setCampaignToSend(null);
+        }}
+        campaign={campaignToSend}
+        onSend={handleSendCampaign}
+      />
     </>
   );
 }

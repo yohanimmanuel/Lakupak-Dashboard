@@ -19,6 +19,7 @@ import { useUserStore } from '@/store/userStore';
 import { Campaign, CampaignContentBlock } from '@/types/campaign';
 import { format } from 'date-fns';
 import WhatsAppCampaignBuilder from './WhatsAppCampaignBuilder';
+import SendCampaignModal from './SendCampaignModal';
 
 interface CampaignFormData {
   id?: string;
@@ -91,6 +92,8 @@ export default function CampaignDetails({
   const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
     campaign?.contentBlocks || []
   );
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [campaignToSend, setCampaignToSend] = useState<Campaign | null>(null);
 
   const isViewMode = mode === 'view';
 
@@ -226,10 +229,20 @@ export default function CampaignDetails({
         contentBlocks: contentBlocks,
       };
 
+      // If status is not Scheduled, open send modal (don't navigate)
+      if (formData.status !== 'Scheduled') {
+        // Don't call onSave here to avoid navigation - we'll save when user confirms sending
+        // Just open the send modal with the campaign data
+        setCampaignToSend(campaignData);
+        setShowSendModal(true);
+        setSaving(false);
+        return;
+      }
+
+      // For scheduled campaigns, save and navigate back
       if (onSave) {
         await onSave(campaignData);
       } else {
-        // Default behavior: navigate back
         router.push('/marketing/campaigns');
       }
     } catch (error) {
@@ -237,6 +250,20 @@ export default function CampaignDetails({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSendCampaign = async (campaignData: Campaign) => {
+    // Save the campaign with Sent status when user confirms sending
+    if (onSave) {
+      await onSave({
+        ...campaignData,
+        status: 'Sent',
+        sentDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setShowSendModal(false);
+    setCampaignToSend(null);
   };
 
   const handleCancel = () => {
@@ -402,7 +429,7 @@ export default function CampaignDetails({
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    {formData.status === 'Scheduled' ? 'Schedule Campaign' : 'Save Campaign'}
+                    {formData.status === 'Scheduled' ? 'Schedule Campaign' : 'Save and Send Campaign'}
                   </>
                 )}
               </button>
@@ -552,100 +579,6 @@ export default function CampaignDetails({
           </div>
         </div>
 
-        {/* Recipients & Scheduling */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-          <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-gray-500" />
-            Recipients & Scheduling
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">
-                Recipients <span className="text-red-500">*</span>
-              </label>
-              <div className="relative" ref={recipientsDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isViewMode) {
-                      setShowRecipientsDropdown(!showRecipientsDropdown);
-                      setShowStatusDropdown(false);
-                    }
-                  }}
-                  disabled={isViewMode}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
-                >
-                  <span className="text-black">{formData.recipients}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
-
-                {showRecipientsDropdown && !isViewMode && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {recipientOptions.map((recipient) => (
-                      <button
-                        key={recipient}
-                        type="button"
-                        onClick={() => {
-                          handleInputChange('recipients', recipient);
-                          setShowRecipientsDropdown(false);
-                        }}
-                        className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black"
-                      >
-                        {recipient}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {formData.status === 'Scheduled' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-black mb-2">
-                    Scheduled Date <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                    <input
-                      type="date"
-                      value={formData.scheduledDate}
-                      onChange={(e) => handleInputChange('scheduledDate', e.target.value)}
-                      disabled={isViewMode}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full pl-10 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-black mb-2">
-                    Scheduled Time
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.scheduledTime}
-                    onChange={(e) => handleInputChange('scheduledTime', e.target.value)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  />
-                </div>
-              </div>
-            )}
-
-            {mode === 'view' && campaign?.sentDate && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <Info className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-medium text-blue-900">Sent Date</span>
-                </div>
-                <p className="text-xs text-blue-700">
-                  {format(new Date(campaign.sentDate), 'PPpp')}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* WhatsApp Campaign Design */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
           <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
@@ -714,6 +647,17 @@ export default function CampaignDetails({
           )}
         </div>
       </form>
+
+      {/* Send Campaign Modal */}
+      <SendCampaignModal
+        open={showSendModal}
+        onClose={() => {
+          setShowSendModal(false);
+          setCampaignToSend(null);
+        }}
+        campaign={campaignToSend}
+        onSend={handleSendCampaign}
+      />
     </div>
   );
 }
