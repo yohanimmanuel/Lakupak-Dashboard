@@ -428,7 +428,7 @@ export default function CampaignDetails({
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-4 h-4" />
+                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
                     {formData.status === 'Scheduled' ? 'Schedule Campaign' : 'Save and Send Campaign'}
                   </>
                 )}

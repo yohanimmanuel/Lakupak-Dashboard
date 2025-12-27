@@ -133,7 +133,7 @@ export default function SendCampaignModal({
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" />
+                <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
                 Send Campaign
               </>
             )}

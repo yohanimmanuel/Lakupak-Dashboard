@@ -291,7 +291,7 @@ export default function CampaignTable({
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
                 >
-                  <Send className="w-4 h-4" />
+                  <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
                   {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
                 </button>
                 <button
@@ -328,7 +328,7 @@ export default function CampaignTable({
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
                 >
-                  <Send className="w-4 h-4" />
+                  <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
                   {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
                 </button>
                 <button
