@@ -575,7 +575,7 @@ export default function WhatsAppCampaignBuilder({
     const sortedBlocks = [...contentBlocks].sort((a, b) => a.order - b.order);
     
     return (
-      <div className="flex-1 bg-gray-100 p-6 overflow-y-auto">
+      <div className="flex-1 bg-gray-100 p-4 overflow-y-auto">
         <div className="max-w-md mx-auto">
           {/* WhatsApp Header */}
           <div className="bg-[#075e54] text-white p-4 rounded-t-lg">
