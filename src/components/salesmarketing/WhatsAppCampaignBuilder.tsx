@@ -389,6 +389,7 @@ export default function WhatsAppCampaignBuilder({
 
   // Auto-focus textarea when editing starts
   useEffect(() => {
+    if (previewOnly) return; // Don't focus in preview mode
     if (editingBlockId && editingTextRef.current) {
       editingTextRef.current.focus();
       editingTextRef.current.setSelectionRange(
@@ -396,15 +397,16 @@ export default function WhatsAppCampaignBuilder({
         editingTextRef.current.value.length
       );
     }
-  }, [editingBlockId]);
+  }, [editingBlockId, previewOnly]);
 
   // Auto-focus header input when editing starts
   useEffect(() => {
+    if (previewOnly) return; // Don't focus in preview mode
     if (editingHeaderId && editingHeaderRef.current) {
       editingHeaderRef.current.focus();
       editingHeaderRef.current.select();
     }
-  }, [editingHeaderId]);
+  }, [editingHeaderId, previewOnly]);
 
   // Search products
   const searchProducts = useCallback(async (query: string) => {
@@ -463,6 +465,8 @@ export default function WhatsAppCampaignBuilder({
 
   // Handle clicks outside the message card to deselect blocks
   useEffect(() => {
+    if (previewOnly) return; // Don't handle click outside in preview mode
+
     const handleClickOutside = (event: MouseEvent) => {
       if (
         messageCardRef.current &&
@@ -479,7 +483,7 @@ export default function WhatsAppCampaignBuilder({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [selectedBlockId]);
+  }, [selectedBlockId, previewOnly]);
 
   // Handle template selection
   const handleApplyTemplate = useCallback((templateId: string | null) => {
@@ -674,22 +678,26 @@ export default function WhatsAppCampaignBuilder({
                 {sortedBlocks.map((block) => (
                   <div
                     key={block.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, block.id)}
-                    onDragOver={(e) => handleDragOver(e, block.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, block.id)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => setSelectedBlockId(block.id)}
-                    className={`p-3 rounded-lg border-2 transition-all relative group ${
-                      selectedBlockId === block.id
-                        ? 'border-[#0a61d7] bg-blue-50'
-                        : draggedBlockId === block.id
-                        ? 'opacity-50 border-gray-300'
-                        : dragOverBlockId === block.id
-                        ? 'border-[#0a61d7] bg-blue-100 border-dashed'
-                        : 'border-transparent hover:border-gray-300'
-                    } ${draggedBlockId ? 'cursor-move' : ''}`}
+                    draggable={!previewOnly}
+                    onDragStart={!previewOnly ? (e) => handleDragStart(e, block.id) : undefined}
+                    onDragOver={!previewOnly ? (e) => handleDragOver(e, block.id) : undefined}
+                    onDragLeave={!previewOnly ? handleDragLeave : undefined}
+                    onDrop={!previewOnly ? (e) => handleDrop(e, block.id) : undefined}
+                    onDragEnd={!previewOnly ? handleDragEnd : undefined}
+                    onClick={!previewOnly ? () => setSelectedBlockId(block.id) : undefined}
+                    className={`p-3 rounded-lg transition-all relative group ${
+                      previewOnly
+                        ? 'border-transparent'
+                        : `border-2 ${
+                            selectedBlockId === block.id
+                              ? 'border-[#0a61d7] bg-blue-50'
+                              : draggedBlockId === block.id
+                              ? 'opacity-50 border-gray-300'
+                              : dragOverBlockId === block.id
+                              ? 'border-[#0a61d7] bg-blue-100 border-dashed'
+                              : 'border-transparent hover:border-gray-300'
+                          } ${draggedBlockId ? 'cursor-move' : ''}`
+                    }`}
                   >
                     {renderBlockPreview(block)}
                   </div>
@@ -705,7 +713,7 @@ export default function WhatsAppCampaignBuilder({
   const renderBlockPreview = (block: CampaignContentBlock) => {
     switch (block.type) {
       case 'header':
-        const isEditingHeader = editingHeaderId === block.id;
+        const isEditingHeader = !previewOnly && editingHeaderId === block.id;
         return (
           <div className="text-center">
             {block.headerImage && (
@@ -729,16 +737,18 @@ export default function WhatsAppCampaignBuilder({
               />
             ) : (
               <h2
-                onClick={() => setEditingHeaderId(block.id)}
-                className="text-lg font-bold text-black cursor-text hover:bg-gray-50 p-2 rounded transition-colors"
+                onClick={!previewOnly ? () => setEditingHeaderId(block.id) : undefined}
+                className={`text-lg font-bold text-black p-2 rounded ${
+                  previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
+                }`}
               >
-                {block.headerText || 'Click to edit header...'}
+                {block.headerText || (previewOnly ? '' : 'Click to edit header...')}
               </h2>
             )}
           </div>
         );
       case 'text':
-        const isEditingText = editingBlockId === block.id;
+        const isEditingText = !previewOnly && editingBlockId === block.id;
         return (
           <div className="relative group">
             {isEditingText ? (
@@ -760,12 +770,14 @@ export default function WhatsAppCampaignBuilder({
               />
             ) : (
               <p
-                onClick={() => setEditingBlockId(block.id)}
-                className={`text-black cursor-text hover:bg-gray-50 p-2 rounded transition-colors ${
+                onClick={!previewOnly ? () => setEditingBlockId(block.id) : undefined}
+                className={`text-black p-2 rounded ${
                   block.textStyle === 'bold' ? 'font-bold' : block.textStyle === 'italic' ? 'italic' : ''
-                } ${!block.text ? 'text-gray-400 italic' : ''}`}
+                } ${!block.text ? 'text-gray-400 italic' : ''} ${
+                  previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
+                }`}
               >
-                {block.text || 'Click to edit text...'}
+                {block.text || (previewOnly ? '' : 'Click to edit text...')}
               </p>
             )}
           </div>
@@ -776,35 +788,39 @@ export default function WhatsAppCampaignBuilder({
             {block.imageUrl ? (
               <div className="relative">
                 <img src={block.imageUrl} alt={block.imageAlt || 'Campaign image'} className="w-full rounded-lg" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (fileInputRef.current) {
-                      fileInputRef.current.setAttribute('data-block-id', block.id);
-                      fileInputRef.current.click();
-                    }
-                  }}
-                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-opacity opacity-0 group-hover:opacity-100"
-                >
-                  <Upload className="w-4 h-4" />
-                </button>
+                {!previewOnly && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.setAttribute('data-block-id', block.id);
+                        fileInputRef.current.click();
+                      }
+                    }}
+                    className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-opacity opacity-0 group-hover:opacity-100"
+                  >
+                    <Upload className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             ) : (
               <div
-                onClick={() => {
+                onClick={!previewOnly ? () => {
                   if (fileInputRef.current) {
                     fileInputRef.current.setAttribute('data-block-id', block.id);
                     fileInputRef.current.click();
                   }
-                }}
-                className="w-full h-32 bg-gray-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors"
+                } : undefined}
+                className={`w-full h-32 bg-gray-200 rounded-lg flex flex-col items-center justify-center ${
+                  previewOnly ? '' : 'cursor-pointer hover:bg-gray-300 transition-colors'
+                }`}
               >
                 {uploadingImage ? (
                   <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                 ) : (
                   <>
                     <ImageIcon className="w-8 h-8 text-gray-400" />
-                    <span className="mt-2 text-sm text-gray-500">Click to upload image</span>
+                    {!previewOnly && <span className="mt-2 text-sm text-gray-500">Click to upload image</span>}
                   </>
                 )}
               </div>
@@ -812,7 +828,7 @@ export default function WhatsAppCampaignBuilder({
           </div>
         );
       case 'product':
-        const isEditingProduct = editingProductId === block.id;
+        const isEditingProduct = !previewOnly && editingProductId === block.id;
         return (
           <div className="border border-gray-200 rounded-lg p-3">
             {isEditingProduct ? (
@@ -865,13 +881,15 @@ export default function WhatsAppCampaignBuilder({
             ) : (
               <div>
                 <h3
-                  onClick={() => {
+                  onClick={!previewOnly ? () => {
                     setEditingProductId(block.id);
                     setProductSearchQuery(block.productName || '');
-                  }}
-                  className="font-semibold text-black cursor-text hover:bg-gray-50 p-2 rounded transition-colors"
+                  } : undefined}
+                  className={`font-semibold text-black p-2 rounded ${
+                    previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
+                  }`}
                 >
-                  {block.productName || 'Click to search product...'}
+                  {block.productName || (previewOnly ? '' : 'Click to search product...')}
                 </h3>
                 {block.productButtonText && (
                   <button type="button" className="mt-2 w-full bg-[#0a61d7] text-white py-2 rounded-lg text-sm font-semibold">
@@ -898,7 +916,7 @@ export default function WhatsAppCampaignBuilder({
             {block.listItems && block.listItems.length > 0 ? (
               <ul className="space-y-2">
                 {block.listItems.map((item, index) => {
-                  const isEditingItem = editingListItemId === `${block.id}-${item.id}`;
+                  const isEditingItem = !previewOnly && editingListItemId === `${block.id}-${item.id}`;
                   return (
                     <li key={item.id} className="flex items-start gap-2 group">
                       <span className="text-[#0a61d7] mt-1">•</span>
@@ -923,50 +941,56 @@ export default function WhatsAppCampaignBuilder({
                           />
                         ) : (
                           <p
-                            onClick={() => setEditingListItemId(`${block.id}-${item.id}`)}
-                            className="font-semibold text-black text-sm cursor-text hover:bg-gray-50 p-1 rounded transition-colors"
+                            onClick={!previewOnly ? () => setEditingListItemId(`${block.id}-${item.id}`) : undefined}
+                            className={`font-semibold text-black text-sm p-1 rounded ${
+                              previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
+                            }`}
                           >
-                            {item.title || 'Click to edit...'}
+                            {item.title || (previewOnly ? '' : 'Click to edit...')}
                           </p>
                         )}
                         {item.description && (
                           <p className="text-xs text-gray-600">{item.description}</p>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updatedItems = block.listItems?.filter(i => i.id !== item.id) || [];
-                          handleUpdateBlock(block.id, { listItems: updatedItems });
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-700 transition-opacity"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      {!previewOnly && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedItems = block.listItems?.filter(i => i.id !== item.id) || [];
+                            handleUpdateBlock(block.id, { listItems: updatedItems });
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-700 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-gray-400 text-sm">Add list items</p>
+              !previewOnly && <p className="text-gray-400 text-sm">Add list items</p>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                const newItem = {
-                  id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  title: 'New item',
-                  description: undefined,
-                };
-                const updatedItems = [...(block.listItems || []), newItem];
-                handleUpdateBlock(block.id, { listItems: updatedItems });
-                setEditingListItemId(`${block.id}-${newItem.id}`);
-              }}
-              className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium flex items-center gap-1"
-            >
-              <Plus className="w-4 h-4" />
-              Add item
-            </button>
+            {!previewOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  const newItem = {
+                    id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    title: 'New item',
+                    description: undefined,
+                  };
+                  const updatedItems = [...(block.listItems || []), newItem];
+                  handleUpdateBlock(block.id, { listItems: updatedItems });
+                  setEditingListItemId(`${block.id}-${newItem.id}`);
+                }}
+                className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" />
+                Add item
+              </button>
+            )}
           </div>
         );
       case 'divider':

@@ -55,35 +55,35 @@ export default function MarketingCampaignsPage() {
     let ignore = false;
 
     const fetchCampaigns = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchGraphQL<{
-          campaigns: {
-            nodes: Campaign[];
-            pagination: {
-              page: number;
-              limit: number;
-              totalCount: number;
-              totalPages: number;
-            };
+    setLoading(true);
+    try {
+      const data = await fetchGraphQL<{
+        campaigns: {
+          nodes: Campaign[];
+          pagination: {
+            page: number;
+            limit: number;
+            totalCount: number;
+            totalPages: number;
           };
-        }>(CAMPAIGNS_QUERY, {
-          userId: user.id,
-          page: 1,
-          limit: 100,
-        });
+        };
+      }>(CAMPAIGNS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 100,
+      });
 
         if (!ignore) {
-          setCampaigns(data.campaigns.nodes);
+      setCampaigns(data.campaigns.nodes);
         }
-      } catch (error) {
+    } catch (error) {
         if (!ignore) {
-          setCampaigns([]);
+      setCampaigns([]);
         }
-      } finally {
+    } finally {
         if (!ignore) {
-          setLoading(false);
-        }
+      setLoading(false);
+    }
       }
     };
 
