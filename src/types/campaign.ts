@@ -5,7 +5,6 @@ export interface Campaign {
   description?: string;
   status: 'Draft' | 'Scheduled' | 'Sent' | 'Completed';
   sentDate?: string;
-  lastEdited?: string;
   recipients: string;
   openedPercent: number;
   clickedPercent: number;
@@ -24,7 +23,6 @@ export interface CampaignTableRow {
   name: string;
   status: string;
   sentDate?: string;
-  lastEdited?: string;
   recipients: string;
   openedPercent: number;
   clickedPercent: number;

@@ -7,7 +7,6 @@ import {
   Smartphone, 
   Monitor, 
   Plus, 
-  GripVertical,
   X,
   Type,
   Image as ImageIcon,
@@ -335,6 +334,8 @@ export default function WhatsAppCampaignBuilder({
   const [editingListItemId, setEditingListItemId] = useState<string | null>(null);
   const [products, setProducts] = useState<Array<{ id: string; name: string }>>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+  const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(
     campaign?.contentBlocks && campaign.contentBlocks.length > 0 ? 'custom' : null
@@ -351,6 +352,7 @@ export default function WhatsAppCampaignBuilder({
   const editingTextRef = useRef<HTMLTextAreaElement>(null);
   const editingHeaderRef = useRef<HTMLInputElement>(null);
   const editingProductRef = useRef<HTMLInputElement>(null);
+  const messageCardRef = useRef<HTMLDivElement>(null);
   const user = useUserStore((state) => state.user);
   
   // Calculate pages with overlapping items (sliding window pagination)
@@ -458,6 +460,26 @@ export default function WhatsAppCampaignBuilder({
 
     return () => clearTimeout(timer);
   }, [productSearchQuery, searchProducts]);
+
+  // Handle clicks outside the message card to deselect blocks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        messageCardRef.current &&
+        !messageCardRef.current.contains(event.target as Node) &&
+        selectedBlockId &&
+        // Don't deselect if clicking on the block editor panel
+        !(event.target as HTMLElement).closest('[data-block-editor]')
+      ) {
+        setSelectedBlockId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedBlockId]);
 
   // Handle template selection
   const handleApplyTemplate = useCallback((templateId: string | null) => {
@@ -571,6 +593,56 @@ export default function WhatsAppCampaignBuilder({
     });
   }, []);
 
+  const handleDragStart = useCallback((e: React.DragEvent, blockId: string) => {
+    setDraggedBlockId(blockId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', blockId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, blockId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedBlockId && draggedBlockId !== blockId) {
+      setDragOverBlockId(blockId);
+    }
+  }, [draggedBlockId]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverBlockId(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetBlockId: string) => {
+    e.preventDefault();
+    setDragOverBlockId(null);
+    
+    if (!draggedBlockId || draggedBlockId === targetBlockId) {
+      setDraggedBlockId(null);
+      return;
+    }
+
+    setContentBlocks(prev => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      const draggedIndex = sorted.findIndex(b => b.id === draggedBlockId);
+      const targetIndex = sorted.findIndex(b => b.id === targetBlockId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      
+      const newBlocks = [...sorted];
+      const [draggedBlock] = newBlocks.splice(draggedIndex, 1);
+      newBlocks.splice(targetIndex, 0, draggedBlock);
+      
+      // Update order
+      return newBlocks.map((block, idx) => ({ ...block, order: idx }));
+    });
+    
+    setDraggedBlockId(null);
+  }, [draggedBlockId]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedBlockId(null);
+    setDragOverBlockId(null);
+  }, []);
+
   const renderWhatsAppPreview = () => {
     const sortedBlocks = [...contentBlocks].sort((a, b) => a.order - b.order);
     
@@ -591,7 +663,7 @@ export default function WhatsAppCampaignBuilder({
           </div>
 
           {/* Message Content */}
-          <div className="bg-white rounded-b-lg shadow-lg min-h-[400px] p-4">
+          <div ref={messageCardRef} className="bg-white rounded-b-lg shadow-lg min-h-[400px] p-4">
             {sortedBlocks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">
                 <Smartphone className="w-12 h-12 mb-3 opacity-50" />
@@ -602,12 +674,22 @@ export default function WhatsAppCampaignBuilder({
                 {sortedBlocks.map((block) => (
                   <div
                     key={block.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, block.id)}
+                    onDragOver={(e) => handleDragOver(e, block.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, block.id)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => setSelectedBlockId(block.id)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-3 rounded-lg border-2 transition-all relative group ${
                       selectedBlockId === block.id
                         ? 'border-[#0a61d7] bg-blue-50'
+                        : draggedBlockId === block.id
+                        ? 'opacity-50 border-gray-300'
+                        : dragOverBlockId === block.id
+                        ? 'border-[#0a61d7] bg-blue-100 border-dashed'
                         : 'border-transparent hover:border-gray-300'
-                    }`}
+                    } ${draggedBlockId ? 'cursor-move' : ''}`}
                   >
                     {renderBlockPreview(block)}
                   </div>
@@ -1310,7 +1392,7 @@ export default function WhatsAppCampaignBuilder({
 
         {/* Right: Content Blocks Palette - Hide when previewOnly */}
         {!previewOnly && (
-        <div className={`${embedded ? 'w-80' : 'w-80'} bg-white ${embedded ? '' : 'border-l-2 border-gray-300'} flex flex-col`}>
+        <div data-block-editor className={`${embedded ? 'w-80' : 'w-80'} bg-white ${embedded ? '' : 'border-l-2 border-gray-300'} flex flex-col`}>
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-semibold text-black mb-1">Content</h2>
             <p className="text-xs text-gray-600">Add blocks to build your campaign</p>

@@ -294,14 +294,14 @@ export default function CampaignTable({
                   <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
                   {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
                 </button>
-                <button
-                  onClick={handleBulkDelete}
+              <button
+                onClick={handleBulkDelete}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
-                </button>
+                aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+              >
+                <Trash2 className="w-4 h-4" />
+                {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+              </button>
               </div>
             </div>
             
@@ -373,90 +373,89 @@ export default function CampaignTable({
                   {allFilteredSelected ? 'Deselect all' : 'Select all'} ({filteredCampaigns.length})
                 </span>
               </div>
-              {pagedCampaigns.map((campaign, index) => (
+              {pagedCampaigns.map((campaignRow, index) => {
+                const campaign = campaigns.find((c) => c.id === campaignRow.id);
+                return (
               <div
-                key={campaign.id}
+                key={campaignRow.id}
                 className={`flex items-start justify-between py-4 px-4 ${
                   index !== pagedCampaigns.length - 1 ? 'border-b border-gray-200' : ''
                 }`}
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <button
-                    onClick={() => handleCampaignSelect(campaign.id)}
+                    onClick={() => handleCampaignSelect(campaignRow.id)}
                     className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 mt-1 focus:outline-none ${
-                      selectedCampaigns.has(campaign.id)
+                      selectedCampaigns.has(campaignRow.id)
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
                     }`}
-                    aria-label={selectedCampaigns.has(campaign.id) ? `Deselect ${campaign.name}` : `Select ${campaign.name}`}
+                    aria-label={selectedCampaigns.has(campaignRow.id) ? `Deselect ${campaignRow.name}` : `Select ${campaignRow.name}`}
                   >
-                    {selectedCampaigns.has(campaign.id) && (
+                    {selectedCampaigns.has(campaignRow.id) && (
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     )}
                   </button>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-black mb-2">{campaign.name}</h3>
+                    <h3 className="text-base font-semibold text-black mb-1">{campaignRow.name}</h3>
+                    {campaign?.description && (
+                      <p className="text-sm text-gray-500 mb-2 line-clamp-2">{campaign.description}</p>
+                    )}
                   <div className="space-y-1 text-sm text-gray-600">
-                    {campaign.sentDate && (
-                      <p>Sent on {formatDate(campaign.sentDate)}</p>
-                    )}
-                    {campaign.lastEdited && !campaign.sentDate && (
-                      <p>Last edited {formatDate(campaign.lastEdited)}</p>
-                    )}
-                    <p>Recipients: {campaign.recipients}</p>
-                    {campaign.status === 'Sent' || campaign.status === 'Completed' ? (
-                      <div className="flex items-center gap-4 mt-2">
-                        <span>{campaign.openedPercent}% Opened</span>
-                        <span>{campaign.clickedPercent}% Clicked</span>
-                        <span>{formatCurrency(campaign.revenue, userCurrency)} Revenue</span>
-                        <span>{campaign.orders} Orders</span>
-                      </div>
-                    ) : (
-                      campaign.lastEdited && <p className="text-gray-500">No recipients yet</p>
-                    )}
+                    <p>Recipients: {campaignRow.recipients}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <span>{campaignRow.openedPercent || 0}% Opened</span>
+                      <span>{campaignRow.clickedPercent || 0}% Clicked</span>
+                      <span>{formatCurrency(campaignRow.revenue || 0, userCurrency)} Revenue</span>
+                      <span>{campaignRow.orders || 0} Orders</span>
+                    </div>
                   </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-4">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(campaign.status)}`}
-                  >
-                    {campaign.status}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDuplicate(campaign)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      aria-label="Duplicate campaign"
+                <div className="flex flex-col items-end gap-3 ml-4">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(campaignRow.status)}`}
                     >
-                      <Copy className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={() => handleView(campaign)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
-                      aria-label="Edit campaign details"
-                    >
-                      <Edit className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(campaign)}
-                      className="p-2 hover:bg-red-100 rounded-lg transition-colors focus:outline-none"
-                      aria-label="Delete campaign"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
+                      {campaignRow.status}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDuplicate(campaignRow)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        aria-label="Duplicate campaign"
+                      >
+                        <Copy className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <button
+                        onClick={() => handleView(campaignRow)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
+                        aria-label="Edit campaign details"
+                      >
+                        <Edit className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(campaignRow)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors focus:outline-none"
+                        aria-label="Delete campaign"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-500">Send Date: {campaignRow.sentDate ? formatDate(campaignRow.sentDate) : 'Not sent'}</p>
                 </div>
               </div>
-              ))}
+              );
+              })}
             </>
           )}
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 pt-6 border-t border-gray-200 -mx-4 px-4 gap-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-t border-gray-200 pt-4 -mx-4 px-4 gap-2">
             {/* Left: Showing X to Y of Z */}
             <div className="text-sm text-gray-500">
               Showing {fromRow} to {toRow} of {totalRows}

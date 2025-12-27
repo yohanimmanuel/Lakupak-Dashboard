@@ -36,6 +36,7 @@ model User {
   company       Company?   @relation(fields: [companyId], references: [id])
   salesAgents   SalesAgent[]
   salesTeams    SalesTeam[]
+  campaigns     Campaign[]
 }
 
 model Company {
@@ -568,4 +569,29 @@ model FavoriteProduct {
   @@unique([salesAgentId, productId])
   @@index([salesAgentId])
   @@index([productId])
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  campaignId   String   @unique
+  name          String
+  description   String?
+  status        String   @default("Draft") // 'Draft' | 'Scheduled' | 'Sent' | 'Completed'
+  sentDate      DateTime? @db.Timestamptz(3)
+  recipients    String
+  openedPercent Float    @default(0)
+  clickedPercent Float   @default(0)
+  revenue       Float    @default(0)
+  orders        Int      @default(0)
+  contentBlocks Json?    // Store CampaignContentBlock[] as JSON
+  userId        Int?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([campaignId])
+  @@index([createdAt])
 }

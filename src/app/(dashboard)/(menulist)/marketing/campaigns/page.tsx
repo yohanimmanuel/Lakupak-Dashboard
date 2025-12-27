@@ -1,77 +1,86 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, X, ArrowRight } from 'lucide-react';
 import CampaignTable from '@/components/salesmarketing/CampaignTable';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useUserStore } from '@/store/userStore';
 
 export default function MarketingCampaignsPage() {
   const router = useRouter();
+  const user = useUserStore(state => state.user);
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [showTip, setShowTip] = useState(true);
 
-  useEffect(() => {
-    // TODO: Replace with actual GraphQL query
-    // Simulate data loading
-    const timer = setTimeout(() => {
+  const CAMPAIGNS_QUERY = `
+    query GetCampaigns($userId: Int!, $page: Int, $limit: Int, $status: String) {
+      campaigns(userId: $userId, page: $page, limit: $limit, status: $status) {
+        nodes {
+          id
+          campaignId
+          name
+          description
+          status
+          sentDate
+          recipients
+          openedPercent
+          clickedPercent
+          revenue
+          orders
+          contentBlocks
+          userId
+          createdAt
+          updatedAt
+        }
+        pagination {
+          page
+          limit
+          totalCount
+          totalPages
+        }
+      }
+    }
+  `;
+
+  const fetchCampaigns = useCallback(async () => {
+    if (!user?.id) {
       setLoading(false);
-      // Mock data for now
-      setCampaigns([
-        {
-          id: '1',
-          campaignId: 'CAMP001',
-          name: 'New products! Summer 2023',
-          status: 'Sent',
-          sentDate: '2023-03-15T10:57:00Z',
-          recipients: 'All Contacts',
-          openedPercent: 15,
-          clickedPercent: 0.38,
-          revenue: 0,
-          orders: 0,
-        },
-        {
-          id: '2',
-          campaignId: 'CAMP002',
-          name: 'Q12023 Flash Promo',
-          status: 'Sent',
-          sentDate: '2023-02-16T09:00:00Z',
-          recipients: 'Not signed up, Unused credit',
-          openedPercent: 29,
-          clickedPercent: 0.43,
-          revenue: 4302,
-          orders: 7,
-        },
-        {
-          id: '3',
-          campaignId: 'CAMP003',
-          name: 'NYC Pop-Up Announcement',
-          status: 'Draft',
-          lastEdited: '2022-12-02T13:43:00Z',
-          recipients: 'No recipients yet',
-          openedPercent: 0,
-          clickedPercent: 0,
-          revenue: 0,
-          orders: 0,
-        },
-        {
-          id: '4',
-          campaignId: 'CAMP004',
-          name: 'Paris Pop-Up Announcement',
-          status: 'Draft',
-          lastEdited: '2022-12-02T09:41:00Z',
-          recipients: 'No recipients yet',
-          openedPercent: 0,
-          clickedPercent: 0,
-          revenue: 0,
-          orders: 0,
-        },
-      ]);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await fetchGraphQL<{
+        campaigns: {
+          nodes: Campaign[];
+          pagination: {
+            page: number;
+            limit: number;
+            totalCount: number;
+            totalPages: number;
+          };
+        };
+      }>(CAMPAIGNS_QUERY, {
+        userId: user.id,
+        page: 1,
+        limit: 100,
+      });
+
+      setCampaigns(data.campaigns.nodes);
+    } catch (error) {
+      setCampaigns([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
 
   const campaignToTableRow = (campaign: Campaign): CampaignTableRow => {
     return {
@@ -80,7 +89,6 @@ export default function MarketingCampaignsPage() {
       name: campaign.name,
       status: campaign.status,
       sentDate: campaign.sentDate,
-      lastEdited: campaign.lastEdited,
       recipients: campaign.recipients,
       openedPercent: campaign.openedPercent,
       clickedPercent: campaign.clickedPercent,
@@ -97,11 +105,32 @@ export default function MarketingCampaignsPage() {
 
   const handleDuplicateCampaign = (campaign: Campaign) => {
     // TODO: Implement duplicate functionality
-    console.log('Duplicate campaign:', campaign);
   };
 
-  const handleDeleteCampaign = (campaign: Campaign) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== campaign.id));
+  const handleDeleteCampaign = async (campaign: Campaign) => {
+    if (!user?.id) return;
+
+    const DELETE_CAMPAIGN_MUTATION = `
+      mutation DeleteCampaign($userId: Int!, $id: String!) {
+        deleteCampaign(userId: $userId, id: $id) {
+          success
+          deleted {
+            id
+          }
+        }
+      }
+    `;
+
+    try {
+      await fetchGraphQL(DELETE_CAMPAIGN_MUTATION, {
+        userId: user.id,
+        id: campaign.id,
+      });
+      // Refresh campaigns list
+      await fetchCampaigns();
+    } catch (error) {
+      // Handle error
+    }
   };
 
   if (loading) {

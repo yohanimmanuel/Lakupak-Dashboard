@@ -39,15 +39,12 @@ interface CampaignDetailsProps {
   onCancel?: () => void;
 }
 
-const statusOptions: Array<'Draft' | 'Scheduled' | 'Sent' | 'Completed'> = ['Draft', 'Scheduled', 'Sent', 'Completed'];
-
 const recipientOptions = [
-  'All Contacts',
-  'All Buyers',
-  'Not signed up',
-  'Unused credit',
+  'All Customers',
+  'Recurrent Buyers',
+  'New Buyers',
+  'Unused Credits and Discounts',
   'No recipients yet',
-  'Custom List',
 ];
 
 // Helper function for deep equality check (more efficient than JSON.stringify)
@@ -85,9 +82,7 @@ export default function CampaignDetails({
 
   const [originalFormData, setOriginalFormData] = useState<CampaignFormData | null>(null);
   const [saving, setSaving] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showRecipientsDropdown, setShowRecipientsDropdown] = useState(false);
-  const statusDropdownRef = useRef<HTMLDivElement>(null);
   const recipientsDropdownRef = useRef<HTMLDivElement>(null);
   const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
     campaign?.contentBlocks || []
@@ -166,9 +161,6 @@ export default function CampaignDetails({
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
-        setShowStatusDropdown(false);
-      }
       if (recipientsDropdownRef.current && !recipientsDropdownRef.current.contains(event.target as Node)) {
         setShowRecipientsDropdown(false);
       }
@@ -215,10 +207,7 @@ export default function CampaignDetails({
         description: formData.description,
         status: formData.status,
         recipients: formData.recipients,
-        sentDate: formData.status === 'Scheduled' && formData.scheduledDate && formData.scheduledTime
-          ? new Date(`${formData.scheduledDate}T${formData.scheduledTime}`).toISOString()
-          : undefined,
-        lastEdited: mode === 'edit' ? new Date().toISOString() : undefined,
+        sentDate: undefined,
         openedPercent: campaign?.openedPercent || 0,
         clickedPercent: campaign?.clickedPercent || 0,
         revenue: campaign?.revenue || 0,
@@ -229,22 +218,12 @@ export default function CampaignDetails({
         contentBlocks: contentBlocks,
       };
 
-      // If status is not Scheduled, open send modal (don't navigate)
-      if (formData.status !== 'Scheduled') {
-        // Don't call onSave here to avoid navigation - we'll save when user confirms sending
-        // Just open the send modal with the campaign data
-        setCampaignToSend(campaignData);
-        setShowSendModal(true);
-        setSaving(false);
-        return;
-      }
-
-      // For scheduled campaigns, save and navigate back
-      if (onSave) {
-        await onSave(campaignData);
-      } else {
-        router.push('/marketing/campaigns');
-      }
+      // Open send modal (don't navigate)
+      // Don't call onSave here to avoid navigation - we'll save when user confirms sending
+      // Just open the send modal with the campaign data
+      setCampaignToSend(campaignData);
+      setShowSendModal(true);
+      setSaving(false);
     } catch (error) {
       // Handle error
     } finally {
@@ -279,9 +258,6 @@ export default function CampaignDetails({
     const missingFields: string[] = [];
     if (!formData.name.trim()) missingFields.push('Campaign Name');
     if (!formData.campaignId.trim()) missingFields.push('Campaign ID');
-    if (formData.status === 'Scheduled' && !formData.scheduledDate) {
-      missingFields.push('Scheduled Date');
-    }
     return {
       isValid: missingFields.length === 0,
       missingFields,
@@ -318,6 +294,11 @@ export default function CampaignDetails({
               {mode === 'view' && 'Campaign Details'}
               {mode === 'edit' && 'Edit Campaign'}
             </h1>
+            {(mode === 'add' || (mode !== 'view' && formData.status === 'Draft')) && (
+              <span className="px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-700">
+                Draft
+              </span>
+            )}
             {mode === 'view' && (
               <span
                 className={`px-3 py-1 text-sm font-semibold rounded-full ${
@@ -377,7 +358,6 @@ export default function CampaignDetails({
                       status: draftData.status,
                       recipients: draftData.recipients,
                       sentDate: undefined,
-                      lastEdited: mode === 'edit' ? new Date().toISOString() : undefined,
                       openedPercent: campaign?.openedPercent || 0,
                       clickedPercent: campaign?.clickedPercent || 0,
                       revenue: campaign?.revenue || 0,
@@ -429,7 +409,7 @@ export default function CampaignDetails({
                 ) : (
                   <>
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    {formData.status === 'Scheduled' ? 'Schedule Campaign' : 'Save and Send Campaign'}
+                    Save and Send Campaign
                   </>
                 )}
               </button>
@@ -510,37 +490,36 @@ export default function CampaignDetails({
               </div>
               <div>
                 <label className="block text-xs font-medium text-black mb-2">
-                  Status
+                  Recipients <span className="text-red-500">*</span>
                 </label>
-                <div className="relative" ref={statusDropdownRef}>
+                <div className="relative" ref={recipientsDropdownRef}>
                   <button
                     type="button"
                     onClick={() => {
                       if (!isViewMode) {
-                        setShowStatusDropdown(!showStatusDropdown);
-                        setShowRecipientsDropdown(false);
+                        setShowRecipientsDropdown(!showRecipientsDropdown);
                       }
                     }}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
                   >
-                    <span className="text-black">{formData.status}</span>
+                    <span className="text-black">{formData.recipients}</span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </button>
 
-                  {showStatusDropdown && !isViewMode && (
+                  {showRecipientsDropdown && !isViewMode && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {statusOptions.map((status) => (
+                      {recipientOptions.map((option) => (
                         <button
-                          key={status}
+                          key={option}
                           type="button"
                           onClick={() => {
-                            handleInputChange('status', status);
-                            setShowStatusDropdown(false);
+                            handleInputChange('recipients', option);
+                            setShowRecipientsDropdown(false);
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black"
                         >
-                          {status}
+                          {option}
                         </button>
                       ))}
                     </div>

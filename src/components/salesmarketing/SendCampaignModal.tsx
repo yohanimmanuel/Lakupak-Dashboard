@@ -79,20 +79,6 @@ export default function SendCampaignModal({
                   <label className="block text-xs font-medium text-gray-600 mb-1">Recipients</label>
                   <p className="text-sm text-black">{campaign.recipients}</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                      campaign.status === 'Sent' || campaign.status === 'Completed'
-                        ? 'bg-green-100 text-green-700'
-                        : campaign.status === 'Scheduled'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {campaign.status}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -143,3 +129,4 @@ export default function SendCampaignModal({
     </div>
   );
 }
+ 

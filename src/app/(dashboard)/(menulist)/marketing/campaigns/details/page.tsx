@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import CampaignDetails from '@/components/salesmarketing/CampaignDetails';
 import { Campaign } from '@/types/campaign';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 
 export default function CampaignDetailsPage() {
   const searchParams = useSearchParams();
@@ -26,67 +27,42 @@ export default function CampaignDetailsPage() {
 
       try {
         setLoading(true);
-        // TODO: Replace with actual GraphQL query
-        // For now, use mock data based on the campaigns page
-        const mockCampaigns: Campaign[] = [
-          {
-            id: '1',
-            campaignId: 'CAMP001',
-            name: 'New products! Summer 2023',
-            status: 'Sent',
-            sentDate: '2023-03-15T10:57:00Z',
-            recipients: 'All Contacts',
-            openedPercent: 15,
-            clickedPercent: 0.38,
-            revenue: 0,
-            orders: 0,
-          },
-          {
-            id: '2',
-            campaignId: 'CAMP002',
-            name: 'Q12023 Flash Promo',
-            status: 'Sent',
-            sentDate: '2023-02-16T09:00:00Z',
-            recipients: 'Not signed up, Unused credit',
-            openedPercent: 29,
-            clickedPercent: 0.43,
-            revenue: 4302,
-            orders: 7,
-          },
-          {
-            id: '3',
-            campaignId: 'CAMP003',
-            name: 'NYC Pop-Up Announcement',
-            status: 'Draft',
-            lastEdited: '2022-12-02T13:43:00Z',
-            recipients: 'No recipients yet',
-            openedPercent: 0,
-            clickedPercent: 0,
-            revenue: 0,
-            orders: 0,
-          },
-          {
-            id: '4',
-            campaignId: 'CAMP004',
-            name: 'Paris Pop-Up Announcement',
-            status: 'Draft',
-            lastEdited: '2022-12-02T09:41:00Z',
-            recipients: 'No recipients yet',
-            openedPercent: 0,
-            clickedPercent: 0,
-            revenue: 0,
-            orders: 0,
-          },
-        ];
 
-        const foundCampaign = mockCampaigns.find((c) => c.id === campaignId);
-        if (foundCampaign) {
-          setCampaign(foundCampaign);
+        const CAMPAIGN_QUERY = `
+          query GetCampaign($userId: Int!, $id: String!) {
+            campaign(userId: $userId, id: $id) {
+              id
+              campaignId
+              name
+              description
+              status
+              sentDate
+              recipients
+              openedPercent
+              clickedPercent
+              revenue
+              orders
+              contentBlocks
+              userId
+              createdAt
+              updatedAt
+            }
+          }
+        `;
+
+        const data = await fetchGraphQL<{
+          campaign: Campaign | null;
+        }>(CAMPAIGN_QUERY, {
+          userId: user.id,
+          id: campaignId,
+        });
+
+        if (data.campaign) {
+          setCampaign(data.campaign);
         } else {
           router.push('/marketing/campaigns');
         }
       } catch (error) {
-        // Handle error
         router.push('/marketing/campaigns');
       } finally {
         setLoading(false);
@@ -97,9 +73,75 @@ export default function CampaignDetailsPage() {
   }, [user?.id, campaignId, router]);
 
   const handleSave = async (updatedCampaign: Campaign) => {
-    // TODO: Implement GraphQL mutation to update campaign
-    // For now, just navigate back
-    router.push('/marketing/campaigns');
+    if (!user?.id) return;
+
+    const UPDATE_CAMPAIGN_MUTATION = `
+      mutation UpdateCampaign(
+        $userId: Int!
+        $id: String!
+        $name: String
+        $description: String
+        $status: String
+        $recipients: String
+        $sentDate: String
+        $openedPercent: Float
+        $clickedPercent: Float
+        $revenue: Float
+        $orders: Int
+        $contentBlocks: JSONObject
+      ) {
+        updateCampaign(
+          userId: $userId
+          id: $id
+          name: $name
+          description: $description
+          status: $status
+          recipients: $recipients
+          sentDate: $sentDate
+          openedPercent: $openedPercent
+          clickedPercent: $clickedPercent
+          revenue: $revenue
+          orders: $orders
+          contentBlocks: $contentBlocks
+        ) {
+          id
+          campaignId
+          name
+          description
+          status
+          sentDate
+          recipients
+          openedPercent
+          clickedPercent
+          revenue
+          orders
+          contentBlocks
+          userId
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    try {
+      await fetchGraphQL(UPDATE_CAMPAIGN_MUTATION, {
+        userId: user.id,
+        id: updatedCampaign.id,
+        name: updatedCampaign.name,
+        description: updatedCampaign.description || null,
+        status: updatedCampaign.status,
+        recipients: updatedCampaign.recipients,
+        sentDate: updatedCampaign.sentDate || null,
+        openedPercent: updatedCampaign.openedPercent,
+        clickedPercent: updatedCampaign.clickedPercent,
+        revenue: updatedCampaign.revenue,
+        orders: updatedCampaign.orders,
+        contentBlocks: updatedCampaign.contentBlocks || null,
+      });
+      router.push('/marketing/campaigns');
+    } catch (error) {
+      // Handle error
+    }
   };
 
   const handleCancel = () => {
