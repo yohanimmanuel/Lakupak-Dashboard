@@ -22,9 +22,11 @@ export default function CampaignDetailsPage() {
   const mode: 'view' | 'edit' = (modeParam === 'edit' && canEdit) ? 'edit' : 'view';
 
   useEffect(() => {
-    const fetchCampaign = async () => {
-      if (!user?.id || !campaignId) return;
+    if (!user?.id || !campaignId) return;
 
+    let ignore = false;
+
+    const fetchCampaign = async () => {
       try {
         setLoading(true);
 
@@ -57,19 +59,29 @@ export default function CampaignDetailsPage() {
           id: campaignId,
         });
 
-        if (data.campaign) {
-          setCampaign(data.campaign);
-        } else {
-          router.push('/marketing/campaigns');
+        if (!ignore) {
+          if (data.campaign) {
+            setCampaign(data.campaign);
+          } else {
+            router.push('/marketing/campaigns');
+          }
         }
       } catch (error) {
-        router.push('/marketing/campaigns');
+        if (!ignore) {
+          router.push('/marketing/campaigns');
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCampaign();
+
+    return () => {
+      ignore = true;
+    };
   }, [user?.id, campaignId, router]);
 
   const handleSave = async (updatedCampaign: Campaign) => {

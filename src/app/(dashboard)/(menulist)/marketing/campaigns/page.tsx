@@ -46,41 +46,53 @@ export default function MarketingCampaignsPage() {
     }
   `;
 
-  const fetchCampaigns = useCallback(async () => {
+  useEffect(() => {
     if (!user?.id) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    try {
-      const data = await fetchGraphQL<{
-        campaigns: {
-          nodes: Campaign[];
-          pagination: {
-            page: number;
-            limit: number;
-            totalCount: number;
-            totalPages: number;
+    let ignore = false;
+
+    const fetchCampaigns = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchGraphQL<{
+          campaigns: {
+            nodes: Campaign[];
+            pagination: {
+              page: number;
+              limit: number;
+              totalCount: number;
+              totalPages: number;
+            };
           };
-        };
-      }>(CAMPAIGNS_QUERY, {
-        userId: user.id,
-        page: 1,
-        limit: 100,
-      });
+        }>(CAMPAIGNS_QUERY, {
+          userId: user.id,
+          page: 1,
+          limit: 100,
+        });
 
-      setCampaigns(data.campaigns.nodes);
-    } catch (error) {
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+        if (!ignore) {
+          setCampaigns(data.campaigns.nodes);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setCampaigns([]);
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
 
-  useEffect(() => {
     fetchCampaigns();
-  }, [fetchCampaigns]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [user?.id]);
 
   const campaignToTableRow = (campaign: Campaign): CampaignTableRow => {
     return {
@@ -126,8 +138,8 @@ export default function MarketingCampaignsPage() {
         userId: user.id,
         id: campaign.id,
       });
-      // Refresh campaigns list
-      await fetchCampaigns();
+      // Refresh campaigns list by removing deleted campaign from state
+      setCampaigns(prev => prev.filter(c => c.id !== campaign.id));
     } catch (error) {
       // Handle error
     }
