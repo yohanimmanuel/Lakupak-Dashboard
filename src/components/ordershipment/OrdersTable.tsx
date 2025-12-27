@@ -26,6 +26,13 @@ const paymentTabs = [
   { label: "Paid" },
 ];
 
+const deliveryMethodTabs = [
+  { label: "All Methods" },
+  { label: "Distributor Fleet" },
+  { label: "3rd-Party Courier" },
+  { label: "Pickup" },
+];
+
 export default function OrdersTable({ 
   orders = [], 
   setOrdersAction, 
@@ -47,8 +54,10 @@ export default function OrdersTable({
   const [page, setPage] = useState(1);
   const [selectedStatusTab, setSelectedStatusTab] = useState("All");
   const [selectedPaymentTab, setSelectedPaymentTab] = useState("All");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("All Methods");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
+  const [showDeliveryDropdown, setShowDeliveryDropdown] = useState(false);
   
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -65,6 +74,11 @@ export default function OrdersTable({
   // Apply payment filter
   if (selectedPaymentTab !== "All") {
     filteredOrders = filteredOrders.filter((o: OrderTableRow) => o.paymentStatus === selectedPaymentTab);
+  }
+  
+  // Apply delivery method filter
+  if (selectedDeliveryMethod !== "All Methods") {
+    filteredOrders = filteredOrders.filter((o: OrderTableRow) => o.deliveryMethod === selectedDeliveryMethod);
   }
   
   // Apply search filter with sanitization
@@ -257,8 +271,8 @@ export default function OrdersTable({
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        {/* Status Tabs - Segmented Control */}
+      {/* Status Tabs - Segmented Control */}
+      <div className="mb-4">
         <div className="relative w-full md:w-auto flex items-center">
           <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
             {/* Sliding Indicator */}
@@ -299,49 +313,79 @@ export default function OrdersTable({
             ))}
           </div>
         </div>
+      </div>
+      
+      {/* Search and Filters */}
+      <div className="flex gap-2 w-full md:w-auto items-center justify-start mb-4">
+        <div className="relative w-full md:w-150">
+          <input
+            type="text"
+            placeholder="Search orders..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            aria-label="Search orders by order ID, buyer name, or tracking number"
+            maxLength={100}
+          />
+          <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
+        </div>
         
-        {/* Search and Filters */}
-        <div className="flex gap-2 w-full md:w-auto items-center justify-end">
-          <div className="relative w-full md:w-64">
-            <input
-              type="text"
-              placeholder="Search orders..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
-              aria-label="Search orders by order ID, buyer name, or tracking number"
-              maxLength={100}
-            />
-            <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
-          </div>
-          
-          {/* Payment Status Filter */}
-          <div className="relative">
-            <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
-              onClick={() => {
-                setShowPaymentDropdown(v => !v);
-                setShowFilterDropdown(false);
-              }}
-            >
-              <Filter className="w-4 h-4" />
-              {selectedPaymentTab}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-            </button>
-            {showPaymentDropdown && (
-              <div className="absolute right-0 mt-2 w-31.5 bg-white border border-gray-200 rounded-lg shadow z-20">
-                {paymentTabs.map(opt => (
-                  <button
-                    key={opt.label}
-                    onClick={() => { setSelectedPaymentTab(opt.label); setShowPaymentDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedPaymentTab === opt.label ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Payment Status Filter */}
+        <div className="relative">
+          <button
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              setShowPaymentDropdown(v => !v);
+              setShowFilterDropdown(false);
+              setShowDeliveryDropdown(false);
+            }}
+          >
+            <Filter className="w-4 h-4" />
+            {selectedPaymentTab}
+            <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+          </button>
+          {showPaymentDropdown && (
+            <div className="absolute right-0 mt-2 w-31.5 bg-white border border-gray-200 rounded-lg shadow z-20">
+              {paymentTabs.map(opt => (
+                <button
+                  key={opt.label}
+                  onClick={() => { setSelectedPaymentTab(opt.label); setShowPaymentDropdown(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedPaymentTab === opt.label ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Delivery Method Filter */}
+        <div className="relative">
+          <button
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              setShowDeliveryDropdown(v => !v);
+              setShowFilterDropdown(false);
+              setShowPaymentDropdown(false);
+            }}
+          >
+            <Filter className="w-4 h-4" />
+            {selectedDeliveryMethod}
+            <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+          </button>
+          {showDeliveryDropdown && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+              {deliveryMethodTabs.map(opt => (
+                <button
+                  key={opt.label}
+                  onClick={() => { setSelectedDeliveryMethod(opt.label); setShowDeliveryDropdown(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedDeliveryMethod === opt.label ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       

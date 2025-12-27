@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight, Send, Search, Filter, ChevronDown } from 'lucide-react';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
@@ -36,6 +36,9 @@ export default function CampaignTable({
   const userCurrency = user?.currency || getDefaultCurrency();
 
   const [selectedTab, setSelectedTab] = useState('All');
+  const [search, setSearch] = useState('');
+  const [selectedRecipient, setSelectedRecipient] = useState('All Recipients');
+  const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
@@ -68,9 +71,21 @@ export default function CampaignTable({
 
   const tableRows = useMemo(() => campaigns.map(campaignToTableRow), [campaigns, campaignToTableRow]);
 
+  // Get unique recipients for filter dropdown
+  const uniqueRecipients = useMemo(() => {
+    const recipients = new Set<string>();
+    tableRows.forEach((row) => {
+      if (row.recipients) {
+        recipients.add(row.recipients);
+      }
+    });
+    return Array.from(recipients).sort();
+  }, [tableRows]);
+
   const filteredCampaigns = useMemo(() => {
     let filtered = tableRows;
 
+    // Apply status filter
     if (selectedTab !== 'All') {
       if (selectedTab === 'Completed') {
         filtered = filtered.filter((c) => c.status === 'Sent' || c.status === 'Completed');
@@ -79,8 +94,22 @@ export default function CampaignTable({
       }
     }
 
+    // Apply search filter
+    if (search && search.trim().length > 0) {
+      const sanitizedSearch = search.trim().toLowerCase();
+      filtered = filtered.filter((c) =>
+        String(c.name || '').toLowerCase().includes(sanitizedSearch) ||
+        String(c.campaignId || '').toLowerCase().includes(sanitizedSearch)
+      );
+    }
+
+    // Apply recipient filter
+    if (selectedRecipient !== 'All Recipients') {
+      filtered = filtered.filter((c) => c.recipients === selectedRecipient);
+    }
+
     return filtered;
-  }, [tableRows, selectedTab]);
+  }, [tableRows, selectedTab, search, selectedRecipient]);
 
   // Pagination
   const rowsPerPage = 5;
@@ -96,7 +125,22 @@ export default function CampaignTable({
   // Reset to page 1 when filter changes
   useEffect(() => {
     setPage(1);
-  }, [selectedTab]);
+  }, [selectedTab, search, selectedRecipient]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.relative')) {
+        setShowRecipientDropdown(false);
+      }
+    };
+
+    if (showRecipientDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showRecipientDropdown]);
 
   const statusCounts = useMemo(() => {
     const counts = {
@@ -230,40 +274,105 @@ export default function CampaignTable({
   return (
     <>
       <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
-        {/* Status Tabs */}
-        <div className="mb-4">
-          <div className="relative w-full md:w-auto flex items-center">
-            <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
-              <div
-                className="absolute top-0 h-full transition-all duration-300"
-                style={{
-                  left: indicatorStyle.left,
-                  width: indicatorStyle.width,
-                  background: '#0a61d7',
-                  borderRadius: '0.75rem',
-                  zIndex: 1,
+      {/* Status Tabs */}
+      <div className="mb-4">
+        <div className="relative w-full md:w-auto flex items-center">
+          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+            <div
+              className="absolute top-0 h-full transition-all duration-300"
+              style={{
+                left: indicatorStyle.left,
+                width: indicatorStyle.width,
+                background: '#0a61d7',
+                borderRadius: '0.75rem',
+                zIndex: 1,
+              }}
+            />
+            {statusTabs.map((tab, idx) => (
+              <button
+                key={tab.label}
+                ref={(el) => {
+                  tabRefs.current[idx] = el;
                 }}
-              />
-              {statusTabs.map((tab, idx) => (
+                onClick={() => {
+                  setSelectedTab(tab.label);
+                  setSelectedCampaigns(new Set());
+                }}
+                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                  selectedTab === tab.label ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
+                } ${idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''}`}
+                style={{
+                  background: 'transparent',
+                  boxShadow: 'none',
+                  minWidth: 0,
+                  flex: 'unset',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex gap-2 w-full md:w-auto items-center justify-start mb-4">
+        <div className="relative w-full md:w-150">
+          <input
+            type="text"
+            placeholder="Search campaigns..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            aria-label="Search campaigns by name or campaign ID"
+            maxLength={100}
+          />
+          <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
+        </div>
+
+        {/* Recipients Filter Dropdown */}
+        <div className="relative">
+          <button
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              setShowRecipientDropdown((v) => !v);
+            }}
+          >
+            <Filter className="w-4 h-4" />
+            {selectedRecipient}
+            <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+          </button>
+          {showRecipientDropdown && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20 max-h-60 overflow-y-auto">
+              <button
+                onClick={() => {
+                  setSelectedRecipient('All Recipients');
+                  setShowRecipientDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                  selectedRecipient === 'All Recipients' ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
+                }`}
+              >
+                All Recipients
+              </button>
+              {uniqueRecipients.map((recipient) => (
                 <button
-                  key={tab.label}
-                  ref={(el) => {
-                    tabRefs.current[idx] = el;
+                  key={recipient}
+                  onClick={() => {
+                    setSelectedRecipient(recipient);
+                    setShowRecipientDropdown(false);
                   }}
-                  onClick={() => setSelectedTab(tab.label)}
-                  className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
-                    selectedTab === tab.label ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
-                  } ${idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''}`}
-                  style={{
-                    background: 'transparent',
-                  }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                    selectedRecipient === recipient ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
+                  }`}
                 >
-                  {tab.label}
+                  {recipient}
                 </button>
               ))}
             </div>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Bulk Action Bar */}
         {selectedCampaigns.size > 0 && (
