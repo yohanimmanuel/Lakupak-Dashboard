@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2 } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, Users } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
@@ -486,38 +486,44 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       })()}
 
       <div className="overflow-x-auto hidden md:block rounded-lg">
-        <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
-          <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
-            <tr>
-              <th className="py-3 px-4 font-medium uppercase">
-                <button
-                  onClick={handleSelectAll}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    allFilteredSelected
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
-                >
-                  {allFilteredSelected && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </th>
-              <th className="py-3 px-4 font-medium uppercase">ID</th>
-              <th className="py-3 px-4 font-medium uppercase">Name</th>
-              <th className="py-3 px-4 font-medium uppercase">Business Type</th>
-              <th className="py-3 px-4 font-medium uppercase">Location</th>
-              <th className="py-3 px-4 font-medium uppercase">Total Supplies</th>
-              <th className="py-3 px-4 font-medium uppercase">Total Purchases</th>
-              <th className="py-3 px-4 font-medium uppercase">Created At</th>
-              <th className="py-3 px-4 font-medium uppercase">Status</th>
-              <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {pagedSuppliers.map((supplier: SupplierTableRow) => {
+        {filteredSuppliers.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm">No suppliers recorded</p>
+          </div>
+        ) : (
+          <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
+            <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
+              <tr>
+                <th className="py-3 px-4 font-medium uppercase">
+                  <button
+                    onClick={handleSelectAll}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      allFilteredSelected
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {allFilteredSelected && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </th>
+                <th className="py-3 px-4 font-medium uppercase">ID</th>
+                <th className="py-3 px-4 font-medium uppercase">Name</th>
+                <th className="py-3 px-4 font-medium uppercase">Business Type</th>
+                <th className="py-3 px-4 font-medium uppercase">Location</th>
+                <th className="py-3 px-4 font-medium uppercase">Total Supplies</th>
+                <th className="py-3 px-4 font-medium uppercase">Total Purchases</th>
+                <th className="py-3 px-4 font-medium uppercase">Created At</th>
+                <th className="py-3 px-4 font-medium uppercase">Status</th>
+                <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {pagedSuppliers.map((supplier: SupplierTableRow) => {
               // Get the original supplier data to check for missing data
               const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
               
@@ -660,32 +666,40 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             })}
             </tbody>
         </table>
+        )}
       </div>
       {/* Mobile Cards */}
       <div className="md:hidden">
-        {/* Select All for Mobile View */}
-        <div className="flex items-center gap-2 mb-3">
-          <button
-            onClick={handleSelectAll}
-            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-              allFilteredSelected
-                ? 'bg-green-500 border-green-500'
-                : 'bg-white border-gray-300 hover:border-green-400'
-            }`}
-          >
-            {allFilteredSelected && (
-              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-          </button>
-          <span className="text-sm font-medium text-gray-700">
-            Select All ({filteredSuppliers.length} suppliers)
-          </span>
-        </div>
-        
-        <div className="flex flex-col gap-4">
-          {pagedSuppliers.map(supplier => {
+        {filteredSuppliers.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm">No suppliers recorded</p>
+          </div>
+        ) : (
+          <>
+            {/* Select All for Mobile View */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={handleSelectAll}
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  allFilteredSelected
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
+              >
+                {allFilteredSelected && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+              <span className="text-sm font-medium text-gray-700">
+                Select All ({filteredSuppliers.length} suppliers)
+              </span>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              {pagedSuppliers.map(supplier => {
             // Get the original supplier data to check for missing data
             const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
             
@@ -828,6 +842,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             );
           })}
         </div>
+        </>
+        )}
       </div>
       {/* Pagination */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">

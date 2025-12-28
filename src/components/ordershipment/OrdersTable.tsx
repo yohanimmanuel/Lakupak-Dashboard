@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2 } from "lucide-react";
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2, ShoppingCart } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
@@ -419,39 +419,45 @@ export default function OrdersTable({
       )}
       
       <div className="overflow-x-auto hidden md:block rounded-lg">
-        <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
-          <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
-            <tr>
-              <th className="py-3 px-4 font-medium uppercase">
-                <button
-                  onClick={handleSelectAll}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    allFilteredSelected
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
-                >
-                  {allFilteredSelected && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </th>
-                             <th className="py-3 px-4 font-medium uppercase">Order</th>
-               <th className="py-3 px-4 font-medium uppercase">Date</th>
-               <th className="py-3 px-4 font-medium uppercase">Buyer</th>
-               <th className="py-3 px-4 font-medium uppercase">Status</th>
-               <th className="py-3 px-4 font-medium uppercase">Total</th>
-               <th className="py-3 px-4 font-medium uppercase">Items</th>
-               <th className="py-3 px-4 font-medium uppercase">Delivery</th>
-               <th className="py-3 px-4 font-medium uppercase">Tracking</th>
-               <th className="py-3 px-4 font-medium uppercase">Payment</th>
-               <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {pagedOrders.map((order) => (
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm">No orders recorded</p>
+          </div>
+        ) : (
+          <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
+            <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
+              <tr>
+                <th className="py-3 px-4 font-medium uppercase">
+                  <button
+                    onClick={handleSelectAll}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      allFilteredSelected
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {allFilteredSelected && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </th>
+                               <th className="py-3 px-4 font-medium uppercase">Order</th>
+                 <th className="py-3 px-4 font-medium uppercase">Date</th>
+                 <th className="py-3 px-4 font-medium uppercase">Buyer</th>
+                 <th className="py-3 px-4 font-medium uppercase">Status</th>
+                 <th className="py-3 px-4 font-medium uppercase">Total</th>
+                 <th className="py-3 px-4 font-medium uppercase">Items</th>
+                 <th className="py-3 px-4 font-medium uppercase">Delivery</th>
+                 <th className="py-3 px-4 font-medium uppercase">Tracking</th>
+                 <th className="py-3 px-4 font-medium uppercase">Payment</th>
+                 <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {pagedOrders.map((order) => (
               <tr 
                 key={order.orderId} 
                 className={`border-b transition cursor-pointer ${
@@ -523,33 +529,41 @@ export default function OrdersTable({
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Mobile Cards */}
       <div className="md:hidden">
-        {/* Select All for Mobile View */}
-        <div className="flex items-center gap-2 mb-3">
-          <button
-            onClick={handleSelectAll}
-            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-              allFilteredSelected
-                ? 'bg-green-500 border-green-500'
-                : 'bg-white border-gray-300 hover:border-green-400'
-            }`}
-          >
-            {allFilteredSelected && (
-              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-          </button>
-          <span className="text-sm font-medium text-gray-700">
-            Select All ({filteredOrders.length} orders)
-          </span>
-        </div>
-        
-        <div className="flex flex-col gap-4">
-          {pagedOrders.map(order => (
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm">No orders recorded</p>
+          </div>
+        ) : (
+          <>
+            {/* Select All for Mobile View */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={handleSelectAll}
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  allFilteredSelected
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 hover:border-green-400'
+                }`}
+              >
+                {allFilteredSelected && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+              <span className="text-sm font-medium text-gray-700">
+                Select All ({filteredOrders.length} orders)
+              </span>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              {pagedOrders.map(order => (
             <div 
               key={order.orderId} 
               className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
@@ -617,6 +631,8 @@ export default function OrdersTable({
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
 
       {/* Pagination */}

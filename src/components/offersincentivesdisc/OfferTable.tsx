@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal } from 'lucide-react';
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
@@ -795,36 +795,42 @@ export default function OfferTable({
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">
-                <button
-                  onClick={handleSelectAll}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    allFilteredSelected
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
-                >
-                  {allFilteredSelected && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Name</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">Total Discount</th>
-              <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-xs whitespace-nowrap">
-            {pagedRows.map((row, index) => (
+        {filteredRows.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <Tag className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm">No offers recorded</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">
+                  <button
+                    onClick={handleSelectAll}
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      allFilteredSelected
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
+                    {allFilteredSelected && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Name</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Total Discount</th>
+                <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs whitespace-nowrap">
+              {pagedRows.map((row, index) => (
               <tr 
                 key={row.id} 
                 className={`border-b border-gray-100 transition cursor-pointer ${
@@ -914,6 +920,7 @@ export default function OfferTable({
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Pagination */}
