@@ -401,13 +401,28 @@ export const fetchActiveOffersMap = async (
   const now = new Date();
   const offerWhere: Prisma.OfferWhereInput = {
     status: 'active',
-    startDate: { lte: now },
-    endDate: { gte: now },
     offerProducts: {
       some: {
         productId: { in: productIds },
       },
     },
+    // Filter by date ranges: offer is active if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
+    OR: [
+      {
+        dateRanges: {
+          none: {}, // No date ranges = unlimited offer
+        },
+      },
+      {
+        dateRanges: {
+          some: {
+            isActive: true,
+            startDate: { lte: now },
+            endDate: { gte: now },
+          },
+        },
+      },
+    ],
   };
 
   if (typeof userScope === 'number') {

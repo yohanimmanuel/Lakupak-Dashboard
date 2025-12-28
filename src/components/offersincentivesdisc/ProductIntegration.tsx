@@ -302,8 +302,6 @@ export default function ProductIntegration({
               name
               status
               type
-              startDate
-              endDate
               discountTypes {
                 id
                 discountType
@@ -343,8 +341,6 @@ export default function ProductIntegration({
               name: string;
               status: string;
               type: string[];
-              startDate: string;
-              endDate: string;
               discountTypes: Array<{
                 id: string;
                 discountType: string;
@@ -1429,10 +1425,10 @@ export default function ProductIntegration({
 
             {/* Footer */}
             <div className="flex flex-col gap-3 p-4 border-t border-gray-200 text-sm flex-shrink-0 rounded-b-lg">
-              {/* Validation Message */}
-              {(selectedOfferTypes.length === 0 || selectedDateRanges.length === 0) && (
+              {/* Validation Message - Date ranges are now optional */}
+              {selectedOfferTypes.length === 0 && (
                 <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  ⚠️ Please select at least one offer type and one date range
+                  ⚠️ Please select at least one offer type
                 </div>
               )}
               
@@ -1479,17 +1475,14 @@ export default function ProductIntegration({
                   // Otherwise, show apply button
                   return (
                 <button
-                  disabled={selectedOfferTypes.length === 0 || selectedDateRanges.length === 0}
+                  disabled={selectedOfferTypes.length === 0}
                   onClick={() => {
-                    // Validate selections
+                    // Validate selections - date ranges are now optional
                     if (selectedOfferTypes.length === 0) {
                       alert('Please select at least one offer type');
                       return;
                     }
-                    if (selectedDateRanges.length === 0) {
-                      alert('Please select at least one date range');
-                      return;
-                    }
+                    // Date ranges are optional - no validation needed
                   if (isBatchEditMode && offerData) {
                     // In batch edit mode, update parent state
                     const existingProducts = offerData.products || [];
@@ -1576,7 +1569,7 @@ export default function ProductIntegration({
                   setSelectedDateRanges([]);
                 }}
                 className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors ${
-                  selectedOfferTypes.length === 0 || selectedDateRanges.length === 0
+                  selectedOfferTypes.length === 0
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
                 }`}

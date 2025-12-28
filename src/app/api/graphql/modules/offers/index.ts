@@ -37,8 +37,6 @@ export const offersTypeDefs = /* GraphQL */ `
     description: String
     type: [String!]!
     status: String!
-    startDate: String!
-    endDate: String!
     totalUsage: Int!
     totalDiscountGiven: Float!
     discountTypes: [OfferDiscount!]!
@@ -94,8 +92,6 @@ export const offersTypeDefs = /* GraphQL */ `
       description: String
       type: [String!]!
       status: String
-      startDate: String!
-      endDate: String!
       discountTypes: [DiscountTypeInput!]!
       productIds: [String!]!
       dateRanges: [DateRangeInput!]
@@ -108,8 +104,6 @@ export const offersTypeDefs = /* GraphQL */ `
       description: String
       type: [String!]
       status: String
-      startDate: String
-      endDate: String
       discountTypes: [DiscountTypeInput!]
       productIds: [String!]
       dateRanges: [DateRangeInput!]
@@ -155,31 +149,15 @@ const mapOffer = (
     };
   }>,
 ) => {
-  // Check if date ranges are expired and set status to inactive if needed
-  let finalStatus = offer.status;
-  if (offer.dateRanges && offer.dateRanges.length > 0) {
-    const expired = hasExpiredDateRanges(offer.dateRanges);
-    if (expired && offer.status !== 'inactive') {
-      finalStatus = 'inactive';
-      // Update in database asynchronously (don't block)
-      prisma.offer.update({
-        where: { id: offer.id },
-        data: { status: 'inactive' },
-      }).catch(() => {
-        // Ignore errors
-      });
-    }
-  }
-
+  // Don't auto-inactivate expired offers - allow users to manually control status
+  // Status is now flexible and can be reactivated by changing date ranges
   return {
     id: offer.id,
     offerId: offer.offerId,
     name: offer.name,
     description: offer.description,
     type: offer.type,
-    status: finalStatus,
-    startDate: offer.startDate.toISOString(),
-    endDate: offer.endDate.toISOString(),
+    status: offer.status,
     totalUsage: offer.totalUsage,
     totalDiscountGiven: offer.totalDiscountGiven,
     discountTypes: offer.offerDiscountTypes.map((discount) => ({
@@ -270,9 +248,9 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
       userId,
     },
     include: {
-      offerDiscountTypes: true,
-      dateRanges: true,
-      offerProducts: true,
+        offerDiscountTypes: true,
+        dateRanges: true,
+        offerProducts: true,
     },
   });
 
@@ -289,8 +267,6 @@ const createOffer = async (args: {
   description?: string | null;
   type: string[];
   status?: string | null;
-  startDate: string;
-  endDate: string;
   discountTypes: Array<{
     discountType: string;
     discountValue: number;
@@ -316,21 +292,14 @@ const createOffer = async (args: {
     description,
     type,
     status = 'active',
-    startDate,
-    endDate,
     discountTypes,
     productIds,
     dateRanges = [],
   } = args;
 
-  if (!name || !type || !discountTypes?.length || !startDate || !endDate || !productIds?.length) {
+  // Date ranges are now optional - offers can exist without date restrictions
+  if (!name || !type || !discountTypes?.length || !productIds?.length) {
     throw new Error('Missing required fields');
-  }
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (start >= end) {
-    throw new Error('End date must be after start date');
   }
 
   for (const discountType of discountTypes) {
@@ -364,8 +333,6 @@ const createOffer = async (args: {
         description: description || null,
         type,
         status: status || 'active',
-        startDate: start,
-        endDate: end,
         userId,
       },
     });
@@ -441,8 +408,6 @@ const updateOffer = async (args: {
   description?: string | null;
   type?: string[] | null;
   status?: string | null;
-  startDate?: string | null;
-  endDate?: string | null;
   discountTypes?: Array<{
     discountType: string;
     discountValue: number;
@@ -469,8 +434,6 @@ const updateOffer = async (args: {
     description,
     type,
     status,
-    startDate,
-    endDate,
     discountTypes,
     productIds,
     dateRanges,
@@ -497,30 +460,17 @@ const updateOffer = async (args: {
     description: string | null;
     type: string[];
     status: string;
-    startDate: Date;
-    endDate: Date;
   }> = {};
 
   if (name !== undefined && name !== null) cleanUpdateData.name = name;
   if (description !== undefined) cleanUpdateData.description = description ?? null;
   if (type !== undefined) cleanUpdateData.type = type ?? [];
   if (status !== undefined && status !== null) cleanUpdateData.status = status;
-  if (startDate !== undefined && startDate !== null) cleanUpdateData.startDate = new Date(startDate);
-  if (endDate !== undefined && endDate !== null) cleanUpdateData.endDate = new Date(endDate);
-
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (start >= end) {
-      throw new Error('End date must be after start date');
-    }
-  }
 
   // Check if only status is being updated (most common case for bulk operations)
   const isStatusOnlyUpdate = status !== undefined && status !== null &&
     name === undefined && description === undefined && type === undefined &&
-    startDate === undefined && endDate === undefined && discountTypes === undefined &&
-    productIds === undefined && dateRanges === undefined;
+    discountTypes === undefined && productIds === undefined && dateRanges === undefined;
 
   const updatedOffer = await prisma.$transaction(async (tx) => {
     const offer = await tx.offer.update({
@@ -576,10 +526,14 @@ const updateOffer = async (args: {
     }
 
     if (dateRanges !== undefined) {
+      // Hard delete: remove all existing date ranges for this offer
       await tx.dateRange.deleteMany({
-        where: { offerId: offer.id },
+        where: { 
+          offerId: offer.id,
+        },
       });
 
+      // Create new date ranges if provided
       if (dateRanges && dateRanges.length > 0) {
         await tx.dateRange.createMany({
           data: dateRanges.map((dr) => ({
@@ -647,12 +601,12 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
 
   const offerToDelete = await prisma.offer.findFirst({
     where,
-      include: {
-        offerDiscountTypes: true,
-        offerProducts: true,
-        dateRanges: true,
-      },
-    });
+    include: {
+      offerDiscountTypes: true,
+      offerProducts: true,
+      dateRanges: true,
+    },
+  });
 
     if (!offerToDelete) {
       throw new Error('Offer not found or you do not have permission to delete it');

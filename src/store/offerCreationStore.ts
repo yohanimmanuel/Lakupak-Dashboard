@@ -253,7 +253,9 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
           return {
             dateRanges: filtered,
             selectedDateRange: selectedRemoved ? null : state.selectedDateRange,
-            isDateRangeConfigured: filtered.length > 0,
+            // Only set isDateRangeConfigured to false if it wasn't explicitly set to true (skipped)
+            // This allows users to skip date ranges without them being re-enabled
+            isDateRangeConfigured: filtered.length > 0 || state.isDateRangeConfigured,
           };
         });
         get().updateReadyToCreate();
@@ -341,13 +343,11 @@ export const useOfferCreationStore = create<OfferCreationState & OfferCreationAc
       
       updateReadyToCreate: () => {
         const state = get();
-        const hasDateRange = Boolean(state.selectedDateRange && state.selectedDateRange.startDate && state.selectedDateRange.endDate);
-        const hasLegacyDates = Boolean(state.startDate && state.endDate && state.startDate !== '' && state.endDate !== '');
-        
+        // Date ranges are now optional - can proceed without them
+        // Only check if name, discount types, and products are configured
         const isReady = 
           state.name.trim() !== '' &&
           state.discountTypes.length > 0 &&
-          (hasDateRange || hasLegacyDates) &&
           Object.keys(state.productOfferBadges || {}).length > 0;
         
         set({ isReadyToCreate: isReady });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar, Plus, Edit, Trash2 } from 'lucide-react';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateDateRangeModal from './CreateDateRangeModal';
@@ -56,45 +56,54 @@ export default function RangeManagement({
   const [itemToDelete, setItemToDelete] = useState<DateRange | null>(null);
 
   // Use offerData if provided (details view), otherwise use store data (create view)
-  const store = useOfferCreationStore();
+  const { 
+    removeDateRange, 
+    addDateRange, 
+    updateDateRange,
+    setDateRangeConfigured, 
+    updateReadyToCreate, 
+    dateRanges: storeDateRanges 
+  } = useOfferCreationStore();
   const isBatchEditMode = Boolean(offerData && onOfferChange);
   
-  let dateRanges: DateRange[] = [];
-  
-  if (offerData) {
-    // Use data from database for details view
-    dateRanges = (offerData.dateRanges || []).map((dr) => ({
-      ...dr,
-      description: dr.description || '',
-      offerCount: 0,
-      createdAt: dr.createdAt ? new Date(dr.createdAt).toISOString() : new Date().toISOString(),
-      // Convert ISO dates to yyyy-MM-dd format for HTML date inputs
-      startDate: dr.startDate ? new Date(dr.startDate).toISOString().split('T')[0] : '',
-      endDate: dr.endDate ? new Date(dr.endDate).toISOString().split('T')[0] : '',
-    }));
-  } else {
-    const dateRangesFromStore: DateRange[] = (store.dateRanges || []).map((dr) => ({
-      ...dr,
-      offerCount: 0,
-      createdAt: (dr as { createdAt?: string }).createdAt || new Date().toISOString(),
-      description: dr.description || `From ${new Date(dr.startDate).toLocaleDateString()} to ${new Date(dr.endDate).toLocaleDateString()}`,
-      isActive: dr.isActive ?? true,
-    }));
+  // Memoize dateRanges computation to prevent unnecessary re-computations
+  // Following React best practices: compute derived data during render, but memoize if expensive
+  const dateRanges: DateRange[] = useMemo(() => {
+    if (offerData) {
+      // Use data from database for details view
+      return (offerData.dateRanges || []).map((dr) => ({
+        ...dr,
+        description: dr.description || '',
+        offerCount: 0,
+        createdAt: dr.createdAt ? new Date(dr.createdAt).toISOString() : new Date().toISOString(),
+        // Convert ISO dates to yyyy-MM-dd format for HTML date inputs
+        startDate: dr.startDate ? new Date(dr.startDate).toISOString().split('T')[0] : '',
+        endDate: dr.endDate ? new Date(dr.endDate).toISOString().split('T')[0] : '',
+      }));
+    } else {
+      const dateRangesFromStore: DateRange[] = (storeDateRanges || []).map((dr) => ({
+        ...dr,
+        offerCount: 0,
+        createdAt: (dr as { createdAt?: string }).createdAt || new Date().toISOString(),
+        description: dr.description || `From ${new Date(dr.startDate).toLocaleDateString()} to ${new Date(dr.endDate).toLocaleDateString()}`,
+        isActive: dr.isActive ?? true,
+      }));
 
-    // Fallback: if arrays are empty but a selection exists (older persisted state), render the selection
-    dateRanges = dateRangesFromStore.length > 0
-      ? dateRangesFromStore
-      : (selectedDateRange ? [{
-          id: selectedDateRange.id,
-          name: selectedDateRange.name,
-          description: selectedDateRange.description || `From ${new Date(selectedDateRange.startDate).toLocaleDateString()} to ${new Date(selectedDateRange.endDate).toLocaleDateString()}`,
-          startDate: selectedDateRange.startDate,
-          endDate: selectedDateRange.endDate,
-          isActive: selectedDateRange.isActive ?? true,
-          offerCount: 0,
-          createdAt: new Date().toISOString(),
-        }] : []);
-  }
+      // Fallback: if arrays are empty but a selection exists (older persisted state), render the selection
+      return dateRangesFromStore.length > 0
+        ? dateRangesFromStore
+        : (selectedDateRange ? [{
+            id: selectedDateRange.id,
+            name: selectedDateRange.name,
+            description: selectedDateRange.description || `From ${new Date(selectedDateRange.startDate).toLocaleDateString()} to ${new Date(selectedDateRange.endDate).toLocaleDateString()}`,
+            startDate: selectedDateRange.startDate,
+            endDate: selectedDateRange.endDate,
+            isActive: selectedDateRange.isActive ?? true,
+            offerCount: 0,
+            createdAt: new Date().toISOString(),
+          }] : []);
+    }
+  }, [offerData, storeDateRanges, selectedDateRange]);
 
   const handleEdit = (range: DateRange) => {
     setEditingRange(range);
@@ -119,7 +128,7 @@ export default function RangeManagement({
       onOfferChange!({ dateRanges: updatedDateRanges });
     } else {
       // In create view, remove from store
-      store.removeDateRange(itemToDelete.id);
+      removeDateRange(itemToDelete.id);
     }
     setShowDeleteModal(false);
     setItemToDelete(null);
@@ -140,15 +149,32 @@ export default function RangeManagement({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">{isNewOffer ? 'Date Range' : 'Range Management'}</h2>
-          <p className="text-gray-500 text-sm">{isNewOffer ? 'Set the active period for your new offer' : 'Manage date ranges for offers'}</p>
+          <p className="text-gray-500 text-sm">{isNewOffer ? 'Set the active period for your new offer (optional)' : 'Manage date ranges for offers'}</p>
         </div>
-        <button
-          onClick={() => { setEditingRange(null); setShowCreateModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Create Date Range
-        </button>
+        <div className="flex items-center gap-2">
+          {isNewOffer && dateRanges.length === 0 && (
+            <button
+              onClick={() => {
+                // Mark as skipped - clear date ranges and mark as configured to allow proceeding
+                if (isBatchEditMode) {
+                  onOfferChange!({ dateRanges: [] });
+                } else {
+                  // First mark as configured (skipped), then clear date ranges
+                  // The removeDateRange function now preserves isDateRangeConfigured if it's true
+                  setDateRangeConfigured(true);
+                  // Clear all date ranges
+                  const currentRanges = [...storeDateRanges];
+                  currentRanges.forEach(dr => removeDateRange(dr.id));
+                  // Update ready state
+                  updateReadyToCreate();
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition text-sm"
+            >
+              Skip
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Empty state when no ranges */}
@@ -158,32 +184,101 @@ export default function RangeManagement({
             <Calendar className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Date Range Configured</h3>
-          <p className="text-gray-500 text-sm mb-4">Create a date range to define when your offer will be active.</p>
-          <button onClick={() => { setEditingRange(null); setShowCreateModal(true); }} className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors mx-auto">
-            <Plus className="w-4 h-4" />
-            Create Date Range
-          </button>
+          <p className="text-gray-500 text-sm mb-4">
+            Offers may or may not have date restrictions and will remain active or inactive based on its status. 
+            You can optionally create date ranges to limit when the offer is available.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            {isNewOffer && (
+              <button 
+                onClick={() => {
+                  // Mark as skipped - clear date ranges and mark as configured to allow proceeding
+                  if (isBatchEditMode) {
+                    onOfferChange!({ dateRanges: [] });
+                  } else {
+                    // First mark as configured (skipped), then clear date ranges
+                    // The removeDateRange function now preserves isDateRangeConfigured if it's true
+                    setDateRangeConfigured(true);
+                    // Clear all date ranges
+                    const currentRanges = [...storeDateRanges];
+                    currentRanges.forEach(dr => removeDateRange(dr.id));
+                    // Update ready state
+                    updateReadyToCreate();
+                  }
+                }} 
+                className="flex items-center gap-2 px-6 py-3 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Skip
+              </button>
+            )}
+            <button 
+              onClick={() => { setEditingRange(null); setShowCreateModal(true); }} 
+              className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Date Range (Optional)
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-black">Date Ranges</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {dateRanges.map((range) => {
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-black">Date Range</h3>
+            {isNewOffer && (
+              <button
+                onClick={() => {
+                  // Mark as skipped - clear date ranges and mark as configured to allow proceeding
+                  if (isBatchEditMode) {
+                    onOfferChange!({ dateRanges: [] });
+                  } else {
+                    // First mark as configured (skipped), then clear date ranges
+                    setDateRangeConfigured(true);
+                    const currentRanges = [...storeDateRanges];
+                    currentRanges.forEach(dr => removeDateRange(dr.id));
+                    updateReadyToCreate();
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition text-sm"
+              >
+                Skip
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {dateRanges.slice(0, 1).map((range) => {
+              const now = new Date();
+              const rangeEnd = new Date(range.endDate);
+              const isExpired = range.isActive && now > rangeEnd;
+              
               return (
-                <div key={range.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div key={range.id} className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow ${
+                  isExpired ? 'border-orange-200 bg-orange-50' : 'border-gray-200'
+                }`}>
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
-                      <h4 className="text-md font-semibold text-black mb-1">{range.name}</h4>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-md font-semibold text-black">{range.name}</h4>
+                        {isExpired && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-orange-500 text-white rounded">
+                            Expired
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-600 mb-2">{range.description}</p>
+                      {isExpired && (
+                        <p className="text-xs text-orange-700 mb-2 italic">
+                          This date range has expired. Update the dates to reactivate.
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => handleToggleActive(range.id)}
                       className={`w-3 h-3 rounded-full border-2 transition-colors ${
-                        range.isActive 
+                        range.isActive && !isExpired
                           ? 'bg-green-500 border-green-500' 
                           : 'bg-white border-gray-300'
                       }`}
-                      title={range.isActive ? 'Active' : (new Date() > new Date(range.endDate) ? 'Expired' : 'Inactive')}
+                      title={range.isActive && !isExpired ? 'Active' : isExpired ? 'Expired' : 'Inactive'}
                     />
                   </div>
 
@@ -255,21 +350,25 @@ export default function RangeManagement({
 
             if (isBatchEditMode) {
               // In batch edit mode, update parent state
-              let updatedDateRanges;
+              // Only allow one date range - replace if editing, or set as single item if creating
               if (editingRange) {
-                updatedDateRanges = dateRanges.map(dr => 
+                const updatedDateRanges = dateRanges.map(dr => 
                   dr.id === preserveId ? payload : dr
                 );
+                onOfferChange!({ dateRanges: updatedDateRanges });
               } else {
-                updatedDateRanges = [...dateRanges, payload];
+                // Replace all with just this one (limit to 1 range)
+                onOfferChange!({ dateRanges: [payload] });
               }
-              onOfferChange!({ dateRanges: updatedDateRanges });
             } else {
               // In create view, update store
               if (editingRange) {
-                store.updateDateRange(preserveId, payload);
+                updateDateRange(preserveId, payload);
               } else {
-                store.addDateRange(payload);
+                // Clear existing ranges first (limit to 1 range)
+                const currentRanges = [...storeDateRanges];
+                currentRanges.forEach(dr => removeDateRange(dr.id));
+                addDateRange(payload);
               }
             }
             setShowCreateModal(false);

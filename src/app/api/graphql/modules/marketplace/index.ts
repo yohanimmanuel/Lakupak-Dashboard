@@ -725,17 +725,33 @@ const fetchMarketplaceProducts = async (args: {
   const soldCountMap = await calculateSoldCounts(prisma, productIds);
   
   // Get only ACTIVE offers to check real-time status
+  const now = new Date();
   const allOffers = await prisma.offer.findMany({
     where: {
       userId: { in: userIds },
       status: 'active',
-      startDate: { lte: new Date() },
-      endDate: { gte: new Date() },
       offerProducts: {
         some: {
           productId: { in: productIds }
         }
-      }
+      },
+      // Filter by date ranges: offer is active if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
+      OR: [
+        {
+          dateRanges: {
+            none: {}, // No date ranges = unlimited offer
+          },
+        },
+        {
+          dateRanges: {
+            some: {
+              isActive: true,
+              startDate: { lte: now },
+              endDate: { gte: now },
+            },
+          },
+        },
+      ],
     },
     include: {
       offerProducts: true,
@@ -778,14 +794,8 @@ const fetchMarketplaceProducts = async (args: {
 
   // Filter offers - keep offer if at least one discount type is still usable AND date constraints are met
   const validOffers = [];
-  const now = new Date();
   
   for (const offer of allOffers) {
-    // Check main date range (already filtered in query, but double-check)
-    if (offer.startDate > now || offer.endDate < now) {
-      continue;
-    }
-    
     // Check date ranges if they exist
     // Note: Date ranges are used for filtering active offers in marketplace
     // If offer has date ranges, at least one must be active for the offer to be valid

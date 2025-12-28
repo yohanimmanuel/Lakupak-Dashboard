@@ -77,7 +77,8 @@ export default function CreateOfferPage() {
 
   // Compute status dots from persisted data to survive reloads
   const isOfferTypeConfigured = discountTypes.length > 0;
-  const isDateRangeConfiguredComputed = Boolean(selectedDateRange || (dateRanges && dateRanges.length > 0));
+  // Date ranges are optional - can be configured by having ranges OR by explicitly skipping (isDateRangeConfigured flag)
+  const isDateRangeConfiguredComputed = isDateRangeConfigured || Boolean(selectedDateRange || (dateRanges && dateRanges.length > 0));
   const isProductsConfigured = Object.keys(productOfferBadges || {}).length > 0;
 
   const tabs = [
@@ -116,15 +117,6 @@ export default function CreateOfferPage() {
     setIsCreating(true);
     
     try {
-      // Get dates from selected range or use main dates
-      let offerStartDate = startDate;
-      let offerEndDate = endDate;
-      
-      if (selectedDateRange) {
-        offerStartDate = selectedDateRange.startDate;
-        offerEndDate = selectedDateRange.endDate;
-      }
-
       // Determine offer types based on discount types
       const activeDiscountTypes = discountTypes.filter(dt => dt.isActive);
       const offerTypes: ('discount' | 'promotion')[] = [];
@@ -151,8 +143,6 @@ export default function CreateOfferPage() {
           $description: String
           $type: [String!]!
           $status: String
-          $startDate: String!
-          $endDate: String!
           $discountTypes: [DiscountTypeInput!]!
           $productIds: [String!]!
           $dateRanges: [DateRangeInput!]
@@ -163,8 +153,6 @@ export default function CreateOfferPage() {
             description: $description
             type: $type
             status: $status
-            startDate: $startDate
-            endDate: $endDate
             discountTypes: $discountTypes
             productIds: $productIds
             dateRanges: $dateRanges
@@ -175,8 +163,6 @@ export default function CreateOfferPage() {
             description
             type
             status
-            startDate
-            endDate
             totalUsage
             totalDiscountGiven
             discountTypes {
@@ -219,8 +205,6 @@ export default function CreateOfferPage() {
         description: description || null,
         type: offerTypes,
         status: offerStatus,
-        startDate: offerStartDate,
-        endDate: offerEndDate,
         discountTypes: graphQLDiscountTypes,
         productIds,
         dateRanges: graphQLDateRanges.length > 0 ? graphQLDateRanges : null,

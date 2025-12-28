@@ -27,8 +27,6 @@ export default function OffersPage() {
           description
           type
           status
-          startDate
-          endDate
           totalUsage
           totalDiscountGiven
           discountTypes {
@@ -77,8 +75,6 @@ export default function OffersPage() {
             description: string | null;
             type: string[];
             status: string;
-            startDate: string;
-            endDate: string;
             totalUsage: number;
             totalDiscountGiven: number;
             discountTypes: Array<{
@@ -119,8 +115,6 @@ export default function OffersPage() {
         description: offer.description || undefined,
         type: offer.type as ('discount' | 'promotion')[],
         status: offer.status as 'active' | 'expired' | 'inactive',
-        startDate: offer.startDate,
-        endDate: offer.endDate,
         totalUsage: offer.totalUsage,
         totalDiscountGiven: offer.totalDiscountGiven,
         discountTypes: offer.discountTypes.map((dt) => ({
@@ -207,8 +201,6 @@ export default function OffersPage() {
           'Name': offer.name || 'N/A',
           'Type': Array.isArray(offer.type) ? offer.type.join(', ') : offer.type || 'N/A',
           'Status': offer.status || 'N/A',
-          'Start Date': offer.startDate ? new Date(offer.startDate).toLocaleDateString() : 'N/A',
-          'End Date': offer.endDate ? new Date(offer.endDate).toLocaleDateString() : 'N/A',
           'Products Count': offer.products?.length || 0,
           'Total Usage': offer.totalUsage || 0,
           'Total Discount Given': offer.totalDiscountGiven || 0,
@@ -226,8 +218,6 @@ export default function OffersPage() {
         { wch: 30 }, // Name
         { wch: 15 }, // Type
         { wch: 10 }, // Status
-        { wch: 15 }, // Start Date
-        { wch: 15 }, // End Date
         { wch: 15 }, // Products Count
         { wch: 12 }, // Total Usage
         { wch: 20 }, // Total Discount Given

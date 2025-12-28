@@ -190,17 +190,16 @@ export function validateDateRange(startDate: string, endDate: string): void {
 
 /**
  * Validate offer status transition
+ * Allow flexible transitions - users can reactivate expired offers by changing date ranges
  */
 export function validateStatusTransition(currentStatus: string, newStatus: string): void {
-  const validTransitions: Record<string, string[]> = {
-    'active': ['inactive', 'expired'],
-    'inactive': ['active'],
-    'expired': ['inactive'], // Can reactivate expired offers
-  };
-
-  if (!validTransitions[currentStatus]?.includes(newStatus)) {
-    throw new Error(`Cannot transition from ${currentStatus} to ${newStatus}`);
+  // Allow all transitions for flexibility - users can manually control status
+  // Expired offers can be reactivated by changing date ranges
+  const validStatuses = ['active', 'inactive', 'expired'];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}`);
   }
+  // No restriction on transitions - maximum flexibility
 }
 
 /**

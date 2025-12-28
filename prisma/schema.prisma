@@ -389,8 +389,6 @@ model Offer {
   description        String?
   type               String[] // ['discount', 'promotion'] - can contain multiple types
   status             String // 'active' | 'expired' | 'inactive'
-  startDate          DateTime
-  endDate            DateTime
   totalUsage         Int      @default(0)
   totalDiscountGiven Float    @default(0)
   userId             Int?
@@ -406,7 +404,6 @@ model Offer {
   @@index([userId])
   @@index([status])
   @@index([type])
-  @@index([startDate, endDate])
 }
 
 model OfferDiscountType {
@@ -447,21 +444,23 @@ model OfferProduct {
 }
 
 model DateRange {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   offerId     String
   name        String
   description String?
   startDate   DateTime
   endDate     DateTime
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  isActive    Boolean   @default(true)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
 
   // Relations
   offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   @@index([offerId])
   @@index([startDate, endDate])
+  @@index([deletedAt])
 }
 
 model OfferUsageTracking {

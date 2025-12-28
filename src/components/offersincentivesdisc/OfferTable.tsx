@@ -176,9 +176,8 @@ export default function OfferTable({
     // Create color-coded usage display for each discount type
     const usageDisplay = createUsageDisplay(offer);
 
-    // Use date range dates if available, otherwise use main offer dates
-    let displayStartDate = offer.startDate;
-    let displayEndDate = offer.endDate;
+    // Use date range dates if available, otherwise show "Unlimited"
+    let dateRangeDisplay = 'Unlimited';
     
     if (offer.dateRanges && offer.dateRanges.length > 0) {
       // Find the earliest start date and latest end date from active date ranges
@@ -186,10 +185,12 @@ export default function OfferTable({
       if (activeDateRanges.length > 0) {
         const startDates = activeDateRanges.map(dr => new Date(dr.startDate));
         const endDates = activeDateRanges.map(dr => new Date(dr.endDate));
-        displayStartDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
-        displayEndDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+        const displayStartDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
+        const displayEndDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+        dateRangeDisplay = `${format(new Date(displayStartDate), 'MMM dd, yyyy')} - ${format(new Date(displayEndDate), 'MMM dd, yyyy')}`;
       }
     }
+    // No fallback to main offer dates - if no date ranges, show "Unlimited"
 
     return {
       id: offer.id,
@@ -198,8 +199,8 @@ export default function OfferTable({
       type: offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown',
       discount: discountDisplay,
       status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
-      startDate: format(new Date(displayStartDate), 'MMM dd, yyyy'),
-      endDate: format(new Date(displayEndDate), 'MMM dd, yyyy'),
+      startDate: dateRangeDisplay,
+      endDate: dateRangeDisplay,
       usage: usageDisplay as string, // Cast to string for the table row
       totalDiscount: formatCurrency(calculatedTotalDiscount, userCurrency),
       actions: 'actions'
@@ -882,7 +883,7 @@ export default function OfferTable({
                   </span>
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-700 truncate">
-                  {row.startDate} - {row.endDate}
+                  {row.startDate}
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-900">{row.totalDiscount}</td>
                 <td className="py-4 px-4 text-xs text-gray-700">
