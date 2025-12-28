@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Gift, Percent, TrendingUp, TrendingDown, Users, DollarSign } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -33,11 +33,9 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
     // Calculate total usage
     const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
     
-    // Calculate average discount per offer
-    const avgDiscountPerOffer = totalOffers > 0 ? totalDiscountGiven / totalOffers : 0;
-    
-    // No usage limits - distributors manage offers manually
-    const redemptionRate = 0; // No usage limits
+    // Calculate conversion rate (offers that have been used vs total offers)
+    const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;
+    const conversionRate = totalOffers > 0 ? (usedOffers / totalOffers) * 100 : 0;
 
     return [
       {
@@ -55,18 +53,18 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
         trend: { percent: '0%', label: 'from last month', up: true }
       },
       {
-        label: 'Total Discount Given',
-        value: formatCurrency(totalDiscountGiven, userCurrency),
-        icon: <DollarSign className="w-6 h-6 text-orange-500" />,
+        label: 'Conversion Rate',
+        value: `${conversionRate.toFixed(1)}%`,
+        icon: <Percent className="w-6 h-6 text-orange-500" />,
         color: 'bg-[#fff7ed]',
-        trend: { percent: '0%', label: 'from last month', up: true }
+        trend: { percent: `${usedOffers}/${totalOffers}`, label: 'offers used', up: conversionRate > 50 }
       },
       {
         label: 'Total Redemptions',
         value: totalUsage,
         icon: <Users className="w-6 h-6 text-purple-500" />,
         color: 'bg-[#f3f0ff]',
-        trend: { percent: redemptionRate.toFixed(1) + '%', label: 'redemption rate', up: redemptionRate > 50 }
+        trend: { percent: totalUsage > 0 ? 'Active' : 'No usage', label: 'redemption status', up: totalUsage > 0 }
       }
     ];
   }, [offers, userCurrency]);

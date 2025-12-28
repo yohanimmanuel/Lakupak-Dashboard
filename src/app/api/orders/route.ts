@@ -13,7 +13,7 @@ import {
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderCalculations';
 import { ensureAllPriceConsistency } from '@/utils/orderUtils';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
+import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
@@ -633,20 +633,31 @@ export async function POST(request: NextRequest) {
             };
             
             // If offer is valid, track usage and add snapshot data
-            if (offerValidation.isValid && offerValidation.offerId && offerValidation.discountTypeId) {
+            if (offerValidation.isValid && offerValidation.offerId) {
               // Add to used offer IDs for targeted deactivation
               if (!usedOfferIds.includes(offerValidation.offerId)) {
                 usedOfferIds.push(offerValidation.offerId);
               }
               
-              // Track offer usage and update analytics
-              await trackOfferUsageUtil(
-                offerValidation.offerId,
-                offerValidation.discountTypeId,
-                null, // marketplaceUserId
-                offerValidation.discountAmount || 0,
-                tx
-              );
+              // Track offer usage - handle both single and multiple discount types
+              if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
+                // Multiple discount types (e.g., both discount and promotion)
+                await trackOfferUsageForAllTypes(
+                  offerValidation.offerId,
+                  offerValidation.applicableDiscountTypes,
+                  null, // marketplaceUserId
+                  tx
+                );
+              } else if (offerValidation.discountTypeId) {
+                // Single discount type
+                await trackOfferUsageUtil(
+                  offerValidation.offerId,
+                  offerValidation.discountTypeId,
+                  null, // marketplaceUserId
+                  offerValidation.discountAmount || 0,
+                  tx
+                );
+              }
               
               // Add offer snapshot data
               orderItemData = {

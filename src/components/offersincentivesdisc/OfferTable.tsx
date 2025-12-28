@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
@@ -118,60 +118,16 @@ export default function OfferTable({
     return filtered;
   }, [offers, activeTab]);
 
-  const tableRows = filteredOffers.map(offerToTableRow);
-
-  // Filter products based on search, status, and type
-  let filteredRows = tableRows.filter((row: OfferTableRow) => 
-    row.name.toLowerCase().includes(search.toLowerCase())
-  );
-  
-  if (selectedTab !== "All") {
-    filteredRows = filteredRows.filter((row: OfferTableRow) => row.status === selectedTab);
-  }
-  
-  if (filter !== "All Time") {
-    filteredRows = filteredRows.filter((row: OfferTableRow) => {
-      const offer = offers.find(o => o.id === row.id);
-      if (!offer) return false;
-      
-      const offerDate = new Date(offer.createdAt);
-      const now = new Date();
-      
-      switch (filter) {
-        case "Last 7 Days":
-          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return offerDate >= sevenDaysAgo;
-        case "Last 30 Days":
-          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          return offerDate >= thirtyDaysAgo;
-        case "Last 3 Months":
-          const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-          return offerDate >= threeMonthsAgo;
-        case "This Year":
-          const startOfYear = new Date(now.getFullYear(), 0, 1);
-          return offerDate >= startOfYear;
-        default:
-          return true;
-      }
-    });
-  }
-
-  const totalRows = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const pagedRows = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const toRow = Math.min(page * rowsPerPage, totalRows);
-
-  // Convert offer to table row
-  function offerToTableRow(offer: Offer): OfferTableRow {
+  // Convert offer to table row - memoized with useCallback to avoid recreation
+  const offerToTableRowMemo = React.useCallback((offer: Offer): OfferTableRow => {
     // Get the primary discount type (highest priority)
     const primaryDiscount = offer.discountTypes?.find(dt => dt.isActive) || offer.discountTypes?.[0];
     const discountDisplay = primaryDiscount?.discountType === 'percentage' 
       ? `${primaryDiscount.discountValue}%` 
       : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : 'N/A';
     
-    // Get actual total discount given to customers (from database)
-    const calculatedTotalDiscount = getTotalDiscountGiven(offer);
+    // Calculate usage status (binary: used or not used)
+    const usageStatus = (offer.totalUsage || 0) > 0 ? 'Used' : 'Not Used';
     
     // Create color-coded usage display for each discount type
     const usageDisplay = createUsageDisplay(offer);
@@ -202,17 +158,68 @@ export default function OfferTable({
       startDate: dateRangeDisplay,
       endDate: dateRangeDisplay,
       usage: usageDisplay as string, // Cast to string for the table row
-      totalDiscount: formatCurrency(calculatedTotalDiscount, userCurrency),
+      totalDiscount: usageStatus, // Usage status: "Used" if offer has been used, "Not Used" otherwise
       actions: 'actions'
     };
-  }
+  }, [userCurrency]);
 
-  // Get actual total discount given to customers (from database)
-  function getTotalDiscountGiven(offer: Offer): number {
-    // Use the actual totalDiscountGiven field from the database
-    // This represents the real cumulative discount amount given to customers
-    return offer.totalDiscountGiven || 0;
-  }
+  // Convert offers to table rows - memoized to avoid recalculation
+  const tableRows = useMemo(() => {
+    return filteredOffers.map(offerToTableRowMemo);
+  }, [filteredOffers, offerToTableRowMemo]);
+
+  // Filter products based on search, status, and type - memoized to avoid unnecessary recalculations
+  const filteredRows = useMemo(() => {
+    let filtered = tableRows.filter((row: OfferTableRow) => 
+      row.name.toLowerCase().includes(search.toLowerCase())
+    );
+    
+    if (selectedTab !== "All") {
+      filtered = filtered.filter((row: OfferTableRow) => row.status === selectedTab);
+    }
+    
+    if (filter !== "All Time") {
+      filtered = filtered.filter((row: OfferTableRow) => {
+        const offer = offers.find(o => o.id === row.id);
+        if (!offer) return false;
+        
+        const offerDate = new Date(offer.createdAt);
+        const now = new Date();
+        
+        switch (filter) {
+          case "Last 7 Days": {
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            return offerDate >= sevenDaysAgo;
+          }
+          case "Last 30 Days": {
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            return offerDate >= thirtyDaysAgo;
+          }
+          case "Last 3 Months": {
+            const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            return offerDate >= threeMonthsAgo;
+          }
+          case "This Year": {
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            return offerDate >= startOfYear;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [tableRows, search, selectedTab, filter, offers]);
+
+  // Derived values - memoized to avoid recalculation
+  const totalRows = useMemo(() => filteredRows.length, [filteredRows]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalRows / rowsPerPage)), [totalRows, rowsPerPage]);
+  const pagedRows = useMemo(() => {
+    return filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  }, [filteredRows, page, rowsPerPage]);
+  const fromRow = useMemo(() => totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1, [totalRows, page, rowsPerPage]);
+  const toRow = useMemo(() => Math.min(page * rowsPerPage, totalRows), [page, rowsPerPage, totalRows]);
 
   // Create color-coded usage display for each discount type
   function createUsageDisplay(offer: Offer): React.ReactNode {
@@ -825,7 +832,7 @@ export default function OfferTable({
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Total Discount</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Usage Status</th>
                 <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
               </tr>
             </thead>

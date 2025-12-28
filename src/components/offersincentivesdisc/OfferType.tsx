@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Target, Percent, DollarSign, Gift, Settings, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -86,20 +86,22 @@ export default function OfferType({
   const displayDiscountTypes = offerData?.discountTypes || discountTypes;
   const isBatchEditMode = Boolean(offerData && onOfferChange);
   
-  // Convert discount types to display format
-  const offerTypes: OfferType[] = displayDiscountTypes.map((dt: DiscountTypeData, index: number) => {
-    return {
-      id: dt.id,
-      name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
-      description: dt.description || `${dt.discountType === 'percentage' ? `${dt.discountValue}% off` : dt.discountType === 'fixed' ? `${formatCurrency(dt.discountValue, userCurrency)} off` : `Buy ${dt.discountValue} get 1 free`}`,
-      discountType: dt.discountType,
-      discountValue: dt.discountValue,
-      minOrderValue: dt.minOrderValue,
-      minQuantity: dt.minQuantity,
-      isActive: dt.isActive,
-      createdAt: new Date().toISOString(),
-    };
-  });
+  // Convert discount types to display format - memoized to avoid recalculation
+  const offerTypes: OfferType[] = useMemo(() => {
+    return displayDiscountTypes.map((dt: DiscountTypeData, index: number) => {
+      return {
+        id: dt.id,
+        name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
+        description: dt.description || `${dt.discountType === 'percentage' ? `${dt.discountValue}% off` : dt.discountType === 'fixed' ? `${formatCurrency(dt.discountValue, userCurrency)} off` : `Buy ${dt.discountValue} get 1 free`}`,
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        minOrderValue: dt.minOrderValue,
+        minQuantity: dt.minQuantity,
+        isActive: dt.isActive,
+        createdAt: new Date().toISOString(),
+      };
+    });
+  }, [displayDiscountTypes, userCurrency]);
 
   // No API calls needed - data comes from store
 

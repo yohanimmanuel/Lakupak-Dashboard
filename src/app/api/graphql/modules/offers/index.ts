@@ -551,21 +551,11 @@ const updateOffer = async (args: {
     return offer;
   });
 
-  // For status-only updates (common in bulk operations), run price update asynchronously
-  // to avoid blocking the response. For other updates, wait for price update to complete.
-  if (isStatusOnlyUpdate) {
-    // Run price update asynchronously without blocking the response
-    prisma.$transaction(async (tx) => {
-      await updateProductPricesFromOffers(tx, userId);
-    }).catch(() => {
-      // Silently handle errors - price updates are non-critical
-    });
-  } else {
-    // For other updates, wait for price update to ensure consistency
+  // Always wait for price update to complete before broadcasting WebSocket messages
+  // This ensures the database is updated before mobile clients fetch fresh data
   await prisma.$transaction(async (tx) => {
     await updateProductPricesFromOffers(tx, userId);
   });
-  }
 
   const updatedOfferWithRelations = await prisma.offer.findUnique({
     where: { id: updatedOffer.id },

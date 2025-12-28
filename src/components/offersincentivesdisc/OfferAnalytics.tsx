@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Users, DollarSign, Calendar, Target, PieChart } from 'lucide-react';
+import React from 'react';
+import { BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, PieChart, Percent } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 import { Offer } from '@/types/offer';
@@ -19,7 +19,6 @@ interface AnalyticsData {
   totalOffers: number;
   totalDiscountGiven: number;
   totalRedemptions: number;
-  avgDiscountPerOrder: number;
   redemptionRate: number;
   conversionRate: number;
   redemptionTrends: Array<{
@@ -36,7 +35,6 @@ interface AnalyticsData {
 export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = false }: OfferAnalyticsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
   // Calculate analytics data from offers and orders (following the same pattern as other analytics components)
   const analyticsData = React.useMemo(() => {
@@ -52,10 +50,10 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
     }, 0);
     
     const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
-    const avgDiscountPerOrder = totalUsage > 0 ? totalDiscountGiven / totalUsage : 0;
     
-    // No usage limits - distributors manage offers manually
-    const redemptionRate = 0; // No usage limits
+    // Calculate redemption rate (average redemptions per offer)
+    // This shows how many times on average each offer has been used
+    const redemptionRate = totalOffers > 0 ? (totalUsage / totalOffers) : 0;
     
     // Calculate conversion rate (offers that have been used vs total offers)
     const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;
@@ -99,20 +97,12 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       totalOffers,
       totalDiscountGiven,
       totalRedemptions: totalUsage,
-      avgDiscountPerOrder,
       redemptionRate,
       conversionRate,
       redemptionTrends: monthlyTrends,
       offerTypeBreakdown,
     };
-  }, [offers, selectedPeriod]);
-
-  const periodOptions = [
-    { value: '7d', label: 'Last 7 Days' },
-    { value: '30d', label: 'Last 30 Days' },
-    { value: '90d', label: 'Last 90 Days' },
-    { value: '1y', label: 'Last Year' },
-  ];
+  }, [offers]);
 
   // Empty state for new offers or no data
   if (isNewOffer || !analyticsData) {
@@ -154,7 +144,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       </div>
 
       {/* Key Metrics Cards */}
-      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
           <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
@@ -174,25 +164,24 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           </div>
         </div>
 
-
         <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
           <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
-              <DollarSign className="w-6 h-6 text-orange-500" />
+              <Percent className="w-6 h-6 text-orange-500" />
             </div>
             <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Discount Given</div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Conversion Rate</div>
               <div className="text-xl font-bold text-black">
-                {formatCurrency(analyticsData.totalDiscountGiven, userCurrency)}
+                {analyticsData.conversionRate.toFixed(1)}%
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.totalRedemptions > 0 ? 'Growing' : 'No usage'}
+              {analyticsData.conversionRate > 0 ? 'Active' : 'No usage'}
             </span>
-            <span className="text-gray-400 text-xs">discount impact</span>
+            <span className="text-gray-400 text-xs">offers converted</span>
           </div>
         </div>
 
@@ -209,9 +198,28 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.redemptionRate.toFixed(1)}%
+              {analyticsData.totalRedemptions > 0 ? 'Active' : 'No usage'}
             </span>
-            <span className="text-gray-400 text-xs">redemption rate</span>
+            <span className="text-gray-400 text-xs">redemption status</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+              <TrendingUp className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Redemption Rate</div>
+              <div className="text-xl font-bold text-black">{analyticsData.redemptionRate.toFixed(1)}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-4 ml-1">
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            <span className="text-[#3ea73b] text-xs font-semibold">
+              {analyticsData.redemptionRate > 0 ? 'Active' : '0.0'}
+            </span>
+            <span className="text-gray-400 text-xs">avg per offer</span>
           </div>
         </div>
       </div>
@@ -277,48 +285,6 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
                 className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${analyticsData.offerTypeBreakdown.promotions}%` }}
               ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Average Discount per Order</p>
-              <p className="text-lg font-semibold text-black">
-                {formatCurrency(analyticsData.avgDiscountPerOrder, userCurrency)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Redemption Rate</p>
-              <p className="text-lg font-semibold text-black">{analyticsData.redemptionRate.toFixed(1)}%</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-4 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Conversion Rate</p>
-              <p className="text-lg font-semibold text-black">{analyticsData.conversionRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>

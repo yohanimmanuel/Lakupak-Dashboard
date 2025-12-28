@@ -69,11 +69,27 @@ export async function validateOfferForProduct(
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
+    const now = new Date();
     const activeOffers = await tx.offer.findMany({
       where: {
         status: 'active',
-        startDate: { lte: new Date() },
-        endDate: { gte: new Date() },
+        // Offer is valid if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
+        OR: [
+          {
+            dateRanges: {
+              none: {} // No date ranges = unlimited offer
+            }
+          },
+          {
+            dateRanges: {
+              some: {
+                startDate: { lte: now },
+                endDate: { gte: now },
+                isActive: true
+              }
+            }
+          }
+        ],
         offerProducts: {
           some: {
             productId: productId
@@ -96,6 +112,11 @@ export async function validateOfferForProduct(
           include: {
             product: true
           }
+        },
+        dateRanges: {
+          where: {
+            isActive: true
+          }
         }
       }
     });
@@ -106,12 +127,19 @@ export async function validateOfferForProduct(
 
     // Get the first (highest priority) offer
     const offer = activeOffers[0];
+    if (!offer || !offer.offerProducts || offer.offerProducts.length === 0) {
+      return { isValid: false, error: 'No active offers found for this product' };
+    }
     const product = offer.offerProducts[0].product;
     
-    // Use variant price if provided, otherwise fallback to product price
-    const originalPrice = variant ? 
-      parseFloat(variant.originalSellingPrice || variant.sellingPrice) :
-      parseFloat(product.originalSellingPrice || product.sellingPrice);
+    // Use variant price if provided, otherwise we need to get from variantOptions
+    let originalPrice = 0;
+    if (variant) {
+      originalPrice = parseFloat(variant.originalSellingPrice || variant.sellingPrice);
+    } else {
+      // If no variant provided, we can't determine price - return error
+      return { isValid: false, error: 'Variant information required to validate offer' };
+    }
 
     // Try each discount type in priority order and collect all applicable discounts/promotions
     let bestDiscountAmount = 0;
@@ -132,7 +160,8 @@ export async function validateOfferForProduct(
       };
     }> = [];
 
-    for (const discountType of offer.offerDiscountTypes) {
+    const discountTypes = offer.offerDiscountTypes || [];
+    for (const discountType of discountTypes) {
         // Check usage limits - this will prevent the offer from being applied if limit is reached
       const usageValidation = await validateUsageLimits(
         offer.id,
@@ -226,13 +255,13 @@ export async function validateOfferForProduct(
       const finalPrice = originalPrice - bestDiscountAmount;
 
       // Determine offer badge
-      const offerBadge = getOfferBadge(offer.offerDiscountTypes);
+      const offerBadge = getOfferBadge(discountTypes);
 
       return {
         isValid: true,
         offerId: offer.id,
         offerName: offer.name,
-        discountTypeId: bestDiscountTypeId || offer.offerDiscountTypes[0].id,
+        discountTypeId: bestDiscountTypeId || (discountTypes.length > 0 ? discountTypes[0].id : ''),
         discountAmount: bestDiscountAmount,
         discountPercentage: bestDiscountPercentage,
         offerBadge,
@@ -350,7 +379,71 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
 }
 
 /**
+ * Helper function to track per-discount-type usage (for analytics)
+ * This is used by both trackOfferUsage and trackOfferUsageForAllTypes
+ */
+async function trackDiscountTypeUsage(
+  offerId: string,
+  discountTypeId: string,
+  marketplaceUserId: number | null,
+  tx: Prisma.TransactionClient
+): Promise<void> {
+  if (marketplaceUserId) {
+    await tx.offerUsageTracking.upsert({
+      where: {
+        offerId_discountTypeId_marketplaceUserId: {
+          offerId: offerId,
+          discountTypeId: discountTypeId,
+          marketplaceUserId: marketplaceUserId
+        }
+      },
+      update: {
+        usageCount: { increment: 1 },
+        lastUsedAt: new Date()
+      },
+      create: {
+        offerId: offerId,
+        discountTypeId: discountTypeId,
+        marketplaceUserId: marketplaceUserId,
+        usageCount: 1,
+        lastUsedAt: new Date()
+      }
+    });
+  } else {
+    // Track general usage when no marketplaceUserId (for admin orders)
+    const existingUsage = await tx.offerUsageTracking.findFirst({
+      where: {
+        offerId: offerId,
+        discountTypeId: discountTypeId,
+        marketplaceUserId: null
+      }
+    });
+
+    if (existingUsage) {
+      await tx.offerUsageTracking.update({
+        where: { id: existingUsage.id },
+        data: {
+          usageCount: { increment: 1 },
+          lastUsedAt: new Date()
+        }
+      });
+    } else {
+      await tx.offerUsageTracking.create({
+        data: {
+          offerId: offerId,
+          discountTypeId: discountTypeId,
+          marketplaceUserId: null,
+          usageCount: 1,
+          lastUsedAt: new Date()
+        }
+      });
+    }
+  }
+}
+
+/**
  * Track usage for all applicable discount types in an order
+ * Note: totalUsage should only increment once per order item, even if multiple discount types are applied
  */
 export async function trackOfferUsageForAllTypes(
   offerId: string,
@@ -369,16 +462,30 @@ export async function trackOfferUsageForAllTypes(
   tx: Prisma.TransactionClient
 ): Promise<void> {
   try {
-    for (const discountType of applicableDiscountTypes) {
-      // Track usage for this specific discount type
-      await trackOfferUsage(
-        offerId,
-        discountType.id,
-        marketplaceUserId,
-        discountType.discountAmount,
-        tx
-      );
+    if (applicableDiscountTypes.length === 0) {
+      return;
     }
+
+    // Calculate total discount amount across all discount types
+    const totalDiscountAmount = applicableDiscountTypes.reduce(
+      (sum, dt) => sum + (dt.discountAmount || 0),
+      0
+    );
+
+    // Track usage for each discount type individually (for per-type analytics)
+    for (const discountType of applicableDiscountTypes) {
+      await trackDiscountTypeUsage(offerId, discountType.id, marketplaceUserId, tx);
+    }
+
+    // Update offer totals ONCE per order item (not per discount type)
+    // This ensures totalUsage represents the number of times the offer was used, not the number of discount types
+    await tx.offer.update({
+      where: { id: offerId },
+      data: {
+        totalUsage: { increment: 1 },
+        totalDiscountGiven: { increment: totalDiscountAmount }
+      }
+    });
   } catch (error) {
     // Don't throw - this shouldn't fail the order
   }
@@ -395,63 +502,8 @@ export async function trackOfferUsage(
   tx: Prisma.TransactionClient
 ): Promise<void> {
   try {
-    // Track usage for marketplace user (or general usage if no marketplaceUserId)
-    if (marketplaceUserId) {
-      await tx.offerUsageTracking.upsert({
-        where: {
-          offerId_discountTypeId_marketplaceUserId: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: marketplaceUserId
-          }
-        },
-        update: {
-          usageCount: { increment: 1 },
-          lastUsedAt: new Date()
-        },
-        create: {
-          offerId: offerId,
-          discountTypeId: discountTypeId,
-          marketplaceUserId: marketplaceUserId,
-          usageCount: 1,
-          lastUsedAt: new Date()
-        }
-      });
-    } else {
-      // Track general usage when no marketplaceUserId (for admin orders)
-      // First check if record exists
-      const existingUsage = await tx.offerUsageTracking.findUnique({
-        where: {
-          offerId_discountTypeId_marketplaceUserId: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: null
-          }
-        }
-      });
-
-      if (existingUsage) {
-        // Update existing record
-        await tx.offerUsageTracking.update({
-          where: { id: existingUsage.id },
-          data: {
-            usageCount: { increment: 1 },
-            lastUsedAt: new Date()
-          }
-        });
-      } else {
-        // Create new record
-        await tx.offerUsageTracking.create({
-          data: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: null,
-            usageCount: 1,
-            lastUsedAt: new Date()
-          }
-        });
-      }
-    }
+    // Track per-discount-type usage (for analytics)
+    await trackDiscountTypeUsage(offerId, discountTypeId, marketplaceUserId, tx);
 
     // Update offer totals
     await tx.offer.update({
@@ -675,34 +727,25 @@ async function updateProductPricesAfterOfferDeactivation(
       where: {
         productId: { in: productIds },
         userId: offer.userId,
-        OR: [
-          {
-            variantOptions: {
-              some: {
-                originalSellingPrice: {
-                  not: ''
-                }
-              }
-            }
-          },
-          {
-            legacyVariants: {
-              some: {
-                originalSellingPrice: {
-                  not: null
-                }
-              }
+        variantOptions: {
+          some: {
+            originalSellingPrice: {
+              not: ''
             }
           }
-        ]
+        }
       },
-      include: { variantOptions: true, variants: true }
+      include: { 
+        variantOptions: true, 
+        variants: true 
+      }
     });
 
     // Reset prices only for variants of products associated with this specific offer
     for (const product of productsWithOriginalPrices) {
       // Reset variantOptions (new structure)
-      for (const variantOption of product.variantOptions) {
+      const variantOptions = (product as { variantOptions: Array<{ id: number; originalSellingPrice: string | null }> }).variantOptions || [];
+      for (const variantOption of variantOptions) {
         if (variantOption.originalSellingPrice && variantOption.originalSellingPrice !== '') {
           await tx.variantOption.update({
             where: { id: variantOption.id },
