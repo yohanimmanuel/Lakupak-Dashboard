@@ -388,57 +388,57 @@ async function trackDiscountTypeUsage(
   marketplaceUserId: number | null,
   tx: Prisma.TransactionClient
 ): Promise<void> {
-  if (marketplaceUserId) {
-    await tx.offerUsageTracking.upsert({
-      where: {
-        offerId_discountTypeId_marketplaceUserId: {
-          offerId: offerId,
-          discountTypeId: discountTypeId,
-          marketplaceUserId: marketplaceUserId
-        }
-      },
-      update: {
-        usageCount: { increment: 1 },
-        lastUsedAt: new Date()
-      },
-      create: {
-        offerId: offerId,
-        discountTypeId: discountTypeId,
-        marketplaceUserId: marketplaceUserId,
-        usageCount: 1,
-        lastUsedAt: new Date()
-      }
-    });
-  } else {
-    // Track general usage when no marketplaceUserId (for admin orders)
-    const existingUsage = await tx.offerUsageTracking.findFirst({
-      where: {
-        offerId: offerId,
-        discountTypeId: discountTypeId,
-        marketplaceUserId: null
-      }
-    });
-
-    if (existingUsage) {
-      await tx.offerUsageTracking.update({
-        where: { id: existingUsage.id },
-        data: {
+    if (marketplaceUserId) {
+      await tx.offerUsageTracking.upsert({
+        where: {
+          offerId_discountTypeId_marketplaceUserId: {
+            offerId: offerId,
+            discountTypeId: discountTypeId,
+            marketplaceUserId: marketplaceUserId
+          }
+        },
+        update: {
           usageCount: { increment: 1 },
           lastUsedAt: new Date()
-        }
-      });
-    } else {
-      await tx.offerUsageTracking.create({
-        data: {
+        },
+        create: {
           offerId: offerId,
           discountTypeId: discountTypeId,
-          marketplaceUserId: null,
+          marketplaceUserId: marketplaceUserId,
           usageCount: 1,
           lastUsedAt: new Date()
         }
       });
+    } else {
+      // Track general usage when no marketplaceUserId (for admin orders)
+    const existingUsage = await tx.offerUsageTracking.findFirst({
+        where: {
+            offerId: offerId,
+            discountTypeId: discountTypeId,
+            marketplaceUserId: null
+        }
+      });
+
+      if (existingUsage) {
+        await tx.offerUsageTracking.update({
+          where: { id: existingUsage.id },
+          data: {
+            usageCount: { increment: 1 },
+            lastUsedAt: new Date()
+          }
+        });
+      } else {
+        await tx.offerUsageTracking.create({
+          data: {
+            offerId: offerId,
+            discountTypeId: discountTypeId,
+            marketplaceUserId: null,
+            usageCount: 1,
+            lastUsedAt: new Date()
+          }
+        });
+      }
     }
-  }
 }
 
 /**
@@ -727,14 +727,14 @@ async function updateProductPricesAfterOfferDeactivation(
       where: {
         productId: { in: productIds },
         userId: offer.userId,
-        variantOptions: {
-          some: {
-            originalSellingPrice: {
-              not: ''
+            variantOptions: {
+              some: {
+                originalSellingPrice: {
+                  not: ''
+                }
+              }
             }
-          }
-        }
-      },
+          },
       include: { 
         variantOptions: true, 
         variants: true 

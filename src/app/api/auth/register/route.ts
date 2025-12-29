@@ -92,47 +92,47 @@ export async function POST(req: NextRequest) {
           where: { id: orphanedCompany.id }
         });
       }
-      
-      // Create company first
+    
+    // Create company first
       const companyData = await tx.company.create({
-        data: {
-          name: company.trim(),
-          businessAddress: address.trim(),
-          businessEmail: normalizedEmail,
-          businessPhone: '', // Will be updated later
-          industryType: '',
-          businessDescription: '',
-          yearsInOperation: '',
-          companySize: '',
-          documentVerification: false,
-          businessLicenseVerification: false,
-          complianceStatus: 'Pending',
-          shippingPreferences: JSON.stringify([]),
-          deliveryTimeSlots: JSON.stringify([]),
-          preferredDeliveryDays: JSON.stringify([]),
-          specialInstructions: '',
-          baseShippingRadius: 50,
-          baseShippingPrice: 15000,
-          additionalPricePerKm: 500,
-          maxShippingRadius: 200,
-          freeShippingThreshold: 100000
-        }
-      });
+      data: {
+        name: company.trim(),
+        businessAddress: address.trim(),
+        businessEmail: normalizedEmail,
+        businessPhone: '', // Will be updated later
+        industryType: '',
+        businessDescription: '',
+        yearsInOperation: '',
+        companySize: '',
+        documentVerification: false,
+        businessLicenseVerification: false,
+        complianceStatus: 'Pending',
+        shippingPreferences: JSON.stringify([]),
+        deliveryTimeSlots: JSON.stringify([]),
+        preferredDeliveryDays: JSON.stringify([]),
+        specialInstructions: '',
+        baseShippingRadius: 50,
+        baseShippingPrice: 15000,
+        additionalPricePerKm: 500,
+        maxShippingRadius: 200,
+        freeShippingThreshold: 100000
+      }
+    });
 
-      // Create user with company relationship
+    // Create user with company relationship
       const user = await tx.user.create({
-        data: {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: normalizedEmail,
-          password: hashed,
-          companyId: companyData.id,
-          region: region,
-          currency: selectedRegion.currency
-        },
-        include: {
-          company: true
-        }
+      data: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: normalizedEmail,
+        password: hashed,
+        companyId: companyData.id,
+        region: region,
+        currency: selectedRegion.currency
+      },
+      include: {
+        company: true
+      }
       });
       
       return user;

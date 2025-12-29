@@ -650,13 +650,13 @@ export async function POST(request: NextRequest) {
                 );
               } else if (offerValidation.discountTypeId) {
                 // Single discount type
-                await trackOfferUsageUtil(
-                  offerValidation.offerId,
-                  offerValidation.discountTypeId,
-                  null, // marketplaceUserId
-                  offerValidation.discountAmount || 0,
-                  tx
-                );
+              await trackOfferUsageUtil(
+                offerValidation.offerId,
+                offerValidation.discountTypeId,
+                null, // marketplaceUserId
+                offerValidation.discountAmount || 0,
+                tx
+              );
               }
               
               // Add offer snapshot data
