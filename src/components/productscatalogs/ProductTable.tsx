@@ -219,7 +219,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     if (isBulkDelete) {
       // Bulk delete - delete all selected products
       for (const productId of selectedProducts) {
-        const product = pagedProducts.find(p => String(p.id) === productId);
+        const product = tableRows.find(p => String(p.id) === productId);
         if (product) {
           try {
             await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
@@ -347,7 +347,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       // The modal already handled the actual publishing
       if (selectedProducts.length > 0 && setProductsAction) {
         const productIds = selectedProducts
-          .map(productId => pagedProducts.find(p => String(p.id) === productId))
+          .map(productId => tableRows.find(p => String(p.id) === productId))
           .filter((product): product is ProductTableRow => product !== undefined)
           .map(product => product.productId);
 
@@ -380,7 +380,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     try {
       // Bulk unpublish - use single bulk mutation to avoid browser connection limits
       const productsToUnpublish = selectedProducts
-        .map(productId => pagedProducts.find(p => String(p.id) === productId))
+        .map(productId => tableRows.find(p => String(p.id) === productId))
         .filter((product): product is ProductTableRow => 
           product !== undefined && product.status === 'Published'
         );
@@ -829,11 +829,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 </span>
               </div>
             </div>
-                        <div className="text-white text-xs font-semibold leading-relaxed">
+            <div className="text-white text-xs font-semibold leading-relaxed">
               {(() => {
                 const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                 if (selectedProducts.length > 0) {
-                  const selectedProductData = pagedProducts.filter(product => selectedProducts.includes(String(product.id)));
+                  const selectedProductData = tableRows.filter(product => selectedProducts.includes(String(product.id)));
                   const hasDraft = selectedProductData.some(product => product.status === 'Draft');
                   const hasPublished = selectedProductData.some(product => product.status === 'Published');
                   const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
@@ -858,7 +858,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               {(() => {
                 const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                 if (selectedProducts.length > 0) {
-                  const selectedProductData = pagedProducts.filter(product => selectedProducts.includes(String(product.id)));
+                  const selectedProductData = tableRows.filter(product => selectedProducts.includes(String(product.id)));
                   const hasDraft = selectedProductData.some(product => product.status === 'Draft');
                   const hasPublished = selectedProductData.some(product => product.status === 'Published');
                   const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
@@ -878,7 +878,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       onClick={() => {
                         if (selectedProducts.length === 1) {
                           // Single product - show preview modal
-                          const product = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
+                          const product = tableRows.find(p => selectedProducts.includes(String(p.id)));
                           if (product) {
                             handleOpenPublishModal(product);
                           }
@@ -941,7 +941,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 {(() => {
                   const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                   if (selectedProducts.length > 0) {
-                    const selectedProductData = pagedProducts.filter(product => selectedProducts.includes(String(product.id)));
+                    const selectedProductData = tableRows.filter(product => selectedProducts.includes(String(product.id)));
                     const hasDraft = selectedProductData.some(product => product.status === 'Draft');
                     const hasPublished = selectedProductData.some(product => product.status === 'Published');
                     const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
@@ -966,7 +966,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 {(() => {
                   const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                   if (selectedProducts.length > 0) {
-                    const selectedProductData = pagedProducts.filter(product => selectedProducts.includes(String(product.id)));
+                    const selectedProductData = tableRows.filter(product => selectedProducts.includes(String(product.id)));
                     const hasDraft = selectedProductData.some(product => product.status === 'Draft');
                     const hasPublished = selectedProductData.some(product => product.status === 'Published');
                     const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
@@ -986,7 +986,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         onClick={() => {
                           if (selectedProducts.length === 1) {
                             // Single product - show preview modal
-                            const product = pagedProducts.find(p => selectedProducts.includes(String(p.id)));
+                            const product = tableRows.find(p => selectedProducts.includes(String(p.id)));
                             if (product) {
                               handleOpenPublishModal(product);
                             }
@@ -2217,7 +2217,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           onPublish={handlePublishProduct}
           isBulkPublish={!productToPublish || selectedProducts.length > 1}
           selectedCount={productToPublish ? 1 : selectedProducts.length}
-          selectedProducts={selectedProducts.map(id => pagedProducts.find(p => String(p.id) === id)).filter(Boolean) as ProductTableRow[]}
+          selectedProducts={selectedProducts.map(id => tableRows.find(p => String(p.id) === id)).filter(Boolean) as ProductTableRow[]}
           allProducts={products}
           isProductComplete={isProductComplete}
         />
