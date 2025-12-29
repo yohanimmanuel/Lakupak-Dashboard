@@ -57,8 +57,8 @@ interface OfferData {
   dateRanges?: DateRange[];
   products: OfferProduct[];
   [key: string]: unknown;
-  startDate: Date | string;
-  endDate: Date | string;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
   productOfferBadges?: Record<string, string>;
 }
 
@@ -104,6 +104,9 @@ export default function ProductIntegration({
   const [page, setPage] = useState(1);
   const [forceRender, setForceRender] = useState(0);
   const rowsPerPage = 8;
+  
+  // Pagination configuration for fetching all records
+  const FETCH_PAGE_LIMIT = 100;
   
   // Ranges and configured offer types come from centralized offer creation store
   const store = useOfferCreationStore();
@@ -237,201 +240,324 @@ export default function ProductIntegration({
   // Track previous offer ID to only sync when editing a different offer
   const prevOfferIdRef = useRef<string | undefined>(offerData?.id);
 
-  // Fetch products from GraphQL API
-  const fetchProducts = useCallback(async () => {
-    if (!user?.id) return;
+  useEffect(() => {
+    let ignore = false;
     
-    setLoading(true);
-    try {
-      // GraphQL queries for products and offers
-      const PRODUCTS_QUERY = `
-        query GetProducts($userId: Int!, $page: Int, $limit: Int) {
-          products(userId: $userId, page: $page, limit: $limit) {
-            nodes {
-              id
-              productId
-              sku
-              name
-              description
-              productType
-              brand
-              supplier
-              status
-              productCategory
-              catalogName
-              images
-              variantOptions {
-                id
-                variantName
-                sku
-                purchasePrice
-                sellingPrice
-                originalSellingPrice
-                moq
-                stockQuantity
-                lowStockThreshold
-                stockStatus
-                isDefault
-                isActive
-                attributes
-              }
-              variantDefinitions
-              legacyVariants
-              hasActiveOffer
-              offerBadge
-              offerId
-              offerName
-              discountType
-              discountValue
-              promotionDetails
-              originalPrice
-            }
-            pagination {
-              totalCount
-            }
-          }
+    const loadProducts = async () => {
+      if (!user?.id) {
+        if (!ignore) {
+          setProducts([]);
+          setLoading(false);
         }
-      `;
-
-      const OFFERS_QUERY = `
-        query GetOffers($userId: Int!, $page: Int, $limit: Int) {
-          offers(userId: $userId, page: $page, limit: $limit) {
-            nodes {
-              id
-              offerId
-              name
-              status
-              type
-              discountTypes {
+        return;
+      }
+      
+      try {
+        if (!ignore) {
+          setLoading(true);
+        }
+        
+        // GraphQL queries for products and offers
+        const PRODUCTS_QUERY = `
+          query GetProducts($userId: Int!, $page: Int, $limit: Int) {
+            products(userId: $userId, page: $page, limit: $limit) {
+              nodes {
                 id
+                productId
+                sku
+                name
+                description
+                productType
+                brand
+                supplier
+                status
+                productCategory
+                catalogName
+                images
+                variantOptions {
+                  id
+                  variantName
+                  sku
+                  purchasePrice
+                  sellingPrice
+                  originalSellingPrice
+                  moq
+                  stockQuantity
+                  lowStockThreshold
+                  stockStatus
+                  isDefault
+                  isActive
+                  attributes
+                }
+                variantDefinitions
+                legacyVariants
+                hasActiveOffer
+                offerBadge
+                offerId
+                offerName
                 discountType
                 discountValue
-                minQuantity
-                isActive
-                priority
+                promotionDetails
+                originalPrice
               }
-              products {
-                productId
+              pagination {
+                totalCount
               }
-            }
-            pagination {
-              totalCount
             }
           }
-        }
-      `;
+        `;
 
-      // Fetch products and active offers using GraphQL
-      const [productsData, offersData] = await Promise.all([
-        fetchGraphQL<{
-          products: {
-            nodes: Product[];
-            pagination: { totalCount: number };
-          };
-        }>(PRODUCTS_QUERY, {
-          userId: user.id,
-          page: 1,
-          limit: 1000,
-        }),
-        fetchGraphQL<{
-          offers: {
-            nodes: Array<{
-              id: string;
-              offerId: string;
-              name: string;
-              status: string;
-              type: string[];
-              discountTypes: Array<{
-                id: string;
-                discountType: string;
-                discountValue: number;
-                minQuantity: number | null;
-                isActive: boolean;
-                priority: number;
-              }>;
-              products: Array<{
-                productId: string;
-              }>;
-            }>;
-            pagination: { totalCount: number };
-          };
-        }>(OFFERS_QUERY, {
-          userId: user.id,
-          page: 1,
-          limit: 1000,
-        }),
-      ]);
-      
-      const products = productsData.products.nodes;
-      const offers = offersData.offers.nodes;
+        const OFFERS_QUERY = `
+          query GetOffers($userId: Int!, $page: Int, $limit: Int) {
+            offers(userId: $userId, page: $page, limit: $limit) {
+              nodes {
+                id
+                offerId
+                name
+                status
+                type
+                discountTypes {
+                  id
+                  discountType
+                  discountValue
+                  minQuantity
+                  isActive
+                  priority
+                }
+                products {
+                  productId
+                }
+              }
+              pagination {
+                totalCount
+              }
+            }
+          }
+        `;
         
+        // Helper function to fetch all pages of products
+        const fetchAllProducts = async (): Promise<Product[]> => {
+          const allProducts: Product[] = [];
+          let currentPage = 1;
+          let totalCount = 0;
+          
+          while (true) {
+            const response = await fetchGraphQL<{
+              products: {
+                nodes: Product[];
+                pagination: { totalCount: number };
+              };
+            }>(PRODUCTS_QUERY, {
+              userId: user.id,
+              page: currentPage,
+              limit: FETCH_PAGE_LIMIT,
+            });
+            
+            if (ignore) return [];
+            
+            const nodes = response.products.nodes;
+            totalCount = response.products.pagination.totalCount;
+            allProducts.push(...nodes);
+            
+            // Stop if we've fetched all records or no more nodes
+            if (nodes.length === 0 || allProducts.length >= totalCount) {
+              break;
+            }
+            
+            currentPage++;
+          }
+          
+          // Warn if we didn't fetch all records
+          if (allProducts.length < totalCount) {
+            console.warn(
+              `ProductIntegration: Only fetched ${allProducts.length} of ${totalCount} products. ` +
+              `Some products may be missing from the display.`
+            );
+          }
+          
+          return allProducts;
+        };
+        
+        // Helper function to fetch all pages of offers
+        const fetchAllOffers = async (): Promise<Array<{
+          id: string;
+          offerId: string;
+          name: string;
+          status: string;
+          type: string[];
+          discountTypes: Array<{
+            id: string;
+            discountType: string;
+            discountValue: number;
+            minQuantity: number | null;
+            isActive: boolean;
+            priority: number;
+          }>;
+          products: Array<{
+            productId: string;
+          }>;
+        }>> => {
+          const allOffers: Array<{
+            id: string;
+            offerId: string;
+            name: string;
+            status: string;
+            type: string[];
+            discountTypes: Array<{
+              id: string;
+              discountType: string;
+              discountValue: number;
+              minQuantity: number | null;
+              isActive: boolean;
+              priority: number;
+            }>;
+            products: Array<{
+              productId: string;
+            }>;
+          }> = [];
+          let currentPage = 1;
+          let totalCount = 0;
+          
+          while (true) {
+            const response = await fetchGraphQL<{
+              offers: {
+                nodes: Array<{
+                  id: string;
+                  offerId: string;
+                  name: string;
+                  status: string;
+                  type: string[];
+                  discountTypes: Array<{
+                    id: string;
+                    discountType: string;
+                    discountValue: number;
+                    minQuantity: number | null;
+                    isActive: boolean;
+                    priority: number;
+                  }>;
+                  products: Array<{
+                    productId: string;
+                  }>;
+                }>;
+                pagination: { totalCount: number };
+              };
+            }>(OFFERS_QUERY, {
+              userId: user.id,
+              page: currentPage,
+              limit: FETCH_PAGE_LIMIT,
+            });
+            
+            if (ignore) return [];
+            
+            const nodes = response.offers.nodes;
+            totalCount = response.offers.pagination.totalCount;
+            allOffers.push(...nodes);
+            
+            // Stop if we've fetched all records or no more nodes
+            if (nodes.length === 0 || allOffers.length >= totalCount) {
+              break;
+            }
+            
+            currentPage++;
+          }
+          
+          // Warn if we didn't fetch all records
+          if (allOffers.length < totalCount) {
+            console.warn(
+              `ProductIntegration: Only fetched ${allOffers.length} of ${totalCount} offers. ` +
+              `Some offers may be missing from the display.`
+            );
+          }
+          
+          return allOffers;
+        };
+        
+        // Fetch products and offers in parallel with pagination
+        const [products, offers] = await Promise.all([
+          fetchAllProducts(),
+          fetchAllOffers(),
+        ]);
+        
+        if (ignore) return;
+          
         // Get all product IDs that already belong to any offer (active or inactive)
         // Exclude products from the CURRENT offer being edited (if in edit mode)
         const currentOfferId = offerData?.offerId;
         const productsWithOffers = new Set<string>();
       
-      // Build productsWithOffers set by checking all offers and their products
-      // This ensures we correctly identify products in OTHER offers (not the current one)
-      offers.forEach((offer: { id: string; offerId: string; products?: Array<{ productId: string }> }) => {
+        // Build productsWithOffers set by checking all offers and their products
+        // This ensures we correctly identify products in OTHER offers (not the current one)
+        offers.forEach((offer: { id: string; offerId: string; products?: Array<{ productId: string }> }) => {
           // Skip the current offer being edited
-        if (offer.offerId === currentOfferId) {
-          return;
-        }
-        // Add all products from this offer to the set
-        if (offer.products && Array.isArray(offer.products)) {
-          offer.products.forEach((op: { productId: string }) => {
-            productsWithOffers.add(op.productId);
+          if (offer.offerId === currentOfferId) {
+            return;
+          }
+          // Add all products from this offer to the set
+          if (offer.products && Array.isArray(offer.products)) {
+            offer.products.forEach((op: { productId: string }) => {
+              productsWithOffers.add(op.productId);
             });
           }
         });
+        
+        if (ignore) return;
         
         // Transform products to include offer information
         const productsWithOfferInfo: ProductWithOffer[] = products.map((product: Product) => {
           const storeHasOffer = Boolean(productOfferBadges[product.productId]);
           const apiHasOffer = productsWithOffers.has(product.productId);
           
-            // Check if product is in current offer (for editing mode)
-            const isInCurrentOffer = currentOfferProductIds.has(product.productId);
-            
-            // Determine hasOffer based on whether product is in current offer or not:
-        // - If in current offer: hasOffer should be false (so it's NOT blocked) - we only care about offers from OTHER offers
-        // - If not in current offer: use API data to check if it has offers from other offers
-        // This way, products in the current offer can always be selected/removed
-        const hasOffer = isInCurrentOffer ? false : apiHasOffer;
+          // Check if product is in current offer (for editing mode)
+          const isInCurrentOffer = currentOfferProductIds.has(product.productId);
+          
+          // Determine hasOffer based on whether product is in current offer or not:
+          // - If in current offer: hasOffer should be false (so it's NOT blocked) - we only care about offers from OTHER offers
+          // - If not in current offer: use API data to check if it has offers from other offers
+          // This way, products in the current offer can always be selected/removed
+          const hasOffer = isInCurrentOffer ? false : apiHasOffer;
           const productBadge = storeHasOffer ? productOfferBadges[product.productId] : undefined;
         
-        // Determine badge: show badge if product is in current offer OR has offer from store
-        // If in current offer but no badge from store, show 'Offer' badge
-        let finalBadge: 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined;
-        if (isInCurrentOffer) {
-          finalBadge = (productBadge || 'Offer') as 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
-        } else if (storeHasOffer) {
-          finalBadge = productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
-        } else {
-          finalBadge = undefined;
-        }
-          
+          // Determine badge: show badge if product is in current offer OR has offer from store
+          // If in current offer but no badge from store, show 'Offer' badge
+          let finalBadge: 'Discount' | 'Promotion' | 'All Offers' | 'Offer' | undefined;
+          if (isInCurrentOffer) {
+            finalBadge = (productBadge || 'Offer') as 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
+          } else if (storeHasOffer) {
+            finalBadge = productBadge as 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
+          } else {
+            finalBadge = undefined;
+          }
+            
           return {
             ...product,
-          hasOffer, // Only true if product has offers from OTHER offers (not current offer)
-          offerDiscount: (isInCurrentOffer && storeHasOffer) ? calculateDiscountAmount(product as ProductWithOffer) : 0,
-          offerType: (isInCurrentOffer && storeHasOffer) ? 'percentage' : undefined,
-          offerBadge: finalBadge,
-          isInCurrentOffer, // Add flag to track if product is in current offer
+            hasOffer, // Only true if product has offers from OTHER offers (not current offer)
+            offerDiscount: (isInCurrentOffer && storeHasOffer) ? calculateDiscountAmount(product as ProductWithOffer) : 0,
+            offerType: (isInCurrentOffer && storeHasOffer) ? 'percentage' : undefined,
+            offerBadge: finalBadge,
+            isInCurrentOffer, // Add flag to track if product is in current offer
           };
         });
         
-        setProducts(productsWithOfferInfo);
-    } catch (error) {
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, productOfferBadges, currentOfferProductIds]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+        if (!ignore) {
+          setProducts(productsWithOfferInfo);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setProducts([]);
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadProducts();
+    
+    return () => {
+      ignore = true;
+    };
+  }, [user?.id, productOfferBadges, currentOfferProductIds, offerData?.offerId]);
 
   // Transform products with offer data - computed during render instead of useEffect
   // This replaces the useEffect that was transforming products based on offerData props
@@ -455,28 +581,46 @@ export default function ProductIntegration({
     });
   }, [products, offerData?.productOfferBadges, offerData?.products]);
 
-  const productTypes = ['All Types', ...Array.from(new Set(displayProducts.map(p => p.productType).filter(Boolean)))];
-  const productCategories = ['All Categories', ...Array.from(new Set(displayProducts.map(p => p.productCategory).filter(Boolean)))];
-  const brands = ['All Brands', ...Array.from(new Set(displayProducts.map(p => p.brand)))];
+  // Memoize filter options to avoid recalculating on every render
+  const productTypes = useMemo(() => 
+    ['All Types', ...Array.from(new Set(displayProducts.map(p => p.productType).filter(Boolean)))],
+    [displayProducts]
+  );
+  
+  const productCategories = useMemo(() => 
+    ['All Categories', ...Array.from(new Set(displayProducts.map(p => p.productCategory).filter(Boolean)))],
+    [displayProducts]
+  );
+  
+  const brands = useMemo(() => 
+    ['All Brands', ...Array.from(new Set(displayProducts.map(p => p.brand).filter(Boolean)))],
+    [displayProducts]
+  );
 
-  const filteredProducts = displayProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.productType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.productCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'All Types' || product.productType === selectedType;
-    const matchesCategory = selectedCategory === 'All Categories' || product.productCategory === selectedCategory;
-    const matchesBrand = selectedBrand === 'All Brands' || product.brand === selectedBrand;
-    
-    return matchesSearch && matchesType && matchesCategory && matchesBrand;
-  });
+  // Memoize filtered products to avoid recalculating on every render
+  const filteredProducts = useMemo(() => {
+    return displayProducts.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.productType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.productCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = selectedType === 'All Types' || product.productType === selectedType;
+      const matchesCategory = selectedCategory === 'All Categories' || product.productCategory === selectedCategory;
+      const matchesBrand = selectedBrand === 'All Brands' || product.brand === selectedBrand;
+      
+      return matchesSearch && matchesType && matchesCategory && matchesBrand;
+    });
+  }, [displayProducts, searchTerm, selectedType, selectedCategory, selectedBrand]);
 
-  // Pagination logic
-  const totalRows = filteredProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const pagedProducts = filteredProducts.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const toRow = Math.min(page * rowsPerPage, totalRows);
+  // Memoize pagination calculations
+  const totalRows = useMemo(() => filteredProducts.length, [filteredProducts]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalRows / rowsPerPage)), [totalRows, rowsPerPage]);
+  const pagedProducts = useMemo(() => 
+    filteredProducts.slice((page - 1) * rowsPerPage, page * rowsPerPage),
+    [filteredProducts, page, rowsPerPage]
+  );
+  const fromRow = useMemo(() => totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1, [totalRows, page, rowsPerPage]);
+  const toRow = useMemo(() => Math.min(page * rowsPerPage, totalRows), [page, rowsPerPage, totalRows]);
 
   // Handlers that reset page when filters change (better than useEffect)
   const handleSearchChange = (value: string) => {

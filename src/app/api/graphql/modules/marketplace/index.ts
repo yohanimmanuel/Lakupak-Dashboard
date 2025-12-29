@@ -760,11 +760,13 @@ const fetchMarketplaceProducts = async (args: {
     }
   });
 
-  // Deactivate expired offers based on date ranges
+  // Deactivate expired offers based on date ranges (run asynchronously to not block query)
   // This will check main dates and date ranges, and deactivate offers that are expired
-  for (const userId of userIds) {
-    await deactivateExpiredOffers(prisma, userId);
-  }
+  Promise.all(
+    userIds.map(userId => deactivateExpiredOffers(prisma, userId))
+  ).catch((error) => {
+    console.error('[Marketplace] Background offer deactivation failed:', error);
+  });
 
   // Helper function to check if current time is within any active date range
   const isWithinActiveDateRange = (dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean => {
@@ -815,19 +817,20 @@ const fetchMarketplaceProducts = async (args: {
     }
     
     if (!hasValidDiscountType) {
-      await prisma.offer.update({
+      // Deactivate in background to not block query
+      prisma.offer.update({
         where: { id: offer.id },
         data: { status: 'inactive' }
+      }).catch((error) => {
+        console.error(`[Marketplace] Failed to deactivate offer ${offer.id}:`, error);
       });
     } else {
       validOffers.push(offer);
     }
   }
   
-  // Update product prices after deactivating offers
-  for (const userId of userIds) {
-    await updateProductPricesFromOffers(prisma, userId);
-  }
+  // Note: Price updates are handled by offer activation/deactivation mutations
+  // We don't update prices here to avoid race conditions and ensure consistency
   
   // Create a map of product offers using only valid offers
   const productOffersMap = new Map();

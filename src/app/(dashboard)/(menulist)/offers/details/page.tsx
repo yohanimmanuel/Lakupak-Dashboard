@@ -8,10 +8,10 @@ import OfferAnalytics from '@/components/offersincentivesdisc/OfferAnalytics';
 import OfferType from '@/components/offersincentivesdisc/OfferType';
 import ProductIntegration from '@/components/offersincentivesdisc/ProductIntegration';
 import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
-import { Offer } from '@/types/offer';
-import { OfferDiscountType } from '@/types/offer';
+import { Offer, DateRange } from '@/types/offer';
 import { OfferProduct } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { computeOfferDates } from '@/utils/offerValidation';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
@@ -100,6 +100,8 @@ export default function OffersDetailsPage() {
 
   // Fetch specific offer by ID using GraphQL
   useEffect(() => {
+    let ignore = false;
+    
     const fetchOffer = async () => {
       if (!user?.id || !offerId) return;
       
@@ -172,6 +174,11 @@ export default function OffersDetailsPage() {
             updatedAt: dr.updatedAt,
           }));
           
+          // Calculate startDate and endDate from dateRanges
+          // Use earliest startDate and latest endDate from active date ranges
+          // If no date ranges exist, set to null to represent "no date"
+          const { startDate: calculatedStartDate, endDate: calculatedEndDate } = computeOfferDates(transformedDateRanges);
+          
           // Transform products from GraphQL response
           const transformedProducts: OfferProduct[] = offer.products.map((p) => ({
             id: `po-${Date.now()}-${p.productId}`,
@@ -207,6 +214,8 @@ export default function OffersDetailsPage() {
             description: offer.description || undefined,
             type: offer.type as ('discount' | 'promotion')[],
             status: offer.status as 'active' | 'expired' | 'inactive',
+            startDate: calculatedStartDate,
+            endDate: calculatedEndDate,
             totalUsage: offer.totalUsage,
             totalDiscountGiven: offer.totalDiscountGiven,
             discountTypes: transformedDiscountTypes,
@@ -221,19 +230,31 @@ export default function OffersDetailsPage() {
           // Users can reactivate expired offers by changing date ranges
           // Status is now manually controlled for flexibility
           
-          setCurrentOffer(transformedOffer);
-          setOriginalOffer(JSON.parse(JSON.stringify(transformedOffer))); // Deep clone
+          if (!ignore) {
+            setCurrentOffer(transformedOffer);
+            setOriginalOffer(JSON.parse(JSON.stringify(transformedOffer))); // Deep clone
+          }
         } else {
-          setError('Offer not found');
+          if (!ignore) {
+            setError('Offer not found');
+          }
         }
       } catch (error) {
-        setError('Failed to load offer');
+        if (!ignore) {
+          setError('Failed to load offer');
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     };
 
     fetchOffer();
+    
+    return () => {
+      ignore = true;
+    };
   }, [user?.id, offerId]);
 
   // Helper function to refresh the current offer after saving using GraphQL
@@ -249,8 +270,6 @@ export default function OffersDetailsPage() {
           description: string | null;
           type: string[];
           status: string;
-          startDate: string;
-          endDate: string;
           totalUsage: number;
           totalDiscountGiven: number;
           discountTypes: Array<{
@@ -336,6 +355,9 @@ export default function OffersDetailsPage() {
           updatedAt: dr.updatedAt,
         }));
 
+        // Calculate startDate and endDate from dateRanges using shared helper
+        const { startDate: calculatedStartDate, endDate: calculatedEndDate } = computeOfferDates(transformedDateRanges);
+
         const transformedOffer: Offer = {
           id: offer.id,
           offerId: offer.offerId,
@@ -343,8 +365,8 @@ export default function OffersDetailsPage() {
           description: offer.description || undefined,
           type: offer.type as ('discount' | 'promotion')[],
           status: offer.status as 'active' | 'expired' | 'inactive',
-          startDate: offer.startDate,
-          endDate: offer.endDate,
+          startDate: calculatedStartDate,
+          endDate: calculatedEndDate,
           totalUsage: offer.totalUsage,
           totalDiscountGiven: offer.totalDiscountGiven,
           discountTypes: transformedDiscountTypes,
@@ -459,8 +481,17 @@ export default function OffersDetailsPage() {
         return new Date(date).toISOString();
       };
       
+      // Type for normalized date range (used for comparison)
+      type NormalizedDateRange = {
+        name: string;
+        description: string | null;
+        startDate: string;
+        endDate: string;
+        isActive: boolean;
+      };
+      
       // Normalize date ranges for comparison
-      const normalizeDateRange = (dr: any) => ({
+      const normalizeDateRange = (dr: DateRange): NormalizedDateRange => ({
         name: (dr.name || '').trim(),
         description: (dr.description || '').trim() || null,
         startDate: normalizeDate(dr.startDate),
@@ -473,7 +504,7 @@ export default function OffersDetailsPage() {
       const normalizedOriginal = originalDateRanges.map(normalizeDateRange);
       
       // Sort by startDate for consistent comparison
-      const sortFn = (a: any, b: any) => a.startDate.localeCompare(b.startDate);
+      const sortFn = (a: NormalizedDateRange, b: NormalizedDateRange) => a.startDate.localeCompare(b.startDate);
       const sortedCurrent = [...normalizedCurrent].sort(sortFn);
       const sortedOriginal = [...normalizedOriginal].sort(sortFn);
       
@@ -516,7 +547,7 @@ export default function OffersDetailsPage() {
         dateRanges: graphQLDateRanges, // Only send when date ranges have been modified to trigger soft-delete and recreate
       });
 
-      // Update currentOffer with the returned dateRanges
+        // Update currentOffer with the returned dateRanges
       if (updateResult.updateOffer && currentOffer) {
         const updatedDateRanges = updateResult.updateOffer.dateRanges.map((dr) => ({
           id: dr.id,
@@ -529,6 +560,9 @@ export default function OffersDetailsPage() {
           createdAt: dr.createdAt,
           updatedAt: dr.updatedAt,
         }));
+
+        // Calculate startDate and endDate from updatedDateRanges using shared helper
+        const { startDate: calculatedStartDate, endDate: calculatedEndDate } = computeOfferDates(updatedDateRanges);
 
         // Transform products from GraphQL response
         const updatedProducts: OfferProduct[] = updateResult.updateOffer.products.map((p) => {
@@ -565,18 +599,22 @@ export default function OffersDetailsPage() {
           }
         });
 
-        // Update currentOffer with saved products, badges, and dateRanges
+        // Update currentOffer with saved products, badges, dateRanges, and computed dates
         setCurrentOffer({
           ...currentOffer,
           products: updatedProducts,
           productOfferBadges: updatedBadges,
           dateRanges: updatedDateRanges,
+          startDate: calculatedStartDate,
+          endDate: calculatedEndDate,
         });
         setOriginalOffer({
           ...currentOffer,
           products: updatedProducts,
           productOfferBadges: updatedBadges,
           dateRanges: updatedDateRanges,
+          startDate: calculatedStartDate,
+          endDate: calculatedEndDate,
         });
       } else {
         // Fallback: refresh the entire offer if mutation response doesn't include dateRanges

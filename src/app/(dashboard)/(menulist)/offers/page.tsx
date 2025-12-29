@@ -108,38 +108,63 @@ export default function OffersPage() {
       });
 
       // Transform GraphQL response to match Offer type
-      const transformedOffers: Offer[] = data.offers.nodes.map((offer) => ({
-        id: offer.id,
-        offerId: offer.offerId,
-        name: offer.name,
-        description: offer.description || undefined,
-        type: offer.type as ('discount' | 'promotion')[],
-        status: offer.status as 'active' | 'expired' | 'inactive',
-        totalUsage: offer.totalUsage,
-        totalDiscountGiven: offer.totalDiscountGiven,
-        discountTypes: offer.discountTypes.map((dt) => ({
-          id: dt.id,
-          discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
-          discountValue: dt.discountValue,
-          minOrderValue: dt.minOrderValue || undefined,
-          minQuantity: dt.minQuantity || undefined,
-          isActive: dt.isActive,
-          priority: dt.priority,
-        })),
-        dateRanges: offer.dateRanges?.map((dr) => ({
-          id: dr.id,
-          name: dr.name,
-          description: dr.description || undefined,
-          startDate: dr.startDate,
-          endDate: dr.endDate,
-          isActive: dr.isActive,
-          createdAt: dr.createdAt,
-          updatedAt: dr.updatedAt,
-        })),
-        products: [], // Products are not included in the offers query
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
+      const transformedOffers: Offer[] = data.offers.nodes.map((offer) => {
+        // Calculate startDate and endDate from dateRanges
+        // Use earliest startDate and latest endDate from active date ranges
+        let calculatedStartDate = new Date().toISOString();
+        let calculatedEndDate = new Date().toISOString();
+        
+        if (offer.dateRanges && offer.dateRanges.length > 0) {
+          const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
+          if (activeDateRanges.length > 0) {
+            const startDates = activeDateRanges.map(dr => new Date(dr.startDate).getTime());
+            const endDates = activeDateRanges.map(dr => new Date(dr.endDate).getTime());
+            calculatedStartDate = new Date(Math.min(...startDates)).toISOString();
+            calculatedEndDate = new Date(Math.max(...endDates)).toISOString();
+          } else {
+            // If no active date ranges, use all date ranges
+            const startDates = offer.dateRanges.map(dr => new Date(dr.startDate).getTime());
+            const endDates = offer.dateRanges.map(dr => new Date(dr.endDate).getTime());
+            calculatedStartDate = new Date(Math.min(...startDates)).toISOString();
+            calculatedEndDate = new Date(Math.max(...endDates)).toISOString();
+          }
+        }
+        
+        return {
+          id: offer.id,
+          offerId: offer.offerId,
+          name: offer.name,
+          description: offer.description || undefined,
+          type: offer.type as ('discount' | 'promotion')[],
+          status: offer.status as 'active' | 'expired' | 'inactive',
+          startDate: calculatedStartDate,
+          endDate: calculatedEndDate,
+          totalUsage: offer.totalUsage,
+          totalDiscountGiven: offer.totalDiscountGiven,
+          discountTypes: offer.discountTypes.map((dt) => ({
+            id: dt.id,
+            discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
+            discountValue: dt.discountValue,
+            minOrderValue: dt.minOrderValue || undefined,
+            minQuantity: dt.minQuantity || undefined,
+            isActive: dt.isActive,
+            priority: dt.priority,
+          })),
+          dateRanges: offer.dateRanges?.map((dr) => ({
+            id: dr.id,
+            name: dr.name,
+            description: dr.description || undefined,
+            startDate: dr.startDate,
+            endDate: dr.endDate,
+            isActive: dr.isActive,
+            createdAt: dr.createdAt,
+            updatedAt: dr.updatedAt,
+          })),
+          products: [], // Products are not included in the offers query
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      });
 
       setOffers(transformedOffers);
     } catch (error) {
@@ -151,7 +176,17 @@ export default function OffersPage() {
   }, [user?.id]); // Removed OFFERS_QUERY from deps - it's a constant and shouldn't cause re-renders
 
   useEffect(() => {
-    fetchOffers();
+    let ignore = false;
+    
+    const loadOffers = async () => {
+      await fetchOffers();
+    };
+    
+    loadOffers();
+    
+    return () => {
+      ignore = true;
+    };
   }, [fetchOffers]);
 
   // Helper function to check if offer has discount types

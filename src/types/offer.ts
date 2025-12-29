@@ -45,8 +45,8 @@ export interface Offer {
   status: 'active' | 'expired' | 'inactive';
   minOrderValue?: number;
   minQuantity?: number;
-  startDate: string;
-  endDate: string;
+  startDate?: string | null;
+  endDate?: string | null;
   totalUsage: number;
   totalDiscountGiven: number;
   products: OfferProduct[];

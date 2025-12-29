@@ -1051,7 +1051,7 @@ export default function WhatsAppCampaignBuilder({
                           key={style}
                           type="button"
                           onClick={() => {
-                            handleUpdateBlock(selectedBlock.id, { textStyle: style as any });
+                            handleUpdateBlock(selectedBlock.id, { textStyle: style as 'normal' | 'bold' | 'italic' });
                             setShowTextStyleDropdown(false);
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"
@@ -1165,7 +1165,7 @@ export default function WhatsAppCampaignBuilder({
                           key={style}
                           type="button"
                           onClick={() => {
-                            handleUpdateBlock(selectedBlock.id, { buttonStyle: style as any });
+                            handleUpdateBlock(selectedBlock.id, { buttonStyle: style as 'primary' | 'secondary' });
                             setShowButtonStyleDropdown(false);
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"
@@ -1204,7 +1204,7 @@ export default function WhatsAppCampaignBuilder({
                         key={size}
                         type="button"
                         onClick={() => {
-                          handleUpdateBlock(selectedBlock.id, { spacingSize: size as any });
+                          handleUpdateBlock(selectedBlock.id, { spacingSize: size as 'small' | 'medium' | 'large' });
                           setShowSpacingSizeDropdown(false);
                         }}
                         className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"

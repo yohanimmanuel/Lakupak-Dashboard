@@ -50,6 +50,8 @@ export default function OfferTable({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [offerToDelete, setOfferToDelete] = useState<OfferTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
   
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -439,11 +441,12 @@ export default function OfferTable({
   };
 
   const handleBulkActivate = async () => {
-    if (selectedOffers.length === 0 || !user?.id) return;
+    if (selectedOffers.length === 0 || !user?.id || isActivating) return;
     
+    setIsActivating(true);
     try {
-      // Batch updates to avoid overwhelming the server (process 3 at a time)
-      const BATCH_SIZE = 3;
+      // Batch updates to avoid overwhelming the server
+      const BATCH_SIZE = 500;
       const failedOffers: string[] = [];
       const successfulOffers: string[] = [];
       
@@ -500,15 +503,18 @@ export default function OfferTable({
     } catch (error) {
       console.error('Bulk activation error:', error);
       alert('Failed to activate offers. Please try again.');
+    } finally {
+      setIsActivating(false);
     }
   };
   
   const handleBulkDeactivate = async () => {
-    if (selectedOffers.length === 0 || !user?.id) return;
+    if (selectedOffers.length === 0 || !user?.id || isDeactivating) return;
     
+    setIsDeactivating(true);
     try {
-      // Batch updates to avoid overwhelming the server (process 3 at a time)
-      const BATCH_SIZE = 10;
+      // Batch updates to avoid overwhelming the server
+      const BATCH_SIZE = 500;
       const failedOffers: string[] = [];
       const successfulOffers: string[] = [];
       
@@ -565,6 +571,8 @@ export default function OfferTable({
     } catch (error) {
       console.error('Bulk deactivation error:', error);
       alert('Failed to deactivate offers. Please try again.');
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -712,27 +720,27 @@ export default function OfferTable({
             <div className="flex gap-2">
               <button
                 onClick={handleBulkActivate}
-                disabled={hasSelectedOffersWithExpiredRanges}
+                disabled={hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                  hasSelectedOffersWithExpiredRanges
+                  hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700'
                 }`}
                 title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
               >
-                Activate
+                {isActivating ? 'Activating...' : 'Activate'}
               </button>
               <button
                 onClick={handleBulkDeactivate}
-                disabled={hasSelectedOffersWithExpiredRanges}
+                disabled={hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                  hasSelectedOffersWithExpiredRanges
+                  hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-yellow-600 text-white hover:bg-yellow-700'
                 }`}
                 title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
               >
-                Deactivate
+                {isDeactivating ? 'Deactivating...' : 'Deactivate'}
               </button>
               <button
                 onClick={handleBulkRemove}
@@ -764,27 +772,27 @@ export default function OfferTable({
               <div className="flex gap-2">
                 <button
                   onClick={handleBulkActivate}
-                  disabled={hasSelectedOffersWithExpiredRanges}
+                  disabled={hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating}
                   className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                    hasSelectedOffersWithExpiredRanges
+                    hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
                   title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
                 >
-                  Activate
+                  {isActivating ? 'Activating...' : 'Activate'}
                 </button>
                 <button
                   onClick={handleBulkDeactivate}
-                  disabled={hasSelectedOffersWithExpiredRanges}
+                  disabled={hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating}
                   className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                    hasSelectedOffersWithExpiredRanges
+                    hasSelectedOffersWithExpiredRanges || isActivating || isDeactivating
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                       : 'bg-yellow-600 text-white hover:bg-yellow-700'
                   }`}
                   title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
                 >
-                  Deactivate
+                  {isDeactivating ? 'Deactivating...' : 'Deactivate'}
                 </button>
                 <button
                   onClick={handleBulkRemove}

@@ -203,11 +203,10 @@ const fetchOffersConnection = async (args: {
     Promise.all([
       deactivateExpiredOffers(prisma, userId),
       updateProductPricesFromOffers(prisma, userId),
-    ]).catch(() => {
-      // Silently handle errors - these are maintenance operations
+    ]).catch((error) => {
+      console.error('[Offers] Background maintenance failed for userId:', userId, error);
     });
   }
-
   const whereClause: Prisma.OfferWhereInput = { userId };
 
   if (status && status !== 'All') {
@@ -371,11 +370,10 @@ const createOffer = async (args: {
       });
     }
 
-    return createdOffer;
-  });
-
-  await prisma.$transaction(async (tx) => {
+    // Update product prices within the same transaction to ensure atomicity
     await updateProductPricesFromOffers(tx, userId);
+
+    return createdOffer;
   });
 
   const createdOfferWithRelations = await prisma.offer.findUnique({
@@ -551,10 +549,15 @@ const updateOffer = async (args: {
     return offer;
   });
 
-  // Always wait for price update to complete before broadcasting WebSocket messages
-  // This ensures the database is updated before mobile clients fetch fresh data
+  // Update prices synchronously for all products with offers
+  // This ensures accuracy because a product may have multiple offers, and we need to
+  // recalculate considering all active offers together
+  // Use a transaction with longer timeout for large updates
   await prisma.$transaction(async (tx) => {
     await updateProductPricesFromOffers(tx, userId);
+  }, {
+    timeout: 30000, // 30 second timeout for large updates
+    isolationLevel: 'ReadCommitted', // Ensure reads see committed data
   });
 
   const updatedOfferWithRelations = await prisma.offer.findUnique({
@@ -571,11 +574,14 @@ const updateOffer = async (args: {
   }
 
   const affectedProductIds = updatedOfferWithRelations.offerProducts.map((op) => op.productId);
+  
+  // Broadcast WebSocket updates AFTER prices are committed
+  // This ensures marketplace queries see the updated prices
   try {
     await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIds);
     await broadcastPriceUpdate(affectedProductIds);
   } catch {
-    // ignore broadcast failures
+    // ignore broadcast failures - non-critical
   }
 
   return mapOffer(updatedOfferWithRelations);
@@ -604,11 +610,10 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
 
   const affectedProductIds = offerToDelete.offerProducts.map((op) => op.productId);
 
-  await prisma.offer.delete({
-    where: { id: offerToDelete.id },
-  });
-
   await prisma.$transaction(async (tx) => {
+    await tx.offer.delete({
+      where: { id: offerToDelete.id },
+    });
     await updateProductPricesFromOffers(tx, userId);
   });
 

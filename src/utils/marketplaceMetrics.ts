@@ -94,14 +94,8 @@ export async function deactivateExpiredOffers(
     const offersToDeactivate: string[] = [];
 
     for (const offer of activeOffers) {
-      // Check main date range
-      if (offer.startDate > now || offer.endDate < now) {
-        offersToDeactivate.push(offer.id);
-        if (offer.userId) affectedUserIds.add(offer.userId);
-        continue;
-      }
-
-      // Note: Date ranges are NOT used for auto-deactivation
+      // Note: Offers don't have main dates - only date ranges
+      // Date ranges are NOT used for auto-deactivation
       // Date ranges can extend beyond main offer dates for flexibility
       // When date ranges expire, the offer remains active but UI actions are blocked
 
@@ -147,107 +141,164 @@ export async function deactivateExpiredOffers(
   }
 }
 
+/**
+ * Helper function to check if current time is within any active date range
+ * Matches marketplace query logic exactly
+ */
+function isWithinActiveDateRange(dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean {
+  if (!dateRanges || dateRanges.length === 0) {
+    return true; // No date ranges means offer is always active
+  }
+  
+  const now = new Date();
+  // Normalize to start of day for date-only comparisons
+  const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  return dateRanges.some(range => {
+    if (!range.isActive) return false;
+    
+    // Convert to Date objects (they come as strings from database)
+    const startDate = new Date(range.startDate);
+    const endDate = new Date(range.endDate);
+    
+    // Normalize to start of day for date-only comparisons
+    const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    
+    // Check if current date is within range (inclusive)
+    return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+  });
+}
+
 export async function updateProductPricesFromOffers(
   tx: Prisma.TransactionClient | PrismaClient,
   userId: number,
 ): Promise<void> {
   try {
+    // Optimization: Only fetch products that have offers (much faster)
+    // Fetch all and manually deduplicate for reliability
+    const allOfferProducts = await tx.offerProduct.findMany({
+      where: {
+        offer: {
+          userId,
+        },
+      },
+      select: {
+        productId: true,
+      },
+    });
+
+    if (allOfferProducts.length === 0) {
+      return;
+    }
+
+    // Use Set to ensure unique product IDs
+    const productIds = Array.from(new Set(allOfferProducts.map(p => p.productId)));
+
+    // Fetch only products that have offers
     const products = await tx.product.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        productId: { in: productIds },
+      },
       include: {
         variants: true,
         variantOptions: true,
       },
     });
 
+    if (products.length === 0) {
+      return;
+    }
+
     const now = new Date();
     const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    for (const product of products) {
-      const productOffers = await tx.offer.findMany({
-        where: {
-          userId,
-          status: 'active',
-          offerProducts: {
-            some: { productId: product.productId },
+    // Optimization: Fetch all active offers for these products in a single query
+    const allOffers = await tx.offer.findMany({
+      where: {
+        userId,
+        status: 'active',
+        offerProducts: {
+          some: { productId: { in: productIds } },
+        },
+      },
+      include: {
+        offerDiscountTypes: true,
+        dateRanges: true,
+        offerProducts: {
+          select: {
+            productId: true,
           },
         },
-        include: {
-          offerDiscountTypes: true,
-          dateRanges: true,
-        },
-      });
+      },
+    });
 
-      // Filter offers to only include those with valid date ranges
+    // Build a map of productId -> offers for fast lookup
+    const offersByProductId = new Map<string, typeof allOffers>();
+    for (const offer of allOffers) {
+      for (const offerProduct of offer.offerProducts) {
+        if (!offersByProductId.has(offerProduct.productId)) {
+          offersByProductId.set(offerProduct.productId, []);
+        }
+        offersByProductId.get(offerProduct.productId)!.push(offer);
+      }
+    }
+
+    for (const product of products) {
+      // Get offers for this product from the pre-fetched map
+      const productOffers = offersByProductId.get(product.productId) || [];
+
+      // Filter offers using the same logic as marketplace query
       const validProductOffers = productOffers.filter(offer => {
-        // Check main date range
-        if (offer.startDate > now || offer.endDate < now) {
+        // Check date ranges using the same function as marketplace
+        const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
+        if (!hasActiveDateRange) {
           return false;
         }
-
-        // Check date ranges if they exist
-        if (offer.dateRanges && offer.dateRanges.length > 0) {
-          const hasActiveDateRange = offer.dateRanges.some(range => {
-            if (!range.isActive) return false;
-            
-            const startDate = range.startDate instanceof Date ? range.startDate : new Date(range.startDate);
-            const endDate = range.endDate instanceof Date ? range.endDate : new Date(range.endDate);
-            
-            const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-            const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-            
-            return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
-          });
-          
-          if (!hasActiveDateRange) {
-            return false;
-          }
-        }
-
+        
         // Check if at least one discount type is active
         return offer.offerDiscountTypes.some(dt => dt.isActive === true);
       });
 
       if (product.variantOptions && product.variantOptions.length > 0) {
-        for (const variantOption of product.variantOptions) {
-          // Get the true original price - preserve it if it exists, otherwise use current sellingPrice as baseline
-          // If originalSellingPrice exists, it's the true original price before any discounts
-          // If it doesn't exist, the current sellingPrice might already be discounted, so we need to be careful
+        // Batch all variant option updates for this product
+        const variantUpdates = product.variantOptions.map(variantOption => {
           const currentSellingPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
           const storedOriginalPrice = variantOption.originalSellingPrice
             ? parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR')
             : null;
 
-          // Determine the true original price:
-          // 1. If originalSellingPrice exists, use it (it's the true original)
-          // 2. If not, and sellingPrice > 0, use sellingPrice as the original (no discount applied yet)
-          // 3. This prevents price corruption by always preserving the true original
           const trueOriginalPrice = storedOriginalPrice ?? currentSellingPrice;
 
           let finalPrice = trueOriginalPrice;
           let hasOffer = false;
 
+          // Consider ALL valid offers and find the best discount across all of them
           if (validProductOffers.length > 0) {
-            const offer = validProductOffers[0];
             let bestDiscountAmount = 0;
-            let bestDiscountType: typeof offer.offerDiscountTypes[number] | null = null;
+            let bestDiscountType: { discountType: string; discountValue: number } | null = null;
 
-            for (const discountType of offer.offerDiscountTypes) {
-              if (!discountType.isActive) {
-                continue;
-              }
+            // Check all offers to find the best discount
+            for (const offer of validProductOffers) {
+              for (const discountType of offer.offerDiscountTypes) {
+                if (!discountType.isActive) {
+                  continue;
+                }
 
-              let discountAmount = 0;
+                let discountAmount = 0;
 
-              if (discountType.discountType === 'percentage') {
-                discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
-              } else if (discountType.discountType === 'fixed') {
-                discountAmount = discountType.discountValue;
-              }
+                if (discountType.discountType === 'percentage') {
+                  discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
+                } else if (discountType.discountType === 'fixed') {
+                  discountAmount = discountType.discountValue;
+                }
+                // Note: buy_x_get_y doesn't affect price directly, so we skip it here
 
-              if (discountAmount > bestDiscountAmount) {
-                bestDiscountAmount = discountAmount;
-                bestDiscountType = discountType;
+                if (discountAmount > bestDiscountAmount) {
+                  bestDiscountAmount = discountAmount;
+                  bestDiscountType = discountType;
+                }
               }
             }
 
@@ -259,33 +310,30 @@ export async function updateProductPricesFromOffers(
               }
               hasOffer = true;
             } else {
-              // No valid discount type, restore to original price
               finalPrice = trueOriginalPrice;
               hasOffer = false;
             }
           } else {
-            // No offers, restore to original price
             finalPrice = trueOriginalPrice;
             hasOffer = false;
           }
 
-          // Update prices:
-          // - If hasOffer: set sellingPrice to discounted price, set originalSellingPrice to true original
-          // - If !hasOffer: restore sellingPrice to true original, clear originalSellingPrice
-          await tx.variantOption.update({
+          return tx.variantOption.update({
             where: { id: variantOption.id },
             data: {
               sellingPrice: String(Math.round(finalPrice)),
-              // Set originalSellingPrice only when offer is active (to preserve true original)
-              // Clear it when no offer (sellingPrice becomes the original again)
               originalSellingPrice: hasOffer ? String(Math.round(trueOriginalPrice)) : null,
             },
           });
-        }
+        });
+
+        // Execute all updates for this product in parallel
+        await Promise.all(variantUpdates);
       }
     }
   } catch (error) {
-    // Silently handle errors - price updates are non-critical
+    console.error('[MarketplaceMetrics] Price update failed for userId:', userId, error);
+    // Continue despite errors to avoid blocking offer operations
   }
 }
 
