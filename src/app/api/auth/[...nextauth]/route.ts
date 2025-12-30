@@ -1,7 +1,9 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import { compare } from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as ReturnType<typeof PrismaAdapter>,
@@ -13,6 +15,52 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   providers: [
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        const email = credentials.email.trim().toLowerCase();
+        
+        const user = await prisma.user.findUnique({
+          where: { email },
+          include: { company: true }
+        });
+
+        if (!user || !user.password) {
+          return null;
+        }
+
+        const isValid = await compare(credentials.password, user.password);
+        if (!isValid) {
+          return null;
+        }
+
+        return {
+          id: user.id.toString(),
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          bio: user.bio,
+          location: user.location,
+          avatar: user.avatar,
+          image: user.image,
+          name: user.name,
+          companyId: user.companyId,
+          company: user.company,
+          region: user.region,
+          currency: user.currency,
+          language: user.language,
+        };
+      }
+    }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -114,7 +162,7 @@ export const authOptions: NextAuthOptions = {
       // NextAuth automatically refreshes the token expiry when this callback runs
       
       // Fetch user data from DB only on sign-in or when explicitly triggered
-      const shouldFetchUser = account?.provider === "google" || trigger === "update" || !token.sub;
+      const shouldFetchUser = account?.provider === "google" || account?.provider === "credentials" || trigger === "update" || !token.sub;
       
       if (shouldFetchUser && (user?.email || token.email)) {
         const email = ((user?.email as string) || token.email)?.toLowerCase();
@@ -201,6 +249,8 @@ export const authOptions: NextAuthOptions = {
       
       if (account?.provider === "google") {
         token.provider = "google";
+      } else if (account?.provider === "credentials") {
+        token.provider = "credentials";
       }
       
       return token;

@@ -23,9 +23,6 @@ export function SessionWarningModal() {
         const now = Date.now();
         const timeLeft = sessionExpiry - now;
         
-        // Show warning 5 minutes before expiry
-        const WARNING_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-        
         if (timeLeft <= WARNING_THRESHOLD && timeLeft > 0) {
           setShowWarning(true);
           setCountdown(Math.ceil(timeLeft / 1000));
@@ -46,9 +43,6 @@ export function SessionWarningModal() {
         const expiryTime = new Date(session.expires).getTime();
         const timeLeft = expiryTime - now;
         
-        // Show warning 5 minutes before expiry
-        const WARNING_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-        
         if (timeLeft <= WARNING_THRESHOLD && timeLeft > 0) {
           setShowWarning(true);
           setCountdown(Math.ceil(timeLeft / 1000));
@@ -56,6 +50,7 @@ export function SessionWarningModal() {
         } else if (timeLeft <= 0) {
           // Session expired - NextAuth will handle redirect
           setShowWarning(false);
+          signOut({ callbackUrl: '/login' });
         } else {
           setShowWarning(false);
         }
@@ -103,7 +98,10 @@ export function SessionWarningModal() {
               <p className="text-sm text-gray-700">
                 For your security, you will be automatically logged out in{' '}
                 <span className="font-bold text-orange-600">
-                  {Math.floor(countdown / 60)} minute{Math.floor(countdown / 60) !== 1 ? 's' : ''} {countdown % 60} second{countdown % 60 !== 1 ? 's' : ''}
+                  {countdown > 60 
+                    ? `${Math.floor(countdown / 60)} minute${Math.floor(countdown / 60) !== 1 ? 's' : ''} ${countdown % 60} second${countdown % 60 !== 1 ? 's' : ''}`
+                    : `${countdown} second${countdown !== 1 ? 's' : ''}`
+                  }
                 </span>.
               </p>
               <p className="text-xs text-gray-600 mt-1">

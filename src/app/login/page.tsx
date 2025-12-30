@@ -51,50 +51,29 @@ export default function LoginPage() {
     startLoading('Signing in...');
     
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache"
-        },
-        body: JSON.stringify({ email: email.trim(), password }),
+      // Clear any existing user session first
+      const clearUser = useUserStore.getState().clearUser;
+      clearUser();
+      
+      // Use NextAuth signIn with credentials provider
+      const result = await signIn("credentials", {
+        email: email.trim(),
+        password,
+        redirect: false,
       });
       
-      const data = await res.json();
+      if (result?.error) {
+        handleError({ error: "Invalid email or password" });
+        return;
+      }
       
-      if (!res.ok) {
-        handleError(data, "Login failed. Please try again.");
+      if (!result?.ok) {
+        handleError({ error: "Login failed. Please try again." });
         return;
       }
       
       // Success
       setSuccess("Login successful! Redirecting...");
-      
-      // Clear any existing user session first
-      const clearUser = useUserStore.getState().clearUser;
-      clearUser();
-      
-      // Clear any existing NextAuth session to prevent session conflicts
-      await signOut({ redirect: false });
-      
-      // Set new user session
-      const userData = {
-        id: data.id,
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        bio: data.bio || '',
-        location: data.location || '',
-        avatar: data.avatar || '',
-        companyId: data.companyId || null,
-        company: data.company || null,
-        region: data.region || 'ID',
-        currency: data.currency || 'IDR',
-        language: data.language || 'en',
-      };
-      
-      setUser(userData, rememberMe);
       
       // Track successful login
       if (typeof window !== 'undefined' && window.gtag) {
@@ -116,7 +95,7 @@ export default function LoginPage() {
     } finally {
       stopLoading();
     }
-  }, [email, password, rememberMe, router, setUser, handleError, clearError, startLoading, stopLoading]);
+  }, [email, password, router, handleError, clearError, startLoading, stopLoading]);
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col lg:grid lg:grid-cols-9">
