@@ -26,6 +26,23 @@ interface SalesReportingProps {
   mode: 'create' | 'edit';
 }
 
+/**
+ * Normalizes a date string to YYYY-MM-DD format.
+ * Returns today's date if input is undefined or invalid.
+ */
+const normalizeDateString = (dateInput: string | undefined): string => {
+  if (!dateInput) {
+    return new Date().toISOString().split('T')[0];
+  }
+  
+  const parsed = new Date(dateInput);
+  if (isNaN(parsed.getTime())) {
+    return new Date().toISOString().split('T')[0];
+  }
+  
+  return parsed.toISOString().split('T')[0];
+};
+
 export default function SalesReporting({
   formData,
   onFormChange,
@@ -37,7 +54,7 @@ export default function SalesReporting({
     if (formData.fieldReports && formData.fieldReports.length > 0) {
       return formData.fieldReports.map(r => ({
         id: r.id || `report-${Date.now()}-${Math.random()}`,
-        date: r.date,
+        date: normalizeDateString(r.date),
         location: r.location,
         startTime: r.startTime,
         endTime: r.endTime,
@@ -65,7 +82,7 @@ export default function SalesReporting({
   });
 
   // Use ref to track previous formData.fieldReports to avoid unnecessary updates
-  const prevFormDataReportsRef = useRef<typeof formData.fieldReports>();
+  const prevFormDataReportsRef = useRef<typeof formData.fieldReports>(undefined);
   const reportsRef = useRef(reports);
   reportsRef.current = reports; // Keep ref in sync
 
@@ -78,7 +95,7 @@ export default function SalesReporting({
       if (formData.fieldReports && formData.fieldReports.length > 0) {
         const formReports = formData.fieldReports.map(r => ({
           id: r.id || `report-${Date.now()}-${Math.random()}`,
-          date: r.date,
+          date: normalizeDateString(r.date),
           location: r.location,
           startTime: r.startTime,
           endTime: r.endTime,

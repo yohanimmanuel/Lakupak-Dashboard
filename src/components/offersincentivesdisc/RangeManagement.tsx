@@ -247,8 +247,15 @@ export default function RangeManagement({
           <div className="grid grid-cols-1 gap-4">
             {dateRanges.slice(0, 1).map((range) => {
               const now = new Date();
-              const rangeEnd = new Date(range.endDate);
-              const isExpired = range.isActive && now > rangeEnd;
+              const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              
+              // Parse yyyy-MM-dd string directly to avoid timezone issues
+              const [endYear, endMonth, endDay] = range.endDate.split('-').map(Number);
+              const rangeEnd = new Date(endYear, endMonth - 1, endDay);
+              
+              // Offer remains active throughout the entire end date
+              // Only expires when today > end date (not when today === end date)
+              const isExpired = range.isActive && nowStartOfDay > rangeEnd;
               
               return (
                 <div key={range.id} className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow ${

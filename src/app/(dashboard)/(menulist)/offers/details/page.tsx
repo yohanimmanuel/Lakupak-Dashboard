@@ -11,7 +11,7 @@ import RangeManagement from '@/components/offersincentivesdisc/RangeManagement';
 import { Offer, DateRange } from '@/types/offer';
 import { OfferProduct } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { computeOfferDates } from '@/utils/offerValidation';
+import { computeOfferDates } from '@/utils/offerUtils';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
@@ -388,7 +388,23 @@ export default function OffersDetailsPage() {
   // Handle changes from child components
   const handleOfferChange = (updatedData: Partial<Offer>) => {
     if (currentOffer) {
-      setCurrentOffer({ ...currentOffer, ...updatedData });
+      const updatedOffer = { ...currentOffer, ...updatedData };
+      
+      // Auto-sync status based on date range validity when dateRanges are updated
+      if (updatedData.dateRanges) {
+        const isExpired = hasExpiredDateRanges(updatedOffer);
+        
+        // If offer has expired date ranges, automatically set status to inactive
+        if (isExpired && updatedOffer.status === 'active') {
+          updatedOffer.status = 'inactive';
+        }
+        // If offer has valid date ranges and is currently inactive, automatically set to active
+        else if (!isExpired && updatedOffer.status === 'inactive') {
+          updatedOffer.status = 'active';
+        }
+      }
+      
+      setCurrentOffer(updatedOffer);
       setHasUnsavedChanges(true);
     }
   };
@@ -887,7 +903,9 @@ export default function OffersDetailsPage() {
               This offer has expired from the date range
             </h3>
             <p className="text-sm text-orange-700">
-              All active date ranges have passed. You can reactivate this offer by updating the date ranges in the &quot;Date Range&quot; tab, or activate it without date restrictions.
+              All active date ranges have passed. The offer status has been automatically set to &quot;Inactive&quot;. 
+              To reactivate this offer, update the date ranges in the &quot;Date Range&quot; tab to include future dates, and the status will automatically change back to &quot;Active&quot;.
+              You can also delete this offer and create a new one if you need to run a similar promotion.
             </p>
           </div>
         </div>

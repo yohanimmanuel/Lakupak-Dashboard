@@ -91,6 +91,8 @@ export default function EditSalesAgentPage() {
         status
         avatar
         territory
+        bio
+        sex
         teamId
         teamName
         favoriteProducts {
