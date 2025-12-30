@@ -2,6 +2,7 @@ import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { verifyAccessToken } from '@/lib/jwt';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -86,7 +87,6 @@ function extractAuthenticatedUserId(request: NextRequest): number | null {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { verifyAccessToken } = require('@/lib/jwt');
     const payload = verifyAccessToken(token);
     
     // Validate that sub is a positive integer
@@ -213,21 +213,10 @@ async function handler(request: NextRequest) {
     if (operation) {
       const { query, variables = {} } = operation;
       
-      // Extract authenticated user ID from JWT token (primary source)
-      let userId = extractAuthenticatedUserId(request);
-      
-      // Fall back to variables.userId if no authenticated user
-      if (!userId) {
-        const variableUserId = variables.userId as number | null | undefined;
-        // Validate that variableUserId is a positive integer
-        if (
-          typeof variableUserId === 'number' && 
-          variableUserId > 0 && 
-          Number.isInteger(variableUserId)
-        ) {
-          userId = variableUserId;
-        }
-      }
+      // Extract authenticated user ID from JWT token only
+      // Requests without valid JWT are treated as anonymous (no user-based rate limiting)
+      // Resolvers must enforce authentication requirements for protected operations
+      const userId = extractAuthenticatedUserId(request);
       
       // Apply rate limiting based on operation type (only if we have a valid userId)
       if (userId) {

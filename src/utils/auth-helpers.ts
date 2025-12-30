@@ -14,11 +14,14 @@ export async function getAuthenticatedUserId(req: NextRequest): Promise<number |
     try {
       const token = authHeader.replace('Bearer ', '');
       const payload = verifyAccessToken(token);
-      return payload.sub;
+      // Validate that sub is a positive integer
+      if (typeof payload.sub === 'number' && payload.sub > 0 && Number.isInteger(payload.sub)) {
+        return payload.sub;
+      }
+      return null;
     } catch (error) {
       // Invalid JWT token, fall through to NextAuth check
-    }
-  }
+    }  }
 
   // Try NextAuth session (web dashboard)
   try {

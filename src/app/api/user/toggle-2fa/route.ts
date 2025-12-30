@@ -2,35 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
+import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
-    // Verify JWT token and authenticate user
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Authenticate user (supports both JWT and NextAuth session)
+    const authenticatedUserId = await getAuthenticatedUserId(req);
+    if (!authenticatedUserId) {
       return NextResponse.json(
-        { error: 'Authorization token required' },
+        { error: 'Authentication required' },
         { status: 401, headers }
       );
     }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Verify JWT token and extract authenticated user ID
-    const { verifyAccessToken } = await import('../../../../lib/jwt');
-    let authenticatedUserId: number;
-    try {
-      const payload = verifyAccessToken(token);
-      authenticatedUserId = payload.sub;
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers }
-      );
-    }
-
     // Parse and validate request body
     let body;
     try {
@@ -70,11 +55,10 @@ export async function PUT(req: NextRequest) {
     
     if (typeof enabled !== 'boolean') {
       return NextResponse.json(
-        { error: 'Enabled status is required' }, 
+        { error: 'Enabled must be a boolean' }, 
         { status: 400, headers }
       );
-    }
-    
+    }    
     // Find user using authenticated ID
     const user = await prisma.user.findUnique({
       where: { id: authenticatedUserId }

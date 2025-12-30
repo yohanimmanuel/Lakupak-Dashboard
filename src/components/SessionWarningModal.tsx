@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { useSession } from 'next-auth/react';
 import { AlertCircle, Clock } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 // Show warning 5 minutes before session expiry
 const WARNING_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -125,8 +126,11 @@ export function SessionWarningModal() {
         {/* Action Buttons */}
         <div className="flex gap-3">
           <button
-            onClick={() => {
+            onClick={async () => {
               setShowWarning(false);
+              if (sessionType === 'nextauth') {
+                await signOut({ redirect: false });
+              }
               clearUser();
             }}
             className="flex-1 px-4 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
