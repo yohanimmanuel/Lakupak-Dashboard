@@ -94,17 +94,45 @@ export async function deactivateExpiredOffers(
     const offersToDeactivate: string[] = [];
 
     for (const offer of activeOffers) {
-      // Note: Offers don't have main dates - only date ranges
-      // Date ranges are NOT used for auto-deactivation
-      // Date ranges can extend beyond main offer dates for flexibility
-      // When date ranges expire, the offer remains active but UI actions are blocked
+      let shouldDeactivate = false;
 
       // Check if at least one discount type is active
       const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);
       if (!hasActiveDiscountType) {
+        shouldDeactivate = true;
+      }
+
+      // Check if all date ranges are expired (natural expiration)
+      // This ensures offers are automatically deactivated when their date ranges pass
+      if (!shouldDeactivate && offer.dateRanges && offer.dateRanges.length > 0) {
+        const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Get active date ranges
+        const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
+        
+        if (activeDateRanges.length === 0) {
+          // No active date ranges means expired
+          shouldDeactivate = true;
+        } else {
+          // Check if ALL active date ranges are expired
+          const allExpired = activeDateRanges.every(range => {
+            const rangeStart = new Date(range.startDate.getFullYear(), range.startDate.getMonth(), range.startDate.getDate());
+            const rangeEnd = new Date(range.endDate.getFullYear(), range.endDate.getMonth(), range.endDate.getDate());
+            
+            // Offer remains active throughout the entire end date
+            // Only expires when today > end date (not when today === end date)
+            return nowStartOfDay > rangeEnd;
+          });
+          
+          if (allExpired) {
+            shouldDeactivate = true;
+          }
+        }
+      }
+
+      if (shouldDeactivate) {
         offersToDeactivate.push(offer.id);
         if (offer.userId) affectedUserIds.add(offer.userId);
-        continue;
       }
     }
 

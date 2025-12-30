@@ -241,6 +241,15 @@ const fetchOffersConnection = async (args: {
 const fetchSingleOffer = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
+  // Deactivate expired offers and update product prices before fetching
+  // This ensures the offer status is current when viewing details
+  await Promise.all([
+    deactivateExpiredOffers(prisma, userId),
+    updateProductPricesFromOffers(prisma, userId),
+  ]).catch((error) => {
+    console.error('[Offer] Background maintenance failed for userId:', userId, error);
+  });
+
   const offer = await prisma.offer.findFirst({
     where: {
       OR: [{ id }, { offerId: id }],
