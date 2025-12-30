@@ -226,9 +226,14 @@ export default function OffersDetailsPage() {
             updatedAt: new Date().toISOString(),
           };
 
-          // Note: We don't auto-inactivate expired offers anymore
-          // Users can reactivate expired offers by changing date ranges
-          // Status is now manually controlled for flexibility
+          // Auto-sync status with date range validity on page load
+          // This ensures offers that expired naturally (by time passing) are marked inactive
+          // Users can still reactivate by updating date ranges
+          const isExpired = hasExpiredDateRanges(transformedOffer);
+          if (isExpired && transformedOffer.status === 'active') {
+            transformedOffer.status = 'inactive';
+            // Note: This change is only local - user must save to persist
+          }
           
           if (!ignore) {
             setCurrentOffer(transformedOffer);
@@ -390,7 +395,9 @@ export default function OffersDetailsPage() {
     if (currentOffer) {
       const updatedOffer = { ...currentOffer, ...updatedData };
       
-      // Auto-sync status based on date range validity when dateRanges are updated
+      // Auto-sync status based on date range validity when dateRanges are manually updated
+      // This provides immediate feedback when users change dates
+      // Note: Status can still be manually overridden after auto-sync via the status dropdown
       if (updatedData.dateRanges) {
         const isExpired = hasExpiredDateRanges(updatedOffer);
         
