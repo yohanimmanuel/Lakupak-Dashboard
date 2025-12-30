@@ -17,6 +17,11 @@ import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackO
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
+import { 
+  orderQueryRateLimiter,
+  orderCreationRateLimiter,
+  orderUpdateRateLimiter
+} from '@/utils/rateLimiter';
 
 interface OfferDiscountType {
   id: string;
@@ -61,6 +66,14 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const checkExists = searchParams.get('checkExists');
     const orderIds = searchParams.get('orderIds');
+    
+    // Apply rate limiting for order queries: 50 per minute per user
+    if (userId && !isNaN(Number(userId))) {
+      const rateLimitResponse = await orderQueryRateLimiter(request, Number(userId));
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     // Handle checking order existence
     if (checkExists === 'true' && orderIds) {
@@ -307,6 +320,14 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
+    
+    // Apply rate limiting for order creation: 50 per hour per user
+    if (body.userId && !isNaN(Number(body.userId))) {
+      const rateLimitResponse = await orderCreationRateLimiter(request, Number(body.userId));
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     // Validate input data
     const validation = validateOrderInput(body);
@@ -767,6 +788,14 @@ export async function PUT(request: NextRequest) {
   
   try {
     const body = await request.json();
+    
+    // Apply rate limiting for order updates: 50 per minute per user
+    if (body.userId && !isNaN(Number(body.userId))) {
+      const rateLimitResponse = await orderUpdateRateLimiter(request, Number(body.userId));
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     // Bulk archive support
     if (Array.isArray(body.archiveOrderIds) && body.archiveOrderIds.length > 0) {
@@ -1428,6 +1457,14 @@ export async function DELETE(request: NextRequest) {
   
   try {
     const body = await request.json();
+    
+    // Apply rate limiting for order deletions: 50 per minute per user
+    if (body.userId && !isNaN(Number(body.userId))) {
+      const rateLimitResponse = await orderUpdateRateLimiter(request, Number(body.userId));
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     if (!body.orderId) {
       return NextResponse.json(

@@ -7,9 +7,15 @@ import {
   sanitizeUserData 
 } from '../../../../utils/auth-security';
 import { getRegionByCode } from '@/config/regionConfig';
-
+import { registerRateLimiter } from '../../../../utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting: 3 registrations per hour
+  const rateLimitResponse = await registerRateLimiter(req);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+  
   const headers = getSecurityHeaders();
   
   try {

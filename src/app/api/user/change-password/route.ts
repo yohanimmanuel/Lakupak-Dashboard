@@ -5,6 +5,7 @@ import {
   validateAuthInput, 
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
+import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -29,6 +30,12 @@ export async function PUT(req: NextRequest) {
         { error: 'Valid user ID is required' }, 
         { status: 400, headers }
       );
+    }
+    
+    // Apply rate limiting: 10 operations per hour
+    const rateLimitResponse = await settingsOperationRateLimiter(req, userId);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
     
     if (!currentPassword || typeof currentPassword !== 'string') {

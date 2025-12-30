@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '../../../../../utils/auth-security';
 import { twilioClient, waFrom, smsFrom } from '../../../../../lib/twilio';
+import { otpRateLimiter } from '../../../../../utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -18,6 +19,14 @@ export async function POST(req: NextRequest) {
     }
     
     const { phone, countryCode, channel } = body;
+    
+    // Apply rate limiting EARLY to prevent Twilio costs: 3 OTPs per 5 minutes per phone
+    if (phone) {
+      const rateLimitResponse = await otpRateLimiter(req, phone);
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     // Validate input
     if (!phone || typeof phone !== 'string') {

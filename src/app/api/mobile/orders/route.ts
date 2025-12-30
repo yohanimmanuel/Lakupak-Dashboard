@@ -12,6 +12,10 @@ import { parsePrice } from '../../../../utils/currencyUtils';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '../../../../utils/buyerSync';
 // Inline function to avoid circular imports
 import { broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
+import { 
+  orderQueryRateLimiter,
+  orderCreationRateLimiter
+} from '../../../../utils/rateLimiter';
 
 interface OrderItemInput {
   productId: string;
@@ -80,6 +84,12 @@ export async function GET(request: NextRequest) {
         { error: 'Unauthorized access to user data' },
         { status: 403, headers }
       );
+    }
+    
+    // Apply rate limiting for order queries: 50 per minute per user
+    const rateLimitResponse = await orderQueryRateLimiter(request, userIdNum);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
     
     // Validate pagination parameters
@@ -291,6 +301,12 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized access to user data' },
         { status: 403, headers }
       );
+    }
+    
+    // Apply rate limiting for order creation: 50 per hour per user
+    const rateLimitResponse = await orderCreationRateLimiter(request, userIdNum);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
     
     if (!marketplaceUser) {

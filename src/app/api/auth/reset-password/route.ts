@@ -5,7 +5,7 @@ import {
   validateAuthInput, 
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
-
+import { passwordResetRateLimiter } from '../../../../utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -23,6 +23,14 @@ export async function POST(req: NextRequest) {
     }
     
     const { email, password, token } = body;
+    
+    // Apply rate limiting EARLY: 3 requests per hour per email
+    if (email) {
+      const rateLimitResponse = await passwordResetRateLimiter(req, email);
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
     
     // Validate required fields
     if (!email || !password) {

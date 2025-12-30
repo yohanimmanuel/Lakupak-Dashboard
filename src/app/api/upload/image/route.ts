@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadImage, deleteImage } from '@/lib/cloudinary';
 import cloudinary from '@/lib/cloudinary';
+import { imageUploadRateLimiter, imageDeleteRateLimiter } from '@/utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting: 50 uploads per hour
+  const rateLimitResponse = await imageUploadRateLimiter(req);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+  
   try {
     const body = await req.json();
     
@@ -71,6 +78,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  // Apply rate limiting: 100 deletions per hour
+  const rateLimitResponse = await imageDeleteRateLimiter(req);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+  
   try {
     const { searchParams } = new URL(req.url);
     const publicId = searchParams.get('publicId');

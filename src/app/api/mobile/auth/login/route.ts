@@ -6,9 +6,15 @@ import {
   getSecurityHeaders, 
   sanitizeUserData 
 } from '../../../../../utils/auth-security';
-
+import { loginRateLimiter } from '../../../../../utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting: 5 attempts per 15 minutes
+  const rateLimitResponse = await loginRateLimiter(req);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+  
   const headers = getSecurityHeaders();
   
   try {
