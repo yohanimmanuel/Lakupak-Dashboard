@@ -5,11 +5,22 @@ import {
   validateAuthInput, 
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
+import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
+import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
+    // Authenticate user (supports both JWT and NextAuth session)
+    const authenticatedUserId = await getAuthenticatedUserId(req);
+    if (!authenticatedUserId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401, headers }
+      );
+    }
+    
     let body;
     try {
       body = await req.json();
@@ -22,11 +33,26 @@ export async function POST(req: NextRequest) {
     
     const { userId, newPassword } = body;
     
+    // Validate userId from request body
     if (!userId || typeof userId !== 'number') {
       return NextResponse.json(
         { error: 'Valid user ID is required' }, 
         { status: 400, headers }
       );
+    }
+    
+    // Authorization check: verify the authenticated user matches the requested userId
+    if (authenticatedUserId !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized access to user data' },
+        { status: 403, headers }
+      );
+    }
+    
+    // Apply rate limiting with the VERIFIED authenticated user ID
+    const rateLimitResponse = await settingsOperationRateLimiter(req, authenticatedUserId);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
     }
     
     if (!newPassword || typeof newPassword !== 'string') {

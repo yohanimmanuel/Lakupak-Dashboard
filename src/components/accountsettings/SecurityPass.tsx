@@ -378,7 +378,7 @@ export default function SecurityPass() {
       </div>
 
       {/* Two-Factor Authentication Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      {/* <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <Smartphone className="w-5 h-5 text-gray-500" />
           Two-Factor Authentication
@@ -412,7 +412,7 @@ export default function SecurityPass() {
             }
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Password Change Modal */}
       {showPasswordModal && (
@@ -551,15 +551,15 @@ export default function SecurityPass() {
                   {hasPassword && (
                     <button
                       onClick={() => setPasswordStep(1)}
-                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-semibold"
+                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium"
                     >
                       Back
                     </button>
                   )}
                   <button
                     onClick={handlePasswordChange}
-                    disabled={isLoading || !formData.newPassword.trim() || !formData.confirmPassword.trim()}
-                    className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 transition-colors flex items-center gap-2"
+                    disabled={isLoading || !formData.newPassword.trim() || !formData.confirmPassword.trim() || formData.newPassword !== formData.confirmPassword}
+                    className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {isLoading 
                       ? (hasPassword ? 'Saving...' : 'Creating...') 

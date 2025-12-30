@@ -71,8 +71,8 @@ interface UserStore {
   forceClearAllSessions: () => void;
 }
 
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days (default session)
+const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days (with "Remember Me")
 
 const getInitialUser = (): { user: User | null; sessionExpiry: number | null } => {
   // Always return null during SSR to prevent hydration mismatches

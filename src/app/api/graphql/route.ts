@@ -76,6 +76,31 @@ const server = new ApolloServer({
 const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server);
 
 /**
+ * Extract authenticated user ID from JWT token
+ */
+function extractAuthenticatedUserId(request: NextRequest): number | null {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { verifyAccessToken } = require('@/lib/jwt');
+    const payload = verifyAccessToken(token);
+    
+    // Validate that sub is a positive integer
+    if (typeof payload.sub === 'number' && payload.sub > 0 && Number.isInteger(payload.sub)) {
+      return payload.sub;
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Extract GraphQL operation details from request
  */
 async function extractGraphQLOperation(request: NextRequest): Promise<{
@@ -187,9 +212,24 @@ async function handler(request: NextRequest) {
     
     if (operation) {
       const { query, variables = {} } = operation;
-      const userId = variables.userId as number;
       
-      // Apply rate limiting based on operation type
+      // Extract authenticated user ID from JWT token (primary source)
+      let userId = extractAuthenticatedUserId(request);
+      
+      // Fall back to variables.userId if no authenticated user
+      if (!userId) {
+        const variableUserId = variables.userId as number | null | undefined;
+        // Validate that variableUserId is a positive integer
+        if (
+          typeof variableUserId === 'number' && 
+          variableUserId > 0 && 
+          Number.isInteger(variableUserId)
+        ) {
+          userId = variableUserId;
+        }
+      }
+      
+      // Apply rate limiting based on operation type (only if we have a valid userId)
       if (userId) {
         const opType = getOperationType(query);
         
