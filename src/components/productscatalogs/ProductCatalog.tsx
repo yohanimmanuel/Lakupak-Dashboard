@@ -2519,6 +2519,13 @@ export default function ProductCatalog({
                               {isOfferConnected && (() => {
                                 const dbPrice = (combination as Record<string, unknown>).dbSellingPrice;
                                 if (!dbPrice) return null;
+                                
+                                // Only show discounted price if there's an actual discount type (not just promotion)
+                                const productDiscountType = (product as { discountType?: string }).discountType;
+                                const hasActualDiscount = productDiscountType === 'percentage' || productDiscountType === 'fixed';
+                                
+                                if (!hasActualDiscount) return null;
+                                
                                 return (
                                   <div className="mt-1 text-xs text-gray-600">
                                     Discounted: {currencySymbol} {formatCurrencyAmount(parseNumberByCurrency(String(dbPrice), userCurrency), userCurrency)}

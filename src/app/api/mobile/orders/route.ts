@@ -10,6 +10,7 @@ import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 import { validateVariant, parseVariantPrice } from '../../../../services/variantService';
 import { parsePrice } from '../../../../utils/currencyUtils';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '../../../../utils/buyerSync';
+import { calculateOrderItemPromotion } from '../../../../utils/promotionUtils';
 // Inline function to avoid circular imports
 import { broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
 import { 
@@ -831,8 +832,10 @@ export async function POST(request: NextRequest) {
         }
         
         // Calculate total quantity needed (including promotion free items)
+        // Note: stockQuantity is tracked in PIECES, so all calculations must be in pieces
         const orderedQty = parseInt(String(item.packageQuantity || 1));
-        let totalQtyNeeded = orderedQty;
+        const orderedPieces = orderedQty * piecesPerPackage;
+        let totalQtyNeeded = orderedPieces;
         
         // Check if product has Buy X Get Y promotion
         const productOffers = await prisma.offer.findMany({
@@ -858,13 +861,24 @@ export async function POST(request: NextRequest) {
           );
           
           if (buyXGetYPromo) {
-            const minQty = buyXGetYPromo.minQuantity || 1;
-            const freeQty = buyXGetYPromo.discountValue || 0;
+            // Build promotion details for calculation
+            const promotionDetails = {
+              minQuantity: buyXGetYPromo.minQuantity || 1,
+              freeQuantity: buyXGetYPromo.discountValue || 0
+            };
             
-            // Calculate how many free items they get
-            const qualifyingSets = Math.floor(orderedQty / minQty);
-            const totalFreeItems = qualifyingSets * freeQty;
-            totalQtyNeeded = orderedQty + totalFreeItems;
+            // Calculate free items correctly with MOQ consideration
+            const promotionGift = calculateOrderItemPromotion(
+              promotionDetails,
+              orderedQty,
+              piecesPerPackage,
+              variantOption.moq
+            );
+            
+            if (promotionGift && promotionGift.freeQty > 0) {
+              // Add free items (already in pieces) to ordered pieces
+              totalQtyNeeded = orderedPieces + promotionGift.freeQty;
+            }
           }
         }
         
@@ -874,9 +888,10 @@ export async function POST(request: NextRequest) {
             ? Object.entries(variantOption.attributes).map(([k, v]) => `${k}: ${v}`).join(', ')
             : 'Default';
           
+          const freeItems = totalQtyNeeded - orderedPieces;
           return NextResponse.json(
             { 
-              error: `Insufficient stock for ${product.name} (${variantName}). Available: ${variantOption.stockQuantity}, Required: ${totalQtyNeeded} (including ${totalQtyNeeded - orderedQty} free items)` 
+              error: `Insufficient stock for ${product.name} (${variantName}). Available: ${variantOption.stockQuantity}, Required: ${totalQtyNeeded} pieces (${orderedPieces} ordered + ${freeItems} free)` 
             },
             { status: 400, headers }
           );

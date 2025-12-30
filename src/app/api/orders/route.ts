@@ -17,6 +17,7 @@ import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackO
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
+import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { 
   orderQueryRateLimiter,
   orderCreationRateLimiter,
@@ -53,6 +54,52 @@ async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
   } catch (error) {
     // Ignore broadcast errors to keep order flow unaffected
   }
+}
+
+/**
+ * Calculate total quantity (in pieces) including free items from promotions
+ * Ensures consistent and safe calculation for both stock restoration and deduction
+ * 
+ * @param orderItem - Order item with package quantity, pieces per package, and promotion details
+ * @returns Total quantity in pieces (ordered + free items from promotions)
+ */
+function calculateTotalQuantityWithPromotions(orderItem: {
+  packageQuantity?: number | null;
+  piecesPerPackage?: number | null;
+  promotionDetailsSnapshot?: string | null;
+  moqSnapshot?: number | null;
+}): number {
+  // Normalize inputs with safe defaults
+  const orderedQty = Math.max(1, orderItem.packageQuantity || 1);
+  const piecesPerPackage = Math.max(1, orderItem.piecesPerPackage || 1);
+  const orderedPieces = orderedQty * piecesPerPackage;
+  let totalQuantity = orderedPieces;
+  
+  // Check if there's a Buy X Get Y promotion and calculate correctly with MOQ
+  if (orderItem.promotionDetailsSnapshot && typeof orderItem.promotionDetailsSnapshot === 'string') {
+    try {
+      const promotionGift = calculateOrderItemPromotion(
+        orderItem.promotionDetailsSnapshot,
+        orderedQty,
+        piecesPerPackage,
+        orderItem.moqSnapshot
+      );
+      
+      // Validate promotion gift result and add free items if valid
+      if (promotionGift && 
+          typeof promotionGift.freeQty === 'number' && 
+          !isNaN(promotionGift.freeQty) && 
+          promotionGift.freeQty > 0) {
+        // Add free items (already in pieces) to ordered pieces
+        totalQuantity = orderedPieces + promotionGift.freeQty;
+      }
+    } catch (error) {
+      // If promotion calculation fails, just use ordered quantity
+      // This prevents stock calculation errors from breaking order updates
+    }
+  }
+  
+  return totalQuantity;
 }
 
 // GET /api/orders - Get all orders or get by ID
@@ -1117,24 +1164,8 @@ export async function PUT(request: NextRequest) {
             if (!product) continue;
             
             // Calculate total quantity to restore (including free items from promotion)
-            const orderedQty = orderItem.packageQuantity || 1;
-            let totalQtyToRestore = orderedQty;
-            
-            // Check if there's a Buy X Get Y promotion
-            if (orderItem.promotionDetailsSnapshot) {
-              try {
-                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
-                const minQty = promoDetails.minQuantity || 1;
-                const freeQty = promoDetails.freeQuantity || 0;
-                
-                // Calculate free items
-                const qualifyingSets = Math.floor(orderedQty / minQty);
-                const totalFreeItems = qualifyingSets * freeQty;
-                totalQtyToRestore = orderedQty + totalFreeItems;
-              } catch (e) {
-                // Invalid JSON, just use ordered quantity
-              }
-            }
+            // Note: stockQuantity is tracked in PIECES, so all calculations must be in pieces
+            const totalQtyToRestore = calculateTotalQuantityWithPromotions(orderItem);
             
             // Get the product and variant for stock restoration
             const productForRestore = await prisma.product.findFirst({
@@ -1236,24 +1267,8 @@ export async function PUT(request: NextRequest) {
             if (!product) continue;
             
             // Calculate total quantity to deduct (including free items from promotion)
-            const orderedQty = orderItem.packageQuantity || 1;
-            let totalQtyToDeduct = orderedQty;
-            
-            // Check if there's a Buy X Get Y promotion
-            if (orderItem.promotionDetailsSnapshot) {
-              try {
-                const promoDetails = JSON.parse(orderItem.promotionDetailsSnapshot);
-                const minQty = promoDetails.minQuantity || 1;
-                const freeQty = promoDetails.freeQuantity || 0;
-                
-                // Calculate free items
-                const qualifyingSets = Math.floor(orderedQty / minQty);
-                const totalFreeItems = qualifyingSets * freeQty;
-                totalQtyToDeduct = orderedQty + totalFreeItems;
-              } catch (e) {
-                // Invalid JSON, just use ordered quantity
-              }
-            }
+            // Note: stockQuantity is tracked in PIECES, so all calculations must be in pieces
+            const totalQtyToDeduct = calculateTotalQuantityWithPromotions(orderItem);
             
             // Get the product and variant for stock deduction
             const productForDeduct = await prisma.product.findFirst({
