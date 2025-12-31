@@ -207,16 +207,14 @@ export function validateStatusTransition(currentStatus: string, newStatus: strin
  * Uses Asia/Jakarta timezone (WIB, UTC+7) to match Indonesian business hours
  */
 export function calculateOfferStatus(startDate: string, endDate: string, currentStatus?: string): 'active' | 'expired' | 'inactive' {
+  // Import Luxon for timezone-aware date handling
+  const { DateTime } = require('luxon');
+  
   // Get current time in Asia/Jakarta timezone
-  const now = new Date();
-  const localDateTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
-  const currentDateTime = new Date(localDateTimeStr);
+  const now = DateTime.now().setZone('Asia/Jakarta');
   
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  // Set end date to end of day (23:59:59.999) to include the entire expiry day
-  end.setHours(23, 59, 59, 999);
+  const start = DateTime.fromISO(startDate, { zone: 'Asia/Jakarta' }).startOf('day');
+  const end = DateTime.fromISO(endDate, { zone: 'Asia/Jakarta' }).endOf('day');
 
   // If manually set to inactive, keep it inactive
   if (currentStatus === 'inactive') {
@@ -224,7 +222,7 @@ export function calculateOfferStatus(startDate: string, endDate: string, current
   }
 
   // If past end date, it's expired
-  if (currentDateTime > end) {
+  if (now > end) {
     return 'expired';
   }
 

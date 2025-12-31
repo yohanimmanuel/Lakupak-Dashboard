@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Calendar, Plus, Edit, Trash2 } from 'lucide-react';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateDateRangeModal from './CreateDateRangeModal';
+import { getTodayBoundaries, getEndOfDay } from '@/lib/dateUtils';
 
 interface DatabaseDateRange {
   id: string;
@@ -246,16 +247,16 @@ export default function RangeManagement({
           </div>
           <div className="grid grid-cols-1 gap-4">
             {dateRanges.slice(0, 1).map((range) => {
-              const now = new Date();
-              const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              const { startOfToday } = getTodayBoundaries();
               
               // Parse yyyy-MM-dd string directly to avoid timezone issues
               const [endYear, endMonth, endDay] = range.endDate.split('-').map(Number);
-              const rangeEnd = new Date(endYear, endMonth - 1, endDay);
+              const rangeEndDate = new Date(endYear, endMonth - 1, endDay);
+              const rangeEnd = getEndOfDay(rangeEndDate);
               
               // Offer remains active throughout the entire end date
               // Only expires when today > end date (not when today === end date)
-              const isExpired = range.isActive && nowStartOfDay > rangeEnd;
+              const isExpired = range.isActive && startOfToday > rangeEnd;
               
               return (
                 <div key={range.id} className={`bg-white p-4 rounded-lg border hover:shadow-md transition-shadow ${

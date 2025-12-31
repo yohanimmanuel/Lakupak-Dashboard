@@ -11,7 +11,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
-import { getTodayBoundaries } from '@/lib/dateUtils';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 interface OfferDiscountType {
   id: string;
@@ -343,15 +343,14 @@ export const marketplaceTypeDefs = /* GraphQL */ `
 
 // Helper function to cleanup old viewed products
 async function cleanupOldViewedProducts(userId: number) {
-  const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const { startOfToday } = getTodayBoundaries();
   
   const deletedCount = await prisma.userActivity.deleteMany({
     where: {
       userId: userId,
       activityType: 'viewed',
       createdAt: {
-        lt: startOfDay
+        lt: startOfToday
       }
     }
   });
@@ -775,9 +774,7 @@ const fetchMarketplaceProducts = async (args: {
       return true; // No date ranges means offer is always active (within main dates)
     }
     
-    const now = new Date();
-    // Normalize to start of day for date-only comparisons
-    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { startOfToday, endOfToday } = getTodayBoundaries();
     
     return dateRanges.some(range => {
       if (!range.isActive) return false;
@@ -786,12 +783,12 @@ const fetchMarketplaceProducts = async (args: {
       const startDate = new Date(range.startDate);
       const endDate = new Date(range.endDate);
       
-      // Normalize to start of day for date-only comparisons
-      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      // Normalize to start/end of day in business timezone
+      const rangeStart = getStartOfDay(startDate);
+      const rangeEnd = getEndOfDay(endDate);
       
-      // Check if current date is within range (inclusive)
-      return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+      // Check if today intersects with the date range
+      return !(rangeEnd < startOfToday || rangeStart > endOfToday);
     });
   };
 
@@ -1301,13 +1298,11 @@ const fetchMobileUserActivity = async (args: {
   };
 
   if (type === 'viewed') {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    const { startOfToday, endOfToday } = getTodayBoundaries();
     
     whereClause.createdAt = {
-      gte: startOfDay,
-      lte: endOfDay
+      gte: startOfToday,
+      lte: endOfToday
     };
   }
 

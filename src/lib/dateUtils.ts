@@ -2,7 +2,11 @@
  * Date utility functions for consistent date boundary handling across the application
  * Uses Asia/Jakarta timezone (WIB, UTC+7) as default for Indonesian market
  * Can use UTC for international/multi-region scenarios
+ * 
+ * Uses Luxon for proper timezone handling to ensure correctness across different server timezones
  */
+
+import { DateTime } from 'luxon';
 
 // Business timezone for the application (Indonesian Western Time)
 const BUSINESS_TIMEZONE = 'Asia/Jakarta'; // UTC+7
@@ -11,52 +15,36 @@ const BUSINESS_TIMEZONE = 'Asia/Jakarta'; // UTC+7
  * Get the start of day (00:00:00.000) for a given date
  * @param date - The date to get start of day for (defaults to current date)
  * @param useUTC - Whether to use UTC time (default: false, uses Asia/Jakarta)
- * @returns Date object set to start of day
+ * @returns Date object set to start of day in the specified timezone
  */
 export function getStartOfDay(date: Date = new Date(), useUTC: boolean = false): Date {
   if (useUTC) {
-    return new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      0, 0, 0, 0
-    ));
+    // UTC start of day
+    const dt = DateTime.fromJSDate(date, { zone: 'utc' });
+    return dt.startOf('day').toJSDate();
   }
   
-  // Use business timezone (Asia/Jakarta) for local time
-  const localDateTime = new Date(date.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
-  return new Date(
-    localDateTime.getFullYear(),
-    localDateTime.getMonth(),
-    localDateTime.getDate(),
-    0, 0, 0, 0
-  );
+  // Asia/Jakarta start of day
+  const dt = DateTime.fromJSDate(date, { zone: BUSINESS_TIMEZONE });
+  return dt.startOf('day').toJSDate();
 }
 
 /**
  * Get the end of day (23:59:59.999) for a given date
  * @param date - The date to get end of day for (defaults to current date)
  * @param useUTC - Whether to use UTC time (default: false, uses Asia/Jakarta)
- * @returns Date object set to end of day
+ * @returns Date object set to end of day in the specified timezone
  */
 export function getEndOfDay(date: Date = new Date(), useUTC: boolean = false): Date {
   if (useUTC) {
-    return new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      23, 59, 59, 999
-    ));
+    // UTC end of day
+    const dt = DateTime.fromJSDate(date, { zone: 'utc' });
+    return dt.endOf('day').toJSDate();
   }
   
-  // Use business timezone (Asia/Jakarta) for local time
-  const localDateTime = new Date(date.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
-  return new Date(
-    localDateTime.getFullYear(),
-    localDateTime.getMonth(),
-    localDateTime.getDate(),
-    23, 59, 59, 999
-  );
+  // Asia/Jakarta end of day
+  const dt = DateTime.fromJSDate(date, { zone: BUSINESS_TIMEZONE });
+  return dt.endOf('day').toJSDate();
 }
 
 /**
@@ -94,6 +82,7 @@ export function getDateBoundaries(date: Date, useUTC: boolean = false): {
 
 /**
  * Check if a date range is currently active (includes the entire current day)
+ * Uses interval intersection: a range is active if it's NOT (completely before OR completely after today)
  * @param startDate - Start date of the range
  * @param endDate - End date of the range
  * @param useUTC - Whether to use UTC time (default: false, uses Asia/Jakarta)
@@ -106,9 +95,9 @@ export function isDateRangeActive(
 ): boolean {
   const { startOfToday, endOfToday } = getTodayBoundaries(useUTC);
   
-  // Start date should be on or before today's end
-  // End date should be on or after today's start
-  return startDate <= endOfToday && endDate >= startOfToday;
+  // Range is active if it intersects with today
+  // NOT (range ends before today starts OR range starts after today ends)
+  return !(endDate < startOfToday || startDate > endOfToday);
 }
 
 /**

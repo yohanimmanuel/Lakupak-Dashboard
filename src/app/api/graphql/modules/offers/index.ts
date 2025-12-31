@@ -3,6 +3,7 @@ import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBro
 import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 export const offersTypeDefs = /* GraphQL */ `
   type OfferDiscount {
@@ -119,8 +120,7 @@ const hasExpiredDateRanges = (dateRanges: Array<{ startDate: Date; endDate: Date
     return false; // No date ranges means not expired
   }
 
-  const now = new Date();
-  const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { startOfToday } = getTodayBoundaries();
 
   // Check if ALL active date ranges are expired
   const activeDateRanges = dateRanges.filter(dr => dr.isActive);
@@ -130,11 +130,11 @@ const hasExpiredDateRanges = (dateRanges: Array<{ startDate: Date; endDate: Date
 
   // If all active date ranges are expired, return true
   const allExpired = activeDateRanges.every(range => {
-    const rangeStart = new Date(range.startDate.getFullYear(), range.startDate.getMonth(), range.startDate.getDate());
-    const rangeEnd = new Date(range.endDate.getFullYear(), range.endDate.getMonth(), range.endDate.getDate());
+    const rangeStart = getStartOfDay(new Date(range.startDate));
+    const rangeEnd = getEndOfDay(new Date(range.endDate));
     
     // Check if current date is AFTER the range (expired)
-    return nowStartOfDay > rangeEnd;
+    return startOfToday > rangeEnd;
   });
 
   return allExpired;

@@ -8,6 +8,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
 import { Offer, OfferTableRow, OfferDiscountType } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 // Status tabs for filtering offers by status
 const statusTabs = [
@@ -75,8 +76,7 @@ export default function OfferTable({
       return false; // No date ranges means not expired
     }
 
-    const now = new Date();
-    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { startOfToday } = getTodayBoundaries();
 
     // Check if ALL active date ranges are expired
     const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
@@ -89,11 +89,11 @@ export default function OfferTable({
       const startDate = new Date(range.startDate);
       const endDate = new Date(range.endDate);
       
-      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      const rangeStart = getStartOfDay(startDate);
+      const rangeEnd = getEndOfDay(endDate);
       
       // Check if current date is AFTER the range (expired)
-      return nowStartOfDay > rangeEnd;
+      return startOfToday > rangeEnd;
     });
 
     return allExpired;

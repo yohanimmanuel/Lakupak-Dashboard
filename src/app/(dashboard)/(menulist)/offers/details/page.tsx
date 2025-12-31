@@ -12,6 +12,7 @@ import { Offer, DateRange } from '@/types/offer';
 import { OfferProduct } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { computeOfferDates } from '@/utils/offerUtils';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
@@ -36,8 +37,7 @@ export default function OffersDetailsPage() {
       return false; // No date ranges means not expired
     }
 
-    const now = new Date();
-    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { startOfToday } = getTodayBoundaries();
 
     // Check if ALL active date ranges are expired
     const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
@@ -50,11 +50,11 @@ export default function OffersDetailsPage() {
       const startDate = new Date(range.startDate);
       const endDate = new Date(range.endDate);
       
-      const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      const rangeStart = getStartOfDay(startDate);
+      const rangeEnd = getEndOfDay(endDate);
       
       // Check if current date is AFTER the range (expired)
-      return nowStartOfDay > rangeEnd;
+      return startOfToday > rangeEnd;
     });
 
     return allExpired;

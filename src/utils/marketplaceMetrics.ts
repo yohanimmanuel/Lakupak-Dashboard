@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 export const SOLD_COUNT_EXCLUDED_STATUSES = ['Pending', 'Cancelled', 'Returned'] as const;
 
@@ -65,7 +66,7 @@ export async function deactivateExpiredOffers(
   userId?: number
 ): Promise<{ deactivatedCount: number; affectedUserIds: number[] }> {
   try {
-    const now = new Date();
+    const { startOfToday } = getTodayBoundaries();
     const affectedUserIds = new Set<number>();
     let deactivatedCount = 0;
 
@@ -105,8 +106,6 @@ export async function deactivateExpiredOffers(
       // Check if all date ranges are expired (natural expiration)
       // This ensures offers are automatically deactivated when their date ranges pass
       if (!shouldDeactivate && offer.dateRanges && offer.dateRanges.length > 0) {
-        const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
         // Get active date ranges
         const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
         
@@ -116,12 +115,12 @@ export async function deactivateExpiredOffers(
         } else {
           // Check if ALL active date ranges are expired
           const allExpired = activeDateRanges.every(range => {
-            const rangeStart = new Date(range.startDate.getFullYear(), range.startDate.getMonth(), range.startDate.getDate());
-            const rangeEnd = new Date(range.endDate.getFullYear(), range.endDate.getMonth(), range.endDate.getDate());
+            const rangeStart = getStartOfDay(new Date(range.startDate));
+            const rangeEnd = getEndOfDay(new Date(range.endDate));
             
             // Offer remains active throughout the entire end date
             // Only expires when today > end date (not when today === end date)
-            return nowStartOfDay > rangeEnd;
+            return startOfToday > rangeEnd;
           });
           
           if (allExpired) {
@@ -178,9 +177,7 @@ function isWithinActiveDateRange(dateRanges: Array<{ startDate: Date | string; e
     return true; // No date ranges means offer is always active
   }
   
-  const now = new Date();
-  // Normalize to start of day for date-only comparisons
-  const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { startOfToday, endOfToday } = getTodayBoundaries();
   
   return dateRanges.some(range => {
     if (!range.isActive) return false;
@@ -189,12 +186,12 @@ function isWithinActiveDateRange(dateRanges: Array<{ startDate: Date | string; e
     const startDate = new Date(range.startDate);
     const endDate = new Date(range.endDate);
     
-    // Normalize to start of day for date-only comparisons
-    const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    // Normalize to start/end of day in business timezone
+    const rangeStart = getStartOfDay(startDate);
+    const rangeEnd = getEndOfDay(endDate);
     
-    // Check if current date is within range (inclusive)
-    return rangeStart <= nowStartOfDay && nowStartOfDay <= rangeEnd;
+    // Check if today intersects with the date range
+    return !(rangeEnd < startOfToday || rangeStart > endOfToday);
   });
 }
 
@@ -238,9 +235,6 @@ export async function updateProductPricesFromOffers(
     if (products.length === 0) {
       return;
     }
-
-    const now = new Date();
-    const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Optimization: Fetch all active offers for these products in a single query
     const allOffers = await tx.offer.findMany({
