@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Calendar, Plus, Edit, Trash2 } from 'lucide-react';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
 import CreateDateRangeModal from './CreateDateRangeModal';
-import { getTodayBoundaries, getEndOfDay } from '@/lib/dateUtils';
+import { getTodayBoundaries, getEndOfDay, parseDateInTimezone } from '@/lib/dateUtils';
 
 interface DatabaseDateRange {
   id: string;
@@ -249,9 +249,12 @@ export default function RangeManagement({
             {dateRanges.slice(0, 1).map((range) => {
               const { startOfToday } = getTodayBoundaries();
               
-              // Parse yyyy-MM-dd string directly to avoid timezone issues
-              const [endYear, endMonth, endDay] = range.endDate.split('-').map(Number);
-              const rangeEndDate = new Date(endYear, endMonth - 1, endDay);
+              // Parse endDate and create date directly in Jakarta timezone
+              // This ensures the date is interpreted correctly regardless of server timezone
+              const rangeEndDate = typeof range.endDate === 'string' 
+                ? parseDateInTimezone(range.endDate) 
+                : range.endDate;
+              
               const rangeEnd = getEndOfDay(rangeEndDate);
               
               // Offer remains active throughout the entire end date

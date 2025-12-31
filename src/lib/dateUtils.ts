@@ -158,3 +158,38 @@ export function isToday(date: Date | string, useUTC: boolean = false): boolean {
   return dateObj >= startOfToday && dateObj <= endOfToday;
 }
 
+/**
+ * Parse a date string and create a Date object in the specified timezone
+ * Handles both yyyy-MM-dd format and ISO strings
+ * @param dateString - The date string to parse (yyyy-MM-dd or ISO format)
+ * @param useUTC - Whether to use UTC time (default: false, uses Asia/Jakarta)
+ * @returns Date object representing the date in the specified timezone
+ */
+export function parseDateInTimezone(dateString: string, useUTC: boolean = false): Date {
+  if (!dateString || typeof dateString !== 'string') {
+    throw new Error('Invalid date string provided');
+  }
+  
+  const zone = useUTC ? 'utc' : BUSINESS_TIMEZONE;
+  
+  if (dateString.includes('T')) {
+    // ISO string - parse in specified timezone
+    const dt = DateTime.fromISO(dateString, { zone });
+    if (!dt.isValid) {
+      throw new Error(`Invalid ISO date string: ${dateString}`);
+    }
+    return dt.toJSDate();
+  } else {
+    // yyyy-MM-dd format - create as date in specified timezone
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day || dateString.split('-').length !== 3) {
+      throw new Error(`Invalid date format, expected yyyy-MM-dd: ${dateString}`);
+    }
+    const dt = DateTime.fromObject({ year, month, day }, { zone });
+    if (!dt.isValid) {
+      throw new Error(`Invalid date components: ${dateString}`);
+    }
+    return dt.toJSDate();
+  }
+}
+
