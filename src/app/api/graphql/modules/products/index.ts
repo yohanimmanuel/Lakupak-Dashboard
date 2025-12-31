@@ -11,6 +11,7 @@ import {
   isNumericId,
   parseMoney,
 } from '../common/utils';
+import { getTodayBoundaries } from '@/lib/dateUtils';
 
 // ============================================================================ //
 // TYPE DEFS
@@ -398,7 +399,7 @@ export const fetchActiveOffersMap = async (
     return new Map();
   }
 
-  const now = new Date();
+  const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
   const offerWhere: Prisma.OfferWhereInput = {
     status: 'active',
     offerProducts: {
@@ -417,8 +418,8 @@ export const fetchActiveOffersMap = async (
         dateRanges: {
           some: {
             isActive: true,
-            startDate: { lte: now },
-            endDate: { gte: now },
+            startDate: { lte: endOfToday }, // Start date is on or before today
+            endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
           },
         },
       },

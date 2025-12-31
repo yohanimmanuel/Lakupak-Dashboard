@@ -111,6 +111,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
                 
                 orderDetails.forEach((o: OrderDetail) => {
                   // Remove ALL currency identifiers - only keep numbers
+                  // totalSpend already includes product cost + shipping fee
                   const cleanSpend = String(o.totalSpend || '').replace(/[^\d.-]/g, '');
                   const cleanOrders = String(o.totalOrders || '').replace(/[^\d.-]/g, '');
                   buyerTotalSpend += Number(cleanSpend) || 0;

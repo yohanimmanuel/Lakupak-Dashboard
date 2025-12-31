@@ -135,6 +135,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   orderDetails.forEach((o: OrderDetail) => {
     const match = (o.totalSpend || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
+    // totalSpend already includes product cost + shipping fee
     totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
   });
   const totalOutstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;

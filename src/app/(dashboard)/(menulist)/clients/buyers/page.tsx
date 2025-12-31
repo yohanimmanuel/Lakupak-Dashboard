@@ -37,9 +37,10 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
   
   if (Array.isArray(orderDetails) && orderDetails.length > 0) {
           orderDetails.forEach((o: OrderDetail) => {
-      totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^ - \d]/g, '')) || 0;
+      // totalSpend already includes product cost + shipping fee
+      totalSpend += parseInt((o.totalSpend || '').toString().replace(/[^\d]/g, '')) || 0;
     });
-    outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^ - \d]/g, '')) || 0), 0);
+    outstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0);
   }
   
   return {

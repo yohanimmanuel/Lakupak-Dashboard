@@ -204,11 +204,19 @@ export function validateStatusTransition(currentStatus: string, newStatus: strin
 
 /**
  * Calculate offer expiration status
+ * Uses Asia/Jakarta timezone (WIB, UTC+7) to match Indonesian business hours
  */
 export function calculateOfferStatus(startDate: string, endDate: string, currentStatus?: string): 'active' | 'expired' | 'inactive' {
+  // Get current time in Asia/Jakarta timezone
   const now = new Date();
+  const localDateTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
+  const currentDateTime = new Date(localDateTimeStr);
+  
   const start = new Date(startDate);
   const end = new Date(endDate);
+  
+  // Set end date to end of day (23:59:59.999) to include the entire expiry day
+  end.setHours(23, 59, 59, 999);
 
   // If manually set to inactive, keep it inactive
   if (currentStatus === 'inactive') {
@@ -216,7 +224,7 @@ export function calculateOfferStatus(startDate: string, endDate: string, current
   }
 
   // If past end date, it's expired
-  if (now > end) {
+  if (currentDateTime > end) {
     return 'expired';
   }
 

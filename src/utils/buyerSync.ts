@@ -81,7 +81,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         orderNo: order.orderId,
         product: productNames,
         totalOrders: totalOrders.toString(),
-        totalSpend: orderTotal.toString(),
+        totalSpend: orderTotal.toString(), // Store product cost + shipping fee combined
         shippingFee: (order.shippingFee || 0).toString(),
         lastOrderDate: order.createdAt.toISOString().split('T')[0],
         outstanding: orderOutstanding.toString()

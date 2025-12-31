@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
+import { getTodayBoundaries } from '@/lib/dateUtils';
 
 export interface OfferValidationResult {
   isValid: boolean;
@@ -69,7 +70,8 @@ export async function validateOfferForProduct(
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
-    const now = new Date();
+    const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
+    
     const activeOffers = await tx.offer.findMany({
       where: {
         status: 'active',
@@ -83,8 +85,8 @@ export async function validateOfferForProduct(
           {
             dateRanges: {
               some: {
-                startDate: { lte: now },
-                endDate: { gte: now },
+                startDate: { lte: endOfToday }, // Start date is on or before today
+                endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
                 isActive: true
               }
             }

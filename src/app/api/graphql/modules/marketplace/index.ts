@@ -11,6 +11,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
+import { getTodayBoundaries } from '@/lib/dateUtils';
 
 interface OfferDiscountType {
   id: string;
@@ -725,7 +726,7 @@ const fetchMarketplaceProducts = async (args: {
   const soldCountMap = await calculateSoldCounts(prisma, productIds);
   
   // Get only ACTIVE offers to check real-time status
-  const now = new Date();
+  const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
   const allOffers = await prisma.offer.findMany({
     where: {
       userId: { in: userIds },
@@ -746,8 +747,8 @@ const fetchMarketplaceProducts = async (args: {
           dateRanges: {
             some: {
               isActive: true,
-              startDate: { lte: now },
-              endDate: { gte: now },
+              startDate: { lte: endOfToday }, // Start date is on or before today
+              endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
             },
           },
         },
