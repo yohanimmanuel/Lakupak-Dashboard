@@ -120,12 +120,12 @@ export async function deactivateExpiredOffers(
         }
 
         // Check if ALL active date ranges have expired
-        const allExpired = activeDateRanges.every(range => {
+          const allExpired = activeDateRanges.every(range => {
           const rangeEnd = getEndOfDay(new Date(range.endDate));
           return startOfToday > rangeEnd; // Today is after end date
-        });
-        
-        if (allExpired) {
+          });
+          
+          if (allExpired) {
           offersToExpire.push(offer.id);
           if (offer.userId) affectedUserIds.add(offer.userId);
           continue;
@@ -139,7 +139,7 @@ export async function deactivateExpiredOffers(
         
         if (allFuture) {
           offersToSchedule.push(offer.id);
-          if (offer.userId) affectedUserIds.add(offer.userId);
+        if (offer.userId) affectedUserIds.add(offer.userId);
         }
       }
     }
