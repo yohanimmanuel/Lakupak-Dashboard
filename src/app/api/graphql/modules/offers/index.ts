@@ -201,7 +201,30 @@ const fetchOffersConnection = async (args: {
     // Run these operations asynchronously without blocking the query
     // This allows the offers to load quickly while maintenance runs in background
     Promise.all([
-      deactivateExpiredOffers(prisma, userId),
+      (async () => {
+        const result = await deactivateExpiredOffers(prisma, userId);
+        
+        // Broadcast websocket updates for activated and deactivated offers
+        for (const { offerId, productIds } of result.activatedOffers) {
+          try {
+            await broadcastOfferUpdate(offerId, productIds);
+            await broadcastPriceUpdate(productIds);
+          } catch {
+            // Silently fail - non-critical
+          }
+        }
+        
+        for (const { offerId, productIds } of result.deactivatedOffers) {
+          try {
+            await broadcastOfferUpdate(offerId, productIds);
+            await broadcastPriceUpdate(productIds);
+          } catch {
+            // Silently fail - non-critical
+          }
+        }
+        
+        return result;
+      })(),
       updateProductPricesFromOffers(prisma, userId),
     ]).catch((error) => {
       console.error('[Offers] Background maintenance failed for userId:', userId, error);
@@ -244,7 +267,30 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
   // Deactivate expired offers and update product prices before fetching
   // This ensures the offer status is current when viewing details
   await Promise.all([
-    deactivateExpiredOffers(prisma, userId),
+    (async () => {
+      const result = await deactivateExpiredOffers(prisma, userId);
+      
+      // Broadcast websocket updates for activated and deactivated offers
+      for (const { offerId, productIds } of result.activatedOffers) {
+        try {
+          await broadcastOfferUpdate(offerId, productIds);
+          await broadcastPriceUpdate(productIds);
+        } catch {
+          // Silently fail - non-critical
+        }
+      }
+      
+      for (const { offerId, productIds } of result.deactivatedOffers) {
+        try {
+          await broadcastOfferUpdate(offerId, productIds);
+          await broadcastPriceUpdate(productIds);
+        } catch {
+          // Silently fail - non-critical
+        }
+      }
+      
+      return result;
+    })(),
     updateProductPricesFromOffers(prisma, userId),
   ]).catch((error) => {
     console.error('[Offer] Background maintenance failed for userId:', userId, error);

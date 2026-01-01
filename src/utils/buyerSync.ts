@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { calculatePromotionGift, PromotionDetails } from './promotionUtils';
 
 // Central helper to build mobile marketplace Buyer IDs consistently across modules
 // Base: LKB-<marketplaceUserId padded>
@@ -72,7 +73,34 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         item.productNameSnapshot || 'Unknown Product'
       ).join(', ');
       
-      const totalOrders = order.orderItemsRel.reduce((sum: number, item: { packageQuantity: number | null }) => sum + (item.packageQuantity ?? 1), 0);
+      // Calculate total orders (packages) including free pieces from promotions
+      const totalOrders = order.orderItemsRel.reduce((sum: number, item: { 
+        packageQuantity: number | null;
+        piecesPerPackage: number | null;
+        promotionDetailsSnapshot: string | null;
+        moqSnapshot: number | null;
+      }) => {
+        const paidPackages = item.packageQuantity ?? 1;
+        const piecesPerPackage = item.piecesPerPackage ?? 1;
+        const paidPieces = paidPackages * piecesPerPackage;
+        
+        // Calculate free pieces from buy-x-get-y promotions
+        let freePieces = 0;
+        if (item.promotionDetailsSnapshot) {
+          try {
+            const promotionDetails: PromotionDetails = JSON.parse(item.promotionDetailsSnapshot);
+            const moq = item.moqSnapshot ?? null;
+            const promotionGift = calculatePromotionGift(promotionDetails, paidPieces, moq);
+            freePieces = promotionGift?.freeQty || 0;
+          } catch {
+            // Invalid JSON, skip free items
+          }
+        }
+        
+        // Convert free pieces to packages and add to paid packages
+        const freePackages = piecesPerPackage > 0 ? freePieces / piecesPerPackage : 0;
+        return sum + paidPackages + freePackages;
+      }, 0);
       const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0);
       const orderTotal = orderSpend + (order.shippingFee || 0);
       const orderOutstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? orderTotal : 0;

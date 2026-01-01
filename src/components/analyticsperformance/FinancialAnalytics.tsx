@@ -42,6 +42,7 @@ import { Order, OrderItem } from '@/types/order';
 import { Product, ProductVariant } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { forecastRevenue } from '@/utils/forecasting';
+import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils';
 
 // Types for financial data
 interface FinancialMetrics {
@@ -130,6 +131,8 @@ const FINANCIAL_ANALYTICS_QUERY = `
           packageType
           piecesPerPackage
           pricePerPackage
+          promotionDetailsSnapshot
+          moqSnapshot
         }
       }
     }
@@ -209,6 +212,23 @@ const FinancialAnalytics: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Helper function to calculate free items from buy-x-get-y promotions
+  const calculateFreeItems = (item: OrderItem): number => {
+    if (!item.promotionDetailsSnapshot) return 0;
+    
+    try {
+      const promotionDetails: PromotionDetails = JSON.parse(item.promotionDetailsSnapshot);
+      const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+      const moq = item.moqSnapshot ?? null;
+      
+      const promotionGift = calculatePromotionGift(promotionDetails, paidPieces, moq);
+      return promotionGift?.freeQty || 0;
+    } catch {
+      // Invalid JSON, no free items
+      return 0;
+    }
+  };
 
   // Helper function to parse currency strings/numbers to numbers
   const parseCurrencyToNumber = (currencyValue: string | number): number => {
@@ -297,7 +317,11 @@ const FinancialAnalytics: React.FC = () => {
     // Build quick lookup for product purchase prices (as numbers)
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
-      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
+      const firstVariantOption = p.variantOptions?.[0];
+      const firstLegacyVariant = p.legacyVariants?.[0];
+      const cost = parseCurrencyToNumber(
+        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
       }
@@ -323,18 +347,19 @@ const FinancialAnalytics: React.FC = () => {
           const cost = productCostById[pid];
           // Only include COGS when product exists and purchasePrice > 0
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS using piece-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            orderCogs += cost * packageQuantity * piecesPerPackage;
+            // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
+            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+            const freePieces = calculateFreeItems(item);
+            const totalPieces = paidPieces + freePieces;
+            orderCogs += cost * totalPieces;
             uniqueProducts.add(pid);
           }
         });
       }
 
-      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
       const orderRevenue = parseFloat(String(order.totalAmount || 0));
-      const orderProfit = orderRevenue - orderCogs - shippingExpense;
+      // Profit = Revenue - COGS (shippingFee is part of revenue, often marked up, so not subtracted)
+      const orderProfit = orderRevenue - orderCogs;
       totalProfit += orderProfit;
     });
 
@@ -365,7 +390,11 @@ const FinancialAnalytics: React.FC = () => {
     // Precompute product costs from recorded data only (no estimates)
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
-      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
+      const firstVariantOption = p.variantOptions?.[0];
+      const firstLegacyVariant = p.legacyVariants?.[0];
+      const cost = parseCurrencyToNumber(
+        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
       }
@@ -396,15 +425,16 @@ const FinancialAnalytics: React.FC = () => {
           if (!pid) { return; }
           const cost = productCostById[pid];
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS using package-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            orderCogs += cost * packageQuantity * piecesPerPackage;
+            // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
+            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+            const freePieces = calculateFreeItems(item);
+            const totalPieces = paidPieces + freePieces;
+            orderCogs += cost * totalPieces;
           }
         });
       }
-      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
-      const orderProfit = orderAmount - orderCogs - shippingExpense;
+      // Profit = Revenue - COGS (shippingFee is part of revenue, often marked up, so not subtracted)
+      const orderProfit = orderAmount - orderCogs;
       monthlyData[key].profit += orderProfit;
     });
 
@@ -684,7 +714,7 @@ const FinancialAnalytics: React.FC = () => {
     }).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
   }, [orders, products, hasData, userCurrency]);
 
-  // Calculate cash flow data: inflows from totalAmount; outflows from COGS (valid purchasePrice only) + shipping (3rd-Party Courier only)
+  // Calculate cash flow data: inflows from totalAmount; outflows from COGS only (shippingFee is part of revenue and often marked up, so actual cost unknown)
   const cashFlowData: CashFlowData[] = useMemo(() => {
     if (!hasData || orders.length === 0) {
       return [];
@@ -693,7 +723,11 @@ const FinancialAnalytics: React.FC = () => {
     // Precompute product costs
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
-      const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
+      const firstVariantOption = p.variantOptions?.[0];
+      const firstLegacyVariant = p.legacyVariants?.[0];
+      const cost = parseCurrencyToNumber(
+        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
       }
@@ -720,15 +754,16 @@ const FinancialAnalytics: React.FC = () => {
           if (!pid) { return; }
           const cost = productCostById[pid];
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS using piece-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            orderCogs += cost * packageQuantity * piecesPerPackage;
+            // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
+            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+            const freePieces = calculateFreeItems(item);
+            const totalPieces = paidPieces + freePieces;
+            orderCogs += cost * totalPieces;
           }
         });
       }
-      const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
-      monthlyFlow[key].outflows += (orderCogs + shippingExpense);
+      // Cash outflows = COGS only (shippingFee is revenue and often marked up, actual cost unknown)
+      monthlyFlow[key].outflows += orderCogs;
     });
 
     const sorted = Object.entries(monthlyFlow)
@@ -1100,7 +1135,7 @@ const FinancialAnalytics: React.FC = () => {
                </div>
              </div>
            </div>
-           <ResponsiveContainer width="100%" height={320}>
+           <ResponsiveContainer width="100%" height={365}>
              <ComposedChart data={cashFlowData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                <defs>
                  <linearGradient id="netFlowGradient" x1="0" y1="0" x2="1" y2="0">
@@ -1607,6 +1642,23 @@ export const formatCurrency = (amount: number, currency: string): string => {
   return utilsFormatCurrency(amount, currency);
 };
 
+// Helper function to calculate free items from buy-x-get-y promotions (for shared functions)
+const calculateFreeItemsForOrderItem = (item: OrderItem): number => {
+  if (!item.promotionDetailsSnapshot) return 0;
+  
+  try {
+    const promotionDetails: PromotionDetails = JSON.parse(item.promotionDetailsSnapshot);
+    const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+    const moq = item.moqSnapshot ?? null;
+    
+    const promotionGift = calculatePromotionGift(promotionDetails, paidPieces, moq);
+    return promotionGift?.freeQty || 0;
+  } catch {
+    // Invalid JSON, no free items
+    return 0;
+  }
+};
+
 // Shared function to calculate revenue data from orders and products
 export const calculateRevenueData = (
   orders: Order[], 
@@ -1620,7 +1672,11 @@ export const calculateRevenueData = (
   // Precompute product costs from recorded data only (no estimates)
   const productCostById: Record<string, number> = {};
   products.forEach(p => {
-    const cost = parseCurrencyToNumber(p.variants?.[0]?.purchasePrice || '0');
+    const firstVariantOption = p.variantOptions?.[0];
+    const firstLegacyVariant = p.legacyVariants?.[0];
+    const cost = parseCurrencyToNumber(
+      firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+    );
     if (!isNaN(cost) && cost > 0) {
       productCostById[p.productId] = cost;
     }
@@ -1643,7 +1699,7 @@ export const calculateRevenueData = (
     const orderAmount = parseFloat(String(order.totalAmount || 0));
     monthlyData[key].revenue += orderAmount;
 
-    // Compute actual profit = revenue - COGS - shipping(if 3rd-party)
+    // Compute actual profit = revenue - COGS (including free items from promotions)
     let orderCogs = 0;
     if (order.orderItems && Array.isArray(order.orderItems)) {
       order.orderItems.forEach(item => {
@@ -1651,15 +1707,16 @@ export const calculateRevenueData = (
         if (!pid) { return; }
         const cost = productCostById[pid];
         if (typeof cost === 'number' && cost > 0) {
-          // Calculate COGS using package-based pricing
-          const piecesPerPackage = item.piecesPerPackage || 1;
-          const packageQuantity = item.packageQuantity || 1;
-          orderCogs += cost * packageQuantity * piecesPerPackage;
+          // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
+          const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
+          const freePieces = calculateFreeItemsForOrderItem(item);
+          const totalPieces = paidPieces + freePieces;
+          orderCogs += cost * totalPieces;
         }
       });
     }
-    const shippingExpense = order.deliveryMethod === '3rd-Party Courier' ? (order.shippingFee || 0) : 0;
-    const orderProfit = orderAmount - orderCogs - shippingExpense;
+    // Profit = Revenue - COGS (shippingFee is part of revenue, often marked up, so not subtracted)
+    const orderProfit = orderAmount - orderCogs;
     monthlyData[key].profit += orderProfit;
   });
 

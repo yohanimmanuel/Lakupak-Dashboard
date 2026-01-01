@@ -67,12 +67,20 @@ export async function calculateSoldCounts(
 export async function deactivateExpiredOffers(
   tx: Prisma.TransactionClient | PrismaClient,
   userId?: number
-): Promise<{ deactivatedCount: number; activatedCount: number; affectedUserIds: number[] }> {
+): Promise<{ 
+  deactivatedCount: number; 
+  activatedCount: number; 
+  affectedUserIds: number[];
+  activatedOffers: Array<{ offerId: string; productIds: string[] }>;
+  deactivatedOffers: Array<{ offerId: string; productIds: string[] }>;
+}> {
   try {
     const { startOfToday, endOfToday } = getTodayBoundaries();
     const affectedUserIds = new Set<number>();
     let deactivatedCount = 0;
     let activatedCount = 0;
+    const activatedOffersData: Array<{ offerId: string; productIds: string[] }> = [];
+    const deactivatedOffersData: Array<{ offerId: string; productIds: string[] }> = [];
 
     // STEP 1: Process 'active' offers - check if they should be expired OR scheduled
     const activeWhereClause: Prisma.OfferWhereInput = {
@@ -96,15 +104,17 @@ export async function deactivateExpiredOffers(
       },
     });
 
-    const offersToExpire: string[] = [];
-    const offersToSchedule: string[] = [];
+    const offersToExpire: Array<{ id: string; productIds: string[] }> = [];
+    const offersToSchedule: Array<{ id: string; productIds: string[] }> = [];
 
     for (const offer of activeOffers) {
+      const productIds = offer.offerProducts.map(op => op.productId);
+      
       // Check if at least one discount type is active
       const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);
       
       if (!hasActiveDiscountType) {
-        offersToExpire.push(offer.id);
+        offersToExpire.push({ id: offer.id, productIds });
         if (offer.userId) affectedUserIds.add(offer.userId);
         continue;
       }
@@ -114,7 +124,7 @@ export async function deactivateExpiredOffers(
         const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
         
         if (activeDateRanges.length === 0) {
-          offersToExpire.push(offer.id);
+          offersToExpire.push({ id: offer.id, productIds });
           if (offer.userId) affectedUserIds.add(offer.userId);
           continue;
         }
@@ -126,7 +136,7 @@ export async function deactivateExpiredOffers(
           });
           
           if (allExpired) {
-          offersToExpire.push(offer.id);
+          offersToExpire.push({ id: offer.id, productIds });
           if (offer.userId) affectedUserIds.add(offer.userId);
           continue;
         }
@@ -138,7 +148,7 @@ export async function deactivateExpiredOffers(
         });
         
         if (allFuture) {
-          offersToSchedule.push(offer.id);
+          offersToSchedule.push({ id: offer.id, productIds });
         if (offer.userId) affectedUserIds.add(offer.userId);
         }
       }
@@ -148,7 +158,7 @@ export async function deactivateExpiredOffers(
     if (offersToExpire.length > 0) {
       await tx.offer.updateMany({
         where: {
-          id: { in: offersToExpire },
+          id: { in: offersToExpire.map(o => o.id) },
         },
         data: {
           status: 'inactive',
@@ -156,6 +166,7 @@ export async function deactivateExpiredOffers(
       });
 
       deactivatedCount += offersToExpire.length;
+      deactivatedOffersData.push(...offersToExpire.map(o => ({ offerId: o.id, productIds: o.productIds })));
       
       // Restore product prices for expired offers
       for (const affectedUserId of affectedUserIds) {
@@ -167,7 +178,7 @@ export async function deactivateExpiredOffers(
     if (offersToSchedule.length > 0) {
       await tx.offer.updateMany({
         where: {
-          id: { in: offersToSchedule },
+          id: { in: offersToSchedule.map(o => o.id) },
         },
         data: {
           status: 'scheduled',
@@ -175,6 +186,7 @@ export async function deactivateExpiredOffers(
       });
 
       deactivatedCount += offersToSchedule.length;
+      deactivatedOffersData.push(...offersToSchedule.map(o => ({ offerId: o.id, productIds: o.productIds })));
       
       // Restore product prices for scheduled offers (they shouldn't apply yet)
       for (const affectedUserId of affectedUserIds) {
@@ -204,10 +216,11 @@ export async function deactivateExpiredOffers(
       },
     });
 
-    const offersToActivate: string[] = [];
+    const offersToActivate: Array<{ id: string; productIds: string[] }> = [];
 
     for (const offer of scheduledOffers) {
       let shouldActivate = false;
+      const productIds = offer.offerProducts.map(op => op.productId);
 
       // Check if at least one discount type is active
       const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);
@@ -230,7 +243,7 @@ export async function deactivateExpiredOffers(
       }
 
       if (shouldActivate) {
-        offersToActivate.push(offer.id);
+        offersToActivate.push({ id: offer.id, productIds });
         if (offer.userId) affectedUserIds.add(offer.userId);
       }
     }
@@ -239,7 +252,7 @@ export async function deactivateExpiredOffers(
     if (offersToActivate.length > 0) {
       await tx.offer.updateMany({
         where: {
-          id: { in: offersToActivate },
+          id: { in: offersToActivate.map(o => o.id) },
         },
         data: {
           status: 'active',
@@ -247,6 +260,7 @@ export async function deactivateExpiredOffers(
       });
 
       activatedCount = offersToActivate.length;
+      activatedOffersData.push(...offersToActivate.map(o => ({ offerId: o.id, productIds: o.productIds })));
       
       // Apply offer prices for activated offers
       for (const affectedUserId of affectedUserIds) {
@@ -258,6 +272,8 @@ export async function deactivateExpiredOffers(
       deactivatedCount,
       activatedCount,
       affectedUserIds: Array.from(affectedUserIds),
+      activatedOffers: activatedOffersData,
+      deactivatedOffers: deactivatedOffersData,
     };
   } catch (error) {
     // Silently handle errors - lifecycle management is non-critical
@@ -265,6 +281,8 @@ export async function deactivateExpiredOffers(
       deactivatedCount: 0,
       activatedCount: 0,
       affectedUserIds: [],
+      activatedOffers: [],
+      deactivatedOffers: [],
     };
   }
 }

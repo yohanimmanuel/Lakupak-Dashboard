@@ -763,7 +763,34 @@ const fetchMarketplaceProducts = async (args: {
   // Deactivate expired offers based on date ranges (run asynchronously to not block query)
   // This will check main dates and date ranges, and deactivate offers that are expired
   Promise.all(
-    userIds.map(userId => deactivateExpiredOffers(prisma, userId))
+    userIds.map(async (userId) => {
+      const result = await deactivateExpiredOffers(prisma, userId);
+      
+      // Broadcast websocket updates for activated and deactivated offers
+      const { broadcastOfferUpdate, broadcastPriceUpdate } = await import('@/utils/websocketBroadcast');
+      
+      // Broadcast for activated offers (scheduled → active)
+      for (const { offerId, productIds } of result.activatedOffers) {
+        try {
+          await broadcastOfferUpdate(offerId, productIds);
+          await broadcastPriceUpdate(productIds);
+        } catch {
+          // Silently fail - non-critical
+        }
+      }
+      
+      // Broadcast for deactivated offers (active → scheduled/inactive)
+      for (const { offerId, productIds } of result.deactivatedOffers) {
+        try {
+          await broadcastOfferUpdate(offerId, productIds);
+          await broadcastPriceUpdate(productIds);
+        } catch {
+          // Silently fail - non-critical
+        }
+      }
+      
+      return result;
+    })
   ).catch((error) => {
     console.error('[Marketplace] Background offer deactivation failed:', error);
   });
