@@ -226,7 +226,12 @@ export function calculateOfferStatus(startDate: string, endDate: string, current
     return 'expired';
   }
 
-  // If before start date or between start and end, it's active
+  // If before start date, it's scheduled so it's inactive (not yet started)
+  if (now < start) {
+    return 'inactive';
+  }
+
+  // Within the valid date range - active
   return 'active';
 }
 

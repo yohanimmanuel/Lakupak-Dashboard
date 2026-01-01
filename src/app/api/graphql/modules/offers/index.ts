@@ -331,6 +331,24 @@ const createOffer = async (args: {
     throw new Error('Some products do not exist or do not belong to you');
   }
 
+  // Determine initial status based on date ranges
+  // If any date range starts in the future, set status to inactive (scheduled)
+  let initialStatus = status || 'active';
+  if (dateRanges && dateRanges.length > 0) {
+    const { DateTime } = require('luxon');
+    const now = DateTime.now().setZone('Asia/Jakarta');
+    
+    const allFuture = dateRanges.every(dr => {
+      const start = DateTime.fromISO(dr.startDate, { zone: 'Asia/Jakarta' }).startOf('day');
+      return now < start;
+    });
+    
+    // If ALL date ranges are in the future, set status to inactive (scheduled)
+    if (allFuture) {
+      initialStatus = 'inactive';
+    }
+  }
+
   const offerId = `OFF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   const offer = await prisma.$transaction(async (tx) => {
@@ -340,7 +358,7 @@ const createOffer = async (args: {
         name,
         description: description || null,
         type,
-        status: status || 'active',
+        status: initialStatus,
         userId,
       },
     });
@@ -380,7 +398,8 @@ const createOffer = async (args: {
     }
 
     // Update product prices within the same transaction to ensure atomicity
-    await updateProductPricesFromOffers(tx, userId);
+    // Only update the specific products in this new offer
+    await updateProductPricesFromOffers(tx, userId, productIds);
 
     return createdOffer;
   });
@@ -462,6 +481,14 @@ const updateOffer = async (args: {
     throw new Error('Offer not found or you do not have permission to update it');
   }
 
+  // Collect affected product IDs BEFORE the update for targeted price recalculation
+  // This includes both old and new product IDs in case products are being reassigned
+  const affectedProductIds = new Set<string>(existingOffer.offerProducts.map(op => op.productId));
+  if (productIds) {
+    productIds.forEach(pid => affectedProductIds.add(pid));
+  }
+  const affectedProductIdArray = Array.from(affectedProductIds);
+
   const cleanUpdateData: Partial<{
     name: string;
     description: string | null;
@@ -474,11 +501,8 @@ const updateOffer = async (args: {
   if (type !== undefined) cleanUpdateData.type = type ?? [];
   if (status !== undefined && status !== null) cleanUpdateData.status = status;
 
-  // Check if only status is being updated (most common case for bulk operations)
-  const isStatusOnlyUpdate = status !== undefined && status !== null &&
-    name === undefined && description === undefined && type === undefined &&
-    discountTypes === undefined && productIds === undefined && dateRanges === undefined;
-
+  // Update offer AND prices in ONE transaction to prevent race conditions
+  // Pass affected product IDs to only update those specific products (not all products with offers)
   const updatedOffer = await prisma.$transaction(async (tx) => {
     const offer = await tx.offer.update({
       where: { id: existingOffer.id },
@@ -555,15 +579,12 @@ const updateOffer = async (args: {
       }
     }
 
-    return offer;
-  });
+    // Update prices for affected products within the same transaction
+    // This prevents race conditions and ensures atomicity
+    // Only updates the specific products in this offer, not all products with offers
+    await updateProductPricesFromOffers(tx, userId, affectedProductIdArray);
 
-  // Update prices synchronously for all products with offers
-  // This ensures accuracy because a product may have multiple offers, and we need to
-  // recalculate considering all active offers together
-  // Use a transaction with longer timeout for large updates
-  await prisma.$transaction(async (tx) => {
-    await updateProductPricesFromOffers(tx, userId);
+    return offer;
   }, {
     timeout: 30000, // 30 second timeout for large updates
     isolationLevel: 'ReadCommitted', // Ensure reads see committed data
@@ -581,14 +602,12 @@ const updateOffer = async (args: {
   if (!updatedOfferWithRelations) {
     throw new Error('Failed to fetch updated offer');
   }
-
-  const affectedProductIds = updatedOfferWithRelations.offerProducts.map((op) => op.productId);
   
   // Broadcast WebSocket updates AFTER prices are committed
   // This ensures marketplace queries see the updated prices
   try {
-    await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIds);
-    await broadcastPriceUpdate(affectedProductIds);
+    await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIdArray);
+    await broadcastPriceUpdate(affectedProductIdArray);
   } catch {
     // ignore broadcast failures - non-critical
   }
@@ -623,7 +642,8 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
     await tx.offer.delete({
       where: { id: offerToDelete.id },
     });
-    await updateProductPricesFromOffers(tx, userId);
+    // Only update the specific products that were in the deleted offer
+    await updateProductPricesFromOffers(tx, userId, affectedProductIds);
   });
 
   try {

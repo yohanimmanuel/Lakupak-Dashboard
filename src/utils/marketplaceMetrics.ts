@@ -58,17 +58,18 @@ export async function calculateSoldCounts(
 }
 
 /**
- * Deactivate expired offers based on main dates and date ranges
+ * Deactivate expired offers and scheduled offers that haven't started yet
  * This function should be called periodically or when checking offers
  */
 export async function deactivateExpiredOffers(
   tx: Prisma.TransactionClient | PrismaClient,
   userId?: number
-): Promise<{ deactivatedCount: number; affectedUserIds: number[] }> {
+): Promise<{ deactivatedCount: number; activatedCount: number; affectedUserIds: number[] }> {
   try {
-    const { startOfToday } = getTodayBoundaries();
+    const { startOfToday, endOfToday } = getTodayBoundaries();
     const affectedUserIds = new Set<number>();
     let deactivatedCount = 0;
+    let activatedCount = 0;
 
     // Get all active offers (optionally filtered by userId)
     const whereClause: Prisma.OfferWhereInput = {
@@ -103,8 +104,7 @@ export async function deactivateExpiredOffers(
         shouldDeactivate = true;
       }
 
-      // Check if all date ranges are expired (natural expiration)
-      // This ensures offers are automatically deactivated when their date ranges pass
+      // Check date ranges for expiration AND scheduled (not yet started)
       if (!shouldDeactivate && offer.dateRanges && offer.dateRanges.length > 0) {
         // Get active date ranges
         const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
@@ -113,17 +113,21 @@ export async function deactivateExpiredOffers(
           // No active date ranges means expired
           shouldDeactivate = true;
         } else {
-          // Check if ALL active date ranges are expired
-          const allExpired = activeDateRanges.every(range => {
+          // Check if ALL active date ranges are either expired OR not yet started
+          const allOutsideValidPeriod = activeDateRanges.every(range => {
             const rangeStart = getStartOfDay(new Date(range.startDate));
             const rangeEnd = getEndOfDay(new Date(range.endDate));
             
-            // Offer remains active throughout the entire end date
-            // Only expires when today > end date (not when today === end date)
-            return startOfToday > rangeEnd;
+            // Expired: today > end date
+            const isExpired = startOfToday > rangeEnd;
+            
+            // Not yet started: today < start date
+            const isScheduled = endOfToday < rangeStart;
+            
+            return isExpired || isScheduled;
           });
           
-          if (allExpired) {
+          if (allOutsideValidPeriod) {
             shouldDeactivate = true;
           }
         }
@@ -135,7 +139,7 @@ export async function deactivateExpiredOffers(
       }
     }
 
-    // Deactivate expired offers
+    // Deactivate offers that are expired or not yet started
     if (offersToDeactivate.length > 0) {
       await tx.offer.updateMany({
         where: {
@@ -149,7 +153,79 @@ export async function deactivateExpiredOffers(
       deactivatedCount = offersToDeactivate.length;
       
       // Restore product prices for all affected users
-      // This ensures prices are restored when offers expire
+      // This ensures prices are restored when offers expire or are scheduled
+      for (const affectedUserId of affectedUserIds) {
+        await updateProductPricesFromOffers(tx, affectedUserId);
+      }
+    }
+
+    // Now check for scheduled offers (status=inactive) that should be activated
+    const inactiveWhereClause: Prisma.OfferWhereInput = {
+      status: 'inactive',
+    };
+    
+    if (userId) {
+      inactiveWhereClause.userId = userId;
+    }
+
+    const inactiveOffers = await tx.offer.findMany({
+      where: inactiveWhereClause,
+      include: {
+        dateRanges: true,
+        offerDiscountTypes: true,
+        offerProducts: {
+          select: {
+            productId: true,
+          },
+        },
+      },
+    });
+
+    const offersToActivate: string[] = [];
+
+    for (const offer of inactiveOffers) {
+      let shouldActivate = false;
+
+      // Check if at least one discount type is active
+      const hasActiveDiscountType = offer.offerDiscountTypes.some(dt => dt.isActive === true);
+      
+      if (hasActiveDiscountType && offer.dateRanges && offer.dateRanges.length > 0) {
+        // Check if ANY active date range is now valid (started but not expired)
+        const hasValidDateRange = offer.dateRanges.some(range => {
+          if (!range.isActive) return false;
+          
+          const rangeStart = getStartOfDay(new Date(range.startDate));
+          const rangeEnd = getEndOfDay(new Date(range.endDate));
+          
+          // Valid if today is within range: start <= today <= end
+          return rangeStart <= endOfToday && startOfToday <= rangeEnd;
+        });
+        
+        if (hasValidDateRange) {
+          shouldActivate = true;
+        }
+      }
+
+      if (shouldActivate) {
+        offersToActivate.push(offer.id);
+        if (offer.userId) affectedUserIds.add(offer.userId);
+      }
+    }
+
+    // Activate offers that have reached their start date
+    if (offersToActivate.length > 0) {
+      await tx.offer.updateMany({
+        where: {
+          id: { in: offersToActivate },
+        },
+        data: {
+          status: 'active',
+        },
+      });
+
+      activatedCount = offersToActivate.length;
+      
+      // Apply offer prices for all affected users
       for (const affectedUserId of affectedUserIds) {
         await updateProductPricesFromOffers(tx, affectedUserId);
       }
@@ -157,12 +233,14 @@ export async function deactivateExpiredOffers(
 
     return {
       deactivatedCount,
+      activatedCount,
       affectedUserIds: Array.from(affectedUserIds),
     };
   } catch (error) {
-    // Silently handle errors - deactivation is non-critical
+    // Silently handle errors - deactivation/activation is non-critical
     return {
       deactivatedCount: 0,
+      activatedCount: 0,
       affectedUserIds: [],
     };
   }
@@ -198,27 +276,34 @@ function isWithinActiveDateRange(dateRanges: Array<{ startDate: Date | string; e
 export async function updateProductPricesFromOffers(
   tx: Prisma.TransactionClient | PrismaClient,
   userId: number,
+  targetProductIds?: string[], // Optional: only update specific products (for targeted updates)
 ): Promise<void> {
   try {
-    // Optimization: Only fetch products that have offers (much faster)
-    // Fetch all and manually deduplicate for reliability
-    const allOfferProducts = await tx.offerProduct.findMany({
-      where: {
-        offer: {
-          userId,
+    let productIds: string[];
+    
+    if (targetProductIds && targetProductIds.length > 0) {
+      // Targeted update: only update the specified products
+      productIds = targetProductIds;
+    } else {
+      // Full update: fetch all products that have offers
+      const allOfferProducts = await tx.offerProduct.findMany({
+        where: {
+          offer: {
+            userId,
+          },
         },
-      },
-      select: {
-        productId: true,
-      },
-    });
+        select: {
+          productId: true,
+        },
+      });
 
-    if (allOfferProducts.length === 0) {
-      return;
+      if (allOfferProducts.length === 0) {
+        return;
+      }
+
+      // Use Set to ensure unique product IDs
+      productIds = Array.from(new Set(allOfferProducts.map(p => p.productId)));
     }
-
-    // Use Set to ensure unique product IDs
-    const productIds = Array.from(new Set(allOfferProducts.map(p => p.productId)));
 
     // Fetch only products that have offers
     const products = await tx.product.findMany({
@@ -237,6 +322,7 @@ export async function updateProductPricesFromOffers(
     }
 
     // Optimization: Fetch all active offers for these products in a single query
+    // Business rule: One product can only be in ONE offer at a time (1:1 relationship)
     const allOffers = await tx.offer.findMany({
       where: {
         userId,
@@ -256,35 +342,32 @@ export async function updateProductPricesFromOffers(
       },
     });
 
-    // Build a map of productId -> offers for fast lookup
-    const offersByProductId = new Map<string, typeof allOffers>();
+    // Build a map of productId -> THE offer for that product (1:1 mapping)
+    const offerByProductId = new Map<string, typeof allOffers[0]>();
     for (const offer of allOffers) {
       for (const offerProduct of offer.offerProducts) {
-        if (!offersByProductId.has(offerProduct.productId)) {
-          offersByProductId.set(offerProduct.productId, []);
-        }
-        offersByProductId.get(offerProduct.productId)!.push(offer);
+        // Since business rule is 1:1, just set the offer directly
+        offerByProductId.set(offerProduct.productId, offer);
       }
     }
 
-    for (const product of products) {
-      // Get offers for this product from the pre-fetched map
-      const productOffers = offersByProductId.get(product.productId) || [];
+    // Collect ALL variant updates from ALL products FIRST
+    const allVariantUpdates: Promise<unknown>[] = [];
 
-      // Filter offers using the same logic as marketplace query
-      const validProductOffers = productOffers.filter(offer => {
-        // Check date ranges using the same function as marketplace
-        const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
-        if (!hasActiveDateRange) {
-          return false;
-        }
-        
-        // Check if at least one discount type is active
-        return offer.offerDiscountTypes.some(dt => dt.isActive === true);
-      });
+    for (const product of products) {
+      // Get THE offer for this product (should only be one)
+      const productOffer = offerByProductId.get(product.productId);
+      
+      // Check if the offer is valid (date range and active discount types)
+      let isValidOffer = false;
+      if (productOffer) {
+        const hasActiveDateRange = isWithinActiveDateRange(productOffer.dateRanges || []);
+        const hasActiveDiscountType = productOffer.offerDiscountTypes.some(dt => dt.isActive === true);
+        isValidOffer = hasActiveDateRange && hasActiveDiscountType;
+      }
 
       if (product.variantOptions && product.variantOptions.length > 0) {
-        // Batch all variant option updates for this product
+        // Prepare all variant option updates for this product
         const variantUpdates = product.variantOptions.map(variantOption => {
           const currentSellingPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
           const storedOriginalPrice = variantOption.originalSellingPrice
@@ -296,31 +379,29 @@ export async function updateProductPricesFromOffers(
           let finalPrice = trueOriginalPrice;
           let hasOffer = false;
 
-          // Consider ALL valid offers and find the best discount across all of them
-          if (validProductOffers.length > 0) {
+          // Apply the offer discount if valid (1:1 relationship - one product, one offer)
+          if (isValidOffer && productOffer) {
+            // Find the best discount type from this offer's discount types
             let bestDiscountAmount = 0;
             let bestDiscountType: { discountType: string; discountValue: number } | null = null;
 
-            // Check all offers to find the best discount
-            for (const offer of validProductOffers) {
-              for (const discountType of offer.offerDiscountTypes) {
-                if (!discountType.isActive) {
-                  continue;
-                }
+            for (const discountType of productOffer.offerDiscountTypes) {
+              if (!discountType.isActive) {
+                continue;
+              }
 
-                let discountAmount = 0;
+              let discountAmount = 0;
 
-                if (discountType.discountType === 'percentage') {
-                  discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
-                } else if (discountType.discountType === 'fixed') {
-                  discountAmount = discountType.discountValue;
-                }
-                // Note: buy_x_get_y doesn't affect price directly, so we skip it here
+              if (discountType.discountType === 'percentage') {
+                discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
+              } else if (discountType.discountType === 'fixed') {
+                discountAmount = discountType.discountValue;
+              }
+              // Note: buy_x_get_y doesn't affect price directly, so we skip it here
 
-                if (discountAmount > bestDiscountAmount) {
-                  bestDiscountAmount = discountAmount;
-                  bestDiscountType = discountType;
-                }
+              if (discountAmount > bestDiscountAmount) {
+                bestDiscountAmount = discountAmount;
+                bestDiscountType = discountType;
               }
             }
 
@@ -331,13 +412,7 @@ export async function updateProductPricesFromOffers(
                 finalPrice = Math.max(0, trueOriginalPrice - bestDiscountType.discountValue);
               }
               hasOffer = true;
-            } else {
-              finalPrice = trueOriginalPrice;
-              hasOffer = false;
             }
-          } else {
-            finalPrice = trueOriginalPrice;
-            hasOffer = false;
           }
 
           return tx.variantOption.update({
@@ -349,9 +424,14 @@ export async function updateProductPricesFromOffers(
           });
         });
 
-        // Execute all updates for this product in parallel
-        await Promise.all(variantUpdates);
+        // Add this product's variant updates to the batch (don't await yet!)
+        allVariantUpdates.push(...variantUpdates);
       }
+    }
+
+    // Execute ALL variant updates from ALL products at once - true parallel execution!
+    if (allVariantUpdates.length > 0) {
+      await Promise.all(allVariantUpdates);
     }
   } catch (error) {
     console.error('[MarketplaceMetrics] Price update failed for userId:', userId, error);
