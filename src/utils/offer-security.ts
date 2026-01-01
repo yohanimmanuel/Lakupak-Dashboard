@@ -194,8 +194,8 @@ export function validateDateRange(startDate: string, endDate: string): void {
  */
 export function validateStatusTransition(currentStatus: string, newStatus: string): void {
   // Allow all transitions for flexibility - users can manually control status
-  // Expired offers can be reactivated by changing date ranges
-  const validStatuses = ['active', 'inactive', 'expired'];
+  // Valid statuses: 'active', 'scheduled', 'inactive'
+  const validStatuses = ['active', 'scheduled', 'inactive'];
   if (!validStatuses.includes(newStatus)) {
     throw new Error(`Invalid status: ${newStatus}`);
   }
@@ -203,10 +203,14 @@ export function validateStatusTransition(currentStatus: string, newStatus: strin
 }
 
 /**
- * Calculate offer expiration status
+ * Calculate offer status based on date ranges
  * Uses Asia/Jakarta timezone (WIB, UTC+7) to match Indonesian business hours
+ * Status meanings:
+ * - 'active': Currently running, applies discounts
+ * - 'scheduled': Future start date, will auto-activate
+ * - 'inactive': Not running (manually deactivated OR expired)
  */
-export function calculateOfferStatus(startDate: string, endDate: string, currentStatus?: string): 'active' | 'expired' | 'inactive' {
+export function calculateOfferStatus(startDate: string, endDate: string, currentStatus?: string): 'active' | 'inactive' | 'scheduled' {
   // Import Luxon for timezone-aware date handling
   const { DateTime } = require('luxon');
   
@@ -216,19 +220,19 @@ export function calculateOfferStatus(startDate: string, endDate: string, current
   const start = DateTime.fromISO(startDate, { zone: 'Asia/Jakarta' }).startOf('day');
   const end = DateTime.fromISO(endDate, { zone: 'Asia/Jakarta' }).endOf('day');
 
-  // If manually set to inactive, keep it inactive
+  // Manual overrides take precedence
   if (currentStatus === 'inactive') {
-    return 'inactive';
+    return 'inactive'; // User manually deactivated or expired
   }
 
-  // If past end date, it's expired
+  // If past end date, mark as inactive (expired)
   if (now > end) {
-    return 'expired';
+    return 'inactive';
   }
 
-  // If before start date, it's scheduled so it's inactive (not yet started)
+  // If before start date, it's scheduled (will auto-activate when date arrives)
   if (now < start) {
-    return 'inactive';
+    return 'scheduled';
   }
 
   // Within the valid date range - active
@@ -274,10 +278,11 @@ export function calculateDiscountAmount(
       return (originalPrice * discountValue / 100) * quantity;
     case 'fixed':
       return discountValue * quantity;
-    case 'buy_x_get_y':
+    case 'buy_x_get_y': {
       // For buy_x_get_y, calculate how many free items the customer gets
       const freeItems = Math.floor(quantity / (discountValue + 1));
       return originalPrice * freeItems;
+    }
     default:
       return 0;
   }

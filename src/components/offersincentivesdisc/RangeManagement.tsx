@@ -224,7 +224,10 @@ export default function RangeManagement({
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-black">Date Range</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-black">Date Range</h3>
+              <p className="text-xs text-gray-500 mt-1">Only 1 date range per offer</p>
+            </div>
             {isNewOffer && (
               <button
                 onClick={() => {

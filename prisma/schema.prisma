@@ -388,7 +388,7 @@ model Offer {
   name               String
   description        String?
   type               String[] // ['discount', 'promotion'] - can contain multiple types
-  status             String // 'active' | 'expired' | 'inactive'
+  status             String // 'active' | 'scheduled' | 'inactive' (inactive = manually deactivated OR expired)
   totalUsage         Int      @default(0)
   totalDiscountGiven Float    @default(0)
   userId             Int?

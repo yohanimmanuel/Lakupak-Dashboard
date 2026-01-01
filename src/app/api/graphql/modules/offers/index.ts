@@ -332,20 +332,22 @@ const createOffer = async (args: {
   }
 
   // Determine initial status based on date ranges
-  // If any date range starts in the future, set status to inactive (scheduled)
+  // If all date ranges start in the future, set status to 'scheduled' for auto-activation
   let initialStatus = status || 'active';
-  if (dateRanges && dateRanges.length > 0) {
+  
+  if (!status && dateRanges && dateRanges.length > 0) {
     const { DateTime } = require('luxon');
     const now = DateTime.now().setZone('Asia/Jakarta');
     
+    // Check if ALL date ranges are in the future
     const allFuture = dateRanges.every(dr => {
       const start = DateTime.fromISO(dr.startDate, { zone: 'Asia/Jakarta' }).startOf('day');
       return now < start;
     });
     
-    // If ALL date ranges are in the future, set status to inactive (scheduled)
+    // If all date ranges are future, set to 'scheduled' (will auto-activate when date arrives)
     if (allFuture) {
-      initialStatus = 'inactive';
+      initialStatus = 'scheduled';
     }
   }
 
