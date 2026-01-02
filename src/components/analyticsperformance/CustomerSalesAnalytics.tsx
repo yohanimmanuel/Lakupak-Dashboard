@@ -541,7 +541,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			<div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
 				{/* Sales Trend (Orders & Units) */}
 				<div className="lg:col-span-6">
-					<SalesTrendChart data={salesTrend} />
+					<SalesTrendChart data={salesTrend} showForecast={false} />
 				</div>
 
 				{/* Units by Category (Pie) */}
