@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import { X, ArrowLeft, Send } from 'lucide-react';
 import { Campaign } from '@/types/campaign';
-import WhatsAppCampaignBuilder from './WhatsAppCampaignBuilder';
+import CampaignPreview from './CampaignPreview';
 import { formatCampaignForWhatsApp, shareToWhatsApp } from '@/utils/campaignWhatsApp';
+import { useUserStore } from '@/store/userStore';
+import { getDefaultCurrency } from '@/utils/currencyUtils';
 
 interface SendCampaignModalProps {
   open: boolean;
@@ -20,6 +22,8 @@ export default function SendCampaignModal({
   onSend,
 }: SendCampaignModalProps) {
   const [sending, setSending] = useState(false);
+  const user = useUserStore((state) => state.user);
+  const userCurrency = user?.currency || getDefaultCurrency();
 
   if (!open || !campaign) return null;
 
@@ -90,14 +94,13 @@ export default function SendCampaignModal({
               </div>
             </div>
 
-            {/* WhatsApp Builder Preview */}
+            {/* Campaign Preview */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-md font-semibold text-black mb-4">Campaign Design</h3>
               <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <WhatsAppCampaignBuilder
+                <CampaignPreview
                   campaign={campaign}
-                  embedded={true}
-                  previewOnly={true}
+                  currency={userCurrency}
                 />
               </div>
             </div>

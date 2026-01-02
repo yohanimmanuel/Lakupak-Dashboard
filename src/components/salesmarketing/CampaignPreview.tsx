@@ -2,13 +2,21 @@
 
 import React from 'react';
 import { Campaign, CampaignContentBlock } from '@/types/campaign';
+import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useUserStore } from '@/store/userStore';
 
 interface CampaignPreviewProps {
   campaign: Campaign;
   onTrackClick?: () => void;
+  currency?: string; // Optional currency prop, falls back to user's currency or IDR
 }
 
-export default function CampaignPreview({ campaign, onTrackClick }: CampaignPreviewProps) {
+export default function CampaignPreview({ campaign, onTrackClick, currency }: CampaignPreviewProps) {
+  const user = useUserStore((state) => state.user);
+  
+  // Determine currency: prop > user currency > default (IDR)
+  const displayCurrency = currency || user?.currency || getDefaultCurrency();
+  
   const contentBlocks = campaign.contentBlocks || [];
   const sortedBlocks = [...contentBlocks].sort((a, b) => a.order - b.order);
 
@@ -50,12 +58,7 @@ export default function CampaignPreview({ campaign, onTrackClick }: CampaignPrev
             )}
             {block.productPrice !== undefined && (
               <p className="text-black mt-1">
-                Price: {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2,
-                }).format(block.productPrice)}
+                Price: {formatCurrency(block.productPrice, displayCurrency)}
               </p>
             )}
             {block.productImage && (
@@ -123,8 +126,7 @@ export default function CampaignPreview({ campaign, onTrackClick }: CampaignPrev
         return <div className="border-t border-gray-200 my-2"></div>;
 
       case 'spacing':
-        return <div className="h-4"></div>;
-
+        return <div className={`${block.spacingSize === 'small' ? 'h-2' : block.spacingSize === 'large' ? 'h-8' : 'h-4'}`}></div>;
       default:
         return null;
     }
