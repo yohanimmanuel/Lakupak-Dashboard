@@ -6,8 +6,8 @@ export interface Campaign {
   status: 'Draft' | 'Scheduled' | 'Sent' | 'Completed';
   sentDate?: string;
   recipients: string;
-  openedPercent: number;
-  clickedPercent: number;
+  opensCount: number;
+  clicksCount: number;
   revenue: number;
   orders: number;
   createdAt?: string;
@@ -24,8 +24,8 @@ export interface CampaignTableRow {
   status: string;
   sentDate?: string;
   recipients: string;
-  openedPercent: number;
-  clickedPercent: number;
+  opensCount: number;
+  clicksCount: number;
   revenue: number;
   orders: number;
 }

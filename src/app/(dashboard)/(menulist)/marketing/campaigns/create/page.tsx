@@ -40,8 +40,8 @@ export default function CreateCampaignPage() {
           status
           sentDate
           recipients
-          openedPercent
-          clickedPercent
+          opensCount
+          clicksCount
           revenue
           orders
           contentBlocks

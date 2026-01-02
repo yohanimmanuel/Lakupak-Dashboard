@@ -578,8 +578,8 @@ model Campaign {
   status        String   @default("Draft") // 'Draft' | 'Scheduled' | 'Sent' | 'Completed'
   sentDate      DateTime? @db.Timestamptz(3)
   recipients    String
-  openedPercent Float    @default(0)
-  clickedPercent Float   @default(0)
+  opensCount    Int      @default(0)
+  clicksCount   Int      @default(0)
   revenue       Float    @default(0)
   orders        Int      @default(0)
   contentBlocks Json?    // Store CampaignContentBlock[] as JSON

@@ -40,8 +40,8 @@ export default function CampaignDetailsPage() {
               status
               sentDate
               recipients
-              openedPercent
-              clickedPercent
+              opensCount
+              clicksCount
               revenue
               orders
               contentBlocks
@@ -96,8 +96,8 @@ export default function CampaignDetailsPage() {
         $status: String
         $recipients: String
         $sentDate: String
-        $openedPercent: Float
-        $clickedPercent: Float
+        $opensCount: Int
+        $clicksCount: Int
         $revenue: Float
         $orders: Int
         $contentBlocks: JSONObject
@@ -110,8 +110,8 @@ export default function CampaignDetailsPage() {
           status: $status
           recipients: $recipients
           sentDate: $sentDate
-          openedPercent: $openedPercent
-          clickedPercent: $clickedPercent
+          opensCount: $opensCount
+          clicksCount: $clicksCount
           revenue: $revenue
           orders: $orders
           contentBlocks: $contentBlocks
@@ -123,8 +123,8 @@ export default function CampaignDetailsPage() {
           status
           sentDate
           recipients
-          openedPercent
-          clickedPercent
+          opensCount
+          clicksCount
           revenue
           orders
           contentBlocks
@@ -144,8 +144,8 @@ export default function CampaignDetailsPage() {
         status: updatedCampaign.status,
         recipients: updatedCampaign.recipients,
         sentDate: updatedCampaign.sentDate || null,
-        openedPercent: updatedCampaign.openedPercent,
-        clickedPercent: updatedCampaign.clickedPercent,
+        opensCount: updatedCampaign.opensCount,
+        clicksCount: updatedCampaign.clicksCount,
         revenue: updatedCampaign.revenue,
         orders: updatedCampaign.orders,
         contentBlocks: updatedCampaign.contentBlocks || null,

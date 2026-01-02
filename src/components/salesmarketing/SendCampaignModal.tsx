@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, ArrowLeft, Send } from 'lucide-react';
 import { Campaign } from '@/types/campaign';
 import WhatsAppCampaignBuilder from './WhatsAppCampaignBuilder';
+import { formatCampaignForWhatsApp, shareToWhatsApp } from '@/utils/campaignWhatsApp';
 
 interface SendCampaignModalProps {
   open: boolean;
@@ -23,11 +24,18 @@ export default function SendCampaignModal({
   if (!open || !campaign) return null;
 
   const handleSend = async () => {
-    if (!campaign || !onSend) return;
+    if (!campaign) return;
     
     setSending(true);
     try {
-      await onSend(campaign);
+      const message = formatCampaignForWhatsApp(campaign);
+      
+      shareToWhatsApp(message);
+      
+      if (onSend) {
+        await onSend(campaign);
+      }
+      
       onClose();
     } catch (error) {
       // Handle error

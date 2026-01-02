@@ -39,8 +39,8 @@ export const campaignsTypeDefs = /* GraphQL */ `
     status: String!
     sentDate: String
     recipients: String!
-    openedPercent: Float!
-    clickedPercent: Float!
+    opensCount: Int!
+    clicksCount: Int!
     revenue: Float!
     orders: Int!
     contentBlocks: JSONObject
@@ -89,8 +89,8 @@ export const campaignsTypeDefs = /* GraphQL */ `
       status: String
       recipients: String
       sentDate: String
-      openedPercent: Float
-      clickedPercent: Float
+      opensCount: Int
+      clicksCount: Int
       revenue: Float
       orders: Int
       contentBlocks: JSONObject
@@ -117,8 +117,8 @@ const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
   status: string;
   sentDate: string | null;
   recipients: string;
-  openedPercent: number;
-  clickedPercent: number;
+  opensCount: number;
+  clicksCount: number;
   revenue: number;
   orders: number;
   contentBlocks: unknown[] | null;
@@ -134,8 +134,8 @@ const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
     status: campaign.status,
     sentDate: campaign.sentDate ? campaign.sentDate.toISOString() : null,
     recipients: campaign.recipients,
-    openedPercent: campaign.openedPercent,
-    clickedPercent: campaign.clickedPercent,
+    opensCount: campaign.opensCount ?? 0,
+    clicksCount: campaign.clicksCount ?? 0,
     revenue: campaign.revenue,
     orders: campaign.orders,
     contentBlocks: campaign.contentBlocks as unknown[] | null,
@@ -269,8 +269,8 @@ const updateCampaign = async (args: {
   status?: string | null;
   recipients?: string | null;
   sentDate?: string | null;
-  openedPercent?: number | null;
-  clickedPercent?: number | null;
+  opensCount?: number | null;
+  clicksCount?: number | null;
   revenue?: number | null;
   orders?: number | null;
   contentBlocks?: unknown | null;
@@ -283,8 +283,8 @@ const updateCampaign = async (args: {
     status,
     recipients,
     sentDate,
-    openedPercent,
-    clickedPercent,
+    opensCount,
+    clicksCount,
     revenue,
     orders,
     contentBlocks,
@@ -312,8 +312,8 @@ const updateCampaign = async (args: {
   if (sentDate !== undefined) {
     updateData.sentDate = sentDate ? new Date(sentDate) : null;
   }
-  if (openedPercent !== undefined && openedPercent !== null) updateData.openedPercent = openedPercent;
-  if (clickedPercent !== undefined && clickedPercent !== null) updateData.clickedPercent = clickedPercent;
+  if (opensCount !== undefined && opensCount !== null) updateData.opensCount = opensCount;
+  if (clicksCount !== undefined && clicksCount !== null) updateData.clicksCount = clicksCount;
   if (revenue !== undefined && revenue !== null) updateData.revenue = revenue;
   if (orders !== undefined && orders !== null) updateData.orders = orders;
   if (contentBlocks !== undefined) {
@@ -396,8 +396,8 @@ export const campaignsResolvers = {
       status?: string | null;
       recipients?: string | null;
       sentDate?: string | null;
-      openedPercent?: number | null;
-      clickedPercent?: number | null;
+      opensCount?: number | null;
+      clicksCount?: number | null;
       revenue?: number | null;
       orders?: number | null;
       contentBlocks?: unknown | null;

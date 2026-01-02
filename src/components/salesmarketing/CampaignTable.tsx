@@ -21,6 +21,7 @@ interface CampaignTableProps {
   onViewCampaign?: (campaign: Campaign) => void;
   onDuplicateCampaign?: (campaign: Campaign) => void;
   onDeleteCampaign?: (campaign: Campaign) => void;
+  onUpdateCampaign?: (campaign: Campaign) => void;
   campaignToTableRow: (campaign: Campaign) => CampaignTableRow;
 }
 
@@ -29,6 +30,7 @@ export default function CampaignTable({
   onViewCampaign,
   onDuplicateCampaign,
   onDeleteCampaign,
+  onUpdateCampaign,
   campaignToTableRow,
 }: CampaignTableProps) {
   const user = useUserStore((state) => state.user);
@@ -185,7 +187,14 @@ export default function CampaignTable({
 
   const handleSendCampaign = async (campaignData: Campaign) => {
     // Update campaign status to Sent
-    // In a real implementation, you would call an API here
+    if (onUpdateCampaign) {
+      await onUpdateCampaign({
+        ...campaignData,
+        status: 'Sent',
+        sentDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
     setShowSendModal(false);
     setCampaignToSend(null);
     // Clear selection after sending
@@ -515,10 +524,8 @@ export default function CampaignTable({
                   <div className="space-y-1 text-sm text-gray-600">
                     <p>Recipients: {campaignRow.recipients}</p>
                     <div className="flex items-center gap-4 mt-2">
-                      <span>{campaignRow.openedPercent || 0}% Opened</span>
-                      <span>{campaignRow.clickedPercent || 0}% Clicked</span>
-                      <span>{formatCurrency(campaignRow.revenue || 0, userCurrency)} Revenue</span>
-                      <span>{campaignRow.orders || 0} Orders</span>
+                      <span>{campaignRow.opensCount || 0} Opened</span>
+                      <span>{campaignRow.clicksCount || 0} Clicked</span>
                     </div>
                   </div>
                   </div>

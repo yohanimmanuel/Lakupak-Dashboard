@@ -208,8 +208,8 @@ export default function CampaignDetails({
         status: formData.status,
         recipients: formData.recipients,
         sentDate: undefined,
-        openedPercent: campaign?.openedPercent || 0,
-        clickedPercent: campaign?.clickedPercent || 0,
+        opensCount: campaign?.opensCount || 0,
+        clicksCount: campaign?.clicksCount || 0,
         revenue: campaign?.revenue || 0,
         orders: campaign?.orders || 0,
         userId: user?.id || undefined,
@@ -358,8 +358,8 @@ export default function CampaignDetails({
                       status: draftData.status,
                       recipients: draftData.recipients,
                       sentDate: undefined,
-                      openedPercent: campaign?.openedPercent || 0,
-                      clickedPercent: campaign?.clickedPercent || 0,
+                      opensCount: campaign?.opensCount || 0,
+                      clicksCount: campaign?.clicksCount || 0,
                       revenue: campaign?.revenue || 0,
                       orders: campaign?.orders || 0,
                       userId: user?.id || undefined,
@@ -575,8 +575,8 @@ export default function CampaignDetails({
                 name: formData.name,
                 status: formData.status,
                 recipients: formData.recipients,
-                openedPercent: 0,
-                clickedPercent: 0,
+                opensCount: 0,
+                clicksCount: 0,
                 revenue: 0,
                 orders: 0,
                 contentBlocks,
@@ -596,11 +596,11 @@ export default function CampaignDetails({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-gray-600 mb-1">Opened</p>
-                <p className="text-lg font-semibold text-black">{campaign.openedPercent}%</p>
+                <p className="text-lg font-semibold text-black">{campaign.opensCount || 0}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600 mb-1">Clicked</p>
-                <p className="text-lg font-semibold text-black">{campaign.clickedPercent}%</p>
+                <p className="text-lg font-semibold text-black">{campaign.clicksCount || 0}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-600 mb-1">Revenue</p>

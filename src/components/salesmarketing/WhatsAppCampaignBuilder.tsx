@@ -42,6 +42,7 @@ interface WhatsAppCampaignBuilderProps {
   onContentBlocksChange?: (contentBlocks: CampaignContentBlock[]) => void;
   embedded?: boolean;
   previewOnly?: boolean;
+  onTrackClick?: () => void;
 }
 
 const CONTENT_BLOCKS: Array<{
@@ -118,7 +119,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-1',
         type: 'header',
         order: 0,
-        headerText: 'Laku-Laku',
+        headerText: 'Laku',
         headerImage: undefined,
       },
       {
@@ -154,7 +155,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-2',
         type: 'header',
         order: 0,
-        headerText: 'Laku-Laku',
+        headerText: 'Laku',
       },
       {
         id: 'template-text-2',
@@ -193,7 +194,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-3',
         type: 'header',
         order: 0,
-        headerText: 'Laku-Laku',
+        headerText: 'Laku',
       },
       {
         id: 'template-text-3',
@@ -226,7 +227,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-4',
         type: 'header',
         order: 0,
-        headerText: 'Laku-Laku',
+        headerText: 'Laku',
       },
       {
         id: 'template-text-5',
@@ -271,13 +272,13 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-5',
         type: 'header',
         order: 0,
-        headerText: 'Laku-Laku',
+        headerText: 'Laku',
       },
       {
         id: 'template-text-6',
         type: 'text',
         order: 1,
-        text: '👋 Welcome to Laku-Laku!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
+        text: '👋 Welcome to Laku!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
         textStyle: 'normal',
       },
       {
@@ -318,7 +319,8 @@ export default function WhatsAppCampaignBuilder({
   onCancel,
   onContentBlocksChange,
   embedded = false,
-  previewOnly = false
+  previewOnly = false,
+  onTrackClick,
 }: WhatsAppCampaignBuilderProps) {
   const [campaignName, setCampaignName] = useState(campaign?.name || 'Untitled campaign');
   const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
@@ -892,7 +894,18 @@ export default function WhatsAppCampaignBuilder({
                   {block.productName || (previewOnly ? '' : 'Click to search product...')}
                 </h3>
                 {block.productButtonText && (
-                  <button type="button" className="mt-2 w-full bg-[#0a61d7] text-white py-2 rounded-lg text-sm font-semibold">
+                  <button 
+                    type="button" 
+                    className="mt-2 w-full bg-[#0a61d7] text-white py-2 rounded-lg text-sm font-semibold"
+                    onClick={() => {
+                      if (previewOnly && onTrackClick) {
+                        onTrackClick();
+                      }
+                      if (block.productButtonLink) {
+                        window.open(block.productButtonLink, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                  >
                     {block.productButtonText}
                   </button>
                 )}
@@ -902,11 +915,22 @@ export default function WhatsAppCampaignBuilder({
         );
       case 'button':
         return (
-          <button type="button" className={`w-full py-3 rounded-lg font-semibold text-sm ${
-            block.buttonStyle === 'primary'
-              ? 'bg-[#0a61d7] text-white'
-              : 'bg-gray-200 text-black'
-          }`}>
+          <button 
+            type="button" 
+            className={`w-full py-3 rounded-lg font-semibold text-sm ${
+              block.buttonStyle === 'primary'
+                ? 'bg-[#0a61d7] text-white'
+                : 'bg-gray-200 text-black'
+            }`}
+            onClick={() => {
+              if (previewOnly && onTrackClick) {
+                onTrackClick();
+              }
+              if (block.buttonLink) {
+                window.open(block.buttonLink, '_blank', 'noopener,noreferrer');
+              }
+            }}
+          >
             {block.buttonText || 'Button'}
           </button>
         );

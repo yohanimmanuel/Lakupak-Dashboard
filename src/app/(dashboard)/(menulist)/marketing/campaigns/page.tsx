@@ -27,8 +27,8 @@ export default function MarketingCampaignsPage() {
           status
           sentDate
           recipients
-          openedPercent
-          clickedPercent
+          opensCount
+          clicksCount
           revenue
           orders
           contentBlocks
@@ -102,8 +102,8 @@ export default function MarketingCampaignsPage() {
       status: campaign.status,
       sentDate: campaign.sentDate,
       recipients: campaign.recipients,
-      openedPercent: campaign.openedPercent,
-      clickedPercent: campaign.clickedPercent,
+      opensCount: campaign.opensCount,
+      clicksCount: campaign.clicksCount,
       revenue: campaign.revenue,
       orders: campaign.orders,
     };
@@ -117,6 +117,82 @@ export default function MarketingCampaignsPage() {
 
   const handleDuplicateCampaign = (campaign: Campaign) => {
     // TODO: Implement duplicate functionality
+  };
+
+  const handleUpdateCampaign = async (updatedCampaign: Campaign) => {
+    if (!user?.id) return;
+
+    const UPDATE_CAMPAIGN_MUTATION = `
+      mutation UpdateCampaign(
+        $userId: Int!
+        $id: String!
+        $name: String
+        $description: String
+        $status: String
+        $recipients: String
+        $sentDate: String
+        $opensCount: Int
+        $clicksCount: Int
+        $revenue: Float
+        $orders: Int
+        $contentBlocks: JSONObject
+      ) {
+        updateCampaign(
+          userId: $userId
+          id: $id
+          name: $name
+          description: $description
+          status: $status
+          recipients: $recipients
+          sentDate: $sentDate
+          opensCount: $opensCount
+          clicksCount: $clicksCount
+          revenue: $revenue
+          orders: $orders
+          contentBlocks: $contentBlocks
+        ) {
+          id
+          campaignId
+          name
+          description
+          status
+          sentDate
+          recipients
+          opensCount
+          clicksCount
+          revenue
+          orders
+          contentBlocks
+          userId
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    try {
+      const data = await fetchGraphQL<{ updateCampaign: Campaign }>(UPDATE_CAMPAIGN_MUTATION, {
+        userId: user.id,
+        id: updatedCampaign.id,
+        name: updatedCampaign.name,
+        description: updatedCampaign.description || null,
+        status: updatedCampaign.status,
+        recipients: updatedCampaign.recipients,
+        sentDate: updatedCampaign.sentDate || null,
+        opensCount: updatedCampaign.opensCount,
+        clicksCount: updatedCampaign.clicksCount,
+        revenue: updatedCampaign.revenue,
+        orders: updatedCampaign.orders,
+        contentBlocks: updatedCampaign.contentBlocks || null,
+      });
+      
+      // Update the campaign in the state
+      setCampaigns(prev => prev.map(c => c.id === data.updateCampaign.id ? data.updateCampaign : c));
+    } catch (error) {
+      console.error('Failed to update campaign:', error);
+      // Consider adding toast notification or error state
+      // Example: toast.error('Failed to update campaign. Please try again.');
+    }
   };
 
   const handleDeleteCampaign = async (campaign: Campaign) => {
@@ -206,6 +282,7 @@ export default function MarketingCampaignsPage() {
         onViewCampaign={handleViewCampaign}
         onDuplicateCampaign={handleDuplicateCampaign}
         onDeleteCampaign={handleDeleteCampaign}
+        onUpdateCampaign={handleUpdateCampaign}
         campaignToTableRow={campaignToTableRow}
       />
     </div>
