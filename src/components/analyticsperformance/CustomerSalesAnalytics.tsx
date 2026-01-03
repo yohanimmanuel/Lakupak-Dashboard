@@ -157,8 +157,6 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 		});
 		
 		if (salesForecast.forecast.length > 0 && data.length > 0) {
-			const lastHistorical = data[data.length - 1];
-			combined.push({ ...lastHistorical, isForecast: false });
 			salesForecast.forecast.forEach(f => {
 				combined.push({ month: f.date, orders: f.value, pieces: 0, units: 0, isForecast: true });
 			});

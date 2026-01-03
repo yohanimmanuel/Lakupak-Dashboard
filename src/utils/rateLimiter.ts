@@ -298,7 +298,7 @@ export async function offerQueryRateLimiter(
 }
 
 /**
- * Marketplace: Public product search - 100 per minute per IP
+ * Marketplace: Public product search - 1000 per second per IP
  */
 export async function marketplaceSearchRateLimiter(
   req: NextRequest
@@ -307,15 +307,15 @@ export async function marketplaceSearchRateLimiter(
   const key = `marketplace-search:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100,
+    windowMs: 1000, // 1 second
+    maxRequests: 1000,
     message: 'Too many marketplace searches. Please slow down.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Marketplace: Cart operations - 50 per minute per user
+ * Marketplace: Cart operations - 100 per minute per user
  */
 export async function cartOperationRateLimiter(
   req: NextRequest,
@@ -326,7 +326,7 @@ export async function cartOperationRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 50,
+    maxRequests: 100,
     message: 'Too many cart operations. Please slow down.',
     keyGenerator: () => key,
   });
@@ -343,8 +343,8 @@ export async function userActivityRateLimiter(
   const key = `user-activity:${userId}:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100,
+    windowMs: 1000, // 1 second
+    maxRequests: 1000,
     message: 'Too many activity tracking requests. Please slow down.',
     keyGenerator: () => key,
   });

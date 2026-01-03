@@ -1,5 +1,5 @@
 'use client';
-import { DollarSign, ShoppingCart, Calendar, ChevronDown } from 'lucide-react';
+import { DollarSign, ShoppingCart, Calendar, ChevronDown, TrendingUp } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
@@ -46,6 +46,8 @@ const ANALYTICS_PAGE_QUERY = `
           packageType
           piecesPerPackage
           pricePerPackage
+          promotionDetailsSnapshot
+          moqSnapshot
         }
       }
     }
@@ -151,6 +153,10 @@ export default function AnalyticsPage() {
   const revenueData = useMemo(() => {
     return calculateRevenueData(filteredOrders, filteredProducts, hasData);
   }, [filteredOrders, filteredProducts, hasData]);
+
+  const totalProfit = useMemo(() => {
+    return revenueData.reduce((sum, data) => sum + data.profit, 0);
+  }, [revenueData]);
 
   // Operational metrics reused from OperationalPerformanceAnalytics
   const opMetrics = useMemo(() => computeOperationalMetrics(filteredOrders, filteredProducts), [filteredOrders, filteredProducts]);
@@ -306,7 +312,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Row 1: Metric Cards (4 columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <>
             <AnalyticsMetricCard
               title="Total Revenue"
@@ -314,6 +320,13 @@ export default function AnalyticsPage() {
               change={12.5}
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
+            />
+            <AnalyticsMetricCard
+              title="Total Profit"
+              value={formatCurrency(totalProfit, userCurrency)}
+              change={15.2}
+              icon={<TrendingUp className="w-6 h-6 text-green-500" />}
+              color="bg-[#e6f7ec]"
             />
             <CustomerPiecesSoldCard 
               piecesSold={customerMetrics.totalPiecesSold || 0} 
