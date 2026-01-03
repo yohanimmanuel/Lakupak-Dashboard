@@ -1,4 +1,4 @@
-import { Campaign, CampaignContentBlock } from '@/types/campaign';
+import { Campaign } from '@/types/campaign';
 
 /**
  * Gets the base URL for the application
@@ -20,6 +20,7 @@ export function getCampaignShareUrl(campaignId: string): string {
 
 /**
  * Formats a campaign into a WhatsApp-friendly text message with shareable link
+ * Only includes campaign title, description, and link to view full campaign
  */
 export function formatCampaignForWhatsApp(campaign: Campaign): string {
   const lines: string[] = [];
@@ -36,123 +37,13 @@ export function formatCampaignForWhatsApp(campaign: Campaign): string {
     lines.push('');
   }
 
-  // Format content blocks (simplified summary for WhatsApp)
-  // Note: Full campaign with images/buttons is available via the share link
-  if (campaign.contentBlocks && campaign.contentBlocks.length > 0) {
-    const sortedBlocks = [...campaign.contentBlocks].sort((a, b) => a.order - b.order);
-    
-    sortedBlocks.forEach((block) => {
-      formatContentBlock(block, lines);
-    });
-  }
-
-  // Add shareable link at the end
-  lines.push('');
+  // Add shareable link
   lines.push('━━━━━━━━━━━━━━━━━━━━');
   lines.push('View full campaign:');
   const shareUrl = getCampaignShareUrl(campaign.id || campaign.campaignId);
   lines.push(shareUrl);
 
   return lines.join('\n').trim();
-}
-/**
- * Formats a content block into text lines
- */
-function formatContentBlock(block: CampaignContentBlock, lines: string[]): void {
-  switch (block.type) {
-    case 'header':
-      if (block.headerText) {
-        lines.push(`*${block.headerText}*`);
-        lines.push('');
-      }
-      break;
-
-    case 'text':
-      if (block.text) {
-        let text = block.text;
-        if (block.textStyle === 'bold') {
-          text = `*${text}*`;
-        } else if (block.textStyle === 'italic') {
-          text = `_${text}_`;
-        }
-        lines.push(text);
-        lines.push('');
-      }
-      break;
-
-    case 'image':
-      if (block.imageUrl) {
-        lines.push(`[Image: ${block.imageAlt || 'Campaign Image'}]`);
-        lines.push(block.imageUrl);
-        lines.push('');
-      }
-      break;
-
-    case 'product':
-      if (block.productName) {
-        lines.push(`*${block.productName}*`);
-        if (block.productPrice !== undefined) {
-          lines.push(`Price: ${formatPrice(block.productPrice)}`);
-        }
-        if (block.productImage) {
-          lines.push(`[Product Image: ${block.productImage}]`);
-        }
-        if (block.productButtonLink) {
-          lines.push(`Link: ${block.productButtonLink}`);
-        }
-        lines.push('');
-      }
-      break;
-
-    case 'button':
-      if (block.buttonText && block.buttonLink) {
-        lines.push(`${block.buttonText}: ${block.buttonLink}`);
-        lines.push('');
-      } else if (block.buttonText) {
-        lines.push(block.buttonText);
-        lines.push('');
-      }
-      break;
-
-    case 'list':
-      if (block.listItems && block.listItems.length > 0) {
-        block.listItems.forEach((item, index) => {
-          if (item.title) {
-            lines.push(`${index + 1}. *${item.title}*`);
-            if (item.description) {
-              lines.push(`   ${item.description}`);
-            }
-          }
-        });
-        lines.push('');
-      }
-      break;
-
-    case 'divider':
-      lines.push('─'.repeat(30));
-      lines.push('');
-      break;
-
-    case 'spacing':
-      // Add empty line for spacing
-      lines.push('');
-      break;
-
-    default:
-      break;
-  }
-}
-
-/**
- * Formats price for display
- */
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(price);
 }
 
 /**

@@ -400,26 +400,28 @@ export default function CampaignTable({
               <div className="text-white text-xs font-semibold leading-relaxed">
                 {selectedCampaigns.size === 1 
                   ? 'Select campaign to be removed or sent.'
-                  : 'Select campaigns to be removed or sent.'
+                  : 'Select campaigns to be removed.'
                 }
               </div>
               <div className="flex gap-2">
+                {selectedCampaigns.size === 1 && (
+                  <button
+                    onClick={handleBulkSend}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Send selected campaign"
+                  >
+                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+                    Send Campaign
+                  </button>
+                )}
                 <button
-                  onClick={handleBulkSend}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                  onClick={handleBulkDelete}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 ${selectedCampaigns.size === 1 ? '' : 'flex-1'}`}
+                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
                 >
-                  <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                  {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
+                  <Trash2 className="w-4 h-4" />
+                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
                 </button>
-              <button
-                onClick={handleBulkDelete}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
-              >
-                <Trash2 className="w-4 h-4" />
-                {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
-              </button>
               </div>
             </div>
             
@@ -438,17 +440,19 @@ export default function CampaignTable({
                 <span className="text-white text-xs md:text-sm font-semibold">
                   {selectedCampaigns.size === 1 
                     ? 'Select campaign to be removed or sent. '
-                    : 'Select campaigns to be removed or sent. '
+                    : 'Select campaigns to be removed. '
                   }
                 </span>
-                <button
-                  onClick={handleBulkSend}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label={`Send ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
-                >
-                  <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                  {selectedCampaigns.size === 1 ? 'Send Campaign' : 'Send Selected'}
-                </button>
+                {selectedCampaigns.size === 1 && (
+                  <button
+                    onClick={handleBulkSend}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Send selected campaign"
+                  >
+                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+                    Send Campaign
+                  </button>
+                )}
                 <button
                   onClick={handleBulkDelete}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"

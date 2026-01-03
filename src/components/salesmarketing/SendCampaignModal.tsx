@@ -37,7 +37,7 @@ export default function SendCampaignModal({
       shareToWhatsApp(message);
       
       if (onSend) {
-        await onSend(campaign);
+      await onSend(campaign);
       }
       
       onClose();
@@ -50,7 +50,7 @@ export default function SendCampaignModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
         {/* Header with white top bar, blue arrow button, and black title */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white rounded-t-lg">
           <div className="flex items-center gap-3">
