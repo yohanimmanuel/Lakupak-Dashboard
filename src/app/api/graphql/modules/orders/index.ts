@@ -41,7 +41,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     productNameSnapshot: String
     productSkuSnapshot: String
     productTypeSnapshot: String
-    originalPriceSnapshot: String
+    originalPriceSnapshot: Float
     discountPercentage: Float
     discountAmount: Float
     moqSnapshot: Int

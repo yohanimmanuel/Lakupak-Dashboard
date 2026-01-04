@@ -1530,9 +1530,9 @@ const fetchMobileOrders = async (args: {
       offerApplied: oi.offerApplied || false,
       offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
       offerNameSnapshot: oi.offerNameSnapshot || null,
-      originalPriceSnapshot: oi.originalPriceSnapshot || null,
-      discountPercentage: oi.discountPercentage || null,
-      discountAmount: oi.discountAmount || null,
+      originalPriceSnapshot: oi.originalPriceSnapshot ? parseMoney(oi.originalPriceSnapshot) : null, // Convert Decimal to number
+      discountPercentage: oi.discountPercentage ? parseMoney(oi.discountPercentage) : null, // Convert Decimal to number
+      discountAmount: oi.discountAmount ? parseMoney(oi.discountAmount) : null, // Convert Decimal to number
       promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
       moqSnapshot: oi.moqSnapshot || null,
       product: oi.product ? {

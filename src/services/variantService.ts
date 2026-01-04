@@ -75,9 +75,8 @@ export const validateVariant = async (
     }
 
     // Convert Decimal sellingPrice to number for the return value
-    const { parsePrice } = await import('@/utils/currencyUtils');
-    const sellingPriceNum = parsePrice(targetVariant.sellingPrice as unknown);
-    
+    const sellingPriceNum = parsePrice(targetVariant.sellingPrice);
+
     return {
       isValid: true,
       variant: {

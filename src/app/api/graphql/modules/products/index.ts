@@ -78,7 +78,7 @@ export const productsTypeDefs = /* GraphQL */ `
     discountType: String
     discountValue: Float
     promotionDetails: JSONObject
-    originalPrice: String
+    originalPrice: Float
     seller: SellerInfo
     soldCount: String!
   }
@@ -529,8 +529,8 @@ export const mapProduct = (
     discountValue: offerMetadata?.discountValue ?? null,
     promotionDetails: offerMetadata?.promotionDetails ?? null,
     originalPrice: variantOptionRows[0]?.originalSellingPrice 
-      ? parseMoney(variantOptionRows[0].originalSellingPrice).toString() 
-      : null, // Convert Decimal to string for GraphQL
+      ? parseMoney(variantOptionRows[0].originalSellingPrice) 
+      : null, // Convert Decimal to number
     seller: buildSellerInfo(product as Prisma.ProductGetPayload<typeof productSellerInclude>) ?? null,
     soldCount: soldCountMap?.get(product.productId) ?? '0',
   };

@@ -84,7 +84,7 @@ export const salesTypeDefs = /* GraphQL */ `
     productType: String!
     brand: String
     images: [String!]
-    sellingPrice: String
+    sellingPrice: Float
   }
 
   type FieldReport {
@@ -404,7 +404,9 @@ const mapSalesAgent = (agent: SalesAgentModel) => {
       productType: fp.product.productType,
       brand: fp.product.brand,
       images: fp.product.images,
-      sellingPrice: fp.product.variantOptions?.find((vo) => vo.isDefault)?.sellingPrice?.toString() || '0',
+      sellingPrice: fp.product.variantOptions?.find((vo) => vo.isDefault)?.sellingPrice 
+        ? parseMoney(fp.product.variantOptions.find((vo) => vo.isDefault)!.sellingPrice)
+        : 0, // Convert Decimal to number
     })),
     fieldReports: (agent.fieldReports || []).map((fr) => ({
       id: fr.id,

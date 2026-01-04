@@ -455,9 +455,13 @@ export async function updateProductPricesFromOffers(
               // bestDiscountType.discountValue is already a number from parseMoney above
               const bestDiscountValue = bestDiscountType.discountValue;
               if (bestDiscountType.discountType === 'percentage') {
-                finalPrice = trueOriginalPrice * (1 - bestDiscountValue / 100);
+                // Cap percentage at 100% to prevent negative prices
+                const cappedPercentage = Math.min(100, Math.max(0, bestDiscountValue));
+                finalPrice = trueOriginalPrice * (1 - cappedPercentage / 100);
               } else if (bestDiscountType.discountType === 'fixed') {
-                finalPrice = Math.max(0, trueOriginalPrice - bestDiscountValue);
+                // Ensure non-negative discount
+                const validDiscount = Math.max(0, bestDiscountValue);
+                finalPrice = Math.max(0, trueOriginalPrice - validDiscount);
               }
               hasOffer = true;
             }
