@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
+import { parseMoney } from '@/app/api/graphql/modules/common/utils';
 
 export const SOLD_COUNT_EXCLUDED_STATUSES = ['Pending', 'Cancelled', 'Returned'] as const;
 
@@ -411,9 +412,10 @@ export async function updateProductPricesFromOffers(
       if (product.variantOptions && product.variantOptions.length > 0) {
         // Prepare all variant option updates for this product
         const variantUpdates = product.variantOptions.map(variantOption => {
-          const currentSellingPrice = parseNumberByCurrency(variantOption.sellingPrice, 'IDR');
-          const storedOriginalPrice = variantOption.originalSellingPrice
-            ? parseNumberByCurrency(variantOption.originalSellingPrice, 'IDR')
+          // Handle Decimal type - use parseMoney which handles Decimal.js objects, numbers, and strings
+          const currentSellingPrice = parseMoney(variantOption.sellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+          const storedOriginalPrice = variantOption.originalSellingPrice 
+            ? parseMoney(variantOption.originalSellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
             : null;
 
           const trueOriginalPrice = storedOriginalPrice ?? currentSellingPrice;
@@ -433,25 +435,29 @@ export async function updateProductPricesFromOffers(
                 }
 
                 let discountAmount = 0;
+                // Convert Decimal to number for calculations using parseMoney
+                const discountValue = parseMoney(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
 
                 if (discountType.discountType === 'percentage') {
-                  discountAmount = (trueOriginalPrice * discountType.discountValue) / 100;
+                  discountAmount = (trueOriginalPrice * discountValue) / 100;
                 } else if (discountType.discountType === 'fixed') {
-                  discountAmount = discountType.discountValue;
+                  discountAmount = discountValue;
                 }
                 // Note: buy_x_get_y doesn't affect price directly, so we skip it here
 
                 if (discountAmount > bestDiscountAmount) {
                   bestDiscountAmount = discountAmount;
-                  bestDiscountType = discountType;
+                  bestDiscountType = { ...discountType, discountValue };
               }
             }
 
             if (bestDiscountType && bestDiscountAmount > 0) {
+              // bestDiscountType.discountValue is already a number from parseMoney above
+              const bestDiscountValue = bestDiscountType.discountValue;
               if (bestDiscountType.discountType === 'percentage') {
-                finalPrice = trueOriginalPrice * (1 - bestDiscountType.discountValue / 100);
+                finalPrice = trueOriginalPrice * (1 - bestDiscountValue / 100);
               } else if (bestDiscountType.discountType === 'fixed') {
-                finalPrice = Math.max(0, trueOriginalPrice - bestDiscountType.discountValue);
+                finalPrice = Math.max(0, trueOriginalPrice - bestDiscountValue);
               }
               hasOffer = true;
             }
@@ -460,8 +466,8 @@ export async function updateProductPricesFromOffers(
           return tx.variantOption.update({
             where: { id: variantOption.id },
             data: {
-              sellingPrice: String(Math.round(finalPrice)),
-              originalSellingPrice: hasOffer ? String(Math.round(trueOriginalPrice)) : null,
+              sellingPrice: Math.round(finalPrice * 100) / 100, // Decimal type, not string
+              originalSellingPrice: hasOffer ? Math.round(trueOriginalPrice * 100) / 100 : null, // Decimal type, not string
             },
           });
         });

@@ -374,19 +374,30 @@ const buildOfferMetadata = (discountTypes: OfferDiscountType[]): {
       : undefined;
 
   const buyXGetY = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
+  
+  // Convert Decimal to number for discountValue
+  const discountValueNum = discountValue !== undefined
+    ? parseMoney(discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
+    : undefined;
+  
+  // Convert Decimal to number for freeQuantity in buy_x_get_y
+  const freeQuantityNum = buyXGetY?.discountValue !== undefined
+    ? parseMoney(buyXGetY.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
+    : undefined;
+  
   const promotionDetails = buyXGetY
     ? {
         minQuantity: buyXGetY.minQuantity ?? 0,
-        freeQuantity: buyXGetY.discountValue,
+        freeQuantity: freeQuantityNum ?? 0,
         description:
-          buyXGetY.description ?? `Buy ${buyXGetY.minQuantity ?? 0} Get ${buyXGetY.discountValue} Free`,
+          buyXGetY.description ?? `Buy ${buyXGetY.minQuantity ?? 0} Get ${freeQuantityNum ?? 0} Free`,
       }
     : null;
 
   return {
     offerBadge,
     discountType,
-    discountValue,
+    discountValue: discountValueNum,
     promotionDetails,
   };
 };
@@ -517,7 +528,9 @@ export const mapProduct = (
     discountType: offerMetadata?.discountType ?? null,
     discountValue: offerMetadata?.discountValue ?? null,
     promotionDetails: offerMetadata?.promotionDetails ?? null,
-    originalPrice: variantOptionRows[0]?.originalSellingPrice ?? null,
+    originalPrice: variantOptionRows[0]?.originalSellingPrice 
+      ? parseMoney(variantOptionRows[0].originalSellingPrice).toString() 
+      : null, // Convert Decimal to string for GraphQL
     seller: buildSellerInfo(product as Prisma.ProductGetPayload<typeof productSellerInclude>) ?? null,
     soldCount: soldCountMap?.get(product.productId) ?? '0',
   };
@@ -753,23 +766,31 @@ const createVariantOptionsPayload = (
   }>,
   currency?: string | null,
 ) =>
-  variantOptions.map((option) => ({
-    variantName: option.variantName,
-    attributes: option.attributes as Prisma.InputJsonValue,
-    sku: option.sku || null,
-    purchasePrice: String(parseNumberByCurrency(option.purchasePrice || '', currency ?? undefined)),
-    sellingPrice: String(parseNumberByCurrency(option.sellingPrice || '', currency ?? undefined)),
-    originalSellingPrice:
-      option.originalSellingPrice && typeof option.originalSellingPrice === 'string'
-        ? String(parseNumberByCurrency(option.originalSellingPrice, currency ?? undefined))
-        : null,
-    moq: option.moq,
-    stockQuantity: option.stockQuantity || 0,
-    lowStockThreshold: option.lowStockThreshold || 0,
-    stockStatus: option.stockStatus || 'In Stock',
-    isDefault: option.isDefault || false,
-    isActive: option.isActive !== false,
-  }));
+  variantOptions.map((option) => {
+    // Parse prices as numbers and round to 2 decimal places for Decimal precision
+    const purchasePriceNum = parseNumberByCurrency(option.purchasePrice || '', currency ?? undefined);
+    const sellingPriceNum = parseNumberByCurrency(option.sellingPrice || '', currency ?? undefined);
+    const originalSellingPriceNum = option.originalSellingPrice && typeof option.originalSellingPrice === 'string'
+      ? parseNumberByCurrency(option.originalSellingPrice, currency ?? undefined)
+      : null;
+    
+    return {
+      variantName: option.variantName,
+      attributes: option.attributes as Prisma.InputJsonValue,
+      sku: option.sku || null,
+      purchasePrice: Math.round(purchasePriceNum * 100) / 100, // Decimal type, not string
+      sellingPrice: Math.round(sellingPriceNum * 100) / 100, // Decimal type, not string
+      originalSellingPrice: originalSellingPriceNum !== null 
+        ? Math.round(originalSellingPriceNum * 100) / 100 
+        : null, // Decimal type, not string
+      moq: option.moq,
+      stockQuantity: option.stockQuantity || 0,
+      lowStockThreshold: option.lowStockThreshold || 0,
+      stockStatus: option.stockStatus || 'In Stock',
+      isDefault: option.isDefault || false,
+      isActive: option.isActive !== false,
+    };
+  });
 
 const createLegacyVariantPayload = (
   variants: Array<{
@@ -789,23 +810,31 @@ const createLegacyVariantPayload = (
   }>,
   currency?: string | null,
 ) =>
-  variants.map((variant) => ({
-    variantName: variant.variantName || 'Default Variant',
-    attributes: (variant.attributes || {}) as Prisma.InputJsonValue,
-    sku: variant.sku || null,
-    purchasePrice: String(parseNumberByCurrency(variant.purchasePrice || '', currency ?? undefined)),
-    sellingPrice: String(parseNumberByCurrency(variant.sellingPrice || '', currency ?? undefined)),
-    originalSellingPrice:
-      variant.originalSellingPrice && typeof variant.originalSellingPrice === 'string'
-        ? String(parseNumberByCurrency(variant.originalSellingPrice, currency ?? undefined))
-        : null,
-    moq: variant.moq || null,
-    stockQuantity: variant.stockQuantity || 0,
-    lowStockThreshold: variant.lowStockThreshold || 0,
-    stockStatus: variant.stockStatus || 'In Stock',
-    isDefault: variant.isDefault || false,
-    isActive: variant.isActive !== false,
-  }));
+  variants.map((variant) => {
+    // Parse prices as numbers and round to 2 decimal places for Decimal precision
+    const purchasePriceNum = parseNumberByCurrency(variant.purchasePrice || '', currency ?? undefined);
+    const sellingPriceNum = parseNumberByCurrency(variant.sellingPrice || '', currency ?? undefined);
+    const originalSellingPriceNum = variant.originalSellingPrice && typeof variant.originalSellingPrice === 'string'
+      ? parseNumberByCurrency(variant.originalSellingPrice, currency ?? undefined)
+      : null;
+    
+    return {
+      variantName: variant.variantName || 'Default Variant',
+      attributes: (variant.attributes || {}) as Prisma.InputJsonValue,
+      sku: variant.sku || null,
+      purchasePrice: Math.round(purchasePriceNum * 100) / 100, // Decimal type, not string
+      sellingPrice: Math.round(sellingPriceNum * 100) / 100, // Decimal type, not string
+      originalSellingPrice: originalSellingPriceNum !== null
+        ? Math.round(originalSellingPriceNum * 100) / 100
+        : null, // Decimal type, not string
+      moq: variant.moq || null,
+      stockQuantity: variant.stockQuantity || 0,
+      lowStockThreshold: variant.lowStockThreshold || 0,
+      stockStatus: variant.stockStatus || 'In Stock',
+      isDefault: variant.isDefault || false,
+      isActive: variant.isActive !== false,
+    };
+  });
 
 const broadcastProductChanges = async (productId?: string | null) => {
   if (!productId) return;
@@ -1420,10 +1449,12 @@ export const publishMarketplaceProduct = async (args: {
     }
 
     const hasCompleteVariant = variantOptions.some(
-      (variant) =>
-        Boolean(variant.purchasePrice && variant.purchasePrice.trim() !== '') &&
-        Boolean(variant.sellingPrice && variant.sellingPrice.trim() !== '') &&
-        variant.isActive,
+      (variant) => {
+        // Handle Decimal type using parseMoney (handles Decimal.js objects, numbers, and strings)
+        const purchasePrice = parseMoney(variant.purchasePrice);
+        const sellingPrice = parseMoney(variant.sellingPrice);
+        return Boolean(purchasePrice > 0 && sellingPrice > 0 && variant.isActive);
+      }
     );
 
     if (!hasCompleteVariant) {
@@ -1452,6 +1483,9 @@ export const publishMarketplaceProduct = async (args: {
 
   if (normalizedAction === 'publish') {
     updateData.publishedAt = new Date();
+  } else {
+    // Clear publishedAt when unpublishing to clean up data structure
+    updateData.publishedAt = null;
   }
 
   const updatedProduct = await prisma.product.update({

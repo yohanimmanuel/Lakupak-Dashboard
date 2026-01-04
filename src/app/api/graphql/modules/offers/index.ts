@@ -2,7 +2,7 @@ import { type Prisma } from '@/lib/db';
 import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
 import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 
 export const offersTypeDefs = /* GraphQL */ `
@@ -159,12 +159,12 @@ const mapOffer = (
     type: offer.type,
     status: offer.status,
     totalUsage: offer.totalUsage,
-    totalDiscountGiven: offer.totalDiscountGiven,
+    totalDiscountGiven: parseMoney(offer.totalDiscountGiven), // Convert Decimal to number
     discountTypes: offer.offerDiscountTypes.map((discount) => ({
       id: discount.id,
       discountType: discount.discountType,
-      discountValue: discount.discountValue,
-      minOrderValue: discount.minOrderValue,
+      discountValue: parseMoney(discount.discountValue), // Convert Decimal to number
+      minOrderValue: discount.minOrderValue ? parseMoney(discount.minOrderValue) : null, // Convert Decimal to number
       minQuantity: discount.minQuantity,
       isActive: discount.isActive,
       priority: discount.priority,

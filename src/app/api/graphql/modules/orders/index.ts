@@ -1,7 +1,7 @@
 import { buildMobileBuyerId } from '@/utils/buyerSync';
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 
 const orderInclude = {
   buyer: true,
@@ -142,8 +142,8 @@ const mapOrderItems = (
     packageQuantity: item.packageQuantity ?? 1,
     packageType: item.packageType,
     piecesPerPackage: item.piecesPerPackage ?? 1,
-    pricePerPackage: item.pricePerPackage ?? null,
-    subtotal: item.subtotal,
+    pricePerPackage: item.pricePerPackage ? parseMoney(item.pricePerPackage) : null, // Convert Decimal to number
+    subtotal: parseMoney(item.subtotal), // Convert Decimal to number
     variantId: item.variantId ?? null,
     variantOptionId: item.variantOptionId ?? null,
     offerApplied: item.offerApplied ?? false,
@@ -154,9 +154,9 @@ const mapOrderItems = (
     productNameSnapshot: item.productNameSnapshot ?? null,
     productSkuSnapshot: item.productSkuSnapshot ?? null,
     productTypeSnapshot: item.productTypeSnapshot ?? null,
-    originalPriceSnapshot: item.originalPriceSnapshot ?? null,
-    discountPercentage: item.discountPercentage ?? null,
-    discountAmount: item.discountAmount ?? null,
+    originalPriceSnapshot: item.originalPriceSnapshot ? parseMoney(item.originalPriceSnapshot) : null, // Convert Decimal to number
+    discountPercentage: item.discountPercentage ? parseMoney(item.discountPercentage) : null, // Convert Decimal to number
+    discountAmount: item.discountAmount ? parseMoney(item.discountAmount) : null, // Convert Decimal to number
     moqSnapshot: item.moqSnapshot ?? null,
   }));
 
@@ -175,10 +175,10 @@ const mapOrder = (
   deliveryOption: order?.deliveryOption ?? null,
   shippingMethodLabel: order?.shippingMethodLabel ?? null,
   shippingMethod: order?.shippingMethod ?? null,
-  subtotal: order?.subtotal ?? 0,
-  discounts: order?.discounts ?? 0,
-  shippingFee: order?.shippingFee ?? 0,
-  totalAmount: order?.totalAmount ?? 0,
+  subtotal: order?.subtotal ? parseMoney(order.subtotal) : 0, // Convert Decimal to number
+  discounts: order?.discounts ? parseMoney(order.discounts) : 0, // Convert Decimal to number
+  shippingFee: order?.shippingFee ? parseMoney(order.shippingFee) : 0, // Convert Decimal to number
+  totalAmount: order?.totalAmount ? parseMoney(order.totalAmount) : 0, // Convert Decimal to number
   paymentTerms: order?.paymentTerms ?? null,
   totalOrders: order?.totalOrders ?? null,
   contactPerson: order?.contactPerson ?? order?.storeName ?? null,

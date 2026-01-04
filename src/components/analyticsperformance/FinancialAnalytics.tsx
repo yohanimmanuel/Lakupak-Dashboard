@@ -37,7 +37,7 @@ import {
   ArrowRightIcon
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatCurrency as utilsFormatCurrency, getDefaultCurrency, parseAmountSafely, type DecimalLike, type CurrencyValue } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
 import { Product, ProductVariant } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -230,22 +230,70 @@ const FinancialAnalytics: React.FC = () => {
     }
   };
 
-  // Helper function to parse currency strings/numbers to numbers
-  const parseCurrencyToNumber = (currencyValue: string | number): number => {
+  // Helper function to parse currency strings/numbers to numbers (handles Decimal types)
+  const parseCurrencyToNumber = (currencyValue: CurrencyValue): number => {
     if (currencyValue == null) return 0;
+    
     if (typeof currencyValue === 'number') {
       return Number.isFinite(currencyValue) ? currencyValue : 0;
     }
-    if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
     
-    // Remove all currency symbols, spaces, and commas, then parse
-    const cleanString = currencyValue
-      .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
-      .replace(/\./g, '') // Remove dots (thousand separators)
-      .trim();
+    // Handle Prisma Decimal type
+    if (typeof currencyValue === 'object' && currencyValue !== null) {
+      try {
+        if (typeof currencyValue.toNumber === 'function') {
+          const num = currencyValue.toNumber();
+          return Number.isFinite(num) ? num : 0;
+        }
+        if (typeof currencyValue.toString === 'function') {
+          currencyValue = currencyValue.toString();
+        } else {
+          return 0;
+        }
+      } catch {
+        return 0;
+      }
+    }
     
-    const parsed = parseFloat(cleanString);
-    return isNaN(parsed) ? 0 : parsed;
+    if (typeof currencyValue === 'string') {
+      if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
+      
+      // Remove currency symbols and spaces, keep dots and commas for decimal detection
+      let cleanString = currencyValue.replace(/[^\d.,-]/g, '').trim();
+      
+      // Detect decimal separator: use the rightmost of '.' or ',' as decimal separator
+      const lastDotIndex = cleanString.lastIndexOf('.');
+      const lastCommaIndex = cleanString.lastIndexOf(',');
+      
+      if (lastDotIndex === -1 && lastCommaIndex === -1) {
+        // No separators, just parse as integer
+        const parsed = parseFloat(cleanString);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      
+      // Determine which is the decimal separator (rightmost)
+      const decimalSeparator = lastDotIndex > lastCommaIndex ? '.' : ',';
+      const groupingSeparator = decimalSeparator === '.' ? ',' : '.';
+      
+      // Remove grouping separators (the other character)
+      cleanString = cleanString.replace(new RegExp(`\\${groupingSeparator}`, 'g'), '');
+      
+      // Normalize decimal separator to '.'
+      if (decimalSeparator === ',') {
+        cleanString = cleanString.replace(/,/g, '.');
+      }
+      
+      const parsed = parseFloat(cleanString);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    
+    return 0;
+  };
+  
+  // Helper to safely convert order amounts (handles Decimal types)
+  // Uses shared utility for consistent parsing across the codebase
+  const safeOrderAmount = (amount: unknown): number => {
+    return parseAmountSafely(amount);
   };
 
   // Fetch real data from APIs - Orders and Products for category data
@@ -311,8 +359,8 @@ const FinancialAnalytics: React.FC = () => {
       };
     }
 
-    // Use consistent revenue calculation with Orders module
-    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(String(order.totalAmount || 0)), 0);
+    // Use consistent revenue calculation with Orders module (handle Decimal types)
+    const totalRevenue = orders.reduce((sum, order) => sum + safeOrderAmount(order.totalAmount), 0);
 
     // Build quick lookup for product purchase prices (as numbers)
     const productCostById: Record<string, number> = {};
@@ -414,7 +462,7 @@ const FinancialAnalytics: React.FC = () => {
       monthlyData[key].orders += 1;
       
       // Use order totals to match Orders module
-      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      const orderAmount = safeOrderAmount(order.totalAmount);
       monthlyData[key].revenue += orderAmount;
 
       // Compute actual profit = revenue - COGS - shipping(if 3rd-party)
@@ -743,7 +791,7 @@ const FinancialAnalytics: React.FC = () => {
         monthlyFlow[key] = { inflows: 0, outflows: 0, label };
       }
       
-      const orderAmount = parseFloat(String(order.totalAmount || 0));
+      const orderAmount = safeOrderAmount(order.totalAmount);
       monthlyFlow[key].inflows += orderAmount;
 
       // Compute COGS for this order
@@ -1620,21 +1668,63 @@ export const AnalyticsRevenueTrendChart: React.FC<{
 // ===== SHARED DATA CALCULATION UTILITIES =====
 
 // Shared function to parse currency strings/numbers to numbers
-export const parseCurrencyToNumber = (currencyValue: string | number): number => {
+export const parseCurrencyToNumber = (currencyValue: CurrencyValue): number => {
   if (currencyValue == null) return 0;
+  
   if (typeof currencyValue === 'number') {
     return Number.isFinite(currencyValue) ? currencyValue : 0;
   }
-  if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
   
-  // Remove currency symbols, spaces, and commas, then parse
-  const cleanString = currencyValue
-    .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except dots and dashes
-    .replace(/\./g, '') // Remove dots (thousand separators)
-    .trim();
+  // Handle Prisma Decimal type
+  if (typeof currencyValue === 'object' && currencyValue !== null) {
+    try {
+      if (typeof currencyValue.toNumber === 'function') {
+        const num = currencyValue.toNumber();
+        return Number.isFinite(num) ? num : 0;
+      }
+      if (typeof currencyValue.toString === 'function') {
+        currencyValue = currencyValue.toString();
+      } else {
+        return 0;
+      }
+    } catch {
+      return 0;
+    }
+  }
   
-  const parsed = parseFloat(cleanString);
-  return isNaN(parsed) ? 0 : parsed;
+  if (typeof currencyValue === 'string') {
+    if (!currencyValue || currencyValue === '0' || currencyValue === '0,00') return 0;
+    
+    // Remove currency symbols and spaces, keep dots and commas for decimal detection
+    let cleanString = currencyValue.replace(/[^\d.,-]/g, '').trim();
+    
+    // Detect decimal separator: use the rightmost of '.' or ',' as decimal separator
+    const lastDotIndex = cleanString.lastIndexOf('.');
+    const lastCommaIndex = cleanString.lastIndexOf(',');
+    
+    if (lastDotIndex === -1 && lastCommaIndex === -1) {
+      // No separators, just parse as integer
+      const parsed = parseFloat(cleanString);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    
+    // Determine which is the decimal separator (rightmost)
+    const decimalSeparator = lastDotIndex > lastCommaIndex ? '.' : ',';
+    const groupingSeparator = decimalSeparator === '.' ? ',' : '.';
+    
+    // Remove grouping separators (the other character)
+    cleanString = cleanString.replace(new RegExp(`\\${groupingSeparator}`, 'g'), '');
+    
+    // Normalize decimal separator to '.'
+    if (decimalSeparator === ',') {
+      cleanString = cleanString.replace(/,/g, '.');
+    }
+    
+    const parsed = parseFloat(cleanString);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  
+  return 0;
 };
 
 // Shared function to format currency - uses proper currencyConfig.ts
@@ -1731,7 +1821,8 @@ export const calculateRevenueData = (
 // Shared function to calculate total revenue from orders and products
 export const calculateTotalRevenue = (orders: Order[], _products: Product[]): number => {
   // Match Orders module: sum full order totals (includes shipping, discounts)
-  return orders.reduce((sum, order) => sum + parseFloat(String(order.totalAmount || 0)), 0);
+  // Uses shared utility for consistent parsing across the codebase
+  return orders.reduce((sum, order) => sum + parseAmountSafely(order.totalAmount), 0);
 };
 
 export default FinancialAnalytics;

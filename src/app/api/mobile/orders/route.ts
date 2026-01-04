@@ -163,15 +163,32 @@ export async function GET(request: NextRequest) {
       }
     });
     
+    // Helper function to convert Prisma Decimal to number
+    const decimalToNumber = (value: unknown): number => {
+      if (value === null || value === undefined) return 0;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') return parseFloat(value) || 0;
+      // Handle Decimal.js objects from Prisma
+      if (typeof value === 'object' && value !== null) {
+        if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+          return (value as { toNumber: () => number }).toNumber();
+        }
+        if (typeof (value as { toString?: () => string }).toString === 'function') {
+          return parseFloat((value as { toString: () => string }).toString()) || 0;
+        }
+      }
+      return Number(value) || 0;
+    };
+
     // Transform orders to include order items
     const ordersWithItems = orders.map(order => {
       const orderItems = (order.orderItemsRel || []).map((oi) => ({
         productId: oi.productId ?? null,
-        subtotal: oi.subtotal,
+        subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
-        pricePerPackage: oi.pricePerPackage,
+        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null, // Convert Decimal to number
         productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
         category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -186,15 +203,20 @@ export async function GET(request: NextRequest) {
         offerApplied: oi.offerApplied || false,
         offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
         offerNameSnapshot: oi.offerNameSnapshot || null,
-        originalPriceSnapshot: oi.originalPriceSnapshot || null,
-        discountPercentage: oi.discountPercentage || null,
-        discountAmount: oi.discountAmount || null,
+        originalPriceSnapshot: oi.originalPriceSnapshot ? decimalToNumber(oi.originalPriceSnapshot) : null, // Convert Decimal to number
+        discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null, // Convert Decimal to number
+        discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null, // Convert Decimal to number
         promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
         moqSnapshot: oi.moqSnapshot || null
       }));
       
+      // Convert order-level Decimal fields to numbers
       return {
         ...order,
+        subtotal: decimalToNumber((order as { subtotal?: unknown }).subtotal),
+        discounts: decimalToNumber((order as { discounts?: unknown }).discounts),
+        shippingFee: decimalToNumber((order as { shippingFee?: unknown }).shippingFee),
+        totalAmount: decimalToNumber((order as { totalAmount?: unknown }).totalAmount),
         orderItems: orderItems
       };
     });
@@ -471,6 +493,12 @@ export async function POST(request: NextRequest) {
             const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
             const totalQuantity = packageQuantity * piecesPerPackage;
             const orderTotal = groupTotalAmount;
+            // Convert Decimal prices to numbers for validateOfferForProduct
+            const variantForValidation = {
+              sellingPrice: parsePrice(variantOption.sellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined),
+              originalSellingPrice: variantOption.originalSellingPrice ? parsePrice(variantOption.originalSellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) : null,
+              moq: variantOption.moq || null
+            };
             const offerValidation = await validateOfferForProduct(
               product.productId,
               userIdNum,
@@ -478,7 +506,7 @@ export async function POST(request: NextRequest) {
               totalQuantity,
               tx,
               packageQuantity,
-              variantOption
+              variantForValidation
             );
             
             // Build variantNameSnapshot from variant attributes
@@ -698,6 +726,12 @@ export async function POST(request: NextRequest) {
             const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
             const totalQuantity = packageQuantity * piecesPerPackage;
             const orderTotal = groupTotalAmount;
+            // Convert Decimal prices to numbers for validateOfferForProduct
+            const variantForValidation = {
+              sellingPrice: parsePrice(variantOption.sellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined),
+              originalSellingPrice: variantOption.originalSellingPrice ? parsePrice(variantOption.originalSellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) : null,
+              moq: variantOption.moq || null
+            };
             const offerValidation = await validateOfferForProduct(
               product.productId,
               userIdNum,
@@ -705,7 +739,7 @@ export async function POST(request: NextRequest) {
               totalQuantity,
               tx,
               packageQuantity,
-              variantOption
+              variantForValidation
             );
             
             // Build variantNameSnapshot from variant attributes
@@ -861,10 +895,10 @@ export async function POST(request: NextRequest) {
           );
           
           if (buyXGetYPromo) {
-            // Build promotion details for calculation
+            // Build promotion details for calculation - convert Decimal to number
             const promotionDetails = {
               minQuantity: buyXGetYPromo.minQuantity || 1,
-              freeQuantity: buyXGetYPromo.discountValue || 0
+              freeQuantity: buyXGetYPromo.discountValue ? parsePrice(buyXGetYPromo.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) : 0
             };
             
             // Calculate free items correctly with MOQ consideration

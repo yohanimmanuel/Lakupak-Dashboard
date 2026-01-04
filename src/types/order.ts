@@ -85,7 +85,7 @@ export interface OrderItem {
   offerApplied?: boolean;
   offerBadgeSnapshot?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
   offerNameSnapshot?: string;
-  originalPriceSnapshot?: string;
+  originalPriceSnapshot?: number; // Decimal type from database, not string
   discountPercentage?: number;
   discountAmount?: number | null;
   promotionDetailsSnapshot?: string; // JSON string

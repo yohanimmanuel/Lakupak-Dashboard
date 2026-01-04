@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { calculatePromotionGift, PromotionDetails } from './promotionUtils';
+import { parseMoney } from '@/app/api/graphql/modules/common/utils';
 
 // Central helper to build mobile marketplace Buyer IDs consistently across modules
 // Base: LKB-<marketplaceUserId padded>
@@ -40,8 +41,12 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     const monthlyData: { [key: string]: { spend: number; orders: number } } = {};
 
     for (const order of orders) {
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0);
-      const totalOrderAmount = orderSpend + (order.shippingFee || 0);
+      // Convert Decimal values to numbers for calculations
+      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
+        return sum + parseMoney(item.subtotal as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      }, 0);
+      const shippingFee = parseMoney((order as { shippingFee?: unknown }).shippingFee as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      const totalOrderAmount = orderSpend + shippingFee;
       
       totalSpend += totalOrderAmount;
       orderCount++;
@@ -101,8 +106,12 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         const freePackages = piecesPerPackage > 0 ? freePieces / piecesPerPackage : 0;
         return sum + paidPackages + freePackages;
       }, 0);
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0);
-      const orderTotal = orderSpend + (order.shippingFee || 0);
+      // Convert Decimal values to numbers for calculations
+      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
+        return sum + parseMoney(item.subtotal as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      }, 0);
+      const shippingFee = parseMoney((order as { shippingFee?: unknown }).shippingFee as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      const orderTotal = orderSpend + shippingFee;
       const orderOutstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? orderTotal : 0;
       
       return {
@@ -110,7 +119,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         product: productNames,
         totalOrders: totalOrders.toString(),
         totalSpend: orderTotal.toString(), // Store product cost + shipping fee combined
-        shippingFee: (order.shippingFee || 0).toString(),
+        shippingFee: shippingFee.toString(),
         lastOrderDate: order.createdAt.toISOString().split('T')[0],
         outstanding: orderOutstanding.toString()
       };

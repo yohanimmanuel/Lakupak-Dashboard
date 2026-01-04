@@ -121,7 +121,20 @@ export const calculateSalesMetrics = (
 			});
 		}
 		if (order.totalAmount) {
-			revenueSum += parseFloat(String(order.totalAmount));
+			// Handle Decimal types from Prisma
+			const amount = typeof order.totalAmount === 'number' 
+				? (Number.isFinite(order.totalAmount) && !isNaN(order.totalAmount) ? order.totalAmount : 0)
+				: (typeof order.totalAmount === 'object' && order.totalAmount !== null && 'toNumber' in order.totalAmount
+					? (() => {
+						try {
+							const num = (order.totalAmount as { toNumber: () => number }).toNumber();
+							return Number.isFinite(num) && !isNaN(num) ? num : 0;
+						} catch {
+							return 0;
+						}
+					})()
+					: parseFloat(String(order.totalAmount)) || 0);
+			revenueSum += amount;
 		}
 	});
 	const totalOrders = orders.length;

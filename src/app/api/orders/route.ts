@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
+
+// Helper function to convert Prisma Decimal to number
+const decimalToNumber = (value: unknown): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  // Handle Decimal.js objects from Prisma
+  if (typeof value === 'object' && value !== null) {
+    if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+      return (value as { toNumber: () => number }).toNumber();
+    }
+    if (typeof (value as { toString?: () => string }).toString === 'function') {
+      return parseFloat((value as { toString: () => string }).toString()) || 0;
+    }
+  }
+  return Number(value) || 0;
+};
 import { OrderItem } from '@/types/order';
 import { 
   getOrderSecurityHeaders, 
@@ -185,11 +202,11 @@ export async function GET(request: NextRequest) {
       // Build items directly from relational rows with snapshot fallbacks
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
         productId: string | null;
-        subtotal: number;
+        subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; // Prisma Decimal type
         packageType?: string | null;
         piecesPerPackage?: number | null;
         packageQuantity?: number | null;
-        pricePerPackage?: number | null;
+        pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; // Prisma Decimal type
         product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
         productNameSnapshot?: string | null;
         productSkuSnapshot?: string | null;
@@ -198,11 +215,11 @@ export async function GET(request: NextRequest) {
         variantId?: number | null;
       }) => ({
         productId: oi.productId ?? null,
-        subtotal: oi.subtotal,
+        subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
-        pricePerPackage: oi.pricePerPackage,
+        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null, // Convert Decimal to number
         productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
         category: oi.product?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -220,13 +237,26 @@ export async function GET(request: NextRequest) {
         offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
         offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
         offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
-        originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
-        discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
-        discountAmount: (oi as { discountAmount?: number | null }).discountAmount || null,
+        originalPriceSnapshot: (oi as { originalPriceSnapshot?: number | string | null }).originalPriceSnapshot 
+          ? (typeof (oi as { originalPriceSnapshot?: number | string | null }).originalPriceSnapshot === 'number' 
+              ? (oi as { originalPriceSnapshot?: number }).originalPriceSnapshot 
+              : Number((oi as { originalPriceSnapshot?: string }).originalPriceSnapshot))
+          : null,
+        discountPercentage: (oi as { discountPercentage?: unknown }).discountPercentage ? decimalToNumber((oi as { discountPercentage?: unknown }).discountPercentage) : null,
+        discountAmount: (oi as { discountAmount?: unknown }).discountAmount ? decimalToNumber((oi as { discountAmount?: unknown }).discountAmount) : null,
         promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
 
-      return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { headers });
+      // Convert order-level Decimal fields to numbers
+      const orderResponse = {
+        ...order,
+        subtotal: decimalToNumber(order.subtotal),
+        discounts: decimalToNumber(order.discounts),
+        shippingFee: decimalToNumber(order.shippingFee),
+        totalAmount: decimalToNumber(order.totalAmount),
+        orderItems: enrichedOrderItems
+      };
+      return NextResponse.json(orderResponse, { headers });
     }
     
     // Get all orders with pagination and filters
@@ -285,11 +315,11 @@ export async function GET(request: NextRequest) {
     const ordersWithParsedItems = orders.map((order: {
       orderItemsRel?: Array<{
         productId: string | null;
-        subtotal: number;
+        subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; // Prisma Decimal type
         packageType?: string | null;
         piecesPerPackage?: number | null;
         packageQuantity?: number | null;
-        pricePerPackage?: number | null;
+        pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; // Prisma Decimal type
         product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
         productNameSnapshot?: string | null;
         productSkuSnapshot?: string | null;
@@ -301,11 +331,11 @@ export async function GET(request: NextRequest) {
     }) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
         productId: string | null;
-        subtotal: number;
+        subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; // Prisma Decimal type
         packageType?: string | null;
         piecesPerPackage?: number | null;
         packageQuantity?: number | null;
-        pricePerPackage?: number | null;
+        pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; // Prisma Decimal type
         product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
         productNameSnapshot?: string | null;
         productSkuSnapshot?: string | null;
@@ -314,11 +344,11 @@ export async function GET(request: NextRequest) {
         variantId?: number | null;
       }) => ({
         productId: oi.productId ?? null,
-        subtotal: oi.subtotal,
+        subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
-        pricePerPackage: oi.pricePerPackage,
+        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null, // Convert Decimal to number
         productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
         category: oi.product?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -336,12 +366,24 @@ export async function GET(request: NextRequest) {
         offerApplied: (oi as { offerApplied?: boolean }).offerApplied || false,
         offerBadgeSnapshot: (oi as { offerBadgeSnapshot?: string | null }).offerBadgeSnapshot || null,
         offerNameSnapshot: (oi as { offerNameSnapshot?: string | null }).offerNameSnapshot || null,
-        originalPriceSnapshot: (oi as { originalPriceSnapshot?: string | null }).originalPriceSnapshot || null,
-        discountPercentage: (oi as { discountPercentage?: number | null }).discountPercentage || null,
-        discountAmount: (oi as { discountAmount?: number | null }).discountAmount || null,
+        originalPriceSnapshot: (oi as { originalPriceSnapshot?: number | string | null }).originalPriceSnapshot 
+          ? (typeof (oi as { originalPriceSnapshot?: number | string | null }).originalPriceSnapshot === 'number' 
+              ? (oi as { originalPriceSnapshot?: number }).originalPriceSnapshot 
+              : Number((oi as { originalPriceSnapshot?: string }).originalPriceSnapshot))
+          : null,
+        discountPercentage: (oi as { discountPercentage?: unknown }).discountPercentage ? decimalToNumber((oi as { discountPercentage?: unknown }).discountPercentage) : null,
+        discountAmount: (oi as { discountAmount?: unknown }).discountAmount ? decimalToNumber((oi as { discountAmount?: unknown }).discountAmount) : null,
         promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
-      return { ...order, orderItems: enrichedOrderItems };
+      // Convert order-level Decimal fields to numbers
+      return {
+        ...order,
+        subtotal: decimalToNumber((order as { subtotal?: unknown }).subtotal),
+        discounts: decimalToNumber((order as { discounts?: unknown }).discounts),
+        shippingFee: decimalToNumber((order as { shippingFee?: unknown }).shippingFee),
+        totalAmount: decimalToNumber((order as { totalAmount?: unknown }).totalAmount),
+        orderItems: enrichedOrderItems
+      };
     });
     
     return NextResponse.json({
@@ -614,8 +656,9 @@ export async function POST(request: NextRequest) {
             
             // Use variantOptions for pricing/stock (new structure)
             // MOQ validation is handled by validateOfferForProduct
-            // Use the selected variant's selling price directly
-            if (!selectedVariant || !(selectedVariant as { sellingPrice?: string }).sellingPrice) {
+            // Use the selected variant's selling price directly (now Decimal type, not string)
+            const variantSellingPrice = (selectedVariant as { sellingPrice?: number | string | unknown }).sellingPrice;
+            if (!selectedVariant || variantSellingPrice === null || variantSellingPrice === undefined) {
               throw new Error(`No variants with pricing found for product: ${item.productId}`);
             }
             
@@ -625,8 +668,10 @@ export async function POST(request: NextRequest) {
               throw new Error(`Minimum order quantity is ${variantMOQ} pieces. You ordered ${totalPieces} pieces.`);
             }
             
-            // Use the new price parsing utility
-            const consistentUnitPrice = parsePrice((selectedVariant as { sellingPrice: string }).sellingPrice);
+            // Handle Decimal type - convert to number if needed
+            const consistentUnitPrice = typeof variantSellingPrice === 'number' 
+              ? variantSellingPrice 
+              : parsePrice(String(variantSellingPrice));
             
             // Get package info from item (piece-based system)
             const piecesPerPackage = item.piecesPerPackage || 1;
@@ -642,7 +687,10 @@ export async function POST(request: NextRequest) {
               packageQuantity * piecesPerPackage,
               tx,
               packageQuantity, // Pass package quantity for buy_x_get_y calculations
-              selectedVariant as { sellingPrice: string; moq?: number } // Pass variant for accurate pricing
+              { 
+                sellingPrice: decimalToNumber((selectedVariant as { sellingPrice?: unknown }).sellingPrice),
+                moq: (selectedVariant as { moq?: number }).moq 
+              } // Pass variant for accurate pricing (now Decimal, not string)
             );
             
             
@@ -673,7 +721,7 @@ export async function POST(request: NextRequest) {
               offerApplied?: boolean;
               offerBadgeSnapshot?: string | null;
               offerNameSnapshot?: string | null;
-              originalPriceSnapshot?: string | null;
+              originalPriceSnapshot?: number | null; // Decimal type, not string
               discountPercentage?: number | null;
               discountAmount?: number | null;
               promotionDetailsSnapshot?: string | null;
@@ -733,7 +781,7 @@ export async function POST(request: NextRequest) {
                 offerApplied: true,
                 offerBadgeSnapshot: offerValidation.offerBadge || null,
                 offerNameSnapshot: offerValidation.offerName || null,
-                originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
+                originalPriceSnapshot: offerValidation.originalPrice ? Number(offerValidation.originalPrice) : null, // Decimal type, not string
                 discountPercentage: offerValidation.discountPercentage || null,
                 discountAmount: offerValidation.discountAmount || null,
                 promotionDetailsSnapshot: offerValidation.promotionDetails 
@@ -767,12 +815,12 @@ export async function POST(request: NextRequest) {
     
     // Build items from relational rows for response
     const enrichedOrderItems = (order.orderItemsRel || []).map((oi: {
-      productId: string | null;
-      subtotal: number;
-      packageType?: string | null;
-      piecesPerPackage?: number | null;
-      packageQuantity?: number | null;
-      pricePerPackage?: number | null;
+        productId: string | null;
+        subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; // Prisma Decimal type
+        packageType?: string | null;
+        piecesPerPackage?: number | null;
+        packageQuantity?: number | null;
+        pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; // Prisma Decimal type
       product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null;
       productNameSnapshot?: string | null;
       productSkuSnapshot?: string | null;
@@ -781,11 +829,11 @@ export async function POST(request: NextRequest) {
       variantId?: number | null;
     }) => ({
       productId: oi.productId ?? null,
-      subtotal: oi.subtotal,
+      subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
       packageType: oi.packageType,
       piecesPerPackage: oi.piecesPerPackage,
       packageQuantity: oi.packageQuantity,
-      pricePerPackage: oi.pricePerPackage,
+      pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null, // Convert Decimal to number
       productName: oi.product?.name || (oi as { productNameSnapshot?: string }).productNameSnapshot || 'Unknown Product',
       category: (oi.product as { productType?: string })?.productType || (oi as { productTypeSnapshot?: string }).productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
@@ -819,7 +867,16 @@ export async function POST(request: NextRequest) {
       // Ignore broadcast errors
     }
 
-    return NextResponse.json({ ...order, orderItems: enrichedOrderItems }, { status: 201, headers });
+    // Convert order-level Decimal fields to numbers
+    const orderResponse = {
+      ...order,
+      subtotal: decimalToNumber(order.subtotal),
+      discounts: decimalToNumber(order.discounts),
+      shippingFee: decimalToNumber(order.shippingFee),
+      totalAmount: decimalToNumber(order.totalAmount),
+      orderItems: enrichedOrderItems
+    };
+    return NextResponse.json(orderResponse, { status: 201, headers });
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to create order' },
@@ -1391,14 +1448,17 @@ export async function PUT(request: NextRequest) {
         }
         
         // Use the first variant's sellingPrice as the unitPrice to ensure consistency
-        // Use variantOptions for pricing/stock (new structure)
+        // Use variantOptions for pricing/stock (new structure) - now Decimal type, not string
         const firstVariant = product.variantOptions[0] || null;
-        if (!firstVariant || !(firstVariant as { sellingPrice?: string }).sellingPrice) {
+        const variantSellingPrice = firstVariant ? (firstVariant as { sellingPrice?: number | string | unknown }).sellingPrice : null;
+        if (!firstVariant || variantSellingPrice === null || variantSellingPrice === undefined) {
           throw new Error(`No variants with pricing found for product: ${item.productId}`);
         }
         
-        // Use the centralized price parsing utility
-        const consistentUnitPrice = parsePrice((firstVariant as { sellingPrice: string }).sellingPrice);
+        // Handle Decimal type - convert to number if needed
+        const consistentUnitPrice = typeof variantSellingPrice === 'number' 
+          ? variantSellingPrice 
+          : parsePrice(String(variantSellingPrice));
         const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
         
         return prisma.orderItem.create({
@@ -1421,13 +1481,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build items from relational rows for response
-    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
+    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
       productId: oi.productId ?? null,
-      subtotal: oi.subtotal,
+      subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
       packageType: oi.packageType,
       piecesPerPackage: oi.piecesPerPackage,
       packageQuantity: oi.packageQuantity,
-      pricePerPackage: oi.pricePerPackage,
+      pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null, // Convert Decimal to number
       productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
       category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
@@ -1457,7 +1517,16 @@ export async function PUT(request: NextRequest) {
       await broadcastSoldCountUpdates(order.orderId);
     }
 
-    return NextResponse.json({ ...order, orderItems: enrichedOrderItemsUpdate }, { headers });
+    // Convert order-level Decimal fields to numbers
+    const orderResponse = {
+      ...order,
+      subtotal: decimalToNumber((order as { subtotal?: unknown }).subtotal),
+      discounts: decimalToNumber((order as { discounts?: unknown }).discounts),
+      shippingFee: decimalToNumber((order as { shippingFee?: unknown }).shippingFee),
+      totalAmount: decimalToNumber((order as { totalAmount?: unknown }).totalAmount),
+      orderItems: enrichedOrderItemsUpdate
+    };
+    return NextResponse.json(orderResponse, { headers });
   } catch (error: unknown) {
     return NextResponse.json(
       { error: 'Failed to update order', detail: String(error instanceof Error ? error.message : error) }, 

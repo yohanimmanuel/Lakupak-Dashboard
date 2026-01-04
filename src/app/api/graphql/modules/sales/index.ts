@@ -1,6 +1,6 @@
 import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 
 // Helper to safely access sales models with runtime validation
 const getSalesAgentModel = () => {
@@ -420,8 +420,8 @@ const mapSalesAgent = (agent: SalesAgentModel) => {
     salesTargets: (agent.salesTargets || []).map((st) => ({
       id: st.id,
       period: st.period,
-      goal: st.goal,
-      achieved: st.achieved,
+      goal: parseMoney(st.goal), // Convert Decimal to number
+      achieved: parseMoney(st.achieved), // Convert Decimal to number
       unitsSold: st.unitsSold,
       createdAt: st.createdAt.toISOString(),
       updatedAt: st.updatedAt.toISOString(),

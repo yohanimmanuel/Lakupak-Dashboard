@@ -6,6 +6,7 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
 import { getTodayBoundaries } from '@/lib/dateUtils';
+import { parsePrice } from '@/utils/currencyUtils';
 
 export interface OfferValidationResult {
   isValid: boolean;
@@ -66,7 +67,7 @@ export async function validateOfferForProduct(
   orderQuantity: number,
   tx: Prisma.TransactionClient,
   packageQuantity?: number, // Add package quantity for buy_x_get_y calculations
-  variant?: { sellingPrice: string; originalSellingPrice?: string | null; moq?: number | null } // Add variant parameter with MOQ
+  variant?: { sellingPrice: number | string; originalSellingPrice?: number | string | null; moq?: number | null } // Add variant parameter with MOQ (now Decimal, not string)
 ): Promise<OfferValidationResult> {
   try {
     // Find active offers for this product
@@ -135,9 +136,11 @@ export async function validateOfferForProduct(
     const product = offer.offerProducts[0].product;
     
     // Use variant price if provided, otherwise we need to get from variantOptions
+    // Handle Decimal type - use parsePrice which handles Decimal.js objects, numbers, and strings
     let originalPrice = 0;
     if (variant) {
-      originalPrice = parseFloat(variant.originalSellingPrice || variant.sellingPrice);
+      const originalPriceValue = variant.originalSellingPrice || variant.sellingPrice;
+      originalPrice = parsePrice(originalPriceValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
     } else {
       // If no variant provided, we can't determine price - return error
       return { isValid: false, error: 'Variant information required to validate offer' };
@@ -183,7 +186,8 @@ export async function validateOfferForProduct(
       let currentPromotionDetails = undefined;
 
       if (discountType.discountType === 'percentage') {
-        discountPercentage = discountType.discountValue;
+        // Convert Decimal to number
+        discountPercentage = parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
         discountAmount = (originalPrice * discountPercentage) / 100;
         
         // Keep the best discount
@@ -202,7 +206,8 @@ export async function validateOfferForProduct(
           discountPercentage: discountPercentage
         });
       } else if (discountType.discountType === 'fixed') {
-        discountAmount = discountType.discountValue;
+        // Convert Decimal to number
+        discountAmount = parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
         
         // Keep the best discount
         if (discountAmount > bestDiscountAmount) {
@@ -221,7 +226,10 @@ export async function validateOfferForProduct(
       } else if (discountType.discountType === 'buy_x_get_y') {
         // For buy_x_get_y, we don't change the price but provide promotion details
         const minQuantity = discountType.minQuantity;
-        const freeItemsPerSet = discountType.discountValue || 1; // Number of free items per qualifying set
+        // Convert Decimal to number for freeQuantity
+        const freeItemsPerSet = discountType.discountValue 
+          ? parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
+          : 1; // Number of free items per qualifying set
         
         // Use package quantity for buy_x_get_y calculations, not total pieces
         const quantityForCalculation = packageQuantity || Math.floor(orderQuantity / 100) || 1; // Fallback to approximate packages
@@ -234,7 +242,7 @@ export async function validateOfferForProduct(
           
           currentPromotionDetails = {
             minQuantity: minQuantity,
-            freeQuantity: totalFreeItems,
+            freeQuantity: Number(totalFreeItems), // Ensure it's a number, not Decimal
             description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`,
             moq: variant?.moq || null
           };
@@ -550,23 +558,32 @@ export async function reverseOfferUsage(
           const promotionDetails = JSON.parse(item.promotionDetailsSnapshot);
           // For buy_x_get_y, calculate the discount based on free quantity
           if (promotionDetails.freeQuantity && item.packageQuantity) {
-            const freeQuantity = promotionDetails.freeQuantity;
+            // Convert freeQuantity to number if it's Decimal
+            const freeQuantity = parsePrice(promotionDetails.freeQuantity as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
             const packageQuantity = item.packageQuantity;
             const actualFreeQuantity = Math.min(freeQuantity, packageQuantity);
             // Estimate discount amount (this is approximate since we don't have original price)
-            discountAmount = actualFreeQuantity * (item.pricePerPackage || 0);
+            // Convert pricePerPackage to number if it's Decimal
+            const pricePerPackage = parsePrice((item.pricePerPackage || 0) as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+            discountAmount = actualFreeQuantity * pricePerPackage;
           }
         } catch (e) {
           // If parsing fails, skip this item
           continue;
         }
-      } else if (item.discountPercentage && item.discountPercentage > 0) {
-        // For percentage discounts, calculate the discount amount
-        const originalPrice = parseFloat(item.originalPriceSnapshot || '0');
-        discountAmount = originalPrice * (item.discountPercentage / 100);
+      } else if (item.discountPercentage) {
+        // Convert discountPercentage to number if it's Decimal
+        const discountPercentage = parsePrice(item.discountPercentage as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+        if (discountPercentage > 0) {
+          // For percentage discounts, calculate the discount amount
+          // Handle Decimal type - use parsePrice which handles Decimal.js objects
+          const originalPriceValue = item.originalPriceSnapshot;
+          const originalPrice = parsePrice(originalPriceValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+          discountAmount = originalPrice * (discountPercentage / 100);
+        }
       } else if (item.discountAmount) {
-        // For fixed discounts, use the stored discount amount (same technique as percentage discounts)
-        discountAmount = item.discountAmount;
+        // For fixed discounts, use the stored discount amount - convert Decimal to number
+        discountAmount = parsePrice(item.discountAmount as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
       }
 
       // Find the offer and discount type from the snapshots
@@ -609,7 +626,9 @@ export async function reverseOfferUsage(
       });
       
       if (currentOffer) {
-        const newTotalDiscount = Math.max(0, currentOffer.totalDiscountGiven - discountAmount);
+        // Convert Decimal to number for calculation
+        const currentTotal = parsePrice(currentOffer.totalDiscountGiven as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+        const newTotalDiscount = Math.max(0, currentTotal - discountAmount);
         await tx.offer.update({
           where: { id: offer.id },
           data: {
@@ -746,16 +765,23 @@ async function updateProductPricesAfterOfferDeactivation(
     // Reset prices only for variants of products associated with this specific offer
     for (const product of productsWithOriginalPrices) {
       // Reset variantOptions (new structure)
-      const variantOptions = (product as { variantOptions: Array<{ id: number; originalSellingPrice: string | null }> }).variantOptions || [];
+      // originalSellingPrice is now Decimal, not string
+      const variantOptions = (product as { variantOptions: Array<{ id: number; originalSellingPrice: unknown }> }).variantOptions || [];
       for (const variantOption of variantOptions) {
-        if (variantOption.originalSellingPrice && variantOption.originalSellingPrice !== '') {
-          await tx.variantOption.update({
-            where: { id: variantOption.id },
-            data: {
-              sellingPrice: variantOption.originalSellingPrice,
-              originalSellingPrice: ''
-            }
-          });
+        // Check if originalSellingPrice exists (can be Decimal, number, or null)
+        const originalPrice = variantOption.originalSellingPrice;
+        if (originalPrice !== null && originalPrice !== undefined) {
+          // Convert Decimal to number if needed, then use it
+          const originalPriceNum = parsePrice(originalPrice);
+          if (originalPriceNum > 0) {
+            await tx.variantOption.update({
+              where: { id: variantOption.id },
+              data: {
+                sellingPrice: originalPriceNum, // Decimal type in DB
+                originalSellingPrice: null // Clear original price
+              }
+            });
+          }
         }
       }
       

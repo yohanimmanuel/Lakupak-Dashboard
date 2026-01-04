@@ -87,31 +87,39 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
     return { valid: false, error: 'Invalid delivery method' };
   }
   
-  // Numeric validations (now expecting raw numbers from marketplace)
+  // Numeric validations - ensure numbers, not strings or floats
   if (orderData.subtotal !== undefined) {
-    const subtotalValue = Number(orderData.subtotal);
-    if (isNaN(subtotalValue) || subtotalValue < 0) {
+    if (typeof orderData.subtotal !== 'number') {
+      return { valid: false, error: 'Subtotal must be a number, not a string' };
+    }
+    if (isNaN(orderData.subtotal) || orderData.subtotal < 0) {
       return { valid: false, error: 'Subtotal must be a positive number' };
     }
   }
   
   if (orderData.totalAmount !== undefined) {
-    const totalAmountValue = Number(orderData.totalAmount);
-    if (isNaN(totalAmountValue) || totalAmountValue < 0) {
+    if (typeof orderData.totalAmount !== 'number') {
+      return { valid: false, error: 'Total amount must be a number, not a string' };
+    }
+    if (isNaN(orderData.totalAmount) || orderData.totalAmount < 0) {
       return { valid: false, error: 'Total amount must be a positive number' };
     }
   }
   
   if (orderData.discounts !== undefined) {
-    const discountsValue = Number(orderData.discounts);
-    if (isNaN(discountsValue) || discountsValue < 0) {
+    if (typeof orderData.discounts !== 'number') {
+      return { valid: false, error: 'Discounts must be a number, not a string' };
+    }
+    if (isNaN(orderData.discounts) || orderData.discounts < 0) {
       return { valid: false, error: 'Discounts must be a positive number' };
     }
   }
   
   if (orderData.shippingFee !== undefined) {
-    const shippingFeeValue = Number(orderData.shippingFee);
-    if (isNaN(shippingFeeValue) || shippingFeeValue < 0) {
+    if (typeof orderData.shippingFee !== 'number') {
+      return { valid: false, error: 'Shipping fee must be a number, not a string' };
+    }
+    if (isNaN(orderData.shippingFee) || orderData.shippingFee < 0) {
       return { valid: false, error: 'Shipping fee must be a positive number' };
     }
   }
@@ -127,6 +135,11 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
       for (const item of items) {
         if (!item.productId || !item.productName || !item.packageQuantity || !item.pricePerPackage || !item.subtotal) {
           return { valid: false, error: 'Order items must have productId, productName, packageQuantity, pricePerPackage, and subtotal' };
+        }
+        
+        // Validate that price fields are numbers, not strings
+        if (typeof item.pricePerPackage !== 'number' || typeof item.subtotal !== 'number') {
+          return { valid: false, error: 'Order item pricePerPackage and subtotal must be numbers, not strings' };
         }
         
         if (item.packageQuantity <= 0 || item.pricePerPackage <= 0 || item.subtotal <= 0) {
@@ -250,22 +263,42 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
     return { valid: false, error: error instanceof Error ? error.message : 'Invalid date format' };
   }
   
-  // Numeric validations for provided fields
-  if (orderData.subtotal !== undefined && (isNaN(Number(orderData.subtotal)) || Number(orderData.subtotal) < 0)) {
-    return { valid: false, error: 'Subtotal must be a positive number' };
+  // Numeric validations for provided fields - ensure numbers, not strings
+  if (orderData.subtotal !== undefined) {
+    if (typeof orderData.subtotal !== 'number') {
+      return { valid: false, error: 'Subtotal must be a number, not a string' };
+    }
+    if (isNaN(orderData.subtotal) || orderData.subtotal < 0) {
+      return { valid: false, error: 'Subtotal must be a positive number' };
+    }
   }
   
-  if (orderData.totalAmount !== undefined && (isNaN(Number(orderData.totalAmount)) || Number(orderData.totalAmount) < 0)) {
-    return { valid: false, error: 'Total amount must be a positive number' };
+  if (orderData.totalAmount !== undefined) {
+    if (typeof orderData.totalAmount !== 'number') {
+      return { valid: false, error: 'Total amount must be a number, not a string' };
+    }
+    if (isNaN(orderData.totalAmount) || orderData.totalAmount < 0) {
+      return { valid: false, error: 'Total amount must be a positive number' };
+    }
   }
   
-  if (orderData.discounts !== undefined && (isNaN(Number(orderData.discounts)) || Number(orderData.discounts) < 0)) {
-    return { valid: false, error: 'Discounts must be a positive number' };
+  if (orderData.discounts !== undefined) {
+    if (typeof orderData.discounts !== 'number') {
+      return { valid: false, error: 'Discounts must be a number, not a string' };
+    }
+    if (isNaN(orderData.discounts) || orderData.discounts < 0) {
+      return { valid: false, error: 'Discounts must be a positive number' };
+    }
   }
   
   
-  if (orderData.shippingFee !== undefined && (isNaN(Number(orderData.shippingFee)) || Number(orderData.shippingFee) < 0)) {
-    return { valid: false, error: 'Shipping fee must be a positive number' };
+  if (orderData.shippingFee !== undefined) {
+    if (typeof orderData.shippingFee !== 'number') {
+      return { valid: false, error: 'Shipping fee must be a number, not a string' };
+    }
+    if (isNaN(orderData.shippingFee) || orderData.shippingFee < 0) {
+      return { valid: false, error: 'Shipping fee must be a positive number' };
+    }
   }
   
   // Order items validation if provided
@@ -279,6 +312,11 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
       for (const item of items) {
         if (!item.productId || !item.productName || !item.packageQuantity || !item.pricePerPackage || !item.subtotal) {
           return { valid: false, error: 'Order items must have productId, productName, packageQuantity, pricePerPackage, and subtotal' };
+        }
+        
+        // Validate that price fields are numbers, not strings
+        if (typeof item.pricePerPackage !== 'number' || typeof item.subtotal !== 'number') {
+          return { valid: false, error: 'Order item pricePerPackage and subtotal must be numbers, not strings' };
         }
         
         if (item.packageQuantity <= 0 || item.pricePerPackage <= 0 || item.subtotal <= 0) {
@@ -421,22 +459,46 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.acceptedBy = orderData.acceptedBy ? String(orderData.acceptedBy).trim() : null;
   }
   
-  // Numeric fields
+  // Numeric fields - ensure they are numbers, not strings or floats
   if (orderData.subtotal !== undefined) {
-    sanitized.subtotal = parseFloat(String(orderData.subtotal)) || 0;
+    if (typeof orderData.subtotal !== 'number') {
+      throw new Error('Subtotal must be a number, not a string');
+    }
+    if (!isFinite(orderData.subtotal) || orderData.subtotal < 0) {
+      throw new Error('Subtotal must be a valid positive number');
+    }
+    sanitized.subtotal = Math.round(orderData.subtotal * 100) / 100;
   }
   
   if (orderData.discounts !== undefined) {
-    sanitized.discounts = parseFloat(String(orderData.discounts)) || 0;
+    if (typeof orderData.discounts !== 'number') {
+      throw new Error('Discounts must be a number, not a string');
+    }
+    if (!isFinite(orderData.discounts) || orderData.discounts < 0) {
+      throw new Error('Discounts must be a valid positive number');
+    }
+    sanitized.discounts = Math.round(orderData.discounts * 100) / 100;
   }
   
   
   if (orderData.shippingFee !== undefined) {
-    sanitized.shippingFee = parseFloat(String(orderData.shippingFee)) || 0;
+    if (typeof orderData.shippingFee !== 'number') {
+      throw new Error('Shipping fee must be a number, not a string');
+    }
+    if (!isFinite(orderData.shippingFee) || orderData.shippingFee < 0) {
+      throw new Error('Shipping fee must be a valid positive number');
+    }
+    sanitized.shippingFee = Math.round(orderData.shippingFee * 100) / 100;
   }
   
   if (orderData.totalAmount !== undefined) {
-    sanitized.totalAmount = parseFloat(String(orderData.totalAmount)) || 0;
+    if (typeof orderData.totalAmount !== 'number') {
+      throw new Error('Total amount must be a number, not a string');
+    }
+    if (!isFinite(orderData.totalAmount) || orderData.totalAmount < 0) {
+      throw new Error('Total amount must be a valid positive number');
+    }
+    sanitized.totalAmount = Math.round(orderData.totalAmount * 100) / 100;
   }
   
   if (orderData.totalOrders !== undefined) {

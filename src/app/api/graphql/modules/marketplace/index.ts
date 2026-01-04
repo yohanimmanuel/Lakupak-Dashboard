@@ -3,7 +3,7 @@ import { Prisma as PrismaNamespace } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
 import { calculateSoldCounts, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
-import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { verifyAccessToken } from '@/lib/jwt';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
@@ -21,22 +21,6 @@ interface OfferDiscountType {
   freeQuantity?: number | null;
   isActive: boolean;
   description: string | null;
-}
-
-interface OrderItemInput {
-  productId: string;
-  quantity: number;
-  priceAtPurchase: string;
-  subtotal: string;
-  packageType?: string;
-  piecesPerPackage?: number;
-  packageQuantity?: number;
-  pricePerPackage?: string;
-  productName?: string;
-  productSku?: string;
-  variantId?: number;
-  variantName?: string;
-  category?: string;
 }
 
 export const marketplaceTypeDefs = /* GraphQL */ `
@@ -935,16 +919,22 @@ const fetchMarketplaceProducts = async (args: {
           const fixedDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
           const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
           discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
-          discountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+          // Convert Decimal to number for GraphQL Float type
+          const rawDiscountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
+          discountValue = rawDiscountValue !== undefined 
+            ? safeParsePrice(rawDiscountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
+            : undefined;
         }
         
         // Set promotion details if there are buy X get Y promotions
         const buyXGetYPromo = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
         if (buyXGetYPromo) {
+          // Convert Decimal discountValue to number
+          const freeQty = safeParsePrice(buyXGetYPromo.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
           promotionDetails = {
             minQuantity: buyXGetYPromo.minQuantity,
-            freeQuantity: buyXGetYPromo.discountValue,
-            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${buyXGetYPromo.discountValue} Free`
+            freeQuantity: freeQty,
+            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${freeQty} Free`
           };
         }
       
@@ -1042,27 +1032,27 @@ const fetchMarketplaceProducts = async (args: {
       shipping: {
         preferences: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences) : [],
         standard: { 
-          price: product.user?.company?.baseShippingPrice || 0, 
+          price: product.user?.company?.baseShippingPrice ? parseMoney(product.user.company.baseShippingPrice) : 0, 
           free: false,
           available: true
         },
         express: { 
-          price: product.user?.company?.expressShippingPrice || 0, 
+          price: product.user?.company?.expressShippingPrice ? parseMoney(product.user.company.expressShippingPrice) : 0, 
           free: false,
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Express Shipping') : false
         },
         sameDay: { 
-          price: product.user?.company?.sameDayShippingPrice || 0, 
+          price: product.user?.company?.sameDayShippingPrice ? parseMoney(product.user.company.sameDayShippingPrice) : 0, 
           free: false,
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Same-day Delivery') : false
         },
         nextDay: { 
-          price: product.user?.company?.nextDayShippingPrice || 0, 
+          price: product.user?.company?.nextDayShippingPrice ? parseMoney(product.user.company.nextDayShippingPrice) : 0, 
           free: false,
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Next-day Delivery') : false
         },
         scheduled: {
-          price: product.user?.company?.baseShippingPrice || 0,
+          price: product.user?.company?.baseShippingPrice ? parseMoney(product.user.company.baseShippingPrice) : 0,
           free: false,
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Scheduled Delivery') : false
         },

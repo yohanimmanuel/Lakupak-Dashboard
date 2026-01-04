@@ -74,10 +74,14 @@ export const validateVariant = async (
       }
     }
 
+    // Convert Decimal sellingPrice to number for the return value
+    const { parsePrice } = await import('@/utils/currencyUtils');
+    const sellingPriceNum = parsePrice(targetVariant.sellingPrice as unknown);
+    
     return {
       isValid: true,
       variant: {
-        sellingPrice: targetVariant.sellingPrice,
+        sellingPrice: String(sellingPriceNum), // Convert to string to match expected type
         moq: targetVariant.moq || undefined,
         variantName: targetVariant.variantName,
         isActive: targetVariant.isActive

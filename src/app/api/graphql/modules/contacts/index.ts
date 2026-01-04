@@ -1,6 +1,6 @@
 import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/lib/db';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo, isNumericId } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, isNumericId, parseMoney } from '../common/utils';
 import {
   validateBuyerInput,
   sanitizeBuyerData,
@@ -198,8 +198,12 @@ const mapBuyer = (buyer: BuyerModel) => ({
   logistics: buyer.logistics ?? null,
   notes: buyer.notes ?? null,
   orderDetails: buyer.orderDetails ?? null,
-  avgMonthlySpending: (buyer as { avgMonthlySpending?: number }).avgMonthlySpending ?? null,
-  avgMonthlyOrders: (buyer as { avgMonthlyOrders?: number }).avgMonthlyOrders ?? null,
+  avgMonthlySpending: (buyer as { avgMonthlySpending?: unknown }).avgMonthlySpending 
+    ? parseMoney((buyer as { avgMonthlySpending?: unknown }).avgMonthlySpending as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
+  avgMonthlyOrders: (buyer as { avgMonthlyOrders?: unknown }).avgMonthlyOrders 
+    ? parseMoney((buyer as { avgMonthlyOrders?: unknown }).avgMonthlyOrders as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
   userId: buyer.userId ?? null,
   createdAt: buyer.createdAt.toISOString(),
   updatedAt: buyer.updatedAt.toISOString(),
@@ -218,10 +222,18 @@ const mapSupplier = (supplier: SupplierModel) => ({
   logistics: supplier.logistics ?? null,
   notes: supplier.notes ?? null,
   supplies: supplier.supplies ?? null,
-  avgMonthlyPurchaseValue: (supplier as { avgMonthlyPurchaseValue?: number }).avgMonthlyPurchaseValue ?? null,
-  totalPurchases: (supplier as { totalPurchases?: number }).totalPurchases ?? null,
-  totalSupplies: (supplier as { totalSupplies?: number }).totalSupplies ?? null,
-  onTimeDeliveryRate: (supplier as { onTimeDeliveryRate?: number }).onTimeDeliveryRate ?? null,
+  avgMonthlyPurchaseValue: (supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue 
+    ? parseMoney((supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
+  totalPurchases: (supplier as { totalPurchases?: unknown }).totalPurchases 
+    ? parseMoney((supplier as { totalPurchases?: unknown }).totalPurchases as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
+  totalSupplies: (supplier as { totalSupplies?: unknown }).totalSupplies 
+    ? parseMoney((supplier as { totalSupplies?: unknown }).totalSupplies as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
+  onTimeDeliveryRate: (supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate 
+    ? parseMoney((supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
+    : null, // Convert Decimal to number
   userId: supplier.userId ?? null,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),

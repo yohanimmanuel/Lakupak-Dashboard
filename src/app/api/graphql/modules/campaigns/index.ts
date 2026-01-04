@@ -1,6 +1,6 @@
 import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { Prisma as PrismaClient } from '@/generated/prisma';
 
 // ============================================================================ //
@@ -136,7 +136,7 @@ const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
     recipients: campaign.recipients,
     opensCount: campaign.opensCount ?? 0,
     clicksCount: campaign.clicksCount ?? 0,
-    revenue: campaign.revenue,
+    revenue: parseMoney(campaign.revenue), // Convert Decimal to number
     orders: campaign.orders,
     contentBlocks: campaign.contentBlocks as unknown[] | null,
     userId: campaign.userId,

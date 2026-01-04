@@ -3,7 +3,7 @@ import { OfferFormData } from '@/types/offer';
 /**
  * Sanitize and validate offer form data
  */
-export function sanitizeOfferData(data: OfferFormData): OfferFormData {
+export function sanitizeOfferData(data: OfferFormData): Omit<OfferFormData, 'minOrderValue'> & { minOrderValue?: number } {
   return {
     name: sanitizeString(data.name, 100),
     description: data.description ? sanitizeString(data.description, 500) : undefined,
@@ -14,7 +14,7 @@ export function sanitizeOfferData(data: OfferFormData): OfferFormData {
       isActive: dt.isActive,
       priority: dt.priority
     })),
-    minOrderValue: data.minOrderValue ? validatePositiveStringNumber(data.minOrderValue) : undefined,
+    minOrderValue: data.minOrderValue ? validatePositiveStringNumber(data.minOrderValue) : undefined, // Returns number, not string
     minQuantity: data.minQuantity ? validatePositiveInteger(data.minQuantity) : undefined,
     startDate: validateDate(data.startDate),
     endDate: validateDate(data.endDate),
@@ -70,34 +70,36 @@ function validateDiscountType(discountType: string): 'percentage' | 'fixed' | 'b
 }
 
 /**
- * Validate discount value
+ * Validate discount value - ensure it's a positive numeric value
  */
 function validateDiscountValue(value: number, discountType: string): number {
   if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-    throw new Error('Discount value must be a positive number');
+    throw new Error(`Discount value must be a positive number${discountType ? ` (${discountType})` : ''}`);
   }
 
   if (discountType === 'percentage' && value > 100) {
     throw new Error('Percentage discount cannot exceed 100%');
   }
 
-  return Math.round(value * 100) / 100; // Round to 2 decimal places
+  // Round to 2 decimal places for Decimal precision
+  return Math.round(value * 100) / 100;
 }
 
 /**
- * Validate positive number
+ * Validate positive number - ensure it's a number, not string or float
  */
 function validatePositiveNumber(value: number): number {
   if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-    throw new Error('Value must be a positive number');
+    throw new Error('Value must be a positive number, not a string');
   }
-  return Math.round(value * 100) / 100; // Round to 2 decimal places
+  // Round to 2 decimal places for Decimal precision
+  return Math.round(value * 100) / 100;
 }
 
 /**
- * Validate positive string number (handles commas, dots, etc.)
+ * Validate positive string number (handles commas, dots, etc.) and return as number
  */
-function validatePositiveStringNumber(value: string): string {
+function validatePositiveStringNumber(value: string): number {
   if (typeof value !== 'string') {
     throw new Error('Value must be a string');
   }
@@ -116,8 +118,8 @@ function validatePositiveStringNumber(value: string): string {
     throw new Error('Value must be a positive number');
   }
 
-  // Return the original string (with formatting intact)
-  return value.trim();
+  // Return as number, rounded to 2 decimal places for Decimal precision
+  return Math.round(numericValue * 100) / 100;
 }
 
 /**

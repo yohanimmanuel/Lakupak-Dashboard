@@ -25,22 +25,23 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     }
     
     // Get the first variant option (or specified variant)
-    // Use variantOptions for pricing/stock (new structure)
-    let variant: { sellingPrice: string } | null = null;
+    // Use variantOptions for pricing/stock (new structure) - now Decimal type, not string
+    let variant: { sellingPrice: unknown } | null = null;
     if (item.variantId) {
-      variant = product.variantOptions.find((v: { id: number; sellingPrice: string }) => v.id === item.variantId) || null;
+      variant = product.variantOptions.find((v: { id: number; sellingPrice: unknown }) => v.id === item.variantId) || null;
     }
     
     if (!variant) {
       variant = product.variantOptions[0] || null;
     }
     
-    if (!variant || !variant.sellingPrice) {
+    const variantSellingPrice = variant ? (variant as { sellingPrice?: unknown }).sellingPrice : null;
+    if (!variant || variantSellingPrice === null || variantSellingPrice === undefined) {
       throw new Error(`No variants with pricing found for product: ${item.productId}`);
     }
     
-    // Use the centralized price parsing utility for consistency
-    const consistentUnitPrice = parsePrice(variant.sellingPrice);
+    // Handle Decimal type - use parsePrice which handles Decimal.js objects, numbers, and strings
+    const consistentUnitPrice = parsePrice(variantSellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
     
     // Get package info from item (piece-based system)
     const piecesPerPackage = item.piecesPerPackage || 1;

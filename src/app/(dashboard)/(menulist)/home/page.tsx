@@ -433,6 +433,13 @@ function parseOptionalString(value: unknown): string | undefined {
   return parsed.length > 0 ? parsed : undefined;
 }
 
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'number') return value;
+  const numValue = Number(value);
+  return isNaN(numValue) ? undefined : numValue;
+}
+
 function parseDate(value: unknown): Date {
   const candidate = value instanceof Date ? value : new Date(parseString(value, ''));
   if (!Number.isNaN(candidate.getTime())) {
@@ -515,7 +522,7 @@ function normalizeOrderItem(raw: Record<string, unknown>): OrderItem {
     offerApplied: raw.offerApplied === true,
     offerBadgeSnapshot: isOfferBadge(raw.offerBadgeSnapshot),
     offerNameSnapshot: parseOptionalString(raw.offerNameSnapshot),
-    originalPriceSnapshot: parseOptionalString(raw.originalPriceSnapshot),
+    originalPriceSnapshot: parseOptionalNumber(raw.originalPriceSnapshot), // Decimal type, not string
     discountPercentage:
       typeof raw.discountPercentage === 'number'
         ? raw.discountPercentage
@@ -663,7 +670,29 @@ function normalizeProduct(raw: Record<string, unknown>): Product | null {
       ? (raw.variantDefinitions as Product['variantDefinitions'])
       : undefined,
     variantOptions: Array.isArray(raw.variantOptions)
-      ? (raw.variantOptions as Product['variantOptions'])
+      ? (raw.variantOptions as Array<Record<string, unknown>>).map((vo) => {
+          const base = vo as {
+            id: number;
+            variantName: string;
+            sku?: string | null;
+            purchasePrice: unknown;
+            sellingPrice: unknown;
+            originalSellingPrice?: unknown;
+            moq?: number | null;
+            stockQuantity: number;
+            lowStockThreshold: number;
+            stockStatus: string;
+            isDefault: boolean;
+            isActive: boolean;
+            attributes?: Record<string, unknown> | null;
+          };
+          return {
+            ...base,
+            purchasePrice: String(parseNumber(vo.purchasePrice)), // Convert to string to match VariantOption type
+            sellingPrice: String(parseNumber(vo.sellingPrice)), // Convert to string to match VariantOption type
+            originalSellingPrice: vo.originalSellingPrice ? String(parseNumber(vo.originalSellingPrice)) : base.originalSellingPrice ? String(parseNumber(base.originalSellingPrice)) : undefined,
+          };
+        }) as Product['variantOptions']
       : undefined,
     variants: Array.isArray(raw.variants)
       ? (raw.variants as Product['variants'])
@@ -1097,9 +1126,23 @@ export default function HomePage() {
   const pendingRevenue = useMemo(
     () =>
       orders.reduce((sum, order) => {
-        return order.paymentStatus === 'Unpaid'
-          ? sum + order.totalAmount
-          : sum;
+        if (order.paymentStatus === 'Unpaid') {
+          // Handle Decimal types from Prisma
+          const amount = typeof order.totalAmount === 'number' 
+            ? (Number.isFinite(order.totalAmount) && !isNaN(order.totalAmount) ? order.totalAmount : 0)
+            : (typeof order.totalAmount === 'object' && order.totalAmount !== null && 'toNumber' in order.totalAmount
+              ? (() => {
+                try {
+                  const num = (order.totalAmount as { toNumber: () => number }).toNumber();
+                  return Number.isFinite(num) && !isNaN(num) ? num : 0;
+                } catch {
+                  return 0;
+                }
+              })()
+              : parseFloat(String(order.totalAmount)) || 0);
+          return sum + amount;
+        }
+        return sum;
       }, 0),
     [orders],
   );
