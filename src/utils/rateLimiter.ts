@@ -78,7 +78,7 @@ export async function rateLimit(
   const now = Date.now();
   const ttlSeconds = Math.ceil(windowMs / 1000);
   
-  // Try Redis first (for distributed rate limiting)
+  // Redis first (for distributed rate limiting)
   const redis = getRedisClient();
   if (redis && isRedisAvailable()) {
     try {
