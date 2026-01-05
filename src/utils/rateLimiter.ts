@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 
 interface RateLimitEntry {
   count: number;
@@ -13,10 +14,10 @@ interface RateLimitConfig {
   skipSuccessfulRequests?: boolean; // Only count failed requests
 }
 
-// In-memory store (upgrade to Redis for production multi-server setup)
+// In-memory store (fallback when Redis is unavailable)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries every 5 minutes to prevent memory leak
+// Cleanup old entries every 5 minutes to prevent memory leak (only for in-memory fallback)
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore.entries()) {
@@ -46,7 +47,20 @@ export function getClientIp(req: NextRequest): string {
 }
 
 /**
+ * Lua script for atomic rate limiting: INCR and set EXPIRE on first request
+ * Returns the incremented count
+ */
+const RATE_LIMIT_LUA_SCRIPT = `
+  local count = redis.call('INCR', KEYS[1])
+  if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+  end
+  return count
+`;
+
+/**
  * Rate limiter middleware for Next.js API routes
+ * Uses Redis for distributed rate limiting, falls back to in-memory if Redis unavailable
  * Returns null if request is allowed, or NextResponse with 429 status if rate limited
  */
 export async function rateLimit(
@@ -60,7 +74,50 @@ export async function rateLimit(
     ? keyGenerator(req) 
     : generateKey(req, 'default');
   
+  const redisKey = `rate-limit:${key}`;
   const now = Date.now();
+  const ttlSeconds = Math.ceil(windowMs / 1000);
+  
+  // Try Redis first (for distributed rate limiting)
+  const redis = getRedisClient();
+  if (redis && isRedisAvailable()) {
+    try {
+      // Atomic INCR + EXPIRE using Lua script
+      const count = await redis.eval(RATE_LIMIT_LUA_SCRIPT, 1, redisKey, ttlSeconds) as number;
+      
+      // Check if limit exceeded
+      if (count > maxRequests) {
+        const ttl = await redis.ttl(redisKey);
+        const resetAt = now + (ttl * 1000);
+        
+        return NextResponse.json(
+          { 
+            error: message || 'Too many requests, please try again later',
+            retryAfter: ttl > 0 ? ttl : ttlSeconds
+          },
+          { 
+            status: 429,
+            headers: {
+              'Retry-After': (ttl > 0 ? ttl : ttlSeconds).toString(),
+              'X-RateLimit-Limit': maxRequests.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': new Date(resetAt).toISOString(),
+            }
+          }
+        );
+      }
+      
+      // Request allowed
+      return null;
+    } catch (error) {
+      // Redis error - fall through to in-memory fallback
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Redis rate limit error, using in-memory fallback:', error);
+      }
+    }
+  }
+  
+  // Fallback to in-memory rate limiting (when Redis unavailable)
   const entry = rateLimitStore.get(key);
   
   // No entry exists, create new one
@@ -298,7 +355,8 @@ export async function offerQueryRateLimiter(
 }
 
 /**
- * Marketplace: Public product search - 1000 per second per IP
+ * Marketplace: Public product search - 10,000 per minute per IP
+ * Production-ready limit similar to major e-commerce platforms
  */
 export async function marketplaceSearchRateLimiter(
   req: NextRequest
@@ -307,8 +365,8 @@ export async function marketplaceSearchRateLimiter(
   const key = `marketplace-search:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 1000, // 1 second
-    maxRequests: 1000,
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10000,
     message: 'Too many marketplace searches. Please slow down.',
     keyGenerator: () => key,
   });
@@ -537,19 +595,52 @@ export async function settingsOperationRateLimiter(
 /**
  * Get current rate limit status for a key (useful for debugging)
  */
-export function getRateLimitStatus(key: string): RateLimitEntry | null {
+export async function getRateLimitStatus(key: string): Promise<RateLimitEntry | null> {
+  const redis = getRedisClient();
+  const redisKey = `rate-limit:${key}`;
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const count = await redis.get(redisKey);
+      const ttl = await redis.ttl(redisKey);
+      
+      if (count) {
+        const now = Date.now();
+        return {
+          count: parseInt(count, 10),
+          resetAt: now + (ttl * 1000),
+        };
+      }
+      return null;
+    } catch (error) {
+      // Fall through to in-memory
+    }
+  }
+  
   return rateLimitStore.get(key) || null;
 }
 
 /**
  * Clear rate limit for a specific key (admin function)
  */
-export function clearRateLimit(key: string): void {
+export async function clearRateLimit(key: string): Promise<void> {
+  const redis = getRedisClient();
+  const redisKey = `rate-limit:${key}`;
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      await redis.del(redisKey);
+    } catch (error) {
+      // Fall through to in-memory
+    }
+  }
+  
   rateLimitStore.delete(key);
 }
 
 /**
  * Clear all rate limits (admin function)
+ * Note: This only clears in-memory store. Redis keys should be cleared separately.
  */
 export function clearAllRateLimits(): void {
   rateLimitStore.clear();

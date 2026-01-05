@@ -12,6 +12,10 @@ import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
+import {
+  getCachedMarketplaceSearch,
+  setCachedMarketplaceSearch,
+} from '@/utils/searchCache';
 
 interface OfferDiscountType {
   id: string;
@@ -635,6 +639,20 @@ const fetchMarketplaceProducts = async (args: {
 }) => {
   const { page = 1, limit = 20, category, search } = args;
   
+  // Check cache first
+  const cachedResult = await getCachedMarketplaceSearch<{
+    nodes: unknown[];
+    pagination: ReturnType<typeof buildPaginationInfo>;
+    timestamp?: string;
+  }>({ search: search || null, category: category || null, page, limit });
+  
+  if (cachedResult) {
+    return {
+      ...cachedResult,
+      timestamp: new Date().toISOString()
+    };
+  }
+  
   // Build where clause for published products only
   const whereClause: Record<string, unknown> = {
     marketplaceStatus: 'Published',
@@ -1084,11 +1102,16 @@ const fetchMarketplaceProducts = async (args: {
   const totalCount = await prisma.product.count({ where: whereClause });
   const pagination = buildPaginationInfo(page, limit, totalCount);
   
-  return {
+  const result = {
     nodes: marketplaceProducts.filter(product => product !== null),
     pagination,
     timestamp: new Date().toISOString()
   };
+  
+  // Cache the result
+  await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
+  
+  return result;
 };
 
 const fetchMobileCart = async (userId: number) => {

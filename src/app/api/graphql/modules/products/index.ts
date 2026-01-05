@@ -12,6 +12,13 @@ import {
   parseMoney,
 } from '../common/utils';
 import { getTodayBoundaries } from '@/lib/dateUtils';
+import {
+  getCachedMarketplaceSearch,
+  setCachedMarketplaceSearch,
+  getCachedProductSearch,
+  setCachedProductSearch,
+  invalidateSearchCache,
+} from '@/utils/searchCache';
 
 // ============================================================================ //
 // TYPE DEFS
@@ -549,6 +556,17 @@ export const fetchProductsConnection = async (args: {
   productType?: string | null;
 }) => {
   const { userId, page = 1, limit = 50, search, status, productType } = args;
+  
+  // Check cache first
+  const cachedResult = await getCachedProductSearch<{
+    nodes: unknown[];
+    pagination: ReturnType<typeof buildPaginationInfo>;
+  }>({ userId, search, status, productType, page, limit });
+  
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_PRODUCT_LIMIT);
 
   const whereClause: Prisma.ProductWhereInput = { userId };
@@ -593,10 +611,15 @@ export const fetchProductsConnection = async (args: {
 
   const nodes = products.map((product) => mapProduct(product, offerMap, soldCountMap));
 
-  return {
+  const result = {
     nodes,
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
+
+  // Cache the result
+  await setCachedProductSearch({ userId, search, status, productType, page, limit }, result);
+
+  return result;
 };
 
 export const fetchSingleProduct = async (args: { userId: number; id: string }) => {
@@ -630,6 +653,17 @@ export const fetchMarketplaceProductsConnection = async (args: {
   search?: string | null;
 }) => {
   const { page = 1, limit = 20, category, search } = args;
+  
+  // Check cache first
+  const cachedResult = await getCachedMarketplaceSearch<{
+    nodes: unknown[];
+    pagination: ReturnType<typeof buildPaginationInfo>;
+  }>({ search, category, page, limit });
+  
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_MARKETPLACE_LIMIT);
 
   const whereClause: Prisma.ProductWhereInput = {
@@ -677,10 +711,15 @@ export const fetchMarketplaceProductsConnection = async (args: {
     .filter((product) => (product.variantOptions ?? []).length > 0)
     .map((product) => mapProduct(product, offerMap, soldCountMap));
 
-  return {
+  const result = {
     nodes,
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
+
+  // Cache the result
+  await setCachedMarketplaceSearch({ search, category, page, limit }, result);
+
+  return result;
 };
 
 // ============================================================================ //
@@ -1005,6 +1044,10 @@ export const createProduct = async (args: {
   }
 
   await broadcastProductChanges(updatedProduct.productId);
+  
+  // Invalidate search cache when product is created
+  await invalidateSearchCache('search-cache:*');
+  
   return mapProductWithOffers(updatedProduct);
 };
 
@@ -1176,6 +1219,10 @@ export const updateProduct = async (args: {
   }
 
   await broadcastProductChanges(updatedProduct.productId);
+  
+  // Invalidate search cache when product is updated
+  await invalidateSearchCache('search-cache:*');
+  
   return mapProductWithOffers(updatedProduct);
 };
 
@@ -1505,6 +1552,9 @@ export const publishMarketplaceProduct = async (args: {
   const mappedProduct = mapProduct(updatedProduct, offerMap, soldCountMap);
 
   await broadcastProductChanges(updatedProduct.productId);
+  
+  // Invalidate search cache when product is published/unpublished
+  await invalidateSearchCache('search-cache:*');
 
   return {
     success: true,
