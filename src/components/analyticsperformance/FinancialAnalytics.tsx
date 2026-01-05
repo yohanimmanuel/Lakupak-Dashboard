@@ -1411,7 +1411,7 @@ const FinancialAnalytics: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <div className="h-[312px] flex items-center justify-center">
+                <div className="h-[357px] flex items-center justify-center">
                   <div className="text-center">
                     <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                     <p className="text-gray-500 text-sm">Insufficient data for forecast</p>
