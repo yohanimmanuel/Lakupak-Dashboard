@@ -133,21 +133,39 @@ function getOperationType(query: string): 'query' | 'mutation' | 'unknown' {
 }
 
 /**
+ * Match exact GraphQL operation names using regex patterns
+ * This ensures precise matching and prevents overlap between different rate limiters
+ */
+
+/**
  * Check if this is an offer-related operation
+ * Matches: offers, offer, createOffer, updateOffer, deleteOffer
  */
 function isOfferOperation(query: string): { isOffer: boolean; isCreate: boolean; isUpdate: boolean; isQuery: boolean } {
-  const lowerQuery = query.toLowerCase();
+  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+  
+  // Match exact operation names
+  const createOfferPattern = /\bcreateoffer\s*\(/;
+  const updateOfferPattern = /\bupdateoffer\s*\(/;
+  const deleteOfferPattern = /\bdeleteoffer\s*\(/;
+  const offersQueryPattern = /\boffers\s*\(/;
+  const offerQueryPattern = /\boffer\s*\(/;
   
   return {
-    isOffer: lowerQuery.includes('offer'),
-    isCreate: lowerQuery.includes('createoffer'),
-    isUpdate: lowerQuery.includes('updateoffer'),
-    isQuery: lowerQuery.includes('offers(') || lowerQuery.includes('offer('),
+    isOffer: createOfferPattern.test(normalizedQuery) || 
+             updateOfferPattern.test(normalizedQuery) || 
+             deleteOfferPattern.test(normalizedQuery) ||
+             offersQueryPattern.test(normalizedQuery) ||
+             offerQueryPattern.test(normalizedQuery),
+    isCreate: createOfferPattern.test(normalizedQuery),
+    isUpdate: updateOfferPattern.test(normalizedQuery),
+    isQuery: offersQueryPattern.test(normalizedQuery) || offerQueryPattern.test(normalizedQuery),
   };
 }
 
 /**
  * Check if this is a marketplace-related operation
+ * Matches exact marketplace operation names
  */
 function isMarketplaceOperation(query: string): { 
   isMarketplace: boolean; 
@@ -156,19 +174,66 @@ function isMarketplaceOperation(query: string): {
   isActivity: boolean;
   isAddress: boolean;
 } {
-  const lowerQuery = query.toLowerCase();
+  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+  
+  // Marketplace search queries
+  const marketplaceProductsPattern = /\bmarketplaceproducts\s*\(/;
+  const mobileMarketplaceProductsPattern = /\bmobilemarketplaceproducts\s*\(/;
+  
+  // Cart operations
+  const addToCartPattern = /\baddtocart\s*\(/;
+  const updateCartItemPattern = /\bupdatecartitem\s*\(/;
+  const removeCartItemPattern = /\bremovecartitem\s*\(/;
+  const clearCartPattern = /\bclearcart\s*\(/;
+  const mobileCartPattern = /\bmobilecart\s*\(/;
+  
+  // User activity operations
+  const addUserActivityPattern = /\badduseractivity\s*\(/;
+  const deleteUserActivityPattern = /\bdeleteuseractivity\s*\(/;
+  const mobileUserActivityPattern = /\bmobileuseractivity\s*\(/;
+  
+  // Address operations
+  const createMarketplaceAddressPattern = /\bcreatemarketplaceaddress\s*\(/;
+  const updateMarketplaceAddressPattern = /\bupdatemarketplaceaddress\s*\(/;
+  const deleteMarketplaceAddressPattern = /\bdeletemarketplaceaddress\s*\(/;
+  const marketplaceAddressesPattern = /\bmarketplaceaddresses\s*\(/;
+  
+  // Other marketplace operations
+  const marketplaceUserPattern = /\bmarketplaceuser\s*\(/;
+  const updateMarketplaceUserPattern = /\bupdatemarketplaceuser\s*\(/;
+  const mobileOrdersPattern = /\bmobileorders\s*\(/;
+  
+  const isSearch = marketplaceProductsPattern.test(normalizedQuery) || 
+                   mobileMarketplaceProductsPattern.test(normalizedQuery);
+  const isCart = addToCartPattern.test(normalizedQuery) ||
+                 updateCartItemPattern.test(normalizedQuery) ||
+                 removeCartItemPattern.test(normalizedQuery) ||
+                 clearCartPattern.test(normalizedQuery) ||
+                 mobileCartPattern.test(normalizedQuery);
+  const isActivity = addUserActivityPattern.test(normalizedQuery) ||
+                     deleteUserActivityPattern.test(normalizedQuery) ||
+                     mobileUserActivityPattern.test(normalizedQuery);
+  const isAddress = createMarketplaceAddressPattern.test(normalizedQuery) ||
+                    updateMarketplaceAddressPattern.test(normalizedQuery) ||
+                    deleteMarketplaceAddressPattern.test(normalizedQuery) ||
+                    marketplaceAddressesPattern.test(normalizedQuery);
   
   return {
-    isMarketplace: lowerQuery.includes('marketplace') || lowerQuery.includes('mobile'),
-    isSearch: lowerQuery.includes('marketplaceproducts') || lowerQuery.includes('mobilemarketplaceproducts'),
-    isCart: lowerQuery.includes('cart') && (lowerQuery.includes('add') || lowerQuery.includes('update') || lowerQuery.includes('remove') || lowerQuery.includes('clear')),
-    isActivity: lowerQuery.includes('adduseractivity') || lowerQuery.includes('deleteuseractivity'),
-    isAddress: lowerQuery.includes('marketplaceaddress') && (lowerQuery.includes('create') || lowerQuery.includes('update') || lowerQuery.includes('delete')),
+    isMarketplace: isSearch || isCart || isActivity || isAddress ||
+                   marketplaceUserPattern.test(normalizedQuery) ||
+                   updateMarketplaceUserPattern.test(normalizedQuery) ||
+                   mobileOrdersPattern.test(normalizedQuery),
+    isSearch,
+    isCart,
+    isActivity,
+    isAddress,
   };
 }
 
 /**
- * Check if this is a product-related operation
+ * Check if this is a product-related operation (excluding marketplace products)
+ * Matches: products, product, createProduct, updateProduct, deleteProduct, 
+ *         publishMarketplaceProduct, bulkPublishMarketplaceProducts, etc.
  */
 function isProductOperation(query: string): { 
   isProduct: boolean; 
@@ -177,31 +242,109 @@ function isProductOperation(query: string): {
   isQuery: boolean;
   isBulkPublish: boolean;
 } {
-  const lowerQuery = query.toLowerCase();
+  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+  
+  // Exclude marketplace product operations
+  if (/\bmarketplaceproducts\b/.test(normalizedQuery) || 
+      /\bmobilemarketplaceproducts\b/.test(normalizedQuery)) {
+    return { isProduct: false, isCreate: false, isUpdate: false, isQuery: false, isBulkPublish: false };
+  }
+  
+  // Product mutations
+  const createProductPattern = /\bcreateproduct\s*\(/;
+  const updateProductPattern = /\bupdateproduct\s*\(/;
+  const deleteProductPattern = /\bdeleteproduct\s*\(/;
+  const publishMarketplaceProductPattern = /\bpublishmarketplaceproduct\s*\(/;
+  const bulkPublishMarketplaceProductsPattern = /\bbulkpublishmarketplaceproducts\s*\(/;
+  const resetOriginalPricesPattern = /\bresetoriginalprices\s*\(/;
+  const applyOffersToAllProductsPattern = /\bapplyofferstoallproducts\s*\(/;
+  const forceUpdatePricesPattern = /\bforceupdateprices\s*\(/;
+  const resetProductPricesPattern = /\bresetproductprices\s*\(/;
+  
+  // Product queries
+  const productsQueryPattern = /\bproducts\s*\(/;
+  const productQueryPattern = /\bproduct\s*\(/;
+  
+  const isProduct = createProductPattern.test(normalizedQuery) ||
+                    updateProductPattern.test(normalizedQuery) ||
+                    deleteProductPattern.test(normalizedQuery) ||
+                    publishMarketplaceProductPattern.test(normalizedQuery) ||
+                    bulkPublishMarketplaceProductsPattern.test(normalizedQuery) ||
+                    resetOriginalPricesPattern.test(normalizedQuery) ||
+                    applyOffersToAllProductsPattern.test(normalizedQuery) ||
+                    forceUpdatePricesPattern.test(normalizedQuery) ||
+                    resetProductPricesPattern.test(normalizedQuery) ||
+                    productsQueryPattern.test(normalizedQuery) ||
+                    productQueryPattern.test(normalizedQuery);
   
   return {
-    isProduct: lowerQuery.includes('product') && !lowerQuery.includes('marketplace'),
-    isCreate: lowerQuery.includes('createproduct'),
-    isUpdate: lowerQuery.includes('updateproduct'),
-    isQuery: lowerQuery.includes('products(') || lowerQuery.includes('product('),
-    isBulkPublish: lowerQuery.includes('bulkpublish'),
+    isProduct,
+    isCreate: createProductPattern.test(normalizedQuery),
+    isUpdate: updateProductPattern.test(normalizedQuery),
+    isQuery: productsQueryPattern.test(normalizedQuery) || productQueryPattern.test(normalizedQuery),
+    isBulkPublish: bulkPublishMarketplaceProductsPattern.test(normalizedQuery),
   };
 }
 
 /**
  * Check if this is a campaign-related operation
+ * Matches: campaigns, campaign, createCampaign, updateCampaign, deleteCampaign
  */
 function isCampaignOperation(query: string): boolean {
-  const lowerQuery = query.toLowerCase();
-  return lowerQuery.includes('campaign');
+  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+  
+  const campaignsPattern = /\bcampaigns\s*\(/;
+  const campaignPattern = /\bcampaign\s*\(/;
+  const createCampaignPattern = /\bcreatecampaign\s*\(/;
+  const updateCampaignPattern = /\bupdatecampaign\s*\(/;
+  const deleteCampaignPattern = /\bdeletecampaign\s*\(/;
+  
+  return campaignsPattern.test(normalizedQuery) ||
+         campaignPattern.test(normalizedQuery) ||
+         createCampaignPattern.test(normalizedQuery) ||
+         updateCampaignPattern.test(normalizedQuery) ||
+         deleteCampaignPattern.test(normalizedQuery);
 }
 
 /**
  * Check if this is a client-related operation (buyers/suppliers)
+ * Matches: buyers, buyer, createBuyer, updateBuyer, deleteBuyer,
+ *         suppliers, supplier, createSupplier, updateSupplier, deleteSupplier
+ * Excludes: marketplace operations that might contain "buyer" or "supplier" in their data
  */
 function isClientOperation(query: string): boolean {
-  const lowerQuery = query.toLowerCase();
-  return lowerQuery.includes('buyer') || lowerQuery.includes('supplier');
+  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+  
+  // Exclude marketplace operations by matching specific operation names
+  const marketplaceOpPattern = /\b(marketplace\w*|mobile\w*)\s*\(/;
+  if (marketplaceOpPattern.test(normalizedQuery)) {
+    return false;
+  }
+  
+  // Buyer operations
+  const buyersPattern = /\bbuyers\s*\(/;
+  const buyerPattern = /\bbuyer\s*\(/;
+  const createBuyerPattern = /\bcreatebuyer\s*\(/;
+  const updateBuyerPattern = /\bupdatebuyer\s*\(/;
+  const deleteBuyerPattern = /\bdeletebuyer\s*\(/;
+  
+  // Supplier operations
+  const suppliersPattern = /\bsuppliers\s*\(/;
+  const supplierPattern = /\bsupplier\s*\(/;
+  const createSupplierPattern = /\bcreatesupplier\s*\(/;
+  const updateSupplierPattern = /\bupdatesupplier\s*\(/;
+  const deleteSupplierPattern = /\bdeletesupplier\s*\(/;
+  
+  return buyersPattern.test(normalizedQuery) ||
+         buyerPattern.test(normalizedQuery) ||
+         createBuyerPattern.test(normalizedQuery) ||
+         updateBuyerPattern.test(normalizedQuery) ||
+         deleteBuyerPattern.test(normalizedQuery) ||
+         suppliersPattern.test(normalizedQuery) ||
+         supplierPattern.test(normalizedQuery) ||
+         createSupplierPattern.test(normalizedQuery) ||
+         updateSupplierPattern.test(normalizedQuery) ||
+         deleteSupplierPattern.test(normalizedQuery);
 }
 
 // Wrapper to handle errors and rate limiting
@@ -217,6 +360,18 @@ async function handler(request: NextRequest) {
       // Requests without valid JWT are treated as anonymous (no user-based rate limiting)
       // Resolvers must enforce authentication requirements for protected operations
       const userId = extractAuthenticatedUserId(request);
+      
+      // Check for marketplace search operations (IP-based, applies to all users including anonymous)
+      const marketplaceOp = isMarketplaceOperation(query);
+      if (marketplaceOp.isSearch) {
+        const rateLimitResponse = await marketplaceSearchRateLimiter(request);
+        if (rateLimitResponse) {
+          return NextResponse.json(
+            { errors: [{ message: 'Too many marketplace searches. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
+            { status: 429, headers: rateLimitResponse.headers }
+          );
+        }
+      }
       
       // Apply rate limiting based on operation type (only if we have a valid userId)
       if (userId) {
@@ -254,6 +409,35 @@ async function handler(request: NextRequest) {
             if (rateLimitResponse) {
               return NextResponse.json(
                 { errors: [{ message: 'Too many product queries. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
+                { status: 429, headers: rateLimitResponse.headers }
+              );
+            }
+          }
+        }
+        
+        // Check for marketplace operations (excluding search, which is handled above)
+        if (marketplaceOp.isMarketplace && !marketplaceOp.isSearch) {
+          if (marketplaceOp.isCart) {
+            const rateLimitResponse = await cartOperationRateLimiter(request, userId);
+            if (rateLimitResponse) {
+              return NextResponse.json(
+                { errors: [{ message: 'Too many cart operations. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
+                { status: 429, headers: rateLimitResponse.headers }
+              );
+            }
+          } else if (marketplaceOp.isActivity) {
+            const rateLimitResponse = await userActivityRateLimiter(request, userId);
+            if (rateLimitResponse) {
+              return NextResponse.json(
+                { errors: [{ message: 'Too many activity tracking requests. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
+                { status: 429, headers: rateLimitResponse.headers }
+              );
+            }
+          } else if (marketplaceOp.isAddress) {
+            const rateLimitResponse = await addressOperationRateLimiter(request, userId);
+            if (rateLimitResponse) {
+              return NextResponse.json(
+                { errors: [{ message: 'Too many address operations. Please try again later.', extensions: { code: 'RATE_LIMITED' } }] },
                 { status: 429, headers: rateLimitResponse.headers }
               );
             }
@@ -306,45 +490,6 @@ async function handler(request: NextRequest) {
             if (rateLimitResponse) {
               return NextResponse.json(
                 { errors: [{ message: 'Too many offer queries. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
-                { status: 429, headers: rateLimitResponse.headers }
-              );
-            }
-          }
-        }
-        
-        // Check for marketplace operations
-        const marketplaceOp = isMarketplaceOperation(query);
-        if (marketplaceOp.isMarketplace) {
-          if (marketplaceOp.isSearch) {
-            // Use IP-based limiting for public search
-            const rateLimitResponse = await marketplaceSearchRateLimiter(request);
-            if (rateLimitResponse) {
-              return NextResponse.json(
-                { errors: [{ message: 'Too many marketplace searches. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
-                { status: 429, headers: rateLimitResponse.headers }
-              );
-            }
-          } else if (marketplaceOp.isCart) {
-            const rateLimitResponse = await cartOperationRateLimiter(request, userId);
-            if (rateLimitResponse) {
-              return NextResponse.json(
-                { errors: [{ message: 'Too many cart operations. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
-                { status: 429, headers: rateLimitResponse.headers }
-              );
-            }
-          } else if (marketplaceOp.isActivity) {
-            const rateLimitResponse = await userActivityRateLimiter(request, userId);
-            if (rateLimitResponse) {
-              return NextResponse.json(
-                { errors: [{ message: 'Too many activity tracking requests. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
-                { status: 429, headers: rateLimitResponse.headers }
-              );
-            }
-          } else if (marketplaceOp.isAddress) {
-            const rateLimitResponse = await addressOperationRateLimiter(request, userId);
-            if (rateLimitResponse) {
-              return NextResponse.json(
-                { errors: [{ message: 'Too many address operations. Please try again later.', extensions: { code: 'RATE_LIMITED' } }] },
                 { status: 429, headers: rateLimitResponse.headers }
               );
             }

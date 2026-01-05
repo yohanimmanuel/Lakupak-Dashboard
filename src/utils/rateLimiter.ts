@@ -366,7 +366,7 @@ export async function marketplaceSearchRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 10000,
+    maxRequests: 1000,
     message: 'Too many marketplace searches. Please slow down.',
     keyGenerator: () => key,
   });
@@ -402,7 +402,7 @@ export async function userActivityRateLimiter(
   
   return rateLimit(req, {
     windowMs: 1000, // 1 second
-    maxRequests: 1000,
+    maxRequests: 100,
     message: 'Too many activity tracking requests. Please slow down.',
     keyGenerator: () => key,
   });
@@ -438,7 +438,7 @@ export async function imageUploadRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50,
+    maxRequests: 100,
     message: 'Too many image uploads. Please try again later.',
     keyGenerator: () => key,
   });
