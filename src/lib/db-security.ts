@@ -1,6 +1,6 @@
 import { Prisma } from '@/generated/prisma';
 import { getRedisClient, isRedisAvailable } from '@/lib/redis';
-import { createHash } from 'crypto';
+import { createHash, createHmac, randomBytes } from 'crypto';
 
 /**
  * Database query rate limiting
@@ -248,34 +248,55 @@ interface SanitizedAuditEntry {
 }
 
 /**
+ * Generate a runtime secret at application startup if env vars are missing
+ * This provides better security than unsalted hashing when secrets are not configured
+ */
+let runtimeSecret: string | null = null;
+
+function getOrCreateRuntimeSecret(): string {
+  if (!runtimeSecret) {
+    // Generate a cryptographically secure random secret
+    runtimeSecret = randomBytes(32).toString('hex');
+    // Log prominent warning to alert operators immediately
+    console.error('[AUDIT] ⚠️  CRITICAL: AUDIT_HASH_SECRET and JWT_SECRET not configured!');
+    console.error('[AUDIT] ⚠️  Using runtime-generated secret - this is NOT secure for production!');
+    console.error('[AUDIT] ⚠️  Secret will change on restart, breaking pseudonymization consistency.');
+    console.error('[AUDIT] ⚠️  Please configure AUDIT_HASH_SECRET or JWT_SECRET immediately.');
+  }
+  return runtimeSecret;
+}
+
+/**
  * Hash userId for pseudonymization (one-way, deterministic)
+ * Uses HMAC with secret key for cryptographically strong pseudonymization
  */
 function pseudonymizeUserId(userId: number | null | undefined): string | undefined {
   if (!userId) return undefined;
   
   // Use HMAC with secret key for deterministic hashing
   const secret = process.env.AUDIT_HASH_SECRET || process.env.JWT_SECRET;
+  let effectiveSecret: string;
+  
   if (!secret) {
-    // In production, log warning and return hashed pseudonym instead of throwing
+    // In production, generate runtime secret and use HMAC (better than unsalted hash)
     // Audit logging should be resilient and not break the application
-    // Use deterministic hash to maintain user differentiation without exposing raw userId
     if (process.env.NODE_ENV === 'production') {
-      console.error('[AUDIT] AUDIT_HASH_SECRET or JWT_SECRET not configured - using hashed pseudonym');
-      // Create a deterministic hash of userId (without secret) to preserve differentiation
-      // while protecting privacy - this is a fallback when secret is not configured
-      const hash = createHash('sha256')
-        .update(String(userId))
-        .digest('hex')
-        .substring(0, 16); // Truncate to 16 chars for consistency
-      return `user-${hash}`;
+      effectiveSecret = getOrCreateRuntimeSecret();
+    } else {
+      // In development, throw to catch configuration issues early
+      throw new Error('AUDIT_HASH_SECRET or JWT_SECRET must be configured for PII protection');
     }
-    // In development, throw to catch configuration issues early
-    throw new Error('AUDIT_HASH_SECRET or JWT_SECRET must be configured for PII protection');
+  } else {
+    effectiveSecret = secret;
   }
-  return createHash('sha256')
-    .update(`${secret}:${userId}`)
-    .digest('hex')
-    .substring(0, 16); // Truncate to 16 chars for readability
+  
+  // Use HMAC (not hash) for cryptographically strong pseudonymization
+  // HMAC prevents rainbow table attacks and provides better security
+  const hmac = createHmac('sha256', effectiveSecret);
+  hmac.update(String(userId));
+  const hash = hmac.digest('hex').substring(0, 16); // Truncate to 16 chars for readability
+  
+  return `user-${hash}`;
 }
 
 /**
