@@ -32,6 +32,21 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Configure webpack to ignore optional logging dependencies
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Mark winston and pino as externals so Next.js doesn't try to bundle them
+      // These are optional dependencies that may not be installed
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('winston', 'pino');
+      } else if (typeof config.externals === 'object') {
+        config.externals.winston = 'commonjs winston';
+        config.externals.pino = 'commonjs pino';
+      }
+    }
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);

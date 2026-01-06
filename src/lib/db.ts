@@ -1,8 +1,78 @@
 import { PrismaClient, type Prisma } from '@/generated/prisma'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { AsyncLocalStorage } from 'async_hooks'
+import { NextRequest } from 'next/server'
+import { logDatabaseAccess, checkDatabaseQueryRateLimit } from './db-security'
+import { getClientIp } from '@/utils/rateLimiter'
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
+
+/**
+ * Request context for database security (rate limiting, logging)
+ * Stored in AsyncLocalStorage so Prisma middleware can access it
+ */
+interface DbSecurityContext {
+  userId?: number | null
+  ip?: string
+  userAgent?: string
+  requestHeaders?: Record<string, string>
+}
+
+const dbSecurityContext = new AsyncLocalStorage<DbSecurityContext>()
+
+/**
+ * Set database security context for current async execution
+ * Call this in API routes before executing Prisma queries
+ */
+export function setDbSecurityContext(context: DbSecurityContext): void {
+  dbSecurityContext.enterWith(context)
+}
+
+/**
+ * Helper to set database security context from NextRequest
+ * Extracts userId, IP, and headers automatically
+ */
+export async function setDbSecurityContextFromRequest(
+  req: NextRequest,
+  userId?: number | null
+): Promise<void> {
+  // Try to get userId from auth helpers if not provided
+  let authenticatedUserId = userId;
+  if (authenticatedUserId === undefined) {
+    try {
+      const { getAuthenticatedUserId } = await import('@/utils/auth-helpers');
+      authenticatedUserId = await getAuthenticatedUserId(req);
+    } catch {
+      // Auth helpers not available, use provided userId or null
+      authenticatedUserId = userId ?? null;
+    }
+  }
+  
+  const ip = getClientIp(req);
+  const userAgent = req.headers.get('user-agent') || undefined;
+  
+  // Extract relevant headers for anonymous request differentiation
+  const requestHeaders: Record<string, string> = {};
+  const acceptLanguage = req.headers.get('accept-language');
+  const acceptEncoding = req.headers.get('accept-encoding');
+  if (acceptLanguage) requestHeaders['accept-language'] = acceptLanguage;
+  if (acceptEncoding) requestHeaders['accept-encoding'] = acceptEncoding;
+  
+  setDbSecurityContext({
+    userId: authenticatedUserId,
+    ip,
+    userAgent,
+    requestHeaders: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+  });
+}
+
+/**
+ * Get database security context from current async execution
+ */
+function getDbSecurityContext(): DbSecurityContext | undefined {
+  return dbSecurityContext.getStore()
+}
 
 // Connection pool configuration for production security
 const pool = new Pool({
@@ -16,8 +86,11 @@ const pool = new Pool({
   // Query timeout (applied per query)
   query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '30000', 10), // 30 seconds
   // SSL/TLS configuration (required for Supabase)
+  // Allow self-signed certificates in development, require valid certs in production
   ssl: process.env.DATABASE_URL?.includes('supabase') 
-    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } 
+    ? { 
+        rejectUnauthorized: process.env.NODE_ENV === 'production' && process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
+      } 
     : undefined,})
 
 // Verify connection encryption for production
@@ -38,17 +111,56 @@ const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 })
 
-// Extend Prisma with query logging (timeout handled by pool-level query_timeout)
+// Extend Prisma with security features (rate limiting, logging, timeout)
 export const prisma = basePrisma.$extends({
   query: {
     $allOperations: async ({ operation, model, args, query }) => {
       const startTime = Date.now();
+      const context = getDbSecurityContext();
+      
+      // Apply database query rate limiting if context is available
+      if (context) {
+        const rateLimitCheck = await checkDatabaseQueryRateLimit({
+          maxQueries: parseInt(process.env.DB_QUERY_RATE_LIMIT || '1000', 10), // 1000 queries per minute
+          windowMs: 60 * 1000, // 1 minute
+          userId: context.userId,
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestHeaders: context.requestHeaders,
+        });
+        
+        if (!rateLimitCheck.allowed) {
+          // Log rate limit violation
+          logDatabaseAccess({
+            userId: context.userId,
+            ip: context.ip,
+            operation: `${model || 'unknown'}.${operation}`,
+            table: model || undefined,
+            success: false,
+            error: rateLimitCheck.reason || 'Database query rate limit exceeded',
+          });
+          
+          throw new Error(rateLimitCheck.reason || 'Database query rate limit exceeded');
+        }
+      }
       
       try {
         // Execute query (timeout handled by pool-level query_timeout)
         const result = await query(args);
         
         const duration = Date.now() - startTime;
+        
+        // Log database access for audit (if context available)
+        if (context) {
+          logDatabaseAccess({
+            userId: context.userId,
+            ip: context.ip,
+            operation: `${model || 'unknown'}.${operation}`,
+            table: model || undefined,
+            duration,
+            success: true,
+          });
+        }
         
         // Log slow queries (> 5 seconds)
         if (duration > 5000 && process.env.NODE_ENV === 'production') {
@@ -59,6 +171,19 @@ export const prisma = basePrisma.$extends({
       } catch (error) {
         const duration = Date.now() - startTime;
         const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Log database access errors for audit (if context available)
+        if (context) {
+          logDatabaseAccess({
+            userId: context.userId,
+            ip: context.ip,
+            operation: `${model || 'unknown'}.${operation}`,
+            table: model || undefined,
+            duration,
+            success: false,
+            error: errorMessage,
+          });
+        }
         
         // Log query errors
         if (process.env.NODE_ENV === 'production') {

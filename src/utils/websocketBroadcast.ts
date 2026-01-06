@@ -27,12 +27,12 @@ export async function broadcastOfferUpdate(
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
       const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'offer_updated',
-          offerId,
-          productIds
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'offer_updated',
+            offerId,
+            productIds
         }),
         // Add timeout to prevent hanging
         signal: AbortSignal.timeout(5000)
@@ -65,15 +65,15 @@ export async function broadcastProductUpdate(productIds: string[]): Promise<void
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
       const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'product_updated',
-          productIds
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'product_updated',
+            productIds
         }),
         // Add timeout to prevent hanging
         signal: AbortSignal.timeout(5000)
-      });
+        });
       
       if (!response.ok) {
         if (process.env.NODE_ENV === 'development') {
@@ -102,15 +102,15 @@ export async function broadcastPriceUpdate(productIds: string[]): Promise<void> 
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
       const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'prices_updated',
-          productIds
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'prices_updated',
+            productIds
         }),
         // Add timeout to prevent hanging
         signal: AbortSignal.timeout(5000)
-      });
+        });
       
       if (!response.ok) {
         if (process.env.NODE_ENV === 'development') {

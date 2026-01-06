@@ -354,8 +354,8 @@ async function getLogger(): Promise<Logger> {
   if (logService === 'winston') {
     try {
       // Dynamic ES module import to avoid requiring winston as a dependency
-      // @ts-expect-error - Optional dependency, may not be installed
-      const winstonModule = await import('winston');
+      // Use Function constructor to prevent Next.js from analyzing the import at build time
+      const winstonModule = await new Function('return import("winston")')();
       // Handle default export if present
       const winston = winstonModule.default || winstonModule;
       const logger = winston.createLogger({
@@ -385,8 +385,8 @@ async function getLogger(): Promise<Logger> {
   } else if (logService === 'pino') {
     try {
       // Dynamic ES module import to avoid requiring pino as a dependency
-      // @ts-expect-error - Optional dependency, may not be installed
-      const pinoModule = await import('pino');
+      // Use Function constructor to prevent Next.js from analyzing the import at build time
+      const pinoModule = await new Function('return import("pino")')();
       // Handle default export if present
       const pino = pinoModule.default || pinoModule;
       const logger = pino({

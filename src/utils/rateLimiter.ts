@@ -40,9 +40,7 @@ setInterval(() => {
  * Generate a unique key for rate limiting based on IP and identifier
  */
 function generateKey(req: NextRequest, identifier: string): string {
-  const ip = req.headers.get('x-forwarded-for') || 
-             req.headers.get('x-real-ip') || 
-             'unknown';
+  const ip = getClientIp(req);
   return `${identifier}:${ip}`;
 }
 

@@ -645,16 +645,16 @@ const fetchMarketplaceProducts = async (args: {
   let cachedResult = null;
   if (search && search.trim()) {
     cachedResult = await getCachedMarketplaceSearch<{
-      nodes: unknown[];
-      pagination: ReturnType<typeof buildPaginationInfo>;
-      timestamp?: string;
-    }>({ search: search || null, category: category || null, page, limit });
-    
-    if (cachedResult) {
-      return {
-        ...cachedResult,
-        timestamp: new Date().toISOString()
-      };
+    nodes: unknown[];
+    pagination: ReturnType<typeof buildPaginationInfo>;
+    timestamp?: string;
+  }>({ search: search || null, category: category || null, page, limit });
+  
+  if (cachedResult) {
+    return {
+      ...cachedResult,
+      timestamp: new Date().toISOString()
+    };
     }
   }
   
@@ -773,25 +773,25 @@ const fetchMarketplaceProducts = async (args: {
       const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import('@/utils/websocketBroadcast');
     
     await Promise.all(
-      userIds.map(async (userId) => {
-        const result = await deactivateExpiredOffers(prisma, userId);
-        
-        // Broadcast websocket updates for activated and deactivated offers
+    userIds.map(async (userId) => {
+      const result = await deactivateExpiredOffers(prisma, userId);
+      
+      // Broadcast websocket updates for activated and deactivated offers
         // Do this BEFORE querying so clients get updates immediately
         // Collect all broadcasts to run in parallel
         const broadcastPromises: Promise<void>[] = [];
-        
-        for (const { offerId, productIds } of result.activatedOffers) {
+      
+      for (const { offerId, productIds } of result.activatedOffers) {
           // Run all broadcasts in parallel for this offer
           broadcastPromises.push(
             broadcastOfferUpdate(offerId, productIds),
             broadcastPriceUpdate(productIds),
             broadcastProductUpdate(productIds)
           );
-        }
-        
-        // Broadcast for deactivated offers (active → scheduled/inactive)
-        for (const { offerId, productIds } of result.deactivatedOffers) {
+      }
+      
+      // Broadcast for deactivated offers (active → scheduled/inactive)
+      for (const { offerId, productIds } of result.deactivatedOffers) {
           // Run all broadcasts in parallel for this offer
           broadcastPromises.push(
             broadcastOfferUpdate(offerId, productIds),
@@ -807,10 +807,10 @@ const fetchMarketplaceProducts = async (args: {
           await invalidateSearchCache('search-cache:marketplace:*');
           // Small delay to ensure WebSocket messages are sent before query returns
           await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        
-        return result;
-      })
+      }
+      
+      return result;
+    })
     );
   } catch (error) {
     console.error('[Marketplace] Background offer deactivation failed:', error);
@@ -1130,7 +1130,7 @@ const fetchMarketplaceProducts = async (args: {
   // ONLY cache search queries (when search parameter is provided)
   // Regular marketplace listings should always be fresh to show real-time offer/price updates
   if (search && search.trim()) {
-    await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
+  await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
   }
   
   return result;
