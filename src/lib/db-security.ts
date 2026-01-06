@@ -256,12 +256,18 @@ function pseudonymizeUserId(userId: number | null | undefined): string | undefin
   // Use HMAC with secret key for deterministic hashing
   const secret = process.env.AUDIT_HASH_SECRET || process.env.JWT_SECRET;
   if (!secret) {
-    // In production, log warning and return user-specific placeholder instead of throwing
+    // In production, log warning and return hashed pseudonym instead of throwing
     // Audit logging should be resilient and not break the application
-    // Use user-specific placeholder to maintain user differentiation in audit logs
+    // Use deterministic hash to maintain user differentiation without exposing raw userId
     if (process.env.NODE_ENV === 'production') {
-      console.error('[AUDIT] AUDIT_HASH_SECRET or JWT_SECRET not configured - using user-specific placeholder');
-      return `user-${userId}-no-secret`;
+      console.error('[AUDIT] AUDIT_HASH_SECRET or JWT_SECRET not configured - using hashed pseudonym');
+      // Create a deterministic hash of userId (without secret) to preserve differentiation
+      // while protecting privacy - this is a fallback when secret is not configured
+      const hash = createHash('sha256')
+        .update(String(userId))
+        .digest('hex')
+        .substring(0, 16); // Truncate to 16 chars for consistency
+      return `user-${hash}`;
     }
     // In development, throw to catch configuration issues early
     throw new Error('AUDIT_HASH_SECRET or JWT_SECRET must be configured for PII protection');
