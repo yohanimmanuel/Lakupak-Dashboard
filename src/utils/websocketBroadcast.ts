@@ -26,22 +26,29 @@ export async function broadcastOfferUpdate(
       // The WebSocket server has an internal HTTP endpoint for this
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
-      try {
-        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'offer_updated',
-            offerId,
-            productIds
-          })
-        });
-      } catch (error) {
-        // Server might not be running or HTTP endpoint not available - silently fail
+      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'offer_updated',
+          offerId,
+          productIds
+        }),
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (!response.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
+        }
       }
     }
   } catch (error) {
-    // Silently fail if broadcast fails
+    // Log in development to help debug
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] broadcastOfferUpdate error:', error);
+    }
   }
 }
 
@@ -57,21 +64,28 @@ export async function broadcastProductUpdate(productIds: string[]): Promise<void
     } else {
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
-      try {
-        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'product_updated',
-            productIds
-          })
-        });
-      } catch (error) {
-        // Silently fail
+      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'product_updated',
+          productIds
+        }),
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (!response.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
+        }
       }
     }
   } catch (error) {
-    // Silently fail if WebSocket server is not running
+    // Log in development to help debug
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] broadcastProductUpdate error:', error);
+    }
   }
 }
 
@@ -87,21 +101,28 @@ export async function broadcastPriceUpdate(productIds: string[]): Promise<void> 
     } else {
       const wsPort = process.env.WS_PORT || '3001';
       const wsHost = process.env.WS_HOST || 'localhost';
-      try {
-        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'prices_updated',
-            productIds
-          })
-        });
-      } catch (error) {
-        // Silently fail
+      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'prices_updated',
+          productIds
+        }),
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (!response.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
+        }
       }
     }
   } catch (error) {
-    // Silently fail
+    // Log in development to help debug
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] broadcastPriceUpdate error:', error);
+    }
   }
 }
 

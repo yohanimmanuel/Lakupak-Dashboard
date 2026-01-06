@@ -4,6 +4,7 @@ import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 interface RateLimitEntry {
   count: number;
   resetAt: number;
+  violations?: number; // Track violations for progressive rate limiting
 }
 
 interface RateLimitConfig {
@@ -12,10 +13,18 @@ interface RateLimitConfig {
   message?: string; // Custom error message
   keyGenerator?: (req: NextRequest) => string; // Custom key generation
   skipSuccessfulRequests?: boolean; // Only count failed requests
+  burstLimit?: number; // Burst limit (short-term)
+  burstWindowMs?: number; // Burst window in milliseconds
+  progressivePenalty?: boolean; // Enable progressive rate limiting
 }
 
 // In-memory store (fallback when Redis is unavailable)
 const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// IP blacklist (stored in Redis primarily, in-memory fallback)
+const ipBlacklistStore = new Set<string>();
+// Track timeout handles for in-memory blacklist expiry
+const ipBlacklistTimeouts = new Map<string, NodeJS.Timeout>();
 
 // Cleanup old entries every 5 minutes to prevent memory leak (only for in-memory fallback)
 setInterval(() => {
@@ -62,34 +71,296 @@ const RATE_LIMIT_LUA_SCRIPT = `
 `;
 
 /**
+ * Lua script for sliding window rate limiting (burst protection)
+ * Uses sorted set to track requests with timestamps
+ * Returns: count, oldestTimestamp
+ */
+const SLIDING_WINDOW_LUA_SCRIPT = `
+  local key = KEYS[1]
+  local windowMs = tonumber(ARGV[1])
+  local maxRequests = tonumber(ARGV[2])
+  local now = tonumber(ARGV[3])
+  local windowStart = now - windowMs
+  
+  -- Remove old entries outside the window
+  redis.call('ZREMRANGEBYSCORE', key, 0, windowStart)
+  
+  -- Count current requests in window
+  local count = redis.call('ZCARD', key)
+  
+  -- Add current request with unique member (timestamp + random suffix)
+  local member = now .. ':' .. math.random(1, 1000000)
+  redis.call('ZADD', key, now, member)
+  
+  -- Set expiration
+  redis.call('EXPIRE', key, math.ceil(windowMs / 1000))
+  
+  -- Get oldest timestamp
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  local oldestTimestamp = oldest[2] or now
+  
+  return {count + 1, oldestTimestamp}
+`;
+
+/**
+ * Lua script for progressive rate limiting (violation tracking)
+ * Tracks violations and applies penalties
+ */
+const PROGRESSIVE_RATE_LIMIT_LUA_SCRIPT = `
+  local countKey = KEYS[1]
+  local violationKey = KEYS[2]
+  
+  local count = redis.call('INCR', countKey)
+  local ttl = redis.call('TTL', countKey)
+  if count == 1 or ttl == -1 then
+    redis.call('EXPIRE', countKey, ARGV[1])
+  end
+  
+  -- Get violation count
+  local violations = tonumber(redis.call('GET', violationKey) or '0')
+  
+  return {count, violations}
+`;
+
+/**
+ * Check if IP is blacklisted (Redis-first, fallback to in-memory)
+ */
+async function isIpBlacklisted(ip: string): Promise<boolean> {
+  const redis = getRedisClient();
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const isBlacklisted = await redis.get(`ip-blacklist:${ip}`);
+      return isBlacklisted === '1';
+    } catch (error) {
+      // Fall through to in-memory check
+    }
+  }
+  
+  return ipBlacklistStore.has(ip);
+}
+
+/**
+ * Add IP to blacklist (Redis-first, fallback to in-memory)
+ */
+export async function blacklistIp(ip: string, durationSeconds: number = 3600): Promise<void> {
+  const redis = getRedisClient();
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      await redis.setex(`ip-blacklist:${ip}`, durationSeconds, '1');
+      return;
+    } catch (error) {
+      // Fall through to in-memory
+    }
+  }
+  
+  // Clear any existing timeout for this IP before creating a new one
+  const existingTimeout = ipBlacklistTimeouts.get(ip);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+  
+  ipBlacklistStore.add(ip);
+  
+  // Auto-remove from in-memory after duration
+  const timeoutHandle = setTimeout(() => {
+    ipBlacklistStore.delete(ip);
+    ipBlacklistTimeouts.delete(ip);
+  }, durationSeconds * 1000);
+  
+  // Store the timeout handle so we can clear it if needed
+  ipBlacklistTimeouts.set(ip, timeoutHandle);
+}
+
+/**
+ * Remove IP from blacklist
+ */
+export async function unblacklistIp(ip: string): Promise<void> {
+  const redis = getRedisClient();
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      await redis.del(`ip-blacklist:${ip}`);
+    } catch (error) {
+      // Continue to in-memory
+    }
+  }
+  
+  ipBlacklistStore.delete(ip);
+  
+  // Clear any pending timeout for this IP
+  const existingTimeout = ipBlacklistTimeouts.get(ip);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+    ipBlacklistTimeouts.delete(ip);
+  }
+}
+
+/**
+ * Get violation count for a key (for progressive rate limiting)
+ */
+async function getViolationCount(key: string): Promise<number> {
+  const redis = getRedisClient();
+  const violationKey = `violations:${key}`;
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const violations = await redis.get(violationKey);
+      return violations ? parseInt(violations, 10) : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+  
+  return 0;
+}
+
+/**
+ * Increment violation count and apply penalty
+ */
+async function recordViolation(key: string, penaltyDurationSeconds: number = 86400): Promise<void> {
+  const redis = getRedisClient();
+  const violationKey = `violations:${key}`;
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const violations = await redis.incr(violationKey);
+      await redis.expire(violationKey, penaltyDurationSeconds);
+      
+      // Auto-blacklist after 5 violations
+      if (violations >= 5) {
+        const ip = key.split(':').pop() || 'unknown';
+        await blacklistIp(ip, 86400); // 24 hours
+      }
+    } catch (error) {
+      // Fallback handled in progressive rate limiting
+    }
+  }
+}
+
+/**
+ * Calculate effective rate limit based on violations (progressive penalty)
+ */
+function calculateEffectiveLimit(baseLimit: number, violations: number): number {
+  if (violations === 0) return baseLimit;
+  if (violations === 1) return Math.floor(baseLimit * 0.75); // 25% reduction
+  if (violations === 2) return Math.floor(baseLimit * 0.5); // 50% reduction
+  if (violations === 3) return Math.floor(baseLimit * 0.25); // 75% reduction
+  return Math.floor(baseLimit * 0.1); // 90% reduction for 4+ violations
+}
+
+/**
  * Rate limiter middleware for Next.js API routes
  * Uses Redis for distributed rate limiting, falls back to in-memory if Redis unavailable
+ * Supports: Progressive rate limiting, burst protection, IP blacklisting
  * Returns null if request is allowed, or NextResponse with 429 status if rate limited
  */
 export async function rateLimit(
   req: NextRequest,
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
-  const { windowMs, maxRequests, message, keyGenerator } = config;
+  const { 
+    windowMs, 
+    maxRequests, 
+    message, 
+    keyGenerator,
+    burstLimit,
+    burstWindowMs = 1000, // Default 1 second for burst window
+    progressivePenalty = false
+  } = config;
   
   // Generate unique key for this request
   const key = keyGenerator 
     ? keyGenerator(req) 
     : generateKey(req, 'default');
   
+  // Check IP blacklist first
+  const ip = getClientIp(req);
+  if (await isIpBlacklisted(ip)) {
+    return NextResponse.json(
+      { 
+        error: 'Your IP address has been temporarily blocked due to suspicious activity. Please try again later.',
+        retryAfter: 3600
+      },
+      { 
+        status: 403,
+        headers: {
+          'Retry-After': '3600',
+        }
+      }
+    );
+  }
+  
   const redisKey = `rate-limit:${key}`;
+  const burstKey = burstLimit ? `rate-limit-burst:${key}` : null;
   const now = Date.now();
   const ttlSeconds = Math.ceil(windowMs / 1000);
   
-  // Redis first (for distributed rate limiting)
+  // Redis first (for distributed rate limiting) - PRIORITIZE REDIS
   const redis = getRedisClient();
   if (redis && isRedisAvailable()) {
     try {
-      // Atomic INCR + EXPIRE using Lua script
+      // Get violation count for progressive rate limiting
+      let effectiveLimit = maxRequests;
+      let violations = 0;
+      
+      if (progressivePenalty) {
+        violations = await getViolationCount(key);
+        effectiveLimit = calculateEffectiveLimit(maxRequests, violations);
+      }
+      
+      // Check burst protection first (if configured)
+      if (burstLimit && burstKey) {
+        const burstWindowStart = now - burstWindowMs;
+        const burstResult = await redis.eval(
+          SLIDING_WINDOW_LUA_SCRIPT,
+          1,
+          burstKey,
+          burstWindowMs.toString(),
+          burstLimit.toString(),
+          now.toString()
+        ) as [number, number];
+        
+        const burstCount = burstResult[0];
+        const oldestTimestamp = burstResult[1];
+        
+        if (burstCount > burstLimit) {
+          // Burst limit exceeded - record violation if progressive
+          if (progressivePenalty) {
+            await recordViolation(key);
+          }
+          
+          const retryAfter = Math.ceil((oldestTimestamp + burstWindowMs - now) / 1000);
+          return NextResponse.json(
+            { 
+              error: message || 'Too many requests in a short time. Please slow down.',
+              retryAfter: Math.max(1, retryAfter)
+            },
+            { 
+              status: 429,
+              headers: {
+                'Retry-After': Math.max(1, retryAfter).toString(),
+                'X-RateLimit-Limit': effectiveLimit.toString(),
+                'X-RateLimit-Burst-Limit': burstLimit.toString(),
+                'X-RateLimit-Remaining': '0',
+                'X-RateLimit-Reset': new Date(now + (retryAfter * 1000)).toISOString(),
+              }
+            }
+          );
+        }
+      }
+      
+      // Main rate limiting check
       const count = await redis.eval(RATE_LIMIT_LUA_SCRIPT, 1, redisKey, ttlSeconds) as number;
       
       // Check if limit exceeded
-      if (count > maxRequests) {
+      if (count > effectiveLimit) {
+        // Record violation for progressive rate limiting
+        if (progressivePenalty) {
+          await recordViolation(key);
+        }
+        
         const ttl = await redis.ttl(redisKey);
         const resetAt = now + (ttl * 1000);
         
@@ -102,9 +373,10 @@ export async function rateLimit(
             status: 429,
             headers: {
               'Retry-After': (ttl > 0 ? ttl : ttlSeconds).toString(),
-              'X-RateLimit-Limit': maxRequests.toString(),
+              'X-RateLimit-Limit': effectiveLimit.toString(),
               'X-RateLimit-Remaining': '0',
               'X-RateLimit-Reset': new Date(resetAt).toISOString(),
+              ...(violations > 0 ? { 'X-RateLimit-Violations': violations.toString() } : {}),
             }
           }
         );
@@ -113,27 +385,43 @@ export async function rateLimit(
       // Request allowed
       return null;
     } catch (error) {
-      // Redis error - fall through to in-memory fallback
-      // Only log if it's not a connection error (those are expected during reconnection)
+      // Redis error - ONLY fall through to in-memory if Redis is truly unavailable
+      // Don't fall through for transient errors - fail securely
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isConnectionError = errorMessage.includes('Stream isn\'t writeable') ||
                                errorMessage.includes('Connection') ||
-                               errorMessage.includes('ECONNREFUSED');
+                               errorMessage.includes('ECONNREFUSED') ||
+                               errorMessage.includes('ECONNRESET');
       
-      if (process.env.NODE_ENV === 'development' && !isConnectionError) {
+      // Only use in-memory fallback for connection errors, not for other Redis errors
+      if (!isConnectionError) {
+        // For non-connection errors, reject the request to prioritize Redis
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Redis rate limit error (non-connection):', error);
+        }
+        // Still allow request but log the error
+      } else if (process.env.NODE_ENV === 'development') {
         console.warn('Redis rate limit error, using in-memory fallback:', error);
       }
     }
   }
   
-  // Fallback to in-memory rate limiting (when Redis unavailable)
+  // Fallback to in-memory rate limiting (ONLY when Redis unavailable)
+  // This should rarely happen in production if Redis is properly configured
   const entry = rateLimitStore.get(key);
+  
+  // Get violations for progressive rate limiting (in-memory)
+  let effectiveLimit = maxRequests;
+  if (progressivePenalty && entry?.violations !== undefined) {
+    effectiveLimit = calculateEffectiveLimit(maxRequests, entry.violations);
+  }
   
   // No entry exists, create new one
   if (!entry) {
     rateLimitStore.set(key, {
       count: 1,
       resetAt: now + windowMs,
+      violations: 0,
     });
     return null;
   }
@@ -143,12 +431,24 @@ export async function rateLimit(
     rateLimitStore.set(key, {
       count: 1,
       resetAt: now + windowMs,
+      violations: 0, // Reset violations after window expires
     });
     return null;
   }
   
   // Check if limit exceeded
-  if (entry.count >= maxRequests) {
+  if (entry.count >= effectiveLimit) {
+    // Increment violations for progressive rate limiting
+    if (progressivePenalty) {
+      entry.violations = (entry.violations || 0) + 1;
+      rateLimitStore.set(key, entry);
+      
+      // Auto-blacklist after 5 violations
+      if (entry.violations >= 5) {
+        await blacklistIp(ip, 86400); // 24 hours
+      }
+    }
+    
     const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
     
     return NextResponse.json(
@@ -160,9 +460,10 @@ export async function rateLimit(
         status: 429,
         headers: {
           'Retry-After': retryAfter.toString(),
-          'X-RateLimit-Limit': maxRequests.toString(),
+          'X-RateLimit-Limit': effectiveLimit.toString(),
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': new Date(entry.resetAt).toISOString(),
+          ...(entry.violations ? { 'X-RateLimit-Violations': entry.violations.toString() } : {}),
         }
       }
     );
@@ -173,6 +474,263 @@ export async function rateLimit(
   rateLimitStore.set(key, entry);
   
   return null;
+}
+
+/**
+ * Calculate GraphQL query complexity
+ * Returns: { complexity: number, depth: number, fieldCount: number }
+ */
+export function calculateGraphQLComplexity(query: string): {
+  complexity: number;
+  depth: number;
+  fieldCount: number;
+} {
+  if (!query || typeof query !== 'string') {
+    return { complexity: 0, depth: 0, fieldCount: 0 };
+  }
+
+  // Remove comments and normalize whitespace
+  const normalized = query.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '').replace(/\s+/g, ' ');
+  
+  // Count depth (nested braces)
+  let depth = 0;
+  let maxDepth = 0;
+  
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized[i];
+    
+    if (char === '{') {
+      depth++;
+      maxDepth = Math.max(maxDepth, depth);
+    } else if (char === '}') {
+      depth--;
+    }
+  }
+  
+  // Count fields (words that appear before { or ( or ,)
+  const fieldMatches = normalized.match(/\b\w+\s*[({,]/g);
+  const fieldCount = fieldMatches ? fieldMatches.length : 0;
+  
+  // Calculate complexity: depth * fieldCount * 10 (base multiplier)
+  const complexity = maxDepth * fieldCount * 10;
+  
+  return {
+    complexity,
+    depth: maxDepth,
+    fieldCount
+  };
+}
+
+/**
+ * Rate limiter for GraphQL queries based on complexity
+ */
+export async function graphQLComplexityRateLimiter(
+  req: NextRequest,
+  query: string,
+  userId: number | null,
+  baseLimit: number = 1000 // Base complexity limit
+): Promise<NextResponse | null> {
+  const { complexity, depth, fieldCount } = calculateGraphQLComplexity(query);
+  
+  // Reject queries that are too deep (prevent nested attacks)
+  if (depth > 10) {
+    return NextResponse.json(
+      { 
+        errors: [{ 
+          message: 'Query depth exceeds maximum allowed (10 levels)',
+          extensions: { code: 'QUERY_TOO_DEEP', depth, maxDepth: 10 }
+        }] 
+      },
+      { status: 400 }
+    );
+  }
+  
+  // Reject queries with too many fields
+  if (fieldCount > 100) {
+    return NextResponse.json(
+      { 
+        errors: [{ 
+          message: 'Query contains too many fields (maximum 100)',
+          extensions: { code: 'QUERY_TOO_LARGE', fieldCount, maxFields: 100 }
+        }] 
+      },
+      { status: 400 }
+    );
+  }
+  
+  // Apply complexity-based rate limiting
+  // Higher complexity queries consume more of the limit
+  const complexityMultiplier = Math.ceil(complexity / 100); // Each 100 complexity = 1 request
+  const effectiveLimit = Math.floor(baseLimit / Math.max(1, complexityMultiplier));
+  
+  const ip = getClientIp(req);
+  const key = userId 
+    ? `graphql-complexity:${userId}:${ip}` 
+    : `graphql-complexity:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: effectiveLimit,
+    message: `Query complexity too high. Please simplify your query. (Complexity: ${complexity}, Limit: ${effectiveLimit})`,
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 10, // Allow 10 complex queries in 1 second
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Rate limiter for WebSocket connections
+ */
+export async function websocketConnectionRateLimiter(
+  ip: string,
+  userId: number | null
+): Promise<{ allowed: boolean; reason?: string; retryAfter?: number }> {
+  // Check IP blacklist
+  if (await isIpBlacklisted(ip)) {
+    return {
+      allowed: false,
+      reason: 'IP address is blacklisted',
+      retryAfter: 3600
+    };
+  }
+  
+  const redis = getRedisClient();
+  const key = userId ? `ws-connection:${userId}:${ip}` : `ws-connection:${ip}`;
+  const redisKey = `rate-limit:${key}`;
+  
+  // Limit: 10 connections per minute per IP/user
+  const maxConnections = 10;
+  const windowMs = 60 * 1000; // 1 minute
+  const ttlSeconds = Math.ceil(windowMs / 1000);
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const count = await redis.eval(RATE_LIMIT_LUA_SCRIPT, 1, redisKey, ttlSeconds) as number;
+      
+      if (count > maxConnections) {
+        const ttl = await redis.ttl(redisKey);
+        return {
+          allowed: false,
+          reason: 'Too many WebSocket connections',
+          retryAfter: ttl > 0 ? ttl : ttlSeconds
+        };
+      }
+      
+      return { allowed: true };
+    } catch (error) {
+      // On Redis error, allow connection but log
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('WebSocket rate limit Redis error:', error);
+      }
+      return { allowed: true };
+    }
+  }
+  
+  // In-memory fallback
+  const entry = rateLimitStore.get(key);
+  const now = Date.now();
+  
+  if (!entry) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return { allowed: true };
+  }
+  
+  if (now > entry.resetAt) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return { allowed: true };
+  }
+  
+  if (entry.count >= maxConnections) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    return {
+      allowed: false,
+      reason: 'Too many WebSocket connections',
+      retryAfter
+    };
+  }
+  
+  entry.count += 1;
+  rateLimitStore.set(key, entry);
+  return { allowed: true };
+}
+
+/**
+ * Rate limiter for WebSocket messages
+ */
+export async function websocketMessageRateLimiter(
+  ip: string,
+  userId: number | null
+): Promise<{ allowed: boolean; reason?: string; retryAfter?: number }> {
+  const redis = getRedisClient();
+  const key = userId ? `ws-message:${userId}:${ip}` : `ws-message:${ip}`;
+  const redisKey = `rate-limit:${key}`;
+  
+  // Limit: 100 messages per second per connection
+  const maxMessages = 100;
+  const windowMs = 1000; // 1 second
+  const ttlSeconds = Math.ceil(windowMs / 1000);
+  
+  if (redis && isRedisAvailable()) {
+    try {
+      const count = await redis.eval(RATE_LIMIT_LUA_SCRIPT, 1, redisKey, ttlSeconds) as number;
+      
+      if (count > maxMessages) {
+        const ttl = await redis.ttl(redisKey);
+        return {
+          allowed: false,
+          reason: 'Too many WebSocket messages',
+          retryAfter: ttl > 0 ? ttl : ttlSeconds
+        };
+      }
+      
+      return { allowed: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('WebSocket message rate limit Redis error:', error);
+      }
+      return { allowed: true };
+    }
+  }
+  
+  // In-memory fallback
+  const entry = rateLimitStore.get(key);
+  const now = Date.now();
+  
+  if (!entry) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return { allowed: true };
+  }
+  
+  if (now > entry.resetAt) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return { allowed: true };
+  }
+  
+  if (entry.count >= maxMessages) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    return {
+      allowed: false,
+      reason: 'Too many WebSocket messages',
+      retryAfter
+    };
+  }
+  
+  entry.count += 1;
+  rateLimitStore.set(key, entry);
+  return { allowed: true };
 }
 
 /**
@@ -190,6 +748,7 @@ export function createRateLimiter(config: RateLimitConfig) {
 
 /**
  * Auth: Login attempts - 5 per 15 minutes per IP
+ * Enhanced with progressive penalty and burst protection
  */
 export const loginRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -199,10 +758,14 @@ export const loginRateLimiter = createRateLimiter({
     const ip = getClientIp(req);
     return `login:${ip}`;
   },
+  progressivePenalty: true, // Enable progressive rate limiting
+  burstLimit: 3, // Allow max 3 attempts in 1 second
+  burstWindowMs: 1000,
 });
 
 /**
  * Auth: Registration - 5 per hour per IP
+ * Enhanced with progressive penalty and burst protection
  */
 export const registerRateLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -212,6 +775,9 @@ export const registerRateLimiter = createRateLimiter({
     const ip = getClientIp(req);
     return `register:${ip}`;
   },
+  progressivePenalty: true,
+  burstLimit: 2, // Allow max 2 registrations in 1 second
+  burstWindowMs: 1000,
 });
 
 /**
@@ -364,8 +930,8 @@ export async function offerQueryRateLimiter(
 }
 
 /**
- * Marketplace: Public product search - 10,000 per minute per IP
- * Production-ready limit similar to major e-commerce platforms
+ * Marketplace: Public product search - 1000 per minute per IP
+ * Enhanced with burst protection for better UX
  */
 export async function marketplaceSearchRateLimiter(
   req: NextRequest
@@ -378,6 +944,9 @@ export async function marketplaceSearchRateLimiter(
     maxRequests: 1000,
     message: 'Too many marketplace searches. Please slow down.',
     keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 20, // Allow 20 searches in 1 second (for autocomplete)
+    burstWindowMs: 1000,
   });
 }
 

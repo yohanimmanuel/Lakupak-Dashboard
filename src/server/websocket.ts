@@ -16,6 +16,11 @@ if (require.main === module) {
 
 // Import jwt AFTER loading environment variables
 import { verifyAccessToken } from '../lib/jwt';
+import { 
+  websocketConnectionRateLimiter, 
+  websocketMessageRateLimiter,
+  getClientIp 
+} from '../utils/rateLimiter';
 
 interface ClientConnection {
   ws: WebSocket;
@@ -85,15 +90,19 @@ class MarketplaceWebSocketServer {
       // Start HTTP server (which also serves WebSocket)
       this.httpServer.listen(port);
 
-      this.wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-        const client: ClientConnection = {
-          ws,
-          userId: null,
-          isAlive: true
-        };
+      this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage) => {
+        // Extract IP address for rate limiting
+        const forwardedFor = request.headers['x-forwarded-for'];
+        const realIp = request.headers['x-real-ip'];
+        const ip = forwardedFor?.toString().split(',')[0].trim() || 
+                   realIp?.toString() || 
+                   request.socket.remoteAddress || 
+                   'unknown';
 
         // Extract token from query string
         let token: string | null = null;
+        let userId: number | null = null;
+        
         try {
           const url = new URL(request.url || '', `http://${request.headers.host}`);
           token = url.searchParams.get('token');
@@ -113,7 +122,7 @@ class MarketplaceWebSocketServer {
             // Remove "Bearer " prefix if present
             const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
             const payload = verifyAccessToken(cleanToken);
-            client.userId = payload.sub;
+            userId = payload.sub;
           } catch (error) {
             // Close connection if JWT_SECRET is not set (configuration error)
             if (!process.env.JWT_SECRET) {
@@ -126,6 +135,19 @@ class MarketplaceWebSocketServer {
           }
         }
 
+        // Apply WebSocket connection rate limiting
+        const connectionCheck = await websocketConnectionRateLimiter(ip, userId);
+        if (!connectionCheck.allowed) {
+          ws.close(1008, connectionCheck.reason || 'Too many connections');
+          return;
+        }
+
+        const client: ClientConnection = {
+          ws,
+          userId,
+          isAlive: true
+        };
+
         // Add client to Set BEFORE setting up event handlers
         this.clients.add(client);
 
@@ -134,9 +156,22 @@ class MarketplaceWebSocketServer {
           client.isAlive = true;
         });
 
-        // Handle incoming messages
-        ws.on('message', (data: Buffer) => {
+        // Handle incoming messages with rate limiting
+        ws.on('message', async (data: Buffer) => {
           try {
+            // Apply WebSocket message rate limiting
+            const messageCheck = await websocketMessageRateLimiter(ip, client.userId);
+            if (!messageCheck.allowed) {
+              ws.send(JSON.stringify({ 
+                type: 'error', 
+                data: { 
+                  message: messageCheck.reason || 'Too many messages',
+                  retryAfter: messageCheck.retryAfter 
+                } 
+              }));
+              return;
+            }
+
             const message: WebSocketMessage = JSON.parse(data.toString());
             
             if (message.type === 'ping') {

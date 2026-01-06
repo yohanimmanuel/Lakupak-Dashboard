@@ -15,6 +15,7 @@ import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils'
 import {
   getCachedMarketplaceSearch,
   setCachedMarketplaceSearch,
+  invalidateSearchCache,
 } from '@/utils/searchCache';
 
 interface OfferDiscountType {
@@ -639,18 +640,22 @@ const fetchMarketplaceProducts = async (args: {
 }) => {
   const { page = 1, limit = 20, category, search } = args;
   
-  // Check cache first
-  const cachedResult = await getCachedMarketplaceSearch<{
-    nodes: unknown[];
-    pagination: ReturnType<typeof buildPaginationInfo>;
-    timestamp?: string;
-  }>({ search: search || null, category: category || null, page, limit });
-  
-  if (cachedResult) {
-    return {
-      ...cachedResult,
-      timestamp: new Date().toISOString()
-    };
+  // ONLY use cache for search queries (when search parameter is provided)
+  // Regular marketplace listings should always be fresh to show real-time offer/price updates
+  let cachedResult = null;
+  if (search && search.trim()) {
+    cachedResult = await getCachedMarketplaceSearch<{
+      nodes: unknown[];
+      pagination: ReturnType<typeof buildPaginationInfo>;
+      timestamp?: string;
+    }>({ search: search || null, category: category || null, page, limit });
+    
+    if (cachedResult) {
+      return {
+        ...cachedResult,
+        timestamp: new Date().toISOString()
+      };
+    }
   }
   
   // Build where clause for published products only
@@ -762,40 +767,54 @@ const fetchMarketplaceProducts = async (args: {
     }
   });
 
-  // Deactivate expired offers based on date ranges (run asynchronously to not block query)
-  // This will check main dates and date ranges, and deactivate offers that are expired
-  Promise.all(
-    userIds.map(async (userId) => {
-      const result = await deactivateExpiredOffers(prisma, userId);
-      
-      // Broadcast websocket updates for activated and deactivated offers
-      const { broadcastOfferUpdate, broadcastPriceUpdate } = await import('@/utils/websocketBroadcast');
-      
-      // Broadcast for activated offers (scheduled → active)
-      for (const { offerId, productIds } of result.activatedOffers) {
-        try {
-          await broadcastOfferUpdate(offerId, productIds);
-          await broadcastPriceUpdate(productIds);
-        } catch {
-          // Silently fail - non-critical
+  // Deactivate expired offers based on date ranges
+  // Await to ensure broadcasts complete before returning results
+  try {
+      const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import('@/utils/websocketBroadcast');
+    
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const result = await deactivateExpiredOffers(prisma, userId);
+        
+        // Broadcast websocket updates for activated and deactivated offers
+        // Do this BEFORE querying so clients get updates immediately
+        // Collect all broadcasts to run in parallel
+        const broadcastPromises: Promise<void>[] = [];
+        
+        for (const { offerId, productIds } of result.activatedOffers) {
+          // Run all broadcasts in parallel for this offer
+          broadcastPromises.push(
+            broadcastOfferUpdate(offerId, productIds),
+            broadcastPriceUpdate(productIds),
+            broadcastProductUpdate(productIds)
+          );
         }
-      }
-      
-      // Broadcast for deactivated offers (active → scheduled/inactive)
-      for (const { offerId, productIds } of result.deactivatedOffers) {
-        try {
-          await broadcastOfferUpdate(offerId, productIds);
-          await broadcastPriceUpdate(productIds);
-        } catch {
-          // Silently fail - non-critical
+        
+        // Broadcast for deactivated offers (active → scheduled/inactive)
+        for (const { offerId, productIds } of result.deactivatedOffers) {
+          // Run all broadcasts in parallel for this offer
+          broadcastPromises.push(
+            broadcastOfferUpdate(offerId, productIds),
+            broadcastPriceUpdate(productIds),
+            broadcastProductUpdate(productIds)
+          );
         }
-      }
-      
-      return result;
-    })
-  ).catch((error) => {
+        
+        // Wait for all broadcasts to complete
+        if (broadcastPromises.length > 0) {
+          await Promise.allSettled(broadcastPromises);
+          // Invalidate search cache when offers change (only search queries use cache)
+          await invalidateSearchCache('search-cache:marketplace:*');
+          // Small delay to ensure WebSocket messages are sent before query returns
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        return result;
+      })
+    );
+  } catch (error) {
     console.error('[Marketplace] Background offer deactivation failed:', error);
-  });
+  }
 
   // Helper function to check if current time is within any active date range
   const isWithinActiveDateRange = (dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean => {
@@ -1108,8 +1127,11 @@ const fetchMarketplaceProducts = async (args: {
     timestamp: new Date().toISOString()
   };
   
-  // Cache the result
-  await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
+  // ONLY cache search queries (when search parameter is provided)
+  // Regular marketplace listings should always be fresh to show real-time offer/price updates
+  if (search && search.trim()) {
+    await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
+  }
   
   return result;
 };

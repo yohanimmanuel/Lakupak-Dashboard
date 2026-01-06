@@ -1,5 +1,5 @@
 import { type Prisma } from '@/lib/db';
-import { broadcastOfferUpdate, broadcastPriceUpdate } from '@/utils/websocketBroadcast';
+import { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
@@ -198,37 +198,53 @@ const fetchOffersConnection = async (args: {
   // Only deactivate expired offers and update prices on first page load (page 1)
   // This significantly improves performance for pagination and filtering
   if (safePage === 1) {
-    // Run these operations asynchronously without blocking the query
-    // This allows the offers to load quickly while maintenance runs in background
-    Promise.all([
-      (async () => {
-        const result = await deactivateExpiredOffers(prisma, userId);
-        
-        // Broadcast websocket updates for activated and deactivated offers
-        for (const { offerId, productIds } of result.activatedOffers) {
-          try {
-            await broadcastOfferUpdate(offerId, productIds);
-            await broadcastPriceUpdate(productIds);
-          } catch {
-            // Silently fail - non-critical
-          }
-        }
-        
-        for (const { offerId, productIds } of result.deactivatedOffers) {
-          try {
-            await broadcastOfferUpdate(offerId, productIds);
-            await broadcastPriceUpdate(productIds);
-          } catch {
-            // Silently fail - non-critical
-          }
-        }
-        
-        return result;
-      })(),
-      updateProductPricesFromOffers(prisma, userId),
-    ]).catch((error) => {
+    // Await deactivation and broadcast to ensure real-time updates
+    try {
+      const result = await deactivateExpiredOffers(prisma, userId);
+      
+      // Broadcast websocket updates for activated and deactivated offers
+      // Do this BEFORE querying so clients get updates immediately
+      // Collect all affected product IDs for batch broadcast
+      const allAffectedProductIds = new Set<string>();
+      
+      // Collect all broadcasts to run in parallel
+      const broadcastPromises: Promise<void>[] = [];
+      
+      for (const { offerId, productIds } of result.activatedOffers) {
+        productIds.forEach(id => allAffectedProductIds.add(id));
+        // Run all broadcasts in parallel for this offer
+        broadcastPromises.push(
+          broadcastOfferUpdate(offerId, productIds),
+          broadcastPriceUpdate(productIds),
+          broadcastProductUpdate(productIds)
+        );
+      }
+      
+      for (const { offerId, productIds } of result.deactivatedOffers) {
+        productIds.forEach(id => allAffectedProductIds.add(id));
+        // Run all broadcasts in parallel for this offer
+        broadcastPromises.push(
+          broadcastOfferUpdate(offerId, productIds),
+          broadcastPriceUpdate(productIds),
+          broadcastProductUpdate(productIds)
+        );
+      }
+      
+      // Wait for all broadcasts to complete
+      if (broadcastPromises.length > 0) {
+        await Promise.allSettled(broadcastPromises);
+        // Invalidate search cache when offers change (only search queries use cache)
+        const { invalidateSearchCache } = await import('@/utils/searchCache');
+        await invalidateSearchCache('search-cache:marketplace:*');
+        // Small delay to ensure WebSocket messages are sent before query returns
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Update product prices after broadcasting
+      await updateProductPricesFromOffers(prisma, userId);
+    } catch (error) {
       console.error('[Offers] Background maintenance failed for userId:', userId, error);
-    });
+    }
   }
   const whereClause: Prisma.OfferWhereInput = { userId };
 
@@ -266,35 +282,52 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
 
   // Deactivate expired offers and update product prices before fetching
   // This ensures the offer status is current when viewing details
-  await Promise.all([
-    (async () => {
-      const result = await deactivateExpiredOffers(prisma, userId);
-      
-      // Broadcast websocket updates for activated and deactivated offers
-      for (const { offerId, productIds } of result.activatedOffers) {
-        try {
-          await broadcastOfferUpdate(offerId, productIds);
-          await broadcastPriceUpdate(productIds);
-        } catch {
-          // Silently fail - non-critical
-        }
-      }
-      
-      for (const { offerId, productIds } of result.deactivatedOffers) {
-        try {
-          await broadcastOfferUpdate(offerId, productIds);
-          await broadcastPriceUpdate(productIds);
-        } catch {
-          // Silently fail - non-critical
-        }
-      }
-      
-      return result;
-    })(),
-    updateProductPricesFromOffers(prisma, userId),
-  ]).catch((error) => {
+  try {
+    const result = await deactivateExpiredOffers(prisma, userId);
+    
+    // Broadcast websocket updates for activated and deactivated offers
+    // Do this BEFORE querying so clients get updates immediately
+    // Collect all affected product IDs for batch broadcast
+    const allAffectedProductIds = new Set<string>();
+    
+    // Collect all broadcasts to run in parallel
+    const broadcastPromises: Promise<void>[] = [];
+    
+    for (const { offerId, productIds } of result.activatedOffers) {
+      productIds.forEach(pid => allAffectedProductIds.add(pid));
+      // Run all broadcasts in parallel for this offer
+      broadcastPromises.push(
+        broadcastOfferUpdate(offerId, productIds),
+        broadcastPriceUpdate(productIds),
+        broadcastProductUpdate(productIds)
+      );
+    }
+    
+    for (const { offerId, productIds } of result.deactivatedOffers) {
+      productIds.forEach(id => allAffectedProductIds.add(id));
+      // Run all broadcasts in parallel for this offer
+      broadcastPromises.push(
+        broadcastOfferUpdate(offerId, productIds),
+        broadcastPriceUpdate(productIds),
+        broadcastProductUpdate(productIds)
+      );
+    }
+    
+    // Wait for all broadcasts to complete
+    if (broadcastPromises.length > 0) {
+      await Promise.allSettled(broadcastPromises);
+      // Invalidate search cache when offers change (only search queries use cache)
+      const { invalidateSearchCache } = await import('@/utils/searchCache');
+      await invalidateSearchCache('search-cache:marketplace:*');
+      // Small delay to ensure WebSocket messages are sent before query returns
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    // Update product prices after broadcasting
+    await updateProductPricesFromOffers(prisma, userId);
+  } catch (error) {
     console.error('[Offer] Background maintenance failed for userId:', userId, error);
-  });
+  }
 
   const offer = await prisma.offer.findFirst({
     where: {
@@ -467,6 +500,9 @@ const createOffer = async (args: {
 
   try {
     await broadcastOfferUpdate(createdOfferWithRelations.id, productIds);
+    // Invalidate search cache when offers change (only search queries use cache)
+    const { invalidateSearchCache } = await import('@/utils/searchCache');
+    await invalidateSearchCache('search-cache:marketplace:*');
     await broadcastPriceUpdate(productIds);
   } catch {
     // ignore broadcast failures
@@ -656,6 +692,9 @@ const updateOffer = async (args: {
   try {
     await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIdArray);
     await broadcastPriceUpdate(affectedProductIdArray);
+    // Invalidate search cache when offers change (only search queries use cache)
+    const { invalidateSearchCache } = await import('@/utils/searchCache');
+    await invalidateSearchCache('search-cache:marketplace:*');
   } catch {
     // ignore broadcast failures - non-critical
   }
@@ -697,6 +736,9 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
   try {
     await broadcastOfferUpdate(offerToDelete.id, affectedProductIds);
     await broadcastPriceUpdate(affectedProductIds);
+    // Invalidate search cache when offers change (only search queries use cache)
+    const { invalidateSearchCache } = await import('@/utils/searchCache');
+    await invalidateSearchCache('search-cache:marketplace:*');
   } catch {
     // ignore broadcast failures
   }

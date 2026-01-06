@@ -39,7 +39,9 @@ import {
   orderCreationRateLimiter,
   orderUpdateRateLimiter,
   salesOperationRateLimiter,
-  dashboardQueryRateLimiter
+  dashboardQueryRateLimiter,
+  graphQLComplexityRateLimiter,
+  calculateGraphQLComplexity
 } from '@/utils/rateLimiter';
 
 const typeDefs = mergeTypeDefs([
@@ -479,6 +481,12 @@ async function handler(request: NextRequest) {
       // Requests without valid JWT are treated as anonymous (no user-based rate limiting)
       // Resolvers must enforce authentication requirements for protected operations
       const userId = extractAuthenticatedUserId(request);
+      
+      // Apply GraphQL query complexity rate limiting FIRST (before other checks)
+      const complexityCheck = await graphQLComplexityRateLimiter(request, query, userId);
+      if (complexityCheck) {
+        return complexityCheck;
+      }
       
       // Determine operation type early for all operations
       const opType = getOperationType(query);
