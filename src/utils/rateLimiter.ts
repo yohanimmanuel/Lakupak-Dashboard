@@ -47,12 +47,15 @@ export function getClientIp(req: NextRequest): string {
 }
 
 /**
- * Lua script for atomic rate limiting: INCR and set EXPIRE on first request
+ * Lua script for atomic rate limiting: INCR and set EXPIRE on first request or if TTL is missing
  * Returns the incremented count
+ * Fixed: Also sets EXPIRE if key exists but has no TTL (ttl == -1)
  */
 const RATE_LIMIT_LUA_SCRIPT = `
   local count = redis.call('INCR', KEYS[1])
-  if count == 1 then
+  local ttl = redis.call('TTL', KEYS[1])
+  -- Set EXPIRE if this is the first request (count == 1) OR if key has no TTL (ttl == -1)
+  if count == 1 or ttl == -1 then
     redis.call('EXPIRE', KEYS[1], ARGV[1])
   end
   return count
@@ -111,7 +114,13 @@ export async function rateLimit(
       return null;
     } catch (error) {
       // Redis error - fall through to in-memory fallback
-      if (process.env.NODE_ENV === 'development') {
+      // Only log if it's not a connection error (those are expected during reconnection)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isConnectionError = errorMessage.includes('Stream isn\'t writeable') ||
+                               errorMessage.includes('Connection') ||
+                               errorMessage.includes('ECONNREFUSED');
+      
+      if (process.env.NODE_ENV === 'development' && !isConnectionError) {
         console.warn('Redis rate limit error, using in-memory fallback:', error);
       }
     }
@@ -193,11 +202,11 @@ export const loginRateLimiter = createRateLimiter({
 });
 
 /**
- * Auth: Registration - 3 per hour per IP
+ * Auth: Registration - 5 per hour per IP
  */
 export const registerRateLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 3,
+  maxRequests: 5,
   message: 'Too many registration attempts. Please try again later.',
   keyGenerator: (req) => {
     const ip = getClientIp(req);
@@ -206,7 +215,7 @@ export const registerRateLimiter = createRateLimiter({
 });
 
 /**
- * Auth: OTP Request - 3 per 5 minutes per phone number
+ * Auth: OTP Request - 5 per 5 minutes per phone number
  * This is critical because each OTP costs money via Twilio
  */
 export async function otpRateLimiter(
@@ -218,14 +227,14 @@ export async function otpRateLimiter(
   
   return rateLimit(req, {
     windowMs: 5 * 60 * 1000, // 5 minutes
-    maxRequests: 3,
+    maxRequests: 5,
     message: 'Too many OTP requests. Please try again in 5 minutes.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Auth: Password Reset - 3 per hour per email
+ * Auth: Password Reset - 5 per hour per email
  */
 export async function passwordResetRateLimiter(
   req: NextRequest,
@@ -236,61 +245,61 @@ export async function passwordResetRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 3,
+    maxRequests: 5,
     message: 'Too many password reset requests. Please try again in 1 hour.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Orders: Creation - 50 per hour per user
+ * Orders: Creation - 100 per hour per user (or IP if userId is null)
  */
 export async function orderCreationRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `order-create:${userId}:${ip}`;
+  const key = userId ? `order-create:${userId}:${ip}` : `order-create:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50,
+    maxRequests: 100,
     message: 'Too many orders created. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Orders: Queries - 50 per minute per user
+ * Orders: Queries - 100 per minute per user (or IP if userId is null)
  */
 export async function orderQueryRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `order-query:${userId}:${ip}`;
+  const key = userId ? `order-query:${userId}:${ip}` : `order-query:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 50,
+    maxRequests: 100,
     message: 'Too many order queries. Please slow down.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Orders: Updates - 50 per minute per user
+ * Orders: Updates - 100 per minute per user (or IP if userId is null)
  */
 export async function orderUpdateRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `order-update:${userId}:${ip}`;
+  const key = userId ? `order-update:${userId}:${ip}` : `order-update:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 50,
+    maxRequests: 100,
     message: 'Too many order updates. Please slow down.',
     keyGenerator: () => key,
   });
@@ -301,54 +310,54 @@ export async function orderUpdateRateLimiter(
 // ============================================================================
 
 /**
- * Offers: Creation - 10 per hour per user
+ * Offers: Creation - 100 per hour per user
  */
 export async function offerCreationRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `offer-create:${userId}:${ip}`;
+  const key = userId ? `offer-create:${userId}:${ip}` : `offer-create:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 10,
+    maxRequests: 100,
     message: 'Too many offers created. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Offers: Updates - 20 per hour per user
+ * Offers: Updates - 100 per hour per user
  */
 export async function offerUpdateRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `offer-update:${userId}:${ip}`;
+  const key = userId ? `offer-update:${userId}:${ip}` : `offer-update:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 20,
+    maxRequests: 100,
     message: 'Too many offer updates. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Offers: Queries - 30 per minute per user
+ * Offers: Queries - 100 per minute per user
  */
 export async function offerQueryRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `offer-query:${userId}:${ip}`;
+  const key = userId ? `offer-query:${userId}:${ip}` : `offer-query:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 30,
+    maxRequests: 100,
     message: 'Too many offer queries. Please slow down.',
     keyGenerator: () => key,
   });
@@ -409,7 +418,7 @@ export async function userActivityRateLimiter(
 }
 
 /**
- * Marketplace: Address CRUD - 20 per hour per user
+ * Marketplace: Address CRUD - 100 per hour per user
  */
 export async function addressOperationRateLimiter(
   req: NextRequest,
@@ -420,18 +429,18 @@ export async function addressOperationRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 20,
+    maxRequests: 100,
     message: 'Too many address operations. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Image Upload - 50 per hour per user
+ * Image Upload - 100 per hour per user (or IP if userId is null)
  */
 export async function imageUploadRateLimiter(
   req: NextRequest,
-  userId?: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
   const key = userId ? `image-upload:${userId}:${ip}` : `image-upload:${ip}`;
@@ -445,11 +454,11 @@ export async function imageUploadRateLimiter(
 }
 
 /**
- * Image Delete - 100 per hour per user
+ * Image Delete - 100 per hour per user (or IP if userId is null)
  */
 export async function imageDeleteRateLimiter(
   req: NextRequest,
-  userId?: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
   const key = userId ? `image-delete:${userId}:${ip}` : `image-delete:${ip}`;
@@ -467,14 +476,14 @@ export async function imageDeleteRateLimiter(
 // ============================================================================
 
 /**
- * Products: Creation - 100 per hour per user
+ * Products: Creation - 100 per hour per user (or IP if userId is null)
  */
 export async function productCreationRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `product-create:${userId}:${ip}`;
+  const key = userId ? `product-create:${userId}:${ip}` : `product-create:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
@@ -485,14 +494,14 @@ export async function productCreationRateLimiter(
 }
 
 /**
- * Products: Updates - 100 per hour per user
+ * Products: Updates - 100 per hour per user (or IP if userId is null)
  */
 export async function productUpdateRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `product-update:${userId}:${ip}`;
+  const key = userId ? `product-update:${userId}:${ip}` : `product-update:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
@@ -503,14 +512,14 @@ export async function productUpdateRateLimiter(
 }
 
 /**
- * Products: Queries - 100 per minute per user
+ * Products: Queries - 100 per minute per user (or IP if userId is null)
  */
 export async function productQueryRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `product-query:${userId}:${ip}`;
+  const key = userId ? `product-query:${userId}:${ip}` : `product-query:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
@@ -521,73 +530,181 @@ export async function productQueryRateLimiter(
 }
 
 /**
- * Products: Bulk Publish - 20 per hour per user
+ * Products: Bulk Publish - 100 per hour per user (or IP if userId is null)
  */
 export async function productBulkPublishRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `product-bulk-publish:${userId}:${ip}`;
+  const key = userId ? `product-bulk-publish:${userId}:${ip}` : `product-bulk-publish:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 20,
+    maxRequests: 100,
     message: 'Too many bulk publish operations. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Campaigns: All operations - 50 per hour per user
+ * Campaigns: Query operations - 100 per hour per user
  */
-export async function campaignOperationRateLimiter(
+export async function campaignQueryRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `campaign-operation:${userId}:${ip}`;
+  const key = userId ? `campaign-query:${userId}:${ip}` : `campaign-query:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50,
-    message: 'Too many campaign operations. Please try again later.',
+    maxRequests: 100,
+    message: 'Too many campaign queries. Please slow down.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Clients (Buyers/Suppliers): All operations - 50 per hour per user
+ * Campaigns: Creation - 100 per hour per user
  */
-export async function clientOperationRateLimiter(
+export async function campaignCreationRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `client-operation:${userId}:${ip}`;
+  const key = userId ? `campaign-create:${userId}:${ip}` : `campaign-create:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50,
-    message: 'Too many client operations. Please try again later.',
+    maxRequests: 100,
+    message: 'Too many campaigns created. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Settings/User: All operations - 10 per hour per user
+ * Campaigns: Update operations - 100 per hour per user
+ */
+export async function campaignUpdateRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `campaign-update:${userId}:${ip}` : `campaign-update:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many campaign updates. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Clients (Buyers/Suppliers): Query operations - 100 per hour per user
+ */
+export async function clientQueryRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `client-query:${userId}:${ip}` : `client-query:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many client queries. Please slow down.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Clients (Buyers/Suppliers): Creation - 100 per hour per user
+ */
+export async function clientCreationRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `client-create:${userId}:${ip}` : `client-create:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many clients created. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Clients (Buyers/Suppliers): Update operations - 100 per hour per user
+ */
+export async function clientUpdateRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `client-update:${userId}:${ip}` : `client-update:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many client updates. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Settings/User: All operations - 100 per hour per user
  */
 export async function settingsOperationRateLimiter(
   req: NextRequest,
-  userId: number
+  userId: number | null
 ): Promise<NextResponse | null> {
   const ip = getClientIp(req);
-  const key = `settings-operation:${userId}:${ip}`;
+  const key = userId ? `settings-operation:${userId}:${ip}` : `settings-operation:${ip}`;
   
   return rateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 10,
+    maxRequests: 100,
     message: 'Too many settings updates. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Sales: All operations - 100 per hour per user
+ */
+export async function salesOperationRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `sales-operation:${userId}:${ip}` : `sales-operation:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many sales operations. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
+ * Dashboard: Query operations - 100 per hour per user
+ */
+export async function dashboardQueryRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `dashboard-query:${userId}:${ip}` : `dashboard-query:${ip}`;
+  
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 100,
+    message: 'Too many dashboard queries. Please slow down.',
     keyGenerator: () => key,
   });
 }

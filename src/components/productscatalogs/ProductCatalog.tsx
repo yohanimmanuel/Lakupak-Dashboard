@@ -570,6 +570,17 @@ export default function ProductCatalog({
     }));
   };
 
+  // Validate numeric input (allows positive numbers, decimals, and empty string)
+  const validateNumericInput = (value: string): boolean => {
+    // Allow empty string (for clearing the field)
+    if (value === '') return true;
+    // Allow positive numbers with optional decimal point and up to 2 decimal places
+    // This regex allows: integers (e.g., 123), decimals (e.g., 123.45)
+    // Does not allow: negative numbers, standalone decimal points, or leading decimals
+    const numericRegex = /^\d+\.?\d{0,2}$/;
+    return numericRegex.test(value);
+  };
+
   // Update combination
   const updateCombination = (combinationId: string, field: string, value: string | number | undefined) => {
     setCombinations(prev => prev.map(combination => {
@@ -2351,6 +2362,15 @@ export default function ProductCatalog({
                             <input
                               type="text"
                           id="apply-selling"
+                           onInput={(e) => {
+                             const input = e.target as HTMLInputElement;
+                             const value = input.value;
+                             // Only allow numeric input (allows numbers, decimals, and empty string)
+                             if (!validateNumericInput(value)) {
+                               // Remove the last character if invalid
+                               input.value = value.slice(0, -1);
+                             }
+                           }}
                            disabled={isOfferConnected}
                            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                           placeholder={getPricePlaceholder(userCurrency)}
@@ -2368,6 +2388,15 @@ export default function ProductCatalog({
                                 <input 
                           type="text"
                           id="apply-purchase"
+                           onInput={(e) => {
+                             const input = e.target as HTMLInputElement;
+                             const value = input.value;
+                             // Only allow numeric input (allows numbers, decimals, and empty string)
+                             if (!validateNumericInput(value)) {
+                               // Remove the last character if invalid
+                               input.value = value.slice(0, -1);
+                             }
+                           }}
                            disabled={isOfferConnected}
                            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
                           placeholder={getPricePlaceholder(userCurrency)}
@@ -2510,7 +2539,13 @@ export default function ProductCatalog({
                               <input
                                 type="text"
                                 value={String(combination.sellingPrice)}
-                                onChange={(e) => updateCombination(combination.id, 'sellingPrice', e.target.value)}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  // Only update if the value is numeric (allows numbers, decimals, and empty string)
+                                  if (validateNumericInput(value)) {
+                                    updateCombination(combination.id, 'sellingPrice', value);
+                                  }
+                                }}
                                 disabled={isViewMode || isOfferConnected}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}
@@ -2542,7 +2577,13 @@ export default function ProductCatalog({
                               <input
                                 type="text"
                                 value={String(combination.purchasePrice)}
-                                onChange={(e) => updateCombination(combination.id, 'purchasePrice', e.target.value)}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  // Only update if the value is numeric (allows numbers, decimals, and empty string)
+                                  if (validateNumericInput(value)) {
+                                    updateCombination(combination.id, 'purchasePrice', value);
+                                  }
+                                }}
                                 disabled={isViewMode || isOfferConnected}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}

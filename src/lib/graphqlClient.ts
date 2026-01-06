@@ -9,7 +9,8 @@ type GraphQLResponse<T> = {
 
 export async function fetchGraphQL<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  options?: { cache?: RequestCache }
 ): Promise<T> {
   // Remove null and undefined values from variables to avoid GraphQL validation errors
   const cleanVariables = variables ? Object.fromEntries(
@@ -22,6 +23,7 @@ export async function fetchGraphQL<T>(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query, variables: cleanVariables }),
+    cache: options?.cache || 'default',
   });
 
     if (!response.ok) {

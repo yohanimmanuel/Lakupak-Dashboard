@@ -104,7 +104,7 @@ export default function ProductsPage() {
   `;
 
   // Fetch products from GraphQL API
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (forceRefresh = false) => {
     if (!user?.id) return;
     
     setLoading(true);
@@ -136,7 +136,7 @@ export default function ProductsPage() {
         userId: user.id,
         page: 1,
         limit: 1000, // Fetch all products for the products page
-      });
+      }, forceRefresh ? { cache: 'no-store' } : {});
 
       const productsData = data.products.nodes;
         setProducts(productsData);
@@ -165,7 +165,7 @@ export default function ProductsPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, products.length]); // Removed PRODUCTS_QUERY - it's a constant and shouldn't cause re-renders
+  }, [user?.id]); // Removed products.length dependency to avoid stale closures
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -543,7 +543,7 @@ export default function ProductsPage() {
         <div className="flex items-center gap-3">
           {/* Refresh Button */}
           <button
-            onClick={fetchProducts}
+            onClick={() => fetchProducts(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <RefreshCcw className="w-4 h-4" />
@@ -618,6 +618,7 @@ export default function ProductsPage() {
           setProductsAction={setProducts}
           profileToTableRowAction={profileToTableRow}
           onExportXLSXAction={downloadXLSX}
+          onRefreshProductsAction={fetchProducts}
         />
       </div>
     </div>

@@ -15,8 +15,6 @@ import { getTodayBoundaries } from '@/lib/dateUtils';
 import {
   getCachedMarketplaceSearch,
   setCachedMarketplaceSearch,
-  getCachedProductSearch,
-  setCachedProductSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
 
@@ -556,16 +554,6 @@ export const fetchProductsConnection = async (args: {
   productType?: string | null;
 }) => {
   const { userId, page = 1, limit = 50, search, status, productType } = args;
-  
-  // Check cache first
-  const cachedResult = await getCachedProductSearch<{
-    nodes: unknown[];
-    pagination: ReturnType<typeof buildPaginationInfo>;
-  }>({ userId, search, status, productType, page, limit });
-  
-  if (cachedResult) {
-    return cachedResult;
-  }
 
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_PRODUCT_LIMIT);
 
@@ -615,9 +603,6 @@ export const fetchProductsConnection = async (args: {
     nodes,
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
-
-  // Cache the result
-  await setCachedProductSearch({ userId, search, status, productType, page, limit }, result);
 
   return result;
 };
@@ -1045,8 +1030,8 @@ export const createProduct = async (args: {
 
   await broadcastProductChanges(updatedProduct.productId);
   
-  // Invalidate search cache when product is created
-  await invalidateSearchCache('search-cache:*');
+  // Invalidate marketplace search cache (public-facing, needs caching)
+  await invalidateSearchCache('search-cache:marketplace:*');
   
   return mapProductWithOffers(updatedProduct);
 };
@@ -1220,14 +1205,15 @@ export const updateProduct = async (args: {
 
   await broadcastProductChanges(updatedProduct.productId);
   
-  // Invalidate search cache when product is updated
-  await invalidateSearchCache('search-cache:*');
+  // Invalidate marketplace search cache (public-facing, needs caching)
+  await invalidateSearchCache('search-cache:marketplace:*');
   
   return mapProductWithOffers(updatedProduct);
 };
 
 export const deleteProduct = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
+
   const where = isNumericId(id) ? { id: Number(id), userId } : { productId: id, userId };
 
   const productToDelete = await prisma.product.findFirst({
@@ -1240,7 +1226,7 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
   });
 
   if (!productToDelete) {
-    throw new Error('Product not found');
+    throw new Error('Product not found or you do not have permission to delete it');
   }
 
   const [offerMap, soldCountMap] = await Promise.all([
@@ -1253,7 +1239,12 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
     where: isNumericId(id) ? { id: Number(id) } : { productId: id },
   });
 
-  await broadcastProductChanges(productToDelete.productId);
+  // Broadcast changes for marketplace (products affect public marketplace)
+  try {
+    await broadcastProductChanges(productToDelete.productId);
+  } catch {
+    // ignore broadcast failures
+  }
 
   return {
     success: true,
@@ -1553,8 +1544,8 @@ export const publishMarketplaceProduct = async (args: {
 
   await broadcastProductChanges(updatedProduct.productId);
   
-  // Invalidate search cache when product is published/unpublished
-  await invalidateSearchCache('search-cache:*');
+  // Invalidate marketplace search cache (public-facing, needs caching)
+  await invalidateSearchCache('search-cache:marketplace:*');
 
   return {
     success: true,

@@ -41,7 +41,7 @@ export function getRedisClient(): Redis | null {
         }
         return false;
       },
-      enableOfflineQueue: false, // Don't queue commands when disconnected
+      enableOfflineQueue: true, // Queue commands when disconnected, they'll execute when reconnected
       connectTimeout: 10000, // 10 second timeout
       lazyConnect: false, // Connect immediately
     });

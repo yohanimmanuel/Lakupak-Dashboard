@@ -45,8 +45,13 @@ function generateProductSearchCacheKey(params: {
 export async function getCachedSearchResult<T>(cacheKey: string): Promise<T | null> {
   const redis = getRedisClient();
   
-  if (!redis || !isRedisAvailable()) {
+  if (!redis) {
     return null; // No cache available, fall through to database
+  }
+
+  // Check if Redis is actually connected before attempting operations
+  if (!isRedisAvailable() || (redis.status !== 'ready' && redis.status !== 'connect')) {
+    return null; // Redis not connected, fall through to database
   }
 
   try {
@@ -57,8 +62,12 @@ export async function getCachedSearchResult<T>(cacheKey: string): Promise<T | nu
     return null;
   } catch (error) {
     // Cache error - fall through to database
+    // Only log if it's not a connection/disconnection error
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Cache read error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('Stream isn\'t writeable') && !errorMessage.includes('Connection is closed')) {
+        console.warn('Cache read error:', error);
+      }
     }
     return null;
   }
@@ -74,16 +83,25 @@ export async function setCachedSearchResult<T>(
 ): Promise<void> {
   const redis = getRedisClient();
   
-  if (!redis || !isRedisAvailable()) {
+  if (!redis) {
     return; // No cache available, skip caching
+  }
+
+  // Check if Redis is actually connected before attempting operations
+  if (!isRedisAvailable() || (redis.status !== 'ready' && redis.status !== 'connect')) {
+    return; // Redis not connected, skip caching
   }
 
   try {
     await redis.setex(cacheKey, ttl, JSON.stringify(data));
   } catch (error) {
     // Cache error - non-critical, just log
+    // Only log if it's not a connection/disconnection error
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Cache write error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('Stream isn\'t writeable') && !errorMessage.includes('Connection is closed')) {
+        console.warn('Cache write error:', error);
+      }
     }
   }
 }

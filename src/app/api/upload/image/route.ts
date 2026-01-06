@@ -4,8 +4,8 @@ import cloudinary from '@/lib/cloudinary';
 import { imageUploadRateLimiter, imageDeleteRateLimiter } from '@/utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
-  // Apply rate limiting: 50 uploads per hour
-  const rateLimitResponse = await imageUploadRateLimiter(req);
+  // Apply rate limiting: 100 uploads per hour
+  const rateLimitResponse = await imageUploadRateLimiter(req, null);
   if (rateLimitResponse) {
     return rateLimitResponse;
   }
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   // Apply rate limiting: 100 deletions per hour
-  const rateLimitResponse = await imageDeleteRateLimiter(req);
+  const rateLimitResponse = await imageDeleteRateLimiter(req, null);
   if (rateLimitResponse) {
     return rateLimitResponse;
   }
