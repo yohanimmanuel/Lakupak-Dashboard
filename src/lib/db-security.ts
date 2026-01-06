@@ -428,17 +428,15 @@ async function sendToAuditService(entry: SanitizedAuditEntry): Promise<void> {
   
   if (!auditServiceUrl) {
     // Fallback: log to structured logger (Winston, Pino, or console)
-    if (process.env.NODE_ENV === 'production') {
-      const structuredLog = {
-        level: 'audit',
-        service: 'database',
-        ...entry,
-      };
-      
-      // Use configured logger or console fallback
-      const logger = await getLogger();
-      logger.audit(structuredLog);
-    }
+    const structuredLog = {
+      level: 'audit',
+      service: 'database',
+      ...entry,
+    };
+    
+    // Use configured logger or console fallback
+    const logger = await getLogger();
+    logger.audit(structuredLog);
     return;
   }
   
