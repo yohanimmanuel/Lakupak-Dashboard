@@ -11,6 +11,8 @@ interface QueryRateLimitConfig {
   windowMs: number;
   userId?: number | null;
   ip?: string;
+  userAgent?: string;
+  requestHeaders?: Record<string, string>;
 }
 
 /**
@@ -42,22 +44,57 @@ setInterval(() => {
 /**
  * Track and rate limit database queries
  * Anonymous requests (no userId or IP) are rate-limited with stricter limits
+ * Anonymous requests are differentiated by User-Agent hash to prevent DoS attacks
  */
 export async function checkDatabaseQueryRateLimit(
   config: QueryRateLimitConfig
 ): Promise<{ allowed: boolean; reason?: string; retryAfter?: number }> {
-  const { maxQueries, windowMs, userId, ip } = config;
+  const { maxQueries, windowMs, userId, ip, userAgent, requestHeaders } = config;
   
   // Create identifier key - use userId only for authenticated users, IP only when userId is absent
-  // This prevents fragmentation of user rate limits and avoids shared 'unknown' buckets
-  const identifierKey = userId 
-    ? `user:${userId}` 
-    : ip 
-    ? `ip:${ip}`
-    : 'anonymous';
+  // For anonymous requests, hash User-Agent and other headers to prevent shared bucket DoS
+  let identifierKey: string;
+  if (userId) {
+    identifierKey = `user:${userId}`;
+  } else if (ip) {
+    identifierKey = `ip:${ip}`;
+  } else {
+    // Anonymous request: create a fingerprint from available headers to prevent shared bucket DoS
+    const fingerprintParts: string[] = [];
+    
+    // Use User-Agent if available
+    if (userAgent) {
+      fingerprintParts.push(`ua:${userAgent}`);
+    }
+    
+    // Use other identifying headers if available
+    if (requestHeaders) {
+      // Use Accept-Language as additional differentiation
+      if (requestHeaders['accept-language']) {
+        fingerprintParts.push(`lang:${requestHeaders['accept-language']}`);
+      }
+      // Use Accept-Encoding as additional differentiation
+      if (requestHeaders['accept-encoding']) {
+        fingerprintParts.push(`enc:${requestHeaders['accept-encoding']}`);
+      }
+    }
+    
+    // If we have any fingerprint parts, hash them; otherwise use a generic anonymous key
+    if (fingerprintParts.length > 0) {
+      const fingerprint = fingerprintParts.join('|');
+      // Create a short hash (first 12 chars) to keep keys manageable while preventing collisions
+      const hash = createHash('sha256').update(fingerprint).digest('hex').substring(0, 12);
+      identifierKey = `anon:${hash}`;
+    } else {
+      // Fallback: use a generic anonymous key (should be rare)
+      identifierKey = 'anonymous';
+    }
+  }
   
   // Apply stricter limits for anonymous requests (10% of normal limit)
-  const effectiveMaxQueries = identifierKey === 'anonymous' 
+  // Check if identifierKey starts with 'anon:' or equals 'anonymous'
+  const isAnonymous = identifierKey.startsWith('anon:') || identifierKey === 'anonymous';
+  const effectiveMaxQueries = isAnonymous
     ? Math.max(1, Math.floor(maxQueries * 0.1)) // At least 1, but 10% of normal limit
     : maxQueries;
   
@@ -83,7 +120,7 @@ export async function checkDatabaseQueryRateLimit(
       
       if (count > effectiveMaxQueries) {
         const ttl = await redis.ttl(redisKey);
-        const reason = identifierKey === 'anonymous'
+        const reason = isAnonymous
           ? 'Too many anonymous database queries. Please authenticate or provide IP address.'
           : 'Too many database queries. Please slow down.';
         return {
@@ -95,30 +132,40 @@ export async function checkDatabaseQueryRateLimit(
       
       return { allowed: true };
     } catch (error) {
-      // On Redis error, allow query but log
+      // On Redis error, fall back to in-memory rate limiting for all requests
+      // Log the error with details
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Database query rate limit Redis error:', error);
+        console.warn('Database query rate limit Redis error, falling back to in-memory limiter:', {
+          error: errorMessage,
+          stack: errorStack,
+          identifierKey,
+        });
       }
-      return { allowed: true };
+      // Fall through to in-memory rate limiting below
     }
   }
   
   // In-memory fallback (should rarely happen in production)
-  // For anonymous requests, apply strict in-memory rate limiting when Redis is unavailable
-  if (identifierKey === 'anonymous') {
-    // Strict limits for anonymous requests: 5 requests per minute
-    const anonymousMaxQueries = 5;
-    const anonymousWindowMs = 60 * 1000; // 1 minute
+  // Apply in-memory rate limiting for all requests when Redis is unavailable
+  {
+    // Use stricter limits for anonymous requests, normal limits for authenticated
+    const memoryMaxQueries = isAnonymous
+      ? 5 // Strict limit for anonymous: 5 requests per minute
+      : Math.max(10, Math.floor(maxQueries * 0.5)); // Authenticated: 50% of normal limit, minimum 10
+    const memoryWindowMs = windowMs;
     
     const now = Date.now();
-    const memoryKey = `db-query:anonymous`;
+    // Use the same identifierKey to differentiate requests
+    const memoryKey = `db-query:${identifierKey}`;
     let entry = memoryRateLimits.get(memoryKey);
     
     // Reset if window has passed
     if (!entry || now > entry.resetAt) {
       entry = {
         count: 0,
-        resetAt: now + anonymousWindowMs,
+        resetAt: now + memoryWindowMs,
       };
     }
     
@@ -127,26 +174,25 @@ export async function checkDatabaseQueryRateLimit(
     memoryRateLimits.set(memoryKey, entry);
     
     // Check if limit exceeded
-    if (entry.count > anonymousMaxQueries) {
+    if (entry.count > memoryMaxQueries) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      const reason = isAnonymous
+        ? 'Too many anonymous database queries. Please authenticate or provide IP address.'
+        : 'Too many database queries. Please slow down.';
       return {
         allowed: false,
-        reason: 'Too many anonymous database queries. Please authenticate or provide IP address.',
-        retryAfter: retryAfter > 0 ? retryAfter : Math.ceil(anonymousWindowMs / 1000),
+        reason,
+        retryAfter: retryAfter > 0 ? retryAfter : Math.ceil(memoryWindowMs / 1000),
       };
     }
     
     // Log warning in development
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Database query rate limit: Anonymous request using in-memory fallback (Redis unavailable)');
+      console.warn(`Database query rate limit: Request using in-memory fallback (Redis unavailable) - ${identifierKey}`);
     }
     
     return { allowed: true };
   }
-  
-  // For non-anonymous requests when Redis is unavailable, allow (logged requests can be tracked separately)
-  // In production, Redis should be available, so this is a fallback
-  return { allowed: true };
 }
 
 /**
@@ -159,13 +205,11 @@ interface QueryComplexityConfig {
 }
 
 /**
- * Analyze Prisma query for complexity
+ * Get default query complexity limits
+ * Note: Real-time query analysis would require Prisma middleware or query logging hooks
+ * For now, we use conservative default limits
  */
-export function analyzeQueryComplexity(
-  query: Prisma.PrismaPromise<unknown>
-): QueryComplexityConfig {
-  // This is a simplified analysis - Prisma doesn't expose query structure easily
-  // In production, you might want to use Prisma middleware or query logging
+export function getDefaultQueryComplexity(): QueryComplexityConfig {
   return {
     maxJoins: 10, // Default limit
     maxResultSize: 10000, // Default limit
@@ -212,6 +256,14 @@ function pseudonymizeUserId(userId: number | null | undefined): string | undefin
   // Use HMAC with secret key for deterministic hashing
   const secret = process.env.AUDIT_HASH_SECRET || process.env.JWT_SECRET;
   if (!secret) {
+    // In production, log warning and return user-specific placeholder instead of throwing
+    // Audit logging should be resilient and not break the application
+    // Use user-specific placeholder to maintain user differentiation in audit logs
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[AUDIT] AUDIT_HASH_SECRET or JWT_SECRET not configured - using user-specific placeholder');
+      return `user-${userId}-no-secret`;
+    }
+    // In development, throw to catch configuration issues early
     throw new Error('AUDIT_HASH_SECRET or JWT_SECRET must be configured for PII protection');
   }
   return createHash('sha256')
@@ -230,15 +282,22 @@ function pseudonymizeIp(ip: string | undefined): string | undefined {
   if (ip.includes('.')) {
     const parts = ip.split('.');
     if (parts.length === 4) {
-      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+      // Redact last octet for IPv4
+      return `${parts.slice(0, 3).join('.')}.xxx`;
     }
   } else if (ip.includes(':')) {
     const parts = ip.split(':');
-    if (parts.length > 0) {
+    // Check for compression token "::" to detect compressed IPv6
+    if (ip.includes('::')) {
+      // For compressed IPv6, use generic redaction
+      return 'xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx';
+    } else {
+      // For full IPv6, redact last segment
       return `${parts.slice(0, -1).join(':')}:xxxx`;
     }
   }
   
+  // Fallback for unrecognized IP format
   return 'xxx.xxx.xxx.xxx';
 }
 
@@ -358,7 +417,7 @@ async function sendToAuditService(entry: SanitizedAuditEntry): Promise<void> {
   
   // Send to external audit service
   try {
-    await fetch(auditServiceUrl, {
+    const res = await fetch(auditServiceUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -368,11 +427,45 @@ async function sendToAuditService(entry: SanitizedAuditEntry): Promise<void> {
       // Add timeout to prevent hanging
       signal: AbortSignal.timeout(5000),
     });
-  } catch (error) {
-    // Log error but don't throw - audit logging should not break application
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[AUDIT] Failed to send to audit service:', error);
+    
+    // Check for HTTP error status codes
+    if (!res.ok) {
+      // Try to read error response body
+      let errorBody = '';
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const json = await res.json();
+          errorBody = JSON.stringify(json);
+        } else {
+          errorBody = await res.text();
+        }
+      } catch {
+        // Ignore errors reading response body
+        errorBody = 'Unable to read error response';
+      }
+      
+      // Log HTTP error with details
+      console.warn('[AUDIT] Audit service returned error status:', {
+        status: res.status,
+        statusText: res.statusText,
+        url: auditServiceUrl,
+        operation: entry.operation,
+        table: entry.table,
+        errorBody,
+      });
     }
+  } catch (error) {
+    // Log network/timeout errors but don't throw - audit logging should not break application
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.warn('[AUDIT] Failed to send to audit service:', {
+      error: errorMessage,
+      stack: errorStack,
+      url: auditServiceUrl,
+      operation: entry.operation,
+      table: entry.table,
+    });
   }
 }
 
@@ -437,14 +530,19 @@ export async function withQueryTimeout<T>(
   query: Promise<T>,
   timeoutMs: number = parseInt(process.env.DB_QUERY_TIMEOUT_MS || '30000', 10)
 ): Promise<T> {
-  return Promise.race([
-    query,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Database query timeout after ${timeoutMs}ms`));
-      }, timeoutMs);
-    }),
-  ]);
+  let timeoutId: NodeJS.Timeout;
+  
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Database query timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  
+  try {
+    return await Promise.race([query, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId!);
+  }
 }
 
 /**
@@ -458,10 +556,12 @@ export async function executeSafeQuery<T>(
     operation: string;
     table?: string;
     timeoutMs?: number;
+    userAgent?: string;
+    requestHeaders?: Record<string, string>;
   }
 ): Promise<T> {
   const startTime = Date.now();
-  const { userId, ip, operation, table, timeoutMs } = options;
+  const { userId, ip, operation, table, timeoutMs, userAgent, requestHeaders } = options;
   
   // Check query rate limit
   const rateLimitCheck = await checkDatabaseQueryRateLimit({
@@ -469,6 +569,8 @@ export async function executeSafeQuery<T>(
     windowMs: 60 * 1000, // 1 minute
     userId,
     ip,
+    userAgent,
+    requestHeaders,
   });
   
   if (!rateLimitCheck.allowed) {

@@ -563,6 +563,9 @@ export async function graphQLComplexityRateLimiter(
   const complexityMultiplier = Math.ceil(complexity / 100); // Each 100 complexity = 1 request
   const effectiveLimit = Math.floor(baseLimit / Math.max(1, complexityMultiplier));
   
+  // Also apply absolute request count limit
+  const absoluteLimit = 100; // Max 100 requests per minute regardless of complexity
+  
   const ip = getClientIp(req);
   const key = userId 
     ? `graphql-complexity:${userId}:${ip}` 
@@ -570,7 +573,7 @@ export async function graphQLComplexityRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: effectiveLimit,
+    maxRequests: Math.min(effectiveLimit, absoluteLimit),
     message: `Query complexity too high. Please simplify your query. (Complexity: ${complexity}, Limit: ${effectiveLimit})`,
     keyGenerator: () => key,
     progressivePenalty: true,
@@ -619,15 +622,22 @@ export async function websocketConnectionRateLimiter(
       
       return { allowed: true };
     } catch (error) {
-      // On Redis error, allow connection but log
+      // On Redis error, fall back to in-memory rate limiting
+      // Log the error with details
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       if (process.env.NODE_ENV === 'development') {
-        console.warn('WebSocket rate limit Redis error:', error);
+        console.warn('WebSocket connection rate limit Redis error, falling back to in-memory limiter:', {
+          error: errorMessage,
+          stack: errorStack,
+          key,
+        });
       }
-      return { allowed: true };
+      // Fall through to in-memory rate limiting below
     }
   }
   
-  // In-memory fallback
+  // In-memory fallback (used when Redis is unavailable or errors occur)
   const entry = rateLimitStore.get(key);
   const now = Date.now();
   
@@ -692,14 +702,22 @@ export async function websocketMessageRateLimiter(
       
       return { allowed: true };
     } catch (error) {
+      // On Redis error, fall back to in-memory rate limiting
+      // Log the error with details
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       if (process.env.NODE_ENV === 'development') {
-        console.warn('WebSocket message rate limit Redis error:', error);
+        console.warn('WebSocket message rate limit Redis error, falling back to in-memory limiter:', {
+          error: errorMessage,
+          stack: errorStack,
+          key,
+        });
       }
-      return { allowed: true };
+      // Fall through to in-memory rate limiting below
     }
   }
   
-  // In-memory fallback
+  // In-memory fallback (used when Redis is unavailable or errors occur)
   const entry = rateLimitStore.get(key);
   const now = Date.now();
   
