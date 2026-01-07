@@ -1,13 +1,13 @@
 # 🤗 Laku 🤗
 
 ## Overview
-Laku is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a secure, controlled marketplace for their buyers — small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
+Laku is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a secure, controlled marketplace for their buyers small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
 
 On the SaaS side, distributors gain access to a private dashboard for managing inventory, processing orders, tracking analytics, maintaining customer relationships, and generating detailed sales reports. Each distributor operates in their own secure environment, with no visibility into competitor data or pricing. On the marketplace side, verified buyers can browse and purchase products from approved distributors, but are restricted from comparing prices across multiple suppliers for the same product, ensuring fair competition and price stability. 
 
 Laku goes beyond simple order management by offering value-added features like verified buyer and supplier lead generation. This helps distributors expand their network and discover new opportunities without exposing sensitive business data. Over time, the platform will integrate additional services such as embedded logistics, digital payments, and financing solutions, enabling faster order fulfillment and easier access to working capital. 
 
-By digitizing a traditionally manual and fragmented sector, Laku aims to empower distributors and small retailers alike. It replaces outdated, scattered tools — spreadsheets, chat-based ordering, and paper records — with a single mobile-friendly solution. The result is improved efficiency, stronger business relationships, and a healthier competitive landscape for Indonesia’s consumer goods market.
+By digitizing a traditionally manual and fragmented sector, Laku aims to empower distributors and small retailers alike. It replaces outdated, scattered tools such as spreadsheets, chat-based ordering, and paper records with a single mobile-friendly solution. The result is improved efficiency, stronger business relationships, and a healthier competitive landscape for Indonesia’s consumer goods market.
 
 The platform combines:
 - **Vertical SaaS Dashboard** – A business management suite tailored for distributors, enabling them to manage products, orders, customers, suppliers, and analytics.
