@@ -330,11 +330,23 @@ function pseudonymizeIp(ip: string | undefined): string | undefined {
 
 /**
  * Determine retention period based on operation type
+ * Handles both exact uppercase operations ("CREATE"/"UPDATE"/"DELETE") and dot-notation operations (e.g., "Order.create", "Supplier.delete")
  */
 function getRetentionDays(operation: string): number {
-  // Sensitive operations require longer retention
-  if (operation === 'DELETE') return 90; // 90 days for deletions
-  if (operation === 'UPDATE' || operation === 'CREATE') return 60; // 60 days for modifications
+  // Normalize operation to uppercase for case-insensitive matching
+  const normalizedOp = operation.toUpperCase();
+  
+  // Check for DELETE operations (exact match or dot-notation suffix)
+  if (normalizedOp === 'DELETE' || normalizedOp.endsWith('.DELETE')) {
+    return 90; // 90 days for deletions
+  }
+  
+  // Check for UPDATE or CREATE operations (exact match or dot-notation suffix)
+  if (normalizedOp === 'UPDATE' || normalizedOp === 'CREATE' || 
+      normalizedOp.endsWith('.UPDATE') || normalizedOp.endsWith('.CREATE')) {
+    return 60; // 60 days for modifications
+  }
+  
   return 30; // 30 days for reads
 }
 
@@ -515,28 +527,39 @@ export function logDatabaseAccess(entry: Omit<DatabaseLogEntry, 'timestamp'>): v
     }
   }
   
-  // In production, send to audit service with PII protection
-  if (process.env.NODE_ENV === 'production') {
-    // Log sensitive operations (CREATE, UPDATE, DELETE)
-    if (entry.operation === 'DELETE' || entry.operation === 'UPDATE' || entry.operation === 'CREATE') {
-      const sanitizedEntry: SanitizedAuditEntry = {
-        timestamp: logEntry.timestamp.toISOString(),
-        userIdHash: pseudonymizeUserId(entry.userId),
-        ipHash: pseudonymizeIp(entry.ip),
-        operation: entry.operation,
-        table: entry.table,
-        duration: entry.duration,
-        success: entry.success,
-        error: entry.error,
-        retentionDays: getRetentionDays(entry.operation),
-        accessLevel: 'restricted', // Enforce restricted access
-      };
-      
-      // Send to external audit service (async, non-blocking)
-      sendToAuditService(sanitizedEntry).catch(() => {
-        // Silently fail - audit logging should not break application
-      });
-    }
+  // Send to audit service if configured (works in both dev and production)
+  // Log sensitive operations (CREATE, UPDATE, DELETE) and all operations if AUDIT_SERVICE_URL is set
+  const shouldAudit = process.env.AUDIT_SERVICE_URL && (
+    entry.operation === 'DELETE' || 
+    entry.operation === 'UPDATE' || 
+    entry.operation === 'CREATE' ||
+    entry.operation.includes('.create') ||
+    entry.operation.includes('.update') ||
+    entry.operation.includes('.delete')
+  );
+  
+  if (shouldAudit) {
+    const sanitizedEntry: SanitizedAuditEntry = {
+      timestamp: logEntry.timestamp.toISOString(),
+      userIdHash: pseudonymizeUserId(entry.userId),
+      ipHash: pseudonymizeIp(entry.ip),
+      operation: entry.operation,
+      table: entry.table,
+      duration: entry.duration,
+      success: entry.success,
+      error: entry.error,
+      retentionDays: getRetentionDays(entry.operation),
+      accessLevel: 'restricted', // Enforce restricted access
+    };
+    
+    // Send to external audit service (async, non-blocking)
+    sendToAuditService(sanitizedEntry).catch((error) => {
+      // Log errors in development for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[AUDIT] Failed to send audit log to service:', error);
+      }
+      // Silently fail in production - audit logging should not break application
+    });
   }
 }
 

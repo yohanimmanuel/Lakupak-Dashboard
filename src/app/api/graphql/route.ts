@@ -3,6 +3,7 @@ import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/jwt';
+import { setDbSecurityContextFromRequest } from '@/lib/db';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -481,6 +482,9 @@ async function handler(request: NextRequest) {
       // Requests without valid JWT are treated as anonymous (no user-based rate limiting)
       // Resolvers must enforce authentication requirements for protected operations
       const userId = extractAuthenticatedUserId(request);
+      
+      // Set database security context for audit logging and rate limiting
+      await setDbSecurityContextFromRequest(request, userId);
       
       // Apply GraphQL query complexity rate limiting FIRST (before other checks)
       const complexityCheck = await graphQLComplexityRateLimiter(request, query, userId);
