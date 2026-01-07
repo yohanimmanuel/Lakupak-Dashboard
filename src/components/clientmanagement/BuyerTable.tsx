@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, AlertCircle, Loader2, Users } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, AlertCircle, Loader2, Users, User } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
@@ -283,7 +283,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   }, []);
 
   const handleExportXLSX = useCallback(() => {
-    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Created At', 'Status'];
+    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Status'];
     const rows = filteredBuyers.map((b: BuyerTableRow) => [
       b.buyerId,
       b.name,
@@ -292,7 +292,6 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
       b.totalOrders,
       b.totalSpend,
       b.outstanding,
-      b.createdAt,
       b.status
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -686,7 +685,6 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <th className="py-3 px-4 font-medium uppercase">Total Orders</th>
                 <th className="py-3 px-4 font-medium uppercase">Total Spend</th>
                 <th className="py-3 px-4 font-medium uppercase">Outstanding</th>
-                <th className="py-3 px-4 font-medium uppercase">Created At</th>
                 <th className="py-3 px-4 font-medium uppercase">Status</th>
                 <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
               </tr>
@@ -795,7 +793,45 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     )}
                   </button>
                 </td>
-                <td className="max-w-25 py-3 px-4 font-medium text-black truncate">{String(buyer.buyerId)}</td>
+                <td className="max-w-25 py-3 px-4 font-medium text-black truncate">
+                  <div className="flex items-center gap-3">
+                    {(() => {
+                      const originalBuyer = buyers.find(b => b.id === buyer.id);
+                      const avatar = originalBuyer?.avatar;
+                      const ownerName = originalBuyer?.owner || buyer.name;
+                      const getInitials = (name: string) => {
+                        const trimmed = name.trim();
+                        if (!trimmed) return '?';
+                        return trimmed.split(' ')
+                          .filter(n => n.length > 0)
+                          .map(n => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2);
+                      };
+                      return (
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {avatar ? (
+                            <img 
+                              src={avatar} 
+                              alt={ownerName} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-medium text-black">${getInitials(ownerName)}</span>`;
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xs font-medium text-black">
+                              {getInitials(ownerName)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <span className="truncate">{String(buyer.buyerId)}</span>
+                  </div>
+                </td>
                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">
                   {String(buyer.name).trim() ? (
                     String(buyer.name)
@@ -820,7 +856,6 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</td>
-                <td className="py-3 px-4 text-black">{String(buyer.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>
                     {String(buyer.status)}
@@ -995,15 +1030,35 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               </button>
             </div>
             
-            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
-            <div className="flex items-center justify-between">
-                <span className={`font-bold ${String(buyer.name).trim() ? 'text-[#0a61d7]' : 'text-red-600'}`}>
-                  {String(buyer.name).trim() ? (
-                    buyer.name
-                  ) : (
-                    <span className="font-bold">Missing Name</span>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                {(() => {
+                  const originalBuyer = buyers.find(b => b.id === buyer.id);
+                  const avatar = originalBuyer?.avatar;
+                  const ownerName = originalBuyer?.owner || buyer.name;
+                  if (avatar) {
+                    return <img src={avatar} alt={ownerName} className="w-full h-full object-cover" />;
+                  } else {
+                    return (
+                      <span className="text-xs font-medium text-black">
+                        {ownerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                      </span>
+                    );
+                  }
+                })()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{buyer.buyerId}</span></div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className={`font-bold ${String(buyer.name).trim() ? 'text-[#0a61d7]' : 'text-red-600'}`}>
+                    {String(buyer.name).trim() ? (
+                      buyer.name
+                    ) : (
+                      <span className="font-bold">Missing Name</span>
                   )}
                 </span>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
@@ -1023,13 +1078,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                   <Trash2 className="w-4 h-4 text-red-600" />
                 </button>
               </div>
-            </div>
+              </div>
               <div className="text-xs text-gray-500">Address: <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : 'Missing Address'}</span></div>
               <div className="text-xs text-gray-500">Business Type: <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : 'Missing Business Type'}</span></div>
             <div className="text-xs text-gray-500">Total Orders: <span className="text-black font-medium">{buyer.totalOrders}</span></div>
             <div className="text-xs text-gray-500">Total Spend: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">Outstanding: <span className="text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</span></div>
-            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(buyer.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
               Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{buyer.status}</span>
             </div>

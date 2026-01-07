@@ -402,6 +402,7 @@ export async function POST(request: NextRequest) {
           phone: marketplaceUser.phone || '',
           storeName: marketplaceUser.storeName || 'Mobile Store',
           address: marketplaceUser.chosenAddress || '',
+          avatar: marketplaceUser.image || null,
           userId: distributorUserIdFromClient,
         },
         create: {
@@ -412,6 +413,7 @@ export async function POST(request: NextRequest) {
           storeName: marketplaceUser.storeName || 'Mobile Store',
           businessType: 'Retailer',
           address: marketplaceUser.chosenAddress || '',
+          avatar: marketplaceUser.image || null,
           status: 'Active',
           userId: distributorUserIdFromClient,
         }
@@ -635,6 +637,7 @@ export async function POST(request: NextRequest) {
           phone: marketplaceUser.phone || '',
           storeName: marketplaceUser.storeName || 'Mobile Store',
           address: marketplaceUser.chosenAddress || '',
+          avatar: marketplaceUser.image || null,
           userId: distributorUserId,
         },
         create: {
@@ -645,6 +648,7 @@ export async function POST(request: NextRequest) {
           storeName: marketplaceUser.storeName || 'Mobile Store',
           businessType: 'Retailer',
           address: marketplaceUser.chosenAddress || '',
+          avatar: marketplaceUser.image || null,
           status: 'Active',
           userId: distributorUserId,
         }
