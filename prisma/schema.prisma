@@ -180,6 +180,7 @@ model MarketplaceUser {
   bannerImage    String?
   addresses      Address[]
   userActivities UserActivity[]
+  searchHistory  SearchHistory[]
 
   @@index([phone])
   @@index([email])
@@ -380,6 +381,20 @@ model UserActivity {
   @@index([userId, activityType])
   @@index([productId])
   @@index([activityType])
+}
+
+/// Search history for marketplace users (synced across devices)
+model SearchHistory {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  query     String
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+  user      MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@unique([userId, query]) // Prevent duplicate queries per user
 }
 
 model Offer {

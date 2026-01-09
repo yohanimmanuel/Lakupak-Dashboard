@@ -213,6 +213,25 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     deletedCount: Int!
   }
 
+  type SearchHistory {
+    id: Int!
+    userId: Int!
+    query: String!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type SearchHistoryConnection {
+    success: Boolean!
+    searches: [SearchHistory!]!
+  }
+
+  type SearchHistoryResult {
+    success: Boolean!
+    message: String!
+    search: SearchHistory
+  }
+
   input CreateMarketplaceAddressInput {
     fullName: String!
     phone: String!
@@ -289,6 +308,11 @@ export const marketplaceTypeDefs = /* GraphQL */ `
       page: Int = 1
       limit: Int = 10
     ): OrderConnection!
+    
+    mobileSearchHistory(
+      userId: Int!
+      limit: Int = 10
+    ): SearchHistoryConnection!
   }
 
   extend type Mutation {
@@ -327,6 +351,20 @@ export const marketplaceTypeDefs = /* GraphQL */ `
       productId: String!
       type: ActivityType!
     ): DeleteActivityResult!
+    
+    addSearchHistory(
+      userId: Int!
+      query: String!
+    ): SearchHistoryResult!
+    
+    removeSearchHistory(
+      userId: Int!
+      query: String!
+    ): SearchHistoryResult!
+    
+    clearSearchHistory(
+      userId: Int!
+    ): SearchHistoryResult!
   }
 `;
 
@@ -1491,6 +1529,164 @@ const deleteUserActivity = async (args: {
   };
 };
 
+const fetchMobileSearchHistory = async (args: {
+  userId: number;
+  limit?: number;
+}) => {
+  const { userId, limit = 10 } = args;
+
+  const searches = await prisma.searchHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+
+  return {
+    success: true,
+    searches: searches.map((search: { id: number; userId: number; query: string; createdAt: Date; updatedAt: Date }) => ({
+      id: search.id,
+      userId: search.userId,
+      query: search.query,
+      createdAt: search.createdAt.toISOString(),
+      updatedAt: search.updatedAt.toISOString(),
+    }))
+  };
+};
+
+const addSearchHistory = async (args: {
+  userId: number;
+  query: string;
+}) => {
+  const { userId, query } = args;
+
+  if (!query.trim()) {
+    throw new Error('Search query cannot be empty');
+  }
+
+  const trimmedQuery = query.trim();
+
+  // Wrap all operations in a transaction to prevent race conditions
+  const result = await prisma.$transaction(async (tx) => {
+    // Get all searches for this user (within transaction for consistency)
+    const allSearches = await tx.searchHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Find existing search (case-insensitive)
+    const existingIndex = allSearches.findIndex(
+      (s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase()
+    );
+    const existing = existingIndex !== -1 ? allSearches[existingIndex] : null;
+
+    // Delete existing if found (to move it to top when we recreate it)
+    if (existing) {
+      await tx.searchHistory.delete({
+        where: { id: existing.id }
+      });
+    }
+
+    // Calculate how many searches will exist after we create the new one
+    // If existing was deleted, we have allSearches.length - 1, otherwise allSearches.length
+    const countAfterDeletion = existing ? allSearches.length - 1 : allSearches.length;
+    
+    // If we'll exceed the limit, delete the oldest one
+    if (countAfterDeletion >= 10) {
+      // Get searches sorted by oldest first (excluding the one we just deleted)
+      const searchesToCheck = existing 
+        ? allSearches.filter((s: { id: number }) => s.id !== existing.id)
+        : allSearches;
+      
+      // Sort by oldest first
+      const sortedByOldest = searchesToCheck.sort(
+        (a: { createdAt: Date }, b: { createdAt: Date }) => 
+          a.createdAt.getTime() - b.createdAt.getTime()
+      );
+      
+      // Delete the oldest one
+      if (sortedByOldest.length > 0) {
+        await tx.searchHistory.delete({
+          where: { id: sortedByOldest[0].id }
+        });
+      }
+    }
+
+    // Create new search history (this will be the most recent)
+    // Note: If existing was found, we deleted it above, so this effectively moves it to top
+    const newSearch = await tx.searchHistory.create({
+      data: {
+        userId,
+        query: trimmedQuery,
+      }
+    });
+
+    return newSearch;
+  }, {
+    // Use Serializable isolation to prevent race conditions
+    // Necessary to ensure exactly 10 entries are maintained across concurrent requests
+    isolationLevel: 'Serializable'
+  });
+
+  return {
+    success: true,
+    message: 'Search history added',
+    search: {
+      id: result.id,
+      userId: result.userId,
+      query: result.query,
+      createdAt: result.createdAt.toISOString(),
+      updatedAt: result.updatedAt.toISOString(),
+    }
+  };
+};
+
+const removeSearchHistory = async (args: {
+  userId: number;
+  query: string;
+}) => {
+  const { userId, query } = args;
+  const trimmedQuery = query.trim();
+
+  // Find the search (case-insensitive)
+  const allSearches = await prisma.searchHistory.findMany({
+    where: { userId }
+  });
+  const searchToDelete = allSearches.find((s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase());
+
+  if (searchToDelete) {
+    await prisma.searchHistory.delete({
+      where: { id: searchToDelete.id }
+    });
+    return {
+      success: true,
+      message: 'Search history removed',
+      search: null
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Search history not found',
+    search: null
+  };
+};
+
+const clearSearchHistory = async (args: {
+  userId: number;
+}) => {
+  const { userId } = args;
+
+  await prisma.searchHistory.deleteMany({
+    where: { userId }
+  });
+
+  return {
+    success: true,
+    message: 'Search history cleared',
+    search: null
+  };
+};
+
 // Mobile orders - reuse the existing orders module logic
 // This will be handled by the orders module, but we need to add a query here
 const fetchMobileOrders = async (args: {
@@ -1620,6 +1816,7 @@ export const marketplaceResolvers = {
     mobileCart: (_: unknown, args: { userId: number }) => fetchMobileCart(args.userId),
     mobileUserActivity: (_: unknown, args: Parameters<typeof fetchMobileUserActivity>[0]) => fetchMobileUserActivity(args),
     mobileOrders: (_: unknown, args: Parameters<typeof fetchMobileOrders>[0]) => fetchMobileOrders(args),
+    mobileSearchHistory: (_: unknown, args: Parameters<typeof fetchMobileSearchHistory>[0]) => fetchMobileSearchHistory(args),
   },
   Mutation: {
     updateMarketplaceUser: (_: unknown, args: Parameters<typeof updateMarketplaceUser>[0]) => updateMarketplaceUser(args),
@@ -1644,5 +1841,8 @@ export const marketplaceResolvers = {
     clearCart: (_: unknown, args: { userId: number }) => clearCart(args.userId),
     addUserActivity: (_: unknown, args: { input: Parameters<typeof addUserActivity>[0] }) => addUserActivity(args.input),
     deleteUserActivity: (_: unknown, args: Parameters<typeof deleteUserActivity>[0]) => deleteUserActivity(args),
+    addSearchHistory: (_: unknown, args: Parameters<typeof addSearchHistory>[0]) => addSearchHistory(args),
+    removeSearchHistory: (_: unknown, args: Parameters<typeof removeSearchHistory>[0]) => removeSearchHistory(args),
+    clearSearchHistory: (_: unknown, args: Parameters<typeof clearSearchHistory>[0]) => clearSearchHistory(args),
   },
 };
