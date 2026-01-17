@@ -771,7 +771,10 @@ async function handler(request: NextRequest) {
       }
     }
     
-    return await apolloHandler(request);
+    // Clone the request before passing to Apollo Handler to ensure body is available
+    // This prevents "Body has already been read" errors
+    const clonedRequestForApollo = request.clone();
+    return await apolloHandler(clonedRequestForApollo);
   } catch (error) {
     // Handle JSON parsing errors that escape Apollo Server
     const errorMessage = error instanceof Error ? error.message : String(error);

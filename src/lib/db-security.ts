@@ -432,6 +432,11 @@ async function getLogger(): Promise<Logger> {
   };
 }
 
+// Rate limiting for audit service error logs (prevent spam when service is down)
+let lastAuditErrorLogTime = 0;
+const AUDIT_ERROR_LOG_INTERVAL_MS = 60000; // Log errors at most once per minute
+let auditErrorCount = 0;
+
 /**
  * Send audit log to external logging service
  */
@@ -467,42 +472,65 @@ async function sendToAuditService(entry: SanitizedAuditEntry): Promise<void> {
     
     // Check for HTTP error status codes
     if (!res.ok) {
-      // Try to read error response body
-      let errorBody = '';
-      try {
-        const contentType = res.headers.get('content-type');
-        if (contentType?.includes('application/json')) {
-          const json = await res.json();
-          errorBody = JSON.stringify(json);
-        } else {
-          errorBody = await res.text();
-        }
-      } catch {
-        // Ignore errors reading response body
-        errorBody = 'Unable to read error response';
-      }
+      auditErrorCount++;
       
-      // Log HTTP error with details
-      console.warn('[AUDIT] Audit service returned error status:', {
-        status: res.status,
-        statusText: res.statusText,
-        url: auditServiceUrl,
-        operation: entry.operation,
-        table: entry.table,
-        errorBody,
-      });
+      // Only log errors periodically to prevent spam
+      const now = Date.now();
+      const shouldLogError = now - lastAuditErrorLogTime >= AUDIT_ERROR_LOG_INTERVAL_MS;
+      
+      if (shouldLogError) {
+        // Try to read error response body
+        let errorBody = '';
+        try {
+          const contentType = res.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            const json = await res.json();
+            errorBody = JSON.stringify(json);
+          } else {
+            errorBody = await res.text();
+          }
+        } catch {
+          // Ignore errors reading response body
+          errorBody = 'Unable to read error response';
+        }
+        
+        // Log HTTP error with details (rate limited)
+        console.warn(`[AUDIT] Audit service unavailable (${auditErrorCount} errors since last log):`, {
+          status: res.status,
+          statusText: res.statusText,
+          url: auditServiceUrl,
+          errorBody,
+          note: 'Audit logging continues silently. Errors will be logged again in 1 minute if service remains down.',
+        });
+        
+        lastAuditErrorLogTime = now;
+        auditErrorCount = 0; // Reset counter after logging
+      }
+      // Silently continue if we've logged recently - audit failures should not break the app
+    } else {
+      // Reset error count on successful request
+      auditErrorCount = 0;
+      lastAuditErrorLogTime = 0;
     }
   } catch (error) {
-    // Log network/timeout errors but don't throw - audit logging should not break application
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.warn('[AUDIT] Failed to send to audit service:', {
-      error: errorMessage,
-      stack: errorStack,
-      url: auditServiceUrl,
-      operation: entry.operation,
-      table: entry.table,
-    });
+    auditErrorCount++;
+    
+    // Only log network/timeout errors periodically to prevent spam
+    const now = Date.now();
+    const shouldLogError = now - lastAuditErrorLogTime >= AUDIT_ERROR_LOG_INTERVAL_MS;
+    
+    if (shouldLogError) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[AUDIT] Failed to send to audit service (${auditErrorCount} errors since last log):`, {
+        error: errorMessage,
+        url: auditServiceUrl,
+        note: 'Audit logging continues silently. Errors will be logged again in 1 minute if service remains down.',
+      });
+      
+      lastAuditErrorLogTime = now;
+      auditErrorCount = 0; // Reset counter after logging
+    }
+    // Silently continue on network errors - audit logging should not break application
   }
 }
 
