@@ -2,8 +2,10 @@ import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { verifyAccessToken } from '@/lib/jwt';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -18,6 +20,7 @@ import { userActivityTypeDefs, userActivityResolvers } from './modules/userActiv
 import { marketplaceTypeDefs, marketplaceResolvers } from './modules/marketplace';
 import { salesTypeDefs, salesResolvers } from './modules/sales';
 import { campaignsTypeDefs, campaignsResolvers } from './modules/campaigns';
+import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
 import { 
   offerCreationRateLimiter,
   offerUpdateRateLimiter,
@@ -56,6 +59,7 @@ const typeDefs = mergeTypeDefs([
   marketplaceTypeDefs,
   salesTypeDefs,
   campaignsTypeDefs,
+  notificationsTypeDefs,
 ]);
 
 const resolvers = mergeResolvers([
@@ -69,6 +73,7 @@ const resolvers = mergeResolvers([
   marketplaceResolvers,
   salesResolvers,
   campaignsResolvers,
+  notificationsResolvers,
 ]);
 
 const server = new ApolloServer({
@@ -86,7 +91,18 @@ const server = new ApolloServer({
   },
 });
 
-const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server);
+const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server, {
+  context: async (req: NextRequest) => {
+    const jwtId = extractAuthenticatedUserId(req);
+    if (jwtId != null) return { user: { id: jwtId } };
+    const session = await getServerSession(authOptions);
+    const id = (session?.user as { id?: string | number } | undefined)?.id;
+    if (id == null) return { user: null };
+    const numId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+    if (!Number.isInteger(numId) || numId <= 0) return { user: null };
+    return { user: { id: numId } };
+  },
+});
 
 /**
  * Extract authenticated user ID from JWT token

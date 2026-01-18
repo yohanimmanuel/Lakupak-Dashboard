@@ -33,13 +33,14 @@ import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
-import { broadcastOrderUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
+import { broadcastOrderUpdate, broadcastProductUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { 
   orderQueryRateLimiter,
   orderCreationRateLimiter,
   orderUpdateRateLimiter
 } from '@/utils/rateLimiter';
+import { NotificationService } from '@/app/api/graphql/modules/notifications';
 
 interface OfferDiscountType {
   id: string;
@@ -867,6 +868,21 @@ export async function POST(request: NextRequest) {
       // Ignore broadcast errors
     }
 
+    // Create notification for new order (for distributor dashboard)
+    if (order.userId) {
+      try {
+        await NotificationService.createOrderNotification(
+          order.userId,
+          order.orderId,
+          'Pending', // New orders start as Pending
+          order.storeName || 'Unknown Store',
+          decimalToNumber(order.totalAmount)
+        );
+      } catch (notifError) {
+        // Don't fail the order creation if notification creation fails
+      }
+    }
+
     // Convert order-level Decimal fields to numbers
     const orderResponse = {
       ...order,
@@ -1094,6 +1110,40 @@ export async function PUT(request: NextRequest) {
           // Ignore broadcast errors
         }
         await broadcastSoldCountUpdates(updatedOrder.orderId);
+
+        // Create notification for order cancellation (for distributor dashboard)
+        if (updatedOrder.userId) {
+          try {
+            await NotificationService.createOrderNotification(
+              updatedOrder.userId,
+              updatedOrder.orderId,
+              'Cancelled',
+              updatedOrder.storeName || 'Unknown Store',
+              decimalToNumber(updatedOrder.totalAmount)
+            );
+          } catch (notifError) {
+            // Don't fail the cancellation if notification creation fails
+          }
+        }
+
+        // Broadcast push notification to marketplace buyer via WebSocket
+        try {
+          const buyerId = updatedOrder.buyerId;
+          if (buyerId && buyerId.startsWith('mobile_user_')) {
+            const marketplaceUserId = parseInt(buyerId.replace('mobile_user_', ''), 10);
+            if (!isNaN(marketplaceUserId)) {
+              await broadcastNotification(
+                'order',
+                'Order Cancelled',
+                `Your order #${updatedOrder.orderId} has been cancelled.`,
+                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled' },
+                marketplaceUserId
+              );
+            }
+          }
+        } catch (notifError) {
+          // Don't fail the cancellation if notification broadcast fails
+        }
 
         return NextResponse.json({ 
           success: true, 
@@ -1515,6 +1565,75 @@ export async function PUT(request: NextRequest) {
     }
     if (sanitizedData.orderStatus || sanitizedData.orderItems) {
       await broadcastSoldCountUpdates(order.orderId);
+    }
+
+    // Create notification for order status change (for distributor dashboard)
+    // Skip when status is Pending: "New Order Received" is only for first-time order creation, not status changes to Pending
+    if (sanitizedData.orderStatus && sanitizedData.orderStatus !== 'Pending' && order.userId) {
+      try {
+        await NotificationService.createOrderNotification(
+          order.userId,
+          order.orderId,
+          String(sanitizedData.orderStatus),
+          order.storeName || 'Unknown Store',
+          decimalToNumber((order as { totalAmount?: unknown }).totalAmount)
+        );
+      } catch (notifError) {
+        // Don't fail the order update if notification creation fails
+      }
+    }
+
+    // Broadcast push notification to marketplace buyer via WebSocket
+    if (sanitizedData.orderStatus) {
+      try {
+        // Get marketplace user ID from buyerId (format: mobile_user_{userId})
+        const buyerId = order.buyerId;
+        if (buyerId && buyerId.startsWith('mobile_user_')) {
+          const marketplaceUserId = parseInt(buyerId.replace('mobile_user_', ''), 10);
+          if (!isNaN(marketplaceUserId)) {
+            const orderStatus = String(sanitizedData.orderStatus);
+            let title = 'Order Update';
+            let body = `Your order #${order.orderId} status has been updated.`;
+
+            switch (orderStatus) {
+              case 'Confirmed':
+                title = 'Order Confirmed';
+                body = `Great news! Your order #${order.orderId} has been confirmed and is being processed.`;
+                break;
+              case 'Packed':
+                title = 'Order Packed';
+                body = `Your order #${order.orderId} has been packed and is ready for shipping.`;
+                break;
+              case 'Shipped':
+                title = 'Order Shipped';
+                body = `Your order #${order.orderId} is on its way! Track your delivery for updates.`;
+                break;
+              case 'Delivered':
+                title = 'Order Delivered';
+                body = `Your order #${order.orderId} has been delivered. Enjoy your purchase!`;
+                break;
+              case 'Cancelled':
+                title = 'Order Cancelled';
+                body = `Your order #${order.orderId} has been cancelled.`;
+                break;
+              case 'Returned':
+                title = 'Order Returned';
+                body = `Your order #${order.orderId} return has been processed.`;
+                break;
+            }
+
+            await broadcastNotification(
+              'order',
+              title,
+              body,
+              { orderId: order.orderId, orderStatus },
+              marketplaceUserId
+            );
+          }
+        }
+      } catch (notifError) {
+        // Don't fail the order update if notification broadcast fails
+      }
     }
 
     // Convert order-level Decimal fields to numbers

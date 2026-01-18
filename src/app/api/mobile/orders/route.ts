@@ -13,6 +13,7 @@ import { syncOrderToBuyerProfile, buildMobileBuyerId } from '../../../../utils/b
 import { calculateOrderItemPromotion } from '../../../../utils/promotionUtils';
 // Inline function to avoid circular imports
 import { broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
+import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { 
   orderQueryRateLimiter,
   orderCreationRateLimiter
@@ -466,6 +467,21 @@ export async function POST(request: NextRequest) {
       };
       const order = await prisma.order.create({ data: orderData });
 
+      // Create dashboard notification for new order (distributor)
+      if (order.userId) {
+        try {
+          await NotificationService.createOrderNotification(
+            order.userId,
+            order.orderId,
+            'Pending',
+            order.storeName || 'Unknown Store',
+            groupTotalAmount
+          );
+        } catch (err) {
+          console.error('Failed to create order notification:', err);
+        }
+      }
+
       if (Array.isArray(orderItems) && orderItems.length > 0) {
         const usedOfferIds: string[] = [];
         await prisma.$transaction(async (tx) => {
@@ -700,6 +716,19 @@ export async function POST(request: NextRequest) {
       };
       const order = await prisma.order.create({ data: orderData });
       createdOrders.push({ orderId: order.orderId });
+
+      // Create dashboard notification for new order (distributor)
+      if (order.userId) {
+        try {
+          await NotificationService.createOrderNotification(
+            order.userId,
+            order.orderId,
+            'Pending',
+            order.storeName || 'Unknown Store',
+            groupTotalAmount
+          );
+        } catch (_) { /* ignore */ }
+      }
       
       // Create order items for this distributor only
       if (itemsForDistributor.length > 0) {

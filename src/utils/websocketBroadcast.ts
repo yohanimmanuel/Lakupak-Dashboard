@@ -156,3 +156,59 @@ export async function broadcastOrderUpdate(orderIds: string[]): Promise<void> {
   }
 }
 
+/**
+ * Notify a dashboard user that a new notification was created (real-time).
+ * Sends to WebSocket clients with matching userId so the Dashboard can refetch.
+ */
+export async function broadcastDashboardNotification(userId: number): Promise<void> {
+  return broadcastNotification('dashboard_new', 'New notification', '', { hint: 'refetch' }, userId);
+}
+
+/**
+ * Broadcast notification to connected WebSocket clients
+ * @param type - Notification type (order, inventory, offer, etc.)
+ * @param title - Notification title
+ * @param body - Notification message body
+ * @param data - Additional data to include
+ * @param targetUserId - Optional: send only to specific user
+ */
+export async function broadcastNotification(
+  type: string,
+  title: string,
+  body: string,
+  data?: Record<string, unknown>,
+  targetUserId?: number
+): Promise<void> {
+  try {
+    if (isServerRunning()) {
+      if (wsServer.getConnectedCount() > 0) {
+        wsServer.broadcastNotification(type, title, body, data, targetUserId);
+      }
+    } else {
+      const wsPort = process.env.WS_PORT || '3001';
+      const wsHost = process.env.WS_HOST || 'localhost';
+      try {
+        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'notification',
+            notification: {
+              type,
+              title,
+              body,
+              data,
+              targetUserId
+            }
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+      } catch (error) {
+        // Silently fail
+      }
+    }
+  } catch (error) {
+    // Silently fail
+  }
+}
+

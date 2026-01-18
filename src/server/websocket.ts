@@ -29,11 +29,18 @@ interface ClientConnection {
 }
 
 interface WebSocketMessage {
-  type: 'offer_updated' | 'product_updated' | 'prices_updated' | 'order_updated' | 'ping' | 'pong';
+  type: 'offer_updated' | 'product_updated' | 'prices_updated' | 'order_updated' | 'notification' | 'ping' | 'pong';
   data?: unknown;
   productIds?: string[];
   offerIds?: string[];
   orderIds?: string[];
+  notification?: {
+    type: string;
+    title: string;
+    body: string;
+    data?: Record<string, unknown>;
+    targetUserId?: number;
+  };
 }
 
 class MarketplaceWebSocketServer {
@@ -67,6 +74,14 @@ class MarketplaceWebSocketServer {
                 this.broadcastProductUpdate(data.productIds || []);
               } else if (data.type === 'order_updated') {
                 this.broadcastOrderUpdate(data.orderIds || []);
+              } else if (data.type === 'notification') {
+                this.broadcastNotification(
+                  data.notification?.type || 'system',
+                  data.notification?.title || '',
+                  data.notification?.body || '',
+                  data.notification?.data,
+                  data.notification?.targetUserId
+                );
               }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
@@ -280,6 +295,49 @@ class MarketplaceWebSocketServer {
     };
 
     this.broadcast(message);
+  }
+
+  // Broadcast notification to specific user or all clients
+  broadcastNotification(
+    type: string,
+    title: string,
+    body: string,
+    data?: Record<string, unknown>,
+    targetUserId?: number
+  ): void {
+    const message: WebSocketMessage = {
+      type: 'notification',
+      notification: {
+        type,
+        title,
+        body,
+        data,
+        targetUserId
+      }
+    };
+
+    // If targetUserId is specified, only send to that user
+    if (targetUserId) {
+      this.broadcastToUser(message, targetUserId);
+    } else {
+      this.broadcast(message);
+    }
+  }
+
+  // Broadcast message to a specific user
+  private broadcastToUser(message: WebSocketMessage, userId: number): void {
+    const messageStr = JSON.stringify(message);
+
+    this.clients.forEach((client) => {
+      if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
+        try {
+          client.ws.send(messageStr);
+        } catch (error) {
+          // Client disconnected, remove it
+          this.clients.delete(client);
+        }
+      }
+    });
   }
 
   // Broadcast message to all connected clients
