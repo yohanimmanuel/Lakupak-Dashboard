@@ -505,7 +505,7 @@ const Navbar = () => {
           <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={notifRef}>
             <Bell size={20} className="text-gray-500" onClick={() => { setShowNotifDropdown(v => !v); setShowMsgDropdown(false); setShowDropdown(false); }} />
             {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white rounded-full text-[10px] font-semibold px-1">
+              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </div>
             )}
