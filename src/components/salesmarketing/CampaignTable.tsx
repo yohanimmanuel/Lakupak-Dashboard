@@ -186,12 +186,14 @@ export default function CampaignTable({
   };
 
   const handleSendCampaign = async (campaignData: Campaign) => {
-    // Update campaign status to Sent
+    // Update campaign status to Sent (only if not already sent)
     if (onUpdateCampaign) {
+      const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
       await onUpdateCampaign({
         ...campaignData,
         status: 'Sent',
-        sentDate: new Date().toISOString(),
+        // Only update sentDate for first send, keep original for resends
+        sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
@@ -269,6 +271,19 @@ export default function CampaignTable({
         onDuplicateCampaign(originalCampaign);
       }
     }
+  };
+
+  // Check if the selected campaign is already sent (for resend functionality)
+  const getSelectedCampaignStatus = (): string | null => {
+    if (selectedCampaigns.size !== 1) return null;
+    const campaignId = Array.from(selectedCampaigns)[0];
+    const campaign = campaigns.find((c) => c.id === campaignId);
+    return campaign?.status || null;
+  };
+
+  const isResendMode = () => {
+    const status = getSelectedCampaignStatus();
+    return status === 'Sent' || status === 'Completed';
   };
 
   const formatDate = (dateString?: string) => {
@@ -399,7 +414,9 @@ export default function CampaignTable({
               </div>
               <div className="text-white text-xs font-semibold leading-relaxed">
                 {selectedCampaigns.size === 1 
-                  ? 'Select campaign to be removed or sent.'
+                  ? isResendMode() 
+                    ? 'Select campaign to be removed or resent.'
+                    : 'Select campaign to be removed or sent.'
                   : 'Select campaigns to be removed.'
                 }
               </div>
@@ -408,10 +425,10 @@ export default function CampaignTable({
                   <button
                     onClick={handleBulkSend}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Send selected campaign"
+                    aria-label={isResendMode() ? "Resend selected campaign" : "Send selected campaign"}
                   >
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    Send Campaign
+                    {isResendMode() ? 'Resend Campaign' : 'Send Campaign'}
                   </button>
                 )}
                 <button
@@ -439,7 +456,9 @@ export default function CampaignTable({
               <div className="flex items-center gap-4">
                 <span className="text-white text-xs md:text-sm font-semibold">
                   {selectedCampaigns.size === 1 
-                    ? 'Select campaign to be removed or sent. '
+                    ? isResendMode()
+                      ? 'Select campaign to be removed or resent. '
+                      : 'Select campaign to be removed or sent. '
                     : 'Select campaigns to be removed. '
                   }
                 </span>
@@ -447,10 +466,10 @@ export default function CampaignTable({
                   <button
                     onClick={handleBulkSend}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Send selected campaign"
+                    aria-label={isResendMode() ? "Resend selected campaign" : "Send selected campaign"}
                   >
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    Send Campaign
+                    {isResendMode() ? 'Resend Campaign' : 'Send Campaign'}
                   </button>
                 )}
                 <button

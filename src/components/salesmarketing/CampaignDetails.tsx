@@ -234,10 +234,12 @@ export default function CampaignDetails({
   const handleSendCampaign = async (campaignData: Campaign) => {
     // Save the campaign with Sent status when user confirms sending
     if (onSave) {
+      const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
       await onSave({
         ...campaignData,
         status: 'Sent',
-        sentDate: new Date().toISOString(),
+        // Only update sentDate for first send, keep original for resends
+        sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
@@ -330,6 +332,21 @@ export default function CampaignDetails({
             >
               <Edit className="w-4 h-4" />
               Edit
+            </button>
+          )}
+          {mode === 'view' && (campaign?.status === 'Sent' || campaign?.status === 'Completed') && (
+            <button
+              type="button"
+              onClick={() => {
+                if (campaign) {
+                  setCampaignToSend(campaign);
+                  setShowSendModal(true);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
+            >
+              <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+              Resend Campaign
             </button>
           )}
           {!isViewMode && (
