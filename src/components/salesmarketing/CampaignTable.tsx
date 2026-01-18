@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Trash2, Edit, X, ChevronLeft, ChevronRight, Send, Search, Filter, ChevronDown } from 'lucide-react';
+import { Trash2, Edit, X, ChevronLeft, ChevronRight, Search, Filter, ChevronDown } from 'lucide-react';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
@@ -561,13 +561,6 @@ export default function CampaignTable({
                       {campaignRow.status}
                     </span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleDuplicate(campaignRow)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        aria-label="Duplicate campaign"
-                      >
-                        <Copy className="w-4 h-4 text-gray-500" />
-                      </button>
                       <button
                         onClick={() => handleView(campaignRow)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
