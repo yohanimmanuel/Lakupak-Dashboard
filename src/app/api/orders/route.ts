@@ -34,6 +34,7 @@ import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackO
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate, broadcastProductUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
+import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { 
   orderQueryRateLimiter,
@@ -1126,7 +1127,7 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        // Broadcast push notification to marketplace buyer via WebSocket
+        // Broadcast to marketplace buyer: WebSocket (in-app) + Expo Push (FCM when app closed)
         try {
           const buyerId = updatedOrder.buyerId;
           if (buyerId && buyerId.startsWith('mobile_user_')) {
@@ -1138,6 +1139,12 @@ export async function PUT(request: NextRequest) {
                 `Your order #${updatedOrder.orderId} has been cancelled.`,
                 { orderId: updatedOrder.orderId, orderStatus: 'Cancelled' },
                 marketplaceUserId
+              );
+              await sendExpoPushToMarketplaceUser(
+                marketplaceUserId,
+                'Order Cancelled',
+                `Your order #${updatedOrder.orderId} has been cancelled.`,
+                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled' }
               );
             }
           }
@@ -1629,6 +1636,10 @@ export async function PUT(request: NextRequest) {
               { orderId: order.orderId, orderStatus },
               marketplaceUserId
             );
+            await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, {
+              orderId: order.orderId,
+              orderStatus,
+            });
           }
         }
       } catch (notifError) {

@@ -1553,6 +1553,15 @@ const fetchMobileSearchHistory = async (args: {
   };
 };
 
+function isRetryableTransactionError(e: unknown): boolean {
+  const msg = String(e instanceof Error ? e.message : e);
+  const code = (e as { code?: string })?.code;
+  return (
+    code === 'P2034' ||
+    /write conflict|deadlock|could not serialize access/i.test(msg)
+  );
+}
+
 const addSearchHistory = async (args: {
   userId: number;
   query: string;
@@ -1564,80 +1573,69 @@ const addSearchHistory = async (args: {
   }
 
   const trimmedQuery = query.trim();
+  const maxRetries = 3;
 
-  // Wrap all operations in a transaction to prevent race conditions
-  const result = await prisma.$transaction(async (tx) => {
-    // Get all searches for this user (within transaction for consistency)
-    const allSearches = await tx.searchHistory.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    // Find existing search (case-insensitive)
-    const existingIndex = allSearches.findIndex(
-      (s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase()
-    );
-    const existing = existingIndex !== -1 ? allSearches[existingIndex] : null;
-
-    // Delete existing if found (to move it to top when we recreate it)
-    if (existing) {
-      await tx.searchHistory.delete({
-        where: { id: existing.id }
+  const runTransaction = () =>
+    prisma.$transaction(async (tx) => {
+      const allSearches = await tx.searchHistory.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' }
       });
-    }
 
-    // Calculate how many searches will exist after we create the new one
-    // If existing was deleted, we have allSearches.length - 1, otherwise allSearches.length
-    const countAfterDeletion = existing ? allSearches.length - 1 : allSearches.length;
-    
-    // If we'll exceed the limit, delete the oldest one
-    if (countAfterDeletion >= 10) {
-      // Get searches sorted by oldest first (excluding the one we just deleted)
-      const searchesToCheck = existing 
-        ? allSearches.filter((s: { id: number }) => s.id !== existing.id)
-        : allSearches;
-      
-      // Sort by oldest first
-      const sortedByOldest = searchesToCheck.sort(
-        (a: { createdAt: Date }, b: { createdAt: Date }) => 
-          a.createdAt.getTime() - b.createdAt.getTime()
+      const existingIndex = allSearches.findIndex(
+        (s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase()
       );
-      
-      // Delete the oldest one
-      if (sortedByOldest.length > 0) {
-        await tx.searchHistory.delete({
-          where: { id: sortedByOldest[0].id }
-        });
+      const existing = existingIndex !== -1 ? allSearches[existingIndex] : null;
+
+      if (existing) {
+        await tx.searchHistory.delete({ where: { id: existing.id } });
       }
-    }
 
-    // Create new search history (this will be the most recent)
-    // Note: If existing was found, we deleted it above, so this effectively moves it to top
-    const newSearch = await tx.searchHistory.create({
-      data: {
-        userId,
-        query: trimmedQuery,
+      const countAfterDeletion = existing ? allSearches.length - 1 : allSearches.length;
+
+      if (countAfterDeletion >= 10) {
+        const searchesToCheck = existing
+          ? allSearches.filter((s: { id: number }) => s.id !== existing.id)
+          : allSearches;
+        const sortedByOldest = [...searchesToCheck].sort(
+          (a: { createdAt: Date }, b: { createdAt: Date }) =>
+            a.createdAt.getTime() - b.createdAt.getTime()
+        );
+        if (sortedByOldest.length > 0) {
+          await tx.searchHistory.delete({ where: { id: sortedByOldest[0].id } });
+        }
       }
-    });
 
-    return newSearch;
-  }, {
-    // Use Serializable isolation to prevent race conditions
-    // Necessary to ensure exactly 10 entries are maintained across concurrent requests
-    isolationLevel: 'Serializable'
-  });
+      return tx.searchHistory.create({
+        data: { userId, query: trimmedQuery },
+      });
+    }, { isolationLevel: 'ReadCommitted' });
 
-  return {
-    success: true,
-    message: 'Search history added',
-    search: {
-      id: result.id,
-      userId: result.userId,
-      query: result.query,
-      createdAt: result.createdAt.toISOString(),
-      updatedAt: result.updatedAt.toISOString(),
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await runTransaction();
+      return {
+        success: true,
+        message: 'Search history added',
+        search: {
+          id: result.id,
+          userId: result.userId,
+          query: result.query,
+          createdAt: result.createdAt.toISOString(),
+          updatedAt: result.updatedAt.toISOString(),
+        }
+      };
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxRetries && isRetryableTransactionError(e)) {
+        await new Promise(r => setTimeout(r, 50 * attempt));
+        continue;
+      }
+      throw e;
     }
-  };
+  }
+  throw lastError; // only if loop exits without return/throw
 };
 
 const removeSearchHistory = async (args: {
