@@ -27,7 +27,7 @@ import {
   generateSecureOrderId,
   validateOrderAccess
 } from '@/utils/order-security';
-import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
+import { syncOrderToBuyerProfile, parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { recalculateEntireOrder, validateAndCorrectOrder } from '@/utils/orderCalculations';
 import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, createOfferSnapshot, reverseOfferUsage, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
@@ -1127,29 +1127,30 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        // Broadcast to marketplace buyer: WebSocket (in-app) + Expo Push (FCM when app closed)
+        // Notify marketplace buyer: Expo Push first; if no Expo tokens, fallback to WebSocket (foreground only)
         try {
-          const buyerId = updatedOrder.buyerId;
-          if (buyerId && buyerId.startsWith('mobile_user_')) {
-            const marketplaceUserId = parseInt(buyerId.replace('mobile_user_', ''), 10);
-            if (!isNaN(marketplaceUserId)) {
+          const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
+          if (marketplaceUserId != null) {
+            const { tokenCount } = await sendExpoPushToMarketplaceUser(
+              marketplaceUserId,
+              'Order Cancelled',
+              `Your order #${updatedOrder.orderId} has been cancelled.`,
+              { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' }
+            );
+            if (tokenCount === 0) {
               await broadcastNotification(
                 'order',
                 'Order Cancelled',
                 `Your order #${updatedOrder.orderId} has been cancelled.`,
-                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled' },
+                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' },
                 marketplaceUserId
               );
-              await sendExpoPushToMarketplaceUser(
-                marketplaceUserId,
-                'Order Cancelled',
-                `Your order #${updatedOrder.orderId} has been cancelled.`,
-                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled' }
-              );
             }
+          } else if (process.env.NODE_ENV === 'development') {
+            console.warn('[Orders] Cancel: buyerId not parseable for Expo/WebSocket, buyerId=', String(updatedOrder.buyerId ?? ''));
           }
         } catch (notifError) {
-          // Don't fail the cancellation if notification broadcast fails
+          // Don't fail the cancellation if notification fails
         }
 
         return NextResponse.json({ 
@@ -1590,60 +1591,62 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Broadcast push notification to marketplace buyer via WebSocket
+    // Notify marketplace buyer: Expo Push first; if no Expo tokens, fallback to WebSocket (foreground only)
     if (sanitizedData.orderStatus) {
       try {
-        // Get marketplace user ID from buyerId (format: mobile_user_{userId})
-        const buyerId = order.buyerId;
-        if (buyerId && buyerId.startsWith('mobile_user_')) {
-          const marketplaceUserId = parseInt(buyerId.replace('mobile_user_', ''), 10);
-          if (!isNaN(marketplaceUserId)) {
-            const orderStatus = String(sanitizedData.orderStatus);
-            let title = 'Order Update';
-            let body = `Your order #${order.orderId} status has been updated.`;
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+        if (marketplaceUserId != null) {
+          const orderStatus = String(sanitizedData.orderStatus);
+          let title = 'Order Update';
+          let body = `Your order #${order.orderId} status has been updated.`;
 
-            switch (orderStatus) {
-              case 'Confirmed':
-                title = 'Order Confirmed';
-                body = `Great news! Your order #${order.orderId} has been confirmed and is being processed.`;
-                break;
-              case 'Packed':
-                title = 'Order Packed';
-                body = `Your order #${order.orderId} has been packed and is ready for shipping.`;
-                break;
-              case 'Shipped':
-                title = 'Order Shipped';
-                body = `Your order #${order.orderId} is on its way! Track your delivery for updates.`;
-                break;
-              case 'Delivered':
-                title = 'Order Delivered';
-                body = `Your order #${order.orderId} has been delivered. Enjoy your purchase!`;
-                break;
-              case 'Cancelled':
-                title = 'Order Cancelled';
-                body = `Your order #${order.orderId} has been cancelled.`;
-                break;
-              case 'Returned':
-                title = 'Order Returned';
-                body = `Your order #${order.orderId} return has been processed.`;
-                break;
-            }
+          switch (orderStatus) {
+            case 'Confirmed':
+              title = 'Order Confirmed';
+              body = `Great news! Your order #${order.orderId} has been confirmed and is being processed.`;
+              break;
+            case 'Packed':
+              title = 'Order Packed';
+              body = `Your order #${order.orderId} has been packed and is ready for shipping.`;
+              break;
+            case 'Shipped':
+              title = 'Order Shipped';
+              body = `Your order #${order.orderId} is on its way! Track your delivery for updates.`;
+              break;
+            case 'Delivered':
+              title = 'Order Delivered';
+              body = `Your order #${order.orderId} has been delivered. Enjoy your purchase!`;
+              break;
+            case 'Cancelled':
+              title = 'Order Cancelled';
+              body = `Your order #${order.orderId} has been cancelled.`;
+              break;
+            case 'Returned':
+              title = 'Order Returned';
+              body = `Your order #${order.orderId} return has been processed.`;
+              break;
+          }
 
+          const { tokenCount } = await sendExpoPushToMarketplaceUser(
+            marketplaceUserId,
+            title,
+            body,
+            { orderId: order.orderId, orderStatus, type: 'order' }
+          );
+          if (tokenCount === 0) {
             await broadcastNotification(
               'order',
               title,
               body,
-              { orderId: order.orderId, orderStatus },
+              { orderId: order.orderId, orderStatus, type: 'order' },
               marketplaceUserId
             );
-            await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, {
-              orderId: order.orderId,
-              orderStatus,
-            });
           }
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('[Orders] Status: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
         }
       } catch (notifError) {
-        // Don't fail the order update if notification broadcast fails
+        // Don't fail the order update if notification fails
       }
     }
 

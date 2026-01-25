@@ -729,7 +729,7 @@ export async function POST(request: NextRequest) {
           );
         } catch (_) { /* ignore */ }
       }
-      
+
       // Create order items for this distributor only
       if (itemsForDistributor.length > 0) {
         const usedOfferIds: string[] = [];

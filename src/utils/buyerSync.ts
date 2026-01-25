@@ -10,6 +10,27 @@ export function buildMobileBuyerId(marketplaceUserId: number, distributorUserId?
   return typeof distributorUserId === 'number' ? `${baseId}-${distributorUserId}` : baseId;
 }
 
+/**
+ * Parse marketplace user ID from a buyerId. Supports:
+ * - mobile_user_X (legacy)
+ * - LKB-<padded 8 digits> or LKB-<padded 8 digits>-<distributorId> (mobile app)
+ * Returns null if not a mobile buyer format.
+ */
+export function parseMarketplaceUserIdFromBuyerId(buyerId: string | null | undefined): number | null {
+  if (!buyerId || typeof buyerId !== 'string') return null;
+  if (buyerId.startsWith('mobile_user_')) {
+    const n = parseInt(buyerId.replace('mobile_user_', ''), 10);
+    return isNaN(n) ? null : n;
+  }
+  if (buyerId.startsWith('LKB-')) {
+    const after = buyerId.slice(4);
+    const firstPart = after.includes('-') ? after.split('-')[0] : after;
+    const n = parseInt(firstPart, 10);
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
 export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
   try {
     // Get buyer
