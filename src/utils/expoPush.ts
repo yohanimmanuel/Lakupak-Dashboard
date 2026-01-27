@@ -36,6 +36,10 @@ export async function sendExpoPushToMarketplaceUser(
       return { tokenCount: 0 };
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[ExpoPush] Sending to', expoTokens.length, 'token(s) for userId', marketplaceUserId);
+    }
+
     const payload = {
       to: expoTokens,
       title,
@@ -57,10 +61,24 @@ export async function sendExpoPushToMarketplaceUser(
       signal: AbortSignal.timeout(10_000),
     });
 
+    const text = await res.text();
+
     if (!res.ok) {
-      const text = await res.text();
       console.error('[ExpoPush] send failed:', res.status, text);
+      return { tokenCount: 0 };
     }
+
+    // Expo can return 200 with per-ticket errors (e.g. DeviceNotRegistered, InvalidCredentials)
+    try {
+      const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
+      const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
+      if (errors.length > 0 && process.env.NODE_ENV === 'development') {
+        console.warn('[ExpoPush] Expo reported delivery errors:', errors.map((e) => e?.message || e));
+      }
+    } catch {
+      // ignore parse errors
+    }
+
     return { tokenCount: expoTokens.length };
   } catch (e) {
     console.error('[ExpoPush] error:', e);
