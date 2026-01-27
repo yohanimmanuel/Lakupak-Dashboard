@@ -318,11 +318,15 @@ const Navbar = () => {
   };
 
   // Get icon for notification type
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string, metadata?: { restored?: boolean } | null) => {
     switch (type) {
       case 'order':
         return <Package size={16} className="text-blue-500" />;
       case 'inventory':
+        // Show checkmark for restored/healthy stock, warning for low/critical/out of stock
+        if (metadata?.restored) {
+          return <Check size={16} className="text-green-500" />;
+        }
         return <AlertTriangle size={16} className="text-orange-500" />;
       case 'offer':
         return <Tag size={16} className="text-purple-500" />;
@@ -555,7 +559,7 @@ const Navbar = () => {
                     )}
                     <div className="flex gap-3" onClick={() => handleNotificationClick(notification)}>
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        {getNotificationIcon(notification.type)}
+                        {getNotificationIcon(notification.type, notification.metadata)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -641,7 +645,7 @@ const Navbar = () => {
                       <div key={n.id} className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
                         {!n.isRead && <div className="absolute top-3 left-3 w-2 h-2 rounded-full bg-blue-500 z-10" />}
                         <div className="flex gap-3" onClick={() => handleNotificationClick(n)}>
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">{getNotificationIcon(n.type)}</div>
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">{getNotificationIcon(n.type, n.metadata)}</div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-xs font-medium text-gray-900 truncate ${!n.isRead ? 'font-semibold' : ''}`}>{n.title}</p>
                             <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.message}</p>

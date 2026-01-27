@@ -2,6 +2,7 @@ import { type Prisma, type OfferDiscountType } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
+import { NotificationService } from '../notifications';
 import { prisma } from '../common/prisma';
 import {
   MAX_PRODUCT_LIMIT,
@@ -1028,6 +1029,33 @@ export const createProduct = async (args: {
     throw new Error('Failed to fetch created product');
   }
 
+  // Check stock levels and trigger inventory notifications for newly created products
+  if (updatedProduct.variantOptions && updatedProduct.variantOptions.length > 0) {
+    for (const variant of updatedProduct.variantOptions) {
+      const stockQuantity = variant.stockQuantity || 0;
+      const lowStockThreshold = variant.lowStockThreshold || 0;
+      
+      // Notify if product is created with low/critical/out of stock
+      if (stockQuantity === 0 || (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold)) {
+        try {
+          await NotificationService.createInventoryNotification(
+            userId,
+            updatedProduct.productId,
+            updatedProduct.name,
+            stockQuantity,
+            lowStockThreshold,
+            variant.variantName || undefined
+          );
+        } catch (notifError) {
+          // Don't fail product creation if notification fails
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[Products] Stock notification failed on create:', notifError);
+          }
+        }
+      }
+    }
+  }
+
   await broadcastProductChanges(updatedProduct.productId);
   
   // Invalidate marketplace search cache (public-facing, needs caching)
@@ -1126,6 +1154,30 @@ export const updateProduct = async (args: {
     throw new Error('Missing id or productId parameter');
   }
 
+  // Fetch product with variants before update to track previous stock levels
+  const productBeforeUpdate = await prisma.product.findFirst({
+    where,
+    include: {
+      variantOptions: {
+        select: {
+          id: true,
+          variantName: true,
+          stockQuantity: true,
+          lowStockThreshold: true,
+        },
+      },
+    },
+  });
+
+  if (!productBeforeUpdate) {
+    throw new Error('Product not found or you do not have permission to update it');
+  }
+
+  // Use the actual product ID for the update (to match unique constraint)
+  const updateWhere = isNumericId(id || '')
+    ? { id: productBeforeUpdate.id }
+    : { productId: productBeforeUpdate.productId };
+
   const cleanUpdateData: Record<string, unknown> = {};
 
   if (sku !== undefined) cleanUpdateData.sku = String(sku);
@@ -1157,7 +1209,7 @@ export const updateProduct = async (args: {
   if (returnPolicyDays !== undefined) cleanUpdateData.returnPolicyDays = Number(returnPolicyDays);
 
   const product = await prisma.product.update({
-    where,
+    where: updateWhere,
     data: {
       ...cleanUpdateData,
       ...(variantDefinitions &&
@@ -1201,6 +1253,66 @@ export const updateProduct = async (args: {
   const updatedProduct = await refetchProductForResponse(product.id);
   if (!updatedProduct) {
     throw new Error('Failed to fetch updated product');
+  }
+
+  // Check stock levels and trigger inventory notifications if thresholds crossed
+  if (productBeforeUpdate && (variantOptions || variants) && updatedProduct.variantOptions) {
+    const previousVariants = productBeforeUpdate.variantOptions || [];
+    const newVariants = updatedProduct.variantOptions || [];
+
+    for (const newVariant of newVariants) {
+      // Find matching previous variant by variantName (since IDs change on deleteMany/create)
+      const previousVariant = previousVariants.find(
+        (pv) => pv.variantName === newVariant.variantName
+      );
+
+      const newStock = newVariant.stockQuantity || 0;
+      const lowStockThreshold = newVariant.lowStockThreshold || 0;
+
+      if (previousVariant) {
+        const previousStock = previousVariant.stockQuantity || 0;
+
+        // Check if stock changed and crossed a threshold
+        if (previousStock !== newStock) {
+          try {
+            await NotificationService.checkAndNotifyStockLevel(
+              userId,
+              updatedProduct.productId,
+              updatedProduct.name,
+              previousStock,
+              newStock,
+              lowStockThreshold,
+              newVariant.variantName || undefined
+            );
+          } catch (notifError) {
+            // Don't fail product update if notification fails
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[Products] Stock notification failed:', notifError);
+            }
+          }
+        }
+        // If stock didn't change, don't send notification (prevents duplicates)
+      } else {
+        // New variant - check if it starts at low/critical/out of stock
+        if (newStock === 0 || (lowStockThreshold > 0 && newStock <= lowStockThreshold)) {
+          try {
+            await NotificationService.createInventoryNotification(
+              userId,
+              updatedProduct.productId,
+              updatedProduct.name,
+              newStock,
+              lowStockThreshold,
+              newVariant.variantName || undefined
+            );
+          } catch (notifError) {
+            // Don't fail product update if notification fails
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[Products] Stock notification failed:', notifError);
+            }
+          }
+        }
+      }
+    }
   }
 
   await broadcastProductChanges(updatedProduct.productId);

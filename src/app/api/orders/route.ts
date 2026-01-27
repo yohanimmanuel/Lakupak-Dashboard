@@ -1360,6 +1360,7 @@ export async function PUT(request: NextRequest) {
             }
             
             // Update using variantOption model
+            const previousStock = (variantToRestore as { stockQuantity?: number }).stockQuantity || 0;
             await prisma.variantOption.update({
               where: { id: (variantToRestore as { id: number }).id },
               data: {
@@ -1367,6 +1368,27 @@ export async function PUT(request: NextRequest) {
                 stockStatus: newStockStatus
               }
             });
+
+            // Check and notify if stock level crossed a threshold
+            if (productForRestore && productForRestore.userId) {
+              const variantName = (variantToRestore as { variantName?: string }).variantName || undefined;
+              try {
+                await NotificationService.checkAndNotifyStockLevel(
+                  productForRestore.userId,
+                  productForRestore.productId,
+                  productForRestore.name,
+                  previousStock,
+                  newStock,
+                  lowStockThreshold,
+                  variantName
+                );
+              } catch (notifError) {
+                // Don't fail order update if notification fails
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('[Orders] Stock notification failed:', notifError);
+                }
+              }
+            }
           }
         }
         
@@ -1463,6 +1485,7 @@ export async function PUT(request: NextRequest) {
             }
             
             // Update using variantOption model
+            const previousStock = (variantToDeduct as { stockQuantity?: number }).stockQuantity || 0;
             await prisma.variantOption.update({
               where: { id: (variantToDeduct as { id: number }).id },
               data: {
@@ -1470,6 +1493,27 @@ export async function PUT(request: NextRequest) {
                 stockStatus: newStockStatus
               }
             });
+
+            // Check and notify if stock level crossed a threshold
+            if (productForDeduct && productForDeduct.userId) {
+              const variantName = (variantToDeduct as { variantName?: string }).variantName || undefined;
+              try {
+                await NotificationService.checkAndNotifyStockLevel(
+                  productForDeduct.userId,
+                  productForDeduct.productId,
+                  productForDeduct.name,
+                  previousStock,
+                  Math.max(0, newStock),
+                  lowStockThreshold,
+                  variantName
+                );
+              } catch (notifError) {
+                // Don't fail order update if notification fails
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('[Orders] Stock notification failed:', notifError);
+                }
+              }
+            }
           }
         }
       }

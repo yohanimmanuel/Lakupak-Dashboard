@@ -339,6 +339,56 @@ export const NotificationService = {
     }
   },
 
+  // Helper: Check stock levels and trigger notifications if threshold crossed
+  // This prevents duplicate notifications by only alerting when stock crosses a threshold
+  async checkAndNotifyStockLevel(
+    userId: number,
+    productId: string,
+    productName: string,
+    previousStock: number,
+    newStock: number,
+    lowStockThreshold: number,
+    variantName?: string
+  ) {
+    // Only notify if stock crossed a threshold (to avoid duplicates)
+    const wasOutOfStock = previousStock === 0;
+    const wasCritical = previousStock > 0 && lowStockThreshold > 0 && previousStock < lowStockThreshold * 0.5;
+    const wasLowStock = previousStock > 0 && lowStockThreshold > 0 && previousStock <= lowStockThreshold;
+    const wasInStock = previousStock > lowStockThreshold;
+
+    const isOutOfStock = newStock === 0;
+    const isCritical = newStock > 0 && lowStockThreshold > 0 && newStock < lowStockThreshold * 0.5;
+    const isLowStock = newStock > 0 && lowStockThreshold > 0 && newStock <= lowStockThreshold;
+    const isInStock = newStock > lowStockThreshold;
+
+    // Trigger notification if:
+    // 1. Just went out of stock (was > 0, now = 0)
+    // 2. Just went critical (was >= threshold*0.5, now < threshold*0.5)
+    // 3. Just went low stock (was > threshold, now <= threshold)
+    // 4. Just went back to healthy stock (was <= threshold, now > threshold)
+    if (isOutOfStock && !wasOutOfStock) {
+      await this.createInventoryNotification(userId, productId, productName, newStock, lowStockThreshold, variantName);
+    } else if (isCritical && !wasCritical && !wasOutOfStock) {
+      await this.createInventoryNotification(userId, productId, productName, newStock, lowStockThreshold, variantName);
+    } else if (isLowStock && !wasLowStock && !wasOutOfStock && !wasCritical) {
+      await this.createInventoryNotification(userId, productId, productName, newStock, lowStockThreshold, variantName);
+    } else if (isInStock && !wasInStock && (wasOutOfStock || wasCritical || wasLowStock)) {
+      // Stock restored to healthy level
+      const variantInfo = variantName ? ` (${variantName})` : '';
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: 'inventory',
+          title: 'Stock Restored',
+          message: `${productName}${variantInfo} stock has been restored to healthy levels (${newStock} units).`,
+          metadata: { productId, productName, stockQuantity: newStock, lowStockThreshold, variantName, restored: true },
+          actionUrl: `/products/catalog/${productId}`,
+        },
+      });
+      emitDashboardNewNotification(userId);
+    }
+  },
+
   // Create offer expiration notification
   async createOfferExpirationNotification(
     userId: number,
