@@ -1,5 +1,5 @@
 'use client';
-import { DollarSign, ShoppingCart, Calendar, ChevronDown, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingCart, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
@@ -154,9 +154,19 @@ export default function AnalyticsPage() {
     return calculateRevenueData(filteredOrders, filteredProducts, hasData);
   }, [filteredOrders, filteredProducts, hasData]);
 
-  const totalProfit = useMemo(() => {
-    return revenueData.reduce((sum, data) => sum + data.profit, 0);
-  }, [revenueData]);
+  const revenueCollected = useMemo(() => {
+    // Calculate revenue from paid orders only (Paid or Partially Paid)
+    return filteredOrders
+      .filter(order => 
+        order.paymentStatus === 'Paid'
+      )
+      .reduce((sum, order) => {
+        const amount = typeof order.totalAmount === 'number'
+          ? order.totalAmount
+          : parseFloat(String(order.totalAmount || 0));
+        return sum + amount;
+      }, 0);
+  }, [filteredOrders]);
 
   // Operational metrics reused from OperationalPerformanceAnalytics
   const opMetrics = useMemo(() => computeOperationalMetrics(filteredOrders, filteredProducts), [filteredOrders, filteredProducts]);
@@ -315,17 +325,17 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <>
             <AnalyticsMetricCard
-              title="Total Revenue"
+              title="Total Sales"
               value={formatCurrency(totalRevenue, userCurrency)}
               change={12.5}
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
             />
             <AnalyticsMetricCard
-              title="Total Profit"
-              value={formatCurrency(totalProfit, userCurrency)}
-              change={15.2}
-              icon={<TrendingUp className="w-6 h-6 text-green-500" />}
+              title="Revenue Collected"
+              value={formatCurrency(revenueCollected, userCurrency)}
+              change={0}
+              icon={<CheckCircle className="w-6 h-6 text-green-500" />}
               color="bg-[#e6f7ec]"
             />
             <CustomerPiecesSoldCard 

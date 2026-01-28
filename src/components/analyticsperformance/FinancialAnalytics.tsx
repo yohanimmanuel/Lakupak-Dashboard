@@ -883,7 +883,7 @@ const FinancialAnalytics: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Total Revenue"
+          title="Total Sales"
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
           change={calculateMetrics.monthlyGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}

@@ -26,11 +26,13 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
     return sum + calculateOrderTotalAmount(order);
   }, 0);
   
-  const pendingRevenue = validOrders
+  const unpaidRevenue = validOrders
     .filter(o => o.paymentStatus === 'Unpaid')
     .reduce((sum, order) => {
       return sum + calculateOrderTotalAmount(order);
     }, 0);
+  
+  const revenueCollected = totalRevenue - unpaidRevenue;
   
   // Use user's currency or server default (only on client)
   const displayCurrency = user?.currency || getDefaultCurrency();
@@ -55,22 +57,42 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         </div>
       </div>
 
-      {/* Total Revenue */}
+      {/* Total Sales */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-600">Total Revenue</p>
+            <p className="text-xs font-medium text-gray-600">Total Sales</p>
             <p className="text-xl font-bold text-gray-900">
               {formatCurrency(totalRevenue, displayCurrency)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">
-            <DollarSign className="w-6 h-6 text-green-600" />
+            <DollarSign className="w-6 h-6 text-blue-600" />
           </div>
         </div>
         <div className="flex items-center mt-4">
           <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
           <span className="text-xs text-green-600 font-medium">+8.2%</span>
+          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        </div>
+      </div>
+
+      {/* Revenue Collected */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-gray-600">Revenue Collected</p>
+            <p className="text-xl font-bold text-gray-900">
+              {formatCurrency(revenueCollected, displayCurrency)}
+            </p>
+          </div>
+          <div className="p-3 bg-white shadow-sm rounded-lg">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+          </div>
+        </div>
+        <div className="flex items-center mt-4">
+          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+          <span className="text-xs text-green-600 font-medium">0%</span>
           <span className="text-xs text-gray-500 ml-1">from last month</span>
         </div>
       </div>
@@ -81,7 +103,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           <div>
             <p className="text-xs font-medium text-gray-600">Pending Revenue</p>
             <p className="text-xl font-bold text-gray-900">
-              {formatCurrency(pendingRevenue, displayCurrency)}
+              {formatCurrency(unpaidRevenue, displayCurrency)}
             </p>
           </div>
           <div className="p-3 bg-white shadow-sm rounded-lg">
@@ -89,8 +111,8 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
           </div>
         </div>
         <div className="flex items-center mt-4">
-          <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
-          <span className="text-xs text-red-600 font-medium">-2.1%</span>
+          <TrendingDown className="w-4 h-4 text-orange-500 mr-1" />
+          <span className="text-xs text-orange-600 font-medium">-2.1%</span>
           <span className="text-xs text-gray-500 ml-1">from last month</span>
         </div>
       </div>

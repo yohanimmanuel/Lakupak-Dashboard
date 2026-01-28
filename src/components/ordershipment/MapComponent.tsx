@@ -51,6 +51,12 @@ export default function MapComponent({
 
     map.current.on('load', () => {
       setMapLoaded(true);
+      // Trigger resize to ensure map fills container properly
+      setTimeout(() => {
+        if (map.current) {
+          map.current.resize();
+        }
+      }, 100);
     });
 
     if (showControls) {
@@ -154,7 +160,7 @@ export default function MapComponent({
     <div
       ref={mapContainer}
       className={`rounded-lg overflow-hidden ${className}`}
-      style={{ height, width: '100%' }}
+      style={{ height, minHeight: height, width: '100%' }}
     />
   );
 }

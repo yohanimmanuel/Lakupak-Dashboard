@@ -138,7 +138,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           <MapComponent
             markers={mapMarkers}
             center={mapCenter}
-              height="400px"
+              height="463px"
               showControls={true}
             onMarkerClick={handleMarkerClick}
             />
