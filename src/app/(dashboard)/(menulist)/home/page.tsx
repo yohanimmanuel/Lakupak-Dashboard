@@ -313,6 +313,17 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         onTimeDeliveryRate
         userId
       }
+      aggregates {
+        totalRevenue
+        pendingRevenue
+        totalOrders
+        paidOrders
+        unpaidOrders
+        avgOrderValue
+        totalPiecesSold
+        totalUnitsSold
+        uniqueCustomers
+      }
     }
   }
 `;
@@ -867,6 +878,17 @@ export default function HomePage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aggregates, setAggregates] = useState<{
+    totalRevenue: number;
+    pendingRevenue: number;
+    totalOrders: number;
+    paidOrders: number;
+    unpaidOrders: number;
+    avgOrderValue: number;
+    totalPiecesSold: number;
+    totalUnitsSold: number;
+    uniqueCustomers: number;
+  } | null>(null);
   const [widgetOrder, setWidgetOrder] =
     useState<WidgetId[]>(DEFAULT_WIDGET_ORDER);
   const [draggingWidget, setDraggingWidget] = useState<WidgetId | null>(null);
@@ -1016,9 +1038,9 @@ export default function HomePage() {
             query: DASHBOARD_SNAPSHOT_QUERY,
             variables: {
               userId: user!.id,
-              ordersLimit: 1000,
-              productsLimit: 1000,
-              contactsLimit: 100,
+              ordersLimit: 50, // Reduced from 1000 to prevent slow queries and timeouts
+              productsLimit: 50, // Reduced from 1000 to prevent slow queries and timeouts
+              contactsLimit: 50, // Reduced from 100 for consistency
             },
           }),
         });
@@ -1050,6 +1072,21 @@ export default function HomePage() {
         const snapshot = payload.data?.dashboardSnapshot;
         if (!snapshot) {
           throw new Error('Dashboard data unavailable');
+        }
+
+        // Extract aggregates from server response (calculated from ALL orders, not just paginated subset)
+        if (snapshot.aggregates) {
+          setAggregates({
+            totalRevenue: snapshot.aggregates.totalRevenue || 0,
+            pendingRevenue: snapshot.aggregates.pendingRevenue || 0,
+            totalOrders: snapshot.aggregates.totalOrders || 0,
+            paidOrders: snapshot.aggregates.paidOrders || 0,
+            unpaidOrders: snapshot.aggregates.unpaidOrders || 0,
+            avgOrderValue: snapshot.aggregates.avgOrderValue || 0,
+            totalPiecesSold: snapshot.aggregates.totalPiecesSold || 0,
+            totalUnitsSold: snapshot.aggregates.totalUnitsSold || 0,
+            uniqueCustomers: snapshot.aggregates.uniqueCustomers || 0,
+          });
         }
 
         const normalizedOrders: Order[] = [];
@@ -1118,38 +1155,46 @@ export default function HomePage() {
     return () => controller.abort();
   }, [user?.id]);
 
+  // Use server-side aggregates (calculated from ALL orders) instead of client-side calculations
+  // This ensures accuracy - aggregates are computed from the full dataset, not just the paginated subset
   const totalRevenue = useMemo(
-    () => calculateTotalRevenue(orders, products),
-    [orders, products],
+    () => aggregates?.totalRevenue ?? 0,
+    [aggregates],
   );
 
   const pendingRevenue = useMemo(
-    () =>
-      orders.reduce((sum, order) => {
-        if (order.paymentStatus === 'Unpaid') {
-          // Handle Decimal types from Prisma
-          const amount = typeof order.totalAmount === 'number' 
-            ? (Number.isFinite(order.totalAmount) && !isNaN(order.totalAmount) ? order.totalAmount : 0)
-            : (typeof order.totalAmount === 'object' && order.totalAmount !== null && 'toNumber' in order.totalAmount
-              ? (() => {
-                try {
-                  const num = (order.totalAmount as { toNumber: () => number }).toNumber();
-                  return Number.isFinite(num) && !isNaN(num) ? num : 0;
-                } catch {
-                  return 0;
-                }
-              })()
-              : parseFloat(String(order.totalAmount)) || 0);
-          return sum + amount;
-        }
-        return sum;
-      }, 0),
-    [orders],
+    () => aggregates?.pendingRevenue ?? 0,
+    [aggregates],
   );
 
+  // Calculate sales metrics from aggregates and limited order list for display
+  // Note: Some metrics like repeatCustomerRate still need the order list for analysis
   const salesMetrics = useMemo(
-    () => calculateSalesMetrics(orders, products, hasData),
-    [orders, products, hasData],
+    () => {
+      if (!aggregates) {
+        return calculateSalesMetrics(orders, products, hasData);
+      }
+      
+      // Use aggregates for totals, but still calculate some metrics from order list
+      const baseMetrics = calculateSalesMetrics(orders, products, hasData);
+      return {
+        ...baseMetrics,
+        // Override with accurate aggregates from server
+        totalOrders: aggregates.totalOrders,
+        avgOrderValue: aggregates.avgOrderValue,
+        totalPiecesSold: aggregates.totalPiecesSold,
+        totalUnitsSold: aggregates.totalUnitsSold,
+        uniqueCustomers: aggregates.uniqueCustomers,
+        // Calculate derived metrics from aggregates
+        avgPiecesPerOrder: aggregates.totalOrders > 0 
+          ? aggregates.totalPiecesSold / aggregates.totalOrders 
+          : 0,
+        avgUnitsPerOrder: aggregates.totalOrders > 0
+          ? aggregates.totalUnitsSold / aggregates.totalOrders
+          : 0,
+      };
+    },
+    [orders, products, hasData, aggregates],
   );
 
   const safeSalesMetrics = {
@@ -1209,7 +1254,7 @@ const buyerInsights = useMemo(() => {
     .slice(0, 3);
 
   const averageOrdersPerBuyer =
-    totalBuyers > 0 ? orders.length / totalBuyers : 0;
+    totalBuyers > 0 ? (aggregates?.totalOrders ?? orders.length) / totalBuyers : 0;
 
   return {
     totalBuyers,
@@ -1434,7 +1479,7 @@ const supplierInsights = useMemo(() => {
       {
         id: 'totalOrders',
         title: 'Total Orders',
-        value: orders.length.toLocaleString(),
+        value: (aggregates?.totalOrders ?? orders.length).toLocaleString(),
         change: 5.4,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
         color: 'bg-white',
@@ -1448,7 +1493,7 @@ const supplierInsights = useMemo(() => {
         color: 'bg-white',
       },
     ];
-  }, [loading, orders.length, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
+  }, [loading, aggregates?.totalOrders, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,

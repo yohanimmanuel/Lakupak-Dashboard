@@ -195,6 +195,19 @@ const fetchOffersConnection = async (args: {
   const { userId, page = 1, limit = 10, status, type } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
 
+  // Check cache first (only for first page to avoid stale data on pagination)
+  if (safePage === 1) {
+    const { getCachedOfferList } = await import('@/lib/queryCache');
+    const cached = await getCachedOfferList<{
+      nodes: unknown[];
+      pagination: ReturnType<typeof buildPaginationInfo>;
+    }>(userId, safePage, safeLimit, { status, type });
+    
+    if (cached) {
+      return cached;
+    }
+  }
+
   // Only deactivate expired offers and update prices on first page load (page 1)
   // This significantly improves performance for pagination and filtering
   if (safePage === 1) {
@@ -238,10 +251,26 @@ const fetchOffersConnection = async (args: {
         await invalidateSearchCache('search-cache:marketplace:*');
         // Small delay to ensure WebSocket messages are sent before query returns
         await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Update product prices in background (non-blocking, fire-and-forget)
+        // Only needed when offers are actually activated/deactivated
+        // Extract unique product IDs that need price updates
+        const productIdsToUpdate = Array.from(allAffectedProductIds);
+        if (productIdsToUpdate.length > 0) {
+          // Fire-and-forget: don't await, don't block the UI
+          Promise.resolve().then(async () => {
+            await updateProductPricesFromOffers(prisma, userId, productIdsToUpdate);
+            // Invalidate caches after offer changes
+            const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+            await Promise.all([
+              invalidateOfferCache(userId),
+              invalidateProductCache(userId),
+            ]);
+          }).catch(error => {
+            console.error('[Offers] Background price update failed:', error);
+          });
+        }
       }
-      
-      // Update product prices after broadcasting
-      await updateProductPricesFromOffers(prisma, userId);
     } catch (error) {
       console.error('[Offers] Background maintenance failed for userId:', userId, error);
     }
@@ -271,10 +300,27 @@ const fetchOffersConnection = async (args: {
     prisma.offer.count({ where: whereClause }),
   ]);
 
-  return {
+  const result = {
     nodes: offers.map(mapOffer),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
+
+  // Cache the result (only first page)
+  // IMPORTANT: Invalidate caches BEFORE setting new cache to prevent race conditions
+  // This ensures any background price update tasks don't invalidate caches we just wrote
+  if (safePage === 1) {
+    const { setCachedOfferList, invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+    // Invalidate caches synchronously before writing new cache entries
+    // This prevents race conditions with background price update tasks
+    await Promise.all([
+      invalidateOfferCache(userId),
+      invalidateProductCache(userId),
+    ]);
+    // Now set the new cache after invalidation is complete
+    await setCachedOfferList(userId, safePage, safeLimit, { status, type }, result);
+  }
+
+  return result;
 };
 
 const fetchSingleOffer = async (args: { userId: number; id: string }) => {
@@ -321,10 +367,25 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
       await invalidateSearchCache('search-cache:marketplace:*');
       // Small delay to ensure WebSocket messages are sent before query returns
       await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Update product prices in background (non-blocking, fire-and-forget)
+      // Only needed when offers are actually activated/deactivated
+      const productIdsToUpdate = Array.from(allAffectedProductIds);
+      if (productIdsToUpdate.length > 0) {
+        // Fire-and-forget: don't await, don't block the UI
+        Promise.resolve().then(async () => {
+          await updateProductPricesFromOffers(prisma, userId, productIdsToUpdate);
+          // Invalidate caches after offer changes
+          const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+          await Promise.all([
+            invalidateOfferCache(userId),
+            invalidateProductCache(userId),
+          ]);
+        }).catch(error => {
+          console.error('[Offer] Background price update failed:', error);
+        });
+      }
     }
-    
-    // Update product prices after broadcasting
-    await updateProductPricesFromOffers(prisma, userId);
   } catch (error) {
     console.error('[Offer] Background maintenance failed for userId:', userId, error);
   }

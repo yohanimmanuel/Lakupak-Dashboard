@@ -395,7 +395,9 @@ export async function updateProductPricesFromOffers(
     }
 
     // Collect ALL variant updates from ALL products FIRST
-    const allVariantUpdates: Promise<unknown>[] = [];
+    // Store as deferred callables (functions that return promises) to control concurrency
+    // This prevents all promises from starting immediately
+    const allVariantUpdates: Array<() => Promise<unknown>> = [];
 
     for (const product of products) {
       // Get THE offer for this product (should only be one)
@@ -467,7 +469,9 @@ export async function updateProductPricesFromOffers(
             }
           }
 
-          return tx.variantOption.update({
+          // Return a function that creates the promise when called (deferred execution)
+          // This allows us to control when the database operation actually starts
+          return () => tx.variantOption.update({
             where: { id: variantOption.id },
             data: {
               sellingPrice: Math.round(finalPrice * 100) / 100, // Decimal type, not string
@@ -481,10 +485,20 @@ export async function updateProductPricesFromOffers(
       }
     }
 
-    // Execute ALL variant updates from ALL products at once - true parallel execution!
-    if (allVariantUpdates.length > 0) {
-      await Promise.all(allVariantUpdates);
-    }
+      // Execute variant updates in chunks to avoid connection pool exhaustion
+      // Pool has max 30 connections now, so limit concurrent updates to 20 (leave 10 for other queries)
+      // Process functions in chunks: slice the array of functions, call each to create promises, then await
+      if (allVariantUpdates.length > 0) {
+        const CONCURRENT_LIMIT = 20;
+        for (let i = 0; i < allVariantUpdates.length; i += CONCURRENT_LIMIT) {
+          // Slice the array of functions
+          const chunkFunctions = allVariantUpdates.slice(i, i + CONCURRENT_LIMIT);
+          // Call each function to create promises for this chunk
+          const chunkPromises = chunkFunctions.map(fn => fn());
+          // Await all promises in this chunk before processing the next chunk
+          await Promise.all(chunkPromises);
+        }
+      }
   } catch (error) {
     console.error('[MarketplaceMetrics] Price update failed for userId:', userId, error);
     // Continue despite errors to avoid blocking offer operations

@@ -580,7 +580,7 @@ export default function TeamManagement() {
         {/* Sales Performance Overview */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-black">Sales Performance Overview</h3>
+            <h3 className="text-md font-semibold text-black">Sales Team Overview</h3>
           </div>
 
           {/* Paginated Teams Grid */}

@@ -58,7 +58,9 @@ export function SessionWarningModal() {
     };
 
     checkSessions();
-    const interval = setInterval(checkSessions, 1000);
+    // Check every 30 seconds instead of every second to reduce overhead
+    // Only need to check frequently when close to expiry (warning is shown 5 minutes before)
+    const interval = setInterval(checkSessions, 30000);
     return () => clearInterval(interval);
   }, [sessionExpiry, clearUser, session]);
 

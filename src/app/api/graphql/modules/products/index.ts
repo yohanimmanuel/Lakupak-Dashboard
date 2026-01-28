@@ -543,6 +543,46 @@ export const mapProduct = (
 };
 
 // ============================================================================ //
+// UTILITY FUNCTIONS
+// ============================================================================ //
+
+/**
+ * Retry a function with exponential backoff
+ * @param fn Function to retry
+ * @param maxAttempts Maximum number of attempts (default: 3)
+ * @param baseDelayMs Base delay in milliseconds for exponential backoff (default: 100)
+ * @returns Result of the function
+ * @throws Last error if all attempts fail
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxAttempts: number = 3,
+  baseDelayMs: number = 100
+): Promise<T> {
+  let lastError: Error | unknown;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt === maxAttempts) {
+        // Last attempt failed, throw the error
+        throw error;
+      }
+      
+      // Exponential backoff: 100ms, 200ms, 400ms, etc.
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // TypeScript doesn't know we'll always throw, but this satisfies the type checker
+  throw lastError;
+}
+
+// ============================================================================ //
 // QUERIES
 // ============================================================================ //
 
@@ -557,6 +597,19 @@ export const fetchProductsConnection = async (args: {
   const { userId, page = 1, limit = 50, search, status, productType } = args;
 
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_PRODUCT_LIMIT);
+
+  // Check cache first (only for first page without search to avoid stale data)
+  if (safePage === 1 && !search) {
+    const { getCachedProductList } = await import('@/lib/queryCache');
+    const cached = await getCachedProductList<{
+      nodes: unknown[];
+      pagination: ReturnType<typeof buildPaginationInfo>;
+    }>(userId, safePage, safeLimit, { status, productType });
+    
+    if (cached) {
+      return cached;
+    }
+  }
 
   const whereClause: Prisma.ProductWhereInput = { userId };
   if (search) {
@@ -604,6 +657,12 @@ export const fetchProductsConnection = async (args: {
     nodes,
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
+
+  // Cache the result (only first page without search)
+  if (safePage === 1 && !search) {
+    const { setCachedProductList } = await import('@/lib/queryCache');
+    await setCachedProductList(userId, safePage, safeLimit, { status, productType }, result);
+  }
 
   return result;
 };
@@ -1022,8 +1081,38 @@ export const createProduct = async (args: {
     },
   });
 
-  await updateProductPricesFromOffers(prisma, userId);
+  // Update prices for THIS product only - await to ensure fresh prices in response
+  // This ensures the returned product includes offer-derived prices
+  // Use retry logic to handle transient failures
+  try {
+    await retryWithBackoff(
+      () => updateProductPricesFromOffers(prisma, userId, [product.productId]),
+      3, // 3 attempts
+      100 // 100ms base delay (100ms, 200ms, 400ms)
+    );
+    
+    // Invalidate caches after successful price update (before refetch)
+    const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateProductCache(userId),
+      invalidateDashboardCache(userId),
+    ]);
+  } catch (error) {
+    // Log detailed error information for monitoring/debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[Product] Price update failed after retries:', {
+      userId,
+      productId: product.productId,
+      error: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+    // Continue even if price update fails - product was still created
+    // The product will be returned with original prices (no offer discounts applied)
+  }
 
+  // Refetch product after price update to get fresh data with offer-derived prices
   const updatedProduct = await refetchProductForResponse(product.id);
   if (!updatedProduct) {
     throw new Error('Failed to fetch created product');
@@ -1248,8 +1337,38 @@ export const updateProduct = async (args: {
     },
   });
 
-  await updateProductPricesFromOffers(prisma, userId);
+  // Update prices for THIS product only - await to ensure fresh prices in response
+  // This ensures the returned product includes offer-derived prices
+  // Use retry logic to handle transient failures
+  try {
+    await retryWithBackoff(
+      () => updateProductPricesFromOffers(prisma, userId, [product.productId]),
+      3, // 3 attempts
+      100 // 100ms base delay (100ms, 200ms, 400ms)
+    );
+    
+    // Invalidate caches after successful price update (before refetch)
+    const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateProductCache(userId),
+      invalidateDashboardCache(userId),
+    ]);
+  } catch (error) {
+    // Log detailed error information for monitoring/debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[Product] Price update failed after retries:', {
+      userId,
+      productId: product.productId,
+      error: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+    // Continue even if price update fails - product was still updated
+    // The product will be returned with original prices (no offer discounts applied)
+  }
 
+  // Refetch product after price update to get fresh data with offer-derived prices
   const updatedProduct = await refetchProductForResponse(product.id);
   if (!updatedProduct) {
     throw new Error('Failed to fetch updated product');
@@ -1384,7 +1503,12 @@ export const resetOriginalPrices = async (userId: number) => {
       }),
     );
 
-    await Promise.all(variantOptionUpdatePromises);
+    // Execute updates in chunks to avoid connection pool exhaustion
+    const CONCURRENT_LIMIT = 20; // Increased from 15 with larger pool (30 connections)
+    for (let i = 0; i < variantOptionUpdatePromises.length; i += CONCURRENT_LIMIT) {
+      const chunk = variantOptionUpdatePromises.slice(i, i + CONCURRENT_LIMIT);
+      await Promise.all(chunk);
+    }
 
     return {
       success: true,
@@ -1418,17 +1542,33 @@ export const forceUpdatePrices = async (userId: number) => {
         },
       });
 
+      // Collect all variant options that need updates
+      const variantOptionsToUpdate: { id: number; sellingPrice: any }[] = [];
       for (const product of productsWithVariants) {
         if (product.variantOptions && product.variantOptions.length > 0) {
           for (const variantOption of product.variantOptions) {
             if (!variantOption.originalSellingPrice) {
-              await tx.variantOption.update({
-                where: { id: variantOption.id },
-                data: { originalSellingPrice: variantOption.sellingPrice },
+              variantOptionsToUpdate.push({
+                id: variantOption.id,
+                sellingPrice: variantOption.sellingPrice,
               });
             }
           }
         }
+      }
+
+      // Execute updates in chunks to avoid connection pool exhaustion
+      const CONCURRENT_LIMIT = 20; // Increased from 15 with larger pool (30 connections)
+      for (let i = 0; i < variantOptionsToUpdate.length; i += CONCURRENT_LIMIT) {
+        const chunk = variantOptionsToUpdate.slice(i, i + CONCURRENT_LIMIT);
+        await Promise.all(
+          chunk.map((item) =>
+            tx.variantOption.update({
+              where: { id: item.id },
+              data: { originalSellingPrice: item.sellingPrice },
+            })
+          )
+        );
       }
 
       await updateProductPricesFromOffers(tx, userId);

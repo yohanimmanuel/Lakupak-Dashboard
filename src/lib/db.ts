@@ -77,14 +77,14 @@ function getDbSecurityContext(): DbSecurityContext | undefined {
 // Connection pool configuration for production security
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Connection pool limits
-  max: parseInt(process.env.DB_POOL_MAX || '20', 10), // Maximum connections
-  min: parseInt(process.env.DB_POOL_MIN || '2', 10), // Minimum connections
-  // Connection timeout settings
-  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '10000', 10), // 10 seconds
-  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000', 10), // 30 seconds
-  // Query timeout (applied per query)
-  query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '30000', 10), // 30 seconds
+  // Connection pool limits - optimized for better performance
+  max: parseInt(process.env.DB_POOL_MAX || '30', 10), // Increased from 20 for better concurrency
+  min: parseInt(process.env.DB_POOL_MIN || '5', 10), // Increased from 2 to keep connections ready
+  // Connection timeout settings - relaxed for better reliability
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '15000', 10), // Increased from 10s
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '60000', 10), // Increased from 30s to keep connections longer
+  // Query timeout (applied per query) - increased for complex queries
+  query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '45000', 10), // Increased from 30s
   // SSL/TLS configuration (required for Supabase)
   // Allow self-signed certificates in development, require valid certs in production
   ssl: process.env.DATABASE_URL?.includes('supabase') 
