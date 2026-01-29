@@ -525,6 +525,23 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to determine distributor userId - this should not happen');
     }
     
+    // Check if this is buyer's first order BEFORE creating the order
+    let isFirstOrder = false;
+    if (sanitizedData.buyerId) {
+      try {
+        const existingOrderCount = await prisma.order.count({
+          where: {
+            userId: distributorUserId,
+            buyerId: String(sanitizedData.buyerId),
+            isDeleted: false, // Exclude soft-deleted orders
+          },
+        });
+        isFirstOrder = existingOrderCount === 0;
+      } catch (error) {
+        // Continue
+      }
+    }
+
     // Handle buyer creation/upsert - ensure buyer exists
     if (sanitizedData.buyerId) {
       try {
@@ -882,6 +899,20 @@ export async function POST(request: NextRequest) {
       } catch (notifError) {
         // Don't fail the order creation if notification creation fails
       }
+
+      // Send buyer notification if this is their first order
+      if (order.buyerId && isFirstOrder) {
+        try {
+          await NotificationService.createNewBuyerNotification(
+            order.userId,
+            order.buyerId,
+            order.storeName || 'Unknown Store',
+            true // This is their first order
+          );
+        } catch (buyerNotifError) {
+          // Don't fail the order creation if buyer notification fails
+        }
+      }
     }
 
     // Convert order-level Decimal fields to numbers
@@ -893,6 +924,17 @@ export async function POST(request: NextRequest) {
       totalAmount: decimalToNumber(order.totalAmount),
       orderItems: enrichedOrderItems
     };
+    
+    // Invalidate dashboard cache after order creation
+    if (order.userId) {
+      try {
+        const { invalidateDashboardCache } = await import('@/lib/queryCache');
+        await invalidateDashboardCache(order.userId);
+      } catch (error) {
+        // Ignore cache invalidation errors
+      }
+    }
+    
     return NextResponse.json(orderResponse, { status: 201, headers });
   } catch (error) {
     return NextResponse.json(
@@ -1703,6 +1745,17 @@ export async function PUT(request: NextRequest) {
       totalAmount: decimalToNumber((order as { totalAmount?: unknown }).totalAmount),
       orderItems: enrichedOrderItemsUpdate
     };
+    
+    // Invalidate dashboard cache after order update
+    if (order.userId) {
+      try {
+        const { invalidateDashboardCache } = await import('@/lib/queryCache');
+        await invalidateDashboardCache(order.userId);
+      } catch (error) {
+        // Ignore cache invalidation errors
+      }
+    }
+    
     return NextResponse.json(orderResponse, { headers });
   } catch (error: unknown) {
     return NextResponse.json(
@@ -1766,6 +1819,16 @@ export async function DELETE(request: NextRequest) {
       }
     } catch (error) {
       // Ignore broadcast errors
+    }
+
+    // Invalidate dashboard cache after deletion
+    if (body.userId) {
+      try {
+        const { invalidateDashboardCache } = await import('@/lib/queryCache');
+        await invalidateDashboardCache(Number(body.userId));
+      } catch (error) {
+        // Ignore cache invalidation errors
+      }
     }
 
     return NextResponse.json({ message: 'Order deleted successfully' }, { headers });

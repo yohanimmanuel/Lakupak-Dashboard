@@ -480,6 +480,74 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error('Failed to create order notification:', err);
         }
+
+        // Check if this is buyer's first order and send notification
+        // Use transaction to atomically check and flag first order to prevent race conditions
+        if (order.buyerId) {
+          try {
+            await prisma.$transaction(async (tx) => {
+              // Find or create buyer record
+              const buyer = await tx.buyer.upsert({
+                where: {
+                  buyerId: order.buyerId as string,
+                },
+                update: {},
+                create: {
+                  buyerId: order.buyerId as string,
+                  storeName: order.storeName || 'Unknown Store',
+                  userId: order.userId || undefined,
+                  owner: order.contactPerson || 'Unknown',
+                  email: order.customerEmail || '',
+                  phone: order.contactPhone || '',
+                  businessType: 'Retailer',
+                  address: order.deliveryAddress || '',
+                  status: 'Active',
+                },
+                select: {
+                  id: true,
+                  buyerId: true,
+                },
+              });
+
+              // Atomically count orders for this buyer WITHIN transaction
+              const orderCount = await tx.order.count({
+                where: {
+                  userId: order.userId,
+                  buyerId: order.buyerId as string,
+                  isDeleted: false, // Exclude soft-deleted orders
+                },
+              });
+
+              // If this is their first order, send notification (only once due to transaction)
+              if (orderCount === 1 && order.userId) {
+                await NotificationService.createNewBuyerNotification(
+                  order.userId,
+                  order.buyerId as string,
+                  order.storeName || 'Unknown Store',
+                  true // This is their first order
+                );
+              }
+            });
+          } catch (error) {
+            console.warn('[Mobile Orders] Failed to check/notify first order for buyer:', {
+              buyerId: order.buyerId,
+              orderId: order.orderId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        // Invalidate dashboard cache after order creation
+        try {
+          const { invalidateDashboardCache } = await import('@/lib/queryCache');
+          await invalidateDashboardCache(order.userId);
+        } catch (error) {
+          console.warn('[Mobile Orders] Failed to invalidate dashboard cache:', {
+            userId: order.userId,
+            orderId: order.orderId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
 
       if (Array.isArray(orderItems) && orderItems.length > 0) {
@@ -728,6 +796,74 @@ export async function POST(request: NextRequest) {
             groupTotalAmount
           );
         } catch (_) { /* ignore */ }
+
+        // Check if this is buyer's first order and send notification
+        // Use transaction to atomically check and flag first order to prevent race conditions
+        if (order.buyerId) {
+          try {
+            await prisma.$transaction(async (tx) => {
+              // Find or create buyer record
+              const buyer = await tx.buyer.upsert({
+                where: {
+                  buyerId: order.buyerId as string,
+                },
+                update: {},
+                create: {
+                  buyerId: order.buyerId as string,
+                  storeName: order.storeName || 'Unknown Store',
+                  userId: order.userId || undefined,
+                  owner: order.contactPerson || 'Unknown',
+                  email: order.customerEmail || '',
+                  phone: order.deliveryAddress || '',
+                  businessType: 'Retailer',
+                  address: order.deliveryAddress || '',
+                  status: 'Active',
+                },
+                select: {
+                  id: true,
+                  buyerId: true,
+                },
+              });
+
+              // Atomically count orders for this buyer WITHIN transaction
+              const orderCount = await tx.order.count({
+                where: {
+                  userId: order.userId,
+                  buyerId: order.buyerId as string,
+                  isDeleted: false, // Exclude soft-deleted orders
+                },
+              });
+
+              // If this is their first order, send notification (only once due to transaction)
+              if (orderCount === 1 && order.userId) {
+                await NotificationService.createNewBuyerNotification(
+                  order.userId,
+                  order.buyerId as string,
+                  order.storeName || 'Unknown Store',
+                  true // This is their first order
+                );
+              }
+            });
+          } catch (error) {
+            console.warn('[Mobile Orders] Failed to check/notify first order for buyer (second path):', {
+              buyerId: order.buyerId,
+              orderId: order.orderId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        // Invalidate dashboard cache after order creation
+        try {
+          const { invalidateDashboardCache } = await import('@/lib/queryCache');
+          await invalidateDashboardCache(order.userId);
+        } catch (error) {
+          console.warn('[Mobile Orders] Failed to invalidate dashboard cache (second path):', {
+            userId: order.userId,
+            orderId: order.orderId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
 
       // Create order items for this distributor only

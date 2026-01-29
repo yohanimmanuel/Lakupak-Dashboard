@@ -4,6 +4,8 @@ import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
+import { NotificationService } from '../notifications';
+import { DateTime } from 'luxon';
 
 export const offersTypeDefs = /* GraphQL */ `
   type OfferDiscount {
@@ -409,6 +411,83 @@ const fetchSingleOffer = async (args: { userId: number; id: string }) => {
   return mapOffer(offer);
 };
 
+// Helper: Check if offer is expiring soon and trigger notifications
+const checkOfferExpiryAndNotify = async (
+  userId: number,
+  offerId: string,
+  offerName: string,
+  dateRanges: Array<{ endDate: Date | string; isActive?: boolean }>
+) => {
+  const now = DateTime.now().setZone('Asia/Jakarta');
+
+  // Find the earliest end date among active date ranges
+  const activeDateRanges = dateRanges.filter(dr => dr.isActive !== false);
+  if (activeDateRanges.length === 0) return;
+
+  let earliestEndDate: DateTime | null = null;
+  for (const dr of activeDateRanges) {
+    const endDate = DateTime.fromJSDate(dr.endDate instanceof Date ? dr.endDate : new Date(dr.endDate), { zone: 'Asia/Jakarta' }).endOf('day');
+    if (!earliestEndDate || endDate < earliestEndDate) {
+      earliestEndDate = endDate;
+    }
+  }
+
+  if (!earliestEndDate) return;
+
+  const daysUntilExpiry = Math.floor(earliestEndDate.diff(now, 'days').days);
+
+  // Determine which threshold to notify for (7, 3, or 1 day)
+  // Only send notification if we're at or past one of these thresholds
+  let notificationThreshold: number | null = null;
+  
+  if (daysUntilExpiry <= 1) {
+    notificationThreshold = 1;
+  } else if (daysUntilExpiry <= 3) {
+    notificationThreshold = 3;
+  } else if (daysUntilExpiry <= 7) {
+    notificationThreshold = 7;
+  }
+
+  if (notificationThreshold !== null) {
+    // Check if notification for this threshold was already sent
+    // Fetch recent offer notifications and inspect metadata for matches
+    const recentNotifications = await prisma.notification.findMany({
+      where: {
+        userId,
+        type: 'offer',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
+        },
+      },
+    });
+
+    let isDuplicate = false;
+    for (const notification of recentNotifications) {
+      const meta = notification.metadata as any;
+      if (
+        meta &&
+        typeof meta === 'object' &&
+        meta.offerId === offerId &&
+        meta.expiryThreshold === notificationThreshold
+      ) {
+        isDuplicate = true;
+        break;
+      }
+    }
+
+    // Only send if no duplicate notification exists
+    if (!isDuplicate) {
+      await NotificationService.createOfferExpirationNotification(
+        userId,
+        offerId,
+        offerName,
+        daysUntilExpiry,
+        notificationThreshold
+      );
+    }
+  }
+};
+
 const createOffer = async (args: {
   userId: number;
   name: string;
@@ -569,6 +648,34 @@ const createOffer = async (args: {
     // ignore broadcast failures
   }
 
+  // Notify if offer is activated
+  if (initialStatus === 'active') {
+    try {
+      await NotificationService.createOfferActivatedNotification(
+        userId,
+        createdOfferWithRelations.offerId,
+        createdOfferWithRelations.name
+      );
+    } catch (notifError) {
+      // Don't fail offer creation if notification fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Offers] Activated notification failed:', notifError);
+      }
+    }
+  }
+
+  // Check if offer is expiring soon (7, 3, or 1 day)
+  if (initialStatus === 'active' && createdOfferWithRelations.dateRanges && createdOfferWithRelations.dateRanges.length > 0) {
+    try {
+      await checkOfferExpiryAndNotify(userId, createdOfferWithRelations.offerId, createdOfferWithRelations.name, createdOfferWithRelations.dateRanges);
+    } catch (notifError) {
+      // Don't fail offer creation if expiry check fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Offers] Expiry check failed:', notifError);
+      }
+    }
+  }
+
   return mapOffer(createdOfferWithRelations);
 };
 
@@ -619,12 +726,16 @@ const updateOffer = async (args: {
     where,
     include: {
       offerProducts: true,
+      dateRanges: true,
     },
   });
 
   if (!existingOffer) {
     throw new Error('Offer not found or you do not have permission to update it');
   }
+
+  // Track previous status to detect status changes
+  const previousStatus = existingOffer.status;
 
   // Collect affected product IDs BEFORE the update for targeted price recalculation
   // This includes both old and new product IDs in case products are being reassigned
@@ -760,6 +871,56 @@ const updateOffer = async (args: {
     // ignore broadcast failures - non-critical
   }
 
+  // Invalidate offer and product caches to ensure fresh data on next query
+  try {
+    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateOfferCache(userId),
+      invalidateProductCache(userId),
+    ]);
+  } catch {
+    // ignore cache invalidation failures
+  }
+
+  // Check for status changes and notify
+  const newStatus = updatedOfferWithRelations.status;
+  if (previousStatus !== newStatus) {
+    try {
+      if (newStatus === 'active' && previousStatus !== 'active') {
+        // Offer was activated
+        await NotificationService.createOfferActivatedNotification(
+          userId,
+          updatedOfferWithRelations.offerId,
+          updatedOfferWithRelations.name
+        );
+      } else if ((newStatus === 'expired' || newStatus === 'inactive') && previousStatus === 'active') {
+        // Offer was deactivated/expired
+        await NotificationService.createOfferExpiredNotification(
+          userId,
+          updatedOfferWithRelations.offerId,
+          updatedOfferWithRelations.name
+        );
+      }
+    } catch (notifError) {
+      // Don't fail offer update if notification fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Offers] Status change notification failed:', notifError);
+      }
+    }
+  }
+
+  // Check if offer is expiring soon (7, 3, or 1 day) when active
+  if (newStatus === 'active' && updatedOfferWithRelations.dateRanges && updatedOfferWithRelations.dateRanges.length > 0) {
+    try {
+      await checkOfferExpiryAndNotify(userId, updatedOfferWithRelations.offerId, updatedOfferWithRelations.name, updatedOfferWithRelations.dateRanges);
+    } catch (notifError) {
+      // Don't fail offer update if expiry check fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Offers] Expiry check failed:', notifError);
+      }
+    }
+  }
+
   return mapOffer(updatedOfferWithRelations);
 };
 
@@ -804,10 +965,68 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
     // ignore broadcast failures
   }
 
+  // Invalidate offer and product caches to ensure fresh data on next query
+  try {
+    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateOfferCache(userId),
+      invalidateProductCache(userId),
+    ]);
+  } catch {
+    // ignore cache invalidation failures
+  }
+
   return {
     success: true,
     deleted: mapOffer(offerToDelete),
   };
+};
+
+/**
+ * Scheduled task: Check all active offers for expiry and send notifications
+ * This should be called by a cron job or scheduled task (e.g., daily at midnight)
+ * Usage: Call this function from a background job/cron to check all offers
+ */
+export const checkAllOffersForExpiry = async () => {
+  try {
+    // Fetch all active offers with their date ranges
+    const activeOffers = await prisma.offer.findMany({
+      where: {
+        status: 'active',
+      },
+      include: {
+        dateRanges: true,
+      },
+    });
+
+    // Check each offer for expiry and send notifications
+    for (const offer of activeOffers) {
+      if (offer.dateRanges && offer.dateRanges.length > 0 && offer.userId) {
+        try {
+          await checkOfferExpiryAndNotify(
+            offer.userId,
+            offer.offerId,
+            offer.name,
+            offer.dateRanges
+          );
+        } catch (error) {
+          // Log error but continue processing other offers
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`[Offers] Failed to check expiry for offer ${offer.offerId}:`, error);
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: `Checked ${activeOffers.length} active offers for expiry`,
+      offersChecked: activeOffers.length,
+    };
+  } catch (error) {
+    console.error('[Offers] Failed to check all offers for expiry:', error);
+    throw new Error('Failed to check offers for expiry');
+  }
 };
 
 export const offersResolvers = {

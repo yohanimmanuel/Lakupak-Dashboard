@@ -1150,6 +1150,14 @@ export const createProduct = async (args: {
   // Invalidate marketplace search cache (public-facing, needs caching)
   await invalidateSearchCache('search-cache:marketplace:*');
   
+  // Invalidate product cache again after broadcast to ensure fresh data on next query
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
+  }
+  
   return mapProductWithOffers(updatedProduct);
 };
 
@@ -1439,6 +1447,14 @@ export const updateProduct = async (args: {
   // Invalidate marketplace search cache (public-facing, needs caching)
   await invalidateSearchCache('search-cache:marketplace:*');
   
+  // Invalidate product cache again after broadcast to ensure fresh data on next query
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
+  }
+  
   return mapProductWithOffers(updatedProduct);
 };
 
@@ -1475,6 +1491,14 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
     await broadcastProductChanges(productToDelete.productId);
   } catch {
     // ignore broadcast failures
+  }
+
+  // Invalidate product cache to ensure fresh data on next query
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
   }
 
   return {
@@ -1798,6 +1822,14 @@ export const publishMarketplaceProduct = async (args: {
   
   // Invalidate marketplace search cache (public-facing, needs caching)
   await invalidateSearchCache('search-cache:marketplace:*');
+
+  // Invalidate product cache after publish/unpublish to ensure fresh status display
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
+  }
 
   return {
     success: true,

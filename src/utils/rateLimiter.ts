@@ -226,10 +226,10 @@ async function recordViolation(key: string, penaltyDurationSeconds: number = 864
       const violations = await redis.incr(violationKey);
       await redis.expire(violationKey, penaltyDurationSeconds);
       
-      // Auto-blacklist after 5 violations
-      if (violations >= 5) {
+      // Auto-blacklist after 20 violations (increased from 5)
+      if (violations >= 20) {
         const ip = key.split(':').pop() || 'unknown';
-        await blacklistIp(ip, 86400); // 24 hours
+        await blacklistIp(ip, 3600); // 1 hour (reduced from 24 hours)
       }
     } catch (error) {
       // Fallback handled in progressive rate limiting
@@ -242,10 +242,10 @@ async function recordViolation(key: string, penaltyDurationSeconds: number = 864
  */
 function calculateEffectiveLimit(baseLimit: number, violations: number): number {
   if (violations === 0) return baseLimit;
-  if (violations === 1) return Math.floor(baseLimit * 0.75); // 25% reduction
-  if (violations === 2) return Math.floor(baseLimit * 0.5); // 50% reduction
-  if (violations === 3) return Math.floor(baseLimit * 0.25); // 75% reduction
-  return Math.floor(baseLimit * 0.1); // 90% reduction for 4+ violations
+  if (violations <= 5) return Math.floor(baseLimit * 0.9); // 10% reduction
+  if (violations <= 10) return Math.floor(baseLimit * 0.8); // 20% reduction
+  if (violations <= 15) return Math.floor(baseLimit * 0.7); // 30% reduction
+  return Math.floor(baseLimit * 0.5); // 50% reduction for 16+ violations
 }
 
 /**
@@ -441,9 +441,9 @@ export async function rateLimit(
       entry.violations = (entry.violations || 0) + 1;
       rateLimitStore.set(key, entry);
       
-      // Auto-blacklist after 5 violations
-      if (entry.violations >= 5) {
-        await blacklistIp(ip, 86400); // 24 hours
+      // Auto-blacklist after 20 violations (match Redis behavior)
+      if (entry.violations >= 20) {
+        await blacklistIp(ip, 3600); // 1 hour (match Redis behavior)
       }
     }
     
@@ -526,17 +526,17 @@ export async function graphQLComplexityRateLimiter(
   req: NextRequest,
   query: string,
   userId: number | null,
-  baseLimit: number = 1000 // Base complexity limit
+  baseLimit: number = 5000 // Base complexity limit (increased from 1000)
 ): Promise<NextResponse | null> {
   const { complexity, depth, fieldCount } = calculateGraphQLComplexity(query);
   
   // Reject queries that are too deep (prevent nested attacks)
-  if (depth > 10) {
+  if (depth > 15) { // Increased from 10
     return NextResponse.json(
       { 
         errors: [{ 
-          message: 'Query depth exceeds maximum allowed (10 levels)',
-          extensions: { code: 'QUERY_TOO_DEEP', depth, maxDepth: 10 }
+          message: 'Query depth exceeds maximum allowed (15 levels)',
+          extensions: { code: 'QUERY_TOO_DEEP', depth, maxDepth: 15 }
         }] 
       },
       { status: 400 }
@@ -544,12 +544,12 @@ export async function graphQLComplexityRateLimiter(
   }
   
   // Reject queries with too many fields
-  if (fieldCount > 100) {
+  if (fieldCount > 200) { // Increased from 100
     return NextResponse.json(
       { 
         errors: [{ 
-          message: 'Query contains too many fields (maximum 100)',
-          extensions: { code: 'QUERY_TOO_LARGE', fieldCount, maxFields: 100 }
+          message: 'Query contains too many fields (maximum 200)',
+          extensions: { code: 'QUERY_TOO_LARGE', fieldCount, maxFields: 200 }
         }] 
       },
       { status: 400 }
@@ -558,11 +558,11 @@ export async function graphQLComplexityRateLimiter(
   
   // Apply complexity-based rate limiting
   // Higher complexity queries consume more of the limit
-  const complexityMultiplier = Math.ceil(complexity / 100); // Each 100 complexity = 1 request
+  const complexityMultiplier = Math.ceil(complexity / 200); // Each 200 complexity = 1 request (increased from 100)
   const effectiveLimit = Math.floor(baseLimit / Math.max(1, complexityMultiplier));
   
   // Also apply absolute request count limit
-  const absoluteLimit = 100; // Max 100 requests per minute regardless of complexity
+  const absoluteLimit = 500; // Max 500 requests per minute regardless of complexity (increased from 100)
   
   const ip = getClientIp(req);
   const key = userId 
@@ -574,8 +574,8 @@ export async function graphQLComplexityRateLimiter(
     maxRequests: Math.min(effectiveLimit, absoluteLimit),
     message: `Query complexity too high. Please simplify your query. (Complexity: ${complexity}, Limit: ${effectiveLimit})`,
     keyGenerator: () => key,
-    progressivePenalty: true,
-    burstLimit: 10, // Allow 10 complex queries in 1 second
+    progressivePenalty: false, // Disabled progressive penalty for legitimate use
+    burstLimit: 50, // Allow 50 complex queries in 1 second (increased from 10)
     burstWindowMs: 1000,
   });
 }
@@ -920,8 +920,8 @@ export async function offerUpdateRateLimiter(
   const key = userId ? `offer-update:${userId}:${ip}` : `offer-update:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 200,
     message: 'Too many offer updates. Please try again later.',
     keyGenerator: () => key,
   });

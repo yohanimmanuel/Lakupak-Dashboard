@@ -12,6 +12,7 @@ import {
   generateUniqueSupplierId,
 } from '@/utils/supplier-security';
 import type { SupplierFormData } from '@/types/client';
+import { NotificationService } from '../notifications';
 
 const nullToUndefined = <T extends Record<string, unknown>>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } => {
   return Object.fromEntries(
@@ -470,6 +471,29 @@ const createBuyer = async (args: {
       data: finalBuyerData,
     });
 
+    // Notify about new buyer registration
+    try {
+      await NotificationService.createNewBuyerNotification(
+        userId,
+        buyer.buyerId,
+        buyer.storeName,
+        false // Not a first order, just registration
+      );
+    } catch (notifError) {
+      // Don't fail buyer creation if notification fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Buyers] New buyer notification failed:', notifError);
+      }
+    }
+
+    // Invalidate dashboard cache after buyer creation
+    try {
+      const { invalidateDashboardCache } = await import('@/lib/queryCache');
+      await invalidateDashboardCache(userId);
+    } catch (error) {
+      // Ignore cache invalidation errors
+    }
+
     return mapBuyer(buyer);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
@@ -565,6 +589,14 @@ const updateBuyer = async (args: {
       throw new Error('Invalid identifier');
     }
 
+    // Invalidate dashboard cache after buyer update
+    try {
+      const { invalidateDashboardCache } = await import('@/lib/queryCache');
+      await invalidateDashboardCache(userId);
+    } catch (error) {
+      // Ignore cache invalidation errors
+    }
+
     return mapBuyer(buyer);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
@@ -606,6 +638,14 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     await prisma.buyer.delete({
       where: { buyerId: id },
     });
+  }
+
+  // Invalidate dashboard cache after buyer deletion
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(userId);
+  } catch (error) {
+    // Ignore cache invalidation errors
   }
 
   return {

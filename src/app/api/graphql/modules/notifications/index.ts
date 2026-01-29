@@ -389,20 +389,61 @@ export const NotificationService = {
     }
   },
 
-  // Create offer expiration notification
+  // Create offer activated notification
+  async createOfferActivatedNotification(
+    userId: number,
+    offerId: string,
+    offerName: string
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'offer',
+        title: 'Offer Activated',
+        message: `Your offer "${offerName}" is now active and available to customers.`,
+        metadata: { offerId, offerName, status: 'active' },
+        actionUrl: `/offers/details?id=${offerId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
+  // Create offer expired notification
+  async createOfferExpiredNotification(
+    userId: number,
+    offerId: string,
+    offerName: string
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'offer',
+        title: 'Offer Expired',
+        message: `Your offer "${offerName}" has expired and is no longer active.`,
+        metadata: { offerId, offerName, status: 'expired' },
+        actionUrl: `/offers/details?id=${offerId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
+  // Create offer expiration notification (for expiring soon reminders)
   async createOfferExpirationNotification(
     userId: number,
     offerId: string,
     offerName: string,
-    daysUntilExpiry: number
+    daysUntilExpiry: number,
+    expiryThreshold?: number
   ) {
+    // Delegate to createOfferExpiredNotification for the zero-days case
+    if (daysUntilExpiry === 0) {
+      return this.createOfferExpiredNotification(userId, offerId, offerName);
+    }
+
     let title = '';
     let message = '';
 
-    if (daysUntilExpiry === 0) {
-      title = 'Offer Expired';
-      message = `Your offer "${offerName}" has expired.`;
-    } else if (daysUntilExpiry === 1) {
+    if (daysUntilExpiry === 1) {
       title = 'Offer Expiring Tomorrow';
       message = `Your offer "${offerName}" will expire tomorrow.`;
     } else if (daysUntilExpiry <= 3) {
@@ -420,7 +461,12 @@ export const NotificationService = {
           type: 'offer',
           title,
           message,
-          metadata: { offerId, offerName, daysUntilExpiry },
+          metadata: { 
+            offerId, 
+            offerName, 
+            daysUntilExpiry,
+            expiryThreshold: expiryThreshold || daysUntilExpiry // Track threshold for deduplication
+          },
           actionUrl: `/offers/details?id=${offerId}`,
         },
       });

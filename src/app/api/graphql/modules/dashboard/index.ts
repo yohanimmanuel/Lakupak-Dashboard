@@ -3,7 +3,6 @@ import { fetchProductsConnection } from '../products';
 import { fetchBuyersConnection, fetchSuppliersConnection } from '../contacts';
 import { sanitizePagination } from '../common/utils';
 import { prisma } from '../common/prisma';
-import { getCachedQuery, setCachedQuery } from '@/lib/queryCache';
 
 export const dashboardTypeDefs = /* GraphQL */ `
   type DashboardTotals {
@@ -160,16 +159,6 @@ const buildDashboardSnapshot = async (args: {
 }): Promise<DashboardSnapshot> => {
   const { userId, ordersLimit, productsLimit, contactsLimit } = args;
 
-  // Check cache first - dashboard data is expensive to compute
-  // Cache key includes all parameters to ensure different limits produce distinct cached entries
-  const cached = await getCachedQuery<DashboardSnapshot>(
-    'dashboard-snapshot',
-    { userId, ordersLimit, productsLimit, contactsLimit }
-  );
-  if (cached) {
-    return cached;
-  }
-
   // Fetch paginated lists for display AND calculate aggregates from ALL data
   const [ordersConnection, productsConnection, buyersConnection, suppliersConnection, aggregates] = await Promise.all([
     fetchOrdersConnection({ userId, page: 1, limit: ordersLimit }),
@@ -192,15 +181,6 @@ const buildDashboardSnapshot = async (args: {
     },
     aggregates,
   };
-
-  // Cache the expensive dashboard query with all parameters in the key
-  // Cache for 2 minutes since dashboard data doesn't change frequently
-  await setCachedQuery(
-    'dashboard-snapshot',
-    { userId, ordersLimit, productsLimit, contactsLimit },
-    result,
-    { ttl: 120 }
-  );
 
   return result;
 };
