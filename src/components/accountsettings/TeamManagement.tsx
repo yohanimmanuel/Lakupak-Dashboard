@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Users, 
   Search, 
@@ -10,7 +10,6 @@ import {
   MoreVertical,
   Mail,
   Phone,
-  Shield,
   UserPlus,
   Settings,
   Filter,
@@ -202,7 +201,6 @@ export default function TeamManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('All Roles');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<SalesMember | null>(null);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
@@ -210,19 +208,17 @@ export default function TeamManagement() {
   const agentsPerPage = 4;
   const [teamsPage, setTeamsPage] = useState(1);
   const teamsPerPage = 4;
-  
-  // Permissions state
-  const [permissions, setPermissions] = useState({
-    viewProducts: true,
-    manageCustomers: true,
-    viewAnalytics: true,
-    manageTerritories: true,
-    leadAssignment: true,
-    setTargets: true,
-    createQuotes: true,
-    trackPerformance: true,
-  });
 
+  // Territories derived from sales team members
+  const territoryList = useMemo(() => {
+    const map = new Map<string, SalesMember[]>();
+    for (const member of salesMembers) {
+      const t = member.territory || 'Unassigned';
+      if (!map.has(t)) map.set(t, []);
+      map.get(t)!.push(member);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [salesMembers]);
 
   // Fetch sales agents and teams from API
   useEffect(() => {
@@ -369,17 +365,6 @@ export default function TeamManagement() {
 
   const handleAddMember = () => {
     setShowAddMemberModal(true);
-  };
-
-  const handleManagePermissions = () => {
-    setShowPermissionsModal(true);
-  };
-
-  const togglePermission = (permission: keyof typeof permissions) => {
-    setPermissions(prev => ({
-      ...prev,
-      [permission]: !prev[permission]
-    }));
   };
 
   const handleEditMember = (member: SalesMember) => {
@@ -878,104 +863,33 @@ export default function TeamManagement() {
           )}
         </div>
 
-        {/* Sales Access Control & Territories */}
+        {/* Territory Management */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-md font-semibold text-black mb-1">Sales Access Control & Territories</h3>
-              <p className="text-xs text-gray-600">Manage sales permissions, territories, and lead assignments</p>
-            </div>
-            <button 
-              onClick={handleManagePermissions}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Shield className="h-4 w-4" />
-              Manage Permissions
-            </button>
+          <div className="mb-4">
+            <h3 className="text-md font-semibold text-black mb-1">Territory Management</h3>
+            <p className="text-xs text-gray-600">Territories from your sales team</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <h4 className="font-medium text-black mb-2">Sales Role Permissions</h4>
-               <div className="space-y-2">
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">View Products & Orders</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.viewProducts ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.viewProducts ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Manage Customers</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.manageCustomers ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.manageCustomers ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">View Sales Analytics</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.viewAnalytics ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.viewAnalytics ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Manage Territories</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.manageTerritories ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.manageTerritories ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Lead Assignment</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.leadAssignment ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.leadAssignment ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Set Sales Targets</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.setTargets ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.setTargets ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Create Quotes & Invoices</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.createQuotes ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.createQuotes ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-gray-600">Track Sales Performance</span>
-                   <span className={`text-xs px-2 py-1 rounded ${permissions.trackPerformance ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                     {permissions.trackPerformance ? 'All Access' : 'Manager Only'}
-                   </span>
-                 </div>
-               </div>
-            </div>
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <h4 className="font-medium text-sm text-black mb-2">Territory Management</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Jakarta & West Java</span>
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Sarah Johnson</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Surabaya & East Java</span>
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Michael Chen</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Bali & Nusa Tenggara</span>
-                  <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">Lisa Rodriguez</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Medan & North Sumatra</span>
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">David Kim</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Makassar & Sulawesi</span>
-                  <span className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">Unassigned</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Pontianak & Kalimantan</span>
-                  <span className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">Unassigned</span>
-                </div>
-              </div>
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="space-y-2">
+              {territoryList.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4 text-center">No territories yet. Add sales team members with territories to see them here.</p>
+              ) : (
+                territoryList.map(([territoryName, members]) => (
+                  <div key={territoryName} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <span className="text-sm font-medium text-black">{territoryName}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      members.length > 0
+                        ? 'text-green-600 bg-green-50'
+                        : 'text-gray-600 bg-gray-50'
+                    }`}>
+                      {members.length > 0
+                        ? members.map((m) => m.name).join(', ')
+                        : 'Unassigned'}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1002,231 +916,6 @@ export default function TeamManagement() {
             <div className="text-center py-4">
               <div className="text-gray-500 mb-2">Sales team member form will be implemented</div>
               <div className="text-sm text-gray-400">This is a design preview</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manage Permissions Modal */}
-      {showPermissionsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto hide-scrollbar">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-black">Manage Sales Permissions</h3>
-              <button
-                onClick={() => setShowPermissionsModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Sales Team Permissions */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-black">Sales Team Permissions</h4>
-                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Centralized Access</span>
-                </div>
-                <p className="text-xs text-gray-600 mb-4">All sales team members have equal access to these features</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('viewProducts')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.viewProducts}
-                        onChange={() => togglePermission('viewProducts')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 transition-all duration-200 ${permissions.viewProducts ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400 hover:border-green-400'}`}>
-                        {permissions.viewProducts && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">View Products & Orders</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('manageCustomers')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.manageCustomers}
-                        onChange={() => togglePermission('manageCustomers')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 transition-all duration-200 ${permissions.manageCustomers ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400 hover:border-green-400'}`}>
-                        {permissions.manageCustomers && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Manage Customers</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('viewAnalytics')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.viewAnalytics}
-                        onChange={() => togglePermission('viewAnalytics')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 transition-all duration-200 ${permissions.viewAnalytics ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400 hover:border-green-400'}`}>
-                        {permissions.viewAnalytics && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">View Sales Analytics</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('manageTerritories')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.manageTerritories}
-                        onChange={() => togglePermission('manageTerritories')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${permissions.manageTerritories ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                        {permissions.manageTerritories && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Manage Territories</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('leadAssignment')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.leadAssignment}
-                        onChange={() => togglePermission('leadAssignment')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${permissions.leadAssignment ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                        {permissions.leadAssignment && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Lead Assignment</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('setTargets')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.setTargets}
-                        onChange={() => togglePermission('setTargets')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${permissions.setTargets ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                        {permissions.setTargets && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Set Sales Targets</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('createQuotes')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.createQuotes}
-                        onChange={() => togglePermission('createQuotes')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${permissions.createQuotes ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                        {permissions.createQuotes && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Create Quotes & Invoices</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer" onClick={() => togglePermission('trackPerformance')}>
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={permissions.trackPerformance}
-                        onChange={() => togglePermission('trackPerformance')}
-                        className="sr-only" 
-                      />
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all duration-200 ${permissions.trackPerformance ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'}`}>
-                        {permissions.trackPerformance && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600">Track Sales Performance</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Territory Management */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <h4 className="font-semibold text-black">Territory Assignments</h4>
-                    <p className="text-xs text-gray-500 italic">*Territories mentioned are based on your input in the sales regions</p>
-                  </div>
-                </div>
-                 <div className="space-y-3">
-                   {salesMembers.map((member) => (
-                     <div key={member.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                       <div>
-                         <span className="font-medium text-xs text-black">{member.territory}</span>
-                         <span className="text-xs text-gray-500 ml-2">({member.role})</span>
-                       </div>
-                       <div className="relative">
-                         <select 
-                           className="appearance-none bg-white border border-gray-300 rounded-lg px-3 py-1.5 pr-8 text-xs text-black focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
-                           defaultValue={member.name}
-                         >
-                           <option value="Sarah Johnson">Sarah Johnson</option>
-                           <option value="Michael Chen">Michael Chen</option>
-                           <option value="Lisa Rodriguez">Lisa Rodriguez</option>
-                           <option value="David Kim">David Kim</option>
-                         </select>
-                         <ChevronDown className="h-3 w-3 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
-                       </div>
-                     </div>
-                   ))}
-                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowPermissionsModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPermissionsModal(false);
-                    setSuccess('Permissions updated successfully');
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0a52c0] transition-colors"
-                >
-                  Save Changes
-                </button>
-              </div>
             </div>
           </div>
         </div>
