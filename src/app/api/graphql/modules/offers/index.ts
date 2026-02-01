@@ -6,6 +6,7 @@ import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/u
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import { NotificationService } from '../notifications';
 import { DateTime } from 'luxon';
+import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 
 export const offersTypeDefs = /* GraphQL */ `
   type OfferDiscount {
@@ -449,8 +450,19 @@ const checkOfferExpiryAndNotify = async (
   }
 
   if (notificationThreshold !== null) {
-    // Check if notification for this threshold was already sent
-    // Fetch recent offer notifications and inspect metadata for matches
+    // Fast path: check Redis first for deduplication (avoids DB query)
+    const redis = getRedisClient();
+    const dedupeKey = `offer-expiry-notif:${userId}:${offerId}:${notificationThreshold}`;
+    if (redis && isRedisAvailable()) {
+      try {
+        const exists = await redis.get(dedupeKey);
+        if (exists) return; // Already notified within 24h
+      } catch {
+        // Fall through to DB check
+      }
+    }
+
+    // Fallback: fetch recent notifications and inspect metadata (when Redis unavailable)
     const recentNotifications = await prisma.notification.findMany({
       where: {
         userId,
@@ -463,7 +475,7 @@ const checkOfferExpiryAndNotify = async (
 
     let isDuplicate = false;
     for (const notification of recentNotifications) {
-      const meta = notification.metadata as any;
+      const meta = notification.metadata as { offerId?: string; expiryThreshold?: number };
       if (
         meta &&
         typeof meta === 'object' &&
@@ -484,6 +496,15 @@ const checkOfferExpiryAndNotify = async (
         daysUntilExpiry,
         notificationThreshold
       );
+
+      // Record in Redis for fast deduplication on next check
+      if (redis && isRedisAvailable()) {
+        try {
+          await redis.setex(dedupeKey, 86400, '1'); // 24h TTL
+        } catch {
+          // Silent fail
+        }
+      }
     }
   }
 };
@@ -989,13 +1010,33 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
  */
 export const checkAllOffersForExpiry = async () => {
   try {
-    // Fetch all active offers with their date ranges
+    const now = DateTime.now().setZone('Asia/Jakarta');
+    const sevenDaysFromNow = now.plus({ days: 7 }).endOf('day').toJSDate();
+
+    // Fetch only offers expiring within the next 7 days
     const activeOffers = await prisma.offer.findMany({
       where: {
         status: 'active',
+        dateRanges: {
+          some: {
+            isActive: true,
+            endDate: {
+              gte: now.toJSDate(),
+              lte: sevenDaysFromNow,
+            },
+          },
+        },
       },
       include: {
-        dateRanges: true,
+        dateRanges: {
+          where: {
+            isActive: true,
+            endDate: {
+              gte: now.toJSDate(),
+              lte: sevenDaysFromNow,
+            },
+          },
+        },
       },
     });
 
