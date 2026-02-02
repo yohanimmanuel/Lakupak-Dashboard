@@ -2,6 +2,7 @@ import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { Prisma as PrismaClient } from '@/generated/prisma';
+import { NotificationService } from '../notifications';
 
 // ============================================================================ //
 // TYPE DEFS
@@ -328,6 +329,23 @@ const updateCampaign = async (args: {
     where: { id: existingCampaign.id },
     data: updateData,
   });
+
+  // Send notification whenever campaign status is set to 'Sent'
+  if (status === 'Sent') {
+    try {
+      await NotificationService.createCampaignSentNotification(
+        userId,
+        updatedCampaign.campaignId,
+        updatedCampaign.name,
+        updatedCampaign.recipients
+      );
+    } catch (notifError) {
+      // Don't fail campaign update if notification fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Campaigns] Sent notification failed:', notifError);
+      }
+    }
+  }
 
   return mapCampaign(updatedCampaign);
 };

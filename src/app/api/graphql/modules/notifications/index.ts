@@ -474,6 +474,45 @@ export const NotificationService = {
     }
   },
 
+  // Create product published notification
+  async createProductPublishedNotification(
+    userId: number,
+    productId: string,
+    productName: string
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'product',
+        title: 'Product Published',
+        message: `Your product "${productName}" has been published to the marketplace.`,
+        metadata: { productId, productName, status: 'published' },
+        actionUrl: `/products/details?id=${productId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
+  // Create campaign sent notification
+  async createCampaignSentNotification(
+    userId: number,
+    campaignId: string,
+    campaignName: string,
+    recipients: string
+  ) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'campaign',
+        title: 'Campaign Sent',
+        message: `Your campaign "${campaignName}" has been sent to ${recipients}.`,
+        metadata: { campaignId, campaignName, recipients, status: 'sent' },
+        actionUrl: `/marketing/campaigns/details?id=${campaignId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
   // Create new buyer notification
   async createNewBuyerNotification(
     userId: number,

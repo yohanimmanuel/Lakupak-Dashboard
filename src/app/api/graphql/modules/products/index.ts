@@ -1831,6 +1831,22 @@ export const publishMarketplaceProduct = async (args: {
     // ignore cache invalidation failures
   }
 
+  // Send notification when product is published
+  if (normalizedAction === 'publish') {
+    try {
+      await NotificationService.createProductPublishedNotification(
+        userId,
+        updatedProduct.productId,
+        updatedProduct.name
+      );
+    } catch (notifError) {
+      // Don't fail publish if notification fails
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Products] Published notification failed:', notifError);
+      }
+    }
+  }
+
   return {
     success: true,
     message:
