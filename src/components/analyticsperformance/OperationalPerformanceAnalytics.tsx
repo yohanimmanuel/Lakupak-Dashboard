@@ -498,9 +498,9 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     icon: React.ReactNode;
     color: string;
   }> = ({ title, value, change, icon, color }) => (
-    <div className={`flex flex-col justify-between p-4 rounded-lg shadow-sm bg-white border border-[#e6e6e6] ${color}`}>
-      <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+    <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+      <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
           {icon}
         </div>
         <div>
@@ -567,7 +567,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
           <div className="lg:col-span-5 h-full">
             {/* Order Status Distribution */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-black">Order Status Distribution</h3>
               <div className="flex-1 min-h-0 min-h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -608,7 +608,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                       const percentage = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.payload?.percentage as number;
                       const color = (entry as { payload: { status: string; percentage: number; color: string }; value: number })?.payload?.color as string;
                       return (
-                        <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                        <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                           <div className="flex items-center mb-2">
                             <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
                             <span className="font-semibold" style={{ color }}>{status}</span>
@@ -646,7 +646,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           
           <div className="lg:col-span-6 h-full">
             {/* Processing Time Trend */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Processing Time Trend</h3>
                 <div className="flex items-center space-x-4">
@@ -708,7 +708,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         totalOrders: 'Total Orders'
                       };
                       return (
-                        <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                        <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                           <p className="font-semibold text-gray-900 mb-2">{label}</p>
                           {payload.map((p, idx) => {
                             const key = String(p.dataKey || p.name || '');
@@ -769,7 +769,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
           <div className="lg:col-span-6 h-full">
             {/* Inventory Health by Category */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Inventory Health by Category</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -818,7 +818,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         stockoutPieces: 'Out of Stock'
                       };
                       return (
-                        <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                        <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                           <p className="font-semibold text-gray-900 mb-2">{label}</p>
                           {payload.map((p, idx) => {
                             const key = String(p.name || p.dataKey || '');
@@ -883,11 +883,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           
           <div className="lg:col-span-5 h-full">
             {/* Quality Metrics Dashboard */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Operational Quality Metrics</h3>
               <div className="space-y-4">
                 {qualityMetrics.map((metric, index) => (
-                  <div key={index} className="p-4 rounded-lg border border-gray-100 bg-gray-50">
+                  <div key={index} className="p-4 rounded-lg border border-[#e6e6e6] bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <div className={`w-3 h-3 rounded-full ${
@@ -940,7 +940,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
           <div className="lg:col-span-12">
             {/* Delivery Methods Performance */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Delivery Methods Distribution</h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={deliveryMethodData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
@@ -975,7 +975,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                       const percentage = (p as { payload: { method: string; percentage: number }; value: number })?.payload?.percentage as number;
                       const color = '#0a61d7';
                       return (
-                        <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                        <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                           <div className="flex items-center mb-2">
                             <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
                             <span className="font-semibold" style={{ color }}>{method}</span>
@@ -1017,9 +1017,9 @@ export const OperationalMetricCard: React.FC<{
   icon: React.ReactNode;
   color: string;
 }> = ({ title, value, change, icon, color }) => (
-  <div className={`flex flex-col justify-between p-4 rounded-lg shadow-sm bg-white border border-[#e6e6e6] ${color}`}>
-    <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+<div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+      <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
         {icon}
       </div>
       <div>
@@ -1044,7 +1044,7 @@ export const OperationalMetricCard: React.FC<{
 export const OrderStatusDistributionChart: React.FC<{
   data: OrderStatusData[];
 }> = ({ data }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+  <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
     <div className="flex items-center justify-between mb-2">
       <h3 className="text-lg font-semibold text-black">Order Status Distribution</h3>
       <button 
@@ -1092,7 +1092,7 @@ export const OrderStatusDistributionChart: React.FC<{
               const percentage = entry?.payload?.percentage as number;
               const color = entry?.payload?.color as string;
               return (
-                <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                   <div className="flex items-center mb-2">
                     <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
                     <span className="font-semibold" style={{ color }}>{status}</span>
@@ -1127,7 +1127,7 @@ export const OrderStatusDistributionChart: React.FC<{
 export const ProcessingTimeTrendChart: React.FC<{
   data: ProcessingTimeData[];
 }> = ({ data }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+  <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
     <div className="flex items-center justify-between mb-6">
       <h3 className="text-lg font-semibold text-gray-900">Processing Time Trend</h3>
       <div className="flex items-center space-x-4">
@@ -1168,7 +1168,7 @@ export const ProcessingTimeTrendChart: React.FC<{
               const colors: Record<string, string> = { avgProcessingTime: '#0a61d7', totalOrders: '#10B981' };
               const labels: Record<string, string> = { avgProcessingTime: 'Avg Processing Time', totalOrders: 'Total Orders' };
               return (
-                <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                   <p className="font-semibold text-gray-900 mb-2">{label}</p>
                   {payload.map((p, idx) => {
                     const key = String(p.dataKey || p.name || '');

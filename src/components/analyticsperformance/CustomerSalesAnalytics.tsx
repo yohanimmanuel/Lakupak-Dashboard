@@ -178,7 +178,7 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 	}, [data, salesForecast]);
 
 	return (
-		<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+		<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 			<div className="flex items-center justify-between mb-4">
 				<h3 className="text-lg font-semibold text-gray-900">Sales Trend{salesForecast ? ' & Forecast' : ''}</h3>
 				<div className="flex items-center space-x-4">
@@ -217,7 +217,7 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 					content={({ active, payload, label }) => {
 						if (active && payload && payload.length) {
 							return (
-								<div className="bg-white border-none rounded-xl shadow-lg p-4">
+								<div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
 									<div className="flex items-center mb-2">
 										<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
 										<p className="font-semibold text-gray-900">{label}</p>
@@ -557,7 +557,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 				{/* Units by Category (Pie) */}
 				<div className="lg:col-span-5">
-					<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+					<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 						<div className="flex items-center justify-between mb-6">
 							<h3 className="text-lg font-semibold text-gray-900">Units by Product Category</h3>
 							<div className="relative" ref={categoryDropdownRef}>
@@ -624,7 +624,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			</div>
 
 			{/* Sales Trend Forecast */}
-			<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 				<div className="flex items-center justify-between mb-6">
 					<h3 className="text-lg font-semibold text-gray-900">Sales Trend Forecast</h3>
 					{salesForecast && salesForecast.forecast.length > 0 && (
@@ -677,7 +677,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 									content={({ active, payload, label }) => {
 										if (active && payload && payload.length) {
 											return (
-												<div className="bg-white border-none rounded-xl shadow-lg p-4">
+												<div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
 													<div className="flex items-center mb-2">
 														<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
 														<p className="font-semibold text-gray-900">{label}</p>
@@ -722,7 +722,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 								/>
 							</BarChart>
 						</ResponsiveContainer>
-						<div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+						<div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
 							<div className="flex items-center gap-4">
 								<div>
 									<span className="text-xs text-gray-500">Trend: </span>
@@ -753,7 +753,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			</div>
 
 			{/* Top Customers Table */}
-			<div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 				<h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
 				<div className="overflow-x-auto rounded-lg">
 					<table className="min-w-full text-sm text-left whitespace-nowrap text-xs">

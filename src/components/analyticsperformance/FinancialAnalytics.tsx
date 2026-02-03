@@ -849,7 +849,7 @@ const FinancialAnalytics: React.FC = () => {
     color: string;
   }> = ({ title, value, change, icon, color }) => (
     <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
-      <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+      <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
         <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
           {icon}
         </div>
@@ -1220,7 +1220,7 @@ const FinancialAnalytics: React.FC = () => {
                  content={({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey?: string; value?: number }>; label?: string | number }) => {
                    if (active && payload && payload.length) {
                      return (
-                       <div className="bg-white border-none rounded-xl shadow-lg p-4">
+                       <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                          <p className="font-semibold text-gray-900 mb-2">{label}</p>
                          {payload.map((entry, index) => {
                            let dotColor = '#64748B';
@@ -1391,7 +1391,7 @@ const FinancialAnalytics: React.FC = () => {
                       />
                     </AreaChart>
                   </ResponsiveContainer>
-                  <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div>
                         <span className="text-xs text-gray-500">Trend: </span>
@@ -1523,7 +1523,7 @@ export const AnalyticsMetricCard: React.FC<{
   color: string;
 }> = ({ title, value, change, icon, color }) => (
   <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
-    <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
+    <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
       <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
         {icon}
       </div>
