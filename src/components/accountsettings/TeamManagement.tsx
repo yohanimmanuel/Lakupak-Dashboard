@@ -878,14 +878,12 @@ export default function TeamManagement() {
                 territoryList.map(([territoryName, members]) => (
                   <div key={territoryName} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <span className="text-sm font-medium text-black">{territoryName}</span>
-                    <span className={`text-xs px-2 py-1 rounded ${
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${
                       members.length > 0
                         ? 'text-green-600 bg-green-50'
                         : 'text-gray-600 bg-gray-50'
                     }`}>
-                      {members.length > 0
-                        ? members.map((m) => m.name).join(', ')
-                        : 'Unassigned'}
+                      {members.length} {members.length === 1 ? 'agent' : 'agents'}
                     </span>
                   </div>
                 ))
