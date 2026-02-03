@@ -45,6 +45,7 @@ export async function PUT(req: NextRequest) {
         expressShippingPrice,
         sameDayShippingPrice,
         nextDayShippingPrice,
+        scheduledDeliveryPrice,
         pickupAddress
     } = body;
     
@@ -114,6 +115,7 @@ export async function PUT(req: NextRequest) {
     if (expressShippingPrice !== undefined) updateData.expressShippingPrice = expressShippingPrice ? parseNumberByCurrency(expressShippingPrice.toString()) || null : null;
     if (sameDayShippingPrice !== undefined) updateData.sameDayShippingPrice = sameDayShippingPrice ? parseNumberByCurrency(sameDayShippingPrice.toString()) || null : null;
     if (nextDayShippingPrice !== undefined) updateData.nextDayShippingPrice = nextDayShippingPrice ? parseNumberByCurrency(nextDayShippingPrice.toString()) || null : null;
+    if (scheduledDeliveryPrice !== undefined) updateData.scheduledDeliveryPrice = scheduledDeliveryPrice ? parseNumberByCurrency(scheduledDeliveryPrice.toString()) || null : null;
     if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress?.trim() || null;
     
     const updatedCompany = await prisma.company.update({
@@ -130,6 +132,7 @@ export async function PUT(req: NextRequest) {
       expressShippingPrice !== undefined ||
       sameDayShippingPrice !== undefined ||
       nextDayShippingPrice !== undefined ||
+      scheduledDeliveryPrice !== undefined ||
       shippingPreferences !== undefined ||
       pickupAddress !== undefined;
     

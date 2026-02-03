@@ -237,6 +237,7 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
     expressShippingPrice: typeof company.expressShippingPrice === 'number' ? company.expressShippingPrice : (company.expressShippingPrice || null),
     sameDayShippingPrice: typeof company.sameDayShippingPrice === 'number' ? company.sameDayShippingPrice : (company.sameDayShippingPrice || null),
     nextDayShippingPrice: typeof company.nextDayShippingPrice === 'number' ? company.nextDayShippingPrice : (company.nextDayShippingPrice || null),
+    scheduledDeliveryPrice: company.scheduledDeliveryPrice != null ? Number(company.scheduledDeliveryPrice) : null,
     pickupAddress: typeof company.pickupAddress === 'string' ? company.pickupAddress : (company.pickupAddress || null),
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,

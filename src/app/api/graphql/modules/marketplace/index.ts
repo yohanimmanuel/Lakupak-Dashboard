@@ -748,6 +748,7 @@ const fetchMarketplaceProducts = async (args: {
               expressShippingPrice: true,
               sameDayShippingPrice: true,
               nextDayShippingPrice: true,
+              scheduledDeliveryPrice: true,
               pickupAddress: true,
               logo: true,
               bannerImage: true,
@@ -1127,7 +1128,9 @@ const fetchMarketplaceProducts = async (args: {
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Next-day Delivery') : false
         },
         scheduled: {
-          price: product.user?.company?.baseShippingPrice ? parseMoney(product.user.company.baseShippingPrice) : 0,
+          price: product.user?.company?.scheduledDeliveryPrice != null 
+            ? parseMoney(product.user.company.scheduledDeliveryPrice) 
+            : (product.user?.company?.baseShippingPrice != null ? parseMoney(product.user.company.baseShippingPrice) : 0),
           free: false,
           available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Scheduled Delivery') : false
         },

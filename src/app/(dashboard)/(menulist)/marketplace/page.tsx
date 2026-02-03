@@ -44,6 +44,7 @@ interface Company {
   sameDayShippingPrice?: number;
   nextDayShippingPrice?: number;
   expressShippingPrice?: number;
+  scheduledDeliveryPrice?: number;
   maxShippingRadius?: number;
   additionalPricePerKm?: number;
   pickupAddress?: string;

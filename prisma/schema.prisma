@@ -71,6 +71,7 @@ model Company {
   expressShippingPrice        Decimal? @db.Decimal(12, 2)
   nextDayShippingPrice        Decimal? @db.Decimal(12, 2)
   sameDayShippingPrice        Decimal? @db.Decimal(12, 2)
+  scheduledDeliveryPrice      Decimal? @db.Decimal(12, 2)
   pickupAddress               String?
   users                       User[]
 }

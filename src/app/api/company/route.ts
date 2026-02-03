@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         sameDayShippingPrice: true,
         nextDayShippingPrice: true,
         expressShippingPrice: true,
+        scheduledDeliveryPrice: true,
         maxShippingRadius: true,
         additionalPricePerKm: true,
         pickupAddress: true,

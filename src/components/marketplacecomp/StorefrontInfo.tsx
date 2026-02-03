@@ -23,6 +23,7 @@ interface Company {
   sameDayShippingPrice?: number;
   nextDayShippingPrice?: number;
   expressShippingPrice?: number;
+  scheduledDeliveryPrice?: number;
   maxShippingRadius?: number;
   additionalPricePerKm?: number;
   pickupAddress?: string;
@@ -54,6 +55,7 @@ export default function StorefrontInfo({
   const sameDayShipping = company?.sameDayShippingPrice || 0;
   const nextDayShipping = company?.nextDayShippingPrice || 0;
   const expressShipping = company?.expressShippingPrice || 0;
+  const scheduledDelivery = company?.scheduledDeliveryPrice || 0;
   const additionalPricePerKm = company?.additionalPricePerKm || 0;
   const baseShippingRadius = company?.baseShippingRadius || 0;
   const maxShippingRadius = company?.maxShippingRadius || 0;
@@ -132,102 +134,106 @@ export default function StorefrontInfo({
             <Truck className="w-4 h-4 text-gray-600" />
             Shipping Configuration
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            {/* Standard Shipping */}
-            {baseShippingPrice > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Standard Shipping</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{formatPrice(baseShippingPrice)}</span>
-              </div>
-            )}
-
-            {/* Base Shipping Radius */}
-            {baseShippingRadius > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Base Shipping Radius</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{baseShippingRadius} km</span>
-              </div>
-            )}
-
-            {/* Additional Price Per KM */}
-            {additionalPricePerKm > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Additional Price per KM</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{formatPrice(additionalPricePerKm)}</span>
-              </div>
-            )}
-
-            {/* Max Shipping Radius */}
-            {maxShippingRadius > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-900">Maximum Shipping Radius</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{maxShippingRadius} km</span>
-              </div>
-            )}
-            
-            {/* Free Shipping Threshold */}
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            {/* Pickup Address - full width on top */}
             <div className="flex items-center justify-between py-2 border-b border-gray-200">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-green-600" />
-                <span className="text-sm text-gray-900">Free Shipping Threshold</span>
-              </div>
-              <span className="text-sm font-semibold text-green-600">
-                {freeShippingThreshold > 0 ? formatPrice(freeShippingThreshold) : 'Not set'}
-              </span>
-            </div>
-
-            {/* Same-Day Delivery */}
-            {sameDayShipping > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-gray-900">Same-Day Delivery</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{formatPrice(sameDayShipping)}</span>
-              </div>
-            )}
-
-            {/* Next-Day Delivery */}
-            {nextDayShipping > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600" />
-                  <span className="text-sm text-gray-900">Next-Day Delivery</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{formatPrice(nextDayShipping)}</span>
-              </div>
-            )}
-
-            {/* Express Shipping */}
-            {expressShipping > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm text-gray-900">Express Delivery</span>
-                </div>
-                <span className="text-sm font-semibold text-gray-900">{formatPrice(expressShipping)}</span>
-              </div>
-            )}
-
-            {/* Pickup Address */}
-            <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-600" />
                 <span className="text-sm text-gray-900">Pickup Address</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">{pickupAddress}</span>
+            </div>
+
+            {/* Shipping options in 2 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0">
+              {/* Left column */}
+              <div className="space-y-0">
+                {baseShippingPrice > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-900">Standard Shipping</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(baseShippingPrice)}</span>
+                  </div>
+                )}
+                {baseShippingRadius > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-900">Base Shipping Radius</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{baseShippingRadius} km</span>
+                  </div>
+                )}
+                {additionalPricePerKm > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-900">Additional Price per KM</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(additionalPricePerKm)}</span>
+                  </div>
+                )}
+                {maxShippingRadius > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-900">Maximum Shipping Radius</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{maxShippingRadius} km</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-0">
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-900">Free Shipping Threshold</span>
+                  </div>
+                  <span className="text-sm font-semibold text-green-600">
+                    {freeShippingThreshold > 0 ? formatPrice(freeShippingThreshold) : 'Not set'}
+                  </span>
+                </div>
+                {sameDayShipping > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-gray-900">Same-Day Delivery</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(sameDayShipping)}</span>
+                  </div>
+                )}
+                {nextDayShipping > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm text-gray-900">Next-Day Delivery</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(nextDayShipping)}</span>
+                  </div>
+                )}
+                {expressShipping > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      <span className="text-sm text-gray-900">Express Delivery</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(expressShipping)}</span>
+                  </div>
+                )}
+                {scheduledDelivery > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm text-gray-900">Scheduled Delivery</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">{formatPrice(scheduledDelivery)}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -48,6 +48,7 @@ interface CompanyProfileData {
   expressShippingPrice: string;
   sameDayShippingPrice: string;
   nextDayShippingPrice: string;
+  scheduledDeliveryPrice: string;
   pickupAddress: string;
 }
 
@@ -137,6 +138,7 @@ export default function DistributorOperations() {
     expressShippingPrice: '',
     sameDayShippingPrice: '',
     nextDayShippingPrice: '',
+    scheduledDeliveryPrice: '',
     pickupAddress: '',
   });
 
@@ -168,6 +170,7 @@ export default function DistributorOperations() {
     expressShippingPrice: '',
     sameDayShippingPrice: '',
     nextDayShippingPrice: '',
+    scheduledDeliveryPrice: '',
     pickupAddress: '',
   });
   
@@ -202,14 +205,15 @@ export default function DistributorOperations() {
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
-        baseShippingRadius: (company as { baseShippingRadius?: number })?.baseShippingRadius || 50,
+        baseShippingRadius: Number((company as { baseShippingRadius?: number })?.baseShippingRadius) || 50,
         baseShippingPrice: (company as { baseShippingPrice?: number })?.baseShippingPrice ? formatNumberByCurrency((company as { baseShippingPrice: number }).baseShippingPrice, userCurrency) : '15000',
         additionalPricePerKm: (company as { additionalPricePerKm?: number })?.additionalPricePerKm ? formatNumberByCurrency((company as { additionalPricePerKm: number }).additionalPricePerKm, userCurrency) : '500',
-        maxShippingRadius: (company as { maxShippingRadius?: number })?.maxShippingRadius || 200,
+        maxShippingRadius: Number((company as { maxShippingRadius?: number })?.maxShippingRadius) || 200,
         freeShippingThreshold: (company as { freeShippingThreshold?: number })?.freeShippingThreshold ? formatNumberByCurrency((company as { freeShippingThreshold: number }).freeShippingThreshold, userCurrency) : '100000',
         expressShippingPrice: (company as { expressShippingPrice?: number })?.expressShippingPrice ? formatNumberByCurrency((company as { expressShippingPrice: number }).expressShippingPrice, userCurrency) : '',
         sameDayShippingPrice: (company as { sameDayShippingPrice?: number })?.sameDayShippingPrice ? formatNumberByCurrency((company as { sameDayShippingPrice: number }).sameDayShippingPrice, userCurrency) : '',
         nextDayShippingPrice: (company as { nextDayShippingPrice?: number })?.nextDayShippingPrice ? formatNumberByCurrency((company as { nextDayShippingPrice: number }).nextDayShippingPrice, userCurrency) : '',
+        scheduledDeliveryPrice: (company as { scheduledDeliveryPrice?: number })?.scheduledDeliveryPrice ? formatNumberByCurrency((company as { scheduledDeliveryPrice: number }).scheduledDeliveryPrice, userCurrency) : '',
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
       });
       setOriginalData({
@@ -232,14 +236,15 @@ export default function DistributorOperations() {
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
-        baseShippingRadius: (company as { baseShippingRadius?: number })?.baseShippingRadius || 50,
+        baseShippingRadius: Number((company as { baseShippingRadius?: number })?.baseShippingRadius) || 50,
         baseShippingPrice: (company as { baseShippingPrice?: number })?.baseShippingPrice ? formatNumberByCurrency((company as { baseShippingPrice: number }).baseShippingPrice, userCurrency) : '15000',
         additionalPricePerKm: (company as { additionalPricePerKm?: number })?.additionalPricePerKm ? formatNumberByCurrency((company as { additionalPricePerKm: number }).additionalPricePerKm, userCurrency) : '500',
-        maxShippingRadius: (company as { maxShippingRadius?: number })?.maxShippingRadius || 200,
+        maxShippingRadius: Number((company as { maxShippingRadius?: number })?.maxShippingRadius) || 200,
         freeShippingThreshold: (company as { freeShippingThreshold?: number })?.freeShippingThreshold ? formatNumberByCurrency((company as { freeShippingThreshold: number }).freeShippingThreshold, userCurrency) : '100000',
         expressShippingPrice: (company as { expressShippingPrice?: number })?.expressShippingPrice ? formatNumberByCurrency((company as { expressShippingPrice: number }).expressShippingPrice, userCurrency) : '',
         sameDayShippingPrice: (company as { sameDayShippingPrice?: number })?.sameDayShippingPrice ? formatNumberByCurrency((company as { sameDayShippingPrice: number }).sameDayShippingPrice, userCurrency) : '',
         nextDayShippingPrice: (company as { nextDayShippingPrice?: number })?.nextDayShippingPrice ? formatNumberByCurrency((company as { nextDayShippingPrice: number }).nextDayShippingPrice, userCurrency) : '',
+        scheduledDeliveryPrice: company?.scheduledDeliveryPrice ? formatNumberByCurrency(company.scheduledDeliveryPrice, userCurrency) : '',
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
       });
     }
@@ -408,12 +413,13 @@ export default function DistributorOperations() {
         }
       }
 
-      // Numeric validations
-      if (formData.baseShippingRadius < 1 || formData.baseShippingRadius > 1000) {
+      // Numeric validations (coerce to number in case API/store returned strings, e.g. Prisma Decimal)
+      const baseRadius = Number(formData.baseShippingRadius);
+      const maxRadius = Number(formData.maxShippingRadius);
+      if (baseRadius < 1 || baseRadius > 1000 || !Number.isFinite(baseRadius)) {
         validationErrors.push('Base shipping radius must be between 1 and 1000 km');
       }
-
-      if (formData.maxShippingRadius < formData.baseShippingRadius) {
+      if (!Number.isFinite(maxRadius) || maxRadius < baseRadius) {
         validationErrors.push('Maximum shipping radius must be greater than base shipping radius');
       }
 
@@ -492,6 +498,7 @@ export default function DistributorOperations() {
         expressShippingPrice: formData.shippingPreferences.includes('Express Shipping') ? formData.expressShippingPrice : null,
         sameDayShippingPrice: formData.shippingPreferences.includes('Same-day Delivery') ? formData.sameDayShippingPrice : null,
         nextDayShippingPrice: formData.shippingPreferences.includes('Next-day Delivery') ? formData.nextDayShippingPrice : null,
+        scheduledDeliveryPrice: formData.shippingPreferences.includes('Scheduled Delivery') ? formData.scheduledDeliveryPrice : null,
         pickupAddress: formData.shippingPreferences.includes('Pickup Available') ? formData.pickupAddress : null,
       };
 
@@ -1192,7 +1199,7 @@ export default function DistributorOperations() {
 
                   {/* Additional Shipping Options Pricing - Only show if selected */}
                   {formData.shippingPreferences.some(pref => 
-                    ['Express Shipping', 'Same-day Delivery', 'Next-day Delivery'].includes(pref)
+                    ['Express Shipping', 'Same-day Delivery', 'Next-day Delivery', 'Scheduled Delivery'].includes(pref)
                   ) && (
                     <div className="mt-6 pt-4 border-t border-gray-200">
                       <h5 className="text-sm font-medium text-gray-900 mb-4">
@@ -1257,6 +1264,27 @@ export default function DistributorOperations() {
                                 disabled={!isEditing}
                                 className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder="Enter next-day delivery price"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {formData.shippingPreferences.includes('Scheduled Delivery') && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">
+                              Scheduled Delivery Price
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                                {currencySymbol}
+                              </div>
+                              <input
+                                type="text"
+                                value={formData.scheduledDeliveryPrice}
+                                onChange={(e) => handleInputChange('scheduledDeliveryPrice', e.target.value)}
+                                disabled={!isEditing}
+                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                placeholder="Enter scheduled delivery price"
                               />
                             </div>
                           </div>

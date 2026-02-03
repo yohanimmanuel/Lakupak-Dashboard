@@ -29,6 +29,7 @@ interface Company {
   expressShippingPrice?: number | null;
   sameDayShippingPrice?: number | null;
   nextDayShippingPrice?: number | null;
+  scheduledDeliveryPrice?: number | null;
   pickupAddress?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;

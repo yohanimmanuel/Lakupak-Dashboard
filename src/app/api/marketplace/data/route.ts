@@ -16,6 +16,7 @@ interface Company {
   sameDayShippingPrice: number | null;
   nextDayShippingPrice: number | null;
   expressShippingPrice: number | null;
+  scheduledDeliveryPrice: number | null;
   maxShippingRadius: number | null;
   additionalPricePerKm: number | null;
   pickupAddress: string | null;
@@ -36,6 +37,7 @@ function createDefaultCompany(): Company {
     sameDayShippingPrice: 0,
     nextDayShippingPrice: 0,
     expressShippingPrice: 0,
+    scheduledDeliveryPrice: 0,
     maxShippingRadius: 0,
     additionalPricePerKm: 0,
     pickupAddress: null,
@@ -144,6 +146,7 @@ export async function GET(request: NextRequest) {
           sameDayShippingPrice: true,
           nextDayShippingPrice: true,
           expressShippingPrice: true,
+          scheduledDeliveryPrice: true,
           maxShippingRadius: true,
           additionalPricePerKm: true,
           pickupAddress: true,
