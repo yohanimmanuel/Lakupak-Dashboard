@@ -47,11 +47,6 @@ const secondaryMenuItems = [
     label: 'Marketplace',
     icon: <StoreIcon className="w-5 h-5" />,
     href: '/marketplace',
-    submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Products', href: '/marketplace/products' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Performance', href: '/marketplace/performance' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Settings', href: '/marketplace/settings' },
-    ],
   },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
@@ -224,10 +219,10 @@ const Menu = () => {
                   <Link
                     key={sub.label}
                     href={sub.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${getTextColorClasses(isSubActive)}`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${getTextColorClasses(Boolean(isSubActive))}`}
                   >
-                    {renderLineBlock(isSubActive, true)}
-                    {renderIcon(sub.icon, isSubActive)}
+                    {renderLineBlock(Boolean(isSubActive), true)}
+                    {renderIcon(sub.icon, Boolean(isSubActive))}
                     <span className="font-medium">{sub.label}</span>
                   </Link>
                 );
@@ -243,12 +238,12 @@ const Menu = () => {
                   <Link
                     key={sub.label}
                     href={sub.href}
-                    className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${getTextColorClasses(isSubActive)}`}
+                    className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${getTextColorClasses(Boolean(isSubActive))}`}
                   >
                     {/* Only show hover line if not active and continuous line is not showing */}
                     {!isSubActive && !isAnySubActive && renderLineBlock(false, true)}
-                    {renderIcon(sub.icon, isSubActive)}
-                    <span className={`whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(isSubActive)}`}>
+                    {renderIcon(sub.icon, Boolean(isSubActive))}
+                    <span className={`whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(Boolean(isSubActive))}`}>
                       {sub.label}
                     </span>
                   </Link>
