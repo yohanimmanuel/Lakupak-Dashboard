@@ -171,7 +171,7 @@ export default function OrdersPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={fetchOrders}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -179,7 +179,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={async () => { await fetchArchived(); setShowArchivedModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
               >
                 <Archive className="w-4 h-4" />
                 Archived Orders
@@ -265,10 +265,10 @@ export default function OrdersPage() {
         {/* Archived Modal */}
         {showArchivedModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden">
               <div className="p-4 border-b flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Archived Orders</h3>
-                <button onClick={() => setShowArchivedModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Close</button>
+                <button onClick={() => setShowArchivedModal(false)} className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm text-gray-700 hover:bg-gray-100">Close</button>
               </div>
               <div className="p-4 overflow-auto" style={{maxHeight:'70vh'}}>
                 {archivedOrders.length === 0 ? (
@@ -289,7 +289,7 @@ export default function OrdersPage() {
                           </div>
                           <button
                             onClick={() => window.location.href = `/orders/details/${o.orderId}`}
-                            className="px-3 py-1 text-sm text-[#0a61d7] border border-gray-200 rounded-lg hover:bg-gray-50 inline-flex items-center gap-1"
+                            className="px-3 py-1 text-sm text-[#0a61d7] border border-[#e6e6e6] rounded-lg hover:bg-gray-50 inline-flex items-center gap-1"
                           >
                             <Eye className="w-4 h-4" /> View
                           </button>
@@ -304,7 +304,7 @@ export default function OrdersPage() {
                               setArchivedOrders(prev => prev.filter(x => x.orderId !== o.orderId));
                               setOrders(prev => [{ ...o, archivedAt: null }, ...prev]);
                             }}
-                            className="px-3 py-1 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+                            className="px-3 py-1 text-sm text-gray-700 border border-[#e6e6e6] rounded-lg hover:bg-gray-50"
                           >
                             Unarchive
                           </button>

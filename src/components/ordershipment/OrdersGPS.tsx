@@ -106,7 +106,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Live Delivery Tracking</h3>
           <div className="flex items-center gap-3">

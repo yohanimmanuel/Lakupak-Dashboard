@@ -243,7 +243,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
@@ -294,7 +294,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               
               {/* Dropdown Menu */}
               {showStatusDropdown && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20">
                   {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'].map(status => (
                     <button
                       key={status}
@@ -362,7 +362,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
                 {/* Row 1: Full Width Customer Information */}
         <div className="w-full mb-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Customer Information</h2>
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 bg-[#0a61d7] rounded-full flex items-center justify-center text-white text-xl font-bold">
@@ -410,7 +410,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           
           {/* Total Order Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             {/* Total Order Header */}
             <div>
               <div className="text-md font-semibold text-black mb-2">Total Order</div>
@@ -418,7 +418,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
 
             {/* Payment Authorization Card */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+            <div className="bg-gray-50 rounded-lg p-4 border border-[#e6e6e6] mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="text-sm font-semibold text-black">BANK</div>
@@ -500,7 +500,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
 
           {/* Delivery Service Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Updates and Status</h2>
             
             {/* GPS Map */}
@@ -539,7 +539,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
 
             {/* Store & Address */}
-            <div className="mb-4 border-b border-gray-200 pb-4 mb-4">
+            <div className="mb-4 border-b border-[#e6e6e6] pb-4 mb-4">
               <span className="font-semibold text-sm text-black">{storeNameDisplay}</span>
               <p className="text-xs font-medium text-gray-600 mt-1">{deliveryAddressDisplay}</p>
               <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
@@ -568,7 +568,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 )}
               </div>
             ) : (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600">
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
                 Proof of delivery will be shown here once the order status is set to <span className="font-semibold text-green-600">Delivered</span> and a proof of delivery file has been uploaded via <span className="font-semibold">Edit</span>.
               </div>
             )}
@@ -579,7 +579,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
           
           {/* Order Items Section (3 columns) */}
-          <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Items</h2>
             <div className="space-y-2">
               {order.orderItems.slice(0, 4).map((item, index) => (
@@ -705,13 +705,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
 
           {/* Order Summary Section (4 columns) */}
-          <div className="lg:col-span-4 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="lg:col-span-4 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Total Quantity Card */}
-              <div className="bg-green-100 rounded-lg p-3 border border-gray-200">
+              <div className="bg-green-100 rounded-lg p-3 border border-[#e6e6e6]">
                 <div className="text-sm text-gray-600 font-medium mb-1">Total Quantity Ordered</div>
                 <div className="text-lg font-bold text-black">
                   {order.orderItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
@@ -719,7 +719,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </div>
               
               {/* Total Free Quantity Card */}
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="bg-gray-50 rounded-lg p-3 border border-[#e6e6e6]">
                 <div className="text-sm text-gray-600 font-medium mb-1">Total Free Quantity</div>
                 <div className="text-lg font-bold text-purple-600">
                   {order.orderItems.reduce((total, item) => {
@@ -750,7 +750,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-200 text-gray-500">
+                  <tr className="border-b border-[#e6e6e6] text-gray-500">
                     <th className="text-left py-2 font-medium uppercase">Description</th>
                     <th className="text-left py-2 font-medium uppercase">Pckg Type</th>
                     <th className="text-left py-2 font-medium uppercase">Pcs/Pckg</th>
@@ -761,7 +761,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </thead>
                 <tbody className="text-black">
                   {currentEarningsItems.map((item, index) => (
-                    <tr key={index} className="border-b border-gray-100">
+                    <tr key={index} className="border-b border-[#e6e6e6]">
                       <td className="py-2">
                         <span 
                           className="font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
@@ -853,7 +853,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
               <h2 className="text-xl font-semibold text-gray-900">All Order Items</h2>
               <button
                 onClick={() => setShowAllItems(false)}
@@ -953,7 +953,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
               <h2 className="text-xl font-semibold text-gray-900">Edit Order</h2>
               <button
                 onClick={() => setShowEditModal(false)}
@@ -1087,7 +1087,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 )}
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+            <div className="p-4 border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
                 onClick={() => setShowEditModal(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50"
@@ -1135,7 +1135,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       {/* POD Preview Modal */}
       {showPodPreview && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full overflow-hidden">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] max-w-3xl w-full overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b">
               <div className="text-lg font-semibold text-black">Proof of Delivery</div>
               <button className="p-2 text-gray-700 hover:bg-gray-100 rounded" onClick={() => setShowPodPreview(false)}>

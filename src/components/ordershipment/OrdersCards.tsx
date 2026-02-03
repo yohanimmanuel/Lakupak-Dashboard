@@ -40,13 +40,13 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   return (
     <div className="space-y-4">
       {/* Total Orders */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Total Orders</p>
             <p className="text-xl font-bold text-gray-900">{totalOrders}</p>
           </div>
-          <div className="p-3 shadow-sm bg-white rounded-lg">
+          <div className="p-3 bg-white rounded-lg border border-[#e6e6e6]">
             <Package className="w-6 h-6 text-blue-600" />
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
       </div>
 
       {/* Total Sales */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Total Sales</p>
@@ -66,7 +66,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
               {formatCurrency(totalRevenue, displayCurrency)}
             </p>
           </div>
-          <div className="p-3 bg-white shadow-sm rounded-lg">
+          <div className="p-3 bg-white rounded-lg border border-[#e6e6e6]">
             <DollarSign className="w-6 h-6 text-blue-600" />
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
       </div>
 
       {/* Revenue Collected */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Revenue Collected</p>
@@ -86,7 +86,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
               {formatCurrency(revenueCollected, displayCurrency)}
             </p>
           </div>
-          <div className="p-3 bg-white shadow-sm rounded-lg">
+          <div className="p-3 bg-white rounded-lg border border-[#e6e6e6]">
             <CheckCircle className="w-6 h-6 text-green-600" />
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
       </div>
 
       {/* Pending Revenue */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Pending Revenue</p>
@@ -106,7 +106,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
               {formatCurrency(unpaidRevenue, displayCurrency)}
             </p>
           </div>
-          <div className="p-3 bg-white shadow-sm rounded-lg">
+          <div className="p-3 bg-white rounded-lg border border-[#e6e6e6]">
             <Clock className="w-6 h-6 text-orange-600" />
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
       </div>
 
       {/* Delivery Success Rate */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-gray-600">Delivery Success</p>
@@ -126,7 +126,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
               {totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0}%
             </p>
           </div>
-          <div className="p-3 bg-white shadow-sm rounded-lg">
+          <div className="p-3 bg-white rounded-lg border border-[#e6e6e6]">
             <CheckCircle className="w-6 h-6 text-purple-600" />
           </div>
         </div>

@@ -270,7 +270,7 @@ export default function OrdersTable({
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       {/* Status Tabs - Segmented Control */}
       <div className="mb-4">
         <div className="relative w-full md:w-auto flex items-center">
@@ -345,7 +345,7 @@ export default function OrdersTable({
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showPaymentDropdown && (
-            <div className="absolute right-0 mt-2 w-31.5 bg-white border border-gray-200 rounded-lg shadow z-20">
+            <div className="absolute right-0 mt-2 w-31.5 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
               {paymentTabs.map(opt => (
                 <button
                   key={opt.label}
@@ -374,7 +374,7 @@ export default function OrdersTable({
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showDeliveryDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
               {deliveryMethodTabs.map(opt => (
                 <button
                   key={opt.label}
@@ -566,7 +566,7 @@ export default function OrdersTable({
               {pagedOrders.map(order => (
             <div 
               key={order.orderId} 
-              className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+              className={`rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 relative cursor-pointer transition ${
                 selectedOrders.includes(order.orderId) 
                   ? 'bg-blue-50' 
                   : 'bg-white hover:bg-gray-50'
@@ -685,7 +685,7 @@ export default function OrdersTable({
         
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
               <h2 className="text-lg font-bold mb-2 text-red-500">
                 {isSingleDelete ? 'Delete Cancelled Order' : `Delete Cancelled Order${cancelledCount === 1 ? '' : 's'}`}
               </h2>
