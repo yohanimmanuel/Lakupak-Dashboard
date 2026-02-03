@@ -296,7 +296,7 @@ export default function OffersPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={handleExportData}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
           >
             <Download className="w-4 h-4" />
             Export Data

@@ -222,7 +222,7 @@ export default function OfferType({
 
       {/* Empty state */}
       {offerTypes.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center">
+        <div className="bg-white border border-[#e6e6e6] rounded-lg p-10 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Target className="w-8 h-8 text-gray-400" />
           </div>
@@ -298,7 +298,7 @@ export default function OfferType({
 
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between pt-4 border-t border-[#e6e6e6]">
               <div className="text-xs text-gray-500">
                 Created: {new Date(type.createdAt).toLocaleDateString()}
               </div>

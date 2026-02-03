@@ -117,7 +117,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         </div>
 
         {/* Empty State */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+        <div className="bg-white border border-[#e6e6e6] rounded-lg p-8 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <BarChart3 className="w-8 h-8 text-gray-400" />
           </div>
@@ -145,9 +145,9 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
 
       {/* Key Metrics Cards */}
       <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f7faff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#f7faff]">
+          <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
               <Target className="w-6 h-6 text-[#0a61d7]" />
             </div>
             <div>
@@ -164,9 +164,9 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#fff7ed]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#fff7ed]">
+          <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
               <Percent className="w-6 h-6 text-orange-500" />
             </div>
             <div>
@@ -185,9 +185,9 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
+          <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
               <Users className="w-6 h-6 text-purple-500" />
             </div>
             <div>
@@ -204,9 +204,9 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg shadow bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
-          <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+          <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
               <TrendingUp className="w-6 h-6 text-green-500" />
             </div>
             <div>
@@ -227,7 +227,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Monthly Redemption Trends Chart */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-black">Monthly Redemption Trends</h3>
             <BarChart3 className="w-5 h-5 text-gray-400" />
@@ -253,7 +253,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         </div>
 
         {/* Offer Type Breakdown */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-black">Offer Type Breakdown</h3>
             <PieChart className="w-5 h-5 text-gray-400" />

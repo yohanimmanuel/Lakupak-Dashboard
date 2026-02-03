@@ -608,7 +608,7 @@ export default function OfferTable({
   }, [selectedTab]);
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
         <div className="relative w-full md:w-auto flex items-center">
@@ -676,7 +676,7 @@ export default function OfferTable({
                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
              </button>
              {showFilterDropdown && (
-               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+               <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                  {dateRangeFilters.map((filterOption) => (
                    <button
                      key={filterOption.value}
@@ -848,7 +848,7 @@ export default function OfferTable({
               {pagedRows.map((row, index) => (
               <tr 
                 key={row.id} 
-                className={`border-b border-gray-100 transition cursor-pointer ${
+                className={`border-b border-[#e6e6e6] transition cursor-pointer ${
                   selectedOffers.includes(row.id) 
                     ? 'bg-blue-50' 
                     : 'hover:bg-gray-50'
@@ -999,7 +999,7 @@ export default function OfferTable({
       {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Offers' : 'Delete Offer'}
             </h2>

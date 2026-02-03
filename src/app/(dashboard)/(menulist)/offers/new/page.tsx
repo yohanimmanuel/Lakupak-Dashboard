@@ -428,7 +428,7 @@ export default function CreateOfferPage() {
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showStatusDropdown && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow z-20">
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                   <button
                     onClick={() => {
                       setOfferStatus('active');
@@ -512,7 +512,7 @@ export default function CreateOfferPage() {
       </div>
 
       {/* Content Area */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] shadow-sm">
+      <div className="bg-white rounded-lg border border-[#e6e6e6]">
         {renderActiveComponent()}
       </div>
 
@@ -535,7 +535,7 @@ export default function CreateOfferPage() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto hide-scrollbar">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-black">Offer Preview</h3>
                 <p className="text-sm text-gray-500">How customers will see this offer</p>
@@ -585,7 +585,7 @@ export default function CreateOfferPage() {
 
               {/* Applied Products */}
               {Object.keys(productOfferBadges || {}).length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-gray-50 p-4 rounded-lg border border-[#e6e6e6]">
                   <h5 className="text-sm font-semibold text-gray-900 mb-2">Applied to:</h5>
                   <div className="text-sm text-gray-600">
                     {Object.keys(productOfferBadges || {}).length} product(s) selected
@@ -595,7 +595,7 @@ export default function CreateOfferPage() {
 
               {/* Offer Validity */}
               {selectedDateRange && (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-gray-50 p-4 rounded-lg border border-[#e6e6e6]">
                   <h5 className="text-sm font-semibold text-gray-900 mb-2">Valid Period:</h5>
                   <div className="text-sm text-gray-600 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -613,7 +613,7 @@ export default function CreateOfferPage() {
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+            <div className="sticky bottom-0 bg-white border-t border-[#e6e6e6] p-4">
               <button
                 onClick={() => setShowPreview(false)}
                 className="w-full px-4 py-2 bg-[#0a61d7] text-white font-semibold rounded-lg hover:bg-[#084ba6] transition"

@@ -818,7 +818,7 @@ export default function OffersDetailsPage() {
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showStatusDropdown && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                   <button
                     onClick={() => {
                       handleOfferChange({ status: 'active' });
@@ -919,7 +919,7 @@ export default function OffersDetailsPage() {
       )}
 
       {/* Content Area */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] shadow-sm">
+      <div className="bg-white rounded-lg border border-[#e6e6e6]">
         {renderActiveComponent()}
       </div>
 
