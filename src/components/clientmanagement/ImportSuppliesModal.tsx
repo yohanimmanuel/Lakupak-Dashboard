@@ -209,9 +209,9 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-3xl relative">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
         <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}><X className="w-5 h-5 text-black" /></button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> Import Supplies Data
         </h2>
         {step === 0 && (

@@ -161,7 +161,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   }
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-4">
       <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
         <div className="flex items-center gap-4">
           <Link href="/clients/buyers" className="text-sm text-gray-500 mb-2">
@@ -173,7 +173,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </div>
         </div>
         <div className="flex gap-2 items-center mt-2 md:mt-0">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleCopy}>
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleCopy}>
             <Copy className="w-4 h-4" /> Copy Data
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm" onClick={() => setShowEditModal(true)}>
@@ -307,8 +307,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       {/* Top Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Avatar & Owner */}
-        <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-gray-200 p-4 gap-2">
-          <div className="w-20 h-20 rounded-full object-cover border-4 border-white shadow bg-gray-100 flex items-center justify-center overflow-hidden">
+        <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-[#e6e6e6] p-4 gap-2">
+          <div className="w-20 h-20 rounded-full object-cover border-4 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
             {buyer.avatar ? (
               <img src={buyer.avatar} alt={buyer.owner} className="w-full h-full object-cover" />
             ) : (
@@ -331,7 +331,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </div>
         </div>
         {/* General Info */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-center relative">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col justify-center relative">
           <div className="absolute left-4 top-4 text-md font-bold text-black">General Information</div>
             <div className="flex flex-col gap-4 mt-4">
               <div className="flex items-center gap-2 text-gray-500 text-xs">
@@ -359,7 +359,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             </div>  
         </div>
         {/* Logistics & Notes */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-2 justify-center relative">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 justify-center relative">
           <div className="absolute left-4 top-4 text-md font-bold text-black">Logistics & Notes</div>
           <div className="flex flex-col gap-2 pt-10">
             <div className="flex items-center gap-2 text-xs">
@@ -420,12 +420,12 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
       </div>
       {/* Second Row: Order/Product Details */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">Order & Product Details</div>
           <div className="flex gap-2">
             <button 
-              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50" 
+              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50" 
               onClick={() => setShowImportOrders(true)}
               disabled={isUpdating}
             >
@@ -436,7 +436,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               )}
               {isUpdating ? 'Importing...' : 'Import Orders'}
             </button>
-            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
+            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
               <Download className="w-4 h-4" /> Export Orders
             </button>
           </div>
@@ -591,7 +591,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
       </div>
       {/* Third Row: Analytics */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="font-semibold text-black mb-2">Analytics</div>
         
         {/* Analytics Cards Row */}
@@ -663,7 +663,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         
         <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all orders details are added/completed.</p>
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="text-lg font-semibold text-gray-900 mb-6">Total Orders Per Month</div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -715,7 +715,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="text-lg font-semibold text-gray-900 mb-6">Total Spending Per Month</div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>

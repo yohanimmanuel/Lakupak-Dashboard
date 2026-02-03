@@ -382,7 +382,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   }, []);
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       {/* Enhanced Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
@@ -454,7 +454,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-31.5 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-31.5 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {filterOptions.map(opt => (
                   <button
                     key={opt}
@@ -484,7 +484,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showPeriodDropdown && (
-              <div className="absolute right-0 mt-2 w-35 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-35 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {periodOptions.map(opt => (
                   <button
                     key={opt}
@@ -999,7 +999,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             return (
           <div 
             key={String(buyer.id)} 
-            className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+            className={`rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 relative cursor-pointer transition ${
               selectedBuyers.includes(String(buyer.id)) 
                 ? 'bg-blue-50' 
                     : hasIncompleteData
@@ -1146,7 +1146,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
       {/* Enhanced Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Buyers' : 'Delete Buyer'}
             </h2>

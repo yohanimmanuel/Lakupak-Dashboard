@@ -239,7 +239,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     if (onExportXLSX) onExportXLSX(wb, 'suppliers.xlsx');
   };
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
@@ -309,7 +309,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-46.5 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-46.5 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {uniqueBusinessTypes.map(opt => (
                   <button
                     key={opt}
@@ -336,7 +336,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showPeriodDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {periodOptions.map(opt => (
                   <button
                     key={opt}
@@ -762,7 +762,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             return (
               <div 
                 key={String(supplier.id)} 
-                className={`rounded-lg shadow p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+                className={`rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 relative cursor-pointer transition ${
                   selectedSuppliers.includes(String(supplier.id)) 
                     ? 'bg-blue-50' 
                     : hasIncompleteData
@@ -886,7 +886,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       {onExportXLSX && <span style={{ display: 'none' }} id="supplier-table-export-xlsx-trigger" onClick={handleExportXLSX}></span>}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Suppliers' : 'Delete Supplier'}
             </h2>

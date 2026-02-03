@@ -259,7 +259,7 @@ export default function SuppliersPage() {
         </div>
         <div className="flex gap-2 items-center">
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={fetchSuppliers}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,13 +267,13 @@ export default function SuppliersPage() {
             </svg> Refresh
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={() => setShowImportModal(true)}
           >
             <Upload className="w-4 h-4" /> Import Data
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={() => document.getElementById('supplier-table-export-xlsx-trigger')?.click()}
           >
             <Download className="w-4 h-4" /> Export Data

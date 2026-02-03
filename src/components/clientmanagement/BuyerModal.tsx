@@ -508,7 +508,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       aria-modal="true"
       aria-labelledby="buyer-modal-title"
     >
-      <div className="bg-white rounded-lg shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
         <button
           type="button"
           className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
