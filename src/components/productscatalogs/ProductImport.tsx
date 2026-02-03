@@ -162,7 +162,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-5xl relative">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl relative">
         <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onCloseAction}>
           <X className="w-5 h-5 text-black" />
         </button>
@@ -197,7 +197,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 Import whatever data you have available! Product IDs are auto-generated and Status is always set to Draft.
               </p>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
+            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6] bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
@@ -226,7 +226,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-[#e6e6e6] pt-4">
               <button 
                 type="button" 
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" 
@@ -257,7 +257,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
             <div className="flex items-center gap-2 mb-2 text-black">
               <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} products to import
             </div>
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
@@ -280,7 +280,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
+            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-[#e6e6e6] pt-4">
               <button 
                 type="button" 
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" 

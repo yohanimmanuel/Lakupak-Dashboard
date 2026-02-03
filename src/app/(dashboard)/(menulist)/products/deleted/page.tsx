@@ -11,7 +11,7 @@ export default function ProductDeletedPage() {
 
   return (
     <div className="w-full mx-auto bg-gradient-to-b from-gray-50 to-white h-full flex items-center justify-center">
-      <div className="text-center bg-white border border-gray-200 rounded-lg p-8 max-w-md">
+      <div className="text-center bg-white border border-[#e6e6e6] rounded-lg p-8 max-w-md">
         <h1 className="text-xl font-semibold text-gray-900 mb-2">Product has been deleted</h1>
         <p className="text-sm text-gray-600 mb-6">The product you are trying to view is no longer available. You can still see it referenced in past orders.</p>
         {pid ? (

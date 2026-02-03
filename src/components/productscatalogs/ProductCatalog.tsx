@@ -1314,9 +1314,9 @@ export default function ProductCatalog({
   const validation = validateRequiredFields();
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
         <div className="flex items-center gap-4">
           <button
             onClick={() => {
@@ -1508,7 +1508,7 @@ export default function ProductCatalog({
       </div>
 
       {/* Mode Descriptions */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
         {currentMode === 'add' && (
           <p className="text-sm text-gray-600">
             Create a new product by filling out the form below. All fields marked with descriptions are required for proper product cataloging.
@@ -1591,7 +1591,7 @@ export default function ProductCatalog({
         <div className="space-y-4">
           
           {/* Row 1: General Information - Full Width */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-gray-500" />
               General Information
@@ -1675,7 +1675,7 @@ export default function ProductCatalog({
                     </button>
                     
                     {showGeneralCategoryDropdown && !isViewMode && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {availableCategories.map((category) => {
                           const IconComponent = getCategoryIconComponent(category.value);
                           return (
@@ -1859,7 +1859,7 @@ export default function ProductCatalog({
           {/* Row 2: Upload Images (3/4) + Product Settings (1/4) */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Upload Images - 3/4 width */}
-            <div className="lg:col-span-3 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Upload className="w-5 h-5 text-gray-500" />
@@ -1935,7 +1935,7 @@ export default function ProductCatalog({
                     {formData.images.slice(1).map((image, index) => (
                       <div 
                         key={index} 
-                        className="relative w-28 h-20 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden cursor-move hover:shadow-md transition-shadow"
+                        className="relative w-28 h-20 bg-gray-100 rounded-lg border border-[#e6e6e6] overflow-hidden cursor-move transition-shadow"
                         draggable={!isViewMode}
                         onDragStart={(e) => {
                           if (!isViewMode) {
@@ -2005,7 +2005,7 @@ export default function ProductCatalog({
             </div>
 
             {/* Product Settings - 1/4 width */}
-            <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="lg:col-span-2 bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Tag className="w-5 h-5 text-gray-500" />
@@ -2050,7 +2050,7 @@ export default function ProductCatalog({
                     </button>
                     
                     {showCatalogCategoryDropdown && !isViewMode && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {availableCategories.map((category) => {
                           const IconComponent = getCategoryIconComponent(category.value);
                           return (
@@ -2100,7 +2100,7 @@ export default function ProductCatalog({
                   />
                 </div>
                 
-                <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-200">
+                <div className="text-xs text-gray-500 italic pt-2 border-t border-[#e6e6e6]">
                   All Product Types input will be added as a new filter.
                 </div>
               </div>
@@ -2108,7 +2108,7 @@ export default function ProductCatalog({
           </div>
 
           {/* Row 3: Product Stock Summary - Full Width */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-6">
               <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2 mb-4">
                 <Package className="w-5 h-5 text-gray-500" />
@@ -2172,7 +2172,7 @@ export default function ProductCatalog({
             </div>
 
             {/* Product Variants Section */}
-            <div className="border-t border-gray-200 pt-6">
+            <div className="border-t border-[#e6e6e6] pt-6">
               <div className="mb-4">
                 {isOfferConnected && (
                   <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
@@ -2194,7 +2194,7 @@ export default function ProductCatalog({
             {/* Simplified Variants Input */}
             <div className="space-y-4 mb-6">
               {variants.map((variant, index) => (
-                <div key={variant.id} className="border border-gray-200 rounded-lg bg-white p-4">
+                <div key={variant.id} className="border border-[#e6e6e6] rounded-lg bg-white p-4">
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-48">
@@ -2316,7 +2316,7 @@ export default function ProductCatalog({
                   </div>
                   
             {/* Final Combinations Table */}
-            <div className="border-t border-gray-200 pt-6">
+            <div className="border-t border-[#e6e6e6] pt-6">
               {isOfferConnected && (
                 <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
                   <div className="flex items-start gap-2">

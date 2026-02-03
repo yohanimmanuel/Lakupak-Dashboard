@@ -143,9 +143,9 @@ export default function ProductMarketplacePubs({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
@@ -307,7 +307,7 @@ export default function ProductMarketplacePubs({
            </div>
 
            {/* Marketplace App Container with Rounded Borders */}
-           <div className="mx-4 mb-4 border-2 border-gray-200 rounded-2xl overflow-hidden">
+           <div className="mx-4 mb-4 border-2 border-[#e6e6e6] rounded-2xl overflow-hidden">
 
           {/* 1. PRODUCT IMAGE CAROUSEL & HIGHLIGHTS */}
           <div className="relative">
@@ -343,7 +343,7 @@ export default function ProductMarketplacePubs({
           </div>
 
           {/* 2. CORE PRODUCT INFORMATION */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-[#e6e6e6]">
                          {/* Product Name & Rating */}
              <div className="mb-3">
                <div className="flex items-center gap-2 mb-2">
@@ -389,7 +389,7 @@ export default function ProductMarketplacePubs({
           </div>
 
           {/* 3. PRODUCT DETAILS */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-[#e6e6e6]">
             <h4 className="font-semibold text-gray-900 mb-3">Product Details</h4>
             <div className="space-y-2 mb-4">
               <div className="flex items-center justify-between">
@@ -424,7 +424,7 @@ export default function ProductMarketplacePubs({
           </div>
 
           {/* 4. PRODUCT ASSURANCE */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-[#e6e6e6]">
             <h4 className="font-semibold text-gray-900 mb-3">Product Assurance</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
@@ -447,7 +447,7 @@ export default function ProductMarketplacePubs({
           </div>
 
           {/* 5. CUSTOMER REVIEWS */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-[#e6e6e6]">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-gray-900">Customer Reviews</h4>
               <button className="text-sm text-[#0a61d7]">View All (127)</button>
@@ -483,7 +483,7 @@ export default function ProductMarketplacePubs({
             </div>
 
             {/* Sample Review */}
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-[#e6e6e6] pt-3">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                   <span className="text-gray-600 text-xs font-medium">JD</span>
@@ -507,7 +507,7 @@ export default function ProductMarketplacePubs({
           </div>
 
           {/* 6. SELLER INFORMATION */}
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
+          <div className="p-4 border-b border-[#e6e6e6] bg-gray-50">
             <h4 className="font-semibold text-gray-900 mb-3">Seller Information</h4>
               <div className="flex items-center gap-3 mb-3">
                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -577,7 +577,7 @@ export default function ProductMarketplacePubs({
       )}
 
       {/* Sticky Action Buttons */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+      <div className="sticky bottom-0 bg-white border-t border-[#e6e6e6] p-4">
         <div className="flex gap-3">
           <button 
             onClick={onClose} 

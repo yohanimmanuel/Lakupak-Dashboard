@@ -546,7 +546,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       {/* Status Tabs - Segmented Control */}
       <div className="mb-4">
         <div className="relative w-full md:w-auto flex items-center">
@@ -625,7 +625,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showStockDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {stockFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -663,7 +663,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {categoryFilters.map((category) => (
                   <button
                     key={category}
@@ -701,7 +701,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showProdCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {prodCategoryFilters.map((cat) => (
                   <button
                     key={cat}
@@ -739,7 +739,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showOfferDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {offerFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -1144,7 +1144,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               return (
                 <tr 
                   key={product.id} 
-                  className={`border-b border-gray-100 transition cursor-pointer ${
+                  className={`border-b border-[#e6e6e6] transition cursor-pointer ${
                     selectedProducts.includes(String(product.id)) 
                       ? 'bg-blue-50' 
                       : hasIncompleteData
@@ -1447,7 +1447,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              return (
                <div 
                  key={product.id} 
-                 className={`rounded-lg shadow-sm border border-gray-200 p-4 relative cursor-pointer transition ${
+                 className={`rounded-lg border border-[#e6e6e6] p-4 relative cursor-pointer transition ${
                    selectedProducts.includes(String(product.id)) 
                      ? 'bg-blue-50' 
                      : hasIncompleteData
@@ -1794,7 +1794,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              return (
                <div 
                  key={product.id} 
-                 className={`rounded-lg shadow-sm border border-gray-200 p-3 relative cursor-pointer transition ${
+                 className={`rounded-lg border border-[#e6e6e6] p-3 relative cursor-pointer transition ${
                    selectedProducts.includes(String(product.id)) 
                      ? 'bg-blue-50' 
                      : hasIncompleteData
@@ -2166,7 +2166,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Products' : 'Delete Product'}
             </h2>
@@ -2202,7 +2202,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Unpublish Confirmation Modal */}
       {showUnpublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-orange-500">
               {isBulkUnpublish ? 'Unpublish Products' : 'Unpublish Product'}
             </h2>
