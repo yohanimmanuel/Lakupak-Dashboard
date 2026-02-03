@@ -141,7 +141,7 @@ export default function MarketingPage() {
               return (
                 <div
                   key={tip.id}
-                  className="relative rounded-lg border border-gray-100 bg-blue-50 p-4 shadow-sm transition-shadow hover:shadow"
+                  className="relative rounded-lg border border-[#e6e6e6] bg-blue-50 p-4"
                 >
                   <button
                     onClick={() => handleDismissTip(tip.id)}
@@ -190,7 +190,7 @@ export default function MarketingPage() {
               <Link
                 key={tool.id}
                 href={tool.link}
-                className="group rounded-lg border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow hover:border-[#0a61d7]"
+                className="group rounded-lg border border-[#e6e6e6] bg-white p-6 transition-all hover:border-[#0a61d7]"
               >
                 <div className="flex flex-col items-center text-center">
                   <div className="w-12 h-12 rounded-lg bg-[#f7faff] flex items-center justify-center text-[#0a61d7] mb-4 group-hover:bg-[#0a61d7] group-hover:text-white transition-colors">
@@ -219,9 +219,9 @@ export default function MarketingPage() {
             }
           }}
         >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <div className="bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
                   {(() => {
@@ -273,7 +273,7 @@ export default function MarketingPage() {
                  )}
 
                  {/* Action Button */}
-                 <div className="pt-4 -mx-6 px-6 border-t border-gray-200">
+                 <div className="pt-4 -mx-6 px-6 border-t border-[#e6e6e6]">
                   <Link
                     href={selectedTip.actionLink}
                     onClick={() => setSelectedTip(null)}

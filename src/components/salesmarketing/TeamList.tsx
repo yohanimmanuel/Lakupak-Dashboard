@@ -434,7 +434,7 @@ export default function TeamList({
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Title and Count */}
@@ -515,7 +515,7 @@ export default function TeamList({
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showRoleDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {roleOptions.map((role) => (
                   <button
                     key={role}
@@ -550,7 +550,7 @@ export default function TeamList({
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showStatusDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {statusOptions.map((status) => (
                   <button
                     key={status}
@@ -847,7 +847,7 @@ export default function TeamList({
               {filteredTeams.map((team) => {
                 const isExpanded = expandedTeams.has(team.id);
                 return (
-                  <div key={team.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={team.id} className="border border-[#e6e6e6] rounded-lg overflow-hidden">
                     {/* Team Header */}
                     <div className="flex items-center justify-between p-4 transition-colors">
                       <div className="flex items-center gap-4 flex-1">
@@ -895,7 +895,7 @@ export default function TeamList({
 
                     {/* Team Members */}
                     {isExpanded && (
-                      <div className="bg-white border-t border-gray-200">
+                      <div className="bg-white border-t border-[#e6e6e6]">
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -959,7 +959,7 @@ export default function TeamList({
                           </table>
                         </div>
                         {onCreateAgent && (
-                          <div className="p-4 border-t border-gray-200">
+                          <div className="p-4 border-t border-[#e6e6e6]">
                             <button
                               onClick={onCreateAgent}
                               className="flex items-center gap-2 text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
@@ -1003,7 +1003,7 @@ export default function TeamList({
           aria-modal="true"
         >
           <div 
-            className="bg-white rounded-lg shadow-xl p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden"
+            className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
@@ -1063,7 +1063,7 @@ export default function TeamList({
                   </button>
                 </div>
                 
-                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                <div className="border border-[#e6e6e6] rounded-lg max-h-64 overflow-y-auto">
                   {agents.length === 0 ? (
                     <div className="p-4 text-center text-gray-500 text-xs">
                       No sales agents available
@@ -1123,7 +1123,7 @@ export default function TeamList({
               <button
                 type="button"
                 onClick={handleCloseTeamModal}
-                className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-[#e6e6e6] rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
@@ -1142,7 +1142,7 @@ export default function TeamList({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Agents' : 'Delete Agent'}
             </h2>

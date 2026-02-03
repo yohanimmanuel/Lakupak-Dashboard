@@ -52,7 +52,7 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
 
       case 'product':
         return (
-          <div className="border border-gray-200 rounded-lg p-3">
+          <div className="border border-[#e6e6e6] rounded-lg p-3">
             {block.productName && (
               <h3 className="font-semibold text-black">{block.productName}</h3>
             )}
@@ -123,7 +123,7 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
         ) : null;
 
       case 'divider':
-        return <div className="border-t border-gray-200 my-2"></div>;
+        return <div className="border-t border-[#e6e6e6] my-2"></div>;
 
       case 'spacing':
         return <div className={`${block.spacingSize === 'small' ? 'h-2' : block.spacingSize === 'large' ? 'h-8' : 'h-4'}`}></div>;

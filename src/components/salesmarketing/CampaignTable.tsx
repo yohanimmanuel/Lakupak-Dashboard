@@ -297,7 +297,7 @@ export default function CampaignTable({
 
   return (
     <>
-      <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4 mt-3">
+      <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
       {/* Status Tabs */}
       <div className="mb-4">
         <div className="relative w-full md:w-auto flex items-center">
@@ -367,7 +367,7 @@ export default function CampaignTable({
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showRecipientDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20 max-h-60 overflow-y-auto">
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20 max-h-60 overflow-y-auto">
               <button
                 onClick={() => {
                   setSelectedRecipient('All Recipients');
@@ -494,7 +494,7 @@ export default function CampaignTable({
           ) : (
             <>
               {/* Select All Header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e6e6e6]">
                 <button
                   onClick={handleSelectAll}
                   className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center flex-shrink-0 focus:outline-none ${
@@ -520,7 +520,7 @@ export default function CampaignTable({
               <div
                 key={campaignRow.id}
                 className={`flex items-start justify-between py-4 px-4 ${
-                  index !== pagedCampaigns.length - 1 ? 'border-b border-gray-200' : ''
+                  index !== pagedCampaigns.length - 1 ? 'border-b border-[#e6e6e6]' : ''
                 }`}
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -587,7 +587,7 @@ export default function CampaignTable({
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-t border-gray-200 pt-4 -mx-4 px-4 gap-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-t border-[#e6e6e6] pt-4 -mx-4 px-4 gap-2">
             {/* Left: Showing X to Y of Z */}
             <div className="text-sm text-gray-500">
               Showing {fromRow} to {toRow} of {totalRows}
@@ -630,7 +630,7 @@ export default function CampaignTable({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-sm">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? 'Delete Campaigns' : 'Delete Campaign'}
             </h2>

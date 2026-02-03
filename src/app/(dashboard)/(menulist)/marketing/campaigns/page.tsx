@@ -253,7 +253,7 @@ export default function MarketingCampaignsPage() {
 
       {/* Informational Tip Banner */}
       {showTip && (
-        <div className="relative rounded-lg border border-gray-100 bg-blue-50 p-4 mb-6 shadow-sm">
+        <div className="relative rounded-lg border border-[#e6e6e6] bg-blue-50 p-4 mb-6">
           <button
             onClick={() => setShowTip(false)}
             className="absolute top-3 right-3 p-1 hover:bg-blue-100 rounded-full transition-colors"

@@ -207,7 +207,7 @@ export default function SalesReporting({
       {/* Reports List */}
       <div className="space-y-4">
         {reports.map((report) => (
-          <div key={report.id} className="border border-gray-200 rounded-lg p-4">
+          <div key={report.id} className="border border-[#e6e6e6] rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <input
@@ -266,7 +266,7 @@ export default function SalesReporting({
             </div>
 
             {/* Activities Summary */}
-            <div className="border border-gray-200 rounded-lg p-4 mb-4">
+            <div className="border border-[#e6e6e6] rounded-lg p-4 mb-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Daily Activities

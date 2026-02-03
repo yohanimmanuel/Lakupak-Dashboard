@@ -223,7 +223,7 @@ export default function BasicProfileInfo({
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
             {showRoleDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
                 {roleOptions.map((role) => (
                   <button
                     key={role}
@@ -264,7 +264,7 @@ export default function BasicProfileInfo({
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
             {showStatusDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
                 {statusOptions.map((status) => (
                   <button
                     key={status}
@@ -323,7 +323,7 @@ export default function BasicProfileInfo({
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
             {showSexDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
                 {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
                   <button
                     key={gender}

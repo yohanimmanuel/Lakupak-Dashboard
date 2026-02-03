@@ -122,7 +122,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     : 0;
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
         {/* Breadcrumb Navigation */}
         <div className="mb-4">
@@ -151,7 +151,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           {/* Left Column - Profile Summary */}
           <div className="lg:col-span-1 space-y-4">
           {/* Profile Card */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             {/* Profile Header */}
             <div className="flex flex-col items-center pb-4 border-b border-gray-200">
               <div className="relative mb-4">
@@ -171,7 +171,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
             {/* Sales Target Summary */}
             {currentMonthTarget && (
-              <div className="py-4 border-b border-gray-200">
+              <div className="py-4 border-b border-[#e6e6e6]">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700">{currentMonthTarget.period} sales target</span>
                   <span className="text-sm font-semibold text-gray-900">
@@ -206,7 +206,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             )}
 
             {/* Other Info */}
-            <div className="py-4 border-b border-gray-200">
+            <div className="py-4 border-b border-[#e6e6e6]">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Other Info</h3>
               <div className="space-y-2.5">
                 <div className="flex items-center gap-2 justify-between">
@@ -246,7 +246,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           </div>
 
           {/* Favourite Products to be Sold - Separate Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-400" />
@@ -256,7 +256,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             <div className="space-y-3">
               {favoriteProducts.length > 0 ? (
                 favoriteProducts.map((product) => (
-                  <div key={product.productId} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                  <div key={product.productId} className="border border-[#e6e6e6] rounded-lg p-3 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start gap-3">
                       {/* Product Image */}
                       <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
@@ -296,7 +296,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
         {/* Right Column - Detailed Information */}
         <div className="lg:col-span-2 space-y-4">
           {/* About Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">About {agent.name.split(' ')[0]}</h3>
             </div>
@@ -306,7 +306,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           </div>
 
           {/* Daily Field Report */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Daily Field Report</h3>
             </div>
@@ -330,7 +330,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     {paginatedReports.map((report) => (
                       <div
                         key={report.id}
-                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between p-3 border border-[#e6e6e6] rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-sm text-gray-900">{report.date}</span>
@@ -418,7 +418,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           </div>
 
           {/* Sales Target */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Sales Target</h3>
             </div>
@@ -436,10 +436,10 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
               
               return (
                 <>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gray-100 border-b border-gray-200">
+                        <tr className="bg-gray-100 border-b border-[#e6e6e6]">
                           <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
                           <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Goal ({userCurrency})</th>
                           <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Achieved ({userCurrency})</th>
@@ -448,7 +448,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                       </thead>
                       <tbody>
                         {paginatedTargets.map((target, idx) => (
-                          <tr key={idx} className="border-b border-gray-100 transition-colors">
+                          <tr key={idx} className="border-b border-[#e6e6e6] transition-colors">
                             <td className="py-3 px-4 text-xs font-medium text-gray-900">{target.period}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.goal)}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.achieved)}</td>
@@ -542,7 +542,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Daily Field Report</h2>
                 <p className="text-sm text-gray-500 mt-1">{selectedReport.date}</p>
@@ -582,7 +582,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
                 {/* Activities Summary */}
                 {selectedReport.activities && (
-                  <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="border border-[#e6e6e6] rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Target className="w-4 h-4" />
                       Daily Activities Summary
@@ -610,7 +610,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
                 {/* Notes Section */}
                 {selectedReport.notes && (
-                  <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="border border-[#e6e6e6] rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <User className="w-4 h-4" />
                       Notes & Observations

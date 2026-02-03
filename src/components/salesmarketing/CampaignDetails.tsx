@@ -278,9 +278,9 @@ export default function CampaignDetails({
   }, [formData]);
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -436,7 +436,7 @@ export default function CampaignDetails({
       </div>
 
       {/* Mode Description */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
         {mode === 'add' && (
           <p className="text-sm text-gray-600">
             Create a new marketing campaign by filling out the form below. All required fields must be completed before saving.
@@ -483,7 +483,7 @@ export default function CampaignDetails({
 
       <form id="campaign-form" onSubmit={handleSubmit} className="p-4">
         {/* Campaign Information */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 mb-4">
           <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
             <Mail className="w-5 h-5 text-gray-500" />
             Campaign Information
@@ -525,7 +525,7 @@ export default function CampaignDetails({
                   </button>
 
                   {showRecipientsDropdown && !isViewMode && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {recipientOptions.map((option) => (
                         <button
                           key={option}
@@ -576,12 +576,12 @@ export default function CampaignDetails({
         </div>
 
         {/* WhatsApp Campaign Design */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 mb-4">
           <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-gray-500" />
             WhatsApp Campaign Design
           </h2>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
             <WhatsAppCampaignBuilder
               campaign={campaign ? {
                 ...campaign,
@@ -607,7 +607,7 @@ export default function CampaignDetails({
         </div>
 
         {/* Campaign Metrics */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <h2 className="text-md font-semibold text-black mb-4">Campaign Performance</h2>
           {mode === 'view' && campaign ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -629,7 +629,7 @@ export default function CampaignDetails({
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+            <div className="p-4 bg-white border border-[#e6e6e6] rounded-lg">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>

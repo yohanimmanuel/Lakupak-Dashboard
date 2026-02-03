@@ -669,7 +669,7 @@ export default function WhatsAppCampaignBuilder({
           </div>
 
           {/* Message Content */}
-          <div ref={messageCardRef} className="bg-white rounded-b-lg shadow-lg min-h-[400px] p-4">
+          <div ref={messageCardRef} className="bg-white rounded-b-lg border border-t-0 border-[#e6e6e6] min-h-[400px] p-4">
             {sortedBlocks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">
                 <Smartphone className="w-12 h-12 mb-3 opacity-50" />
@@ -832,7 +832,7 @@ export default function WhatsAppCampaignBuilder({
       case 'product':
         const isEditingProduct = !previewOnly && editingProductId === block.id;
         return (
-          <div className="border border-gray-200 rounded-lg p-3">
+          <div className="border border-[#e6e6e6] rounded-lg p-3">
             {isEditingProduct ? (
               <div className="relative">
                 <input
@@ -856,7 +856,7 @@ export default function WhatsAppCampaignBuilder({
                   autoFocus
                 />
                 {products.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {products.map((product) => (
                       <button
                         key={product.id}
@@ -1037,7 +1037,7 @@ export default function WhatsAppCampaignBuilder({
     }
 
     return (
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-[#e6e6e6]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-black capitalize">{selectedBlock.type} Block</h3>
           <button
@@ -1069,7 +1069,7 @@ export default function WhatsAppCampaignBuilder({
                   </button>
 
                   {showTextStyleDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {['normal', 'bold', 'italic'].map((style) => (
                         <button
                           key={style}
@@ -1183,7 +1183,7 @@ export default function WhatsAppCampaignBuilder({
                   </button>
 
                   {showButtonStyleDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {['primary', 'secondary'].map((style) => (
                         <button
                           key={style}
@@ -1222,7 +1222,7 @@ export default function WhatsAppCampaignBuilder({
                 </button>
 
                 {showSpacingSizeDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {['small', 'medium', 'large'].map((size) => (
                       <button
                         key={size}
@@ -1243,7 +1243,7 @@ export default function WhatsAppCampaignBuilder({
           )}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
+        <div className="mt-4 pt-4 border-t border-[#e6e6e6] flex gap-2">
           <button
             type="button"
             onClick={() => handleMoveBlock(selectedBlock.id, 'up')}
@@ -1280,7 +1280,7 @@ export default function WhatsAppCampaignBuilder({
     <div className={`w-full ${embedded ? '' : 'h-screen'} flex flex-col bg-white`}>
       {/* Header - Only show when not embedded */}
       {!embedded && (
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6] bg-white">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -1344,7 +1344,7 @@ export default function WhatsAppCampaignBuilder({
 
       {/* Templates Section - Hide when previewOnly */}
       {!previewOnly && (
-      <div className="p-4 border-b border-gray-200 bg-white">
+      <div className="p-4 border-b border-[#e6e6e6] bg-white">
         <div className="mb-3">
           <p className="text-sm text-gray-600 mb-1">
             Need inspiration? Check out some best practices <a href="#" className="text-[#0a61d7] underline">here</a>.
@@ -1389,7 +1389,7 @@ export default function WhatsAppCampaignBuilder({
                           className={`flex-1 w-0 p-4 border-2 rounded-lg transition-all text-left group ${
                             isSelected
                               ? 'border-[#0a61d7] bg-blue-50'
-                              : 'border-gray-200 hover:border-[#0a61d7] hover:bg-blue-50'
+                              : 'border-[#e6e6e6] hover:border-[#0a61d7] hover:bg-blue-50'
                           }`}
                         >
                           <div className="flex flex-col items-center gap-3">
@@ -1441,7 +1441,7 @@ export default function WhatsAppCampaignBuilder({
         {/* Right: Content Blocks Palette - Hide when previewOnly */}
         {!previewOnly && (
         <div data-block-editor className={`${embedded ? 'w-80' : 'w-80'} bg-white ${embedded ? '' : 'border-l-2 border-gray-300'} flex flex-col`}>
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-[#e6e6e6]">
             <h2 className="font-semibold text-black mb-1">Content</h2>
             <p className="text-xs text-gray-600">Add blocks to build your campaign</p>
           </div>
@@ -1453,7 +1453,7 @@ export default function WhatsAppCampaignBuilder({
                   key={block.type}
                   type="button"
                   onClick={() => handleAddBlock(block.type)}
-                  className="p-3 border border-gray-200 rounded-lg hover:border-[#0a61d7] hover:bg-blue-50 transition-colors text-left"
+                  className="p-3 border border-[#e6e6e6] rounded-lg hover:border-[#0a61d7] hover:bg-blue-50 transition-colors text-left"
                 >
                   <div className="flex flex-col items-center gap-2">
                     <div className="text-gray-600">{block.icon}</div>

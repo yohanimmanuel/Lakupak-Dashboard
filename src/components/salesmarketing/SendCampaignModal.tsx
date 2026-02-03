@@ -50,9 +50,9 @@ export default function SendCampaignModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-xl max-h-[90vh] flex flex-col">
         {/* Header with white top bar, blue arrow button, and black title */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white rounded-t-lg">
+        <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6] bg-white rounded-t-lg">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-black">Send Campaign</h2>
           </div>
@@ -70,7 +70,7 @@ export default function SendCampaignModal({
         <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
           <div className="space-y-6">
             {/* Campaign Information */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-md font-semibold text-black mb-4">Campaign Information</h3>
               <div className="space-y-3">
                 <div>
@@ -95,9 +95,9 @@ export default function SendCampaignModal({
             </div>
 
             {/* Campaign Preview */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-md font-semibold text-black mb-4">Campaign Design</h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
                 <CampaignPreview
                   campaign={campaign}
                   currency={userCurrency}
@@ -108,7 +108,7 @@ export default function SendCampaignModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-white rounded-b-lg">
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-[#e6e6e6] bg-white rounded-b-lg">
           <button
             type="button"
             onClick={onClose}

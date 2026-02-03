@@ -186,11 +186,11 @@ export default function SalesTarget({
       </div>
 
       {/* Sales Target Table */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-100 border-b border-gray-200">
+              <tr className="bg-gray-100 border-b border-[#e6e6e6]">
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Period
                 </th>
@@ -282,7 +282,7 @@ export default function SalesTarget({
 
       {/* Summary (if there are targets) */}
       {targetRows.length > 0 && targetRows.some(r => r.goal > 0) && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div className="bg-gray-50 border border-[#e6e6e6] rounded-lg p-3">
           <h4 className="text-sm font-semibold text-gray-900 mb-3">Summary</h4>
           <div className="grid grid-cols-3 gap-4">
             <div>

@@ -299,7 +299,7 @@ export default function FavouriteProducts({
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           {/* Search */}
           <div className="relative flex-1">
@@ -329,7 +329,7 @@ export default function FavouriteProducts({
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showTypeDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {productTypes.map((type) => (
                   <button
                     key={type}
@@ -364,7 +364,7 @@ export default function FavouriteProducts({
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow z-20">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 {productCategories.map((category) => (
                   <button
                     key={category}
@@ -470,7 +470,7 @@ export default function FavouriteProducts({
                     className={`border-2 rounded-lg overflow-hidden transition-all cursor-pointer ${
                       isSelected
                         ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                        : 'border-[#e6e6e6] hover:border-gray-300 bg-white'
                     }`}
                     onClick={() => {
                       if (isSelected) {
@@ -515,7 +515,7 @@ export default function FavouriteProducts({
                     className={`flex items-center gap-4 p-4 border-2 rounded-lg transition-all cursor-pointer ${
                       isSelected
                         ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                        : 'border-[#e6e6e6] hover:border-gray-300 bg-white'
                     }`}
                     onClick={() => {
                       if (isSelected) {

@@ -306,7 +306,7 @@ export default function CreateSalesAgentPage() {
       </div>
 
       {/* Content Area */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] shadow-sm p-4">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         {renderActiveComponent()}
       </div>
     </div>
