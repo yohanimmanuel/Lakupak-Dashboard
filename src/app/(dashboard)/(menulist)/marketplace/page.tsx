@@ -47,7 +47,6 @@ interface Company {
   maxShippingRadius?: number;
   additionalPricePerKm?: number;
   pickupAddress?: string;
-  minimumOrderValue?: number;
 }
 
 // Removed GraphQL query and helper function - now using consolidated REST API

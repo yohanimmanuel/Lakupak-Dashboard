@@ -26,7 +26,6 @@ interface Company {
   maxShippingRadius?: number;
   additionalPricePerKm?: number;
   pickupAddress?: string;
-  minimumOrderValue?: number;
 }
 
 interface StorefrontInfoProps {
@@ -59,7 +58,6 @@ export default function StorefrontInfo({
   const baseShippingRadius = company?.baseShippingRadius || 0;
   const maxShippingRadius = company?.maxShippingRadius || 0;
   const pickupAddress = company?.pickupAddress || 'Not set';
-  const minimumOrderValue = company?.minimumOrderValue || 0;
 
   // Calculate highest return policy from products
   const maxReturnPolicy = products.reduce((max, product) => {
@@ -241,17 +239,10 @@ export default function StorefrontInfo({
             Customer Experience
           </h3>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
+            <div className="flex items-center justify-between py-2">
               <span className="text-sm text-gray-900">Return Policy</span>
               <span className="text-sm font-semibold text-gray-900">{maxReturnPolicy} days</span>
             </div>
-            
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-900">Minimum Order Value</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {minimumOrderValue > 0 ? formatPrice(minimumOrderValue) : 'No minimum'}
-              </span>
-            </div>  
           </div>
         </div>
 

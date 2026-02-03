@@ -19,7 +19,6 @@ interface Company {
   maxShippingRadius: number | null;
   additionalPricePerKm: number | null;
   pickupAddress: string | null;
-  minimumOrderValue: number | null;
 }
 
 // Factory function for default company object
@@ -40,7 +39,6 @@ function createDefaultCompany(): Company {
     maxShippingRadius: 0,
     additionalPricePerKm: 0,
     pickupAddress: null,
-    minimumOrderValue: null,
   };
 }
 
@@ -149,7 +147,6 @@ export async function GET(request: NextRequest) {
           maxShippingRadius: true,
           additionalPricePerKm: true,
           pickupAddress: true,
-          minimumOrderValue: true,
         },
       }),
 
