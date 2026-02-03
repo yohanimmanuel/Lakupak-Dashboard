@@ -848,9 +848,9 @@ const FinancialAnalytics: React.FC = () => {
     icon: React.ReactNode;
     color: string;
   }> = ({ title, value, change, icon, color }) => (
-    <div className={`flex flex-col justify-between p-4 rounded-lg shadow-sm bg-white border border-[#e6e6e6] ${color}`}>
+    <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
       <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
           {icon}
         </div>
         <div>
@@ -918,7 +918,7 @@ const FinancialAnalytics: React.FC = () => {
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
            <div className="lg:col-span-7">
                  {/* Revenue Trend */}
-         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
              <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
              <div className="flex items-center space-x-4">
@@ -1032,7 +1032,7 @@ const FinancialAnalytics: React.FC = () => {
            </div>
            <div className="lg:col-span-4">
          {/* Revenue by Category */}
-         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
              <h3 className="text-lg font-semibold text-gray-900">Revenue by Category</h3>
              <div className="relative" ref={categoryDropdownRef}>
@@ -1165,7 +1165,7 @@ const FinancialAnalytics: React.FC = () => {
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
            <div className="lg:col-span-5">
                   {/* Cash Flow Trend */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-semibold text-gray-900">Cash Flow Trend</h3>
              <div className="flex items-center space-x-4">
@@ -1300,7 +1300,7 @@ const FinancialAnalytics: React.FC = () => {
            </div>
            <div className="lg:col-span-6">
          {/* Revenue Forecast */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Revenue Forecast</h3>
                 {revenueForecast && revenueForecast.forecast.length > 0 && (
@@ -1425,7 +1425,7 @@ const FinancialAnalytics: React.FC = () => {
 
          {/* Fourth Row - Top Performing Products Table */}
          <div className="mt-4">
-           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-full flex flex-col">
+           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
             <div className="flex-1 overflow-x-auto rounded-lg">
               <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
@@ -1522,9 +1522,9 @@ export const AnalyticsMetricCard: React.FC<{
   icon: React.ReactNode;
   color: string;
 }> = ({ title, value, change, icon, color }) => (
-  <div className={`flex flex-col justify-between p-4 rounded-lg shadow-sm bg-white border border-[#e6e6e6] ${color}`}>
+  <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
     <div className="flex items-center gap-4 border-b border-gray-200 pb-4">
-      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white shadow-sm">
+      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
         {icon}
       </div>
       <div>
@@ -1552,7 +1552,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
   userCurrency: string;
   hasData: boolean;
 }> = ({ revenueData, userCurrency, hasData }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+  <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
       <div className="flex items-center space-x-4">
@@ -1973,7 +1973,7 @@ export const AnalyticsTopProductsTable: React.FC<{
   maxRows?: number;
   seeMoreHref?: string;
 }> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial' }) => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+  <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
     <div className="flex items-center justify-between mb-6">
       <h3 className="text-lg font-semibold text-gray-900">Top Performing Products</h3>
       <button 

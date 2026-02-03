@@ -163,7 +163,7 @@ export default function MarketplacePerformance({
     <div className="space-y-6">
       {/* Overall Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Total Sales</span>
             <DollarSign className="w-4 h-4 text-green-500" />
@@ -176,7 +176,7 @@ export default function MarketplacePerformance({
           </p>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Total Views</span>
             <Eye className="w-4 h-4 text-blue-500" />
@@ -189,7 +189,7 @@ export default function MarketplacePerformance({
           </p>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Conversion Rate</span>
             <TrendingUp className="w-4 h-4 text-purple-500" />
@@ -204,7 +204,7 @@ export default function MarketplacePerformance({
       </div>
 
       {/* Funnel Visualization */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey Funnel</h3>
         <div className="space-y-3">
           <div className="flex items-center gap-4">
@@ -266,8 +266,8 @@ export default function MarketplacePerformance({
       </div>
 
       {/* Product Performance Table */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg border border-[#e6e6e6]">
+        <div className="p-4 border-b border-[#e6e6e6]">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>

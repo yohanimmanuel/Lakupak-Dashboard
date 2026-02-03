@@ -213,17 +213,17 @@ export default function MarketplacePage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">Published Products</p>
           <p className="text-3xl font-bold text-gray-900">{publishedCount}</p>
           <p className="text-xs text-gray-500 mt-1">Live on marketplace</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">Total Products</p>
           <p className="text-3xl font-bold text-gray-900">{products.length}</p>
           <p className="text-xs text-gray-500 mt-1">In your catalog</p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">Unpublished</p>
           <p className="text-3xl font-bold text-gray-900">{products.length - publishedCount}</p>
           <p className="text-xs text-gray-500 mt-1">Ready to publish</p>

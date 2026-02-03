@@ -105,7 +105,7 @@ export default function ProductsList({ products }: ProductsListProps) {
             return (
               <div
                 key={product.id}
-                className="group border border-gray-100 rounded-lg p-3 hover:shadow-md transition-all hover:border-[#0a61d7]"
+                className="group border border-[#e6e6e6] rounded-lg p-3 transition-all hover:border-[#0a61d7]"
               >
                 {/* Product Image */}
                 <div className="relative w-full aspect-square mb-3 bg-gray-50 rounded-lg overflow-hidden">

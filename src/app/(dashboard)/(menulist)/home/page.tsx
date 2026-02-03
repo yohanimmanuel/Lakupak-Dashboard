@@ -1710,7 +1710,7 @@ const supplierInsights = useMemo(() => {
                 return (
                   <li
                     key={order.id}
-                    className="flex flex-col gap-4 rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm transition-shadow hover:shadow"
+                    className="flex flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white px-4 py-3"
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -1779,7 +1779,7 @@ const supplierInsights = useMemo(() => {
                     return (
                       <li
                         key={product.productId}
-                        className="flex flex-col gap-3 rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow"
+                        className="flex flex-col gap-3 rounded-lg border border-[#e6e6e6] bg-white p-4"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-6 text-xs font-semibold text-gray-500">
@@ -1792,10 +1792,10 @@ const supplierInsights = useMemo(() => {
                                 alt={product.productName}
                                 width={48}
                                 height={48}
-                                className="h-12 w-12 rounded-lg border border-gray-100 object-cover"
+                                className="h-12 w-12 rounded-lg border border-[#e6e6e6] object-cover"
                               />
                             ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-100 bg-[#f7faff]">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-[#e6e6e6] bg-[#f7faff]">
                                 <Package className="h-5 w-5 text-[#0a61d7]" />
                               </div>
                             )}
@@ -1862,7 +1862,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total buyers</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {buyerInsights.totalBuyers.toLocaleString()}
@@ -1874,7 +1874,7 @@ const supplierInsights = useMemo(() => {
                     </span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Orders per buyer</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {buyerInsights.averageOrdersPerBuyer.toFixed(1)}
@@ -1886,7 +1886,7 @@ const supplierInsights = useMemo(() => {
                     </span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. order value</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {formatCurrency(safeSalesMetrics.avgOrderValue, userCurrency)}
@@ -1895,7 +1895,7 @@ const supplierInsights = useMemo(() => {
                     Across {safeSalesMetrics.totalOrders.toLocaleString()} orders
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Pieces sold</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {safeSalesMetrics.totalPiecesSold.toLocaleString()}
@@ -1924,7 +1924,7 @@ const supplierInsights = useMemo(() => {
                     {buyerInsights.topBuyers.map((buyer, index) => (
                       <li
                         key={buyer.buyerId}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                        className="flex items-center justify-between rounded-lg border border-[#e6e6e6] bg-white px-4 py-3"
                       >
                         <div className="flex items-center gap-3">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f7faff] text-xs font-semibold text-[#0a61d7]">
@@ -1982,7 +1982,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total suppliers</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {supplierInsights.totalSuppliers.toLocaleString()}
@@ -1994,7 +1994,7 @@ const supplierInsights = useMemo(() => {
                     </span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">On-time delivery</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {supplierInsights.onTimeRate}%
@@ -2003,7 +2003,7 @@ const supplierInsights = useMemo(() => {
                     Goal ≥ 90%
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Top supplier value</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {formatCurrency(
@@ -2035,7 +2035,7 @@ const supplierInsights = useMemo(() => {
                         {supplierInsights.topSuppliers.map((supplier, index) => (
                       <li
                         key={supplier.supplierId}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                        className="flex items-center justify-between rounded-lg border border-[#e6e6e6] bg-white px-4 py-3"
                       >
                         <div className="flex items-center gap-3">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f7faff] text-xs font-semibold text-[#0a61d7]">
@@ -2079,7 +2079,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total shipments</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {orders.filter(order => order.deliveryMethod === 'Distributor Fleet').length.toLocaleString()}
@@ -2088,7 +2088,7 @@ const supplierInsights = useMemo(() => {
                     Distributor Fleet
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">On-time delivery</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {supplierInsights.onTimeRate}%
@@ -2097,7 +2097,7 @@ const supplierInsights = useMemo(() => {
                     Goal ≥ 90%
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. delivery time</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {/* This data is not directly available in the current data,
@@ -2109,7 +2109,7 @@ const supplierInsights = useMemo(() => {
                   </p>
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-black">Active shipments map</p>
                   <span className="text-xs text-gray-500">
@@ -2185,7 +2185,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total products</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {totalProducts.toLocaleString()}
@@ -2194,7 +2194,7 @@ const supplierInsights = useMemo(() => {
                     Active: {activeProductCount.toLocaleString()} | Pieces: {totalPieces.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Low stock</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {lowStockItems.length.toLocaleString()}
@@ -2203,7 +2203,7 @@ const supplierInsights = useMemo(() => {
                     Critical: {criticalLowStockItems.length.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. stock level</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {Math.round(averageStock).toLocaleString()}
@@ -2228,7 +2228,7 @@ const supplierInsights = useMemo(() => {
                     {lowStockPreview.map(({ product: lowStockProduct, totalStock, lowStockThreshold }) => (
                       <li
                         key={lowStockProduct.productId}
-                        className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
+                        className="flex flex-col gap-2 rounded-lg border border-[#e6e6e6] bg-white p-3"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-black">
@@ -2284,7 +2284,7 @@ const supplierInsights = useMemo(() => {
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total campaigns</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {/* This data is not directly available in the current data,
@@ -2295,7 +2295,7 @@ const supplierInsights = useMemo(() => {
                     Planned: 0
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Conversion rate</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {/* This data is not directly available in the current data,
@@ -2306,7 +2306,7 @@ const supplierInsights = useMemo(() => {
                     Across all campaigns
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. ROI</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {/* This data is not directly available in the current data,
@@ -2317,7 +2317,7 @@ const supplierInsights = useMemo(() => {
                     Across all campaigns
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Top performing channel</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {/* This data is not directly available in the current data,
@@ -2369,7 +2369,7 @@ const supplierInsights = useMemo(() => {
   const renderedWidgets: React.ReactNode =
     activeWidgets.length === 0
       ? (
-          <div className="col-span-12 flex h-60 flex-col items-center justify-center rounded-lg bg-white text-center shadow-sm">
+          <div className="col-span-12 flex h-60 flex-col items-center justify-center rounded-lg bg-white text-center">
             <Settings2 className="mb-3 h-8 w-8 text-[#0a61d7]" />
             <p className="text-sm font-semibold text-black">
               No widgets selected
@@ -2402,8 +2402,8 @@ const supplierInsights = useMemo(() => {
                 hoverWidget === id ? 'ring-2 ring-[#0a61d7]/60' : ''
               } ${draggingWidget === id ? 'opacity-75' : 'opacity-100'}`}
             >
-              <article className="flex h-full flex-col rounded-lg border border-gray-200 bg-white shadow-sm">
-                <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
+              <article className="flex h-full flex-col rounded-lg border border-[#e6e6e6] bg-white">
+                <div className="flex items-start justify-between gap-3 border-b border-[#e6e6e6] px-4 py-4">
                   <div className="flex items-start gap-3">
                     <button
                       type="button"
@@ -2449,7 +2449,7 @@ const supplierInsights = useMemo(() => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6">
         <div className="mx-auto max-w-3xl">
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-6">
             <h2 className="text-lg font-semibold text-rose-700">
               We could not load your dashboard
             </h2>
@@ -2479,9 +2479,9 @@ const supplierInsights = useMemo(() => {
       {isWidgetManagerOpen && (
         <div
           ref={widgetManagerRef}
-          className="border border-gray-200 bg-white shadow-sm"
+          className="border border-[#e6e6e6] bg-white"
         >
-          <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+          <div className="flex items-start justify-between border-b border-[#e6e6e6] px-5 py-4">
             <div>
               <h3 className="text-sm font-semibold text-black">Widget Library</h3>
               <p className="text-xs text-gray-500">
@@ -2508,7 +2508,7 @@ const supplierInsights = useMemo(() => {
                     draggable
                     onDragStart={(event) => handleLibraryDragStart(event, widget.id)}
                     onDragEnd={handleDragEnd}
-                    className={`group flex min-w-[22rem] max-w-[22rem] cursor-grab flex-col justify-between rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-[#0a61d7] hover:shadow-md active:cursor-grabbing ${
+                    className={`group flex min-w-[22rem] max-w-[22rem] cursor-grab flex-col justify-between rounded-lg border border-[#e6e6e6] bg-white p-5 transition hover:border-[#0a61d7] active:cursor-grabbing ${
                       isActive ? 'opacity-95' : ''
                     }`}
                   >
@@ -2561,7 +2561,7 @@ const supplierInsights = useMemo(() => {
             <button
               type="button"
               onClick={() => setIsWidgetManagerOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-black shadow-sm transition hover:border-[#0a61d7]"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-black transition hover:border-[#0a61d7]"
             >
               <Settings2 className="h-4 w-4 text-[#0a61d7]" />
               Drag widgets to rearrange

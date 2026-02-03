@@ -71,9 +71,9 @@ export default function StorefrontInfo({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-lg border border-[#e6e6e6]">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="p-4 border-b border-[#e6e6e6] flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Store className="w-5 h-5 text-[#0a61d7]" />
