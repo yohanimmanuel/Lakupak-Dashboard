@@ -58,7 +58,7 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - Real-Time Communication (WebSockets) 
 - Authentication & Authorization (Supabase Auth)
 - Messaging & Sales Integration (WhatsApp Business API)
-- Infrastructure / Deployment (Cloud-hosted Supabase + server hosting)
+- Infrastructure / Deployment (Cloud-hosted Supabase + server hosting, Docker)
 - Security, Audit and Compliance (Redis, Axiom)
 
 ## Target Market
