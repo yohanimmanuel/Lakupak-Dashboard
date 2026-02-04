@@ -363,7 +363,7 @@ export default function MarketplacePerformance({
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-4 px-4 py-3 border-t border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
           <div className="text-sm text-gray-500">
             Showing {startIndex + 1} to {Math.min(endIndex, sortedProducts.length)} of {sortedProducts.length} results
           </div>
