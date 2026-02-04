@@ -93,14 +93,14 @@ export default function StorefrontInfo({
         </Link>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4">
         {/* Store Information */}
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Store className="w-4 h-4 text-gray-600" />
             Store Details
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          <div className="bg-white border border-[#e6e6e6] rounded-lg p-4 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-600 mb-1">Store Name</p>
@@ -134,7 +134,7 @@ export default function StorefrontInfo({
             <Truck className="w-4 h-4 text-gray-600" />
             Shipping Configuration
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+          <div className="bg-white border border-[#e6e6e6] rounded-lg p-4 space-y-4">
             {/* Pickup Address - full width on top */}
             <div className="flex items-center justify-between py-2 border-b border-gray-200">
               <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export default function StorefrontInfo({
             </div>
 
             {/* Shipping options in 2 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0">
               {/* Left column */}
               <div className="space-y-0">
                 {baseShippingPrice > 0 && (
@@ -244,7 +244,7 @@ export default function StorefrontInfo({
             <Settings className="w-4 h-4 text-gray-600" />
             Customer Experience
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          <div className="bg-white border border-[#e6e6e6] rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-gray-900">Return Policy</span>
               <span className="text-sm font-semibold text-gray-900">{maxReturnPolicy} days</span>

@@ -160,7 +160,7 @@ export default function MarketplacePerformance({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Overall Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
@@ -204,7 +204,7 @@ export default function MarketplacePerformance({
       </div>
 
       {/* Funnel Visualization */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-6">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey Funnel</h3>
         <div className="space-y-3">
           <div className="flex items-center gap-4">
@@ -246,7 +246,8 @@ export default function MarketplacePerformance({
                   style={{ width: `${overallMetrics.totalViews > 0 ? (overallMetrics.totalAddedToCart / overallMetrics.totalViews) * 100 : 0}%` }}
                 ></div>
               </div>
-            </div>          </div>
+            </div>          
+          </div>
 
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -311,14 +312,14 @@ export default function MarketplacePerformance({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Product</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Views</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Clicks</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Cart</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Favorites</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Sold</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Sales</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Conv %</th>
+                <th className="px-4 py-3 text-left text-xs font-medium   text-gray-600 uppercase">Product</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Views</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Clicks</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Cart</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Favorites</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Sold</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Sales</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Conv %</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -450,7 +451,7 @@ export default function MarketplacePerformance({
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-4">
               {/* Key Metrics Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">

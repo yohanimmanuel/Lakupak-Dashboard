@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, Heart, ShoppingCart, ExternalLink, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCurrency, parsePrice } from '@/utils/currencyUtils';
 
 interface Product {
   id: number;
@@ -97,10 +98,22 @@ export default function ProductsList({ products }: ProductsListProps) {
       <div className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {currentProducts.map((product) => {
-            // Get price from first variant option with defensive parsing
-            const rawPrice = product.variantOptions?.[0]?.sellingPrice || '0';
-            const parsed = parseFloat(rawPrice);
-            const price = Number.isFinite(parsed) ? parsed : 0;
+            // Price range: match Products module – use all variantOptions selling prices
+            let priceDisplay = 'Rp 0';
+            if (product.variantOptions && product.variantOptions.length > 0) {
+              const prices = product.variantOptions
+                .map((option) => parsePrice(String(option.sellingPrice ?? ''), 'IDR') || 0)
+                .filter((p) => p > 0);
+              if (prices.length > 0) {
+                const minPrice = Math.min(...prices);
+                const maxPrice = Math.max(...prices);
+                if (minPrice === maxPrice) {
+                  priceDisplay = formatCurrency(minPrice, 'IDR');
+                } else {
+                  priceDisplay = `${formatCurrency(minPrice, 'IDR')} – ${formatCurrency(maxPrice, 'IDR')}`;
+                }
+              }
+            }
             
             return (
               <div
@@ -134,7 +147,7 @@ export default function ProductsList({ products }: ProductsListProps) {
                     {product.name}
                   </h3>
                   <p className="text-sm font-bold text-[#0a61d7]">
-                    Rp {price.toLocaleString('id-ID')}
+                    {priceDisplay}
                   </p>
                 </div>
 
