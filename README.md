@@ -55,7 +55,7 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - Mobile App Buyer Marketplace (React Native Expo)
 - Backend / APIs (Node.js, GraphQL, REST API)
 - Database (Supabase PostgreSQL)
-- Real-Time Communication (WebSockets) 
+- Real-Time Communication, Notifications (WebSockets, Firebase) 
 - Authentication & Authorization (Supabase Auth)
 - Messaging & Sales Integration (WhatsApp Business API)
 - Infrastructure / Deployment (Cloud-hosted Supabase + server hosting, Docker)
