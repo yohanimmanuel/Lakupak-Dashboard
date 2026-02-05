@@ -517,9 +517,9 @@ const CustomerSalesAnalytics: React.FC = () => {
 	}
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-3">
 			{/* Key Metrics */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
 				<AnalyticsMetricCard
 					title="Total Orders"
 					value={String(metrics.totalOrders)}
@@ -549,7 +549,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			</div>
 
 			{/* Charts */}
-			<div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+			<div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
 				{/* Sales Trend (Orders & Units) */}
 				<div className="lg:col-span-6">
 					<SalesTrendChart data={salesTrend} showForecast={false} />

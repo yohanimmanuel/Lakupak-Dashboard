@@ -215,7 +215,7 @@ export default function OrdersPage() {
         {!loading && !error && (
           <>
             {/* Orders GPS and Cards Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
               {/* GPS Map - Left Side */}
               <div className="lg:col-span-2">
                 <OrdersGPS orders={orders} />

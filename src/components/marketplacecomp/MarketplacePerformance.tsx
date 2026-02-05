@@ -153,9 +153,9 @@ export default function MarketplacePerformance({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Overall Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Total Sales</span>

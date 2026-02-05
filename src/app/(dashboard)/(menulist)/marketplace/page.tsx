@@ -215,7 +215,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">Published Products</p>
           <p className="text-3xl font-bold text-gray-900">{publishedCount}</p>
@@ -234,7 +234,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Main Content */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Products List Section */}
         <ProductsList products={products} />
 

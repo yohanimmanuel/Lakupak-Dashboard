@@ -528,9 +528,9 @@ const OperationalPerformanceAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           title="Order Completion Rate"
           value={`${calculateMetrics.completionRate.toFixed(1)}%`}
@@ -562,9 +562,9 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       </div>
 
       {/* Charts Grid */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* First Row - Order Status Distribution + Processing Time Trend */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
           <div className="lg:col-span-5 h-full">
             {/* Order Status Distribution */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
@@ -766,7 +766,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         </div>
 
         {/* Second Row - Inventory Health + Quality Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
           <div className="lg:col-span-6 h-full">
             {/* Inventory Health by Category */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
@@ -937,7 +937,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         </div>
 
         {/* Third Row - Delivery Methods */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           <div className="lg:col-span-12">
             {/* Delivery Methods Performance */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">

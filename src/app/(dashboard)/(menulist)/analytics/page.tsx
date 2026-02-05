@@ -322,7 +322,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Row 1: Metric Cards (4 columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <>
             <AnalyticsMetricCard
               title="Total Sales"
@@ -354,7 +354,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Rows 2+: Charts/Tables in two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div>
           <AnalyticsRevenueTrendChart 
             revenueData={revenueData}
@@ -375,7 +375,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Row 4: Top Performing Products Table */}
-      <div className="mt-4">
+      <div className="mt-3">
         <AnalyticsTopProductsTable products={topProducts} userCurrency={userCurrency} maxRows={5} seeMoreHref="/analytics/financial" />
       </div>
     </div>

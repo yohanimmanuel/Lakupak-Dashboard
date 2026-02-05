@@ -2550,7 +2550,7 @@ const supplierInsights = useMemo(() => {
       )}
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-        <div className="mx-auto flex flex-col gap-4">
+        <div className="mx-auto flex flex-col gap-3">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-black">Dashboard Overview</h1>
@@ -2569,7 +2569,7 @@ const supplierInsights = useMemo(() => {
           </header>
 
           {statCards.length > 0 && (
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {statCards.map((card) => (
                 <AnalyticsMetricCard
                   key={card.id}
@@ -2584,7 +2584,7 @@ const supplierInsights = useMemo(() => {
           )}
 
           <section
-            className="grid grid-cols-1 gap-4 xl:grid-cols-12"
+            className="grid grid-cols-1 gap-3 xl:grid-cols-12"
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDropToEnd}
           >

@@ -607,7 +607,7 @@ export default function ProductsPage() {
       )}
 
       {/* Action Buttons and Table */}
-      <div className="mt-6">
+      <div>
         <ProductImport 
           open={isImportModalOpen}
           onCloseAction={() => setIsImportModalOpen(false)}

@@ -284,7 +284,7 @@ export default function OffersPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+    <div className="p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

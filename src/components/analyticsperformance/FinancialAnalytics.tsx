@@ -878,10 +878,10 @@ const FinancialAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           title="Total Sales"
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
@@ -913,9 +913,9 @@ const FinancialAnalytics: React.FC = () => {
       </div>
 
       {/* Charts Grid */}
-       <div className="space-y-4">
+       <div className="space-y-3">
          {/* Second Row - Revenue Trend (smaller) + Revenue by Category (larger) */}
-         <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+         <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
            <div className="lg:col-span-7">
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
@@ -1162,7 +1162,7 @@ const FinancialAnalytics: React.FC = () => {
          </div>
 
          {/* Third Row - Cash Flow Trend + Revenue Forecast */}
-         <div className="grid grid-cols-1 lg:grid-cols-11 gap-4">
+         <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
            <div className="lg:col-span-5">
                   {/* Cash Flow Trend */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
@@ -1424,7 +1424,7 @@ const FinancialAnalytics: React.FC = () => {
          </div>
 
          {/* Fourth Row - Top Performing Products Table */}
-         <div className="mt-4">
+         <div className="mt-3">
            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
             <div className="flex-1 overflow-x-auto rounded-lg">
