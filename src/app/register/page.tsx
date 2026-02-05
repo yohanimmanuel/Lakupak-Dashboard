@@ -157,7 +157,19 @@ export default function RegisterPage() {
           value: 1
         });
       }
-      
+
+      // Auto sign-in with the newly created credentials so GraphQL / dashboard APIs have a valid session
+      try {
+        await signIn("credentials", {
+          email: userInfo.email.trim(),
+          password,
+          redirect: false,
+        });
+      } catch (autoLoginError) {
+        // Log but don't block the UX; user will be asked to log in manually if needed
+        console.error("Auto login after registration failed:", autoLoginError);
+      }
+
       // Small delay for better UX
       setTimeout(() => {
         router.push("/home");

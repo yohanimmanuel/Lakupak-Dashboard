@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { getCurrencySymbol, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { generateSlug } from '@/utils/slugUtils';
 
 interface CompanyProfileData {
   // Company Information
@@ -763,6 +764,18 @@ export default function DistributorOperations() {
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                   placeholder="Enter registration number"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Generated Store URL
+              </label>
+              <p className="text-[11px] text-gray-500 mb-2">
+                This is the public URL of your marketplace store, generated from your company name.
+              </p>
+              <div className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50 text-[#0a61d7] font-semibold break-all">
+                laku.marketplace/{generateSlug(formData.companyName || 'Your Store Name') || 'your-store'}
               </div>
             </div>
 
