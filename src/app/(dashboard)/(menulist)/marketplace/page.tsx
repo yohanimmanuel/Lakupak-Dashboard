@@ -23,7 +23,6 @@ interface MarketplaceProduct {
   variantOptions?: ProductVariantOption[];
   // Real marketplace metrics from UserActivity
   views: number;
-  clicks: number;
   favorites: number;
   addedToCart: number;
   cartAbandoned: number;
@@ -56,6 +55,9 @@ interface MarketplaceMetrics {
   totalSales: number;
   totalOrders: number;
   totalViews: number;
+  totalFavorites?: number;
+  totalAddedToCart?: number;
+  cartAbandonedCount?: number;
 }
 
 interface PaginationMetadata {

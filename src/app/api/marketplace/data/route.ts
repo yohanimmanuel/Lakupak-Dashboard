@@ -94,7 +94,13 @@ export async function GET(request: NextRequest) {
     );
     const skip = (page - 1) * limit;
 
-    // 5. Fetch all data in parallel for maximum performance
+    // 5. Fetch seller's product IDs first (UserActivity is per product, not per dashboard user)
+    const sellerProductIds = await prisma.product.findMany({
+      where: { userId: parsedUserId },
+      select: { productId: true },
+    }).then((rows) => rows.map((p) => p.productId));
+
+    // 6. Fetch all data in parallel (activities filtered by productId = seller's products)
     const [products, productCount, company, orders, userActivities] = await Promise.all([
       // 1. Fetch products with variant options (paginated)
       prisma.product.findMany({
@@ -162,16 +168,18 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // 5. Fetch all user activities for view metrics
-      prisma.userActivity.findMany({
-        where: {
-          userId: parsedUserId,
-        },
-        select: {
-          productId: true,
-          activityType: true,
-        },
-      }),
+      // 5. Fetch user activities for this seller's products (visitors = MarketplaceUser; filter by productId)
+      sellerProductIds.length > 0
+        ? prisma.userActivity.findMany({
+            where: {
+              productId: { in: sellerProductIds },
+            },
+            select: {
+              productId: true,
+              activityType: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     // Calculate overall metrics
@@ -183,8 +191,19 @@ export async function GET(request: NextRequest) {
     const totalOrders = orders.length;
 
     const totalViews = userActivities.filter(
-      (activity) => activity.activityType === 'viewed'
+      (a) => a.activityType === 'viewed'
     ).length;
+    const totalFavorites = userActivities.filter(
+      (a) => a.activityType === 'favorite'
+    ).length;
+    const totalCartAddedCount = userActivities.filter(
+      (a) => a.activityType === 'cart_added'
+    ).length;
+    const totalCartAbandonedCount = userActivities.filter(
+      (a) => a.activityType === 'cart_abandoned'
+    ).length;
+    // Added to Cart = adds minus removals, so it decreases when customer removes from cart
+    const totalAddedToCart = Math.max(0, totalCartAddedCount - totalCartAbandonedCount);
 
     // Get all product IDs for fetching order items
     const productIds = products.map(p => p.productId);
@@ -208,10 +227,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Build per-product metrics map
+    // Build per-product metrics map (activity types match GraphQL/marketplace: 'viewed', 'favorite', 'cart')
     const productMetricsMap = new Map<string, {
       views: number;
-      clicks: number;
       favorites: number;
       addedToCart: number;
       cartAbandoned: number;
@@ -223,7 +241,6 @@ export async function GET(request: NextRequest) {
     products.forEach(product => {
       productMetricsMap.set(product.productId, {
         views: 0,
-        clicks: 0,
         favorites: 0,
         addedToCart: 0,
         cartAbandoned: 0,
@@ -244,16 +261,22 @@ export async function GET(request: NextRequest) {
         case 'viewed':
           metrics.views++;
           break;
-        case 'clicked':
-          metrics.clicks++;
-          break;
-        case 'favorited':
+        case 'favorite':
           metrics.favorites++;
           break;
-        case 'added_to_cart':
+        case 'cart_added':
           metrics.addedToCart++;
           break;
+        case 'cart_abandoned':
+          // Only when user actually removed from cart (or cleared cart), not "still in cart"
+          metrics.cartAbandoned++;
+          break;
       }
+    });
+
+    // Added to Cart = add events minus remove events (decreases when item removed from cart)
+    productMetricsMap.forEach((metrics) => {
+      metrics.addedToCart = Math.max(0, metrics.addedToCart - metrics.cartAbandoned);
     });
 
     // Aggregate order items per product
@@ -271,16 +294,10 @@ export async function GET(request: NextRequest) {
       metrics.revenue += quantity * pricePerPackage;
     });
 
-    // Calculate cart abandonment per product
-    productMetricsMap.forEach((metrics) => {
-      metrics.cartAbandoned = Math.max(0, metrics.addedToCart - metrics.sales);
-    });
-
     // Build final products array with metrics
     const productsWithMetrics = products.map(product => {
       const metrics = productMetricsMap.get(product.productId) || {
         views: 0,
-        clicks: 0,
         favorites: 0,
         addedToCart: 0,
         cartAbandoned: 0,
@@ -312,6 +329,9 @@ export async function GET(request: NextRequest) {
         totalSales,
         totalOrders,
         totalViews,
+        totalFavorites,
+        totalAddedToCart,
+        cartAbandonedCount: totalCartAbandonedCount,
       },
       pagination: {
         totalCount: productCount,

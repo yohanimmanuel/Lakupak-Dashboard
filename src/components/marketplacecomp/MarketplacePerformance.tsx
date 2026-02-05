@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { TrendingUp, Eye, ShoppingCart, Heart, MousePointerClick, X, ArrowUpRight, ArrowDownRight, ChevronDown, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Eye, ShoppingCart, Heart, X, ChevronDown, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/utils/currencyUtils';
 
 interface Product {
@@ -15,7 +15,6 @@ interface Product {
   }[];
   // Real marketplace metrics from UserActivity
   views: number;
-  clicks: number;
   favorites: number;
   addedToCart: number;
   cartAbandoned: number;
@@ -27,6 +26,9 @@ interface OverallMetrics {
   totalSales: number;
   totalOrders: number;
   totalViews: number;
+  totalFavorites?: number;
+  totalAddedToCart?: number;
+  cartAbandonedCount?: number;
 }
 
 interface MarketplacePerformanceProps {
@@ -80,7 +82,6 @@ export default function MarketplacePerformance({
     const useApi = !!apiOverallMetrics;
 
     let totalViews: number;
-    let totalClicks: number;
     let totalAddedToCart: number;
     let totalSalesAmount: number;
     let totalOrdersCount: number;
@@ -88,21 +89,16 @@ export default function MarketplacePerformance({
     let totalAbandoned: number;
 
     if (useApi) {
-      // Use API data for all available metrics
+      // Use API data for all available metrics (overall totals from API when present)
       totalViews = apiOverallMetrics.totalViews;
       totalSalesAmount = apiOverallMetrics.totalSales;
       totalOrdersCount = apiOverallMetrics.totalOrders;
-      
-      // API doesn't provide these metrics yet, compute from products
-      // TODO: Add these to API response for full consistency
-      totalClicks = publishedProducts.reduce((sum, p) => sum + p.clicks, 0);
-      totalAddedToCart = publishedProducts.reduce((sum, p) => sum + p.addedToCart, 0);
-      totalFavorites = publishedProducts.reduce((sum, p) => sum + p.favorites, 0);
-      totalAbandoned = publishedProducts.reduce((sum, p) => sum + p.cartAbandoned, 0);
+      totalAddedToCart = apiOverallMetrics.totalAddedToCart ?? publishedProducts.reduce((sum, p) => sum + p.addedToCart, 0);
+      totalFavorites = apiOverallMetrics.totalFavorites ?? publishedProducts.reduce((sum, p) => sum + p.favorites, 0);
+      totalAbandoned = apiOverallMetrics.cartAbandonedCount ?? publishedProducts.reduce((sum, p) => sum + p.cartAbandoned, 0);
     } else {
       // Compute all metrics from products
       totalViews = publishedProducts.reduce((sum, p) => sum + p.views, 0);
-      totalClicks = publishedProducts.reduce((sum, p) => sum + p.clicks, 0);
       totalAddedToCart = publishedProducts.reduce((sum, p) => sum + p.addedToCart, 0);
       totalSalesAmount = publishedProducts.reduce((sum, p) => sum + p.revenue, 0);
       totalOrdersCount = publishedProducts.reduce((sum, p) => sum + p.sales, 0);
@@ -112,20 +108,17 @@ export default function MarketplacePerformance({
 
     // Calculate rates from the chosen totals (consistent source)
     const conversionRate = totalViews > 0 ? (totalOrdersCount / totalViews) * 100 : 0;
-    const clickRate = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
     const cartConversionRate = totalAddedToCart > 0 ? (totalOrdersCount / totalAddedToCart) * 100 : 0;
     const abandonmentRate = totalAddedToCart > 0 ? (totalAbandoned / totalAddedToCart) * 100 : 0;
 
     return {
       totalViews,
-      totalClicks,
       totalAddedToCart,
       totalSalesAmount,
       totalOrdersCount,
       totalFavorites,
       totalAbandoned,
       conversionRate,
-      clickRate,
       cartConversionRate,
       abandonmentRate,
     };
@@ -185,7 +178,7 @@ export default function MarketplacePerformance({
             {overallMetrics.totalViews.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {overallMetrics.clickRate.toFixed(1)}% click rate
+            Product page views
           </p>
         </div>
 
@@ -203,63 +196,48 @@ export default function MarketplacePerformance({
         </div>
       </div>
 
-      {/* Funnel Visualization */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+      {/* Funnel Visualization - bar width capped at 100% to prevent overflow */}
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 min-w-0 overflow-hidden">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey Funnel</h3>
         <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-gray-900">Views</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalViews.toLocaleString()}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-blue-500 h-3 rounded-full" style={{ width: '100%' }}></div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">Clicks</span>
-                <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalClicks.toLocaleString()}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-indigo-500 h-3 rounded-full" 
-                  style={{ width: `${overallMetrics.totalViews > 0 ? (overallMetrics.totalClicks / overallMetrics.totalViews) * 100 : 0}%` }}
-                ></div>
+              <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div className="bg-blue-500 h-3 rounded-full max-w-full" style={{ width: '100%' }} />
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-gray-900">Added to Cart</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalAddedToCart.toLocaleString()}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
-                  className="bg-purple-500 h-3 rounded-full" 
-                  style={{ width: `${overallMetrics.totalViews > 0 ? (overallMetrics.totalAddedToCart / overallMetrics.totalViews) * 100 : 0}%` }}
-                ></div>
+                  className="bg-purple-500 h-3 rounded-full max-w-full"
+                  style={{ width: `${Math.min(100, overallMetrics.totalViews > 0 ? (overallMetrics.totalAddedToCart / overallMetrics.totalViews) * 100 : 0)}%` }}
+                />
               </div>
-            </div>          
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-gray-900">Purchases</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalOrdersCount.toLocaleString()}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
-                  className="bg-green-500 h-3 rounded-full" 
-                  style={{ width: `${overallMetrics.totalViews > 0 ? (overallMetrics.totalOrdersCount / overallMetrics.totalViews) * 100 : 0}%` }}
-                ></div>
+                  className="bg-green-500 h-3 rounded-full max-w-full"
+                  style={{ width: `${Math.min(100, overallMetrics.totalViews > 0 ? (overallMetrics.totalOrdersCount / overallMetrics.totalViews) * 100 : 0)}%` }}
+                />
               </div>
             </div>
           </div>
@@ -314,7 +292,6 @@ export default function MarketplacePerformance({
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium   text-gray-600 uppercase">Product</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Views</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Clicks</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Cart</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Favorites</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Sold</th>
@@ -343,7 +320,6 @@ export default function MarketplacePerformance({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-gray-900">{product.views.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">{product.clicks.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-sm text-gray-900">{product.addedToCart.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-sm text-gray-900">{product.favorites.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{product.sales.toLocaleString()}</td>
@@ -428,7 +404,7 @@ export default function MarketplacePerformance({
           onClick={() => setSelectedProduct(null)}
         >
           <div 
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden min-w-0"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -451,18 +427,13 @@ export default function MarketplacePerformance({
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 min-w-0">
               {/* Key Metrics Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <Eye className="w-5 h-5 text-blue-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.views.toLocaleString()}</p>
                   <p className="text-sm text-gray-600">Total Views</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <MousePointerClick className="w-5 h-5 text-purple-600 mb-2" />
-                  <p className="text-2xl font-bold text-gray-900">{selectedProduct.clicks.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">Clicks</p>
                 </div>
                 <div className="bg-pink-50 rounded-lg p-4">
                   <Heart className="w-5 h-5 text-pink-600 mb-2" />
@@ -476,73 +447,79 @@ export default function MarketplacePerformance({
                 </div>
               </div>
 
-              {/* Conversion Funnel */}
-              <div>
+              {/* Conversion Funnel - bar width capped at 100% so bars never overflow */}
+              <div className="min-w-0 overflow-hidden">
                 <h4 className="text-sm font-semibold text-gray-900 mb-3">Conversion Funnel</h4>
                 <div className="space-y-2">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-600">Views</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.views.toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                    <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div className="bg-blue-500 h-2 rounded-full max-w-full" style={{ width: '100%' }} />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-600">Clicks</span>
-                      <span className="text-sm font-semibold text-gray-900">{selectedProduct.clicks.toLocaleString()}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-purple-500 h-2 rounded-full" 
-                        style={{ width: `${selectedProduct.views > 0 ? (selectedProduct.clicks / selectedProduct.views) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-600">Added to Cart</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.addedToCart.toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div 
-                        className="bg-indigo-500 h-2 rounded-full" 
-                        style={{ width: `${selectedProduct.views > 0 ? (selectedProduct.addedToCart / selectedProduct.views) * 100 : 0}%` }}
-                      ></div>
+                        className="bg-indigo-500 h-2 rounded-full max-w-full"
+                        style={{ width: `${Math.min(100, selectedProduct.views > 0 ? (selectedProduct.addedToCart / selectedProduct.views) * 100 : 0)}%` }}
+                      />
                     </div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-600">Purchases</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.sales.toLocaleString()}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div 
-                        className="bg-green-500 h-2 rounded-full" 
-                        style={{ width: `${selectedProduct.views > 0 ? (selectedProduct.sales / selectedProduct.views) * 100 : 0}%` }}
-                      ></div>
+                        className="bg-green-500 h-2 rounded-full max-w-full"
+                        style={{ width: `${Math.min(100, selectedProduct.views > 0 ? (selectedProduct.sales / selectedProduct.views) * 100 : 0)}%` }}
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Additional Insights */}
+              {/* Additional Insights - show counts as primary; % only when it's a meaningful rate */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Engagement Rate</h5>
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Favorites</h5>
                   <p className="text-2xl font-bold text-gray-900">
-                    {selectedProduct.views > 0 ? ((selectedProduct.clicks / selectedProduct.views) * 100).toFixed(1) : '0.0'}%
+                    {selectedProduct.favorites.toLocaleString()}{' '}
+                    <span className="text-base font-normal text-gray-600">
+                      of {selectedProduct.views.toLocaleString()} views
+                    </span>
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">Clicks per view</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {selectedProduct.views > 0 && selectedProduct.views <= 1
+                      ? (selectedProduct.favorites === 0 ? 'No favorites yet' : 'Single view — rate becomes meaningful with more views')
+                      : selectedProduct.views > 0
+                        ? `${((selectedProduct.favorites / selectedProduct.views) * 100).toFixed(1)}% favorited`
+                        : 'Favorites per view'}
+                  </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h5 className="text-sm font-semibold text-gray-900 mb-2">Cart Abandonment</h5>
                   <p className="text-2xl font-bold text-gray-900">
-                    {selectedProduct.addedToCart > 0 ? ((selectedProduct.cartAbandoned / selectedProduct.addedToCart) * 100).toFixed(1) : '0.0'}%
+                    {selectedProduct.cartAbandoned.toLocaleString()}{' '}
+                    <span className="text-base font-normal text-gray-600">
+                      abandoned
+                    </span>
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">{selectedProduct.cartAbandoned} abandoned carts</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {selectedProduct.cartAbandoned === 0
+                      ? 'Only counts when a customer removes the item from cart (not items still in cart)'
+                      : selectedProduct.addedToCart > 0
+                        ? `Removed from cart without purchasing — ${((selectedProduct.cartAbandoned / (selectedProduct.addedToCart + selectedProduct.cartAbandoned)) * 100).toFixed(0)}% of add-to-cart events`
+                        : 'Removed from cart without purchasing (added count decreases when item is removed)'}
+                  </p>
                 </div>
               </div>
             </div>

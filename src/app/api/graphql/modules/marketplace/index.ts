@@ -1249,7 +1249,7 @@ const addToCart = async (args: {
     const currentQuantity = metadata.quantity || 1;
     const updatedItem = await prisma.userActivity.update({
       where: { id: existingItem.id },
-      data: { 
+      data: {
         productData: productData as Prisma.InputJsonValue,
         metadata: {
           quantity: currentQuantity + quantity,
@@ -1257,6 +1257,17 @@ const addToCart = async (args: {
           selected: true
         },
         updatedAt: new Date()
+      }
+    });
+
+    // Record a permanent "add to cart" event for analytics (never deleted on remove)
+    await prisma.userActivity.create({
+      data: {
+        userId,
+        productId,
+        productData: productData as Prisma.InputJsonValue,
+        activityType: 'cart_added',
+        metadata: { quantity, variant } as Prisma.InputJsonValue
       }
     });
 
@@ -1286,6 +1297,17 @@ const addToCart = async (args: {
           variant,
           selected: true
         } as Prisma.InputJsonValue
+      }
+    });
+
+    // Record a permanent "add to cart" event for analytics (never deleted on remove)
+    await prisma.userActivity.create({
+      data: {
+        userId,
+        productId,
+        productData: productData as Prisma.InputJsonValue,
+        activityType: 'cart_added',
+        metadata: { quantity, variant } as Prisma.InputJsonValue
       }
     });
 
@@ -1363,6 +1385,23 @@ const updateCartItem = async (args: {
 };
 
 const removeCartItem = async (cartItemId: number) => {
+  const item = await prisma.userActivity.findUnique({
+    where: { id: cartItemId }
+  });
+
+  if (item && item.activityType === 'cart') {
+    // Record abandonment only when user actually removes from cart (not when they purchase)
+    await prisma.userActivity.create({
+      data: {
+        userId: item.userId,
+        productId: item.productId,
+        productData: item.productData as Prisma.InputJsonValue,
+        activityType: 'cart_abandoned',
+        metadata: item.metadata as Prisma.InputJsonValue
+      }
+    });
+  }
+
   await prisma.userActivity.delete({
     where: { id: cartItemId }
   });
@@ -1375,8 +1414,28 @@ const removeCartItem = async (cartItemId: number) => {
 };
 
 const clearCart = async (userId: number) => {
+  const cartItems = await prisma.userActivity.findMany({
+    where: {
+      userId,
+      activityType: 'cart'
+    }
+  });
+
+  // Record one cart_abandoned per item removed (abandonment = removed without purchasing)
+  for (const item of cartItems) {
+    await prisma.userActivity.create({
+      data: {
+        userId: item.userId,
+        productId: item.productId,
+        productData: item.productData as Prisma.InputJsonValue,
+        activityType: 'cart_abandoned',
+        metadata: item.metadata as Prisma.InputJsonValue
+      }
+    });
+  }
+
   await prisma.userActivity.deleteMany({
-    where: { 
+    where: {
       userId,
       activityType: 'cart'
     }
