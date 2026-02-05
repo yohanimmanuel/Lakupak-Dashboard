@@ -198,7 +198,7 @@ export default function MarketplacePerformance({
 
       {/* Funnel Visualization - bar width capped at 100% to prevent overflow */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 min-w-0 overflow-hidden">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey Funnel</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey</h3>
         <div className="space-y-3">
           <div className="flex items-center gap-4 min-w-0">
             <div className="flex-1 min-w-0">
@@ -449,7 +449,7 @@ export default function MarketplacePerformance({
 
               {/* Conversion Funnel - bar width capped at 100% so bars never overflow */}
               <div className="min-w-0 overflow-hidden">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Conversion Funnel</h4>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Conversion Counts</h4>
                 <div className="space-y-2">
                   <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
