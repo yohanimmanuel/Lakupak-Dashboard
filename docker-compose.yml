@@ -5,16 +5,13 @@ services:
       - "3000:3000"
     env_file: .env
     # DATABASE_URL and DIRECT_URL come from .env (e.g. Supabase) so you can use existing users.
+    # REDIS_URL comes from .env (e.g. Redis Cloud). For local Redis, run with --profile local and set REDIS_URL=redis://redis:6379 in .env or below.
     # To use the local Postgres container instead, set environment below and run: docker compose --profile local-db up
     # DB_SSL_REJECT_UNAUTHORIZED: allow Supabase TLS from inside Docker (Alpine CA store can reject Supabase cert chain)
     environment:
-      REDIS_URL: redis://redis:6379
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       DB_SSL_REJECT_UNAUTHORIZED: "false"
-    depends_on:
-      redis:
-        condition: service_started
     restart: unless-stopped
 
   postgres:
@@ -35,7 +32,10 @@ services:
       timeout: 5s
       retries: 5
 
+  # Local Redis; only started with: docker compose --profile local up (app uses REDIS_URL from .env by default).
   redis:
+    profiles:
+      - local
     image: redis:7-alpine
     volumes:
       - redis_data:/data
