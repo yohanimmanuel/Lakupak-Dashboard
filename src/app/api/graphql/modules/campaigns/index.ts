@@ -1,7 +1,7 @@
 import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
-import { Prisma as PrismaClient } from '@/generated/prisma';
+import { Prisma as PrismaClient } from '@/lib/prisma-generated';
 import { NotificationService } from '../notifications';
 
 // ============================================================================ //

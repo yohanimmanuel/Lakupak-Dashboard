@@ -88,7 +88,7 @@ export default function CampaignSharePage() {
         <div className="text-center max-w-md">
           <p className="text-red-600 mb-4 text-lg font-semibold">{error || 'Campaign not found'}</p>
           <p className="text-gray-600 text-sm">
-            The campaign you're looking for doesn't exist or has been removed.
+            The campaign you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
         </div>
       </div>

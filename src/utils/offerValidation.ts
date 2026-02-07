@@ -152,7 +152,7 @@ export async function validateOfferForProduct(
     let bestDiscountTypeId = '';
     let promotionDetails = undefined;
     let hasValidDiscount = false;
-    let applicableDiscountTypes: Array<{
+    const applicableDiscountTypes: Array<{
       id: string;
       discountType: string;
       discountAmount: number;
@@ -376,7 +376,7 @@ export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]):
 
 
       for (const offer of usedOffers) {
-        let hasDeactivatedDiscountType = false;
+        const hasDeactivatedDiscountType = false;
         
         // No usage limits - distributors manage offers manually
         

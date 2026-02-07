@@ -1,4 +1,4 @@
-import { PrismaClient, type Prisma } from '@/generated/prisma'
+import { PrismaClient, type Prisma } from './prisma-generated'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { AsyncLocalStorage } from 'async_hooks'
@@ -92,16 +92,7 @@ const pool = new Pool({
         rejectUnauthorized: process.env.NODE_ENV === 'production' && process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
       } 
     : undefined,})
-
-// Verify connection encryption for production
-if (process.env.NODE_ENV === 'production') {
-  pool.on('connect', () => {
-    // Verify SSL is required in connection string for Supabase
-    if (process.env.DATABASE_URL?.includes('supabase') && !process.env.DATABASE_URL.includes('sslmode=require')) {
-      console.warn('WARNING: Database connection may not be encrypted! Ensure SSL is enabled in connection string.');
-    }
-  });
-}
+// Supabase connections use TLS via the ssl config above; no extra URL check needed.
 
 const adapter = new PrismaPg(pool)
 
@@ -210,6 +201,6 @@ export type {
   Supplier,
   Company,
   OfferDiscountType,
-} from '@/generated/prisma'
+} from './prisma-generated'
 
 

@@ -48,7 +48,7 @@ export default function SolutionsPage() {
     const container = scrollRef.current;
     if (!container) return;
     let frame: number;
-    let scrollAmount = 0.5; // px per frame
+    const scrollAmount = 0.5; // px per frame
     const card = container.querySelector('.testimonial-card');
     if (!card) return;
     const cardWidth = (card as HTMLElement).offsetWidth + 32;

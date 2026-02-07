@@ -126,7 +126,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
             Analytics data will appear here once your offer is created and starts receiving redemptions.
           </p>
           <div className="text-xs text-gray-400">
-            You'll be able to track performance metrics, redemption trends, and offer effectiveness.
+            You&apos;ll be able to track performance metrics, redemption trends, and offer effectiveness.
           </div>
         </div>
       </div>

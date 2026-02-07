@@ -1454,7 +1454,7 @@ const fetchMobileUserActivity = async (args: {
 }) => {
   const { userId, type } = args;
 
-  let whereClause: Record<string, unknown> = { 
+  const whereClause: Record<string, unknown> = { 
     userId,
     activityType: type
   };

@@ -2,7 +2,60 @@
 import { useSession } from "next-auth/react";
 import { useUserStore } from "@/store/userStore";
 import { useEffect } from "react";
-import type { Company as PrismaCompany } from "@/lib/db";
+
+/** Decimal-like value (Prisma) or number */
+function toNumber(value: unknown): number | null | undefined {
+  if (value == null) return value as null | undefined;
+  if (typeof value === "number" && !Number.isNaN(value)) return value;
+  if (typeof value === "object" && value !== null && "toNumber" in value && typeof (value as { toNumber: () => number }).toNumber === "function") {
+    return (value as { toNumber: () => number }).toNumber();
+  }
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+function dateToStore(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value;
+  return "";
+}
+
+/** Company shape expected by userStore (numbers and date strings, not Prisma Decimal/Date) */
+interface StoreCompany {
+  id: number;
+  name: string;
+  documentVerification: boolean;
+  businessLicenseVerification: boolean;
+  complianceStatus: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  [key: string]: unknown;
+}
+
+/**
+ * Normalize session company (may have Prisma Decimals/Dates) to userStore Company shape.
+ */
+function normalizeCompanyForStore(company: Record<string, unknown> | null | undefined): StoreCompany | undefined {
+  if (!company || typeof company !== "object") return undefined;
+  // Validate required fields
+  if (typeof company.id !== "number" || typeof company.name !== "string") {
+    return undefined;
+  }
+  const decimalKeys = [
+    "baseShippingRadius", "baseShippingPrice", "additionalPricePerKm", "maxShippingRadius",
+    "freeShippingThreshold", "expressShippingPrice", "sameDayShippingPrice", "nextDayShippingPrice", "scheduledDeliveryPrice",
+  ];
+  const out: Record<string, unknown> = { ...company };
+  for (const key of decimalKeys) {
+    if (key in out) out[key] = toNumber(out[key]);
+  }
+  out.createdAt = dateToStore(out.createdAt ?? "");
+  out.updatedAt = dateToStore(out.updatedAt ?? "");
+  out.documentVerification = typeof out.documentVerification === "boolean" ? out.documentVerification : false;
+  out.businessLicenseVerification = typeof out.businessLicenseVerification === "boolean" ? out.businessLicenseVerification : false;
+  out.complianceStatus = typeof out.complianceStatus === "string" ? out.complianceStatus : "";
+  return out as StoreCompany;
+}
 
 export function AuthSync() {
   const { data: session, status } = useSession();
@@ -44,7 +97,7 @@ export function AuthSync() {
           location: sessionUser.location || '',
           avatar: sessionUser.avatar || sessionUser.image || '',
           companyId: sessionUser.companyId ?? undefined,
-          company: sessionUser.company as unknown as PrismaCompany & { createdAt: string; updatedAt: string },
+          company: normalizeCompanyForStore(sessionUser.company ?? undefined),
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
           language: sessionUser.language || 'en',

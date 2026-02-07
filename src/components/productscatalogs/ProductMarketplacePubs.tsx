@@ -418,7 +418,7 @@ export default function ProductMarketplacePubs({
             <div>
               <h5 className="text-sm font-medium text-gray-900 mb-2">Description</h5>
               <p className="text-sm text-gray-600 leading-relaxed">
-                This is a sample product description that shows how your product information will be displayed to customers in the Laku marketplace app. The description will include all the details you've provided about your product, features, specifications, and benefits.
+                This is a sample product description that shows how your product information will be displayed to customers in the Laku marketplace app. The description will include all the details you&apos;ve provided about your product, features, specifications, and benefits.
               </p>
             </div>
           </div>
@@ -499,7 +499,7 @@ export default function ProductMarketplacePubs({
                     <span className="text-xs text-gray-400">2 days ago</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    "Excellent product quality! Fast delivery and great customer service. Highly recommended!"
+                    &quot;Excellent product quality! Fast delivery and great customer service. Highly recommended!&quot;
                   </p>
                 </div>
               </div>

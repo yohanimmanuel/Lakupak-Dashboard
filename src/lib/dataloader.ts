@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import { prisma } from '@/lib/db';
-import type { Product, VariantOption, Offer, OfferProduct, OfferDiscountType, DateRange } from '@/generated/prisma';
+import type { Product, VariantOption, Offer, OfferProduct, OfferDiscountType, DateRange } from '@/lib/prisma-generated';
 
 /**
  * DataLoader for batching and caching database queries

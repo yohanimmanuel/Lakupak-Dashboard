@@ -54,7 +54,7 @@ export default function SalesTarget({
   const userCurrency = user?.currency || getDefaultCurrency();
 
   // Use ref to track previous formData.salesTargets to avoid unnecessary updates
-  const prevFormDataTargetsRef = useRef<typeof formData.salesTargets>();
+  const prevFormDataTargetsRef = useRef<typeof formData.salesTargets | undefined>(undefined);
   const targetRowsRef = useRef(targetRows);
   targetRowsRef.current = targetRows; // Keep ref in sync
 

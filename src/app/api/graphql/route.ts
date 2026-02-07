@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { verifyAccessToken } from '@/lib/jwt';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';

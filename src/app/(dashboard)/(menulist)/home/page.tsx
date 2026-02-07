@@ -2375,7 +2375,7 @@ const supplierInsights = useMemo(() => {
               No widgets selected
             </p>
             <p className="text-xs text-gray-500">
-              Use "Drag widgets to rearrange" to add modules to this dashboard.
+              Use &quot;Drag widgets to rearrange&quot; to add modules to this dashboard.
             </p>
           </div>
         )

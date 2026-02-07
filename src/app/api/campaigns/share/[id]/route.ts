@@ -32,7 +32,7 @@ const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
     recipients: campaign.recipients,
     opensCount: campaign.opensCount ?? 0,
     clicksCount: campaign.clicksCount ?? 0,
-    revenue: campaign.revenue,
+    revenue: campaign.revenue.toNumber(),
     orders: campaign.orders,
     contentBlocks: campaign.contentBlocks as unknown[] | null,
     userId: campaign.userId,
@@ -47,10 +47,10 @@ const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(

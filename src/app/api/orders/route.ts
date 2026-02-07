@@ -995,7 +995,7 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      let result = await prisma.order.updateMany({
+      const result = await prisma.order.updateMany({
         where,
         data: { archivedAt: new Date() }
       });
@@ -1055,7 +1055,7 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      let result = await prisma.order.updateMany({
+      const result = await prisma.order.updateMany({
         where,
         data: { archivedAt: null }
       });

@@ -1,4 +1,3 @@
-import { Prisma } from '@/generated/prisma';
 import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 import { createHash, createHmac, randomBytes } from 'crypto';
 

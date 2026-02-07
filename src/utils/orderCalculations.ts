@@ -55,7 +55,7 @@ export const validateOrderItem = (item: OrderItem): { valid: boolean; error?: st
 // Validate and auto-correct order data (ensures mathematical consistency)
 export const validateAndCorrectOrder = (order: Order): { order: Order; wasCorrected: boolean } => {
   let wasCorrected = false;
-  let correctedOrder = { ...order };
+  const correctedOrder = { ...order };
 
   // 1. Validate and correct each order item
   const correctedItems = order.orderItems.map(item => {
