@@ -3,12 +3,15 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # Git and IDE
 .git
 .gitignore
 .idea
 *.md
+.vscode
+.cursor
 
 # Environment (use env_file or compose env instead)
 .env
@@ -16,8 +19,27 @@ yarn-error.log*
 !.env.example
 !env.example
 
+# Build/cache (not needed in image)
+.turbo
+dist
+.cache
+*.tsbuildinfo
+.eslintcache
+
+# Tests and coverage (not needed at runtime)
+coverage
+**/__tests__
+**/*.test.*
+**/*.spec.*
+**/__snapshots__
+
+# Local dev DB and dumps
+prisma/*.db
+*.dump
+baseline.sql
+
 # Misc
 Dockerfile*
 docker-compose*
 .dockerignore
-*.dump
+Thumbs.db
