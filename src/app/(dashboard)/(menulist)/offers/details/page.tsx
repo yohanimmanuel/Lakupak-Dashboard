@@ -29,7 +29,7 @@ export default function OffersDetailsPage() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // Get offer ID from URL params
-  const offerId = searchParams.get('id');
+  const offerId = searchParams?.get('id') ?? null;
 
   // Helper function to check if date ranges are expired
   const hasExpiredDateRanges = (offer: Offer | null): boolean => {

@@ -1,6 +1,7 @@
 # Multi-stage: build and run in Docker. No need to run npm install or npm run build on the host.
 # Prerequisites: Docker, and a .env file (see README).
 # Run: docker compose up --build
+# Prisma: schema uses prisma-client-js; generate creates node_modules/.prisma/client for @prisma/client at runtime.
 
 # -----------------------------------------------------------------------------
 # Stage 1: build
@@ -13,15 +14,17 @@ ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install all deps (including devDependencies for build)
-# npm install tolerates out-of-sync lock file; run `npm install` locally and commit package-lock.json for reproducible builds.
 COPY package.json package-lock.json* ./
 RUN npm install
 
 COPY . .
 
-# DIRECT_URL passed at build time via build-arg (e.g. from .env in docker-compose); not stored in this file.
+# DIRECT_URL at build time (e.g. from docker-compose build args); required for prisma generate.
 ARG DIRECT_URL
 ENV DIRECT_URL=${DIRECT_URL}
+# NextAuth requires AUTH_SECRET when Next collects page data. Use a non-secret-named ARG so image scanners don't flag it; value is build-only, not in final image. Real secret at runtime via env_file.
+ARG NEXT_BUILD_PLACEHOLDER=build-time-placeholder
+ENV AUTH_SECRET=${NEXT_BUILD_PLACEHOLDER}
 RUN npx prisma generate && npm run build
 
 # -----------------------------------------------------------------------------
@@ -37,9 +40,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Production deps only
+# Production deps only; install prisma CLI (devDep) at same version as @prisma/client to avoid CLI/client mismatch
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev && npm cache clean --force
+RUN npm install --omit=dev && npm install prisma@7.3.0 --no-save --ignore-scripts && npm cache clean --force
 
 # Copy built app and runtime assets from builder
 COPY --from=builder /app/.next          ./.next
@@ -52,9 +55,8 @@ COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/prisma.config.ts  ./prisma.config.ts
 COPY --from=builder /app/prisma        ./prisma
 
-# Generate Prisma client into node_modules/.prisma/client (DIRECT_URL from build-arg; runtime uses env_file)
+# Generate Prisma client (prisma-client-js) into node_modules/.prisma/client
 ARG DIRECT_URL
-ENV DIRECT_URL=${DIRECT_URL}
 RUN npx prisma generate
 
 # Prisma needs DIRECT_URL at runtime for migrate deploy; value from env_file at run time

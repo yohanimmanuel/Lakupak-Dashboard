@@ -31,7 +31,7 @@ export default function LandingNavbar() {
   const handleLocaleChange = (newLocale: string) => {
     if (newLocale === locale) return setDropdownOpen(false);
     // Replace the first segment of the path with the new locale
-    const segments = pathname.split('/');
+    const segments = (pathname ?? '').split('/');
     if (segments[1] === 'en' || segments[1] === 'id') {
       segments[1] = newLocale;
     } else {

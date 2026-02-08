@@ -15,7 +15,15 @@ export default function EditProductPage() {
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!user?.id || !params.id) return;
+      if (!params?.id) {
+        setError('Invalid product ID');
+        setLoading(false);
+        return;
+      }
+      if (!user?.id) {
+        // Wait for user authentication - keep loading state
+        return;
+      }
       
       try {
         setLoading(true);
@@ -76,7 +84,7 @@ export default function EditProductPage() {
 
         const data = await fetchGraphQL<{ product: Product | null }>(PRODUCT_QUERY, {
           userId: user.id,
-          id: String(params.id),
+          id: String(params?.id),
         });
         
         if (data.product) {
@@ -92,7 +100,7 @@ export default function EditProductPage() {
     };
 
     fetchProduct();
-  }, [user?.id, params.id]);
+  }, [user?.id, params?.id]);
 
   if (loading) {
     return (

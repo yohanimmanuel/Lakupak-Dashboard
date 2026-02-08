@@ -12,26 +12,32 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const orderIdParam = params.id as string; // This will be the full orderId like "LKO-12345678"
+  const orderIdParam = (params?.id as string | undefined) ?? null; // Full orderId e.g. "LKO-12345678"
 
   // Fetch real order data from database
   useEffect(() => {
+    if (!orderIdParam) {
+      setOrder(null);
+      setLoading(false);
+      return;
+    }
+
     const fetchOrder = async () => {
       try {
         setLoading(true);
         // For backward compatibility, fetch order without userId if user not authenticated
-        const url = user?.id 
+        const url = user?.id
           ? `/api/orders?id=${orderIdParam}&userId=${user.id}`
           : `/api/orders?id=${orderIdParam}`;
-        
+
         const response = await fetch(url);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch order');
         }
-        
+
         const orderData = await response.json();
-        
+
         // Convert string dates to Date objects for the frontend
         const orderWithDates = {
           ...orderData,
@@ -40,17 +46,16 @@ export default function OrderDetailsPage() {
           updatedAt: new Date(orderData.updatedAt),
           acceptedAt: orderData.acceptedAt ? new Date(orderData.acceptedAt) : null
         };
-        
+
         setOrder(orderWithDates);
-        setLoading(false);
       } catch (error) {
+        setOrder(null);
+      } finally {
         setLoading(false);
       }
     };
 
-    if (orderIdParam) {
-      fetchOrder();
-    }
+    fetchOrder();
   }, [orderIdParam, user?.id]);
 
   const handleBack = () => {

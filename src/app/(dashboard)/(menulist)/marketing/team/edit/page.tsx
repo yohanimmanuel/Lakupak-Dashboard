@@ -23,7 +23,7 @@ interface Tab {
 export default function EditSalesAgentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const agentId = searchParams.get('id');
+  const agentId = searchParams?.get('id') ?? null;
   
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [isSaving, setIsSaving] = useState(false);

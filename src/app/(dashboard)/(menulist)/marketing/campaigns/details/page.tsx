@@ -11,8 +11,8 @@ export default function CampaignDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const campaignId = searchParams.get('id');
-  const modeParam = searchParams.get('mode');
+  const campaignId = searchParams?.get('id') ?? null;
+  const modeParam = searchParams?.get('mode') ?? null;
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -152,9 +152,8 @@ export default function CampaignDetailsPage() {
       });
       router.push('/marketing/campaigns');
     } catch (error) {
-      // Handle error
-    }
-  };
+      console.error('Failed to save campaign:', error);
+    }  };
 
   const handleCancel = () => {
     router.push('/marketing/campaigns');

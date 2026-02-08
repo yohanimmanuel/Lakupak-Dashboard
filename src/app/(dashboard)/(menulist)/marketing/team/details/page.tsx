@@ -56,7 +56,7 @@ export default function SalesDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const agentId = searchParams.get('id');
+  const agentId = searchParams?.get('id') ?? null;
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<SalesAgent | null>(null);
 

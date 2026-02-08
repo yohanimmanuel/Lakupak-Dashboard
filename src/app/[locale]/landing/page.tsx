@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { XIcon, CheckIcon, ChartBarIcon, ShoppingCartIcon, FileIcon, PackageIcon, RocketIcon, UserIcon, ChartAreaIcon, InstagramIcon, MailIcon, FacebookIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import Head from "next/head";
 import { measurePerformance, trackScrollDepth, lazyLoadSection } from "@/utils/performance";
 
 // Performance monitoring hook

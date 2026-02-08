@@ -10,15 +10,15 @@ export default function ViewProductPage() {
   const params = useParams();
   const user = useUserStore(state => state.user);
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!user?.id || !params.id) return;
-      
+      if (!user?.id || !params?.id) return;
+
+      setLoading(true);
       try {
-        setLoading(true);
         
         const PRODUCT_QUERY = `
           query GetProduct($userId: Int!, $id: String!) {
@@ -76,13 +76,13 @@ export default function ViewProductPage() {
 
         const data = await fetchGraphQL<{ product: Product | null }>(PRODUCT_QUERY, {
           userId: user.id,
-          id: String(params.id),
+          id: String(params?.id),
         });
         
         if (data.product) {
           setProduct(data.product);
         } else {
-          window.location.href = `/products/deleted?id=${params.id}`;
+          window.location.href = `/products/deleted?id=${params?.id}`;
           return;
         }
       } catch (error) {
@@ -93,7 +93,7 @@ export default function ViewProductPage() {
     };
 
     fetchProduct();
-  }, [user?.id, params.id]);
+  }, [user?.id, params?.id]);
 
   if (loading) {
     return (

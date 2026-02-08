@@ -7,7 +7,7 @@ import CampaignPreview from '@/components/salesmarketing/CampaignPreview';
 
 export default function CampaignSharePage() {
   const params = useParams();
-  const campaignId = params.id as string;
+  const campaignId = (params?.id as string | undefined) ?? null;
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

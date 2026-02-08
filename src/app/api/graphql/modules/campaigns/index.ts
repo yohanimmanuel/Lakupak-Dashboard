@@ -1,8 +1,6 @@
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
-import type { Campaign } from '@/lib/prisma-generated';
-import { JsonNull } from '@prisma/client-runtime-utils';
-import type { InputJsonValue } from '@prisma/client/runtime/client';
+import { type Campaign, Prisma } from '@/lib/prisma-generated';
 import { NotificationService } from '../notifications';
 
 // ============================================================================ //
@@ -240,12 +238,12 @@ const createCampaign = async (args: {
     finalCampaignId = generateCampaignId();
   }
 
-  // Handle contentBlocks: if it's an array with items, use it; otherwise set to JsonNull
-  let contentBlocksValue: InputJsonValue | typeof JsonNull;
+  // Handle contentBlocks: if it's an array with items, use it; otherwise set to Prisma.JsonNull
+  let contentBlocksValue: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   if (contentBlocks && Array.isArray(contentBlocks) && contentBlocks.length > 0) {
-    contentBlocksValue = contentBlocks as InputJsonValue;
+    contentBlocksValue = contentBlocks as Prisma.InputJsonValue;
   } else {
-    contentBlocksValue = JsonNull;
+    contentBlocksValue = Prisma.JsonNull;
   }
 
   const campaign = await prisma.campaign.create({
@@ -315,7 +313,7 @@ const updateCampaign = async (args: {
     clicksCount?: number;
     revenue?: number;
     orders?: number;
-    contentBlocks?: InputJsonValue | typeof JsonNull;
+    contentBlocks?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
   } = {};
 
   if (name !== undefined && name !== null) updateData.name = name;
@@ -331,9 +329,9 @@ const updateCampaign = async (args: {
   if (orders !== undefined && orders !== null) updateData.orders = orders;
   if (contentBlocks !== undefined) {
     if (contentBlocks && Array.isArray(contentBlocks) && contentBlocks.length > 0) {
-      updateData.contentBlocks = contentBlocks as InputJsonValue;
+      updateData.contentBlocks = contentBlocks as Prisma.InputJsonValue;
     } else {
-      updateData.contentBlocks = JsonNull;
+      updateData.contentBlocks = Prisma.JsonNull;
     }
   }
 
