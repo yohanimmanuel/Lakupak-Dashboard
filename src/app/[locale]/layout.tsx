@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Laku | Distribute More. Restock Faster. Grow Smarter."
 };
 
-export default async function LocaleLayout(props: { children: React.ReactNode; params: { locale: string } }) {
+export default async function LocaleLayout(props: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
   const { children } = props;
   const { locale } = await props.params;
   let messages;
