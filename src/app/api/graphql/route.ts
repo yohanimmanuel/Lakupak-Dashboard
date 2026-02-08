@@ -2,10 +2,8 @@ import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { verifyAccessToken } from '@/lib/jwt';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
-import { authOptions } from '@/lib/auth-options';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -95,6 +93,8 @@ const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server, {
   context: async (req: NextRequest) => {
     const jwtId = extractAuthenticatedUserId(req);
     if (jwtId != null) return { user: { id: jwtId } };
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth-options');
     const session = await getServerSession(authOptions);
     const id = (session?.user as { id?: string | number } | undefined)?.id;
     if (id == null) return { user: null };

@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
 import { signAccessToken } from '@/lib/jwt';
 
 /**
@@ -9,6 +7,8 @@ import { signAccessToken } from '@/lib/jwt';
  * Requires an active NextAuth session. The JWT sub is the Dashboard User.id.
  */
 export async function GET() {
+  const { getServerSession } = await import('next-auth');
+  const { authOptions } = await import('@/lib/auth-options');
   const session = await getServerSession(authOptions);
   const uid = (session?.user as { id?: string | number } | undefined)?.id;
   if (uid == null) {

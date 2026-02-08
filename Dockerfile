@@ -22,9 +22,7 @@ COPY . .
 # DIRECT_URL at build time (e.g. from docker-compose build args); required for prisma generate.
 ARG DIRECT_URL
 ENV DIRECT_URL=${DIRECT_URL}
-# NextAuth requires AUTH_SECRET when Next collects page data. Use a non-secret-named ARG so image scanners don't flag it; value is build-only, not in final image. Real secret at runtime via env_file.
-ARG NEXT_BUILD_PLACEHOLDER=build-time-placeholder
-ENV AUTH_SECRET=${NEXT_BUILD_PLACEHOLDER}
+# AUTH_SECRET only at runtime (env_file). NextAuth route lazy-loads so build does not need it.
 RUN npx prisma generate && npm run build
 
 # -----------------------------------------------------------------------------

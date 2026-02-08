@@ -1,11 +1,10 @@
 import { NextRequest } from 'next/server';
 import { verifyAccessToken } from '../lib/jwt';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
 
 /**
  * Extract authenticated user ID from either JWT token or NextAuth session
- * Supports both mobile (JWT) and web (NextAuth) authentication
+ * Supports both mobile (JWT) and web (NextAuth) authentication.
+ * NextAuth is lazy-loaded so AUTH_SECRET is not required at build time (Docker).
  */
 export async function getAuthenticatedUserId(req: NextRequest): Promise<number | null> {
   // Try JWT token first (mobile app)
@@ -21,10 +20,13 @@ export async function getAuthenticatedUserId(req: NextRequest): Promise<number |
       return null;
     } catch (error) {
       // Invalid JWT token, fall through to NextAuth check
-    }  }
+    }
+  }
 
-  // Try NextAuth session (web dashboard)
+  // Try NextAuth session (web dashboard) — lazy load so build does not require AUTH_SECRET
   try {
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth-options');
     const session = await getServerSession(authOptions);
     if (session?.user) {
       const userId = (session.user as { id?: number | string }).id;
