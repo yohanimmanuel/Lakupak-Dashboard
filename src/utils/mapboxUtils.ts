@@ -91,16 +91,20 @@ export function getMarkerContainerStyle(hasLabel: boolean): React.CSSProperties 
   return {};
 }
 
-const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-export async function geocodeAddress(address: string): Promise<GeocodeResult> {
-  if (!MAPBOX_ACCESS_TOKEN) {
+/**
+ * Geocode a single address. Token is passed at runtime (from useMapboxToken /api/mapbox-token).
+ */
+export async function geocodeAddress(
+  address: string,
+  accessToken?: string | null
+): Promise<GeocodeResult> {
+  if (!accessToken) {
     return { coordinates: null, address };
   }
 
   try {
     const encodedAddress = encodeURIComponent(address);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${accessToken}&limit=1`;
 
     const response = await fetch(url);
     
@@ -125,12 +129,13 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
 }
 
 export async function geocodeMultipleAddresses(
-  addresses: string[]
+  addresses: string[],
+  accessToken?: string | null
 ): Promise<Map<string, GeocodeResult>> {
   const results = new Map<string, GeocodeResult>();
 
   const geocodePromises = addresses.map(async (address) => {
-    const result = await geocodeAddress(address);
+    const result = await geocodeAddress(address, accessToken);
     return { address, result };
   });
 
@@ -141,5 +146,54 @@ export async function geocodeMultipleAddresses(
   });
 
   return results;
+}
+
+/**
+ * Server-side geocoding proxy. Use when no public token is returned (e.g. only sk.* is set).
+ * Requires authenticated session; uses server MAPBOX_ACCESS_TOKEN so secret is never sent to client.
+ */
+export async function geocodeViaProxy(
+  addresses: string[]
+): Promise<Map<string, GeocodeResult>> {
+  if (addresses.length === 0) return new Map();
+
+  try {
+    const res = await fetch('/api/mapbox-geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ addresses }),
+      credentials: 'same-origin',
+    });
+
+    if (!res.ok) {
+      const out = new Map<string, GeocodeResult>();
+      addresses.forEach((a) => out.set(a, { coordinates: null, address: a }));
+      return out;
+    }
+
+    const data = (await res.json()) as {
+      results?: Record<string, { coordinates: { longitude: number; latitude: number } | null; address: string }>;
+    };
+    const results = new Map<string, GeocodeResult>();
+    if (data.results) {
+      for (const [address, item] of Object.entries(data.results)) {
+        results.set(address, {
+          coordinates: item.coordinates ?? null,
+          address: item.address ?? address,
+        });
+      }
+    }
+    addresses.forEach((a) => {
+      if (!results.has(a)) results.set(a, { coordinates: null, address: a });
+    });
+    return results;
+  } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('geocodeViaProxy failed:', err);
+    }
+    const out = new Map<string, GeocodeResult>();
+    addresses.forEach((a) => out.set(a, { coordinates: null, address: a }));
+    return out;
+  }
 }
 

@@ -41,8 +41,10 @@ import type { Order, OrderItem } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
 import MapComponent from '@/components/ordershipment/MapComponent';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 import {
   geocodeMultipleAddresses,
+  geocodeViaProxy,
   GeocodeResult,
   MapCoordinates,
   getOrderStatusMarkerColor,
@@ -903,6 +905,7 @@ export default function HomePage() {
   const logisticsGeocodedAddressesRef = useRef<Set<string>>(new Set());
   const [logisticsGeocodeResults, setLogisticsGeocodeResults] = useState<Map<string, GeocodeResult>>(new Map());
   const [isLogisticsGeocoding, setIsLogisticsGeocoding] = useState(false);
+  const { token: mapboxToken } = useMapboxToken();
   const logisticsActiveOrders = useMemo(() => {
     return orders.filter((order) => {
       const address = order.deliveryAddress?.trim();
@@ -964,7 +967,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const geocodeLogisticsAddresses = async () => {
-      if (logisticsActiveOrders.length === 0) {
+      if (logisticsActiveOrders.length === 0 || !mapboxToken) {
         return;
       }
 
@@ -989,7 +992,9 @@ export default function HomePage() {
 
       setIsLogisticsGeocoding(true);
       try {
-        const newResults = await geocodeMultipleAddresses(addressesToGeocode);
+        const newResults = mapboxToken
+          ? await geocodeMultipleAddresses(addressesToGeocode, mapboxToken)
+          : await geocodeViaProxy(addressesToGeocode);
         setLogisticsGeocodeResults((prev) => {
           const updated = new Map(prev);
           newResults.forEach((result, address) => {
@@ -1012,7 +1017,7 @@ export default function HomePage() {
     };
 
     geocodeLogisticsAddresses();
-  }, [logisticsActiveOrders]);
+  }, [logisticsActiveOrders, mapboxToken]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -2125,6 +2130,7 @@ const supplierInsights = useMemo(() => {
                   </div>
                 ) : logisticsMapMarkers.length > 0 ? (
                   <MapComponent
+                    accessToken={mapboxToken}
                     markers={logisticsMapMarkers}
                     center={logisticsMapCenter}
                     height="320px"

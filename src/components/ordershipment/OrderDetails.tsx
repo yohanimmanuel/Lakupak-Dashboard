@@ -8,7 +8,8 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import MapComponent from './MapComponent';
-import { geocodeAddress, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { geocodeAddress, geocodeViaProxy, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
@@ -17,6 +18,7 @@ interface OrderDetailsProps {
 
 export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const user = useUserStore(state => state.user);
+  const { token: mapboxToken } = useMapboxToken();
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
@@ -79,7 +81,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
       setIsGeocoding(true);
       try {
-        const result = await geocodeAddress(deliveryAddressDisplay);
+        const result = mapboxToken
+          ? await geocodeAddress(deliveryAddressDisplay, mapboxToken)
+          : (await geocodeViaProxy([deliveryAddressDisplay])).get(deliveryAddressDisplay) ?? {
+              coordinates: null,
+              address: deliveryAddressDisplay,
+            };
         setGeocodeResult(result);
       } finally {
         setIsGeocoding(false);
@@ -87,7 +94,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     };
 
     geocodeDeliveryAddress();
-  }, [deliveryAddressDisplay]);
+  }, [deliveryAddressDisplay, mapboxToken]);
    
   // Extract unique offer badges from order items
   const getOrderOfferBadges = () => {
@@ -516,6 +523,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
               ) : geocodeResult?.coordinates ? (
                 <MapComponent
+                  accessToken={mapboxToken}
                   markers={[{
                     id: order.id,
                     coordinates: geocodeResult.coordinates,

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { MapPin, Maximize2, X, Loader2 } from "lucide-react";
 import { Order } from '@/types/order';
 import MapComponent from './MapComponent';
-import { geocodeMultipleAddresses, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { geocodeMultipleAddresses, geocodeViaProxy, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
 interface OrdersGPSProps {
   orders: Order[];
@@ -18,6 +19,7 @@ interface MapMarker {
 
 
 export default function OrdersGPS({ orders }: OrdersGPSProps) {
+  const { token: mapboxToken } = useMapboxToken();
   const [showFullScreenModal, setShowFullScreenModal] = useState(false);
   const [geocodeResults, setGeocodeResults] = useState<Map<string, GeocodeResult>>(new Map());
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -56,7 +58,9 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
 
       setIsGeocoding(true);
       try {
-        const newResults = await geocodeMultipleAddresses(needGeocoding);
+        const newResults = mapboxToken
+          ? await geocodeMultipleAddresses(needGeocoding, mapboxToken)
+          : await geocodeViaProxy(needGeocoding);
         setGeocodeResults(prev => {
           const updated = new Map(prev);
           newResults.forEach((result, address) => {
@@ -70,7 +74,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
     };
 
     geocodeAddresses();
-  }, [activeOrders]);
+  }, [activeOrders, mapboxToken]);
 
   const mapMarkers: MapMarker[] = useMemo(() => {
     return activeOrders
@@ -136,12 +140,13 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           </div>
         ) : mapMarkers.length > 0 ? (
           <MapComponent
+            accessToken={mapboxToken}
             markers={mapMarkers}
             center={mapCenter}
-              height="463px"
-              showControls={true}
+            height="463px"
+            showControls={true}
             onMarkerClick={handleMarkerClick}
-            />
+          />
           ) : (
           <div className="bg-gray-100 rounded-lg h-100 flex items-center justify-center">
             <div className="text-center w-full">
@@ -194,6 +199,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
                 </div>
               ) : mapMarkers.length > 0 ? (
                 <MapComponent
+                  accessToken={mapboxToken}
                   markers={mapMarkers}
                   center={mapCenter}
                   height="100%"

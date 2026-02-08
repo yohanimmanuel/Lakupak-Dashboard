@@ -1,10 +1,9 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
-const directUrl = process.env.DIRECT_URL;
-if (!directUrl) {
-  throw new Error('DIRECT_URL must be set in the environment (e.g. .env or Docker build arg).');
-}
+// Use real DIRECT_URL when set (local dev, runtime). When unset (e.g. Docker build), use a dummy so prisma generate succeeds.
+// Migrate deploy at runtime must have DIRECT_URL in env_file.
+const directUrl = process.env.DIRECT_URL || 'postgresql://localhost:5432/prisma';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

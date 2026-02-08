@@ -19,13 +19,8 @@ RUN npm install
 
 COPY . .
 
-# DIRECT_URL at build time (e.g. from docker-compose build args); required for prisma generate.
-ARG DIRECT_URL
-ENV DIRECT_URL=${DIRECT_URL}
-# NEXT_PUBLIC_* are inlined at build time; pass Mapbox token so the client bundle has it (optional but required for map).
-ARG NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-ENV NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=${NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
-# AUTH_SECRET only at runtime (env_file). NextAuth route lazy-loads so build does not need it.
+# No URLs or tokens in Dockerfile. Prisma generate uses a fallback in prisma.config.ts when DIRECT_URL is unset.
+# Mapbox token is served at runtime via /api/mapbox-token (env MAPBOX_ACCESS_TOKEN in env_file).
 RUN npx prisma generate && npm run build
 
 # -----------------------------------------------------------------------------
@@ -56,11 +51,8 @@ COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/prisma.config.ts  ./prisma.config.ts
 COPY --from=builder /app/prisma        ./prisma
 
-# Generate Prisma client (prisma-client-js) into node_modules/.prisma/client
-ARG DIRECT_URL
+# Generate Prisma client (DIRECT_URL not needed here; fallback in prisma.config.ts. Real DIRECT_URL from env_file at runtime for migrate deploy.)
 RUN npx prisma generate
-
-# Prisma needs DIRECT_URL at runtime for migrate deploy; value from env_file at run time
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh
 

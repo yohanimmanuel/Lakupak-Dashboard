@@ -2,8 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { MapCoordinates, getMarkerSize, getMarkerContainerStyle } from '@/utils/mapboxUtils';
-
-const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 
 interface MapMarker {
   id: string;
@@ -20,6 +19,8 @@ interface MapComponentProps {
   className?: string;
   showControls?: boolean;
   onMarkerClick?: (markerId: string) => void;
+  /** Token from useMapboxToken(); if not provided, hook is used inside. */
+  accessToken?: string | null;
 }
 
 export default function MapComponent({
@@ -30,20 +31,24 @@ export default function MapComponent({
   className = '',
   showControls = true,
   onMarkerClick,
+  accessToken: accessTokenProp,
 }: MapComponentProps) {
+  const { token: tokenFromHook, isLoading } = useMapboxToken();
+  const accessToken = accessTokenProp !== undefined ? accessTokenProp : tokenFromHook;
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    if (!mapContainer.current || !MAPBOX_ACCESS_TOKEN) return;
+    if (!mapContainer.current || !accessToken) return;
 
     if (map.current) return;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      accessToken: MAPBOX_ACCESS_TOKEN,
+      accessToken,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: center ? [center.longitude, center.latitude] : [0, 0],
       zoom: zoom,
@@ -69,7 +74,7 @@ export default function MapComponent({
         map.current = null;
       }
     };
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
@@ -142,7 +147,20 @@ export default function MapComponent({
     }
   }, [markers, mapLoaded, center, zoom, onMarkerClick]);
 
-  if (!MAPBOX_ACCESS_TOKEN) {
+  if (accessTokenProp === undefined && isLoading) {
+    return (
+      <div
+        className={`bg-gray-100 rounded-lg flex items-center justify-center ${className}`}
+        style={{ height }}
+      >
+        <div className="text-center text-gray-500">
+          <p className="text-sm">Loading map…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!accessToken) {
     return (
       <div
         className={`bg-gray-100 rounded-lg flex items-center justify-center ${className}`}
