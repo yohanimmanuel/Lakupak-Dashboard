@@ -1,5 +1,6 @@
-# Dependencies (keep node_modules out; .next is included so host-built app can run in Docker)
+# Dependencies (build runs inside Docker; builder creates its own .next)
 node_modules
+.next
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const withNextIntl = require('next-intl/plugin')({
   defaultLocale: 'id',
@@ -36,13 +35,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Configure webpack (alias for @/generated/prisma)
   webpack: (config, { isServer }) => {
-    config.resolve ??= {};
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@/generated/prisma": path.resolve(process.cwd(), "src/generated/prisma"),
-    };
     if (isServer) {
       // Mark winston and pino as externals so Next.js doesn't try to bundle them
       // These are optional dependencies that may not be installed
@@ -58,16 +51,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-const configWithIntl = withNextIntl(nextConfig);
-const baseWebpack = configWithIntl.webpack?.bind(configWithIntl);
-const prismaAlias = { "@/generated/prisma": path.resolve(process.cwd(), "src/generated/prisma") };
-configWithIntl.webpack = (
-  config: Parameters<NonNullable<NextConfig["webpack"]>>[0],
-  options: Parameters<NonNullable<NextConfig["webpack"]>>[1]
-) => {
-  const c = baseWebpack ? baseWebpack(config, options) : config;
-  c.resolve ??= {};
-  c.resolve.alias = { ...c.resolve.alias, ...prismaAlias };
-  return c;
-};
-export default configWithIntl;
+export default withNextIntl(nextConfig);

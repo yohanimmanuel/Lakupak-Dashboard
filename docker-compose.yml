@@ -1,6 +1,9 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        DIRECT_URL: ${DIRECT_URL}
     ports:
       - "3000:3000"
     env_file: .env

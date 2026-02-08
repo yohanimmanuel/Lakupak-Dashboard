@@ -1,5 +1,10 @@
 import 'dotenv/config';
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from 'prisma/config';
+
+const directUrl = process.env.DIRECT_URL;
+if (!directUrl) {
+  throw new Error('DIRECT_URL must be set in the environment (e.g. .env or Docker build arg).');
+}
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -7,6 +12,6 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: env('DIRECT_URL'), // Direct connection for migrations (bypasses pooler)
+    url: directUrl,
   },
 });

@@ -105,7 +105,17 @@ const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
 // Extend Prisma with security features (rate limiting, logging, timeout)
 export const prisma = basePrisma.$extends({
   query: {
-    $allOperations: async ({ operation, model, args, query }) => {
+    $allOperations: async ({
+      operation,
+      model,
+      args,
+      query,
+    }: {
+      operation: string;
+      model?: string;
+      args: unknown;
+      query: (args: unknown) => Promise<unknown>;
+    }) => {
       const startTime = Date.now();
       const context = getDbSecurityContext();
       

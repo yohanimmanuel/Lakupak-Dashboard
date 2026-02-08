@@ -74,6 +74,26 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - Advanced analytics and AI-powered insights
 - Multi-language support for regional markets
 
+## Run with Docker
+
+You can run the Laku dashboard with **only Docker** (no Node.js or npm required on your machine).
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+1. **Clone the repo** and `cd` into the project (e.g. `Laku-Dashboard`).
+2. **Create a `.env` file** in the project root with your config (database, Redis, NextAuth, etc.). Use `env.example` as a reference. The app needs at least `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL`, and `AUTH_SECRET`.
+3. **Build and start:**
+   ```bash
+   docker compose up --build
+   ```
+   First run will build the app inside Docker (a few minutes). Later runs reuse the image and start quickly.
+4. Open **http://localhost:3000** in your browser.
+
+**Optional:**
+- **Local Redis** (instead of Redis Cloud): run `docker compose --profile local up --build` and set `REDIS_URL=redis://redis:6379` in `.env`.
+- **Local Postgres** (instead of Supabase): run `docker compose --profile local-db up --build` and set `DATABASE_URL` / `DIRECT_URL` to point at the Postgres container.
+
+
 ## Getting Started
 [Development setup instructions will be added here]
 

@@ -1,7 +1,8 @@
-import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
-import { Prisma as PrismaClient } from '@/lib/prisma-generated';
+import type { Campaign } from '@/lib/prisma-generated';
+import { JsonNull } from '@prisma/client-runtime-utils';
+import type { InputJsonValue } from '@prisma/client/runtime/client';
 import { NotificationService } from '../notifications';
 
 // ============================================================================ //
@@ -110,7 +111,7 @@ const generateCampaignId = (): string => {
   return `CAMP${randomNumbers}`;
 };
 
-const mapCampaign = (campaign: Prisma.CampaignGetPayload<{}>): {
+const mapCampaign = (campaign: Campaign): {
   id: string;
   campaignId: string;
   name: string;
@@ -155,7 +156,7 @@ const fetchCampaignsConnection = async (args: {
   const { userId, page = 1, limit = 50, status } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
 
-  const whereClause: Prisma.CampaignWhereInput = { userId };
+  const whereClause: { userId: number; status?: string | { in: string[] } } = { userId };
 
   if (status && status !== 'All') {
     if (status === 'Completed') {
@@ -240,11 +241,11 @@ const createCampaign = async (args: {
   }
 
   // Handle contentBlocks: if it's an array with items, use it; otherwise set to JsonNull
-  let contentBlocksValue: Prisma.InputJsonValue | typeof PrismaClient.JsonNull;
+  let contentBlocksValue: InputJsonValue | typeof JsonNull;
   if (contentBlocks && Array.isArray(contentBlocks) && contentBlocks.length > 0) {
-    contentBlocksValue = contentBlocks as Prisma.InputJsonValue;
+    contentBlocksValue = contentBlocks as InputJsonValue;
   } else {
-    contentBlocksValue = PrismaClient.JsonNull;
+    contentBlocksValue = JsonNull;
   }
 
   const campaign = await prisma.campaign.create({
@@ -304,7 +305,18 @@ const updateCampaign = async (args: {
     throw new Error('Campaign not found or you do not have permission to update it');
   }
 
-  const updateData: Prisma.CampaignUpdateInput = {};
+  const updateData: {
+    name?: string;
+    description?: string | null;
+    status?: string;
+    recipients?: string;
+    sentDate?: Date | null;
+    opensCount?: number;
+    clicksCount?: number;
+    revenue?: number;
+    orders?: number;
+    contentBlocks?: InputJsonValue | typeof JsonNull;
+  } = {};
 
   if (name !== undefined && name !== null) updateData.name = name;
   if (description !== undefined) updateData.description = description ?? null;
@@ -319,9 +331,9 @@ const updateCampaign = async (args: {
   if (orders !== undefined && orders !== null) updateData.orders = orders;
   if (contentBlocks !== undefined) {
     if (contentBlocks && Array.isArray(contentBlocks) && contentBlocks.length > 0) {
-      updateData.contentBlocks = contentBlocks as Prisma.InputJsonValue;
+      updateData.contentBlocks = contentBlocks as InputJsonValue;
     } else {
-      updateData.contentBlocks = PrismaClient.JsonNull;
+      updateData.contentBlocks = JsonNull;
     }
   }
 
