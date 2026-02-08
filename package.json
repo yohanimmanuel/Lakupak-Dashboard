@@ -53,6 +53,10 @@
     "zod": "^4.1.5",
     "zustand": "^5.0.7"
   },
+  "overrides": {
+    "lodash": "4.17.23",
+    "tar": "7.5.7"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",

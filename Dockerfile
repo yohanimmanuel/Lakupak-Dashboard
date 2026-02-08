@@ -22,6 +22,9 @@ COPY . .
 # DIRECT_URL at build time (e.g. from docker-compose build args); required for prisma generate.
 ARG DIRECT_URL
 ENV DIRECT_URL=${DIRECT_URL}
+# NEXT_PUBLIC_* are inlined at build time; pass Mapbox token so the client bundle has it (optional but required for map).
+ARG NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+ENV NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=${NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
 # AUTH_SECRET only at runtime (env_file). NextAuth route lazy-loads so build does not need it.
 RUN npx prisma generate && npm run build
 
