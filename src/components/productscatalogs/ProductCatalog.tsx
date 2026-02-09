@@ -25,7 +25,8 @@ import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } fr
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
 import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
- 
+import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
     publishMarketplaceProduct(userId: $userId, productId: $productId, action: $action) {
@@ -725,47 +726,12 @@ export default function ProductCatalog({
       }
       
       try {
-        // Step 1: Get upload signature from our API
-        const signatureResponse = await fetch('/api/upload/image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            getSignature: true,
-            folder: 'products',
-          }),
-        });
-
-        if (!signatureResponse.ok) {
-          throw new Error('Failed to get upload signature');
+        const result = await uploadToCloudinaryDirect(file, 'products');
+        if (result.success && result.url) {
+          uploadedImages.push(result.url);
+        } else {
+          throw new Error(result.error || 'Upload failed');
         }
-
-        const signatureData = await signatureResponse.json();
-
-        // Step 2: Upload directly to Cloudinary
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', file);
-        formDataUpload.append('signature', signatureData.signature);
-        formDataUpload.append('timestamp', signatureData.timestamp.toString());
-        formDataUpload.append('api_key', signatureData.apiKey);
-        formDataUpload.append('folder', signatureData.folder);
-
-        const uploadResponse = await fetch(
-          `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`,
-          {
-            method: 'POST',
-            body: formDataUpload,
-          }
-        );
-
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.error?.message || 'Upload to Cloudinary failed');
-        }
-
-        const result = await uploadResponse.json();
-        uploadedImages.push(result.secure_url);
       } catch (error) {
         alert(`Failed to upload "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
