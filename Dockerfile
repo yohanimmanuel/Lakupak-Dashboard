@@ -5,6 +5,7 @@
 
 # -----------------------------------------------------------------------------
 # Stage 1: build
+# Use node:20-alpine (pull latest before build to reduce base-image CVEs).
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS builder
 
@@ -24,7 +25,7 @@ COPY . .
 RUN npx prisma generate && npm run build
 
 # -----------------------------------------------------------------------------
-# Stage 2: run
+# Stage 2: run (same base as builder for consistency)
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS runner
 

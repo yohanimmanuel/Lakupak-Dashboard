@@ -55,7 +55,9 @@
   },
   "overrides": {
     "lodash": "4.17.23",
-    "tar": "7.5.7"
+    "tar": "7.5.7",
+    "glob": "10.5.0",
+    "axios": "1.13.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
