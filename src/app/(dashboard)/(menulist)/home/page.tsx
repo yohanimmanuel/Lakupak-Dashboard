@@ -139,23 +139,20 @@ type WidgetLayoutStorage = {
   order: WidgetId[];
 };
 
-const WIDGET_LAYOUT: Record<WidgetId, string> = {
-  analytics: 'col-span-12 xl:col-span-7',
-  orders: 'col-span-12 xl:col-span-5',
-  products: 'col-span-12 xl:col-span-5',
-  buyers: 'col-span-12',
-  suppliers: 'col-span-12',
-  logistics: 'col-span-12 xl:col-span-6',
-  inventory: 'col-span-12 xl:col-span-7',
-  marketing: 'col-span-12 xl:col-span-6',
-};
-
-const DEFAULT_WIDGET_LAYOUT = 'col-span-12 xl:col-span-6';
+/** Uniform size for all widgets in the 2-column dashboard layout */
+const UNIFORM_WIDGET_LAYOUT = 'min-h-[320px]';
 
 const MAX_PIPELINE_ROWS = 4;
 const MAX_PRODUCT_PERFORMANCE_ROWS = 3;
 
-const STORAGE_KEY = 'laku-dashboard-widgets';
+const WIDGET_LAYOUT_STORAGE_PREFIX = 'laku-dashboard-widgets';
+
+function getWidgetLayoutStorageKey(userId: number | null | undefined): string | null {
+  if (userId == null || typeof userId !== 'number' || Number.isNaN(userId)) {
+    return null;
+  }
+  return `${WIDGET_LAYOUT_STORAGE_PREFIX}-${userId}`;
+}
 
 const DASHBOARD_SNAPSHOT_QUERY = `
   query DashboardSnapshot(
@@ -899,6 +896,7 @@ export default function HomePage() {
   const [draggingSource, setDraggingSource] = useState<'layout' | 'library' | null>(null);
   const [isWidgetManagerOpen, setIsWidgetManagerOpen] = useState(false);
   const widgetManagerRef = useRef<HTMLDivElement | null>(null);
+  const [hasHydratedLayout, setHasHydratedLayout] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
   const hasData = orders.length > 0;
@@ -920,8 +918,14 @@ export default function HomePage() {
     if (typeof window === 'undefined') {
       return;
     }
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const storageKey = getWidgetLayoutStorageKey(user?.id);
+    if (!storageKey) {
+      setHasHydratedLayout(true);
+      return;
+    }
+    const stored = window.localStorage.getItem(storageKey);
     if (!stored) {
+      setHasHydratedLayout(true);
       return;
     }
     try {
@@ -939,15 +943,20 @@ export default function HomePage() {
     } catch {
       setWidgetOrder(DEFAULT_WIDGET_ORDER);
     }
-  }, []);
+    setHasHydratedLayout(true);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !hasHydratedLayout) {
+      return;
+    }
+    const storageKey = getWidgetLayoutStorageKey(user?.id);
+    if (!storageKey) {
       return;
     }
     const payload: WidgetLayoutStorage = { order: widgetOrder };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [widgetOrder]);
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [widgetOrder, hasHydratedLayout, user?.id]);
 
   useEffect(() => {
     if (!isWidgetManagerOpen) {
@@ -1259,13 +1268,9 @@ const buyerInsights = useMemo(() => {
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 3);
 
-  const averageOrdersPerBuyer =
-    totalBuyers > 0 ? (aggregates?.totalOrders ?? orders.length) / totalBuyers : 0;
-
   return {
     totalBuyers,
     activeBuyers,
-    averageOrdersPerBuyer,
     topBuyers,
   };
 }, [buyers, orders]);
@@ -1561,6 +1566,7 @@ const supplierInsights = useMemo(() => {
     targetId: WidgetId,
   ) => {
     event.preventDefault();
+    event.stopPropagation();
     const { sourceId, sourceType } = getDragContext(event);
     if (!sourceId) {
       handleDragEnd();
@@ -1580,11 +1586,16 @@ const supplierInsights = useMemo(() => {
         const next = [...prev];
         const fromIndex = next.indexOf(sourceId);
         const toIndex = next.indexOf(targetId);
-        if (fromIndex === -1 || toIndex === -1) {
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
           return prev;
         }
         next.splice(fromIndex, 1);
-        next.splice(toIndex, 0, sourceId);
+        // Place widget exactly where user dropped it. After removal: moving right and adjacent → insert at toIndex; moving right and not adjacent → insert at toIndex-1; moving left → insert at toIndex.
+        const movingRight = fromIndex < toIndex;
+        const insertAt = movingRight
+          ? (toIndex === fromIndex + 1 ? toIndex : toIndex - 1)
+          : toIndex;
+        next.splice(insertAt, 0, sourceId);
         return next;
       });
     } else {
@@ -1866,10 +1877,10 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total buyers</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {buyerInsights.totalBuyers.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
@@ -1880,20 +1891,8 @@ const supplierInsights = useMemo(() => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Orders per buyer</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {buyerInsights.averageOrdersPerBuyer.toFixed(1)}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Repeat rate{' '}
-                    <span className="font-semibold text-black">
-                      {safeSalesMetrics.repeatCustomerRate.toFixed(1)}%
-                    </span>
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. order value</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {formatCurrency(safeSalesMetrics.avgOrderValue, userCurrency)}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
@@ -1902,7 +1901,7 @@ const supplierInsights = useMemo(() => {
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Pieces sold</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {safeSalesMetrics.totalPiecesSold.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
@@ -1989,7 +1988,7 @@ const supplierInsights = useMemo(() => {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total suppliers</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {supplierInsights.totalSuppliers.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
@@ -2001,7 +2000,7 @@ const supplierInsights = useMemo(() => {
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">On-time delivery</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {supplierInsights.onTimeRate}%
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-600">
@@ -2010,7 +2009,7 @@ const supplierInsights = useMemo(() => {
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Top supplier value</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
+                  <p className="mt-1 text-xl font-semibold text-black">
                     {formatCurrency(
                       supplierInsights.topSuppliers[0]?.value ?? 0,
                       userCurrency,
@@ -2375,7 +2374,7 @@ const supplierInsights = useMemo(() => {
   const renderedWidgets: React.ReactNode =
     activeWidgets.length === 0
       ? (
-          <div className="col-span-12 flex h-60 flex-col items-center justify-center rounded-lg bg-white text-center">
+          <div className="col-span-1 sm:col-span-2 flex min-h-[320px] flex-col items-center justify-center rounded-lg bg-white text-center">
             <Settings2 className="mb-3 h-8 w-8 text-[#0a61d7]" />
             <p className="text-sm font-semibold text-black">
               No widgets selected
@@ -2392,7 +2391,6 @@ const supplierInsights = useMemo(() => {
           }
           const { content, subtitle, action } = renderWidget(id);
           const Icon = meta.icon;
-          const layoutClass = WIDGET_LAYOUT[id] ?? DEFAULT_WIDGET_LAYOUT;
           return (
             <div
               key={id}
@@ -2404,7 +2402,7 @@ const supplierInsights = useMemo(() => {
               onDrop={(event) => handleDrop(event, id)}
               onDragOver={(event) => event.preventDefault()}
               aria-grabbed={draggingWidget === id}
-              className={`${layoutClass} rounded-lg transition-all ${
+              className={`${UNIFORM_WIDGET_LAYOUT} rounded-lg transition-all ${
                 hoverWidget === id ? 'ring-2 ring-[#0a61d7]/60' : ''
               } ${draggingWidget === id ? 'opacity-75' : 'opacity-100'}`}
             >
@@ -2590,7 +2588,7 @@ const supplierInsights = useMemo(() => {
           )}
 
           <section
-            className="grid grid-cols-1 gap-3 xl:grid-cols-12"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDropToEnd}
           >
