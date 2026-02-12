@@ -39,6 +39,7 @@ model User {
   salesTeams    SalesTeam[]
   campaigns     Campaign[]
   notifications Notification[]
+  distributorReviewsReceived DistributorReview[]
 }
 
 model Company {
@@ -149,6 +150,7 @@ model Product {
   variantOptions    VariantOption[]
   favoriteProducts  FavoriteProduct[]
   user              User?            @relation(fields: [userId], references: [id])
+  productReviews    ProductReview[]
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -193,6 +195,9 @@ model MarketplaceUser {
   userActivities         UserActivity[]
   searchHistory          SearchHistory[]
   pushNotificationTokens PushNotificationToken[]
+  productReviews         ProductReview[]
+  orderDeliveryReviews   OrderDeliveryReview[]
+  distributorReviews     DistributorReview[]
 
   @@index([phone])
   @@index([email])
@@ -267,6 +272,8 @@ model Order {
   buyer                   Buyer?      @relation(fields: [buyerId], references: [buyerId])
   user                    User?       @relation(fields: [userId], references: [id])
   orderItemsRel           OrderItem[]
+  productReviews          ProductReview[]
+  orderDeliveryReview     OrderDeliveryReview?
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -675,4 +682,66 @@ model PushNotificationToken {
   @@index([userId])
   @@index([token])
   @@index([isActive])
+}
+
+/// Product review: one per (marketplaceUser, order, product). Buyer reviews a product from an order.
+model ProductReview {
+  id          Int      @id @default(autoincrement())
+  userId      Int      // MarketplaceUser (buyer) who wrote the review
+  orderId     String
+  productId   String
+  rating      Int      // 1-5
+  title       String?
+  comment     String?
+  imageUrls   String[]  @default([]) // Cloudinary URLs, max 5
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  user    MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order   Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [productId], onDelete: Cascade)
+
+  @@unique([userId, orderId, productId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([userId])
+}
+
+/// Delivery review: one per order. Buyer rates delivery for that order.
+model OrderDeliveryReview {
+  id              Int      @id @default(autoincrement())
+  userId          Int      // MarketplaceUser (buyer)
+  orderId         String   @unique
+  deliveryRating  Int?     // 1-5
+  deliveryComment String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  user  MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orderId])
+}
+
+/// Distributor (seller) review: one per (buyer, distributor). Buyer reviews a seller.
+model DistributorReview {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      // MarketplaceUser (buyer)
+  distributorId         Int      // User (seller/distributor)
+  orderId               String?  // Optional: order that prompted the review
+  overallRating         Int      // 1-5 required
+  communicationRating   Int?     // 0-5
+  deliveryRating        Int?     // 0-5
+  productQualityRating  Int?     // 0-5
+  wouldOrderAgain       String?  // 'yes' | 'no' | 'maybe'
+  comment               String?
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  user        MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  distributor User            @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, distributorId])
+  @@index([distributorId])
+  @@index([userId])
 }
