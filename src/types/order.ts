@@ -45,6 +45,10 @@ export interface Order {
   updatedAt: Date;
   acceptedBy?: string;
   acceptedAt?: Date;
+  estimatedDeliveryDate?: Date;
+  estimatedDeliveryMinDays?: number | null;
+  estimatedDeliveryMaxDays?: number | null;
+  deliveredAt?: Date;
 }
 
 // Extended Order interface with snapshot fields for deleted buyer handling

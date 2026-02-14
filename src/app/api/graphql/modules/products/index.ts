@@ -1566,8 +1566,8 @@ export const forceUpdatePrices = async (userId: number) => {
         },
       });
 
-      // Collect all variant options that need updates
-      const variantOptionsToUpdate: { id: number; sellingPrice: any }[] = [];
+      // Collect all variant options that need updates (sellingPrice: Prisma Decimal or number)
+      const variantOptionsToUpdate: { id: number; sellingPrice: number | Prisma.Decimal }[] = [];
       for (const product of productsWithVariants) {
         if (product.variantOptions && product.variantOptions.length > 0) {
           for (const variantOption of product.variantOptions) {

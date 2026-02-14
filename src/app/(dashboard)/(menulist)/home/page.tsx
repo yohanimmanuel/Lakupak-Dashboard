@@ -120,8 +120,8 @@ const WIDGET_LIBRARY: WidgetDefinition[] = [
   },
   {
     id: 'marketing',
-    name: 'Campaign Performance',
-    description: 'Review promo conversions and channel impact.',
+    name: 'Marketing Performance',
+    description: 'Teams, campaigns, and channel performance at a glance.',
     defaultActive: false,
     icon: Megaphone,
   },
@@ -202,6 +202,10 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         updatedAt
         acceptedBy
         acceptedAt
+        estimatedDeliveryDate
+        estimatedDeliveryMinDays
+        estimatedDeliveryMaxDays
+        deliveredAt
         orderItems {
           productId
           productName
@@ -312,6 +316,31 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         totalSupplies
         onTimeDeliveryRate
         userId
+      }
+      campaigns {
+        id
+        campaignId
+        name
+        description
+        status
+        sentDate
+        recipients
+        opensCount
+        clicksCount
+        revenue
+        orders
+        userId
+        createdAt
+        updatedAt
+      }
+      marketingSummary {
+        totalAgents
+        activeAgents
+        teams {
+          id
+          name
+          memberCount
+        }
       }
       aggregates {
         totalRevenue
@@ -619,6 +648,10 @@ function normalizeOrder(raw: Record<string, unknown>): Order | null {
     updatedAt: parseDate(raw.updatedAt ?? raw.orderDate),
     acceptedBy: parseOptionalString(raw.acceptedBy),
     acceptedAt: raw.acceptedAt ? parseDate(raw.acceptedAt) : undefined,
+    estimatedDeliveryDate: raw.estimatedDeliveryDate ? parseDate(raw.estimatedDeliveryDate) : undefined,
+    estimatedDeliveryMinDays: raw.estimatedDeliveryMinDays != null ? Number(raw.estimatedDeliveryMinDays) : undefined,
+    estimatedDeliveryMaxDays: raw.estimatedDeliveryMaxDays != null ? Number(raw.estimatedDeliveryMaxDays) : undefined,
+    deliveredAt: raw.deliveredAt ? parseDate(raw.deliveredAt) : undefined,
   };
 }
 
@@ -804,6 +837,33 @@ function normalizeSupplier(raw: Record<string, unknown>): Supplier | null {
   };
 }
 
+/** Campaign fields from dashboard snapshot (for Marketing Performance widget) */
+interface DashboardCampaign {
+  id: string;
+  campaignId: string;
+  name: string;
+  status: string;
+  recipients: string;
+  opensCount: number;
+  clicksCount: number;
+  revenue: number;
+  orders: number;
+  sentDate?: string | null;
+}
+
+/** Marketing summary: teams and agents (for Marketing Performance widget) */
+interface MarketingTeamSummary {
+  id: string;
+  name: string;
+  memberCount: number;
+}
+
+interface MarketingSummary {
+  teams: MarketingTeamSummary[];
+  totalAgents: number;
+  activeAgents: number;
+}
+
 interface WidgetRenderResult {
   content: ReactNode;
   subtitle?: string;
@@ -837,6 +897,25 @@ function safeParseJSON<T>(value: string | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/** Parse campaign from dashboard snapshot for Marketing Performance widget */
+function normalizeDashboardCampaign(raw: Record<string, unknown>): DashboardCampaign | null {
+  const campaignId = parseString(raw.campaignId);
+  if (!campaignId) return null;
+  const sentDate = raw.sentDate != null && raw.sentDate !== '' ? String(raw.sentDate) : null;
+  return {
+    id: parseString(raw.id, campaignId),
+    campaignId,
+    name: parseString(raw.name, 'Unnamed Campaign'),
+    status: parseString(raw.status, 'Draft'),
+    recipients: parseString(raw.recipients, '0'),
+    opensCount: typeof raw.opensCount === 'number' ? raw.opensCount : parseNumber(raw.opensCount),
+    clicksCount: typeof raw.clicksCount === 'number' ? raw.clicksCount : parseNumber(raw.clicksCount),
+    revenue: parseNumber(raw.revenue),
+    orders: typeof raw.orders === 'number' ? raw.orders : parseNumber(raw.orders),
+    sentDate: sentDate ?? undefined,
+  };
 }
 
 const resolveProductStock = (product: Product) => {
@@ -876,6 +955,8 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [campaigns, setCampaigns] = useState<DashboardCampaign[]>([]);
+  const [marketingSummary, setMarketingSummary] = useState<MarketingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aggregates, setAggregates] = useState<{
@@ -1041,6 +1122,8 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
+          setCampaigns([]);
+          setMarketingSummary(null);
           setLoading(false);
           return;
         }
@@ -1147,6 +1230,40 @@ export default function HomePage() {
             }
           });
           setSuppliers(normalizedSuppliers);
+
+          const normalizedCampaigns: DashboardCampaign[] = [];
+          (Array.isArray((snapshot as { campaigns?: unknown[] }).campaigns)
+            ? (snapshot as { campaigns: unknown[] }).campaigns
+            : []
+          ).forEach((item: unknown) => {
+            if (item && typeof item === 'object') {
+              const normalized = normalizeDashboardCampaign(item as Record<string, unknown>);
+              if (normalized) {
+                normalizedCampaigns.push(normalized);
+              }
+            }
+          });
+          setCampaigns(normalizedCampaigns);
+
+          const rawSummary = (snapshot as { marketingSummary?: Record<string, unknown> }).marketingSummary;
+          if (rawSummary && typeof rawSummary === 'object') {
+            const teamsRaw = Array.isArray(rawSummary.teams) ? rawSummary.teams : [];
+            const teams: MarketingTeamSummary[] = teamsRaw
+              .filter((t): t is Record<string, unknown> => t != null && typeof t === 'object')
+              .map((t) => ({
+                id: parseString(t.id, ''),
+                name: parseString(t.name, 'Unnamed'),
+                memberCount: typeof t.memberCount === 'number' ? t.memberCount : parseNumber(t.memberCount),
+              }))
+              .filter((t) => t.id);
+            setMarketingSummary({
+              teams,
+              totalAgents: typeof rawSummary.totalAgents === 'number' ? rawSummary.totalAgents : parseNumber(rawSummary.totalAgents),
+              activeAgents: typeof rawSummary.activeAgents === 'number' ? rawSummary.activeAgents : parseNumber(rawSummary.activeAgents),
+            });
+          } else {
+            setMarketingSummary({ teams: [], totalAgents: 0, activeAgents: 0 });
+          }
       } catch (fetchError) {
         if (
           !(fetchError instanceof DOMException && fetchError.name === 'AbortError')
@@ -1160,6 +1277,8 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
+          setCampaigns([]);
+          setMarketingSummary(null);
         }
       } finally {
         setLoading(false);
@@ -1378,6 +1497,127 @@ const supplierInsights = useMemo(() => {
     topSuppliers,
   };
 }, [suppliers]);
+
+  // Logistics metrics from orders: on-time delivery % (vs estimated date/range) and avg delivery time
+  const logisticsMetrics = useMemo(() => {
+    const deliveredOrders = orders.filter(
+      (o) => o.orderStatus === 'Delivered',
+    );
+    const toDateOnly = (d: Date) =>
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    // On-time: delivered on or before estimated delivery (estimatedDeliveryDate or derived from min/max days)
+    const deliveredWithEstimated = deliveredOrders.filter((o) => {
+      if (o.estimatedDeliveryDate != null) return true;
+      if (o.estimatedDeliveryMinDays != null || o.estimatedDeliveryMaxDays != null) return true;
+      return false;
+    });
+    const onTimeCount = deliveredWithEstimated.filter((o) => {
+      const deliveredAt = o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.updatedAt);
+      const deliveredOnly = toDateOnly(deliveredAt);
+
+      if (o.estimatedDeliveryDate != null) {
+        const estimatedOnly = toDateOnly(new Date(o.estimatedDeliveryDate));
+        return deliveredOnly <= estimatedOnly;
+      }
+      const refDate = o.acceptedAt ? new Date(o.acceptedAt) : new Date(o.createdAt);
+      const maxDays = o.estimatedDeliveryMaxDays ?? o.estimatedDeliveryMinDays ?? 0;
+      const latestEstimated = new Date(refDate.getTime() + maxDays * msPerDay);
+      return deliveredOnly <= toDateOnly(latestEstimated);
+    }).length;
+    const onTimeDeliveryPercent =
+      deliveredWithEstimated.length > 0
+        ? Math.round((onTimeCount / deliveredWithEstimated.length) * 100)
+        : 0;
+
+    // Average delivery time: days from order creation to deliveredAt (or updatedAt as fallback)
+    const deliveryDays =
+      deliveredOrders.length > 0
+        ? deliveredOrders.map((o) => {
+            const created = new Date(o.createdAt).getTime();
+            const delivered = (o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.updatedAt)).getTime();
+            return (delivered - created) / msPerDay;
+          })
+        : [];
+    const avgDeliveryDays =
+      deliveryDays.length > 0
+        ? deliveryDays.reduce((a, b) => a + b, 0) / deliveryDays.length
+        : 0;
+
+    return {
+      onTimeDeliveryPercent,
+      onTimeCount,
+      deliveredWithEstimatedCount: deliveredWithEstimated.length,
+      deliveredCount: deliveredOrders.length,
+      avgDeliveryDays,
+    };
+  }, [orders]);
+
+  // Campaign performance metrics from real campaign data
+  const campaignMetrics = useMemo(() => {
+    const totalCampaigns = campaigns.length;
+    const plannedCount = campaigns.filter((c) =>
+      ['Draft', 'Scheduled'].includes(c.status),
+    ).length;
+    const sentCampaigns = campaigns.filter((c) =>
+      ['Sent', 'Completed'].includes(c.status),
+    );
+
+    const parseRecipientsCount = (recipients: string): number => {
+      const s = String(recipients || '').trim();
+      if (!s) return 0;
+      const asNumber = parseNumber(s);
+      if (asNumber > 0) return asNumber;
+      const parts = s.split(/[,;]/).map((p) => p.trim()).filter(Boolean);
+      return parts.length;
+    };
+
+    const totalRecipientsReached = sentCampaigns.reduce(
+      (sum, c) => sum + parseRecipientsCount(c.recipients),
+      0,
+    );
+    const totalOpens = sentCampaigns.reduce((sum, c) => sum + c.opensCount, 0);
+    const totalOrdersFromCampaigns = sentCampaigns.reduce(
+      (sum, c) => sum + c.orders,
+      0,
+    );
+    const totalRevenueFromCampaigns = sentCampaigns.reduce(
+      (sum, c) => sum + c.revenue,
+      0,
+    );
+
+    const reach = totalOpens > 0 ? totalOpens : totalRecipientsReached;
+    const conversionRatePercent =
+      reach > 0
+        ? Math.round((totalOrdersFromCampaigns / reach) * 10000) / 100
+        : 0;
+
+    const avgRevenuePerSentCampaign =
+      sentCampaigns.length > 0
+        ? totalRevenueFromCampaigns / sentCampaigns.length
+        : 0;
+
+    const sentDates = sentCampaigns
+      .map((c) => c.sentDate)
+      .filter((d): d is string => typeof d === 'string' && d.length > 0)
+      .map((d) => new Date(d).getTime());
+    const lastSentDate =
+      sentDates.length > 0 ? new Date(Math.max(...sentDates)) : null;
+
+    return {
+      totalCampaigns,
+      plannedCount,
+      sentCount: sentCampaigns.length,
+      conversionRatePercent,
+      totalOrdersFromCampaigns,
+      totalRevenueFromCampaigns,
+      avgRevenuePerSentCampaign,
+      totalRecipientsReached,
+      lastSentDate,
+      topChannel: 'WhatsApp',
+    };
+  }, [campaigns]);
 
   const revenueTrendData = useMemo(
     () => calculateRevenueData(orders, products, hasData),
@@ -2082,7 +2322,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total shipments</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
@@ -2093,20 +2333,35 @@ const supplierInsights = useMemo(() => {
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">On-time delivery</p>
+                  <p className="text-xs text-gray-500">Delivered</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
-                    {supplierInsights.onTimeRate}%
+                    {logisticsMetrics.deliveredCount.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-600">
-                    Goal ≥ 90%
+                    Shipments
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
+                  <p className="text-xs text-gray-500">On-time delivery</p>
+                  <p className="mt-1 text-2xl font-semibold text-black">
+                    {logisticsMetrics.deliveredWithEstimatedCount === 0
+                      ? '—'
+                      : `${logisticsMetrics.onTimeDeliveryPercent}%`}
+                  </p>
+                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
+                    {logisticsMetrics.deliveredWithEstimatedCount === 0
+                      ? 'Set estimated dates to measure'
+                      : `${logisticsMetrics.onTimeCount} of ${logisticsMetrics.deliveredWithEstimatedCount} delivered on or before estimated`}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Avg. delivery time</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    3 days
+                    {logisticsMetrics.deliveredCount === 0
+                      ? '—'
+                      : logisticsMetrics.avgDeliveryDays < 1
+                        ? '< 1 day'
+                        : `${Math.round(logisticsMetrics.avgDeliveryDays * 10) / 10} days`}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
                     Across all shipments
@@ -2274,9 +2529,12 @@ const supplierInsights = useMemo(() => {
           ),
         };
       }
-      case 'marketing':
+      case 'marketing': {
+        const summary = marketingSummary ?? { teams: [], totalAgents: 0, activeAgents: 0 };
+        const hasTeams = summary.teams.length > 0 || summary.totalAgents > 0;
+        const hasCampaigns = campaignMetrics.totalCampaigns > 0;
         return {
-          subtitle: 'Campaign performance and channel impact',
+          subtitle: 'Teams, campaigns, and channel performance',
           action: (
             <Link
               href="/marketing"
@@ -2288,67 +2546,150 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Two-column layout: Teams & People | Campaigns */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Left: Teams & People */}
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Total campaigns</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    0
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Planned: 0
-                  </p>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-black">Teams & people</h3>
+                    <Users className="h-4 w-4 text-gray-400" />
+                  </div>
+                  {hasTeams ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded bg-gray-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
+                          <p className="text-[10px] uppercase text-gray-500">Teams</p>
+                        </div>
+                        <div className="rounded bg-gray-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-black">{summary.totalAgents}</p>
+                          <p className="text-[10px] uppercase text-gray-500">Agents</p>
+                        </div>
+                        <div className="rounded bg-emerald-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-emerald-700">{summary.activeAgents}</p>
+                          <p className="text-[10px] uppercase text-emerald-600">Active</p>
+                        </div>
+                      </div>
+                      {summary.teams.length > 0 && (
+                        <div className="mt-3 border-t border-gray-100 pt-3">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            By team
+                          </p>
+                          <ul className="space-y-1.5">
+                            {summary.teams.slice(0, 4).map((team) => (
+                              <li
+                                key={team.id}
+                                className="flex items-center justify-between text-sm"
+                              >
+                                <span className="truncate text-gray-800">{team.name}</span>
+                                <span className="ml-2 shrink-0 rounded bg-[#f0f7ff] px-2 py-0.5 text-xs font-medium text-[#0a61d7]">
+                                  {team.memberCount} {team.memberCount === 1 ? 'member' : 'members'}
+                                </span>
+                              </li>
+                            ))}
+                            {summary.teams.length > 4 && (
+                              <li className="text-xs text-gray-500">
+                                +{summary.teams.length - 4} more team{summary.teams.length - 4 !== 1 ? 's' : ''}
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                      <Users className="mb-2 h-8 w-8 text-gray-300" />
+                      <p className="text-sm font-medium text-gray-600">No teams yet</p>
+                      <p className="mt-1 text-xs text-gray-500">Add teams and agents in Marketing → Team</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Right: Campaigns */}
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Conversion rate</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    0%
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across all campaigns
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Avg. ROI</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    0%
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across all campaigns
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Top performing channel</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    Direct
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    {/* This data is not directly available in the current data,
-                        so we'll just show a placeholder or a generic value. */}
-                    Across all campaigns
-                  </p>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-black">Campaigns</h3>
+                    <Megaphone className="h-4 w-4 text-gray-400" />
+                  </div>
+                  {hasCampaigns ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <div className="rounded bg-gray-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-black">{campaignMetrics.totalCampaigns}</p>
+                          <p className="text-[10px] uppercase text-gray-500">Total</p>
+                        </div>
+                        <div className="rounded bg-amber-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-amber-700">{campaignMetrics.plannedCount}</p>
+                          <p className="text-[10px] uppercase text-amber-600">Planned</p>
+                        </div>
+                        <div className="rounded bg-blue-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-[#0a61d7]">{campaignMetrics.sentCount}</p>
+                          <p className="text-[10px] uppercase text-[#0a61d7]">Sent</p>
+                        </div>
+                      </div>
+                      {campaignMetrics.sentCount > 0 && (
+                        <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Revenue</span>
+                            <span className="font-semibold text-black">
+                              {formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Recipients reached</span>
+                            <span className="font-medium text-black">
+                              {campaignMetrics.totalRecipientsReached.toLocaleString()}
+                            </span>
+                          </div>
+                          {campaignMetrics.lastSentDate && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-500">Last sent</span>
+                              <span className="font-medium text-black">
+                                {campaignMetrics.lastSentDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Orders</span>
+                            <span className="font-medium text-black">{campaignMetrics.totalOrdersFromCampaigns}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Channel</span>
+                            <span className="font-medium text-black">{campaignMetrics.topChannel}</span>
+                          </div>
+                          {campaignMetrics.totalRecipientsReached > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-500">Conversion</span>
+                              <span className="font-medium text-black">{campaignMetrics.conversionRatePercent}%</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                      <Megaphone className="mb-2 h-8 w-8 text-gray-300" />
+                      <p className="text-sm font-medium text-gray-600">No campaigns yet</p>
+                      <p className="mt-1 text-xs text-gray-500">Create and send campaigns in Marketing → Campaigns</p>
+                    </div>
+                  )}
                 </div>
               </div>
-              {/* Placeholder for marketing performance content */}
-              <div className="flex h-40 flex-col items-center justify-center rounded-lg">
-                <Megaphone className="mb-3 h-8 w-8 text-gray-300" />
-                <p className="text-sm font-semibold text-gray-600">
-                  Marketing performance feature coming soon
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  We are working on integrating marketing performance metrics.
-                </p>
-              </div>
+
+              {/* One-line summary when both have data */}
+              {hasTeams && hasCampaigns && (
+                <div className="rounded-lg border border-[#e6e6e6] bg-[#f8fafc] px-4 py-2 text-center text-xs text-gray-600">
+                  <strong className="text-gray-800">{summary.activeAgents}</strong> active agents
+                  {' · '}
+                  <strong className="text-gray-800">{campaignMetrics.sentCount}</strong> campaigns sent
+                  {' · '}
+                  <strong className="text-gray-800">{formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency)}</strong> from campaigns
+                </div>
+              )}
             </div>
           ),
         };
+      }
       default:
         return {
           content: (
@@ -2468,6 +2809,8 @@ const supplierInsights = useMemo(() => {
                 setProducts([]);
                 setBuyers([]);
                 setSuppliers([]);
+                setCampaigns([]);
+                setMarketingSummary(null);
               }}
             >
               Retry

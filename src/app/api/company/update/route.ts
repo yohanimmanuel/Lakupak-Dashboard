@@ -46,7 +46,17 @@ export async function PUT(req: NextRequest) {
         sameDayShippingPrice,
         nextDayShippingPrice,
         scheduledDeliveryPrice,
-        pickupAddress
+        pickupAddress,
+        defaultDeliveryLeadTimeMinDays,
+        defaultDeliveryLeadTimeMaxDays,
+        expressShippingMinDays,
+        expressShippingMaxDays,
+        sameDayShippingMinDays,
+        sameDayShippingMaxDays,
+        nextDayShippingMinDays,
+        nextDayShippingMaxDays,
+        scheduledDeliveryMinDays,
+        scheduledDeliveryMaxDays
     } = body;
     
     // Validate companyId
@@ -117,7 +127,44 @@ export async function PUT(req: NextRequest) {
     if (nextDayShippingPrice !== undefined) updateData.nextDayShippingPrice = nextDayShippingPrice ? parseNumberByCurrency(nextDayShippingPrice.toString()) || null : null;
     if (scheduledDeliveryPrice !== undefined) updateData.scheduledDeliveryPrice = scheduledDeliveryPrice ? parseNumberByCurrency(scheduledDeliveryPrice.toString()) || null : null;
     if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress?.trim() || null;
-    
+
+    const parseDays = (val: unknown): number | null => {
+      const n = val === null || val === '' ? null : Number(val);
+      return n != null && !Number.isNaN(n) && n >= 0 ? n : null;
+    };
+    const pairs: { name: string; min: unknown; max: unknown }[] = [
+      { name: 'Default delivery lead time', min: defaultDeliveryLeadTimeMinDays, max: defaultDeliveryLeadTimeMaxDays },
+      { name: 'Express shipping', min: expressShippingMinDays, max: expressShippingMaxDays },
+      { name: 'Same-day shipping', min: sameDayShippingMinDays, max: sameDayShippingMaxDays },
+      { name: 'Next-day shipping', min: nextDayShippingMinDays, max: nextDayShippingMaxDays },
+      { name: 'Scheduled delivery', min: scheduledDeliveryMinDays, max: scheduledDeliveryMaxDays },
+    ];
+    for (const { name, min, max } of pairs) {
+      const minVal = min !== undefined ? parseDays(min) : null;
+      const maxVal = max !== undefined ? parseDays(max) : null;
+      if (minVal != null && maxVal != null && minVal > maxVal) {
+        return NextResponse.json(
+          { error: `${name}: min days (${minVal}) cannot be greater than max days (${maxVal}). Please use a valid range.` },
+          { status: 400, headers }
+        );
+      }
+    }
+
+    const setInt = (key: string, val: unknown) => {
+      const n = parseDays(val);
+      (updateData as Record<string, unknown>)[key] = n;
+    };
+    if (defaultDeliveryLeadTimeMinDays !== undefined) setInt('defaultDeliveryLeadTimeMinDays', defaultDeliveryLeadTimeMinDays);
+    if (defaultDeliveryLeadTimeMaxDays !== undefined) setInt('defaultDeliveryLeadTimeMaxDays', defaultDeliveryLeadTimeMaxDays);
+    if (expressShippingMinDays !== undefined) setInt('expressShippingMinDays', expressShippingMinDays);
+    if (expressShippingMaxDays !== undefined) setInt('expressShippingMaxDays', expressShippingMaxDays);
+    if (sameDayShippingMinDays !== undefined) setInt('sameDayShippingMinDays', sameDayShippingMinDays);
+    if (sameDayShippingMaxDays !== undefined) setInt('sameDayShippingMaxDays', sameDayShippingMaxDays);
+    if (nextDayShippingMinDays !== undefined) setInt('nextDayShippingMinDays', nextDayShippingMinDays);
+    if (nextDayShippingMaxDays !== undefined) setInt('nextDayShippingMaxDays', nextDayShippingMaxDays);
+    if (scheduledDeliveryMinDays !== undefined) setInt('scheduledDeliveryMinDays', scheduledDeliveryMinDays);
+    if (scheduledDeliveryMaxDays !== undefined) setInt('scheduledDeliveryMaxDays', scheduledDeliveryMaxDays);
+
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
       data: updateData

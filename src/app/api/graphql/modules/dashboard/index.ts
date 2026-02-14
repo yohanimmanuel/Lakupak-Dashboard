@@ -24,11 +24,25 @@ export const dashboardTypeDefs = /* GraphQL */ `
     uniqueCustomers: Int!
   }
 
+  type MarketingTeamSummary {
+    id: String!
+    name: String!
+    memberCount: Int!
+  }
+
+  type MarketingSummary {
+    teams: [MarketingTeamSummary!]!
+    totalAgents: Int!
+    activeAgents: Int!
+  }
+
   type DashboardSnapshot {
     orders: [Order!]!
     products: [Product!]!
     buyers: [Buyer!]!
     suppliers: [Supplier!]!
+    campaigns: [Campaign!]!
+    marketingSummary: MarketingSummary!
     totals: DashboardTotals!
     aggregates: DashboardAggregates!
   }
@@ -43,12 +57,44 @@ export const dashboardTypeDefs = /* GraphQL */ `
   }
 `;
 
+// Campaign shape for dashboard (matches Campaign type from campaigns module)
+interface DashboardCampaign {
+  id: string;
+  campaignId: string;
+  name: string;
+  description: string | null;
+  status: string;
+  sentDate: string | null;
+  recipients: string;
+  opensCount: number;
+  clicksCount: number;
+  revenue: number;
+  orders: number;
+  userId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+interface MarketingTeamSummary {
+  id: string;
+  name: string;
+  memberCount: number;
+}
+
+interface MarketingSummary {
+  teams: MarketingTeamSummary[];
+  totalAgents: number;
+  activeAgents: number;
+}
+
 // Type definition for DashboardSnapshot response
 interface DashboardSnapshot {
   orders: unknown[];
   products: unknown[];
   buyers: unknown[];
   suppliers: unknown[];
+  campaigns: DashboardCampaign[];
+  marketingSummary: MarketingSummary;
   totals: {
     orders: number;
     products: number;
@@ -104,7 +150,9 @@ const calculateDashboardAggregates = async (userId: number) => {
   for (const order of allOrders) {
     const amount = typeof order.totalAmount === 'number'
       ? order.totalAmount
-      : (order.totalAmount as any)?.toNumber?.() || parseFloat(String(order.totalAmount)) || 0;
+      : (typeof (order.totalAmount as { toNumber?: () => number })?.toNumber === 'function'
+          ? (order.totalAmount as { toNumber: () => number }).toNumber()
+          : parseFloat(String(order.totalAmount))) || 0;
 
     // Add to total revenue regardless of payment status (matches FinancialAnalytics)
     totalRevenue += amount;
@@ -151,6 +199,14 @@ const calculateDashboardAggregates = async (userId: number) => {
   };
 };
 
+const parseCampaignRevenue = (value: unknown): number => {
+  if (value == null) return 0;
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  const n = (value as { toNumber?: () => number })?.toNumber?.();
+  if (typeof n === 'number') return n;
+  return parseFloat(String(value)) || 0;
+};
+
 const buildDashboardSnapshot = async (args: {
   userId: number;
   ordersLimit: number;
@@ -160,19 +216,91 @@ const buildDashboardSnapshot = async (args: {
   const { userId, ordersLimit, productsLimit, contactsLimit } = args;
 
   // Fetch paginated lists for display AND calculate aggregates from ALL data
-  const [ordersConnection, productsConnection, buyersConnection, suppliersConnection, aggregates] = await Promise.all([
+  const [
+    ordersConnection,
+    productsConnection,
+    buyersConnection,
+    suppliersConnection,
+    aggregates,
+    campaignsRows,
+    teamsRows,
+    totalAgentsCount,
+    activeAgentsCount,
+  ] = await Promise.all([
     fetchOrdersConnection({ userId, page: 1, limit: ordersLimit }),
     fetchProductsConnection({ userId, page: 1, limit: productsLimit }),
     fetchBuyersConnection({ userId, page: 1, limit: contactsLimit }),
     fetchSuppliersConnection({ userId, page: 1, limit: contactsLimit }),
     calculateDashboardAggregates(userId),
+    prisma.campaign.findMany({
+      where: { userId },
+      take: 200,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        campaignId: true,
+        name: true,
+        description: true,
+        status: true,
+        sentDate: true,
+        recipients: true,
+        opensCount: true,
+        clicksCount: true,
+        revenue: true,
+        orders: true,
+        userId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.salesTeam.findMany({
+      where: { userId },
+      take: 50,
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { members: true } },
+      },
+    }),
+    prisma.salesAgent.count({ where: { userId } }),
+    prisma.salesAgent.count({ where: { userId, status: 'active' } }),
   ]);
+
+  const campaigns: DashboardCampaign[] = campaignsRows.map((c) => ({
+    id: c.id,
+    campaignId: c.campaignId,
+    name: c.name,
+    description: c.description,
+    status: c.status,
+    sentDate: c.sentDate?.toISOString() ?? null,
+    recipients: c.recipients ?? '',
+    opensCount: c.opensCount ?? 0,
+    clicksCount: c.clicksCount ?? 0,
+    revenue: parseCampaignRevenue(c.revenue),
+    orders: c.orders ?? 0,
+    userId: c.userId,
+    createdAt: c.createdAt?.toISOString() ?? null,
+    updatedAt: c.updatedAt?.toISOString() ?? null,
+  }));
+
+  const marketingSummary: MarketingSummary = {
+    teams: teamsRows.map((t) => ({
+      id: t.id,
+      name: t.name,
+      memberCount: t._count?.members ?? 0,
+    })),
+    totalAgents: totalAgentsCount ?? 0,
+    activeAgents: activeAgentsCount ?? 0,
+  };
 
   const result: DashboardSnapshot = {
     orders: ordersConnection.nodes,
     products: productsConnection.nodes,
     buyers: buyersConnection.nodes,
     suppliers: suppliersConnection.nodes,
+    campaigns,
+    marketingSummary,
     totals: {
       orders: ordersConnection.pagination.totalCount,
       products: productsConnection.pagination.totalCount,

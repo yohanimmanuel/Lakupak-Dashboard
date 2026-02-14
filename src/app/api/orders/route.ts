@@ -249,6 +249,32 @@ export async function GET(request: NextRequest) {
         promotionDetailsSnapshot: (oi as { promotionDetailsSnapshot?: string | null }).promotionDetailsSnapshot || null
       }));
 
+      // Fallback duration from distributor's shipping option when order has no estimated min/max
+      const company = (order as { user?: { company?: Record<string, unknown> | null } }).user?.company;
+      const deliveryOption = ((order as { deliveryOption?: string | null }).deliveryOption || '').toLowerCase().replace(/-/g, '_');
+      const num = (v: unknown) => (v != null && !Number.isNaN(Number(v)) ? Number(v) : null);
+      let shippingOptionMinDays: number | null = null;
+      let shippingOptionMaxDays: number | null = null;
+      if (company) {
+        const c = company as Record<string, unknown>;
+        if (deliveryOption === 'standard' || !deliveryOption) {
+          shippingOptionMinDays = num(c.defaultDeliveryLeadTimeMinDays) ?? 3;
+          shippingOptionMaxDays = num(c.defaultDeliveryLeadTimeMaxDays) ?? 5;
+        } else if (deliveryOption === 'express') {
+          shippingOptionMinDays = num(c.expressShippingMinDays) ?? 1;
+          shippingOptionMaxDays = num(c.expressShippingMaxDays) ?? 2;
+        } else if (deliveryOption === 'same_day') {
+          shippingOptionMinDays = num(c.sameDayShippingMinDays) ?? 0;
+          shippingOptionMaxDays = num(c.sameDayShippingMaxDays) ?? 0;
+        } else if (deliveryOption === 'next_day') {
+          shippingOptionMinDays = num(c.nextDayShippingMinDays) ?? 1;
+          shippingOptionMaxDays = num(c.nextDayShippingMaxDays) ?? 1;
+        } else if (deliveryOption === 'scheduled') {
+          shippingOptionMinDays = num(c.scheduledDeliveryMinDays);
+          shippingOptionMaxDays = num(c.scheduledDeliveryMaxDays);
+        }
+      }
+
       // Convert order-level Decimal fields to numbers
       const orderResponse = {
         ...order,
@@ -256,7 +282,9 @@ export async function GET(request: NextRequest) {
         discounts: decimalToNumber(order.discounts),
         shippingFee: decimalToNumber(order.shippingFee),
         totalAmount: decimalToNumber(order.totalAmount),
-        orderItems: enrichedOrderItems
+        orderItems: enrichedOrderItems,
+        shippingOptionMinDays: shippingOptionMinDays ?? null,
+        shippingOptionMaxDays: shippingOptionMaxDays ?? null
       };
       return NextResponse.json(orderResponse, { headers });
     }
@@ -1260,6 +1288,16 @@ export async function PUT(request: NextRequest) {
     if (sanitizedData.acceptedAt) {
       updateData.acceptedAt = new Date(String(sanitizedData.acceptedAt));
     }
+    if ((sanitizedData as { estimatedDeliveryDate?: Date | null }).estimatedDeliveryDate !== undefined) {
+      const ed = (sanitizedData as { estimatedDeliveryDate?: Date | null }).estimatedDeliveryDate;
+      updateData.estimatedDeliveryDate = ed ? new Date(String(ed)) : null;
+    }
+    if ((sanitizedData as { estimatedDeliveryMinDays?: number | null }).estimatedDeliveryMinDays !== undefined) {
+      updateData.estimatedDeliveryMinDays = (sanitizedData as { estimatedDeliveryMinDays?: number | null }).estimatedDeliveryMinDays;
+    }
+    if ((sanitizedData as { estimatedDeliveryMaxDays?: number | null }).estimatedDeliveryMaxDays !== undefined) {
+      updateData.estimatedDeliveryMaxDays = (sanitizedData as { estimatedDeliveryMaxDays?: number | null }).estimatedDeliveryMaxDays;
+    }
 
     // Auto-set acceptedAt on status transition to Confirmed when not provided
     if (!sanitizedData.acceptedAt && typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
@@ -1272,6 +1310,36 @@ export async function PUT(request: NextRequest) {
           if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
             updateData.acceptedBy = 'Admin';
           }
+        }
+
+        if (nextStatus === 'Confirmed') {
+          const hasEstimated = (existing as { estimatedDeliveryDate?: Date | null }).estimatedDeliveryDate != null
+            || (sanitizedData as { estimatedDeliveryDate?: Date | null }).estimatedDeliveryDate != null
+            || updateData.estimatedDeliveryDate != null;
+          if (!hasEstimated && existing.userId) {
+            const user = await prisma.user.findUnique({
+              where: { id: existing.userId },
+              select: { companyId: true },
+            });
+            const company = user?.companyId
+              ? await prisma.company.findUnique({
+                  where: { id: user.companyId },
+                  select: { defaultDeliveryLeadTimeMinDays: true, defaultDeliveryLeadTimeMaxDays: true },
+                })
+              : null;
+            const minDays = company?.defaultDeliveryLeadTimeMinDays ?? 3;
+            const maxDays = company?.defaultDeliveryLeadTimeMaxDays ?? company?.defaultDeliveryLeadTimeMinDays ?? 5;
+            const days = Math.round((Number(minDays) + Number(maxDays)) / 2);
+            const est = new Date();
+            est.setDate(est.getDate() + days);
+            updateData.estimatedDeliveryDate = est;
+            updateData.estimatedDeliveryMinDays = minDays;
+            updateData.estimatedDeliveryMaxDays = maxDays;
+          }
+        }
+
+        if (nextStatus === 'Delivered' && !(existing as { deliveredAt?: Date | null }).deliveredAt) {
+          updateData.deliveredAt = new Date();
         }
 
         // Auto-wire deliveryConfirmation based on orderStatus if not explicitly provided

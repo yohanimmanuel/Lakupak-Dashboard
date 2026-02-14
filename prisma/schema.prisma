@@ -75,6 +75,16 @@ model Company {
   sameDayShippingPrice        Decimal? @db.Decimal(12, 2)
   scheduledDeliveryPrice      Decimal? @db.Decimal(12, 2)
   pickupAddress               String?
+  defaultDeliveryLeadTimeMinDays Int?
+  defaultDeliveryLeadTimeMaxDays Int?
+  expressShippingMinDays      Int?
+  expressShippingMaxDays      Int?
+  sameDayShippingMinDays      Int?
+  sameDayShippingMaxDays      Int?
+  nextDayShippingMinDays      Int?
+  nextDayShippingMaxDays      Int?
+  scheduledDeliveryMinDays    Int?
+  scheduledDeliveryMaxDays    Int?
   users                       User[]
 }
 
@@ -256,6 +266,10 @@ model Order {
   updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
   acceptedBy              String?
   acceptedAt              DateTime?   @db.Timestamptz(3)
+  estimatedDeliveryDate   DateTime?   @db.Timestamptz(3)
+  estimatedDeliveryMinDays Int?
+  estimatedDeliveryMaxDays Int?
+  deliveredAt             DateTime?   @db.Timestamptz(3)
   userId                  Int?
   archivedAt              DateTime?   @db.Timestamptz(3)
   cancelledAt             DateTime?   @db.Timestamptz(3)

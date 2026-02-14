@@ -19,7 +19,7 @@ interface CacheOptions {
  * Format: prefix:userId:hash (when userId present) or prefix:hash (when no userId)
  * This allows efficient user-scoped cache invalidation
  */
-const generateCacheKey = (prefix: string, params: Record<string, any>): string => {
+const generateCacheKey = (prefix: string, params: Record<string, unknown>): string => {
   const hash = createHash('md5')
     .update(JSON.stringify(params))
     .digest('hex')
@@ -38,7 +38,7 @@ const generateCacheKey = (prefix: string, params: Record<string, any>): string =
  */
 export async function getCachedQuery<T>(
   prefix: string,
-  params: Record<string, any>
+  params: Record<string, unknown>
 ): Promise<T | null> {
   if (!isRedisAvailable() || !redis) {
     return null;
@@ -63,7 +63,7 @@ export async function getCachedQuery<T>(
  */
 export async function setCachedQuery<T>(
   prefix: string,
-  params: Record<string, any>,
+  params: Record<string, unknown>,
   data: T,
   options: CacheOptions = {}
 ): Promise<void> {
@@ -126,7 +126,7 @@ export async function getCachedProductList<T>(
   userId: number,
   page: number,
   limit: number,
-  filters: Record<string, any>
+  filters: Record<string, unknown>
 ): Promise<T | null> {
   return getCachedQuery<T>('product-list', { userId, page, limit, ...filters });
 }
@@ -135,7 +135,7 @@ export async function setCachedProductList<T>(
   userId: number,
   page: number,
   limit: number,
-  filters: Record<string, any>,
+  filters: Record<string, unknown>,
   data: T
 ): Promise<void> {
   // Cache for 30 seconds - short TTL since products change frequently
@@ -154,7 +154,7 @@ export async function getCachedOfferList<T>(
   userId: number,
   page: number,
   limit: number,
-  filters: Record<string, any>
+  filters: Record<string, unknown>
 ): Promise<T | null> {
   return getCachedQuery<T>('offer-list', { userId, page, limit, ...filters });
 }
@@ -163,7 +163,7 @@ export async function setCachedOfferList<T>(
   userId: number,
   page: number,
   limit: number,
-  filters: Record<string, any>,
+  filters: Record<string, unknown>,
   data: T
 ): Promise<void> {
   // Cache for 45 seconds

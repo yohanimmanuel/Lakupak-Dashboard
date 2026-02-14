@@ -27,11 +27,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   type DeliveryMethod = Order['deliveryMethod'];
+  const toDateInputValue = (d?: Date | string | null) => {
+    if (!d) return '';
+    const date = typeof d === 'string' ? new Date(d) : d;
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
+  const orderWithDuration = order as Order & { estimatedDeliveryMinDays?: number | null; estimatedDeliveryMaxDays?: number | null };
   const [formFields, setFormFields] = useState({
     deliveryAddress: order.deliveryAddress,
     contactPerson: order.contactPerson,
     contactPhone: order.contactPhone,
     preferredDeliveryTime: order.preferredDeliveryTime || '',
+    estimatedDeliveryDate: toDateInputValue(orderWithDuration.estimatedDeliveryDate),
+    estimatedDeliveryMinDays: orderWithDuration.estimatedDeliveryMinDays != null ? String(orderWithDuration.estimatedDeliveryMinDays) : '',
+    estimatedDeliveryMaxDays: orderWithDuration.estimatedDeliveryMaxDays != null ? String(orderWithDuration.estimatedDeliveryMaxDays) : '',
     deliveryNote: order.deliveryNote || '',
     assignedLogistics: order.assignedLogistics || '',
     trackingNumber: order.trackingNumber || '',
@@ -40,7 +50,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   });
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
-  
+  const [durationError, setDurationError] = useState<string | null>(null);
+
   // POD file upload handler
   const handlePodUpload = async (file: File) => {
     if (!file) return;
@@ -248,10 +259,44 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const highlightShipping = isPickupMethod || isScheduledMethod;
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
+  const requiredOrderFields = [
+    { name: 'Contact person', value: String(order.contactPerson || '').trim() },
+    { name: 'Contact phone', value: String(order.contactPhone || '').trim() },
+    { name: 'Delivery address', value: String(order.deliveryAddress || '').trim() },
+    { name: 'Delivery method', value: String(order.deliveryMethod || '').trim() },
+    { name: 'Estimated delivery', value: Boolean(orderWithDuration.estimatedDeliveryDate) || (typeof orderWithDuration.estimatedDeliveryMinDays === 'number' && typeof orderWithDuration.estimatedDeliveryMaxDays === 'number') },
+  ];
+  const completedOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? f.value : f.value !== '');
+  const orderCompletionPercentage = Math.round((completedOrderFields.length / requiredOrderFields.length) * 100);
+  const missingOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? !f.value : f.value === '');
 
   return (
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
+        {/* Order completion progress */}
+        <div className="mx-0 mt-0 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-800">Order information completion</h3>
+            <span className={`text-sm font-bold ${orderCompletionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
+              {orderCompletionPercentage}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-300 ${orderCompletionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'}`}
+              style={{ width: `${orderCompletionPercentage}%` }}
+            />
+          </div>
+          <div className="text-xs text-gray-600">
+            {completedOrderFields.length} of {requiredOrderFields.length} fields completed
+            {missingOrderFields.length > 0 && (
+              <span className="ml-2 text-amber-700">
+                • Missing: {missingOrderFields.map(f => f.name).join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <button
@@ -494,6 +539,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="text-sm font-semibold text-blue-800 mb-1">Delivery Service</div>
               <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || 'No delivery service assigned'}</div>
               <div className="text-xs space-y-2">
+                <div>
+                  <span className="text-blue-700">Estimated delivery:</span>
+                  <span className="ml-2 font-medium text-blue-900">
+                    {orderWithDuration.estimatedDeliveryDate
+                      ? new Date(orderWithDuration.estimatedDeliveryDate as string | Date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Not set'}
+                    {orderWithDuration.estimatedDeliveryMinDays != null && orderWithDuration.estimatedDeliveryMaxDays != null && (
+                      <span className="ml-1 text-blue-600">
+                        ({orderWithDuration.estimatedDeliveryMinDays}–{orderWithDuration.estimatedDeliveryMaxDays} days)
+                      </span>
+                    )}
+                  </span>
+                </div>
                 <div>
                   <span className="text-blue-700">Preferred Time:</span>
                   <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || 'No preferred delivery time'}</span>
@@ -1013,6 +1071,49 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   />
                 </div>
                 <div>
+                  <label className="text-xs text-gray-500">Estimated delivery date</label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
+                    value={formFields.estimatedDeliveryDate}
+                    onChange={(e) => setFormFields({ ...formFields, estimatedDeliveryDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Estimated delivery duration (days)</label>
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      min={0}
+                      max={365}
+                      placeholder="Min"
+                      className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formFields.estimatedDeliveryMinDays}
+                      onChange={(e) => {
+                        setFormFields({ ...formFields, estimatedDeliveryMinDays: e.target.value });
+                        setDurationError(null);
+                      }}
+                    />
+                    <span className="text-xs text-gray-500">to</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={365}
+                      placeholder="Max"
+                      className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formFields.estimatedDeliveryMaxDays}
+                      onChange={(e) => {
+                        setFormFields({ ...formFields, estimatedDeliveryMaxDays: e.target.value });
+                        setDurationError(null);
+                      }}
+                    />
+                    <span className="text-xs text-gray-500">days</span>
+                  </div>
+                  {durationError && (
+                    <p className="mt-1 text-xs text-red-600" role="alert">{durationError}</p>
+                  )}
+                </div>
+                <div>
                   <label className="text-xs text-gray-500">Delivery Method</label>
                   <select
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
@@ -1097,19 +1198,42 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
             <div className="p-4 border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setDurationError(null);
+                }}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={async () => {
+                  setDurationError(null);
+                  const minRaw = formFields.estimatedDeliveryMinDays === '' ? null : formFields.estimatedDeliveryMinDays;
+                  const maxRaw = formFields.estimatedDeliveryMaxDays === '' ? null : formFields.estimatedDeliveryMaxDays;
+                  const minNum = minRaw != null && minRaw !== '' ? Number(minRaw) : null;
+                  const maxNum = maxRaw != null && maxRaw !== '' ? Number(maxRaw) : null;
+
+                  if (minNum != null && maxNum != null && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum > maxNum) {
+                    setDurationError('Min days cannot be greater than max days. Please correct the values.');
+                    return;
+                  }
+                  const minInvalid = minRaw != null && minRaw !== '' && (minNum == null || Number.isNaN(minNum) || minNum < 0);
+                  const maxInvalid = maxRaw != null && maxRaw !== '' && (maxNum == null || Number.isNaN(maxNum) || maxNum < 0);
+                  if (minInvalid || maxInvalid) {
+                    setDurationError('Please enter valid non-negative numbers for min and max days.');
+                    return;
+                  }
+
                   const requestBody: Record<string, unknown> = {
                     orderId: order.orderId,
                     deliveryAddress: formFields.deliveryAddress,
                     contactPerson: formFields.contactPerson,
                     contactPhone: formFields.contactPhone,
                     preferredDeliveryTime: formFields.preferredDeliveryTime,
+                    estimatedDeliveryDate: formFields.estimatedDeliveryDate ? `${formFields.estimatedDeliveryDate}T12:00:00.000Z` : null,
+                    estimatedDeliveryMinDays: minNum,
+                    estimatedDeliveryMaxDays: maxNum,
                     deliveryNote: formFields.deliveryNote,
                     assignedLogistics: formFields.assignedLogistics,
                     trackingNumber: formFields.trackingNumber,
@@ -1127,7 +1251,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   });
                   if (response.ok) {
                     setShowEditModal(false);
-                    // Optional: refresh to reflect edits
+                    setDurationError(null);
                     window.location.reload();
                   }
                 }}

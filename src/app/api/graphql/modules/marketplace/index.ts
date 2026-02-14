@@ -147,6 +147,8 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     price: Float!
     free: Boolean!
     available: Boolean!
+    minDays: Int
+    maxDays: Int
   }
 
   type MarketplaceShippingInfo {
@@ -752,6 +754,16 @@ const fetchMarketplaceProducts = async (args: {
               pickupAddress: true,
               logo: true,
               bannerImage: true,
+              defaultDeliveryLeadTimeMinDays: true,
+              defaultDeliveryLeadTimeMaxDays: true,
+              expressShippingMinDays: true,
+              expressShippingMaxDays: true,
+              sameDayShippingMinDays: true,
+              sameDayShippingMaxDays: true,
+              nextDayShippingMinDays: true,
+              nextDayShippingMaxDays: true,
+              scheduledDeliveryMinDays: true,
+              scheduledDeliveryMaxDays: true,
             }
           }
         }
@@ -1105,41 +1117,66 @@ const fetchMarketplaceProducts = async (args: {
           bannerImage: product.user.company.bannerImage || null,
         } : undefined
       },
-      shipping: {
-        preferences: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences) : [],
-        standard: { 
-          price: product.user?.company?.baseShippingPrice ? parseMoney(product.user.company.baseShippingPrice) : 0, 
-          free: false,
-          available: true
-        },
-        express: { 
-          price: product.user?.company?.expressShippingPrice ? parseMoney(product.user.company.expressShippingPrice) : 0, 
-          free: false,
-          available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Express Shipping') : false
-        },
-        sameDay: { 
-          price: product.user?.company?.sameDayShippingPrice ? parseMoney(product.user.company.sameDayShippingPrice) : 0, 
-          free: false,
-          available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Same-day Delivery') : false
-        },
-        nextDay: { 
-          price: product.user?.company?.nextDayShippingPrice ? parseMoney(product.user.company.nextDayShippingPrice) : 0, 
-          free: false,
-          available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Next-day Delivery') : false
-        },
-        scheduled: {
-          price: product.user?.company?.scheduledDeliveryPrice != null 
-            ? parseMoney(product.user.company.scheduledDeliveryPrice) 
-            : (product.user?.company?.baseShippingPrice != null ? parseMoney(product.user.company.baseShippingPrice) : 0),
-          free: false,
-          available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Scheduled Delivery') : false
-        },
-        pickup: {
-          price: 0,
-          free: true,
-          available: product.user?.company?.shippingPreferences ? JSON.parse(product.user.company.shippingPreferences).includes('Pickup Available') : false
+      shipping: (() => {
+        const c = product.user?.company;
+        let prefs: string[] = [];
+        if (c?.shippingPreferences) {
+          try {
+            prefs = JSON.parse(c.shippingPreferences) as string[];
+          } catch {
+            // Malformed JSON - fall back to empty preferences
+            prefs = [];
+          }
         }
-      },
+        const num = (v: number | null | undefined) => (v != null && !Number.isNaN(Number(v)) ? Number(v) : null);
+        const stdMin = num(c?.defaultDeliveryLeadTimeMinDays) ?? 3;
+        const stdMax = num(c?.defaultDeliveryLeadTimeMaxDays) ?? 5;
+        return {
+          preferences: prefs,
+          standard: {
+            price: c?.baseShippingPrice ? parseMoney(c.baseShippingPrice) : 0,
+            free: false,
+            available: true,
+            minDays: stdMin,
+            maxDays: stdMax,
+          },
+          express: {
+            price: c?.expressShippingPrice ? parseMoney(c.expressShippingPrice) : 0,
+            free: false,
+            available: prefs.includes('Express Shipping'),
+            minDays: num(c?.expressShippingMinDays) ?? 1,
+            maxDays: num(c?.expressShippingMaxDays) ?? 2,
+          },
+          sameDay: {
+            price: c?.sameDayShippingPrice ? parseMoney(c.sameDayShippingPrice) : 0,
+            free: false,
+            available: prefs.includes('Same-day Delivery'),
+            minDays: num(c?.sameDayShippingMinDays) ?? 0,
+            maxDays: num(c?.sameDayShippingMaxDays) ?? 0,
+          },
+          nextDay: {
+            price: c?.nextDayShippingPrice ? parseMoney(c.nextDayShippingPrice) : 0,
+            free: false,
+            available: prefs.includes('Next-day Delivery'),
+            minDays: num(c?.nextDayShippingMinDays) ?? 1,
+            maxDays: num(c?.nextDayShippingMaxDays) ?? 1,
+          },
+          scheduled: {
+            price: c?.scheduledDeliveryPrice != null ? parseMoney(c.scheduledDeliveryPrice) : (c?.baseShippingPrice != null ? parseMoney(c.baseShippingPrice) : 0),
+            free: false,
+            available: prefs.includes('Scheduled Delivery'),
+            minDays: num(c?.scheduledDeliveryMinDays),
+            maxDays: num(c?.scheduledDeliveryMaxDays),
+          },
+          pickup: {
+            price: 0,
+            free: true,
+            available: prefs.includes('Pickup Available'),
+            minDays: null,
+            maxDays: null,
+          },
+        };
+      })(),
       shippingInfo: {
         location: 'Indonesia'
       },

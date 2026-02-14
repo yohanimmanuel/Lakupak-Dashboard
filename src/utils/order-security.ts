@@ -517,7 +517,28 @@ export const sanitizeOrderData = (data: unknown) => {
   if (orderData.acceptedAt !== undefined) {
     sanitized.acceptedAt = orderData.acceptedAt ? new Date(String(orderData.acceptedAt)) : null;
   }
-  
+
+  if (orderData.estimatedDeliveryDate !== undefined) {
+    const value = orderData.estimatedDeliveryDate;
+    if (value === null || String(value).trim().length === 0) {
+      sanitized.estimatedDeliveryDate = null;
+    } else {
+      sanitized.estimatedDeliveryDate = new Date(String(value));
+    }
+  }
+  if (orderData.estimatedDeliveryMinDays !== undefined) {
+    const n = orderData.estimatedDeliveryMinDays === null || orderData.estimatedDeliveryMinDays === '' ? null : Number(orderData.estimatedDeliveryMinDays);
+    sanitized.estimatedDeliveryMinDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
+  }
+  if (orderData.estimatedDeliveryMaxDays !== undefined) {
+    const n = orderData.estimatedDeliveryMaxDays === null || orderData.estimatedDeliveryMaxDays === '' ? null : Number(orderData.estimatedDeliveryMaxDays);
+    sanitized.estimatedDeliveryMaxDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
+  }
+  // Ecommerce best practice: ensure min <= max when both set
+  if (sanitized.estimatedDeliveryMinDays != null && sanitized.estimatedDeliveryMaxDays != null && sanitized.estimatedDeliveryMinDays > sanitized.estimatedDeliveryMaxDays) {
+    [sanitized.estimatedDeliveryMinDays, sanitized.estimatedDeliveryMaxDays] = [sanitized.estimatedDeliveryMaxDays, sanitized.estimatedDeliveryMinDays];
+  }
+
   // Order items (keep as JSON string)
   if (orderData.orderItems !== undefined) {
     sanitized.orderItems = typeof orderData.orderItems === 'string' ? orderData.orderItems : JSON.stringify(orderData.orderItems);
