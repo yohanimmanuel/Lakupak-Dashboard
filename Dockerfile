@@ -37,9 +37,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Production deps only; install prisma CLI (devDep) at same version as @prisma/client to avoid CLI/client mismatch
+# Production deps only; install prisma CLI (devDep) at same version as @prisma/client to avoid CLI/client mismatch; tsx to run WebSocket server
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev && npm install prisma@7.3.0 --no-save --ignore-scripts && npm cache clean --force
+RUN npm install --omit=dev && npm install prisma@7.3.0 tsx --no-save --ignore-scripts && npm cache clean --force
 
 # Copy built app and runtime assets from builder
 COPY --from=builder /app/.next          ./.next
@@ -51,6 +51,8 @@ COPY --from=builder /app/tsconfig.json  ./tsconfig.json
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/prisma.config.ts  ./prisma.config.ts
 COPY --from=builder /app/prisma        ./prisma
+# WebSocket server and its dependencies (standalone process on port 3001)
+COPY --from=builder /app/src           ./src
 
 # Generate Prisma client (DIRECT_URL not needed here; fallback in prisma.config.ts. Real DIRECT_URL from env_file at runtime for migrate deploy.)
 RUN npx prisma generate
@@ -61,7 +63,7 @@ RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3000 3001
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]

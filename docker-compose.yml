@@ -4,15 +4,19 @@ services:
       context: .
     ports:
       - "3000:3000"
+      - "3001:3001"
     env_file: .env
     # DATABASE_URL and DIRECT_URL come from .env (e.g. Supabase) so you can use existing users.
     # REDIS_URL comes from .env (e.g. Redis Cloud). For local Redis, run with --profile local and set REDIS_URL=redis://redis:6379 in .env or below.
     # To use the local Postgres container instead, set environment below and run: docker compose --profile local-db up
     # DB_SSL_REJECT_UNAUTHORIZED: allow Supabase TLS from inside Docker (Alpine CA store can reject Supabase cert chain)
+    # WS_PORT / NEXT_PUBLIC_WS_PORT: WebSocket server runs in same container on 3001; client uses this for real-time notifications.
     environment:
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       DB_SSL_REJECT_UNAUTHORIZED: "false"
+      WS_PORT: "3001"
+      NEXT_PUBLIC_WS_PORT: "3001"
     restart: unless-stopped
 
   postgres:
