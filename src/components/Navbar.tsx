@@ -537,7 +537,7 @@ const Navbar = () => {
                 </button>
               </div>
             </div>
-            <div className="max-h-[360px] overflow-y-auto">
+            <div className="max-h-[360px] overflow-y-auto hide-scrollbar">
               {isLoadingNotifications ? (
                 <div className="px-4 py-8 text-gray-500 text-xs text-center">Loading...</div>
               ) : notifications.length === 0 ? (
@@ -635,7 +635,7 @@ const Navbar = () => {
                     </button>
                   </div>
                 </div>
-                <div className="overflow-y-auto flex-1 min-h-0">
+                <div className="overflow-y-auto flex-1 min-h-0 hide-scrollbar">
                   {isLoadingAllNotifications ? (
                     <div className="px-4 py-8 text-gray-500 text-xs text-center">Loading...</div>
                   ) : allNotifications.length === 0 ? (

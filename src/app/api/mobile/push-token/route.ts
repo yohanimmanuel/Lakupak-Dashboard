@@ -70,19 +70,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // (3) Do not reassign an existing token to a different user
+    // (3) If token exists for another user, reassign to current user (same device, different account)
     const existing = await prisma.pushNotificationToken.findFirst({
       where: { token },
     });
 
     if (existing && existing.userId !== authUserId) {
-      return NextResponse.json(
-        { error: 'This push token is already registered to a different user' },
-        { status: 409 }
-      );
+      // Reassign token to the currently logged-in user so this device gets pushes for the active account
+      const pushToken = await prisma.pushNotificationToken.update({
+        where: { token },
+        data: {
+          userId: authUserId,
+          platform,
+          isActive: true,
+          updatedAt: new Date(),
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        pushToken: {
+          id: pushToken.id,
+          token: pushToken.token,
+          platform: pushToken.platform,
+        },
+      });
     }
 
-    // Update (same user) or create; never change userId on update
+    // Update (same user) or create
     const pushToken = await prisma.pushNotificationToken.upsert({
       where: { token },
       update: {
