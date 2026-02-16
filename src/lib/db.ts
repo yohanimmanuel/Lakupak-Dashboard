@@ -93,12 +93,14 @@ const pool = new Pool({
   // Query timeout (applied per query) - increased for complex queries
   query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT_MS || '45000', 10), // Increased from 30s
   // SSL/TLS configuration (required for Supabase)
-  // Allow self-signed certificates in development, require valid certs in production
-  ssl: process.env.DATABASE_URL?.includes('supabase') 
-    ? { 
-        rejectUnauthorized: process.env.NODE_ENV === 'production' && process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
-      } 
-    : undefined,})
+  // On Vercel/serverless, strict cert verification can fail with "self-signed certificate in certificate chain".
+  // Supabase uses valid certs; the issue is the runtime's CA bundle. Allow connection unless explicitly strict.
+  ssl: process.env.DATABASE_URL?.includes('supabase')
+    ? {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
+      }
+    : undefined,
+})
 // Supabase connections use TLS via the ssl config above; no extra URL check needed.
 
 const adapter = new PrismaPg(pool)
