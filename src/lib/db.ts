@@ -74,9 +74,16 @@ function getDbSecurityContext(): DbSecurityContext | undefined {
   return dbSecurityContext.getStore()
 }
 
+// Ensure PgBouncer-friendly URL (no prepared statement cache) when using pooler
+const rawDbUrl = process.env.DATABASE_URL ?? '';
+const connectionString =
+  rawDbUrl.includes('pgbouncer=true') && !rawDbUrl.includes('statement_cache_size')
+    ? `${rawDbUrl}${rawDbUrl.includes('?') ? '&' : '?'}statement_cache_size=0`
+    : rawDbUrl;
+
 // Connection pool configuration for production security
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   // Connection pool limits - optimized for better performance
   max: parseInt(process.env.DB_POOL_MAX || '30', 10), // Increased from 20 for better concurrency
   min: parseInt(process.env.DB_POOL_MIN || '5', 10), // Increased from 2 to keep connections ready
@@ -186,9 +193,11 @@ export const prisma = basePrisma.$extends({
           });
         }
         
-        // Log query errors
+        // Log query errors (full message for debugging connection/schema issues)
         if (process.env.NODE_ENV === 'production') {
+          const fullError = error instanceof Error ? (error.stack || error.message) : String(error);
           console.error(`[DB_QUERY_ERROR] ${model || 'unknown'}.${operation} failed after ${duration}ms:`, errorMessage);
+          console.error(`[DB_QUERY_ERROR_FULL]`, fullError);
         }
         
         throw error;

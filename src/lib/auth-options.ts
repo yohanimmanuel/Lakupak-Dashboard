@@ -37,10 +37,19 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.trim().toLowerCase();
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-          include: { company: true }
-        });
+        let user;
+        try {
+          user = await prisma.user.findUnique({
+            where: { email },
+            include: { company: true }
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const full = err instanceof Error ? (err.stack || msg) : String(err);
+          console.error("[NextAuth][authorize] User.findUnique failed:", msg);
+          console.error("[NextAuth][authorize] Full error:", full);
+          throw err;
+        }
 
         if (!user || !user.password) {
           return null;
