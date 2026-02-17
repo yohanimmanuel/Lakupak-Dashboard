@@ -1,15 +1,23 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { Search, Filter, Truck, Clock, MapPin, ChevronRight } from 'lucide-react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { Search, Truck, Clock, MapPin, ChevronRight, Filter, ChevronDown } from 'lucide-react';
 
 export type FleetStatus = 'In Transit' | 'Checking' | 'Delivered' | 'Delayed';
+
+// Order statuses from orders module
+export type OrderStatus = 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
+
+// Delivery types from distributor operations shipping options
+export type DeliveryType = 'Standard Shipping' | 'Express Shipping' | 'Same-day Delivery' | 'Next-day Delivery' | 'Scheduled Delivery' | 'Pickup Available';
 
 export interface FleetOrderSummary {
   id: string;
   orderCode: string;
   route: string;
   status: FleetStatus;
+  orderStatus?: OrderStatus; // Order status from orders module
+  deliveryType?: DeliveryType; // Delivery type from distributor shipping options
   distanceLeftKm: number;
   eta: string;
   lastUpdate: string;
@@ -20,6 +28,8 @@ interface OrderfleetListProps {
   fleets: FleetOrderSummary[];
   selectedFleetId?: string;
   onSelectFleet: (fleetId: string) => void;
+  /** Delivery types offered by the distributor (from company shipping options). Only these will show as filters. */
+  availableDeliveryTypes?: DeliveryType[];
 }
 
 const statusColors: Record<FleetStatus, string> = {
@@ -29,22 +39,79 @@ const statusColors: Record<FleetStatus, string> = {
   Delayed: 'bg-rose-100 text-rose-700',
 };
 
+const ALL_DELIVERY_TYPES: DeliveryType[] = [
+  'Standard Shipping',
+  'Express Shipping',
+  'Same-day Delivery',
+  'Next-day Delivery',
+  'Scheduled Delivery',
+  'Pickup Available',
+];
+
 export default function OrderfleetList({
   fleets,
   selectedFleetId,
   onSelectFleet,
+  availableDeliveryTypes = [],
 }: OrderfleetListProps) {
+  // Distributor options + always Standard Shipping (every distributor has it)
+  const deliveryTypesToShow = (() => {
+    const base =
+      availableDeliveryTypes.length > 0
+        ? availableDeliveryTypes.filter((t): t is DeliveryType => ALL_DELIVERY_TYPES.includes(t))
+        : [];
+    const withStandard =
+      base.includes('Standard Shipping') ? base : (['Standard Shipping', ...base] as DeliveryType[]);
+    return withStandard.length > 0 ? withStandard : (['Standard Shipping'] as DeliveryType[]);
+  })();
   const [search, setSearch] = useState('');
+  const [selectedOrderStatus, setSelectedOrderStatus] = useState<OrderStatus | null>(null);
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<DeliveryType | null>(null);
+  const [showOrderStatusDropdown, setShowOrderStatusDropdown] = useState(false);
+  const [showDeliveryTypeDropdown, setShowDeliveryTypeDropdown] = useState(false);
+  const orderStatusDropdownRef = useRef<HTMLDivElement>(null);
+  const deliveryTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (orderStatusDropdownRef.current && !orderStatusDropdownRef.current.contains(event.target as Node)) {
+        setShowOrderStatusDropdown(false);
+      }
+      if (deliveryTypeDropdownRef.current && !deliveryTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowDeliveryTypeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 
   const filteredFleets = useMemo(() => {
+    let result = fleets;
+
+    // Text search filter
     const q = search.trim().toLowerCase();
-    if (!q) return fleets;
-    return fleets.filter(f =>
-      f.orderCode.toLowerCase().includes(q) ||
-      f.route.toLowerCase().includes(q) ||
-      f.driverName.toLowerCase().includes(q),
-    );
-  }, [fleets, search]);
+    if (q) {
+      result = result.filter(f =>
+        f.orderCode.toLowerCase().includes(q) ||
+        f.route.toLowerCase().includes(q) ||
+        f.driverName.toLowerCase().includes(q),
+      );
+    }
+
+    // Order status filter
+    if (selectedOrderStatus) {
+      result = result.filter(f => f.orderStatus === selectedOrderStatus);
+    }
+
+    // Delivery type filter
+    if (selectedDeliveryType) {
+      result = result.filter(f => f.deliveryType === selectedDeliveryType);
+    }
+
+    return result;
+  }, [fleets, search, selectedOrderStatus, selectedDeliveryType]);
 
   // Only show the tail placeholder when the list is short enough that
   // additional vertical padding is helpful. For longer lists that scroll,
@@ -57,13 +124,6 @@ export default function OrderfleetList({
       <div className="flex flex-col gap-3 p-4 border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-gray-900">Active Fleets &amp; Deliveries</h2>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-medium text-[#0a61d7]"
-          >
-            <Filter className="h-3 w-3" />
-            Filters
-          </button>
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -76,6 +136,105 @@ export default function OrderfleetList({
               className="w-full rounded-lg border border-gray-200 bg-gray-50/80 px-9 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a61d7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/10"
             />
           </div>
+        </div>
+
+        {/* Filter dropdowns - same style as ProductTable */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Order Status Dropdown */}
+          <div className="relative" ref={orderStatusDropdownRef}>
+            <button
+              type="button"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              onClick={() => {
+                setShowOrderStatusDropdown(v => !v);
+                setShowDeliveryTypeDropdown(false);
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              {selectedOrderStatus ?? 'All statuses'}
+              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+            </button>
+            {showOrderStatusDropdown && (
+              <div className="absolute left-0 mt-2 min-w-[10rem] w-48 max-h-56 overflow-y-auto bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOrderStatus(null);
+                    setShowOrderStatusDropdown(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg hover:bg-gray-100 ${
+                    selectedOrderStatus === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                  }`}
+                >
+                  All statuses
+                </button>
+                {ORDER_STATUSES.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      setSelectedOrderStatus(status);
+                      setShowOrderStatusDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg hover:bg-gray-100 ${
+                      selectedOrderStatus === status ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Delivery Type Dropdown - only options the distributor offers */}
+          {deliveryTypesToShow.length > 0 && (
+            <div className="relative" ref={deliveryTypeDropdownRef}>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+                onClick={() => {
+                  setShowDeliveryTypeDropdown(v => !v);
+                  setShowOrderStatusDropdown(false);
+                }}
+              >
+                <Filter className="w-4 h-4" />
+                {selectedDeliveryType ?? 'All types'}
+                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              </button>
+              {showDeliveryTypeDropdown && (
+                <div className="absolute left-0 mt-2 min-w-[10rem] w-52 max-h-56 overflow-y-auto bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDeliveryType(null);
+                      setShowDeliveryTypeDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg hover:bg-gray-100 ${
+                      selectedDeliveryType === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                    }`}
+                  >
+                    All types
+                  </button>
+                  {deliveryTypesToShow.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeliveryType(type);
+                        setShowDeliveryTypeDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg hover:bg-gray-100 ${
+                        selectedDeliveryType === type ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

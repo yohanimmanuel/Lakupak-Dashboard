@@ -4,8 +4,19 @@ import React, { useMemo, useState } from 'react';
 import { RefreshCcw, Download, Plus } from 'lucide-react';
 import OrderfleetList, {
   type FleetOrderSummary,
+  type DeliveryType,
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
+import { useUserStore } from '@/store/userStore';
+
+const VALID_DELIVERY_TYPES: DeliveryType[] = [
+  'Standard Shipping',
+  'Express Shipping',
+  'Same-day Delivery',
+  'Next-day Delivery',
+  'Scheduled Delivery',
+  'Pickup Available',
+];
 
 const MOCK_FLEETS: FleetOrderSummary[] = [
   {
@@ -13,6 +24,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#AD345JK758',
     route: 'Warehouse Jakarta → Berastagi, North Sumatra',
     status: 'In Transit',
+    orderStatus: 'Shipped',
+    deliveryType: 'Standard Shipping',
     distanceLeftKm: 128.4,
     eta: 'Today, 4:15 PM',
     lastUpdate: '5 min ago',
@@ -23,6 +36,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#FR156KL89K',
     route: 'Bekasi → Bandung',
     status: 'Checking',
+    orderStatus: 'Packed',
+    deliveryType: 'Express Shipping',
     distanceLeftKm: 42.7,
     eta: 'Today, 2:30 PM',
     lastUpdate: '14 min ago',
@@ -33,6 +48,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#LN236NB89R',
     route: 'Surabaya → Sidoarjo',
     status: 'Delivered',
+    orderStatus: 'Delivered',
+    deliveryType: 'Standard Shipping',
     distanceLeftKm: 0,
     eta: 'Delivered 09:10 AM',
     lastUpdate: '1 hr ago',
@@ -43,6 +60,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#JK782PL190',
     route: 'Jakarta → Bogor',
     status: 'In Transit',
+    orderStatus: 'Shipped',
+    deliveryType: 'Same-day Delivery',
     distanceLeftKm: 18.9,
     eta: 'Today, 11:45 AM',
     lastUpdate: '2 min ago',
@@ -53,6 +72,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#BD562KL772',
     route: 'Bandung → Cimahi',
     status: 'Checking',
+    orderStatus: 'Confirmed',
+    deliveryType: 'Next-day Delivery',
     distanceLeftKm: 7.3,
     eta: 'Today, 12:05 PM',
     lastUpdate: '9 min ago',
@@ -63,6 +84,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#SB998HG210',
     route: 'Semarang → Solo',
     status: 'In Transit',
+    orderStatus: 'Shipped',
+    deliveryType: 'Standard Shipping',
     distanceLeftKm: 63.4,
     eta: 'Today, 5:20 PM',
     lastUpdate: '22 min ago',
@@ -73,6 +96,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#DP341MN562',
     route: 'Denpasar → Ubud',
     status: 'Delayed',
+    orderStatus: 'Shipped',
+    deliveryType: 'Scheduled Delivery',
     distanceLeftKm: 34.1,
     eta: 'Today, 6:45 PM',
     lastUpdate: '35 min ago',
@@ -83,6 +108,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#MD743QP881',
     route: 'Medan → Binjai',
     status: 'In Transit',
+    orderStatus: 'Shipped',
+    deliveryType: 'Express Shipping',
     distanceLeftKm: 21.6,
     eta: 'Today, 3:30 PM',
     lastUpdate: '17 min ago',
@@ -93,6 +120,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#PL293LK004',
     route: 'Palembang → Kayu Agung',
     status: 'Checking',
+    orderStatus: 'Packed',
+    deliveryType: 'Pickup Available',
     distanceLeftKm: 55.2,
     eta: 'Today, 7:10 PM',
     lastUpdate: '40 min ago',
@@ -103,6 +132,8 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     orderCode: '#MK881ZX220',
     route: 'Makassar → Gowa',
     status: 'In Transit',
+    orderStatus: 'Shipped',
+    deliveryType: 'Standard Shipping',
     distanceLeftKm: 11.8,
     eta: 'Today, 1:25 PM',
     lastUpdate: '6 min ago',
@@ -111,8 +142,28 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
 ];
 
 export default function LogisticsPage() {
+  const { user } = useUserStore();
   const [fleets] = useState<FleetOrderSummary[]>(MOCK_FLEETS);
   const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>(fleets[0]?.id);
+
+  const availableDeliveryTypes = useMemo((): DeliveryType[] => {
+    const raw = user?.company?.shippingPreferences;
+    let result: DeliveryType[] = [];
+    if (raw != null && raw !== '') {
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const arr = Array.isArray(parsed) ? parsed : [];
+        result = arr.filter((t: string): t is DeliveryType => VALID_DELIVERY_TYPES.includes(t as DeliveryType));
+      } catch {
+        result = [];
+      }
+    }
+    // Every distributor has Standard Shipping; always include it.
+    if (!result.includes('Standard Shipping')) {
+      result = ['Standard Shipping', ...result];
+    }
+    return result;
+  }, [user?.company?.shippingPreferences]);
 
   const selectedFleet = useMemo(
     () => fleets.find(f => f.id === selectedFleetId),
@@ -184,6 +235,7 @@ export default function LogisticsPage() {
           fleets={fleets}
           selectedFleetId={selectedFleetId}
           onSelectFleet={setSelectedFleetId}
+          availableDeliveryTypes={availableDeliveryTypes}
         />
         <FleetDetails fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
       </div>
