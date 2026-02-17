@@ -290,13 +290,13 @@ export default function MarketplacePerformance({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium   text-gray-600 uppercase">Product</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Views</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Cart</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Favorites</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Sold</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Sales</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase">Conv %</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Views</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cart</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Favorites</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Sold</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Sales</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Conv %</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -316,18 +316,18 @@ export default function MarketplacePerformance({
                             <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover rounded" />
                           )}
                         </div>
-                        <span className="text-sm font-medium text-gray-900 line-clamp-1">{product.name}</span>
+                        <span className="text-xs font-medium text-gray-900 line-clamp-1">{product.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">{product.views.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">{product.addedToCart.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">{product.favorites.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{product.sales.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-[#0a61d7]">
+                    <td className="px-4 py-3 text-right text-xs text-gray-900">{product.views.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-900">{product.addedToCart.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-900">{product.favorites.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{product.sales.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs font-semibold text-[#0a61d7]">
                       {formatCurrency(product.revenue, userCurrency)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className={`text-sm font-semibold ${convRate >= 3 ? 'text-green-600' : convRate >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <span className={`text-xs font-semibold ${convRate >= 3 ? 'text-green-600' : convRate >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {convRate.toFixed(1)}%
                       </span>
                     </td>

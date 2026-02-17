@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
 const mainMenuItems = [
@@ -48,6 +48,7 @@ const secondaryMenuItems = [
     icon: <StoreIcon className="w-5 h-5" />,
     href: '/marketplace',
   },
+  { label: 'Logistics', href: '/logistics', icon: <TruckIcon className="w-5 h-5" /> },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 
