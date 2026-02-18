@@ -141,6 +141,7 @@ export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsPr
                 <DetailRow label="Load" value={`${vehicle.loadPct}%`} />
                 <DetailRow label="Weight" value={vehicle.weight} />
                 <DetailRow label="Volume" value={vehicle.volume} />
+                <DetailRow label="Vehicle Type" value="20ft Container" />
               </div>
             </div>
           </div>
@@ -167,7 +168,7 @@ export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsPr
                 </h3>
                 <span className="text-xs text-gray-500">Live route preview</span>
               </div>
-              <div className="relative h-[399px] bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 flex items-center justify-center">
+              <div className="relative h-[415px] bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 flex items-center justify-center">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(14,116,144,0.12),transparent_50%),radial-gradient(circle_at_70%_70%,rgba(37,99,235,0.14),transparent_50%)]" />
                 <div className="relative z-10 text-center">
                   <Route className="w-12 h-12 text-[#0a61d7]/40 mx-auto mb-2" />

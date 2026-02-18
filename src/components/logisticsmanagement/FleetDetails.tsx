@@ -159,8 +159,7 @@ function VehicleTab() {
         <div className="flex flex-1 flex-col gap-1">
           <InfoRow label="Brand" value="Hyundai" />
           <InfoRow label="Model" value="Cargo Track HD320" />
-          <InfoRow label="Weight" value="7,260 kg" />
-          <InfoRow label="Load Volume" value="372.45 m³" />
+          <InfoRow label="Vehicle Type" value="20ft Container" />
         </div>
       </div>
     </div>

@@ -289,8 +289,7 @@ export default function OrderfleetList({
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
                           <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Completion {fleet.eta}
+                            {fleet.eta}
                           </span>
                           <span>{fleet.distanceLeftKm.toFixed(1)} km left</span>
                           <span className="truncate">Driver: {fleet.driverName}</span>
