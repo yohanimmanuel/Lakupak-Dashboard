@@ -50,7 +50,11 @@ export default function LogisticsDetailsPage() {
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="w-full mx-auto">
-        <OrderfleetDetails fleet={fleet} onBack={() => router.push('/logistics')} />
+        <OrderfleetDetails
+          fleet={fleet}
+          onBack={() => router.push('/logistics')}
+          onEdit={() => router.push(`/logistics/details/edit?id=${fleet.id}`)}
+        />
       </div>
     </div>
   );

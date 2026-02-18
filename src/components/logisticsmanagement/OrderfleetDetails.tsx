@@ -18,6 +18,7 @@ import {
   Calendar,
   Navigation2,
   ChevronRight,
+  Edit,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
@@ -26,6 +27,7 @@ import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 interface OrderfleetDetailsProps {
   fleet: FleetOrderSummary;
   onBack?: () => void;
+  onEdit?: () => void;
 }
 
 const deliveryStatusStyles: Record<FleetStatus, string> = {
@@ -47,7 +49,7 @@ function DetailRow({ label, value, icon: Icon }: { label: string; value: string;
   );
 }
 
-export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsProps) {
+export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetDetailsProps) {
   const router = useRouter();
 
   const handleBack = () => {
@@ -80,10 +82,21 @@ export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsPr
             Back to fleet list
           </button>
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">{fleet.orderCode}</h1>
-            <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${deliveryStatusStyles[fleet.status]}`}>
-              {fleet.status}
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold text-gray-900">{fleet.orderCode}</h1>
+              <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${deliveryStatusStyles[fleet.status]}`}>
+                {fleet.status}
+              </span>
+            </div>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
+              >
+                <Edit className="w-4 h-4" />
+                Edit details
+              </button>
+            )}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
             <MapPin className="h-4 w-4 text-gray-400" />

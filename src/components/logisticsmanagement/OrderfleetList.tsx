@@ -298,7 +298,7 @@ export default function OrderfleetList({
                         <span className="truncate">{fleet.route}</span>
                       </p>
                       {/* Bottom row: Courier, distance, truck image */}
-                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                      <div className="mt-3 flex items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
                             <User className="h-4 w-4" />
