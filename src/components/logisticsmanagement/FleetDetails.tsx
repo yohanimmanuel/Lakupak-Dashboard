@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, Layers, ChevronRight } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
+import TruckImageWithLoadBar from './TruckImageWithLoadBar';
+import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 
 interface FleetDetailsProps {
   fleet?: FleetOrderSummary;
@@ -32,29 +34,35 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
     <div className="flex h-full max-h-[calc(100vh+100px)] flex-col gap-3 rounded-lg bg-white border border-gray-200 p-4">
       {/* Header */}
       <div className="flex flex-shrink-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
             Fleet ID
           </p>
           <h2 className="text-lg font-semibold text-gray-900">{fleet.orderCode}</h2>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-            <MapPin className="h-3.5 w-3.5 text-gray-400" />
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             {fleet.route}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenTracking}
-          disabled={!onOpenTracking}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0851b8] transition-colors"
-        >
-          Open Details
-          <ExternalLink className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex flex-col items-end gap-1.5 sm:mt-6">
+          <button
+            type="button"
+            onClick={onOpenTracking}
+            disabled={!onOpenTracking}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0851b8] transition-colors"
+          >
+            Open Details
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+            Updated {fleet.lastUpdate}
+          </p>
+        </div>
       </div>
 
       {/* Map / route preview */}
-      <div className="relative h-[460px] flex-shrink-0 w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border border-blue-100/70">
+      <div className="relative h-[450px] flex-shrink-0 w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border border-blue-100/70">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.13),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(37,99,235,0.16),transparent_55%)]" />
         <div className="relative z-10 flex h-full flex-col justify-between p-4">
           <div className="flex items-center justify-end">
@@ -101,7 +109,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       {/* Tab Content - no scroll, content fits */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === 'order' && <OrderDetailsTab fleet={fleet} />}
-        {activeTab === 'vehicle' && <VehicleTab />}
+        {activeTab === 'vehicle' && <VehicleTab fleet={fleet} />}
         {activeTab === 'driver' && <DriverTab fleet={fleet} />}
         {activeTab === 'customer' && <CustomerTab fleet={fleet} onOpenDetails={onOpenTracking} />}
       </div>
@@ -145,21 +153,23 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
 }
 
 // Vehicle Tab - compact, no scroll
-function VehicleTab() {
+function VehicleTab({ fleet }: { fleet: FleetOrderSummary }) {
+  const vehicleType = fleet.vehicleType ?? '20ft_container';
+  const loadPct = fleet.loadPct ?? 71;
   return (
     <div className="py-4">
       <div className="flex items-center gap-4">
         <div className="flex flex-1 flex-col items-center">
-          <Truck className="mb-1 h-10 w-10 text-gray-400" />
-          <div className="h-2 w-full overflow-hidden rounded bg-gray-200">
-            <div className="h-full w-[71%] bg-[#0a61d7]" />
-          </div>
-          <span className="mt-1 text-xs font-semibold text-gray-900">71% Loaded</span>
+          <TruckImageWithLoadBar
+            vehicleType={vehicleType}
+            loadPct={loadPct}
+            className="max-w-[120px]"
+          />
         </div>
         <div className="flex flex-1 flex-col gap-1">
           <InfoRow label="Brand" value="Hyundai" />
           <InfoRow label="Model" value="Cargo Track HD320" />
-          <InfoRow label="Vehicle Type" value="20ft Container" />
+          <InfoRow label="Vehicle Type" value={getVehicleTypeInfo(vehicleType).label} />
         </div>
       </div>
     </div>
@@ -194,11 +204,11 @@ function CustomerTab({ fleet, onOpenDetails }: { fleet: FleetOrderSummary; onOpe
 
   return (
     <div className="flex h-full flex-col gap-1 py-1">
-      <p className="text-[11px] font-medium text-gray-500 mb-1">Customers with orders in this fleet (max 3)</p>
+      <p className="text-xs font-medium text-gray-500 mb-1">Customers with orders in this fleet (max 3)</p>
       <ul className="space-y-1">
         {displayCustomers.map((c, i) => (
           <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2">
-            <span className="min-w-0 truncate text-sm text-gray-900">
+            <span className="min-w-0 truncate text-xs text-gray-900">
               {c.storeName} <span className="text-gray-500">({c.contactName})</span>
             </span>
             <button

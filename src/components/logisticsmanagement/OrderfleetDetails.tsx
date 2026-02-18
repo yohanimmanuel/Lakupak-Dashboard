@@ -20,6 +20,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
+import TruckImageWithLoadBar from './TruckImageWithLoadBar';
+import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 
 interface OrderfleetDetailsProps {
   fleet: FleetOrderSummary;
@@ -62,7 +64,7 @@ export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsPr
     address: 'Jl. Raya Berastagi No. 123, North Sumatra',
     orderDate: '16 Feb 2026',
   };
-  const vehicle = { brand: 'Hyundai', model: 'Cargo Track HD320', loadPct: 71, weight: '7,260 kg', volume: '372.45 m³' };
+  const vehicle = { brand: 'Hyundai', model: 'Cargo Track HD320', loadPct: 71, weight: '7,260 kg', volume: '372.45 m³', vehicleType: '20ft_container' as const };
   const driver = { phone: '+62 812-3456-7890', license: 'SIM-A 123456789', experience: '5+ years' };
 
   return (
@@ -131,17 +133,19 @@ export default function OrderfleetDetails({ fleet, onBack }: OrderfleetDetailsPr
 
             {/* Vehicle card – grows to fill remaining left column height */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-1 min-h-0 flex flex-col">
-              <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+              <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                 <Truck className="w-4 h-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-900">Vehicle</h3>
+              </div>
+              <div className="flex-shrink-0 mb-4 flex justify-center">
+                <TruckImageWithLoadBar vehicleType={vehicle.vehicleType} loadPct={vehicle.loadPct} />
               </div>
               <div className="space-y-1 flex-shrink-0">
                 <DetailRow label="Brand" value={vehicle.brand} />
                 <DetailRow label="Model" value={vehicle.model} />
-                <DetailRow label="Load" value={`${vehicle.loadPct}%`} />
                 <DetailRow label="Weight" value={vehicle.weight} />
                 <DetailRow label="Volume" value={vehicle.volume} />
-                <DetailRow label="Vehicle Type" value="20ft Container" />
+                <DetailRow label="Vehicle Type" value={getVehicleTypeInfo(vehicle.vehicleType)?.label ?? '—'} />
               </div>
             </div>
           </div>
