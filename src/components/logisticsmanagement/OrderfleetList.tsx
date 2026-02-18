@@ -22,6 +22,8 @@ export interface FleetOrderSummary {
   eta: string;
   lastUpdate: string;
   driverName: string;
+  /** Total ordered items (line items or total quantity) */
+  totalItems?: number;
 }
 
 interface OrderfleetListProps {
@@ -65,17 +67,17 @@ export default function OrderfleetList({
     return withStandard.length > 0 ? withStandard : (['Standard Shipping'] as DeliveryType[]);
   })();
   const [search, setSearch] = useState('');
-  const [selectedOrderStatus, setSelectedOrderStatus] = useState<OrderStatus | null>(null);
+  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<FleetStatus | null>(null);
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<DeliveryType | null>(null);
-  const [showOrderStatusDropdown, setShowOrderStatusDropdown] = useState(false);
+  const [showDeliveryStatusDropdown, setShowDeliveryStatusDropdown] = useState(false);
   const [showDeliveryTypeDropdown, setShowDeliveryTypeDropdown] = useState(false);
-  const orderStatusDropdownRef = useRef<HTMLDivElement>(null);
+  const deliveryStatusDropdownRef = useRef<HTMLDivElement>(null);
   const deliveryTypeDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (orderStatusDropdownRef.current && !orderStatusDropdownRef.current.contains(event.target as Node)) {
-        setShowOrderStatusDropdown(false);
+      if (deliveryStatusDropdownRef.current && !deliveryStatusDropdownRef.current.contains(event.target as Node)) {
+        setShowDeliveryStatusDropdown(false);
       }
       if (deliveryTypeDropdownRef.current && !deliveryTypeDropdownRef.current.contains(event.target as Node)) {
         setShowDeliveryTypeDropdown(false);
@@ -85,7 +87,8 @@ export default function OrderfleetList({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
+  // Delivery status from logistics module (not order status)
+  const DELIVERY_STATUSES: FleetStatus[] = ['In Transit', 'Checking', 'Delivered', 'Delayed'];
 
   const filteredFleets = useMemo(() => {
     let result = fleets;
@@ -100,9 +103,9 @@ export default function OrderfleetList({
       );
     }
 
-    // Order status filter
-    if (selectedOrderStatus) {
-      result = result.filter(f => f.orderStatus === selectedOrderStatus);
+    // Delivery status filter (logistics status)
+    if (selectedDeliveryStatus) {
+      result = result.filter(f => f.status === selectedDeliveryStatus);
     }
 
     // Delivery type filter
@@ -111,7 +114,7 @@ export default function OrderfleetList({
     }
 
     return result;
-  }, [fleets, search, selectedOrderStatus, selectedDeliveryType]);
+  }, [fleets, search, selectedDeliveryStatus, selectedDeliveryType]);
 
   // Only show the tail placeholder when the list is short enough that
   // additional vertical padding is helpful. For longer lists that scroll,
@@ -140,44 +143,44 @@ export default function OrderfleetList({
 
         {/* Filter dropdowns - same style as ProductTable */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Order Status Dropdown */}
-          <div className="relative" ref={orderStatusDropdownRef}>
+          {/* Delivery Status Dropdown (logistics module status) */}
+          <div className="relative" ref={deliveryStatusDropdownRef}>
             <button
               type="button"
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
               onClick={() => {
-                setShowOrderStatusDropdown(v => !v);
+                setShowDeliveryStatusDropdown(v => !v);
                 setShowDeliveryTypeDropdown(false);
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedOrderStatus ?? 'All statuses'}
+              {selectedDeliveryStatus ?? 'All statuses'}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
-            {showOrderStatusDropdown && (
+            {showDeliveryStatusDropdown && (
               <div className="absolute left-0 mt-2 min-w-[10rem] w-48 max-h-56 overflow-y-auto bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedOrderStatus(null);
-                    setShowOrderStatusDropdown(false);
+                    setSelectedDeliveryStatus(null);
+                    setShowDeliveryStatusDropdown(false);
                   }}
                   className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg hover:bg-gray-100 ${
-                    selectedOrderStatus === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                    selectedDeliveryStatus === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                   }`}
                 >
                   All statuses
                 </button>
-                {ORDER_STATUSES.map((status) => (
+                {DELIVERY_STATUSES.map((status) => (
                   <button
                     key={status}
                     type="button"
                     onClick={() => {
-                      setSelectedOrderStatus(status);
-                      setShowOrderStatusDropdown(false);
+                      setSelectedDeliveryStatus(status);
+                      setShowDeliveryStatusDropdown(false);
                     }}
                     className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg hover:bg-gray-100 ${
-                      selectedOrderStatus === status ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
+                      selectedDeliveryStatus === status ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                     }`}
                   >
                     {status}
@@ -195,7 +198,7 @@ export default function OrderfleetList({
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => {
                   setShowDeliveryTypeDropdown(v => !v);
-                  setShowOrderStatusDropdown(false);
+                  setShowDeliveryStatusDropdown(false);
                 }}
               >
                 <Filter className="w-4 h-4" />

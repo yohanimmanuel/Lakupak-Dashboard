@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2 } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
@@ -24,6 +24,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeliveryMethodDropdown, setShowDeliveryMethodDropdown] = useState(false);
+  const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   type DeliveryMethod = Order['deliveryMethod'];
@@ -86,6 +88,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const orderDateDisplay = order.buyerId ? order.orderDate : (order.orderDateSnapshot || order.orderDate);
   const deliveryAddressDisplay = order.buyerId ? order.deliveryAddress : (order.deliveryAddressSnapshot || order.deliveryAddress);
 
+  // Buyer avatar from included buyer relation (API returns order with buyer: true)
+  const buyerAvatar = (order as OrderWithSnapshots & { buyer?: { avatar?: string | null } }).buyer?.avatar ?? null;
+
   useEffect(() => {
     const geocodeDeliveryAddress = async () => {
       if (!deliveryAddressDisplay) return;
@@ -106,6 +111,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
     geocodeDeliveryAddress();
   }, [deliveryAddressDisplay, mapboxToken]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deliveryMethodDropdownRef.current && !deliveryMethodDropdownRef.current.contains(event.target as Node)) {
+        setShowDeliveryMethodDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
    
   // Extract unique offer badges from order items
   const getOrderOfferBadges = () => {
@@ -417,8 +432,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Customer Information</h2>
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 bg-[#0a61d7] rounded-full flex items-center justify-center text-white text-xl font-bold">
-                <User className="w-8 h-8" />
+              <div className="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden bg-[#0a61d7] flex items-center justify-center text-white text-xl font-bold">
+                {buyerAvatar ? (
+                  <img src={buyerAvatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8" />
+                )}
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1113,17 +1132,37 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <p className="mt-1 text-xs text-red-600" role="alert">{durationError}</p>
                   )}
                 </div>
-                <div>
+                <div className="relative" ref={deliveryMethodDropdownRef}>
                   <label className="text-xs text-gray-500">Delivery Method</label>
-                  <select
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    value={formFields.deliveryMethod}
-                    onChange={(e) => setFormFields({ ...formFields, deliveryMethod: e.target.value as DeliveryMethod })}
+                  <button
+                    type="button"
+                    className="w-full mt-1 flex items-center justify-between gap-2 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-left"
+                    onClick={() => setShowDeliveryMethodDropdown((v) => !v)}
                   >
-                    <option value="Distributor Fleet">Distributor Fleet</option>
-                    <option value="3rd-Party Courier">3rd-Party Courier</option>
-                    <option value="Pickup">Pickup</option>
-                  </select>
+                    <span>{formFields.deliveryMethod}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                  </button>
+                  {showDeliveryMethodDropdown && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20 overflow-hidden">
+                      {(['Distributor Fleet', '3rd-Party Courier', 'Pickup'] as const).map((method) => (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => {
+                            setFormFields({ ...formFields, deliveryMethod: method });
+                            setShowDeliveryMethodDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-xs first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                            formFields.deliveryMethod === method
+                              ? 'bg-[#0a61d7] text-white font-medium'
+                              : 'text-black hover:bg-gray-100'
+                          }`}
+                        >
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-gray-500">Assigned Logistics</label>

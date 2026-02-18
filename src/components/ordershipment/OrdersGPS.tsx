@@ -110,7 +110,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
 
   return (
     <>
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-6">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Live Delivery Tracking</h3>
           <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
         
         {/* Map */}
         {isGeocoding && mapMarkers.length === 0 ? (
-          <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
+          <div className="bg-gray-100 rounded-lg h-[486px] flex items-center justify-center">
               <div className="text-center">
               <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-spin" />
               <p className="text-gray-500 font-medium">Loading map...</p>
@@ -143,7 +143,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
             accessToken={mapboxToken}
             markers={mapMarkers}
             center={mapCenter}
-            height="463px"
+            height="486px"
             showControls={true}
             onMarkerClick={handleMarkerClick}
           />

@@ -30,6 +30,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 4:15 PM',
     lastUpdate: '5 min ago',
     driverName: 'Andi Pratama',
+    totalItems: 8,
   },
   {
     id: '2',
@@ -42,6 +43,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 2:30 PM',
     lastUpdate: '14 min ago',
     driverName: 'Siti Rahma',
+    totalItems: 5,
   },
   {
     id: '3',
@@ -54,6 +56,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Delivered 09:10 AM',
     lastUpdate: '1 hr ago',
     driverName: 'Budi Santoso',
+    totalItems: 12,
   },
   {
     id: '4',
@@ -66,6 +69,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 11:45 AM',
     lastUpdate: '2 min ago',
     driverName: 'Rizky Mahendra',
+    totalItems: 3,
   },
   {
     id: '5',
@@ -78,6 +82,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 12:05 PM',
     lastUpdate: '9 min ago',
     driverName: 'Yuni Kartika',
+    totalItems: 7,
   },
   {
     id: '6',
@@ -90,6 +95,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 5:20 PM',
     lastUpdate: '22 min ago',
     driverName: 'Dedi Putra',
+    totalItems: 15,
   },
   {
     id: '7',
@@ -102,6 +108,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 6:45 PM',
     lastUpdate: '35 min ago',
     driverName: 'Made Surya',
+    totalItems: 4,
   },
   {
     id: '8',
@@ -114,6 +121,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 3:30 PM',
     lastUpdate: '17 min ago',
     driverName: 'Slamet Gunawan',
+    totalItems: 6,
   },
   {
     id: '9',
@@ -126,6 +134,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 7:10 PM',
     lastUpdate: '40 min ago',
     driverName: 'Nur Aisyah',
+    totalItems: 9,
   },
   {
     id: '10',
@@ -138,6 +147,7 @@ const MOCK_FLEETS: FleetOrderSummary[] = [
     eta: 'Today, 1:25 PM',
     lastUpdate: '6 min ago',
     driverName: 'Hasan Abdullah',
+    totalItems: 11,
   },
 ];
 
