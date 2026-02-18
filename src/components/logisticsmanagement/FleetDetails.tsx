@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, CreditCard, Layers } from 'lucide-react';
+import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, Layers, ChevronRight } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 
 interface FleetDetailsProps {
@@ -34,7 +34,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       <div className="flex flex-shrink-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-            Order ID
+            Fleet ID
           </p>
           <h2 className="text-lg font-semibold text-gray-900">{fleet.orderCode}</h2>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
@@ -54,7 +54,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       </div>
 
       {/* Map / route preview */}
-      <div className="relative h-[470px] flex-shrink-0 w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border border-blue-100/70">
+      <div className="relative h-[460px] flex-shrink-0 w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border border-blue-100/70">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.13),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(37,99,235,0.16),transparent_55%)]" />
         <div className="relative z-10 flex h-full flex-col justify-between p-4">
           <div className="flex items-center justify-end">
@@ -65,7 +65,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
           </div>
           <div className="flex items-center justify-end">
             <div className="space-y-1 text-right">
-              <p className="text-xs font-medium text-gray-700">Estimated arrival</p>
+              <p className="text-xs font-medium text-gray-700">Estimated delivery completion</p>
               <p className="text-lg font-semibold text-gray-900">{fleet.eta}</p>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
         {activeTab === 'order' && <OrderDetailsTab fleet={fleet} />}
         {activeTab === 'vehicle' && <VehicleTab />}
         {activeTab === 'driver' && <DriverTab fleet={fleet} />}
-        {activeTab === 'customer' && <CustomerTab />}
+        {activeTab === 'customer' && <CustomerTab fleet={fleet} onOpenDetails={onOpenTracking} />}
       </div>
     </div>
   );
@@ -133,13 +133,12 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
         </div>
       </div>
 
-      {/* Same-level details: ETA, Total Items, Delivery Type, Assigned Logistics, Payment Terms */}
+      {/* Same-level details: ETA, Total Orders, Delivery Type, Assigned Logistics, Payment Terms */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-        <InfoRowWithIcon icon={Clock} label="Estimated arrival" value={fleet.eta} />
-        <InfoRowWithIcon icon={Layers} label="Total Items" value={fleet.totalItems != null ? String(fleet.totalItems) : '—'} />
-        <InfoRowWithIcon icon={Package} label="Delivery Type" value={fleet.deliveryType ?? '—'} />
+        <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={fleet.eta} />
+        <InfoRowWithIcon icon={Layers} label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} />
+        <InfoRowWithIcon icon={Layers} label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} />
         <InfoRowWithIcon icon={Truck} label="Assigned Logistics" value="Distributor Fleet" />
-        <InfoRowWithIcon icon={CreditCard} label="Payment Terms" value="En route" className="col-span-2" />
       </div>
     </div>
   );
@@ -180,32 +179,40 @@ function DriverTab({ fleet }: { fleet: FleetOrderSummary }) {
   );
 }
 
-// Customer Information Tab - avatar + name like Driver used to have; fields match OrderDetails customer section
-function CustomerTab() {
-  const contactName = 'John Doe';
-  const storeName = 'PT. Berastagi Distribution';
-  const phone = '+62 812-9876-5432';
-  const email = 'contact@berastagidist.com';
-  const orderDate = new Date().toLocaleDateString();
-  const deliveryAddress = 'Jl. Raya Berastagi No. 123';
+// Customer Information Tab - list of customers with orders in this fleet; More goes to logistics details
+function CustomerTab({ fleet, onOpenDetails }: { fleet: FleetOrderSummary; onOpenDetails?: () => void }) {
+  const customers = fleet.customers ?? [];
+  const displayCustomers = customers.slice(0, 3);
+
+  if (displayCustomers.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center py-6 text-center">
+        <User className="h-10 w-10 text-gray-300 mb-2" />
+        <p className="text-sm text-gray-500">No customers in this fleet</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full flex-col gap-2">
-      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-2">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#0a61d7] text-white">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-gray-900">{storeName}</h3>
-          <p className="text-xs text-gray-500">{contactName}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        <InfoRow label="Phone" value={phone} />
-        <InfoRow label="Order Date" value={orderDate} />
-        <InfoRow label="Email" value={email} className="col-span-2"/>
-        <InfoRow label="Address" value={deliveryAddress} className="col-span-2"/>
-      </div>
+    <div className="flex h-full flex-col gap-1 py-1">
+      <p className="text-[11px] font-medium text-gray-500 mb-1">Customers with orders in this fleet (max 3)</p>
+      <ul className="space-y-1">
+        {displayCustomers.map((c, i) => (
+          <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2">
+            <span className="min-w-0 truncate text-sm text-gray-900">
+              {c.storeName} <span className="text-gray-500">({c.contactName})</span>
+            </span>
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg bg-[#0a61d7] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0851b8] transition-colors"
+            >
+              More
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

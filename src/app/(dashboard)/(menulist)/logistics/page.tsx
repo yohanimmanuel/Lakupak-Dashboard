@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus } from 'lucide-react';
 import OrderfleetList, {
   type FleetOrderSummary,
@@ -8,6 +9,7 @@ import OrderfleetList, {
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
+import { MOCK_FLEETS } from '@/data/logisticsMockFleets';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -18,140 +20,8 @@ const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Pickup Available',
 ];
 
-const MOCK_FLEETS: FleetOrderSummary[] = [
-  {
-    id: '1',
-    orderCode: '#AD345JK758',
-    route: 'Warehouse Jakarta → Berastagi, North Sumatra',
-    status: 'In Transit',
-    orderStatus: 'Shipped',
-    deliveryType: 'Standard Shipping',
-    distanceLeftKm: 128.4,
-    eta: 'Today, 4:15 PM',
-    lastUpdate: '5 min ago',
-    driverName: 'Andi Pratama',
-    totalItems: 8,
-  },
-  {
-    id: '2',
-    orderCode: '#FR156KL89K',
-    route: 'Bekasi → Bandung',
-    status: 'Checking',
-    orderStatus: 'Packed',
-    deliveryType: 'Express Shipping',
-    distanceLeftKm: 42.7,
-    eta: 'Today, 2:30 PM',
-    lastUpdate: '14 min ago',
-    driverName: 'Siti Rahma',
-    totalItems: 5,
-  },
-  {
-    id: '3',
-    orderCode: '#LN236NB89R',
-    route: 'Surabaya → Sidoarjo',
-    status: 'Delivered',
-    orderStatus: 'Delivered',
-    deliveryType: 'Standard Shipping',
-    distanceLeftKm: 0,
-    eta: 'Delivered 09:10 AM',
-    lastUpdate: '1 hr ago',
-    driverName: 'Budi Santoso',
-    totalItems: 12,
-  },
-  {
-    id: '4',
-    orderCode: '#JK782PL190',
-    route: 'Jakarta → Bogor',
-    status: 'In Transit',
-    orderStatus: 'Shipped',
-    deliveryType: 'Same-day Delivery',
-    distanceLeftKm: 18.9,
-    eta: 'Today, 11:45 AM',
-    lastUpdate: '2 min ago',
-    driverName: 'Rizky Mahendra',
-    totalItems: 3,
-  },
-  {
-    id: '5',
-    orderCode: '#BD562KL772',
-    route: 'Bandung → Cimahi',
-    status: 'Checking',
-    orderStatus: 'Confirmed',
-    deliveryType: 'Next-day Delivery',
-    distanceLeftKm: 7.3,
-    eta: 'Today, 12:05 PM',
-    lastUpdate: '9 min ago',
-    driverName: 'Yuni Kartika',
-    totalItems: 7,
-  },
-  {
-    id: '6',
-    orderCode: '#SB998HG210',
-    route: 'Semarang → Solo',
-    status: 'In Transit',
-    orderStatus: 'Shipped',
-    deliveryType: 'Standard Shipping',
-    distanceLeftKm: 63.4,
-    eta: 'Today, 5:20 PM',
-    lastUpdate: '22 min ago',
-    driverName: 'Dedi Putra',
-    totalItems: 15,
-  },
-  {
-    id: '7',
-    orderCode: '#DP341MN562',
-    route: 'Denpasar → Ubud',
-    status: 'Delayed',
-    orderStatus: 'Shipped',
-    deliveryType: 'Scheduled Delivery',
-    distanceLeftKm: 34.1,
-    eta: 'Today, 6:45 PM',
-    lastUpdate: '35 min ago',
-    driverName: 'Made Surya',
-    totalItems: 4,
-  },
-  {
-    id: '8',
-    orderCode: '#MD743QP881',
-    route: 'Medan → Binjai',
-    status: 'In Transit',
-    orderStatus: 'Shipped',
-    deliveryType: 'Express Shipping',
-    distanceLeftKm: 21.6,
-    eta: 'Today, 3:30 PM',
-    lastUpdate: '17 min ago',
-    driverName: 'Slamet Gunawan',
-    totalItems: 6,
-  },
-  {
-    id: '9',
-    orderCode: '#PL293LK004',
-    route: 'Palembang → Kayu Agung',
-    status: 'Checking',
-    orderStatus: 'Packed',
-    deliveryType: 'Pickup Available',
-    distanceLeftKm: 55.2,
-    eta: 'Today, 7:10 PM',
-    lastUpdate: '40 min ago',
-    driverName: 'Nur Aisyah',
-    totalItems: 9,
-  },
-  {
-    id: '10',
-    orderCode: '#MK881ZX220',
-    route: 'Makassar → Gowa',
-    status: 'In Transit',
-    orderStatus: 'Shipped',
-    deliveryType: 'Standard Shipping',
-    distanceLeftKm: 11.8,
-    eta: 'Today, 1:25 PM',
-    lastUpdate: '6 min ago',
-    driverName: 'Hasan Abdullah',
-    totalItems: 11,
-  },
-];
-
 export default function LogisticsPage() {
+  const router = useRouter();
   const { user } = useUserStore();
   const [fleets] = useState<FleetOrderSummary[]>(MOCK_FLEETS);
   const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>(fleets[0]?.id);
@@ -193,7 +63,7 @@ export default function LogisticsPage() {
   };
 
   const handleOpenTracking = () => {
-    // TODO: Route to full tracking page when implemented
+    if (selectedFleetId) router.push(`/logistics/details?id=${selectedFleetId}`);
   };
 
   return (

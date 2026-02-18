@@ -147,11 +147,11 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column - Profile Summary */}
-          <div className="lg:col-span-1 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch">
+          {/* Left Column - Profile Summary; fill height to match right column */}
+          <div className="lg:col-span-1 flex flex-col gap-4 min-h-0">
           {/* Profile Card */}
-          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-shrink-0">
             {/* Profile Header */}
             <div className="flex flex-col items-center pb-4 border-b border-gray-200">
               <div className="relative mb-4">
@@ -245,15 +245,15 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             </div>
           </div>
 
-          {/* Favourite Products to be Sold - Separate Section */}
-          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <div className="flex items-center justify-between mb-4">
+          {/* Favourite Products to be Sold - grows to fill remaining left column height */}
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-900">Favourite Product to be Sold</h3>
               </div>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 flex-shrink-0">
               {favoriteProducts.length > 0 ? (
                 favoriteProducts.map((product) => (
                   <div key={product.productId} className="border border-[#e6e6e6] rounded-lg p-3 hover:bg-gray-50 transition-colors">
@@ -294,7 +294,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
         </div>
 
         {/* Right Column - Detailed Information */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
           {/* About Section */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="flex items-center justify-between mb-4">

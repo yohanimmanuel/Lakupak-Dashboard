@@ -22,8 +22,12 @@ export interface FleetOrderSummary {
   eta: string;
   lastUpdate: string;
   driverName: string;
-  /** Total ordered items (line items or total quantity) */
-  totalItems?: number;
+  /** Total orders (from different customers) delivered in this fleet */
+  totalOrders?: number;
+  /** Number of deliveries completed so far in this fleet run */
+  deliveriesCompleted?: number;
+  /** Customers (stores) with orders in this fleet */
+  customers?: { storeName: string; contactName: string }[];
 }
 
 interface OrderfleetListProps {
@@ -134,8 +138,8 @@ export default function OrderfleetList({
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search order ID, route, or driver"
-              aria-label="Search orders by ID, route, or driver"
+              placeholder="Search fleet ID, route, or driver"
+              aria-label="Search fleets by ID, route, or driver"
               className="w-full rounded-lg border border-gray-200 bg-gray-50/80 px-9 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a61d7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/10"
             />
           </div>
@@ -271,7 +275,7 @@ export default function OrderfleetList({
                       <div className="flex min-w-0 flex-1 flex-col gap-1">
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-sm font-semibold text-gray-900">
-                            Order ID: {fleet.orderCode}
+                            Fleet ID: {fleet.orderCode}
                           </p>
                           <span
                             className={`inline-flex flex-shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusColors[fleet.status]}`}
@@ -286,7 +290,7 @@ export default function OrderfleetList({
                         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
                           <span className="inline-flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            ETA {fleet.eta}
+                            Completion {fleet.eta}
                           </span>
                           <span>{fleet.distanceLeftKm.toFixed(1)} km left</span>
                           <span className="truncate">Driver: {fleet.driverName}</span>
