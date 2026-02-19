@@ -1,3 +1,4 @@
+import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 
@@ -237,7 +238,7 @@ export const logisticsResolvers = {
       const { userId, page = 1, limit = 50, status, deliveryType, search } = args;
       const { page: p, limit: l } = sanitizePagination(page, limit, 100);
 
-      const where: { userId: number; status?: string; deliveryType?: string; OR?: unknown[] } = {
+      const where: Prisma.FleetWhereInput = {
         userId,
       };
       if (status && status.trim()) where.status = status.trim();
@@ -347,9 +348,15 @@ export const logisticsResolvers = {
           ...(input.paymentTerms !== undefined && { paymentTerms: input.paymentTerms as string }),
           ...(input.totalOrders !== undefined && { totalOrders: input.totalOrders as number }),
           ...(input.deliveriesCompleted !== undefined && { deliveriesCompleted: input.deliveriesCompleted as number }),
-          ...(input.assignedOrderIds !== undefined && { assignedOrderIds: input.assignedOrderIds }),
-          ...(input.completedOrderIds !== undefined && { completedOrderIds: input.completedOrderIds }),
-          ...(input.customers !== undefined && { customers: input.customers }),
+          ...(input.assignedOrderIds !== undefined && {
+            assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue,
+          }),
+          ...(input.completedOrderIds !== undefined && {
+            completedOrderIds: input.completedOrderIds as Prisma.InputJsonValue,
+          }),
+          ...(input.customers !== undefined && {
+            customers: input.customers as Prisma.InputJsonValue,
+          }),
         },
       });
       return mapFleet(row);
