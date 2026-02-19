@@ -92,6 +92,7 @@ export const contactsTypeDefs = /* GraphQL */ `
       search: String
       status: String
       businessType: String
+      storeNames: [String]
     ): BuyerConnection!
 
     buyer(userId: Int!, id: String!): Buyer
@@ -247,8 +248,9 @@ const fetchBuyersConnection = async (args: {
   search?: string | null;
   status?: string | null;
   businessType?: string | null;
+  storeNames?: string[] | null;
 }) => {
-  const { userId, page = 1, limit = 50, search, status, businessType } = args;
+  const { userId, page = 1, limit = 50, search, status, businessType, storeNames } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
 
   const whereClause: Record<string, unknown> = { userId };
@@ -260,6 +262,10 @@ const fetchBuyersConnection = async (args: {
       { email: { contains: search, mode: 'insensitive' } },
       { address: { contains: search, mode: 'insensitive' } },
     ];
+  }
+
+  if (storeNames != null && storeNames.length > 0) {
+    whereClause.storeName = { in: storeNames };
   }
 
   if (status && status !== 'All') {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus } from 'lucide-react';
 import OrderfleetList, {
@@ -9,7 +9,7 @@ import OrderfleetList, {
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
-import { getFleets } from '@/data/logisticsFleetsStorage';
+import { fetchFleets } from '@/data/logisticsFleetsApi';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -25,10 +25,32 @@ export default function LogisticsPage() {
   const { user } = useUserStore();
   const [fleets, setFleets] = useState<FleetOrderSummary[]>([]);
   const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFleets = useCallback(async () => {
+    const uid = user?.id;
+    if (uid == null || typeof uid !== 'number') {
+      setFleets([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchFleets(uid);
+      setFleets(result?.nodes ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load fleets');
+      setFleets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    setFleets(getFleets());
-  }, []);
+    loadFleets();
+  }, [loadFleets]);
 
   useEffect(() => {
     if (fleets.length > 0 && !selectedFleetId) {
@@ -61,7 +83,7 @@ export default function LogisticsPage() {
   );
 
   const handleRefresh = () => {
-    setFleets(getFleets());
+    loadFleets();
   };
 
   const handleExport = () => {
@@ -119,14 +141,26 @@ export default function LogisticsPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Main content: list + details/tracking */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <OrderfleetList
-          fleets={fleets}
-          selectedFleetId={selectedFleetId}
-          onSelectFleet={setSelectedFleetId}
-          availableDeliveryTypes={availableDeliveryTypes}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-gray-500">
+            Loading fleets...
+          </div>
+        ) : (
+          <OrderfleetList
+            fleets={fleets}
+            selectedFleetId={selectedFleetId}
+            onSelectFleet={setSelectedFleetId}
+            availableDeliveryTypes={availableDeliveryTypes}
+          />
+        )}
         <FleetDetails fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
       </div>
     </div>

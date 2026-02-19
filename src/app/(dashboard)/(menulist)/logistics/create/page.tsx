@@ -9,7 +9,8 @@ import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
 import FleetOrderSelection, { type AssignedOrder } from '@/components/logisticsmanagement/FleetOrderSelection';
 import FleetTripSummaryModal from '@/components/logisticsmanagement/FleetTripSummaryModal';
 import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
-import { addFleet } from '@/data/logisticsFleetsStorage';
+import { createFleet } from '@/data/logisticsFleetsApi';
+import { useUserStore } from '@/store/userStore';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
 
@@ -18,10 +19,6 @@ interface Tab {
   label: string;
   icon: React.ReactNode;
   description: string;
-}
-
-function generateId(): string {
-  return String(Date.now());
 }
 
 function generateFleetCode(): string {
@@ -61,6 +58,7 @@ export interface FleetFormData {
 
 export default function CreateFleetPage() {
   const router = useRouter();
+  const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabId>('basic');
   const [isCreating, setIsCreating] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -123,19 +121,26 @@ export default function CreateFleetPage() {
     );
 
   const isReadyToCreate = validateForm();
+  const canOpenSummary = isReadyToCreate && user?.id != null;
 
-  const performCreate = () => {
+  const performCreate = async () => {
+    if (user?.id == null) {
+      setShowSummaryModal(false);
+      alert('Please sign in to create a fleet.');
+      return;
+    }
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
-    const fleet: FleetOrderSummary = {
-      id: generateId(),
-      orderCode: fleetCode,
+    const input = {
+      fleetCode,
       route,
-      status: formData.status!,
-      deliveryType: formData.deliveryType!,
+      routeFrom: formData.routeFrom,
+      routeTo: formData.routeTo,
+      status: formData.status ?? 'In Transit',
+      deliveryType: formData.deliveryType,
       eta,
       lastUpdate: 'Just now',
-      driverName: formData.driverName!,
+      driverName: formData.driverName ?? '',
       totalOrders: formData.assignedOrders?.length ?? 0,
       deliveriesCompleted: formData.completedOrderIds?.length ?? 0,
       completedOrderIds: formData.completedOrderIds ?? [],
@@ -153,11 +158,20 @@ export default function CreateFleetPage() {
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
     };
-    addFleet(fleet);
-    router.push('/logistics');
+    const created = await createFleet(user.id, input);
+    if (created == null || created.id == null || created.id === '') {
+      console.error('createFleet did not return a valid fleet with id', { created, createFleet: createFleet.name });
+      alert('Failed to create fleet: no fleet ID returned. Please try again.');
+      return;
+    }
+    router.push(`/logistics/details?id=${created.id}`);
   };
 
   const handleOpenSummary = () => {
+    if (user?.id == null) {
+      alert('Please sign in to create a fleet.');
+      return;
+    }
     if (!isReadyToCreate) {
       alert('Please complete all required fields before creating.');
       return;
@@ -165,10 +179,10 @@ export default function CreateFleetPage() {
     setShowSummaryModal(true);
   };
 
-  const handleModalSubmit = () => {
+  const handleModalSubmit = async () => {
     setIsCreating(true);
     try {
-      performCreate();
+      await performCreate();
     } catch (error) {
       console.error('Error creating fleet:', error);
       alert('Failed to create fleet. Please try again.');
@@ -267,9 +281,9 @@ export default function CreateFleetPage() {
         </div>
         <button
           onClick={handleOpenSummary}
-          disabled={!isReadyToCreate}
+          disabled={!canOpenSummary}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition text-sm ${
-            isReadyToCreate ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            canOpenSummary ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
           <CheckCircle className="w-4 h-4" />

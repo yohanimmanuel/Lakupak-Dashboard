@@ -810,7 +810,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                           .slice(0, 2);
                       };
                       return (
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {avatar ? (
                             <img 
                               src={avatar} 
@@ -1031,7 +1031,7 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
             </div>
             
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-10 h-10 bg-gray-200 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {(() => {
                   const originalBuyer = buyers.find(b => b.id === buyer.id);
                   const avatar = originalBuyer?.avatar;

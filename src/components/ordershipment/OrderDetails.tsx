@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderCalculations';
@@ -427,12 +428,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
         </div>
 
-                {/* Row 1: Full Width Customer Information */}
+        {/* Row 1: Full Width Customer Information */}
         <div className="w-full mb-4">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">Customer Information</h2>
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden bg-[#0a61d7] flex items-center justify-center text-white text-xl font-bold">
+              <div className="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden border-4 border-gray-300 bg-[#0a61d7] flex items-center justify-center text-white text-xl font-bold">
                 {buyerAvatar ? (
                   <img src={buyerAvatar} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -440,15 +441,18 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-md font-semibold text-gray-900 flex flex-wrap items-center gap-3">
                   {contactPersonDisplay}
-                  <span
-                    className="ml-2 text-[#0a61d7] text-sm font-semibold cursor-pointer hover:text-blue-800"
-                    title="View buyer profile"
-                    onClick={() => { if (buyerIdDisplay) window.location.href = buyerHref; }}
-                  >
-                    ({buyerIdDisplay})
-                  </span>
+                  {buyerIdDisplay && (
+                    <Link
+                      href={buyerHref}
+                      className="text-[#0a61d7] text-xs font-semibold hover:text-blue-800 flex items-center gap-1"
+                      title="View buyer profile"
+                    >
+                      View buyer profile
+                      <ArrowRight className="w-4 h-4" aria-hidden />
+                    </Link>
+                  )}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-xs">
                   <div className="space-y-2">
@@ -702,20 +706,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   {/* Item Details */}
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 
-                        className="text-xs font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
-                        onClick={() => {
-                          const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
-                          window.location.href = href;
-                        }}
-                        title="Click to view product details"
-                      >
-                        <div className="flex flex-col">
-                          <span>{item.productName}</span>
-                          {item.variantNameSnapshot && (
-                            <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
-                          )}
-                        </div>
+                      <h3 className="text-xs font-semibold transition-colors">
+                        <Link
+                          href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
+                          className="text-[#0a61d7] hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
+                          title="Click to view product details"
+                        >
+                          <span className="flex flex-col">
+                            <span>{item.productName}</span>
+                            {item.variantNameSnapshot && (
+                              <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
+                            )}
+                          </span>
+                        </Link>
                       </h3>
                       
                     </div>
@@ -848,21 +851,18 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   {currentEarningsItems.map((item, index) => (
                     <tr key={index} className="border-b border-[#e6e6e6]">
                       <td className="py-2">
-                        <span 
-                          className="font-semibold text-[#0a61d7] hover:text-blue-800 cursor-pointer transition-colors"
-                          onClick={() => {
-                            const href = item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`;
-                            window.location.href = href;
-                          }}
+                        <Link
+                          href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
+                          className="font-semibold text-[#0a61d7] hover:text-blue-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
                           title="Click to view product details"
                         >
-                          <div className="flex flex-col">
+                          <span className="flex flex-col">
                             <span>{item.productName}</span>
                             {item.variantNameSnapshot && (
                               <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
                             )}
-                          </div>
-                        </span>
+                          </span>
+                        </Link>
                       </td>
                       <td className="py-2">{item.packageType || 'Package'}</td>
                       <td className="py-2">{item.piecesPerPackage || 1}</td>
@@ -907,7 +907,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </table>
             </div>
 
-                          {/* Pagination Controls */}
+            {/* Pagination Controls */}
               {totalEarningsPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-4">
                   <button
@@ -960,17 +960,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     
                     {/* Item Details */}
                     <div className="flex-1">
-                      <h3 
-                        className="text-base font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                        onClick={() => window.location.href = `/products/catalog/${item.productId}`}
-                        title="Click to view product details"
-                      >
-                        <div className="flex flex-col">
-                          <span>{item.productName}</span>
-                          {item.variantNameSnapshot && (
-                            <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
-                          )}
-                        </div>
+                      <h3 className="text-base font-medium transition-colors">
+                        <Link
+                          href={`/products/catalog/${item.productId}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
+                          title="Click to view product details"
+                        >
+                          <span className="flex flex-col">
+                            <span>{item.productName}</span>
+                            {item.variantNameSnapshot && (
+                              <span className="text-gray-600 text-xs mt-0.5 font-normal">{item.variantNameSnapshot}</span>
+                            )}
+                          </span>
+                        </Link>
                       </h3>
                       {/* Removed SKU label per requirements */}
                       

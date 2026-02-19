@@ -7,9 +7,10 @@ import FleetBasicInfo from '@/components/logisticsmanagement/FleetBasicInfo';
 import FleetVehicleInfo from '@/components/logisticsmanagement/FleetVehicleInfo';
 import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
 import FleetOrderSelection, { type AssignedOrder } from '@/components/logisticsmanagement/FleetOrderSelection';
-import FleetTripSummaryModal from '@/components/logisticsmanagement/FleetTripSummaryModal';
+import FleetTripSummaryModal, { type FleetTripSummaryData } from '@/components/logisticsmanagement/FleetTripSummaryModal';
 import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
-import { getFleets, updateFleet } from '@/data/logisticsFleetsStorage';
+import { fetchFleet, updateFleet } from '@/data/logisticsFleetsApi';
+import { useUserStore } from '@/store/userStore';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
 
@@ -72,6 +73,7 @@ function parseEta(eta: string): { date: string; time: string } {
 export default function EditFleetPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUserStore();
   const fleetId = searchParams?.get('id') ?? null;
 
   const [activeTab, setActiveTab] = useState<TabId>('basic');
@@ -102,55 +104,71 @@ export default function EditFleetPage() {
   ];
 
   useEffect(() => {
-    if (!fleetId) {
-      router.push('/logistics');
+    if (!fleetId || user?.id == null) {
+      if (!fleetId) router.push('/logistics');
+      setLoading(false);
       return;
     }
-
-    const fleets = getFleets();
-    const fleet = fleets.find((f) => f.id === fleetId);
-    if (!fleet) {
-      alert('Fleet not found');
-      router.push('/logistics');
-      return;
-    }
-
-    const { from, to } = parseRoute(fleet.route);
-    const { date, time } = parseEta(fleet.eta);
-
-    setFormData({
-      orderCode: fleet.orderCode,
-      routeFrom: from,
-      routeTo: to,
-      route: fleet.route,
-      status: fleet.status,
-      deliveryType: fleet.deliveryType ?? 'Standard Shipping',
-      etaDate: date || undefined,
-      etaTime: time || undefined,
-      eta: fleet.eta,
-      paymentTerms: fleet.paymentTerms ?? 'En route',
-      vehicleType: fleet.vehicleType ?? '20ft_container',
-      vehicleBrand: fleet.vehicleBrand,
-      vehicleModel: fleet.vehicleModel,
-      vehicleMaxWeight: typeof fleet.vehicleMaxWeight === 'number' ? fleet.vehicleMaxWeight : (typeof fleet.vehicleMaxWeight === 'string' ? parseFloat(String(fleet.vehicleMaxWeight).replace(/[^0-9.-]/g, '')) || undefined : undefined),
-      vehicleMaxVolume: typeof fleet.vehicleMaxVolume === 'number' ? fleet.vehicleMaxVolume : (typeof fleet.vehicleMaxVolume === 'string' ? parseFloat(String(fleet.vehicleMaxVolume).replace(/[^0-9.-]/g, '')) || undefined : undefined),
-      loadPct: fleet.loadPct ?? 0,
-      driverName: fleet.driverName,
-      driverPhone: fleet.driverPhone,
-      driverExperience: fleet.driverExperience,
-      driverStatus: fleet.driverStatus,
-      driverAvatar: fleet.driverAvatar,
-      completedOrderIds: fleet.completedOrderIds ?? [],
-      assignedOrders:
-        fleet.customers?.map((c, i) => ({
-          orderId: fleet.assignedOrderIds?.[i] ?? `ORD-${i + 1}`,
-          storeName: c.storeName,
-          totalAmount: 0,
-          orderStatus: '',
-        })) ?? [],
-    });
-    setLoading(false);
-  }, [fleetId, router]);
+    let cancelled = false;
+    fetchFleet(user.id, fleetId)
+      .then((fleet) => {
+        if (cancelled) return;
+        if (!fleet) {
+          alert('Fleet not found');
+          router.push('/logistics');
+          return;
+        }
+        const { from, to } = parseRoute(fleet.route);
+        const { date, time } = parseEta(fleet.eta);
+        setFormData({
+          orderCode: fleet.orderCode,
+          routeFrom: from,
+          routeTo: to,
+          route: fleet.route,
+          status: fleet.status,
+          deliveryType: fleet.deliveryType ?? 'Standard Shipping',
+          etaDate: date || undefined,
+          etaTime: time || undefined,
+          eta: fleet.eta,
+          paymentTerms: fleet.paymentTerms ?? 'En route',
+          vehicleType: fleet.vehicleType ?? '20ft_container',
+          vehicleBrand: fleet.vehicleBrand,
+          vehicleModel: fleet.vehicleModel,
+          vehicleMaxWeight: typeof fleet.vehicleMaxWeight === 'number' ? fleet.vehicleMaxWeight : (typeof fleet.vehicleMaxWeight === 'string' ? parseFloat(String(fleet.vehicleMaxWeight).replace(/[^0-9.-]/g, '')) || undefined : undefined),
+          vehicleMaxVolume: typeof fleet.vehicleMaxVolume === 'number' ? fleet.vehicleMaxVolume : (typeof fleet.vehicleMaxVolume === 'string' ? parseFloat(String(fleet.vehicleMaxVolume).replace(/[^0-9.-]/g, '')) || undefined : undefined),
+          loadPct: fleet.loadPct ?? 0,
+          driverName: fleet.driverName,
+          driverPhone: fleet.driverPhone,
+          driverExperience: fleet.driverExperience,
+          driverStatus: fleet.driverStatus,
+          driverAvatar: fleet.driverAvatar,
+          completedOrderIds: fleet.completedOrderIds ?? [],
+          assignedOrders: (() => {
+            const orderIds = fleet.assignedOrderIds ?? [];
+            const customers = fleet.customers ?? [];
+            return orderIds.map((orderId, i) => {
+              const customer = customers[i];
+              return {
+                orderId: orderId ?? `ORD-${i + 1}`,
+                storeName: customer?.storeName ?? '',
+                totalAmount: 0,
+                orderStatus: '',
+              };
+            });
+          })(),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          alert('Failed to load fleet');
+          router.push('/logistics');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [fleetId, user?.id, router]);
 
   const handleFormChange = useCallback((updates: Partial<FleetFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -187,12 +205,11 @@ export default function EditFleetPage() {
 
   const isReadyToSave = validateForm();
 
-  const performSave = () => {
-    if (!fleetId) return;
+  const performSave = async () => {
+    if (!fleetId || user?.id == null) return;
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
-    updateFleet(fleetId, {
-      orderCode: formData.orderCode,
+    const input = {
       route,
       status: formData.status,
       deliveryType: formData.deliveryType,
@@ -215,7 +232,8 @@ export default function EditFleetPage() {
       completedOrderIds: formData.completedOrderIds ?? [],
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
-    });
+    };
+    await updateFleet(user.id, fleetId, input);
     router.push(`/logistics/details?id=${fleetId}`);
   };
 
@@ -245,8 +263,8 @@ export default function EditFleetPage() {
   };
 
   const summaryData = useMemo(
-    () => ({
-      orderCode: formData.orderCode,
+    (): FleetTripSummaryData => ({
+      orderCode: formData.orderCode ?? '',
       routeFrom: formData.routeFrom,
       routeTo: formData.routeTo,
       route: `${formData.routeFrom ?? ''} → ${formData.routeTo ?? ''}`,
@@ -381,7 +399,7 @@ export default function EditFleetPage() {
       <FleetTripSummaryModal
         isOpen={showSummaryModal}
         onClose={() => setShowSummaryModal(false)}
-        data={summaryData}
+        data={{ ...summaryData, orderCode: summaryData.orderCode ?? '' }}
         mode="edit"
         isSubmitting={isSaving}
         onSubmit={handleModalSubmit}

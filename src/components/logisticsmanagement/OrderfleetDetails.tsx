@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -22,6 +22,16 @@ import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
 import Image from 'next/image';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
+import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+
+const BUYERS_QUERY = /* GraphQL */ `
+  query GetBuyersForFleet($userId: Int!, $page: Int, $limit: Int, $storeNames: [String]) {
+    buyers(userId: $userId, page: $page, limit: $limit, storeNames: $storeNames) {
+      nodes { buyerId storeName owner }
+    }
+  }
+`;
 
 interface OrderfleetDetailsProps {
   fleet: FleetOrderSummary;
@@ -50,6 +60,48 @@ function DetailRow({ label, value, icon: Icon }: { label: string; value: string;
 
 export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetDetailsProps) {
   const router = useRouter();
+  const { user } = useUserStore();
+  const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
+
+  useEffect(() => {
+    if (user?.id == null) return;
+    const storeNames = (fleet.customers ?? [])
+      .map((c) => c.storeName?.trim())
+      .filter((s): s is string => Boolean(s));
+    if (storeNames.length === 0) {
+      setBuyerInfoByStore(new Map());
+      return;
+    }
+    let cancelled = false;
+    fetchGraphQL<{ buyers: { nodes: { buyerId: string; storeName: string; owner: string }[] } }>(BUYERS_QUERY, {
+      userId: user.id,
+      page: 1,
+      limit: Math.max(storeNames.length, 50),
+      storeNames,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        const map = new Map<string, { owner: string; buyerId: string }>();
+        (data.buyers?.nodes ?? []).forEach((b) => {
+          if (b.storeName?.trim() && b.buyerId) {
+            map.set(b.storeName.trim(), { owner: b.owner?.trim() ?? '', buyerId: b.buyerId });
+          }
+        });
+        setBuyerInfoByStore(map);
+      })
+      .catch(() => {
+        if (!cancelled) setBuyerInfoByStore(new Map());
+      });
+    return () => { cancelled = true; };
+  }, [user?.id, fleet.customers]);
+
+  const contactNameFor = (storeName: string, fallback?: string) => {
+    if (!storeName?.trim()) return fallback ?? '—';
+    const info = buyerInfoByStore.get(storeName.trim());
+    return info?.owner ?? fallback ?? '—';
+  };
+
+  const buyerIdFor = (storeName: string) => buyerInfoByStore.get(storeName?.trim() ?? '')?.buyerId ?? null;
 
   const handleBack = () => {
     if (onBack) onBack();
@@ -198,21 +250,26 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               </h3>
               {fleet.customers && fleet.customers.length > 0 ? (
                 <ul className="space-y-2">
-                  {fleet.customers.map((c, i) => (
-                    <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-4 py-3">
-                      <span className="min-w-0 truncate text-sm text-gray-900">
-                        {c.storeName} <span className="text-gray-500">({c.contactName})</span>
-                      </span>
-                      <button
-                        type="button"
-                        className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg bg-[#0a61d7] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0851b8] transition-colors"
-                        onClick={() => { /* TODO: navigate to buyer ID */ }}
-                      >
-                        More
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
+                  {fleet.customers.map((c, i) => {
+                    const buyerId = buyerIdFor(c.storeName ?? '');
+                    return (
+                      <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-4 py-3">
+                        <span className="min-w-0 truncate text-sm text-gray-900">
+                          {c.storeName} <span className="text-gray-500">({contactNameFor(c.storeName ?? '', c.contactName)})</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg bg-[#0a61d7] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => buyerId && router.push(`/clients/buyers/details/${buyerId}`)}
+                          disabled={!buyerId}
+                          title={buyerId ? `View buyer ${c.storeName}` : 'Buyer not found'}
+                        >
+                          More
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-sm text-gray-500">No orders assigned to this fleet.</p>

@@ -40,6 +40,7 @@ model User {
   campaigns     Campaign[]
   notifications Notification[]
   distributorReviewsReceived DistributorReview[]
+  fleets        Fleet[]
 }
 
 model Company {
@@ -758,4 +759,41 @@ model DistributorReview {
   @@unique([userId, distributorId])
   @@index([distributorId])
   @@index([userId])
+}
+
+/// Distributor fleet / truck for logistics (route, vehicle, driver, assigned orders).
+model Fleet {
+  id                  Int       @id @default(autoincrement())
+  fleetCode           String    // e.g. #AD345JK758 (display orderCode in UI)
+  userId              Int
+  route               String
+  routeFrom           String?
+  routeTo             String?
+  status              String    // In Transit | Checking | Delivered | Delayed
+  deliveryType        String?
+  eta                 String
+  lastUpdate          String
+  driverName          String
+  driverPhone         String?
+  driverExperience    String?
+  driverStatus        String?
+  driverAvatar        String?
+  vehicleType         String?
+  vehicleBrand        String?
+  vehicleModel        String?
+  vehicleMaxWeight    Int?
+  vehicleMaxVolume    Float?
+  loadPct             Int?
+  paymentTerms        String?
+  totalOrders         Int?
+  deliveriesCompleted Int?
+  assignedOrderIds    Json?     // string[]
+  completedOrderIds   Json?     // string[]
+  customers           Json?     // { storeName: string; contactName: string }[]
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
 }

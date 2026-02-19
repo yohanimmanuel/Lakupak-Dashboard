@@ -221,7 +221,7 @@ export default function FleetBasicInfo({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            ETA Date <span className="text-red-500">*</span>
+            ETA Completion Date <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -236,7 +236,7 @@ export default function FleetBasicInfo({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            ETA Time <span className="text-red-500">*</span>
+            ETA Completion Time <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

@@ -19,6 +19,7 @@ import { marketplaceTypeDefs, marketplaceResolvers } from './modules/marketplace
 import { salesTypeDefs, salesResolvers } from './modules/sales';
 import { campaignsTypeDefs, campaignsResolvers } from './modules/campaigns';
 import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
+import { logisticsTypeDefs, logisticsResolvers } from './modules/logistics';
 import { 
   offerCreationRateLimiter,
   offerUpdateRateLimiter,
@@ -58,6 +59,7 @@ const typeDefs = mergeTypeDefs([
   salesTypeDefs,
   campaignsTypeDefs,
   notificationsTypeDefs,
+  logisticsTypeDefs,
 ]);
 
 const resolvers = mergeResolvers([
@@ -72,6 +74,7 @@ const resolvers = mergeResolvers([
   salesResolvers,
   campaignsResolvers,
   notificationsResolvers,
+  logisticsResolvers,
 ]);
 
 const server = new ApolloServer({

@@ -310,11 +310,15 @@ export default function OrderfleetList({
                         <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
                         <span className="truncate">{fleet.route}</span>
                       </p>
-                      {/* Bottom row: Courier, distance, truck image */}
+                      {/* Bottom row: Courier (avatar or icon), truck image */}
                       <div className="mt-3 flex items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                            <User className="h-4 w-4" />
+                          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 text-gray-600">
+                            {fleet.driverAvatar ? (
+                              <Image src={fleet.driverAvatar} alt={fleet.driverName} fill className="object-cover" sizes="36px" unoptimized />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center"><User className="h-4 w-4" /></span>
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="text-[10px] font-medium text-gray-400">Courier</p>
@@ -324,8 +328,11 @@ export default function OrderfleetList({
                             </p>
                           </div>
                         </div>
-                        <div className="relative h-10 w-[84px] shrink-0 overflow-hidden">
-                          <Image src={vehicleInfo.imagePath} alt={vehicleInfo.label} fill className="object-contain object-center" sizes="60px" unoptimized />
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-right text-[10px] font-medium text-gray-600 truncate max-w-[72px]">{vehicleInfo.label}</span>
+                          <div className="relative h-10 w-[84px] shrink-0 overflow-hidden">
+                            <Image src={vehicleInfo.imagePath} alt={vehicleInfo.label} fill className="object-contain object-center" sizes="60px" unoptimized />
+                          </div>
                         </div>
                       </div>
                     </button>

@@ -308,7 +308,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Avatar & Owner */}
         <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-[#e6e6e6] p-4 gap-2">
-          <div className="w-20 h-20 rounded-full object-cover border-4 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
+          <div className="w-20 h-20 rounded-full object-cover border-4 border-gray-300 bg-gray-100 flex items-center justify-center overflow-hidden">
             {buyer.avatar ? (
               <img src={buyer.avatar} alt={buyer.owner} className="w-full h-full object-cover" />
             ) : (
