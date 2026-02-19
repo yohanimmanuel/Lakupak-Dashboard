@@ -122,6 +122,12 @@ export const logisticsTypeDefs = /* GraphQL */ `
   extend type Mutation {
     createFleet(userId: Int!, input: CreateFleetInput!): Fleet!
     updateFleet(userId: Int!, id: String!, input: UpdateFleetInput!): Fleet!
+    deleteFleet(userId: Int!, id: String!): DeleteFleetResult!
+  }
+
+  type DeleteFleetResult {
+    success: Boolean!
+    deleted: Fleet
   }
 `;
 
@@ -360,6 +366,23 @@ export const logisticsResolvers = {
         },
       });
       return mapFleet(row);
+    },
+
+    async deleteFleet(_: unknown, args: { userId: number; id: string }) {
+      const { userId, id } = args;
+      const numId = parseInt(id, 10);
+      if (!Number.isInteger(numId) || numId <= 0) {
+        throw new Error('Invalid fleet id');
+      }
+      const existing = await prisma.fleet.findFirst({ where: { id: numId, userId } });
+      if (!existing) {
+        throw new Error('Fleet not found');
+      }
+      const deleted = await prisma.fleet.delete({ where: { id: numId } });
+      return {
+        success: true,
+        deleted: mapFleet(deleted),
+      };
     },
   },
 };

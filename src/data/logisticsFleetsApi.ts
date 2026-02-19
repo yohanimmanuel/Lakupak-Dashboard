@@ -128,6 +128,40 @@ const UPDATE_FLEET_MUTATION = /* GraphQL */ `
   }
 `;
 
+const DELETE_FLEET_MUTATION = /* GraphQL */ `
+  mutation DeleteFleet($userId: Int!, $id: String!) {
+    deleteFleet(userId: $userId, id: $id) {
+      success
+      deleted {
+        id
+        orderCode
+        route
+        status
+        deliveryType
+        eta
+        lastUpdate
+        driverName
+        totalOrders
+        deliveriesCompleted
+        customers { storeName contactName }
+        vehicleType
+        loadPct
+        paymentTerms
+        vehicleBrand
+        vehicleModel
+        vehicleMaxWeight
+        vehicleMaxVolume
+        driverPhone
+        driverExperience
+        driverStatus
+        driverAvatar
+        assignedOrderIds
+        completedOrderIds
+      }
+    }
+  }
+`;
+
 function mapNodeToSummary(node: {
   id: string;
   orderCode: string;
@@ -228,4 +262,15 @@ export async function updateFleet(userId: number, id: string, input: Record<stri
   const updated = data.updateFleet;
   if (!updated || typeof updated !== 'object') throw new Error('Update fleet returned no data');
   return mapNodeToSummary(updated as Parameters<typeof mapNodeToSummary>[0]);
+}
+
+export async function deleteFleet(userId: number, id: string): Promise<{ success: boolean; deleted: FleetOrderSummary | null }> {
+  const data = await fetchGraphQL<{ deleteFleet: { success: boolean; deleted: unknown } | null }>(DELETE_FLEET_MUTATION, { userId, id });
+  const result = data.deleteFleet;
+  if (!result || typeof result !== 'object') throw new Error('Delete fleet returned no data');
+  if (!result.success) throw new Error('Delete fleet failed');
+  return {
+    success: result.success,
+    deleted: result.deleted && typeof result.deleted === 'object' ? mapNodeToSummary(result.deleted as Parameters<typeof mapNodeToSummary>[0]) : null,
+  };
 }

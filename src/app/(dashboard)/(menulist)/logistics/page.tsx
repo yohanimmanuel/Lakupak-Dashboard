@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCcw, Download, Plus } from 'lucide-react';
+import { RefreshCcw, Download, Plus, Check } from 'lucide-react';
 import OrderfleetList, {
   type FleetOrderSummary,
   type DeliveryType,
@@ -27,6 +27,12 @@ export default function LogisticsPage() {
   const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState('');
+  const [isSlidingIn, setIsSlidingIn] = useState(false);
+  const [isSlidingOut, setIsSlidingOut] = useState(false);
+  const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadFleets = useCallback(async () => {
     const uid = user?.id;
@@ -35,21 +41,69 @@ export default function LogisticsPage() {
       setLoading(false);
       return;
     }
+    
     setLoading(true);
     setError(null);
+    
+    // Clear any existing timeouts
+    if (overlayTimeoutRef.current) {
+      clearTimeout(overlayTimeoutRef.current);
+    }
+    
+    // For refresh button, start slide-in animation
+    if (fleets.length > 0) {
+      setIsSlidingOut(false);
+      setIsSlidingIn(true);
+      setOverlayMessage('Refreshing fleet data');
+    } else {
+      setIsSlidingIn(true);
+      setOverlayMessage('Loading fleet data...');
+    }
+    
     try {
       const result = await fetchFleets(uid);
       setFleets(result?.nodes ?? []);
+      setOverlayMessage(`Showing fleet data (${result?.nodes?.length ?? 0} fleets loaded)`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load fleets');
       setFleets([]);
+      setOverlayMessage('Error loading fleets');
     } finally {
       setLoading(false);
+      
+      // Complete slide-in animation and show overlay
+      setTimeout(() => {
+        setIsSlidingIn(false);
+        setShowOverlay(true);
+      }, 1500);
+      
+      // Auto-hide overlay after 2.5 seconds
+      overlayTimeoutRef.current = setTimeout(() => {
+        // Start slide-out animation
+        setIsSlidingOut(true);
+        setShowOverlay(false);
+        
+        // Remove overlay completely after animation
+        setTimeout(() => {
+          setIsSlidingOut(false);
+        }, 500);
+      }, 2500);
     }
-  }, [user?.id]);
+  }, [user?.id, fleets.length]);
 
   useEffect(() => {
+    // Start slide-in animation immediately for initial page load
+    setIsSlidingIn(true);
+    setOverlayMessage('Loading fleet data...');
+    
     loadFleets();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+    };
   }, [loadFleets]);
 
   // Derive effective selection: user's choice if still in list, otherwise first fleet (no Effect)
@@ -83,6 +137,7 @@ export default function LogisticsPage() {
   );
 
   const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
     loadFleets();
   };
 
@@ -151,7 +206,10 @@ export default function LogisticsPage() {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {loading ? (
           <div className="flex items-center justify-center py-12 text-gray-500">
-            Loading fleets...
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading fleets...</p>
+            </div>
           </div>
         ) : (
           <OrderfleetList
@@ -159,10 +217,45 @@ export default function LogisticsPage() {
             selectedFleetId={effectiveSelectedFleetId}
             onSelectFleet={setSelectedFleetId}
             availableDeliveryTypes={availableDeliveryTypes}
+            onFleetsDeleted={handleRefresh}
           />
         )}
-        <FleetDetails fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-gray-500">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading fleet details...</p>
+            </div>
+          </div>
+        ) : (
+          <FleetDetails key={`${effectiveSelectedFleetId}-${refreshKey}`} fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
+        )}
       </div>
+
+      {/* Data Status Overlay */}
+      {(showOverlay || isSlidingIn || isSlidingOut) && (
+        <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
+          isSlidingIn ? 'translate-x-0 opacity-100' : 
+          isSlidingOut ? 'translate-x-full opacity-0' : 
+          'translate-x-full opacity-0'
+        }`}>
+          <div className="flex items-center gap-3">
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
+              <p className="text-xs text-gray-500">
+                {loading ? 'Please wait...' : `${fleets.length} fleet${fleets.length !== 1 ? 's' : ''} loaded`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

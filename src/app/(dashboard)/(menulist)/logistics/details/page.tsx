@@ -42,7 +42,10 @@ export default function LogisticsDetailsPage() {
   if (fleet === undefined) {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading fleet details...</p>
+        </div>
       </div>
     );
   }

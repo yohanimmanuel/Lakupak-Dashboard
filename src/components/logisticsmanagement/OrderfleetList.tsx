@@ -2,8 +2,10 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Search, Truck, Clock, MapPin, Filter, ChevronDown, User } from 'lucide-react';
+import { Search, Truck, Clock, MapPin, Filter, ChevronDown, User, Trash, Trash2 } from 'lucide-react';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
+import { useUserStore } from '@/store/userStore';
+import { deleteFleet } from '@/data/logisticsFleetsApi';
 
 export type FleetStatus = 'In Transit' | 'Checking' | 'Delivered' | 'Delayed';
 
@@ -57,6 +59,8 @@ interface OrderfleetListProps {
   onSelectFleet: (fleetId: string) => void;
   /** Delivery types offered by the distributor (from company shipping options). Only these will show as filters. */
   availableDeliveryTypes?: DeliveryType[];
+  /** Callback when fleets are deleted - parent should refresh the list */
+  onFleetsDeleted?: () => void;
 }
 
 const statusColors: Record<FleetStatus, string> = {
@@ -80,7 +84,9 @@ export default function OrderfleetList({
   selectedFleetId,
   onSelectFleet,
   availableDeliveryTypes = [],
+  onFleetsDeleted,
 }: OrderfleetListProps) {
+  const user = useUserStore((state) => state.user);
   // Distributor options + always Standard Shipping (every distributor has it)
   const deliveryTypesToShow = (() => {
     const base =
@@ -98,6 +104,11 @@ export default function OrderfleetList({
   const [showDeliveryTypeDropdown, setShowDeliveryTypeDropdown] = useState(false);
   const deliveryStatusDropdownRef = useRef<HTMLDivElement>(null);
   const deliveryTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedFleets, setSelectedFleets] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fleetToDelete, setFleetToDelete] = useState<FleetOrderSummary | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -145,6 +156,107 @@ export default function OrderfleetList({
   // additional vertical padding is helpful. For longer lists that scroll,
   // we hide it so the list feels compact.
   const showTailPlaceholder = filteredFleets.length > 0 && filteredFleets.length <= 4;
+
+  // Checkbox selection handlers
+  const allFilteredFleetIds = useMemo(() => filteredFleets.map((f) => f.id), [filteredFleets]);
+  const allFilteredSelected = useMemo(
+    () => allFilteredFleetIds.length > 0 && allFilteredFleetIds.every((id) => selectedFleets.includes(id)),
+    [allFilteredFleetIds, selectedFleets],
+  );
+
+  const handleFleetSelect = (fleetId: string) => {
+    setSelectedFleets((prev) => (prev.includes(fleetId) ? prev.filter((id) => id !== fleetId) : [...prev, fleetId]));
+  };
+
+  const handleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedFleets((prev) => prev.filter((id) => !allFilteredFleetIds.includes(id)));
+    } else {
+      setSelectedFleets((prev) => {
+        const newSelection = [...prev];
+        allFilteredFleetIds.forEach((id) => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
+    }
+  };
+
+  const handleRowClick = (fleetId: string, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('input')) {
+      return;
+    }
+    onSelectFleet(fleetId);
+  };
+
+  const handleDelete = (fleet: FleetOrderSummary) => {
+    setFleetToDelete(fleet);
+    setIsBulkDelete(false);
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkRemove = () => {
+    setIsBulkDelete(true);
+    setFleetToDelete(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setFleetToDelete(null);
+    setIsBulkDelete(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!user?.id || isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      if (isBulkDelete) {
+        const fleetIdsToDelete = selectedFleets;
+        const failedDeletes: string[] = [];
+        const successfulDeletes: string[] = [];
+
+        for (const fleetId of fleetIdsToDelete) {
+          try {
+            await deleteFleet(user.id, fleetId);
+            successfulDeletes.push(fleetId);
+          } catch (error) {
+            failedDeletes.push(fleetId);
+            console.error(`Failed to delete fleet ${fleetId}:`, error);
+          }
+        }
+
+        if (failedDeletes.length > 0) {
+          const message =
+            successfulDeletes.length > 0
+              ? `Successfully deleted ${successfulDeletes.length} fleet(s). Failed to delete ${failedDeletes.length} fleet(s). Please try again.`
+              : `Failed to delete ${failedDeletes.length} fleet(s). Please try again.`;
+          alert(message);
+        }
+
+        setSelectedFleets((prev) => prev.filter((id) => !successfulDeletes.includes(id)));
+        if (successfulDeletes.length > 0 && onFleetsDeleted) {
+          onFleetsDeleted();
+        }
+      } else if (fleetToDelete) {
+        await deleteFleet(user.id, fleetToDelete.id);
+        if (onFleetsDeleted) {
+          onFleetsDeleted();
+        }
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete fleet. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+      setFleetToDelete(null);
+      setIsBulkDelete(false);
+    }
+  };
 
   return (
     <div className="flex h-full max-h-[calc(100vh+100px)] flex-col rounded-lg bg-white border border-gray-200">
@@ -264,7 +376,82 @@ export default function OrderfleetList({
             </div>
           )}
         </div>
+
+        {/* Select All Checkbox - below filter dropdowns */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSelectAll}
+            className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+              allFilteredSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+            }`}
+            title={allFilteredSelected ? 'Deselect all' : 'Select all'}
+          >
+            {allFilteredSelected && (
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+          </button>
+          <span className="text-sm text-gray-700">
+            {allFilteredSelected ? 'Deselect all' : 'Select all'}
+          </span>
+        </div>
       </div>
+
+      {/* Bulk Action Bar */}
+      {selectedFleets.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mx-4 mb-2">
+          {/* Mobile Layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedFleets.length === 1 ? 'fleet' : 'fleets'} selected
+                </span>
+              </div>
+            </div>
+            <div className="text-white text-xs font-semibold leading-relaxed">Select fleets to be removed from the system.</div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkRemove}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash className="w-4 h-4 text-white" />
+                Remove
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
+                <span className="text-sm font-semibold text-white">
+                  {selectedFleets.length === 1 ? 'fleet' : 'fleets'} selected
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-white text-xs md:text-sm font-semibold">Select fleets to remove from the system.</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleBulkRemove}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash className="w-4 h-4 text-white" />
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
@@ -283,14 +470,22 @@ export default function OrderfleetList({
                 const isActive = fleet.id === selectedFleetId;
                 const loadPct = fleet.loadPct ?? 0;
                 const vehicleInfo = getVehicleTypeInfo(fleet.vehicleType ?? '20ft_container');
+                const isSelected = selectedFleets.includes(fleet.id);
                 return (
                   <li key={fleet.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectFleet(fleet.id)}
+                    <div
                       className={`group w-full rounded-lg border-2 bg-white p-4 text-left transition-all ${
-                        isActive ? 'border-[#0a61d7]' : 'border-gray-200 hover:border-gray-200 hover:shadow'
+                        isActive ? 'border-[#0a61d7]' : isSelected ? 'border-gray-200' : 'border-gray-200 hover:border-gray-200 hover:shadow'
                       }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => handleRowClick(fleet.id, e)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleRowClick(fleet.id, e as unknown as React.MouseEvent);
+                        }
+                      }}
                     >
                       {/* Top row: Fleet ID, route, circular progress */}
                       <div className="flex items-start justify-between gap-3">
@@ -313,7 +508,7 @@ export default function OrderfleetList({
                         <span className="truncate">{fleet.route}</span>
                       </p>
                       {/* Bottom row: Courier (avatar or icon), truck image */}
-                      <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="mt-3 mb-2 flex items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
                           <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 text-gray-600">
                             {fleet.driverAvatar ? (
@@ -337,7 +532,48 @@ export default function OrderfleetList({
                           </div>
                         </div>
                       </div>
-                    </button>
+
+                      {/* Actions row: Checkbox and Delete button - border touches card edges */}
+                      <div className="pt-2 -mb-2 -mx-4 border-t border-gray-200 px-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFleetSelect(fleet.id);
+                            }}
+                            className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                              isSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+                            }`}
+                            title={isSelected ? 'Deselect fleet' : 'Select fleet'}
+                          >
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          <span className="text-xs text-gray-600 font-medium">
+                            {isSelected ? 'Selected' : 'Select'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(fleet);
+                          }}
+                          className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
+                          title="Delete fleet"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    </div>
                   </li>
                 );
               })}
@@ -356,6 +592,40 @@ export default function OrderfleetList({
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? 'Delete Fleets' : 'Delete Fleet'}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {isBulkDelete
+                ? `Are you sure you want to delete ${selectedFleets.length} fleet${selectedFleets.length === 1 ? '' : 's'}? This action cannot be undone.`
+                : `Are you sure you want to delete ${fleetToDelete?.orderCode || 'this fleet'}? This action cannot be undone.`}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                onClick={handleDeleteCancel}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 transition-colors ${
+                  isBulkDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'
+                }`}
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
