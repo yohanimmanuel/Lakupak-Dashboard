@@ -105,7 +105,7 @@ export default function OffersPage() {
         userId: user.id,
         page: 1,
         limit: 1000, // Fetch all offers for the offers page
-      });
+      }, { cache: 'no-store' });
 
       // Transform GraphQL response to match Offer type
       const transformedOffers: Offer[] = data.offers.nodes.map((offer) => {

@@ -669,6 +669,17 @@ const createOffer = async (args: {
     // ignore broadcast failures
   }
 
+  // Invalidate offer and product list caches so list UI shows the new offer immediately (mirror products flow)
+  try {
+    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateOfferCache(userId),
+      invalidateProductCache(userId),
+    ]);
+  } catch {
+    // ignore cache invalidation failures
+  }
+
   // Notify if offer is activated
   if (initialStatus === 'active') {
     try {
