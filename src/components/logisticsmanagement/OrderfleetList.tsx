@@ -47,6 +47,8 @@ export interface FleetOrderSummary {
   assignedOrderIds?: string[];
   /** Order IDs marked as delivered (for checklist) */
   completedOrderIds?: string[];
+  /** Distance left (km) – trip form / display only */
+  distanceLeftKm?: number;
 }
 
 interface OrderfleetListProps {
