@@ -518,12 +518,14 @@ export default function CreateOfferPage() {
 
       {/* Modals */}
       <CreateOfferTypeModal
+        key={showCreateTypeModal ? 'type-open' : 'type-closed'}
         isOpen={showCreateTypeModal}
         onClose={() => setShowCreateTypeModal(false)}
         onSave={handleSaveOfferType}
       />
 
       <CreateDateRangeModal
+        key={showCreateRangeModal ? 'range-open' : 'range-closed'}
         isOpen={showCreateRangeModal}
         onClose={() => setShowCreateRangeModal(false)}
         onSave={handleSaveDateRange}

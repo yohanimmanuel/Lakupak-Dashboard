@@ -21,45 +21,41 @@ interface CreateOfferTypeModalProps {
   onSave: (typeData: OfferTypeData) => void;
 }
 
-export default function CreateOfferTypeModal({ 
-  isOpen, 
-  onClose, 
-  editingType, 
-  onSave 
-}: CreateOfferTypeModalProps) {
-  const user = useUserStore(state => state.user);
-  const userCurrency = user?.currency || getDefaultCurrency();
-  const currencySymbol = getCurrencySymbol(userCurrency);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<OfferTypeData>({
+function getInitialOfferTypeData(editingType?: Partial<OfferTypeData>): OfferTypeData {
+  if (editingType) {
+    return {
+      name: editingType.name ?? '',
+      description: editingType.description ?? '',
+      discountType: editingType.discountType ?? 'percentage',
+      discountValue: editingType.discountValue ?? 0,
+      minOrderValue: editingType.minOrderValue ?? '',
+      minQuantity: editingType.minQuantity ?? undefined,
+    };
+  }
+  return {
     name: '',
     description: '',
     discountType: 'percentage',
     discountValue: 0,
     minOrderValue: '',
     minQuantity: undefined,
-  });
+  };
+}
+
+export default function CreateOfferTypeModal({
+  isOpen,
+  onClose,
+  editingType,
+  onSave,
+}: CreateOfferTypeModalProps) {
+  const user = useUserStore((state) => state.user);
+  const userCurrency = user?.currency || getDefaultCurrency();
+  const currencySymbol = getCurrencySymbol(userCurrency);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<OfferTypeData>(() => getInitialOfferTypeData(editingType));
 
   useEffect(() => {
-    if (editingType) {
-      setFormData({
-        name: editingType.name || '',
-        description: editingType.description || '',
-        discountType: editingType.discountType || 'percentage',
-        discountValue: editingType.discountValue || 0,
-        minOrderValue: editingType.minOrderValue || '',
-        minQuantity: editingType.minQuantity || undefined,
-      });
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        discountType: 'percentage',
-        discountValue: 0,
-        minOrderValue: '',
-        minQuantity: undefined,
-      });
-    }
+    setFormData(getInitialOfferTypeData(editingType));
   }, [editingType]);
 
   const handleInputChange = (field: keyof OfferTypeData, value: string | number | undefined) => {

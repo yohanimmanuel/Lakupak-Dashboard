@@ -173,7 +173,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 <h3 className="text-sm font-semibold text-gray-900">Driver</h3>
               </div>
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-[#0a61d7]/10 text-[#0a61d7] shrink-0">
+                <div className="w-12 h-12 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center bg-[#0a61d7]/10 text-[#0a61d7] shrink-0">
                   {fleet.driverAvatar ? (
                     <Image src={fleet.driverAvatar} alt={fleet.driverName} width={48} height={48} className="w-full h-full object-cover" unoptimized />
                   ) : (

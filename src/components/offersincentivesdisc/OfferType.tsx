@@ -327,6 +327,7 @@ export default function OfferType({
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
         <CreateOfferTypeModal
+          key={editingType ? `edit-${editingType.id ?? editingType.name ?? ''}` : 'new'}
           isOpen={showCreateModal || showEditModal}
           onClose={() => {
             setShowCreateModal(false);

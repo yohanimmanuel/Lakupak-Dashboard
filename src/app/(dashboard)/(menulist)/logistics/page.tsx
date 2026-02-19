@@ -52,10 +52,10 @@ export default function LogisticsPage() {
     loadFleets();
   }, [loadFleets]);
 
-  useEffect(() => {
-    if (fleets.length > 0 && !selectedFleetId) {
-      setSelectedFleetId(fleets[0]?.id);
-    }
+  // Derive effective selection: user's choice if still in list, otherwise first fleet (no Effect)
+  const effectiveSelectedFleetId = useMemo(() => {
+    if (selectedFleetId != null && fleets.some((f) => f.id === selectedFleetId)) return selectedFleetId;
+    return fleets[0]?.id;
   }, [fleets, selectedFleetId]);
 
   const availableDeliveryTypes = useMemo((): DeliveryType[] => {
@@ -78,8 +78,8 @@ export default function LogisticsPage() {
   }, [user?.company?.shippingPreferences]);
 
   const selectedFleet = useMemo(
-    () => fleets.find(f => f.id === selectedFleetId),
-    [fleets, selectedFleetId],
+    () => fleets.find((f) => f.id === effectiveSelectedFleetId),
+    [fleets, effectiveSelectedFleetId],
   );
 
   const handleRefresh = () => {
@@ -95,7 +95,7 @@ export default function LogisticsPage() {
   };
 
   const handleOpenTracking = () => {
-    if (selectedFleetId) router.push(`/logistics/details?id=${selectedFleetId}`);
+    if (effectiveSelectedFleetId) router.push(`/logistics/details?id=${effectiveSelectedFleetId}`);
   };
 
   return (
@@ -156,7 +156,7 @@ export default function LogisticsPage() {
         ) : (
           <OrderfleetList
             fleets={fleets}
-            selectedFleetId={selectedFleetId}
+            selectedFleetId={effectiveSelectedFleetId}
             onSelectFleet={setSelectedFleetId}
             availableDeliveryTypes={availableDeliveryTypes}
           />

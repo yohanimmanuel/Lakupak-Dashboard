@@ -342,6 +342,7 @@ export default function RangeManagement({
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
         <CreateDateRangeModal
+          key={editingRange ? `edit-${(editingRange as { id?: string }).id ?? editingRange.name ?? ''}` : 'new'}
           isOpen={showCreateModal || showEditModal}
           onClose={() => {
             setShowCreateModal(false);

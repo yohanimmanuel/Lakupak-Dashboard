@@ -17,42 +17,38 @@ interface CreateDateRangeModalProps {
   onSave: (rangeData: DateRangeData) => void;
 }
 
-export default function CreateDateRangeModal({ 
-  isOpen, 
-  onClose, 
-  editingRange, 
-  onSave 
+function getInitialDateRangeData(editingRange?: Partial<DateRangeData>): DateRangeData {
+  if (editingRange) {
+    return {
+      name: editingRange.name ?? '',
+      description: editingRange.description ?? '',
+      startDate: editingRange.startDate ?? '',
+      endDate: editingRange.endDate ?? '',
+    };
+  }
+  const today = new Date();
+  const nextMonth = new Date(today);
+  nextMonth.setMonth(today.getMonth() + 1);
+  return {
+    name: '',
+    description: '',
+    startDate: today.toISOString().split('T')[0],
+    endDate: nextMonth.toISOString().split('T')[0],
+  };
+}
+
+export default function CreateDateRangeModal({
+  isOpen,
+  onClose,
+  editingRange,
+  onSave,
 }: CreateDateRangeModalProps) {
   const [saving, setSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [formData, setFormData] = useState<DateRangeData>({
-    name: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-  });
+  const [formData, setFormData] = useState<DateRangeData>(() => getInitialDateRangeData(editingRange));
 
   useEffect(() => {
-    if (editingRange) {
-      setFormData({
-        name: editingRange.name || '',
-        description: editingRange.description || '',
-        startDate: editingRange.startDate || '',
-        endDate: editingRange.endDate || '',
-      });
-    } else {
-      // Set default dates for new range
-      const today = new Date();
-      const nextMonth = new Date(today);
-      nextMonth.setMonth(today.getMonth() + 1);
-      
-      setFormData({
-        name: '',
-        description: '',
-        startDate: today.toISOString().split('T')[0],
-        endDate: nextMonth.toISOString().split('T')[0],
-      });
-    }
+    setFormData(getInitialDateRangeData(editingRange));
   }, [editingRange]);
 
   const handleInputChange = (field: keyof DateRangeData, value: string) => {

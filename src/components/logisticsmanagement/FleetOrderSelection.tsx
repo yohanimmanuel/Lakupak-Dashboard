@@ -70,11 +70,7 @@ export default function FleetOrderSelection({
     fetchOrders();
   }, [fetchOrders]);
 
-  useEffect(() => {
-    onTabCompletion('orders', true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Orders tab is complete by default; parent should set tabCompletion.orders: true in initial state
   const filteredOrders = orders.filter(
     (o) =>
       !searchQuery ||
