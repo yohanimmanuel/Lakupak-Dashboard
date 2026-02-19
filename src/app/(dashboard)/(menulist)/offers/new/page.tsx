@@ -533,7 +533,7 @@ export default function CreateOfferPage() {
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto hide-scrollbar">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div>

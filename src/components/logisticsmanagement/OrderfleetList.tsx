@@ -265,7 +265,7 @@ export default function OrderfleetList({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div className="flex-1 overflow-y-auto">
         {filteredFleets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
             <Truck className="h-8 w-8 text-gray-300" />

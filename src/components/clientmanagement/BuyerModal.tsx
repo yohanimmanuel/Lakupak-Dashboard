@@ -551,7 +551,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         
         <form 
           ref={formRef}
-          className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar"
+          className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]"
           onSubmit={handleSubmit}
         >
           {/* Avatar Section */}

@@ -67,7 +67,7 @@ export default function SendCampaignModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-6">
             {/* Campaign Information */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">

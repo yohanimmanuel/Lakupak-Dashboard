@@ -1033,7 +1033,7 @@ export default function TeamList({
             <div className="border-b border-gray-200 -mx-6 mb-4"></div>
 
             {/* Form */}
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar">
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
               {/* Team/Region Name */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">

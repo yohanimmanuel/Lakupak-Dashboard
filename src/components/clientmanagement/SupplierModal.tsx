@@ -479,7 +479,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           </div>
         </div>
         <div className="border-b border-gray-200 -mx-6"></div>
-        <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh] hide-scrollbar">
+        <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
           <div className="mt-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id || ''} onChange={e => setId(e.target.value)} required disabled />

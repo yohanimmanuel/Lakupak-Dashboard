@@ -216,7 +216,7 @@ export default function SolutionsPage() {
           {/* Horizontally auto-scrolling reviews */}
           <div
             ref={scrollRef}
-            className="overflow-x-auto whitespace-nowrap pb-4 group hide-scrollbar"
+            className="overflow-x-auto whitespace-nowrap pb-4 group"
             style={{ WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}
           >
             <div className="flex gap-8">

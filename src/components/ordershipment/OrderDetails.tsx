@@ -949,7 +949,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
             
             {/* Modal Content */}
-            <div className="p-4 overflow-y-auto max-h-[80vh] hide-scrollbar">
+            <div className="p-4 overflow-y-auto max-h-[80vh]">
               <div className="space-y-3">
                 {order.orderItems.map((item, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">

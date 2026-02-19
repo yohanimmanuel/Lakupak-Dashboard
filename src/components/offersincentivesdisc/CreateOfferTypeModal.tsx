@@ -153,7 +153,7 @@ export default function CreateOfferTypeModal({
         </div>
 
         {/* Form - Scrollable Content */}
-        <div className="p-4 space-y-4 overflow-y-auto hide-scrollbar flex-1">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Basic Information */}
           <div className="space-y-2">
             <h4 className="text-md font-semibold text-black">Basic Information</h4>

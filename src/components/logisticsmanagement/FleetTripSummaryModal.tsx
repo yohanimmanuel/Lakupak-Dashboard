@@ -97,7 +97,7 @@ export default function FleetTripSummaryModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <section>
             <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
               <Package className="w-4 h-4" />

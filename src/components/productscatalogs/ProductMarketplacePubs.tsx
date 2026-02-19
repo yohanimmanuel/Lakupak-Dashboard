@@ -166,7 +166,7 @@ export default function ProductMarketplacePubs({
         </div>
 
         {/* Mobile App Preview */}
-        <div className="overflow-y-auto max-h-[calc(90vh-150px)] hide-scrollbar">
+        <div className="overflow-y-auto max-h-[calc(90vh-150px)]">
           {/* Single Product Incomplete Warning */}
           {!isBulkPublish && isProductComplete && !isProductComplete(product.productId) && (
             <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">

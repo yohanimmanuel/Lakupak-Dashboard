@@ -317,7 +317,7 @@ const Menu = () => {
         <div className="border-t border-gray-200 mt-1 ml-4 mr-4" />
       </div>
       {/* Menu Items */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div className="flex-1 overflow-y-auto">
         <nav className="flex flex-col gap-1 mb-4 px-3.5 text-[14px]">
           {mainMenuItems.map(renderMenuItem)}
           <div className="border-t border-gray-200 my-2" />
