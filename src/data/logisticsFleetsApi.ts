@@ -159,7 +159,7 @@ function mapNodeToSummary(node: {
     orderCode: node.orderCode,
     route: node.route,
     status: node.status as FleetOrderSummary['status'],
-    deliveryType: node.deliveryType ?? undefined,
+    deliveryType: (node.deliveryType ?? undefined) as FleetOrderSummary['deliveryType'],
     eta: node.eta,
     lastUpdate: node.lastUpdate,
     driverName: node.driverName,
