@@ -18,22 +18,35 @@ export interface FleetOrderSummary {
   orderCode: string;
   route: string;
   status: FleetStatus;
-  orderStatus?: OrderStatus; // Order status from orders module
-  deliveryType?: DeliveryType; // Delivery type from distributor shipping options
-  distanceLeftKm: number;
+  orderStatus?: OrderStatus;
+  deliveryType?: DeliveryType;
   eta: string;
   lastUpdate: string;
   driverName: string;
-  /** Total orders (from different customers) delivered in this fleet */
   totalOrders?: number;
-  /** Number of deliveries completed so far in this fleet run */
   deliveriesCompleted?: number;
-  /** Customers (stores) with orders in this fleet */
   customers?: { storeName: string; contactName: string }[];
-  /** Vehicle type for truck image: van, box_truck, 20ft_container, 40ft_container, flatbed */
   vehicleType?: string;
-  /** Load percentage 0–100 for load bar */
   loadPct?: number;
+  /** Payment terms */
+  paymentTerms?: string;
+  /** Vehicle details */
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehicleMaxWeight?: number;
+  vehicleMaxVolume?: number;
+  /** Driver phone */
+  driverPhone?: string;
+  /** Driver experience (e.g. 5+ years) */
+  driverExperience?: string;
+  /** Driver status (e.g. On route, Available) */
+  driverStatus?: string;
+  /** Driver avatar URL (Cloudinary) */
+  driverAvatar?: string;
+  /** Assigned order IDs for reference */
+  assignedOrderIds?: string[];
+  /** Order IDs marked as delivered (for checklist) */
+  completedOrderIds?: string[];
 }
 
 interface OrderfleetListProps {
@@ -263,7 +276,7 @@ export default function OrderfleetList({
           </div>
         ) : (
           <>
-            <ul className="flex flex-col gap-3 p-4">
+            <ul className="flex flex-col gap-2 p-4">
               {filteredFleets.map(fleet => {
                 const isActive = fleet.id === selectedFleetId;
                 const loadPct = fleet.loadPct ?? 0;
@@ -274,7 +287,7 @@ export default function OrderfleetList({
                       type="button"
                       onClick={() => onSelectFleet(fleet.id)}
                       className={`group w-full rounded-lg border-2 bg-white p-4 text-left transition-all ${
-                        isActive ? 'border-[#0a61d7]' : 'border-gray-2  00 hover:border-gray-200 hover:shadow'
+                        isActive ? 'border-[#0a61d7]' : 'border-gray-200 hover:border-gray-200 hover:shadow'
                       }`}
                     >
                       {/* Top row: Fleet ID, route, circular progress */}
@@ -311,7 +324,6 @@ export default function OrderfleetList({
                             </p>
                           </div>
                         </div>
-                        <span className="shrink-0 text-xs font-medium text-gray-700">{fleet.distanceLeftKm.toFixed(1)} km left</span>
                         <div className="relative h-10 w-[84px] shrink-0 overflow-hidden">
                           <Image src={vehicleInfo.imagePath} alt={vehicleInfo.label} fill className="object-contain object-center" sizes="60px" unoptimized />
                         </div>

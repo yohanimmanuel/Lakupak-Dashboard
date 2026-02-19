@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus } from 'lucide-react';
 import OrderfleetList, {
@@ -9,7 +9,7 @@ import OrderfleetList, {
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
-import { MOCK_FLEETS } from '@/data/logisticsMockFleets';
+import { getFleets } from '@/data/logisticsFleetsStorage';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -23,8 +23,18 @@ const VALID_DELIVERY_TYPES: DeliveryType[] = [
 export default function LogisticsPage() {
   const router = useRouter();
   const { user } = useUserStore();
-  const [fleets] = useState<FleetOrderSummary[]>(MOCK_FLEETS);
-  const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>(fleets[0]?.id);
+  const [fleets, setFleets] = useState<FleetOrderSummary[]>([]);
+  const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>();
+
+  useEffect(() => {
+    setFleets(getFleets());
+  }, []);
+
+  useEffect(() => {
+    if (fleets.length > 0 && !selectedFleetId) {
+      setSelectedFleetId(fleets[0]?.id);
+    }
+  }, [fleets, selectedFleetId]);
 
   const availableDeliveryTypes = useMemo((): DeliveryType[] => {
     const raw = user?.company?.shippingPreferences;
@@ -51,7 +61,7 @@ export default function LogisticsPage() {
   );
 
   const handleRefresh = () => {
-    // TODO: Wire up logistics data reload
+    setFleets(getFleets());
   };
 
   const handleExport = () => {
@@ -59,7 +69,7 @@ export default function LogisticsPage() {
   };
 
   const handleAddFleet = () => {
-    // TODO: Route to fleet/truck creation flow or open a modal
+    router.push('/logistics/create');
   };
 
   const handleOpenTracking = () => {

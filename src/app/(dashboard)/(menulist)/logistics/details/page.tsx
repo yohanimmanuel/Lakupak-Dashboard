@@ -1,19 +1,33 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import OrderfleetDetails from '@/components/logisticsmanagement/OrderfleetDetails';
-import { MOCK_FLEETS } from '@/data/logisticsMockFleets';
+import { getFleets } from '@/data/logisticsFleetsStorage';
+import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
 
 export default function LogisticsDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const fleetId = searchParams?.get('id') ?? null;
+  const [fleets, setFleets] = useState<FleetOrderSummary[] | null>(null);
+
+  useEffect(() => {
+    setFleets(getFleets());
+  }, []);
 
   const fleet = useMemo(
-    () => (fleetId ? MOCK_FLEETS.find((f) => f.id === fleetId) : null),
-    [fleetId]
+    () => (fleetId && fleets ? fleets.find((f) => f.id === fleetId) : null),
+    [fleetId, fleets]
   );
+
+  if (fleets === null) {
+    return (
+      <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   if (!fleetId) {
     return (

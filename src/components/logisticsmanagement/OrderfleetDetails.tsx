@@ -14,14 +14,13 @@ import {
   Layers,
   Building2,
   Phone,
-  Mail,
-  Calendar,
   Navigation2,
   ChevronRight,
   Edit,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
+import Image from 'next/image';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 
 interface OrderfleetDetailsProps {
@@ -57,17 +56,10 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
     else router.push('/logistics');
   };
 
-  // Mock extended data for details view (replace with API when available)
-  const customer = {
-    storeName: 'PT. Berastagi Distribution',
-    contactName: 'John Doe',
-    phone: '+62 812-9876-5432',
-    email: 'contact@berastagidist.com',
-    address: 'Jl. Raya Berastagi No. 123, North Sumatra',
-    orderDate: '16 Feb 2026',
-  };
-  const vehicle = { brand: 'Hyundai', model: 'Cargo Track HD320', loadPct: 71, weight: '7,260 kg', volume: '372.45 m³', vehicleType: '20ft_container' as const };
-  const driver = { phone: '+62 812-3456-7890', license: 'SIM-A 123456789', experience: '5+ years' };
+  const vehicleType = fleet.vehicleType ?? '20ft_container';
+  const loadPct = fleet.loadPct ?? 0;
+  const weightStr = fleet.vehicleMaxWeight != null ? `${fleet.vehicleMaxWeight.toLocaleString()} kg` : '—';
+  const volumeStr = fleet.vehicleMaxVolume != null ? `${fleet.vehicleMaxVolume.toLocaleString()} m³` : '—';
 
   return (
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
@@ -116,7 +108,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               <div className="space-y-1">
                 <DetailRow label="Estimated delivery completion" value={fleet.eta} icon={Clock} />
                 <DetailRow label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} icon={Layers} />
-                <DetailRow label="Distance left" value={fleet.distanceLeftKm != null ? `${fleet.distanceLeftKm.toFixed(1)} km` : '—'} icon={Route} />                <DetailRow label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} icon={Layers} />
+                <DetailRow label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} icon={Layers} />
                 <DetailRow label="Delivery type" value={fleet.deliveryType ?? '—'} icon={Package} />
                 <DetailRow label="Last updated" value={fleet.lastUpdate} icon={Clock} />
               </div>
@@ -129,18 +121,21 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 <h3 className="text-sm font-semibold text-gray-900">Driver</h3>
               </div>
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                <div className="w-12 h-12 rounded-full bg-[#0a61d7]/10 flex items-center justify-center text-[#0a61d7]">
-                  <User className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-[#0a61d7]/10 text-[#0a61d7] shrink-0">
+                  {fleet.driverAvatar ? (
+                    <Image src={fleet.driverAvatar} alt={fleet.driverName} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                  ) : (
+                    <User className="w-6 h-6" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{fleet.driverName}</p>
-                  <p className="text-xs text-gray-500">On route</p>
+                  <p className="text-xs text-gray-500">{fleet.driverStatus ?? '—'}</p>
                 </div>
               </div>
               <div className="space-y-1 pt-2">
-                <DetailRow label="Phone" value={driver.phone} icon={Phone} />
-                <DetailRow label="License" value={driver.license} />
-                <DetailRow label="Experience" value={driver.experience} />
+                <DetailRow label="Phone" value={fleet.driverPhone ?? '—'} icon={Phone} />
+                <DetailRow label="Experience" value={fleet.driverExperience ?? '—'} />
               </div>
             </div>
 
@@ -151,14 +146,14 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 <h3 className="text-sm font-semibold text-gray-900">Vehicle</h3>
               </div>
               <div className="flex-shrink-0 mb-4 flex justify-center">
-                <TruckImageWithLoadBar vehicleType={vehicle.vehicleType} loadPct={vehicle.loadPct} />
+                <TruckImageWithLoadBar vehicleType={vehicleType} loadPct={loadPct} />
               </div>
               <div className="space-y-1 flex-shrink-0">
-                <DetailRow label="Brand" value={vehicle.brand} />
-                <DetailRow label="Model" value={vehicle.model} />
-                <DetailRow label="Weight" value={vehicle.weight} />
-                <DetailRow label="Volume" value={vehicle.volume} />
-                <DetailRow label="Vehicle Type" value={getVehicleTypeInfo(vehicle.vehicleType)?.label ?? '—'} />
+                <DetailRow label="Brand" value={fleet.vehicleBrand ?? '—'} />
+                <DetailRow label="Model" value={fleet.vehicleModel ?? '—'} />
+                <DetailRow label="Weight" value={weightStr} />
+                <DetailRow label="Volume" value={volumeStr} />
+                <DetailRow label="Vehicle Type" value={getVehicleTypeInfo(vehicleType)?.label ?? '—'} />
               </div>
             </div>
           </div>
@@ -172,7 +167,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 <DetailRow label="Fleet ID" value={fleet.orderCode} icon={Package} />
                 <DetailRow label="Delivery status" value={fleet.status} icon={Navigation2} />
                 <DetailRow label="Assigned logistics" value="Distributor Fleet" icon={Truck} />
-                <DetailRow label="Payment terms" value="En route" icon={CreditCard} />
+                <DetailRow label="Payment terms" value={fleet.paymentTerms ?? '—'} icon={CreditCard} />
               </div>
             </div>
 
@@ -220,19 +215,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                   ))}
                 </ul>
               ) : (
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="w-16 h-16 flex-shrink-0 rounded-full bg-[#0a61d7] flex items-center justify-center text-white">
-                    <User className="w-8 h-8" />
-                  </div>
-                  <div className="flex-1 space-y-0">
-                    <DetailRow label="Store name" value={customer.storeName} icon={Building2} />
-                    <DetailRow label="Contact" value={customer.contactName} icon={User} />
-                    <DetailRow label="Phone" value={customer.phone} icon={Phone} />
-                    <DetailRow label="Email" value={customer.email} icon={Mail} />
-                    <DetailRow label="Order date" value={customer.orderDate} icon={Calendar} />
-                    <DetailRow label="Address" value={customer.address} icon={MapPin} />
-                  </div>
-                </div>
+                <p className="text-sm text-gray-500">No orders assigned to this fleet.</p>
               )}
             </div>
           </div>
