@@ -131,7 +131,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
         
         {/* Map */}
         {isGeocoding && mapMarkers.length === 0 ? (
-          <div className="bg-gray-100 rounded-lg h-[486px] flex items-center justify-center">
+          <div className="bg-gray-100 rounded-lg h-[471px] flex items-center justify-center">
               <div className="text-center">
               <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-3 animate-spin" />
               <p className="text-gray-500 font-medium">Loading map...</p>
@@ -143,12 +143,12 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
             accessToken={mapboxToken}
             markers={mapMarkers}
             center={mapCenter}
-            height="486px"
+            height="471px"
             showControls={true}
             onMarkerClick={handleMarkerClick}
           />
           ) : (
-          <div className="bg-gray-100 rounded-lg h-100 flex items-center justify-center">
+          <div className="bg-gray-100 rounded-lg h-[471px] flex items-center justify-center">
             <div className="text-center w-full">
               <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 font-medium">No active deliveries</p>

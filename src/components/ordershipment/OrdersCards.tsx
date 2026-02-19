@@ -38,7 +38,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const displayCurrency = user?.currency || getDefaultCurrency();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Total Orders */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="flex items-center justify-between">
