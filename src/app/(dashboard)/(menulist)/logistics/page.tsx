@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus, Check } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import OrderfleetList, {
   type FleetOrderSummary,
   type DeliveryType,
@@ -142,7 +143,40 @@ export default function LogisticsPage() {
   };
 
   const handleExport = () => {
-    // TODO: Implement logistics data export (e.g., XLSX/CSV)
+    try {
+      if (fleets.length === 0) {
+        alert('No fleet data to export.');
+        return;
+      }
+      const rows = fleets.map((f) => ({
+        'Fleet ID': f.id,
+        'Fleet Code': f.orderCode ?? '',
+        Route: f.route ?? '',
+        Status: f.status ?? '',
+        'Delivery Type': f.deliveryType ?? '',
+        ETA: f.eta ?? '',
+        'Last Update': f.lastUpdate ?? '',
+        Driver: f.driverName ?? '',
+        'Driver Phone': f.driverPhone ?? '',
+        'Vehicle Type': f.vehicleType ?? '',
+        'Vehicle Brand': f.vehicleBrand ?? '',
+        'Vehicle Model': f.vehicleModel ?? '',
+        'Load %': f.loadPct ?? '',
+        'Total Orders': f.totalOrders ?? '',
+        'Deliveries Completed': f.deliveriesCompleted ?? '',
+        'Payment Terms': f.paymentTerms ?? '',
+        Customers: Array.isArray(f.customers)
+          ? f.customers.map((c) => c.storeName || c.contactName).filter(Boolean).join('; ')
+          : '',
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Fleets');
+      const filename = `logistics_fleets_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch {
+      alert('Failed to export data. Please try again.');
+    }
   };
 
   const handleAddFleet = () => {

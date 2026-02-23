@@ -1338,7 +1338,8 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        if (nextStatus === 'Delivered' && !(existing as { deliveredAt?: Date | null }).deliveredAt) {
+        // Update deliveredAt whenever status is set to Delivered (including after revert to Pending and back)
+        if (nextStatus === 'Delivered') {
           updateData.deliveredAt = new Date();
         }
 

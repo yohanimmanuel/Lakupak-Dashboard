@@ -245,13 +245,17 @@ export default function EditFleetPage() {
     setShowSummaryModal(true);
   };
 
-  const handleModalSubmit = () => {
+  const handleModalSubmit = async () => {
     setIsSaving(true);
     try {
-      performSave();
+      await performSave();
     } catch (error) {
-      console.error('Error updating fleet:', error);
-      alert('Failed to update fleet. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to update fleet.';
+      if (message.includes('already assigned to another fleet')) {
+        alert(message + ' Remove them from the selection or assign them in the other fleet first.');
+      } else {
+        alert(message || 'Failed to update fleet. Please try again.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -314,6 +318,7 @@ export default function EditFleetPage() {
             onFormChange={handleFormChange}
             onTabCompletion={handleTabCompletion}
             mode="edit"
+            currentFleetId={fleetId}
           />
         );
       default:

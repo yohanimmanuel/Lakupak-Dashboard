@@ -581,7 +581,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
                 <div>
                   <span className="text-blue-700">Tracking:</span>
-                  <span className="ml-2 font-semibold text-blue-900">{order.trackingNumber || 'No tracking number'}</span>
+                  {order.fleetId != null && order.trackingNumber ? (
+                    <Link
+                      href={`/logistics/details?id=${order.fleetId}`}
+                      className="ml-2 font-semibold text-[#0a61d7] hover:text-[#084ba6] underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
+                      title="View fleet details"
+                    >
+                      {order.trackingNumber.replace(/^#/, '')}
+                    </Link>
+                  ) : (
+                    <span className="ml-2 font-semibold text-blue-900">{(order.trackingNumber || '').replace(/^#/, '') || 'No tracking number'}</span>
+                  )}
                 </div>
               </div>
             </div>

@@ -23,7 +23,7 @@ interface Tab {
 
 function generateFleetCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '#';
+  let code = '';
   for (let i = 0; i < 10; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -184,8 +184,12 @@ export default function CreateFleetPage() {
     try {
       await performCreate();
     } catch (error) {
-      console.error('Error creating fleet:', error);
-      alert('Failed to create fleet. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to create fleet.';
+      if (message.includes('already assigned to another fleet')) {
+        alert(message + ' Remove them from the selection or assign them in the other fleet first.');
+      } else {
+        alert(message || 'Failed to create fleet. Please try again.');
+      }
     } finally {
       setIsCreating(false);
     }

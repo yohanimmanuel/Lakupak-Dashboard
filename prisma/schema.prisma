@@ -289,6 +289,8 @@ model Order {
   orderItemsRel           OrderItem[]
   productReviews          ProductReview[]
   orderDeliveryReview     OrderDeliveryReview?
+  fleetId                 Int?
+  fleet                   Fleet?       @relation(fields: [fleetId], references: [id], onDelete: SetNull)
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -301,6 +303,7 @@ model Order {
   @@index([isDeleted])
   @@index([userId, orderStatus, isDeleted])
   @@index([userId, isDeleted, archivedAt])
+  @@index([fleetId])
 }
 
 model OrderItem {
@@ -793,6 +796,7 @@ model Fleet {
   createdAt           DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders              Order[]
 
   @@index([userId])
   @@index([userId, status])

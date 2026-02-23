@@ -2,6 +2,66 @@ import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 
+type DbClient = Pick<typeof prisma, 'order'>;
+
+/** Sync Order.fleetId and Order.trackingNumber when a fleet's assignedOrderIds changes. */
+async function syncOrdersToFleet(
+  fleetId: number,
+  fleetCode: string,
+  assignedOrderIds: string[],
+  tx?: DbClient,
+  userId?: number,
+) {
+  const orderIds = assignedOrderIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+  const run = async (db: DbClient) => {
+    // Pre-check: detect orders already assigned to another fleet (non-null fleetId !== this fleet)
+    if (orderIds.length > 0) {
+      const alreadyAssigned = await db.order.findMany({
+        where: {
+          orderId: { in: orderIds },
+          fleetId: { not: null },
+          ...(userId !== undefined && { userId }),
+        },
+        select: { orderId: true, fleetId: true },
+      });
+      const assignedToOther = alreadyAssigned.filter((o) => o.fleetId !== fleetId);
+      if (assignedToOther.length > 0) {
+        throw new Error(
+          `Orders already assigned to another fleet: ${assignedToOther.map((o) => o.orderId).join(', ')}`,
+        );
+      }
+    }
+
+    // Unassign orders that were in this fleet but are no longer in the list
+    await db.order.updateMany({
+      where: {
+        fleetId,
+        orderId: { notIn: orderIds },
+        ...(userId !== undefined && { userId }),
+      },
+      data: { fleetId: null, trackingNumber: null },
+    });
+
+    // Assign orders in the list to this fleet
+    if (orderIds.length > 0) {
+      await db.order.updateMany({
+        where: {
+          orderId: { in: orderIds },
+          ...(userId !== undefined && { userId }),
+        },
+        data: { fleetId, trackingNumber: fleetCode },
+      });
+    }
+  };
+
+  if (tx) {
+    await run(tx);
+  } else {
+    await prisma.$transaction(run);
+  }
+}
+
 // ============================================================================ //
 // TYPE DEFS
 // ============================================================================ //
@@ -287,35 +347,42 @@ export const logisticsResolvers = {
   Mutation: {
     async createFleet(_: unknown, args: { userId: number; input: Record<string, unknown> }) {
       const { userId, input } = args;
-      const row = await prisma.fleet.create({
-        data: {
-          userId,
-          fleetCode: (input.fleetCode as string) ?? '',
-          route: (input.route as string) ?? '',
-          routeFrom: (input.routeFrom as string) ?? undefined,
-          routeTo: (input.routeTo as string) ?? undefined,
-          status: (input.status as string) ?? 'In Transit',
-          deliveryType: (input.deliveryType as string) ?? undefined,
-          eta: (input.eta as string) ?? '',
-          lastUpdate: (input.lastUpdate as string) ?? 'Just now',
-          driverName: (input.driverName as string) ?? '',
-          driverPhone: (input.driverPhone as string) ?? undefined,
-          driverExperience: (input.driverExperience as string) ?? undefined,
-          driverStatus: (input.driverStatus as string) ?? undefined,
-          driverAvatar: (input.driverAvatar as string) ?? undefined,
-          vehicleType: (input.vehicleType as string) ?? undefined,
-          vehicleBrand: (input.vehicleBrand as string) ?? undefined,
-          vehicleModel: (input.vehicleModel as string) ?? undefined,
-          vehicleMaxWeight: typeof input.vehicleMaxWeight === 'number' ? input.vehicleMaxWeight : undefined,
-          vehicleMaxVolume: typeof input.vehicleMaxVolume === 'number' ? input.vehicleMaxVolume : undefined,
-          loadPct: typeof input.loadPct === 'number' ? input.loadPct : undefined,
-          paymentTerms: (input.paymentTerms as string) ?? undefined,
-          totalOrders: typeof input.totalOrders === 'number' ? input.totalOrders : undefined,
-          deliveriesCompleted: typeof input.deliveriesCompleted === 'number' ? input.deliveriesCompleted : undefined,
-          assignedOrderIds: Array.isArray(input.assignedOrderIds) ? input.assignedOrderIds : undefined,
-          completedOrderIds: Array.isArray(input.completedOrderIds) ? input.completedOrderIds : undefined,
-          customers: Array.isArray(input.customers) ? input.customers : undefined,
-        },
+      const assignedIds = Array.isArray(input.assignedOrderIds)
+        ? (input.assignedOrderIds as string[])
+        : [];
+      const row = await prisma.$transaction(async (tx) => {
+        const created = await tx.fleet.create({
+          data: {
+            userId,
+            fleetCode: (input.fleetCode as string) ?? '',
+            route: (input.route as string) ?? '',
+            routeFrom: (input.routeFrom as string) ?? undefined,
+            routeTo: (input.routeTo as string) ?? undefined,
+            status: (input.status as string) ?? 'In Transit',
+            deliveryType: (input.deliveryType as string) ?? undefined,
+            eta: (input.eta as string) ?? '',
+            lastUpdate: (input.lastUpdate as string) ?? 'Just now',
+            driverName: (input.driverName as string) ?? '',
+            driverPhone: (input.driverPhone as string) ?? undefined,
+            driverExperience: (input.driverExperience as string) ?? undefined,
+            driverStatus: (input.driverStatus as string) ?? undefined,
+            driverAvatar: (input.driverAvatar as string) ?? undefined,
+            vehicleType: (input.vehicleType as string) ?? undefined,
+            vehicleBrand: (input.vehicleBrand as string) ?? undefined,
+            vehicleModel: (input.vehicleModel as string) ?? undefined,
+            vehicleMaxWeight: typeof input.vehicleMaxWeight === 'number' ? input.vehicleMaxWeight : undefined,
+            vehicleMaxVolume: typeof input.vehicleMaxVolume === 'number' ? input.vehicleMaxVolume : undefined,
+            loadPct: typeof input.loadPct === 'number' ? input.loadPct : undefined,
+            paymentTerms: (input.paymentTerms as string) ?? undefined,
+            totalOrders: typeof input.totalOrders === 'number' ? input.totalOrders : undefined,
+            deliveriesCompleted: typeof input.deliveriesCompleted === 'number' ? input.deliveriesCompleted : undefined,
+            assignedOrderIds: Array.isArray(input.assignedOrderIds) ? input.assignedOrderIds : undefined,
+            completedOrderIds: Array.isArray(input.completedOrderIds) ? input.completedOrderIds : undefined,
+            customers: Array.isArray(input.customers) ? input.customers : undefined,
+          },
+        });
+        await syncOrdersToFleet(created.id, created.fleetCode, assignedIds, tx, userId);
+        return created;
       });
       return mapFleet(row);
     },
@@ -330,40 +397,49 @@ export const logisticsResolvers = {
       if (!existing) {
         throw new Error('Fleet not found');
       }
-      const row = await prisma.fleet.update({
-        where: { id: numId },
-        data: {
-          ...(input.route !== undefined && { route: input.route as string }),
-          ...(input.routeFrom !== undefined && { routeFrom: input.routeFrom as string }),
-          ...(input.routeTo !== undefined && { routeTo: input.routeTo as string }),
-          ...(input.status !== undefined && { status: input.status as string }),
-          ...(input.deliveryType !== undefined && { deliveryType: input.deliveryType as string }),
-          ...(input.eta !== undefined && { eta: input.eta as string }),
-          ...(input.lastUpdate !== undefined && { lastUpdate: input.lastUpdate as string }),
-          ...(input.driverName !== undefined && { driverName: input.driverName as string }),
-          ...(input.driverPhone !== undefined && { driverPhone: input.driverPhone as string }),
-          ...(input.driverExperience !== undefined && { driverExperience: input.driverExperience as string }),
-          ...(input.driverStatus !== undefined && { driverStatus: input.driverStatus as string }),
-          ...(input.driverAvatar !== undefined && { driverAvatar: input.driverAvatar as string }),
-          ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
-          ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
-          ...(input.vehicleModel !== undefined && { vehicleModel: input.vehicleModel as string }),
-          ...(input.vehicleMaxWeight !== undefined && { vehicleMaxWeight: input.vehicleMaxWeight as number }),
-          ...(input.vehicleMaxVolume !== undefined && { vehicleMaxVolume: input.vehicleMaxVolume as number }),
-          ...(input.loadPct !== undefined && { loadPct: input.loadPct as number }),
-          ...(input.paymentTerms !== undefined && { paymentTerms: input.paymentTerms as string }),
-          ...(input.totalOrders !== undefined && { totalOrders: input.totalOrders as number }),
-          ...(input.deliveriesCompleted !== undefined && { deliveriesCompleted: input.deliveriesCompleted as number }),
-          ...(input.assignedOrderIds !== undefined && {
-            assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue,
-          }),
-          ...(input.completedOrderIds !== undefined && {
-            completedOrderIds: input.completedOrderIds as Prisma.InputJsonValue,
-          }),
-          ...(input.customers !== undefined && {
-            customers: input.customers as Prisma.InputJsonValue,
-          }),
-        },
+      const row = await prisma.$transaction(async (tx) => {
+        const updated = await tx.fleet.update({
+          where: { id: numId },
+          data: {
+            ...(input.route !== undefined && { route: input.route as string }),
+            ...(input.routeFrom !== undefined && { routeFrom: input.routeFrom as string }),
+            ...(input.routeTo !== undefined && { routeTo: input.routeTo as string }),
+            ...(input.status !== undefined && { status: input.status as string }),
+            ...(input.deliveryType !== undefined && { deliveryType: input.deliveryType as string }),
+            ...(input.eta !== undefined && { eta: input.eta as string }),
+            ...(input.lastUpdate !== undefined && { lastUpdate: input.lastUpdate as string }),
+            ...(input.driverName !== undefined && { driverName: input.driverName as string }),
+            ...(input.driverPhone !== undefined && { driverPhone: input.driverPhone as string }),
+            ...(input.driverExperience !== undefined && { driverExperience: input.driverExperience as string }),
+            ...(input.driverStatus !== undefined && { driverStatus: input.driverStatus as string }),
+            ...(input.driverAvatar !== undefined && { driverAvatar: input.driverAvatar as string }),
+            ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
+            ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
+            ...(input.vehicleModel !== undefined && { vehicleModel: input.vehicleModel as string }),
+            ...(input.vehicleMaxWeight !== undefined && { vehicleMaxWeight: input.vehicleMaxWeight as number }),
+            ...(input.vehicleMaxVolume !== undefined && { vehicleMaxVolume: input.vehicleMaxVolume as number }),
+            ...(input.loadPct !== undefined && { loadPct: input.loadPct as number }),
+            ...(input.paymentTerms !== undefined && { paymentTerms: input.paymentTerms as string }),
+            ...(input.totalOrders !== undefined && { totalOrders: input.totalOrders as number }),
+            ...(input.deliveriesCompleted !== undefined && { deliveriesCompleted: input.deliveriesCompleted as number }),
+            ...(input.assignedOrderIds !== undefined && {
+              assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue,
+            }),
+            ...(input.completedOrderIds !== undefined && {
+              completedOrderIds: input.completedOrderIds as Prisma.InputJsonValue,
+            }),
+            ...(input.customers !== undefined && {
+              customers: input.customers as Prisma.InputJsonValue,
+            }),
+          },
+        });
+        if (input.assignedOrderIds !== undefined) {
+          const assignedIds = Array.isArray(input.assignedOrderIds)
+            ? (input.assignedOrderIds as string[])
+            : [];
+          await syncOrdersToFleet(numId, updated.fleetCode, assignedIds, tx, userId);
+        }
+        return updated;
       });
       return mapFleet(row);
     },
@@ -378,7 +454,13 @@ export const logisticsResolvers = {
       if (!existing) {
         throw new Error('Fleet not found');
       }
-      const deleted = await prisma.fleet.delete({ where: { id: numId } });
+      const deleted = await prisma.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { fleetId: numId },
+          data: { fleetId: null, trackingNumber: null },
+        });
+        return tx.fleet.delete({ where: { id: numId } });
+      });
       return {
         success: true,
         deleted: mapFleet(deleted),

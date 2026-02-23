@@ -36,6 +36,7 @@ export interface Order {
   preferredPickupTime?: string;
   assignedLogistics?: string;
   trackingNumber?: string;
+  fleetId?: number | null;
   deliveryNote?: string;
   deliveryConfirmation?: string;
   pod?: string;

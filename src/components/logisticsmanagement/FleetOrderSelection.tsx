@@ -12,11 +12,18 @@ export interface AssignedOrder {
   orderStatus: string;
 }
 
+/** Order from API; fleetId used to block orders already assigned to another fleet. */
+interface OrderNode extends AssignedOrder {
+  fleetId?: number | null;
+}
+
 interface FleetOrderSelectionProps {
   selectedOrders: AssignedOrder[];
   onFormChange: (updates: { assignedOrders: AssignedOrder[] }) => void;
   onTabCompletion: (tabId: 'orders', isComplete: boolean) => void;
   mode: 'create' | 'edit';
+  /** When editing, the current fleet id so we don't block orders already in this fleet. */
+  currentFleetId?: string | null;
 }
 
 const ORDERS_QUERY = `
@@ -27,6 +34,7 @@ const ORDERS_QUERY = `
         storeName
         totalAmount
         orderStatus
+        fleetId
       }
       pagination { totalCount }
     }
@@ -37,21 +45,24 @@ export default function FleetOrderSelection({
   selectedOrders,
   onFormChange,
   onTabCompletion,
+  mode,
+  currentFleetId,
 }: FleetOrderSelectionProps) {
   const user = useUserStore((s) => s.user);
-  const [orders, setOrders] = useState<AssignedOrder[]>([]);
+  const [orders, setOrders] = useState<OrderNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
+  const currentFleetIdNum = currentFleetId != null ? parseInt(currentFleetId, 10) : null;
 
   const fetchOrders = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     try {
       const data = await fetchGraphQL<{
-        orders: { nodes: AssignedOrder[]; pagination: { totalCount: number } };
+        orders: { nodes: OrderNode[]; pagination: { totalCount: number } };
       }>(ORDERS_QUERY, {
         userId: user.id,
         page: 1,
@@ -83,9 +94,17 @@ export default function FleetOrderSelection({
 
   const isOrderSelected = (orderId: string) => selectedOrders.some((o) => o.orderId === orderId);
 
-  const handleAddOrder = (order: AssignedOrder) => {
+  /** Order is assigned to a different fleet; block selection and show message. */
+  const isAssignedToOtherFleet = (order: OrderNode) => {
+    if (order.fleetId == null) return false;
+    if (mode === 'create') return true;
+    return currentFleetIdNum != null && order.fleetId !== currentFleetIdNum;
+  };
+
+  const handleAddOrder = (order: OrderNode) => {
+    if (isAssignedToOtherFleet(order)) return;
     if (!isOrderSelected(order.orderId)) {
-      const next = [...selectedOrders, order];
+      const next = [...selectedOrders, { orderId: order.orderId, storeName: order.storeName, totalAmount: order.totalAmount, orderStatus: order.orderStatus }];
       onFormChange({ assignedOrders: next });
     }
   };
@@ -173,13 +192,19 @@ export default function FleetOrderSelection({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {pagedOrders.map((order) => {
                 const selected = isOrderSelected(order.orderId);
+                const otherFleet = isAssignedToOtherFleet(order);
                 return (
                   <div
                     key={order.orderId}
-                    onClick={() => (selected ? handleRemoveOrder(order.orderId) : handleAddOrder(order))}
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      selected ? 'border-green-500 bg-green-50' : 'border-[#e6e6e6] hover:border-gray-300 bg-white'
+                    onClick={() => (otherFleet ? undefined : selected ? handleRemoveOrder(order.orderId) : handleAddOrder(order))}
+                    className={`border-2 rounded-lg p-4 transition-all ${
+                      otherFleet
+                        ? 'border-amber-300 bg-amber-50/80 cursor-not-allowed opacity-90'
+                        : selected
+                          ? 'border-green-500 bg-green-50 cursor-pointer'
+                          : 'border-[#e6e6e6] hover:border-gray-300 bg-white cursor-pointer'
                     }`}
+                    title={otherFleet ? 'Assigned to another fleet' : undefined}
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -188,8 +213,11 @@ export default function FleetOrderSelection({
                         <p className="text-sm font-bold text-[#0a61d7] mt-2">
                           IDR {Number(order.totalAmount ?? 0).toLocaleString()}
                         </p>
+                        {otherFleet && (
+                          <p className="text-xs text-amber-700 mt-2 font-medium">Assigned to another fleet</p>
+                        )}
                       </div>
-                      {selected && (
+                      {selected && !otherFleet && (
                         <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shrink-0">
                           <Check className="w-4 h-4 text-white" />
                         </div>
@@ -203,13 +231,19 @@ export default function FleetOrderSelection({
             <div className="space-y-2">
               {pagedOrders.map((order) => {
                 const selected = isOrderSelected(order.orderId);
+                const otherFleet = isAssignedToOtherFleet(order);
                 return (
                   <div
                     key={order.orderId}
-                    onClick={() => (selected ? handleRemoveOrder(order.orderId) : handleAddOrder(order))}
-                    className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      selected ? 'border-green-500 bg-green-50' : 'border-[#e6e6e6] hover:border-gray-300 bg-white'
+                    onClick={() => (otherFleet ? undefined : selected ? handleRemoveOrder(order.orderId) : handleAddOrder(order))}
+                    className={`flex items-center gap-4 p-4 border-2 rounded-lg transition-all ${
+                      otherFleet
+                        ? 'border-amber-300 bg-amber-50/80 cursor-not-allowed opacity-90'
+                        : selected
+                          ? 'border-green-500 bg-green-50 cursor-pointer'
+                          : 'border-[#e6e6e6] hover:border-gray-300 bg-white cursor-pointer'
                     }`}
+                    title={otherFleet ? 'Assigned to another fleet' : undefined}
                   >
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-semibold text-gray-900">{order.orderId}</h4>
@@ -217,8 +251,11 @@ export default function FleetOrderSelection({
                       <p className="text-sm font-bold text-[#0a61d7] mt-1">
                         IDR {Number(order.totalAmount ?? 0).toLocaleString()}
                       </p>
+                      {otherFleet && (
+                        <p className="text-xs text-amber-700 mt-1 font-medium">Assigned to another fleet</p>
+                      )}
                     </div>
-                    {selected && (
+                    {selected && !otherFleet && (
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shrink-0">
                         <Check className="w-4 h-4 text-white" />
                       </div>
