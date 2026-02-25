@@ -41,6 +41,7 @@ export interface FleetFormData {
   etaTime?: string;
   eta?: string;
   paymentTerms?: string;
+  assignedLogistics?: string;
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
@@ -147,6 +148,7 @@ export default function CreateFleetPage() {
       vehicleType: formData.vehicleType ?? '20ft_container',
       loadPct: formData.loadPct ?? 0,
       paymentTerms: formData.paymentTerms,
+      assignedLogistics: formData.assignedLogistics || undefined,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
       vehicleMaxWeight: formData.vehicleMaxWeight,
@@ -208,6 +210,7 @@ export default function CreateFleetPage() {
     etaTime: formData.etaTime,
     eta: `${formData.etaDate ?? ''} ${formData.etaTime ?? ''}`,
     paymentTerms: formData.paymentTerms,
+    assignedLogistics: formData.assignedLogistics || undefined,
     vehicleType: formData.vehicleType,
     vehicleBrand: formData.vehicleBrand,
     vehicleModel: formData.vehicleModel,

@@ -790,6 +790,7 @@ model Fleet {
   paymentTerms        String?
   totalOrders         Int?
   deliveriesCompleted Int?
+  assignedLogistics   String?   // e.g. "Distributor Fleet" – label in Logistics details and on orders
   assignedOrderIds    Json?     // string[]
   completedOrderIds   Json?     // string[]
   customers           Json?     // { storeName: string; contactName: string }[]

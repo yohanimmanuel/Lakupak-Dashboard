@@ -218,7 +218,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                 <DetailRow label="Fleet ID" value={fleet.orderCode} icon={Package} />
                 <DetailRow label="Delivery status" value={fleet.status} icon={Navigation2} />
-                <DetailRow label="Assigned logistics" value="Distributor Fleet" icon={Truck} />
+                <DetailRow label="Assigned logistics" value={fleet.assignedLogistics ?? '—'} icon={Truck} />
                 <DetailRow label="Payment terms" value={fleet.paymentTerms ?? '—'} icon={CreditCard} />
               </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useLayoutEffect, useRef } from 'react';
-import { MapPin, Calendar, Clock, CreditCard, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, Clock, CreditCard, ChevronDown, Truck } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus, DeliveryType } from './OrderfleetList';
 
 export interface FleetBasicFormData extends Partial<FleetOrderSummary> {
@@ -263,6 +263,21 @@ export default function FleetBasicInfo({
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">Assigned Logistics</label>
+          <div className="relative">
+            <Truck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={formData.assignedLogistics || ''}
+              onChange={(e) => onFormChange({ assignedLogistics: e.target.value })}
+              placeholder="e.g. Distributor Fleet"
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+            />
+          </div>
+          <p className="mt-1 text-[10px] text-gray-400">Shown in Logistics details and on assigned orders</p>
         </div>
       </div>
     </div>

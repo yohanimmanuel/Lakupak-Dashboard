@@ -152,7 +152,7 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
         <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={fleet.eta} />
         <InfoRowWithIcon icon={Layers} label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} />
         <InfoRowWithIcon icon={Layers} label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} />
-        <InfoRowWithIcon icon={Truck} label="Assigned Logistics" value="Distributor Fleet" />
+        <InfoRowWithIcon icon={Truck} label="Assigned Logistics" value={fleet.assignedLogistics ?? 'Distributor Fleet'} />
       </div>
     </div>
   );

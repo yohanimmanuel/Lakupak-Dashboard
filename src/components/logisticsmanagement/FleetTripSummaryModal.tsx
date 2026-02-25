@@ -16,6 +16,7 @@ export interface FleetTripSummaryData {
   etaTime?: string;
   eta?: string;
   paymentTerms?: string;
+  assignedLogistics?: string;
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
@@ -110,6 +111,7 @@ export default function FleetTripSummaryModal({
               <SummaryRow label="Delivery Type" value={data.deliveryType ?? ''} />
               <SummaryRow label="ETA" value={eta} />
               <SummaryRow label="Payment Terms" value={data.paymentTerms ?? ''} />
+              <SummaryRow label="Assigned Logistics" value={data.assignedLogistics ?? ''} />
             </div>
           </section>
 

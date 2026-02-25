@@ -32,6 +32,8 @@ export interface FleetOrderSummary {
   loadPct?: number;
   /** Payment terms */
   paymentTerms?: string;
+  /** Assigned logistics label (e.g. "Distributor Fleet") */
+  assignedLogistics?: string;
   /** Vehicle details */
   vehicleBrand?: string;
   vehicleModel?: string;

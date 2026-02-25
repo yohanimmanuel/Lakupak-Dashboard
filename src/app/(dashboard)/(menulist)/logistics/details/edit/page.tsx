@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Package, Truck, User, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Truck, User, ShoppingCart, CheckCircle } from 'lucide-react';
 import FleetBasicInfo from '@/components/logisticsmanagement/FleetBasicInfo';
 import FleetVehicleInfo from '@/components/logisticsmanagement/FleetVehicleInfo';
 import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
@@ -32,6 +32,7 @@ export interface FleetFormData {
   etaTime?: string;
   eta?: string;
   paymentTerms?: string;
+  assignedLogistics?: string;
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
@@ -89,13 +90,6 @@ export default function EditFleetPage() {
     assignedOrders: [],
   });
 
-  const [tabCompletion, setTabCompletion] = useState({
-    basic: false,
-    vehicle: false,
-    driver: false,
-    orders: true,
-  });
-
   const tabs: Tab[] = [
     { id: 'basic', label: 'Basic Info', icon: <Package className="w-5 h-5" />, description: 'Route, status, ETA' },
     { id: 'vehicle', label: 'Vehicle', icon: <Truck className="w-5 h-5" />, description: 'Truck type and load' },
@@ -131,6 +125,7 @@ export default function EditFleetPage() {
           etaTime: time || undefined,
           eta: fleet.eta,
           paymentTerms: fleet.paymentTerms ?? 'En route',
+          assignedLogistics: fleet.assignedLogistics ?? undefined,
           vehicleType: fleet.vehicleType ?? '20ft_container',
           vehicleBrand: fleet.vehicleBrand,
           vehicleModel: fleet.vehicleModel,
@@ -174,36 +169,7 @@ export default function EditFleetPage() {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const handleTabCompletion = useCallback((tabId: TabId, isComplete: boolean) => {
-    setTabCompletion((prev) => (prev[tabId] === isComplete ? prev : { ...prev, [tabId]: isComplete }));
-  }, []);
-
-  const validateForm = (): boolean =>
-    Boolean(
-      tabCompletion.basic &&
-        tabCompletion.vehicle &&
-        tabCompletion.driver &&
-        formData.routeFrom?.trim() &&
-        formData.routeTo?.trim() &&
-        formData.etaDate?.trim() &&
-        formData.etaTime?.trim() &&
-        formData.paymentTerms?.trim() &&
-        formData.driverName?.trim() &&
-        formData.driverPhone?.trim() &&
-        formData.driverExperience?.trim() &&
-        formData.driverStatus?.trim() &&
-        formData.vehicleBrand?.trim() &&
-        formData.vehicleModel?.trim() &&
-        formData.vehicleMaxWeight != null &&
-        formData.vehicleMaxWeight >= 0 &&
-        formData.vehicleMaxVolume != null &&
-        formData.vehicleMaxVolume >= 0 &&
-        formData.loadPct != null &&
-        formData.loadPct >= 0 &&
-        formData.loadPct <= 100
-    );
-
-  const isReadyToSave = validateForm();
+  const handleTabCompletion = useCallback((_tabId: TabId, _isComplete: boolean) => {}, []);
 
   const performSave = async () => {
     if (!fleetId || user?.id == null) return;
@@ -221,6 +187,7 @@ export default function EditFleetPage() {
       vehicleType: formData.vehicleType,
       loadPct: formData.loadPct,
       paymentTerms: formData.paymentTerms,
+      assignedLogistics: formData.assignedLogistics ?? undefined,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
       vehicleMaxWeight: formData.vehicleMaxWeight,
@@ -238,10 +205,7 @@ export default function EditFleetPage() {
   };
 
   const handleOpenSummary = () => {
-    if (!isReadyToSave || !fleetId) {
-      alert('Please complete all required fields before saving.');
-      return;
-    }
+    if (!fleetId) return;
     setShowSummaryModal(true);
   };
 
@@ -278,6 +242,7 @@ export default function EditFleetPage() {
       etaTime: formData.etaTime,
       eta: `${formData.etaDate ?? ''} ${formData.etaTime ?? ''}`,
       paymentTerms: formData.paymentTerms,
+      assignedLogistics: formData.assignedLogistics ?? undefined,
       vehicleType: formData.vehicleType,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
@@ -351,28 +316,11 @@ export default function EditFleetPage() {
           <div>
             <h1 className="text-2xl font-bold text-black">Edit Fleet / Truck</h1>
             <p className="text-gray-500 text-sm">Update fleet information</p>
-            <div className="flex items-center gap-4 mt-2">
-              {tabs.map((t) => (
-                <div key={t.id} className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${tabCompletion[t.id] ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <span className="text-xs text-gray-600">{t.label}</span>
-                </div>
-              ))}
-              {!isReadyToSave && (
-                <div className="flex items-center gap-1 text-amber-600">
-                  <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs">Complete required fields</span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
         <button
           onClick={handleOpenSummary}
-          disabled={!isReadyToSave}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition text-sm ${
-            isReadyToSave ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[#0a61d7] text-white hover:bg-[#084ba6] transition-colors"
         >
           <CheckCircle className="w-4 h-4" />
           Save Changes

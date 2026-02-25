@@ -27,6 +27,7 @@ const FLEETS_QUERY = /* GraphQL */ `
         driverExperience
         driverStatus
         driverAvatar
+        assignedLogistics
         assignedOrderIds
         completedOrderIds
       }
@@ -60,6 +61,7 @@ const FLEET_QUERY = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      assignedLogistics
       assignedOrderIds
       completedOrderIds
     }
@@ -91,6 +93,7 @@ const CREATE_FLEET_MUTATION = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      assignedLogistics
       assignedOrderIds
       completedOrderIds
     }
@@ -122,6 +125,7 @@ const UPDATE_FLEET_MUTATION = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      assignedLogistics
       assignedOrderIds
       completedOrderIds
     }
@@ -155,6 +159,7 @@ const DELETE_FLEET_MUTATION = /* GraphQL */ `
         driverExperience
         driverStatus
         driverAvatar
+        assignedLogistics
         assignedOrderIds
         completedOrderIds
       }
@@ -185,6 +190,7 @@ function mapNodeToSummary(node: {
   driverExperience?: string | null;
   driverStatus?: string | null;
   driverAvatar?: string | null;
+  assignedLogistics?: string | null;
   assignedOrderIds?: string[] | null;
   completedOrderIds?: string[] | null;
 }): FleetOrderSummary {
@@ -199,6 +205,7 @@ function mapNodeToSummary(node: {
     driverName: node.driverName,
     totalOrders: node.totalOrders ?? undefined,
     deliveriesCompleted: node.deliveriesCompleted ?? undefined,
+    assignedLogistics: node.assignedLogistics ?? undefined,
     customers: (node.customers ?? []).map((c) => ({
       storeName: c.storeName ?? '',
       contactName: c.contactName ?? '',

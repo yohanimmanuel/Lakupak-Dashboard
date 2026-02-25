@@ -4,15 +4,22 @@ import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
-/** Sync Order.fleetId and Order.trackingNumber when a fleet's assignedOrderIds changes. */
+const DEFAULT_ASSIGNED_LOGISTICS_LABEL = 'Distributor Fleet';
+
+/** Sync Order.fleetId, Order.trackingNumber, and Order.assignedLogistics when a fleet's assignedOrderIds changes. */
 async function syncOrdersToFleet(
   fleetId: number,
   fleetCode: string,
   assignedOrderIds: string[],
   tx?: DbClient,
   userId?: number,
+  assignedLogisticsLabel?: string | null,
 ) {
   const orderIds = assignedOrderIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  const logisticsLabel =
+    assignedLogisticsLabel != null && assignedLogisticsLabel.trim().length > 0
+      ? assignedLogisticsLabel.trim()
+      : DEFAULT_ASSIGNED_LOGISTICS_LABEL;
 
   const run = async (db: DbClient) => {
     // Pre-check: detect orders already assigned to another fleet (non-null fleetId !== this fleet)
@@ -33,24 +40,24 @@ async function syncOrdersToFleet(
       }
     }
 
-    // Unassign orders that were in this fleet but are no longer in the list
+    // Unassign orders that were in this fleet but are no longer in the list (clear fleet link and assigned logistics)
     await db.order.updateMany({
       where: {
         fleetId,
         orderId: { notIn: orderIds },
         ...(userId !== undefined && { userId }),
       },
-      data: { fleetId: null, trackingNumber: null },
+      data: { fleetId: null, trackingNumber: null, assignedLogistics: null },
     });
 
-    // Assign orders in the list to this fleet
+    // Assign orders in the list to this fleet (tracking = fleet code, assignedLogistics = fleet label e.g. "Distributor Fleet")
     if (orderIds.length > 0) {
       await db.order.updateMany({
         where: {
           orderId: { in: orderIds },
           ...(userId !== undefined && { userId }),
         },
-        data: { fleetId, trackingNumber: fleetCode },
+        data: { fleetId, trackingNumber: fleetCode, assignedLogistics: logisticsLabel },
       });
     }
   };
@@ -95,6 +102,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     driverExperience: String
     driverStatus: String
     driverAvatar: String
+    assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
     createdAt: String
@@ -134,6 +142,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     paymentTerms: String
     totalOrders: Int
     deliveriesCompleted: Int
+    assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
     customers: [FleetCustomerInput!]
@@ -161,6 +170,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     paymentTerms: String
     totalOrders: Int
     deliveriesCompleted: Int
+    assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
     customers: [FleetCustomerInput!]
@@ -237,6 +247,7 @@ function mapFleet(row: {
   driverName: string;
   totalOrders: number | null;
   deliveriesCompleted: number | null;
+  assignedLogistics: string | null;
   customers: unknown;
   vehicleType: string | null;
   loadPct: number | null;
@@ -265,6 +276,7 @@ function mapFleet(row: {
     driverName: row.driverName,
     totalOrders: row.totalOrders ?? null,
     deliveriesCompleted: row.deliveriesCompleted ?? null,
+    assignedLogistics: row.assignedLogistics ?? null,
     customers: parseJsonCustomers(row.customers),
     vehicleType: row.vehicleType ?? null,
     loadPct: row.loadPct ?? null,
@@ -376,12 +388,13 @@ export const logisticsResolvers = {
             paymentTerms: (input.paymentTerms as string) ?? undefined,
             totalOrders: typeof input.totalOrders === 'number' ? input.totalOrders : undefined,
             deliveriesCompleted: typeof input.deliveriesCompleted === 'number' ? input.deliveriesCompleted : undefined,
+            assignedLogistics: (input.assignedLogistics as string) ?? undefined,
             assignedOrderIds: Array.isArray(input.assignedOrderIds) ? input.assignedOrderIds : undefined,
             completedOrderIds: Array.isArray(input.completedOrderIds) ? input.completedOrderIds : undefined,
             customers: Array.isArray(input.customers) ? input.customers : undefined,
           },
         });
-        await syncOrdersToFleet(created.id, created.fleetCode, assignedIds, tx, userId);
+        await syncOrdersToFleet(created.id, created.fleetCode, assignedIds, tx, userId, created.assignedLogistics);
         return created;
       });
       return mapFleet(row);
@@ -422,6 +435,7 @@ export const logisticsResolvers = {
             ...(input.paymentTerms !== undefined && { paymentTerms: input.paymentTerms as string }),
             ...(input.totalOrders !== undefined && { totalOrders: input.totalOrders as number }),
             ...(input.deliveriesCompleted !== undefined && { deliveriesCompleted: input.deliveriesCompleted as number }),
+            ...(input.assignedLogistics !== undefined && { assignedLogistics: input.assignedLogistics as string }),
             ...(input.assignedOrderIds !== undefined && {
               assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue,
             }),
@@ -437,7 +451,7 @@ export const logisticsResolvers = {
           const assignedIds = Array.isArray(input.assignedOrderIds)
             ? (input.assignedOrderIds as string[])
             : [];
-          await syncOrdersToFleet(numId, updated.fleetCode, assignedIds, tx, userId);
+          await syncOrdersToFleet(numId, updated.fleetCode, assignedIds, tx, userId, updated.assignedLogistics);
         }
         return updated;
       });
@@ -457,7 +471,7 @@ export const logisticsResolvers = {
       const deleted = await prisma.$transaction(async (tx) => {
         await tx.order.updateMany({
           where: { fleetId: numId },
-          data: { fleetId: null, trackingNumber: null },
+          data: { fleetId: null, trackingNumber: null, assignedLogistics: null },
         });
         return tx.fleet.delete({ where: { id: numId } });
       });
