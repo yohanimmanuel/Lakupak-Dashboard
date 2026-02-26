@@ -520,7 +520,7 @@ export default function OrderfleetList({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[10px] font-medium text-gray-400">Courier</p>
+                            <p className="text-[10px] font-medium text-gray-400">Driver</p>
                             <p className="flex items-center gap-1.5 truncate text-xs font-semibold text-gray-900">
                               {fleet.driverName}
                               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
