@@ -1,5 +1,26 @@
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
+import type { FleetOrderSummary, FleetStatus } from '@/components/logisticsmanagement/OrderfleetList';
+
+/**
+ * Normalizes legacy fleet status values to the current availability-centric set.
+ *
+ * Migration path for existing DB records:
+ *   'Delivered' → 'Available'  (fleet completed its route; now back in the pool)
+ *   'Delayed'   → 'Checking'   (fleet had an issue; operator should review)
+ *
+ * To permanently migrate the DB run once:
+ *   UPDATE "Fleet" SET status = 'Available' WHERE status = 'Delivered';
+ *   UPDATE "Fleet" SET status = 'Checking'  WHERE status = 'Delayed';
+ */
+function normalizeFleetStatus(raw: string): FleetStatus {
+  const map: Record<string, FleetStatus> = {
+    Delivered: 'Available',
+    Delayed:   'Checking',
+  };
+  const current: FleetStatus[] = ['Available', 'Unavailable', 'In Transit', 'Checking'];
+  if (current.includes(raw as FleetStatus)) return raw as FleetStatus;
+  return map[raw] ?? 'Checking';
+}
 
 const FLEETS_QUERY = /* GraphQL */ `
   query Fleets($userId: Int!, $page: Int, $limit: Int, $status: String, $deliveryType: String, $search: String) {
@@ -27,7 +48,9 @@ const FLEETS_QUERY = /* GraphQL */ `
         driverExperience
         driverStatus
         driverAvatar
+        driverUsername
         assignedLogistics
+        assignedOrderIds
         assignedOrderIds
         completedOrderIds
       }
@@ -61,6 +84,7 @@ const FLEET_QUERY = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      driverUsername
       assignedLogistics
       assignedOrderIds
       completedOrderIds
@@ -93,6 +117,7 @@ const CREATE_FLEET_MUTATION = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      driverUsername
       assignedLogistics
       assignedOrderIds
       completedOrderIds
@@ -125,6 +150,7 @@ const UPDATE_FLEET_MUTATION = /* GraphQL */ `
       driverExperience
       driverStatus
       driverAvatar
+      driverUsername
       assignedLogistics
       assignedOrderIds
       completedOrderIds
@@ -159,9 +185,10 @@ const DELETE_FLEET_MUTATION = /* GraphQL */ `
         driverExperience
         driverStatus
         driverAvatar
-        assignedLogistics
-        assignedOrderIds
-        completedOrderIds
+      driverUsername
+      assignedLogistics
+      assignedOrderIds
+      completedOrderIds
       }
     }
   }
@@ -190,6 +217,7 @@ function mapNodeToSummary(node: {
   driverExperience?: string | null;
   driverStatus?: string | null;
   driverAvatar?: string | null;
+  driverUsername?: string | null;
   assignedLogistics?: string | null;
   assignedOrderIds?: string[] | null;
   completedOrderIds?: string[] | null;
@@ -198,7 +226,7 @@ function mapNodeToSummary(node: {
     id: node.id,
     orderCode: node.orderCode,
     route: node.route,
-    status: node.status as FleetOrderSummary['status'],
+    status: normalizeFleetStatus(node.status),
     deliveryType: (node.deliveryType ?? undefined) as FleetOrderSummary['deliveryType'],
     eta: node.eta,
     lastUpdate: node.lastUpdate,
@@ -221,6 +249,7 @@ function mapNodeToSummary(node: {
     driverExperience: node.driverExperience ?? undefined,
     driverStatus: node.driverStatus ?? undefined,
     driverAvatar: node.driverAvatar ?? undefined,
+    driverUsername: node.driverUsername ?? undefined,
     assignedOrderIds: node.assignedOrderIds ?? undefined,
     completedOrderIds: node.completedOrderIds ?? undefined,
   };

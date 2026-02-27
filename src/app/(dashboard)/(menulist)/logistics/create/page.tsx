@@ -53,6 +53,8 @@ export interface FleetFormData {
   driverExperience?: string;
   driverStatus?: string;
   driverAvatar?: string;
+  driverUsername?: string;
+  driverPassword?: string;
   assignedOrders?: AssignedOrder[];
   completedOrderIds?: string[];
 }
@@ -132,6 +134,12 @@ export default function CreateFleetPage() {
     }
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
+
+    // Extract the password into a local variable then immediately clear it from
+    // React state so it is not retained any longer than the duration of this call.
+    const driverPassword = formData.driverPassword;
+    setFormData((prev) => ({ ...prev, driverPassword: undefined }));
+
     const input = {
       fleetCode,
       route,
@@ -157,6 +165,8 @@ export default function CreateFleetPage() {
       driverExperience: formData.driverExperience,
       driverStatus: formData.driverStatus,
       driverAvatar: formData.driverAvatar,
+      driverUsername: formData.driverUsername,
+      driverPassword,
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
     };
@@ -222,6 +232,8 @@ export default function CreateFleetPage() {
     driverExperience: formData.driverExperience,
     driverStatus: formData.driverStatus,
     driverAvatar: formData.driverAvatar,
+    driverUsername: formData.driverUsername,
+    driverPasswordSet: !!formData.driverPassword,
     assignedOrders: formData.assignedOrders,
     completedOrderIds: formData.completedOrderIds ?? [],
   };

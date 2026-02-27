@@ -17,6 +17,9 @@ import {
   Navigation2,
   ChevronRight,
   Edit,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
@@ -40,10 +43,10 @@ interface OrderfleetDetailsProps {
 }
 
 const deliveryStatusStyles: Record<FleetStatus, string> = {
-  'In Transit': 'bg-emerald-100 text-emerald-700',
+  Available: 'bg-emerald-100 text-emerald-700',
+  Unavailable: 'bg-gray-200 text-gray-700',
+  'In Transit': 'bg-sky-100 text-sky-700',
   Checking: 'bg-amber-100 text-amber-700',
-  Delivered: 'bg-blue-100 text-blue-700',
-  Delayed: 'bg-rose-100 text-rose-700',
 };
 
 function DetailRow({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }) {
@@ -61,6 +64,7 @@ function DetailRow({ label, value, icon: Icon }: { label: string; value: string;
 export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetDetailsProps) {
   const router = useRouter();
   const { user } = useUserStore();
+  const [showPasswordHash, setShowPasswordHash] = useState(false);
   const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
 
   useEffect(() => {
@@ -188,6 +192,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               <div className="space-y-1 pt-2">
                 <DetailRow label="Phone" value={fleet.driverPhone ?? '—'} icon={Phone} />
                 <DetailRow label="Experience" value={fleet.driverExperience ?? '—'} />
+                <DetailRow label="App username" value={fleet.driverUsername ?? '—'} />
               </div>
             </div>
 

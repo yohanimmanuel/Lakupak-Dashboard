@@ -128,10 +128,10 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
 }
 
 const deliveryStatusStyles: Record<FleetStatus, string> = {
-  'In Transit': 'bg-emerald-100 text-emerald-700',
+  Available: 'bg-emerald-100 text-emerald-700',
+  Unavailable: 'bg-gray-200 text-gray-700',
+  'In Transit': 'bg-sky-100 text-sky-700',
   Checking: 'bg-amber-100 text-amber-700',
-  Delivered: 'bg-blue-100 text-blue-700',
-  Delayed: 'bg-rose-100 text-rose-700',
 };
 
 // Order Details Tab - restructured with status highlight and grouped sections

@@ -772,7 +772,11 @@ model Fleet {
   route               String
   routeFrom           String?
   routeTo             String?
-  status              String    // In Transit | Checking | Delivered | Delayed
+  status              String    // Available | Unavailable | In Transit | Checking
+                                // Legacy values 'Delivered' and 'Delayed' are normalised on read
+                                // (see normalizeFleetStatus in logisticsFleetsApi.ts).
+                                // Migrate permanently: UPDATE "Fleet" SET status='Available' WHERE status='Delivered';
+                                //                      UPDATE "Fleet" SET status='Checking'  WHERE status='Delayed';
   deliveryType        String?
   eta                 String
   lastUpdate          String
@@ -781,6 +785,8 @@ model Fleet {
   driverExperience    String?
   driverStatus        String?
   driverAvatar        String?
+  driverUsername      String?   @unique // Login username for the Laku Driver app
+  driverPasswordHash  String?   // Bcrypt-hashed password; never returned to client
   vehicleType         String?
   vehicleBrand        String?
   vehicleModel        String?

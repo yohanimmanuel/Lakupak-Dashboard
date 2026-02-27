@@ -21,7 +21,7 @@ interface FleetBasicInfoProps {
   fleetCode?: string;
 }
 
-const STATUS_OPTIONS: FleetStatus[] = ['In Transit', 'Checking', 'Delivered', 'Delayed'];
+const STATUS_OPTIONS: FleetStatus[] = ['Available', 'Unavailable', 'In Transit', 'Checking'];
 const DELIVERY_OPTIONS: DeliveryType[] = [
   'Standard Shipping',
   'Express Shipping',

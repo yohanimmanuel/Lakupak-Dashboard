@@ -44,6 +44,8 @@ export interface FleetFormData {
   driverExperience?: string;
   driverStatus?: string;
   driverAvatar?: string;
+  driverUsername?: string;
+  driverPassword?: string;
   assignedOrders?: AssignedOrder[];
   completedOrderIds?: string[];
 }
@@ -137,6 +139,7 @@ export default function EditFleetPage() {
           driverExperience: fleet.driverExperience,
           driverStatus: fleet.driverStatus,
           driverAvatar: fleet.driverAvatar,
+          driverUsername: fleet.driverUsername,
           completedOrderIds: fleet.completedOrderIds ?? [],
           assignedOrders: (() => {
             const orderIds = fleet.assignedOrderIds ?? [];
@@ -175,6 +178,12 @@ export default function EditFleetPage() {
     if (!fleetId || user?.id == null) return;
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
+
+    // Extract the staged password into a local variable and immediately clear it
+    // from React state so it is not retained any longer than this call.
+    const driverPassword = formData.driverPassword;
+    setFormData((prev) => ({ ...prev, driverPassword: undefined }));
+
     const input = {
       route,
       status: formData.status,
@@ -196,6 +205,8 @@ export default function EditFleetPage() {
       driverExperience: formData.driverExperience,
       driverStatus: formData.driverStatus,
       driverAvatar: formData.driverAvatar,
+      driverUsername: formData.driverUsername,
+      driverPassword,
       completedOrderIds: formData.completedOrderIds ?? [],
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
@@ -254,6 +265,8 @@ export default function EditFleetPage() {
       driverExperience: formData.driverExperience,
       driverStatus: formData.driverStatus,
       driverAvatar: formData.driverAvatar,
+      driverUsername: formData.driverUsername,
+      driverPasswordSet: !!formData.driverPassword,
       completedOrderIds: formData.completedOrderIds ?? [],
       assignedOrders: formData.assignedOrders,
     }),
@@ -275,7 +288,7 @@ export default function EditFleetPage() {
       case 'vehicle':
         return <FleetVehicleInfo {...common} />;
       case 'driver':
-        return <FleetDriverInfo {...common} />;
+        return <FleetDriverInfo {...common} fleetId={fleetId} />;
       case 'orders':
         return (
           <FleetOrderSelection

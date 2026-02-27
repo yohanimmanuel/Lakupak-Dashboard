@@ -7,7 +7,7 @@ import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
 import { deleteFleet } from '@/data/logisticsFleetsApi';
 
-export type FleetStatus = 'In Transit' | 'Checking' | 'Delivered' | 'Delayed';
+export type FleetStatus = 'Available' | 'Unavailable' | 'In Transit' | 'Checking';
 
 // Order statuses from orders module
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
@@ -47,7 +47,9 @@ export interface FleetOrderSummary {
   driverStatus?: string;
   /** Driver avatar URL (Cloudinary) */
   driverAvatar?: string;
-  /** Assigned order IDs for reference */
+  /** Driver app login username */
+  driverUsername?: string;
+  /** Order IDs assigned to this fleet */
   assignedOrderIds?: string[];
   /** Order IDs marked as delivered (for checklist) */
   completedOrderIds?: string[];
@@ -66,10 +68,10 @@ interface OrderfleetListProps {
 }
 
 const statusColors: Record<FleetStatus, string> = {
-  'In Transit': 'bg-emerald-100 text-emerald-700',
+  Available: 'bg-emerald-100 text-emerald-700',
+  Unavailable: 'bg-gray-200 text-gray-700',
+  'In Transit': 'bg-sky-100 text-sky-700',
   Checking: 'bg-amber-100 text-amber-700',
-  Delivered: 'bg-blue-100 text-blue-700',
-  Delayed: 'bg-rose-100 text-rose-700',
 };
 
 const ALL_DELIVERY_TYPES: DeliveryType[] = [
@@ -125,8 +127,8 @@ export default function OrderfleetList({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Delivery status from logistics module (not order status)
-  const DELIVERY_STATUSES: FleetStatus[] = ['In Transit', 'Checking', 'Delivered', 'Delayed'];
+  // Fleet status (availability / operational state)
+  const DELIVERY_STATUSES: FleetStatus[] = ['Available', 'Unavailable', 'In Transit', 'Checking'];
 
   const filteredFleets = useMemo(() => {
     let result = fleets;

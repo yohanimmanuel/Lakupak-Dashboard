@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, CheckCircle, Package, Truck, User, MapPin, CreditCard, Calendar, Layers, PackageCheck } from 'lucide-react';
+import { X, CheckCircle, Package, Truck, User, MapPin, CreditCard, Calendar, Layers, PackageCheck, ShieldCheck } from 'lucide-react';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import Image from 'next/image';
 
@@ -28,6 +28,9 @@ export interface FleetTripSummaryData {
   driverExperience?: string;
   driverStatus?: string;
   driverAvatar?: string;
+  driverUsername?: string;
+  /** Whether a driver app password was set during this form session (never carry plaintext here). */
+  driverPasswordSet?: boolean;
   assignedOrders?: { orderId: string; storeName: string; totalAmount: number }[];
   /** IDs of orders marked as delivered (checklist) */
   completedOrderIds?: string[];
@@ -153,6 +156,18 @@ export default function FleetTripSummaryModal({
               <SummaryRow label="Phone" value={data.driverPhone ?? ''} />
               <SummaryRow label="Experience" value={data.driverExperience ?? ''} />
               <SummaryRow label="Status" value={data.driverStatus ?? ''} />
+              <SummaryRow label="Username" value={data.driverUsername ?? ''} />
+              {(data.driverPasswordSet || data.driverUsername) && (
+                <div className="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Password</p>
+                    <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Credentials configured — stored securely
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 

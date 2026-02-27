@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
@@ -102,6 +103,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     driverExperience: String
     driverStatus: String
     driverAvatar: String
+    driverUsername: String
     assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
@@ -133,6 +135,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     driverExperience: String
     driverStatus: String
     driverAvatar: String
+    driverUsername: String
+    driverPassword: String
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
@@ -161,6 +165,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     driverExperience: String
     driverStatus: String
     driverAvatar: String
+    driverUsername: String
+    driverPassword: String
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
@@ -204,6 +210,28 @@ export const logisticsTypeDefs = /* GraphQL */ `
 // ============================================================================ //
 // HELPERS
 // ============================================================================ //
+
+/**
+ * Enforces the same password policy used throughout the dashboard.
+ * Throws a descriptive GraphQL error so the client receives a clear message.
+ */
+function validateDriverPassword(password: string): void {
+  if (password.length < 8) {
+    throw new Error('Driver password must be at least 8 characters long.');
+  }
+  if (password.length > 128) {
+    throw new Error('Driver password is too long (max 128 characters).');
+  }
+  const hasUpper   = /[A-Z]/.test(password);
+  const hasLower   = /[a-z]/.test(password);
+  const hasNumber  = /\d/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password);
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    throw new Error(
+      'Driver password must include at least one uppercase letter, one lowercase letter, one digit, and one special character.',
+    );
+  }
+}
 
 function parseJsonStringArray(val: unknown): string[] {
   if (Array.isArray(val)) return val.filter((x): x is string => typeof x === 'string');
@@ -260,6 +288,7 @@ function mapFleet(row: {
   driverExperience: string | null;
   driverStatus: string | null;
   driverAvatar: string | null;
+  driverUsername: string | null;
   assignedOrderIds: unknown;
   completedOrderIds: unknown;
   createdAt: Date;
@@ -289,6 +318,7 @@ function mapFleet(row: {
     driverExperience: row.driverExperience ?? null,
     driverStatus: row.driverStatus ?? null,
     driverAvatar: row.driverAvatar ?? null,
+    driverUsername: row.driverUsername ?? null,
     assignedOrderIds: parseJsonStringArray(row.assignedOrderIds),
     completedOrderIds: parseJsonStringArray(row.completedOrderIds),
     createdAt: row.createdAt?.toISOString?.() ?? null,
@@ -362,6 +392,18 @@ export const logisticsResolvers = {
       const assignedIds = Array.isArray(input.assignedOrderIds)
         ? (input.assignedOrderIds as string[])
         : [];
+
+      // Driver password handling:
+      // - Never silently modify the value being hashed
+      // - Explicitly reject leading/trailing whitespace so login behaviour is predictable
+      const rawPassword =
+        typeof input.driverPassword === 'string' ? (input.driverPassword as string) : null;
+      if (rawPassword && rawPassword !== rawPassword.trim()) {
+        throw new Error('Driver password must not start or end with spaces.');
+      }
+      const plainPassword = rawPassword && rawPassword.length > 0 ? rawPassword : null;
+      if (plainPassword) validateDriverPassword(plainPassword);
+      const driverPasswordHash = plainPassword ? await bcrypt.hash(plainPassword, 12) : undefined;
       const row = await prisma.$transaction(async (tx) => {
         const created = await tx.fleet.create({
           data: {
@@ -379,6 +421,8 @@ export const logisticsResolvers = {
             driverExperience: (input.driverExperience as string) ?? undefined,
             driverStatus: (input.driverStatus as string) ?? undefined,
             driverAvatar: (input.driverAvatar as string) ?? undefined,
+            driverUsername: (input.driverUsername as string) ?? undefined,
+            driverPasswordHash,
             vehicleType: (input.vehicleType as string) ?? undefined,
             vehicleBrand: (input.vehicleBrand as string) ?? undefined,
             vehicleModel: (input.vehicleModel as string) ?? undefined,
@@ -410,6 +454,18 @@ export const logisticsResolvers = {
       if (!existing) {
         throw new Error('Fleet not found');
       }
+
+      // Driver password handling:
+      // - Never silently modify the value being hashed
+      // - Explicitly reject leading/trailing whitespace so login behaviour is predictable
+      const rawPassword =
+        typeof input.driverPassword === 'string' ? (input.driverPassword as string) : null;
+      if (rawPassword && rawPassword !== rawPassword.trim()) {
+        throw new Error('Driver password must not start or end with spaces.');
+      }
+      const plainPassword = rawPassword && rawPassword.length > 0 ? rawPassword : null;
+      if (plainPassword) validateDriverPassword(plainPassword);
+      const driverPasswordHash = plainPassword ? await bcrypt.hash(plainPassword, 12) : undefined;
       const row = await prisma.$transaction(async (tx) => {
         const updated = await tx.fleet.update({
           where: { id: numId },
@@ -426,6 +482,18 @@ export const logisticsResolvers = {
             ...(input.driverExperience !== undefined && { driverExperience: input.driverExperience as string }),
             ...(input.driverStatus !== undefined && { driverStatus: input.driverStatus as string }),
             ...(input.driverAvatar !== undefined && { driverAvatar: input.driverAvatar as string }),
+            ...(input.driverUsername !== undefined && {
+              // Store null when the caller sends an empty string so the DB stays clean
+              driverUsername: (input.driverUsername as string).trim() || null,
+            }),
+            // If a new password hash was produced, use it; otherwise if the username
+            // is being explicitly cleared and no new password was given, clear the hash
+            // too so credentials never get orphaned.
+            ...(driverPasswordHash !== undefined
+              ? { driverPasswordHash }
+              : input.driverUsername !== undefined && !(input.driverUsername as string).trim()
+                ? { driverPasswordHash: null }
+                : {}),
             ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
             ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
             ...(input.vehicleModel !== undefined && { vehicleModel: input.vehicleModel as string }),
