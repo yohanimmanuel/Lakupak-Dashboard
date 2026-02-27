@@ -2,10 +2,12 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Search, Truck, Clock, MapPin, Filter, ChevronDown, User, Trash, Trash2 } from 'lucide-react';
+import { Search, Truck, MapPin, Filter, ChevronDown, User, Trash, Trash2, Phone, Briefcase, AtSign, ShieldCheck } from 'lucide-react';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
-import { deleteFleet } from '@/data/logisticsFleetsApi';
+import { deleteFleet, deleteDriver, type DriverSummary } from '@/data/logisticsFleetsApi';
+
+export type { DriverSummary };
 
 export type FleetStatus = 'Available' | 'Unavailable' | 'In Transit' | 'Checking';
 
@@ -24,6 +26,10 @@ export interface FleetOrderSummary {
   deliveryType?: DeliveryType;
   eta: string;
   lastUpdate: string;
+  /** Nested driver object from the Driver relation */
+  driver?: DriverSummary | null;
+  /** Foreign key to Driver */
+  driverId?: string;
   driverName: string;
   totalOrders?: number;
   deliveriesCompleted?: number;
@@ -65,6 +71,10 @@ interface OrderfleetListProps {
   availableDeliveryTypes?: DeliveryType[];
   /** Callback when fleets are deleted - parent should refresh the list */
   onFleetsDeleted?: () => void;
+  /** Driver list for the Drivers tab */
+  drivers?: DriverSummary[];
+  /** Callback when a driver is deleted */
+  onDriverDeleted?: () => void;
 }
 
 const statusColors: Record<FleetStatus, string> = {
@@ -89,8 +99,17 @@ export default function OrderfleetList({
   onSelectFleet,
   availableDeliveryTypes = [],
   onFleetsDeleted,
+  drivers = [],
+  onDriverDeleted,
 }: OrderfleetListProps) {
   const user = useUserStore((state) => state.user);
+  const [activeTab, setActiveTab] = useState<'fleets' | 'drivers'>('fleets');
+  const [driverSearchQuery, setDriverSearchQuery] = useState('');
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([]);
+  const [driverToDelete, setDriverToDelete] = useState<DriverSummary | null>(null);
+  const [isBulkDriverDelete, setIsBulkDriverDelete] = useState(false);
+  const [showDriverDeleteModal, setShowDriverDeleteModal] = useState(false);
+  const [isDeletingDriver, setIsDeletingDriver] = useState(false);
   // Distributor options + always Standard Shipping (every distributor has it)
   const deliveryTypesToShow = (() => {
     const base =
@@ -262,12 +281,345 @@ export default function OrderfleetList({
     }
   };
 
+  const filteredDrivers = useMemo(() => {
+    const q = driverSearchQuery.trim().toLowerCase();
+    if (!q) return drivers;
+    return drivers.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.username.toLowerCase().includes(q) ||
+        (d.phone ?? '').toLowerCase().includes(q),
+    );
+  }, [drivers, driverSearchQuery]);
+
+  const allFilteredDriverIds = useMemo(() => filteredDrivers.map((d) => d.id), [filteredDrivers]);
+  const allFilteredDriversSelected = useMemo(
+    () => allFilteredDriverIds.length > 0 && allFilteredDriverIds.every((id) => selectedDriverIds.includes(id)),
+    [allFilteredDriverIds, selectedDriverIds],
+  );
+
+  const handleDriverCheckbox = (driverId: string) => {
+    setSelectedDriverIds((prev) =>
+      prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId],
+    );
+  };
+
+  const handleSelectAllDrivers = () => {
+    if (allFilteredDriversSelected) {
+      setSelectedDriverIds((prev) => prev.filter((id) => !allFilteredDriverIds.includes(id)));
+    } else {
+      setSelectedDriverIds((prev) => {
+        const next = [...prev];
+        allFilteredDriverIds.forEach((id) => { if (!next.includes(id)) next.push(id); });
+        return next;
+      });
+    }
+  };
+
+  const handleDriverDeleteClick = (driver: DriverSummary) => {
+    setDriverToDelete(driver);
+    setIsBulkDriverDelete(false);
+    setShowDriverDeleteModal(true);
+  };
+
+  const handleBulkDriverRemove = () => {
+    setIsBulkDriverDelete(true);
+    setDriverToDelete(null);
+    setShowDriverDeleteModal(true);
+  };
+
+  const handleDriverDeleteCancel = () => {
+    setShowDriverDeleteModal(false);
+    setDriverToDelete(null);
+    setIsBulkDriverDelete(false);
+  };
+
+  const handleDriverDeleteConfirm = async () => {
+    if (!user?.id || isDeletingDriver) return;
+    setIsDeletingDriver(true);
+    try {
+      if (isBulkDriverDelete) {
+        const toDelete = [...selectedDriverIds];
+        const failed: string[] = [];
+        const succeeded: string[] = [];
+        for (const id of toDelete) {
+          try {
+            await deleteDriver(user.id, id);
+            succeeded.push(id);
+          } catch {
+            failed.push(id);
+          }
+        }
+        if (failed.length > 0) {
+          alert(
+            succeeded.length > 0
+              ? `Deleted ${succeeded.length} driver(s). Failed to delete ${failed.length}. Please try again.`
+              : `Failed to delete ${failed.length} driver(s). Please try again.`,
+          );
+        }
+        setSelectedDriverIds((prev) => prev.filter((id) => !succeeded.includes(id)));
+        if (succeeded.length > 0 && onDriverDeleted) onDriverDeleted();
+      } else if (driverToDelete) {
+        await deleteDriver(user.id, driverToDelete.id);
+        if (onDriverDeleted) onDriverDeleted();
+      }
+    } catch {
+      alert('Failed to delete driver. Please try again.');
+    } finally {
+      setIsDeletingDriver(false);
+      setShowDriverDeleteModal(false);
+      setDriverToDelete(null);
+      setIsBulkDriverDelete(false);
+    }
+  };
+
   return (
     <div className="flex h-full max-h-[calc(100vh+100px)] flex-col rounded-lg bg-white border border-gray-200">
+      {/* Tab Switcher */}
+      <div className="flex border-b border-gray-100">
+        <button
+          type="button"
+          onClick={() => setActiveTab('fleets')}
+          className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+            activeTab === 'fleets'
+              ? 'border-b-2 border-[#0a61d7] text-[#0a61d7]'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Active Fleets
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('drivers')}
+          className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+            activeTab === 'drivers'
+              ? 'border-b-2 border-[#0a61d7] text-[#0a61d7]'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Drivers
+          {drivers.length > 0 && (
+            <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
+              {drivers.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ===== DRIVERS TAB ===== */}
+      {activeTab === 'drivers' && (
+        <div className="flex flex-col flex-1 min-h-0">
+          {/* Driver toolbar */}
+          <div className="flex flex-col gap-3 p-4 border-b border-gray-100">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={driverSearchQuery}
+                onChange={(e) => setDriverSearchQuery(e.target.value)}
+                placeholder="Search drivers by name, username or phone"
+                aria-label="Search drivers"
+                className="w-full rounded-lg border border-gray-200 px-9 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a61d7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
+              />
+            </div>
+            {/* Select All */}
+            {filteredDrivers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAllDrivers}
+                  className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    allFilteredDriversSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+                  }`}
+                  title={allFilteredDriversSelected ? 'Deselect all' : 'Select all'}
+                >
+                  {allFilteredDriversSelected && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <span className="text-sm text-gray-700">{allFilteredDriversSelected ? 'Deselect all' : 'Select all'}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Bulk Action Bar */}
+          {selectedDriverIds.length > 0 && (
+            <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mx-4 mt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-white">{selectedDriverIds.length}</span>
+                  <span className="text-sm font-semibold text-white ml-1">
+                    {selectedDriverIds.length === 1 ? 'driver' : 'drivers'} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="hidden md:block text-white text-xs font-semibold">Select drivers to remove from the system.</span>
+                  <button
+                    onClick={handleBulkDriverRemove}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash className="w-4 h-4" />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Driver list */}
+          <div className="flex-1 overflow-y-auto">
+            {drivers.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+                <User className="h-8 w-8 text-gray-300" />
+                <p className="text-sm font-medium text-gray-700">No drivers registered yet</p>
+                <p className="text-xs text-gray-500">Add a driver when creating or editing a fleet.</p>
+              </div>
+            ) : filteredDrivers.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+                <User className="h-8 w-8 text-gray-300" />
+                <p className="text-sm font-medium text-gray-700">No drivers match your search</p>
+                <p className="text-xs text-gray-500">Try a different name, username, or phone number.</p>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2 p-4">
+                {filteredDrivers.map((driver) => {
+                  const isSelected = selectedDriverIds.includes(driver.id);
+                  return (
+                    <li key={driver.id}>
+                      <div className={`w-full rounded-lg border-2 bg-white p-4 transition-all ${isSelected ? 'border-[#0a61d7]' : 'border-gray-200'}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 bg-[#0a61d7]/10 text-[#0a61d7]">
+                              {driver.avatar ? (
+                                <Image src={driver.avatar} alt={driver.name} fill className="object-cover" sizes="40px" unoptimized />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center">
+                                  <User className="h-5 w-5" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-gray-900">{driver.name}</p>
+                              <p className="flex items-center gap-1 text-xs text-gray-500">
+                                <AtSign className="h-3 w-3" />
+                                <span className="truncate">{driver.username}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {(driver.fleetCount ?? 0) > 0 && (
+                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                {driver.fleetCount} fleet{driver.fleetCount !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDriverDeleteClick(driver)}
+                              className="inline-flex items-center justify-center rounded-lg p-1.5 hover:bg-red-100 transition-colors"
+                              title="Delete driver"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-gray-100 pt-3">
+                          {driver.phone && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                              <Phone className="h-3 w-3 text-gray-400 shrink-0" />
+                              <span className="truncate">{driver.phone}</span>
+                            </div>
+                          )}
+                          {driver.experience && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                              <Briefcase className="h-3 w-3 text-gray-400 shrink-0" />
+                              <span className="truncate">{driver.experience}</span>
+                            </div>
+                          )}
+                          {driver.status && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600 col-span-2">
+                              <ShieldCheck className="h-3 w-3 text-gray-400 shrink-0" />
+                              <span className="truncate">{driver.status}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card footer: checkbox + delete */}
+                        <div className="pt-2 -mb-2 -mx-4 border-t border-gray-200 px-4 mt-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDriverCheckbox(driver.id)}
+                              className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                                isSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+                              }`}
+                              title={isSelected ? 'Deselect' : 'Select'}
+                            >
+                              {isSelected && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                            <span className="text-xs text-gray-600 font-medium">{isSelected ? 'Selected' : 'Select'}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDriverDeleteClick(driver)}
+                            className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
+                            title="Delete driver"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Driver Delete Modal */}
+          {showDriverDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
+                <h2 className="text-lg font-bold mb-2 text-red-500">
+                  {isBulkDriverDelete ? 'Delete Drivers' : 'Delete Driver'}
+                </h2>
+                <p className="mb-4 text-gray-500">
+                  {isBulkDriverDelete
+                    ? `Are you sure you want to delete ${selectedDriverIds.length} driver${selectedDriverIds.length === 1 ? '' : 's'}? They will be unlinked from all fleets. This action cannot be undone.`
+                    : <>Are you sure you want to delete <span className="font-semibold text-gray-800">{driverToDelete?.name}</span>? The driver will be unlinked from all fleets. This action cannot be undone.</>}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                    onClick={handleDriverDeleteCancel}
+                    disabled={isDeletingDriver}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    onClick={handleDriverDeleteConfirm}
+                    disabled={isDeletingDriver}
+                  >
+                    {isDeletingDriver ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== FLEETS TAB ===== */}
+      {activeTab === 'fleets' && <>
       {/* Toolbar */}
       <div className="flex flex-col gap-3 p-4 border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-900">Active Fleets &amp; Deliveries</h2>
         </div>
         <div className="flex gap-2 items-center">
           <div className="relative flex-1">
@@ -618,9 +970,7 @@ export default function OrderfleetList({
                 Cancel
               </button>
               <button
-                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 transition-colors ${
-                  isBulkDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'
-                }`}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={handleDeleteConfirm}
                 disabled={isDeleting}
               >
@@ -630,6 +980,7 @@ export default function OrderfleetList({
           </div>
         </div>
       )}
+      </> /* end fleets tab */}
     </div>
   );
 }

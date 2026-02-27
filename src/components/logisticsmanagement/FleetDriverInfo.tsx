@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useLayoutEffect, useRef } from 'react';
-import { User, Phone, Briefcase, Activity, Upload, X, AtSign, Lock, Eye, EyeOff, Key, AlertCircle, ArrowRight } from 'lucide-react';
+import React, { useState, useMemo, useLayoutEffect, useRef, useEffect } from 'react';
+import { User, Phone, Briefcase, Activity, Upload, X, AtSign, Lock, Eye, EyeOff, Key, AlertCircle, ArrowRight, ChevronDown, Search, Check, Pencil, Save } from 'lucide-react';
 import { getPasswordStrength } from '@/utils/auth-security';
 import Image from 'next/image';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
-import type { FleetOrderSummary } from './OrderfleetList';
+import type { FleetOrderSummary, DriverSummary } from './OrderfleetList';
 
 /** Static map so Tailwind can see every class at build time — never use dynamic interpolation. */
 const STRENGTH_COLORS: Record<string, { text: string; bg: string }> = {
@@ -17,6 +17,9 @@ const STRENGTH_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 export interface FleetDriverFormData extends Partial<FleetOrderSummary> {
+  driverId?: string;
+  /** True when the user has confirmed edits to an existing driver's fields */
+  driverEdited?: boolean;
   driverPhone?: string;
   driverExperience?: string;
   driverStatus?: string;
@@ -32,6 +35,8 @@ interface FleetDriverInfoProps {
   mode: 'create' | 'edit';
   /** ID of the fleet being edited — required for current-password verification in edit mode */
   fleetId?: string | null;
+  /** Full list of registered drivers for the picker */
+  drivers?: DriverSummary[];
 }
 
 export default function FleetDriverInfo({
@@ -40,7 +45,101 @@ export default function FleetDriverInfo({
   onTabCompletion,
   mode,
   fleetId,
+  drivers = [],
 }: FleetDriverInfoProps) {
+  const [showDriverPicker, setShowDriverPicker] = useState(false);
+  const [driverSearch, setDriverSearch] = useState('');
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  const filteredDrivers = useMemo(() => {
+    const q = driverSearch.trim().toLowerCase();
+    if (!q) return drivers;
+    return drivers.filter(
+      (d) => d.name.toLowerCase().includes(q) || d.username.toLowerCase().includes(q)
+    );
+  }, [drivers, driverSearch]);
+
+  const selectedDriver = useMemo(
+    () => (formData.driverId ? drivers.find((d) => d.id === formData.driverId) ?? null : null),
+    [formData.driverId, drivers]
+  );
+
+  const isExistingDriver = Boolean(formData.driverId);
+
+  // Inline-edit state for an already-linked driver (edit mode only)
+  const [isEditingDriver, setIsEditingDriver] = useState(false);
+  const driverSnapshotRef = useRef<Partial<FleetDriverFormData> | null>(null);
+
+  // Reset edit mode whenever a different driver is selected / cleared
+  useEffect(() => {
+    setIsEditingDriver(false);
+    driverSnapshotRef.current = null;
+  }, [formData.driverId]);
+
+  // Fields are locked when an existing driver is selected and we're NOT in edit mode
+  const isFieldsLocked = isExistingDriver && !isEditingDriver;
+
+  const handleStartEditDriver = () => {
+    driverSnapshotRef.current = {
+      driverName: formData.driverName,
+      driverPhone: formData.driverPhone,
+      driverExperience: formData.driverExperience,
+      driverStatus: formData.driverStatus,
+      driverAvatar: formData.driverAvatar,
+      driverUsername: formData.driverUsername,
+    };
+    setIsEditingDriver(true);
+  };
+
+  const handleCancelEditDriver = () => {
+    if (driverSnapshotRef.current) onFormChange(driverSnapshotRef.current);
+    setIsEditingDriver(false);
+  };
+
+  const handleSaveDriverEdits = () => {
+    onFormChange({ driverEdited: true });
+    setIsEditingDriver(false);
+  };
+
+  // Close picker on outside click
+  useLayoutEffect(() => {
+    if (!showDriverPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowDriverPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showDriverPicker]);
+
+  const handleSelectExistingDriver = (driver: DriverSummary) => {
+    onFormChange({
+      driverId: driver.id,
+      driverName: driver.name,
+      driverPhone: driver.phone ?? undefined,
+      driverExperience: driver.experience ?? undefined,
+      driverStatus: driver.status ?? undefined,
+      driverAvatar: driver.avatar ?? undefined,
+      driverUsername: driver.username,
+      driverPassword: undefined,
+    });
+    setShowDriverPicker(false);
+    setDriverSearch('');
+  };
+
+  const handleClearDriver = () => {
+    onFormChange({
+      driverId: undefined,
+      driverName: '',
+      driverPhone: '',
+      driverExperience: '',
+      driverStatus: '',
+      driverAvatar: undefined,
+      driverUsername: '',
+      driverPassword: undefined,
+    });
+  };
   const prevIsCompleteRef = useRef<boolean | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -154,18 +253,18 @@ export default function FleetDriverInfo({
     [formData.driverPassword, passwordRules]
   );
 
-  const isComplete = useMemo(
-    () =>
-      Boolean(
-        formData.driverName?.trim() &&
-          formData.driverPhone?.trim() &&
-          formData.driverExperience?.trim() &&
-          formData.driverStatus?.trim() &&
-          formData.driverUsername?.trim() &&
-          (mode === 'edit' || isValidPassword)
-      ),
-    [formData.driverName, formData.driverPhone, formData.driverExperience, formData.driverStatus, formData.driverUsername, mode, isValidPassword]
-  );
+  const isComplete = useMemo(() => {
+    // Linking an existing driver is always complete (even while editing)
+    if (formData.driverId) return true;
+    return Boolean(
+      formData.driverName?.trim() &&
+        formData.driverPhone?.trim() &&
+        formData.driverExperience?.trim() &&
+        formData.driverStatus?.trim() &&
+        formData.driverUsername?.trim() &&
+        (mode === 'edit' || isValidPassword)
+    );
+  }, [formData.driverId, formData.driverName, formData.driverPhone, formData.driverExperience, formData.driverStatus, formData.driverUsername, mode, isValidPassword]);
 
   const handleAvatarUpload = async (file: File) => {
     if (!file) return;
@@ -198,9 +297,127 @@ export default function FleetDriverInfo({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Register Your Driver</h3>
-        <p className="text-sm text-gray-500">Make a driver account for your fleet, connecting to the Laku Driver app.</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Driver Information</h3>
+        <p className="text-sm text-gray-500">Assign an existing driver or create a new one for this fleet.</p>
       </div>
+
+      {/* DriverPicker — only shown when there are registered drivers */}
+      {drivers.length > 0 && (
+        <div className="rounded-lg border border-[#e6e6e6] bg-gray-50/60 p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Select Existing Driver</p>
+          <div className="relative" ref={pickerRef}>
+            <button
+              type="button"
+              onClick={() => setShowDriverPicker((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:border-[#0a61d7] transition-colors"
+            >
+              {selectedDriver ? (
+                <span className="flex items-center gap-2 text-gray-900">
+                  <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="font-medium text-xs">{selectedDriver.name}</span>
+                  <span className="text-gray-400 text-xs">@{selectedDriver.username}</span>
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">— Create a new driver —</span>
+              )}
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showDriverPicker ? 'rotate-180' : ''}`} />
+            </button>
+            {showDriverPicker && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                <div className="p-2 border-b border-gray-100">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={driverSearch}
+                      onChange={(e) => setDriverSearch(e.target.value)}
+                      placeholder="Search drivers..."
+                      className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0a61d7]"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {/* New driver option */}
+                  <button
+                    type="button"
+                    onClick={handleClearDriver}
+                    className={`w-full text-left px-3 py-2.5 text-xs hover:bg-gray-50 flex items-center gap-2 ${!formData.driverId ? 'text-[#0a61d7] font-semibold' : 'text-gray-600'}`}
+                  >
+                    <User className="h-4 w-4 text-gray-400 shrink-0" />
+                    — Create a new driver —
+                  </button>
+                  {filteredDrivers.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-400">No drivers found</p>
+                  ) : (
+                    filteredDrivers.map((driver) => (
+                      <button
+                        key={driver.id}
+                        type="button"
+                        onClick={() => handleSelectExistingDriver(driver)}
+                        className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-center justify-between gap-2 ${formData.driverId === driver.id ? 'bg-blue-50' : ''}`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                            {driver.avatar ? (
+                              <Image src={driver.avatar} alt={driver.name} fill className="object-cover" sizes="24px" unoptimized />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center">
+                                <User className="h-3 w-3 text-gray-400" />
+                              </span>
+                            )}
+                          </div>
+                          <span className="min-w-0">
+                            <span className="block text-xs font-medium text-gray-900 truncate">{driver.name}</span>
+                            <span className="block text-[10px] text-gray-400">@{driver.username}</span>
+                          </span>
+                        </span>
+                        {formData.driverId === driver.id && <Check className="h-4 w-4 text-[#0a61d7] shrink-0" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {selectedDriver && !isEditingDriver && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] text-gray-500">Fields are pre-filled and locked.</p>
+              <button
+                type="button"
+                onClick={handleStartEditDriver}
+                className="flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit driver info
+              </button>
+            </div>
+          )}
+          {selectedDriver && isEditingDriver && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5">
+              <p className="text-[10px] text-amber-700 font-medium">
+                Editing driver — changes apply to the driver record and save when you save the fleet.
+              </p>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCancelEditDriver}
+                  className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDriverEdits}
+                  className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Avatar Upload */}
       <div className="flex flex-col items-center">
@@ -214,7 +431,7 @@ export default function FleetDriverInfo({
               </span>
             )}
           </div>
-          {formData.driverAvatar && (
+          {formData.driverAvatar && !isFieldsLocked && (
             <button
               type="button"
               onClick={handleRemoveAvatar}
@@ -224,88 +441,94 @@ export default function FleetDriverInfo({
             </button>
           )}
         </div>
-        <label className="cursor-pointer">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                handleAvatarUpload(file);
-                e.target.value = ''; // Reset to allow re-uploading same file
-              }
-            }}
-            className="hidden"
-            disabled={isUploading}
-          />
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
-            <Upload className="w-4 h-4" />
-            {isUploading ? 'Uploading...' : formData.driverAvatar ? 'Change Avatar' : 'Upload Avatar'}
-          </div>
-        </label>
+        {!isFieldsLocked && (
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleAvatarUpload(file);
+                  e.target.value = '';
+                }
+              }}
+              className="hidden"
+              disabled={isUploading}
+            />
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
+              <Upload className="w-4 h-4" />
+              {isUploading ? 'Uploading...' : formData.driverAvatar ? 'Change Avatar' : 'Upload Avatar'}
+            </div>
+          </label>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Driver Name <span className="text-red-500">*</span>
+            Driver Name {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={formData.driverName || ''}
-              onChange={(e) => onFormChange({ driverName: e.target.value })}
+              onChange={(e) => !isFieldsLocked && onFormChange({ driverName: e.target.value })}
               placeholder="Andi Pratama"
-              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              disabled={isFieldsLocked}
+              className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Driver Phone <span className="text-red-500">*</span>
+            Driver Phone {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="tel"
               value={formData.driverPhone || ''}
-              onChange={(e) => onFormChange({ driverPhone: e.target.value })}
+              onChange={(e) => !isFieldsLocked && onFormChange({ driverPhone: e.target.value })}
               placeholder="+62 812-3456-7890"
-              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              disabled={isFieldsLocked}
+              className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Experience <span className="text-red-500">*</span>
+            Experience {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={formData.driverExperience || ''}
-              onChange={(e) => onFormChange({ driverExperience: e.target.value })}
+              onChange={(e) => !isFieldsLocked && onFormChange({ driverExperience: e.target.value })}
               placeholder="e.g. 5+ years"
-              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              disabled={isFieldsLocked}
+              className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Status <span className="text-red-500">*</span>
+            Status {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={formData.driverStatus || ''}
-              onChange={(e) => onFormChange({ driverStatus: e.target.value })}
+              onChange={(e) => !isFieldsLocked && onFormChange({ driverStatus: e.target.value })}
               placeholder="e.g. On route, Available"
-              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+              disabled={isFieldsLocked}
+              className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
@@ -318,23 +541,24 @@ export default function FleetDriverInfo({
           {/* Username */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Username <span className="text-red-500">*</span>
+              Username {!isFieldsLocked && <span className="text-red-500">*</span>}
             </label>
             <div className="relative">
               <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={formData.driverUsername || ''}
-                onChange={(e) => onFormChange({ driverUsername: e.target.value })}
+                onChange={(e) => !isFieldsLocked && onFormChange({ driverUsername: e.target.value })}
                 placeholder="e.g. andi.pratama"
                 autoComplete="off"
-                className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+                disabled={isFieldsLocked}
+                className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
               />
             </div>
           </div>
 
-          {/* Password — create mode: live editable with strength bar */}
-          {mode === 'create' && (
+          {/* Password — no existing driver (new driver, any mode): full strength input */}
+          {!isExistingDriver && (
             <div>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <label className="text-xs font-medium text-gray-700">
@@ -380,8 +604,8 @@ export default function FleetDriverInfo({
             </div>
           )}
 
-          {/* Password — edit mode: disabled placeholder + Change Password button */}
-          {mode === 'edit' && (
+          {/* Password — existing driver, fields locked: masked placeholder + Change Password */}
+          {isExistingDriver && isFieldsLocked && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-medium text-gray-700">Password</label>
@@ -398,7 +622,36 @@ export default function FleetDriverInfo({
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="password"
-                  value="placeholder"
+                  value="••••••••"
+                  disabled
+                  className="w-full pl-10 pr-4 py-2 text-gray-400 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed"
+                />
+              </div>
+              {formData.driverPassword && (
+                <p className="mt-1 text-[10px] text-emerald-600">✓ New password staged — will be saved on submit</p>
+              )}
+            </div>
+          )}
+
+          {/* Password — existing driver, currently being edited: Change Password button still accessible */}
+          {isExistingDriver && !isFieldsLocked && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">Password</label>
+                <button
+                  type="button"
+                  onClick={handleOpenChangePassword}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
+                >
+                  <Key className="w-3 h-3" />
+                  Change password
+                </button>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="password"
+                  value="••••••••"
                   disabled
                   className="w-full pl-10 pr-4 py-2 text-gray-400 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed"
                 />

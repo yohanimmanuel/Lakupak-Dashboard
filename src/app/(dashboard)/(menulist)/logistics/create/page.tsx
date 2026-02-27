@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Package, Truck, User, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
 import FleetBasicInfo from '@/components/logisticsmanagement/FleetBasicInfo';
@@ -8,8 +8,8 @@ import FleetVehicleInfo from '@/components/logisticsmanagement/FleetVehicleInfo'
 import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
 import FleetOrderSelection, { type AssignedOrder } from '@/components/logisticsmanagement/FleetOrderSelection';
 import FleetTripSummaryModal from '@/components/logisticsmanagement/FleetTripSummaryModal';
-import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
-import { createFleet } from '@/data/logisticsFleetsApi';
+import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsmanagement/OrderfleetList';
+import { createFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
@@ -48,6 +48,10 @@ export interface FleetFormData {
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   loadPct?: number;
+  /** ID of an existing Driver record (takes precedence over inline driver fields) */
+  driverId?: string;
+  /** True when the user has confirmed inline edits to an existing driver */
+  driverEdited?: boolean;
   driverName?: string;
   driverPhone?: string;
   driverExperience?: string;
@@ -65,11 +69,17 @@ export default function CreateFleetPage() {
   const [activeTab, setActiveTab] = useState<TabId>('basic');
   const [isCreating, setIsCreating] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [drivers, setDrivers] = useState<DriverSummary[]>([]);
+
+  useEffect(() => {
+    if (user?.id == null) return;
+    fetchDrivers(user.id).then(setDrivers).catch(() => setDrivers([]));
+  }, [user?.id]);
 
   const fleetCode = useMemo(() => generateFleetCode(), []);
 
   const [formData, setFormData] = useState<FleetFormData>({
-    status: 'In Transit',
+    status: 'Available',
     deliveryType: 'Standard Shipping',
     vehicleType: '20ft_container',
     loadPct: 0,
@@ -98,20 +108,26 @@ export default function CreateFleetPage() {
     setTabCompletion((prev) => (prev[tabId] === isComplete ? prev : { ...prev, [tabId]: isComplete }));
   }, []);
 
-  const validateForm = (): boolean =>
-    Boolean(
+  const validateForm = (): boolean => {
+    const driverOk = Boolean(
+      formData.driverId ||
+      (formData.driverName?.trim() &&
+        formData.driverPhone?.trim() &&
+        formData.driverExperience?.trim() &&
+        formData.driverStatus?.trim() &&
+        formData.driverUsername?.trim() &&
+        formData.driverPassword?.trim())
+    );
+    return Boolean(
       tabCompletion.basic &&
         tabCompletion.vehicle &&
         tabCompletion.driver &&
+        driverOk &&
         formData.routeFrom?.trim() &&
         formData.routeTo?.trim() &&
         formData.etaDate?.trim() &&
         formData.etaTime?.trim() &&
         formData.paymentTerms?.trim() &&
-        formData.driverName?.trim() &&
-        formData.driverPhone?.trim() &&
-        formData.driverExperience?.trim() &&
-        formData.driverStatus?.trim() &&
         formData.vehicleBrand?.trim() &&
         formData.vehicleModel?.trim() &&
         formData.vehicleMaxWeight != null &&
@@ -122,6 +138,7 @@ export default function CreateFleetPage() {
         formData.loadPct >= 0 &&
         formData.loadPct <= 100
     );
+  };
 
   const isReadyToCreate = validateForm();
   const canOpenSummary = isReadyToCreate && user?.id != null;
@@ -135,10 +152,38 @@ export default function CreateFleetPage() {
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
 
-    // Extract the password into a local variable then immediately clear it from
-    // React state so it is not retained any longer than the duration of this call.
+    // Read staged password — cleared only on success
     const driverPassword = formData.driverPassword;
-    setFormData((prev) => ({ ...prev, driverPassword: undefined }));
+
+    // Build driver portion of input
+    let driverPart: Record<string, unknown>;
+    if (formData.driverId) {
+      driverPart = { driverId: formData.driverId };
+      // When the user confirmed inline edits to an existing driver, include those changes
+      if (formData.driverEdited) {
+        const driverUpdate: Record<string, unknown> = {};
+        if (formData.driverName !== undefined)       driverUpdate.name       = formData.driverName;
+        if (formData.driverPhone !== undefined)      driverUpdate.phone      = formData.driverPhone;
+        if (formData.driverExperience !== undefined) driverUpdate.experience = formData.driverExperience;
+        if (formData.driverStatus !== undefined)     driverUpdate.status     = formData.driverStatus;
+        if (formData.driverAvatar !== undefined)     driverUpdate.avatar     = formData.driverAvatar;
+        if (formData.driverUsername !== undefined)   driverUpdate.username   = formData.driverUsername;
+        if (driverPassword)                          driverUpdate.password   = driverPassword;
+        if (Object.keys(driverUpdate).length > 0)   driverPart.driverInput  = driverUpdate;
+      }
+    } else {
+      driverPart = {
+        driverInput: {
+          name: formData.driverName ?? '',
+          phone: formData.driverPhone,
+          experience: formData.driverExperience,
+          status: formData.driverStatus,
+          avatar: formData.driverAvatar,
+          username: formData.driverUsername ?? '',
+          password: driverPassword ?? '',
+        },
+      };
+    }
 
     const input = {
       fleetCode,
@@ -149,7 +194,7 @@ export default function CreateFleetPage() {
       deliveryType: formData.deliveryType,
       eta,
       lastUpdate: 'Just now',
-      driverName: formData.driverName ?? '',
+      ...driverPart,
       totalOrders: formData.assignedOrders?.length ?? 0,
       deliveriesCompleted: formData.completedOrderIds?.length ?? 0,
       completedOrderIds: formData.completedOrderIds ?? [],
@@ -161,12 +206,6 @@ export default function CreateFleetPage() {
       vehicleModel: formData.vehicleModel,
       vehicleMaxWeight: formData.vehicleMaxWeight,
       vehicleMaxVolume: formData.vehicleMaxVolume,
-      driverPhone: formData.driverPhone,
-      driverExperience: formData.driverExperience,
-      driverStatus: formData.driverStatus,
-      driverAvatar: formData.driverAvatar,
-      driverUsername: formData.driverUsername,
-      driverPassword,
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
     };
@@ -175,6 +214,10 @@ export default function CreateFleetPage() {
       console.error('createFleet did not return a valid fleet with id', { created, createFleet: createFleet.name });
       alert('Failed to create fleet: no fleet ID returned. Please try again.');
       return;
+    }
+    // Clear the staged password only after the fleet is successfully created
+    if (driverPassword) {
+      setFormData((prev) => ({ ...prev, driverPassword: undefined }));
     }
     router.push(`/logistics/details?id=${created.id}`);
   };
@@ -253,7 +296,7 @@ export default function CreateFleetPage() {
       case 'vehicle':
         return <FleetVehicleInfo {...common} />;
       case 'driver':
-        return <FleetDriverInfo {...common} />;
+        return <FleetDriverInfo {...common} drivers={drivers} />;
       case 'orders':
         return (
           <FleetOrderSelection

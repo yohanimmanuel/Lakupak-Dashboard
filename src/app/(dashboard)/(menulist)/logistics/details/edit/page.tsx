@@ -8,8 +8,8 @@ import FleetVehicleInfo from '@/components/logisticsmanagement/FleetVehicleInfo'
 import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
 import FleetOrderSelection, { type AssignedOrder } from '@/components/logisticsmanagement/FleetOrderSelection';
 import FleetTripSummaryModal, { type FleetTripSummaryData } from '@/components/logisticsmanagement/FleetTripSummaryModal';
-import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
-import { fetchFleet, updateFleet } from '@/data/logisticsFleetsApi';
+import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsmanagement/OrderfleetList';
+import { fetchFleet, updateFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
@@ -39,6 +39,10 @@ export interface FleetFormData {
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   loadPct?: number;
+  /** ID of an existing Driver record */
+  driverId?: string;
+  /** True when the user has edited driver fields inline and confirmed the edits */
+  driverEdited?: boolean;
   driverName?: string;
   driverPhone?: string;
   driverExperience?: string;
@@ -83,6 +87,15 @@ export default function EditFleetPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [drivers, setDrivers] = useState<DriverSummary[]>([]);
+
+  useEffect(() => {
+    if (user?.id == null) return;
+    fetchDrivers(user.id).then(setDrivers).catch((err) => {
+      console.error('Failed to fetch drivers:', err);
+      setDrivers([]);
+    });
+  }, [user?.id]);
 
   const [formData, setFormData] = useState<FleetFormData>({
     status: 'In Transit',
@@ -134,6 +147,7 @@ export default function EditFleetPage() {
           vehicleMaxWeight: typeof fleet.vehicleMaxWeight === 'number' ? fleet.vehicleMaxWeight : (typeof fleet.vehicleMaxWeight === 'string' ? parseFloat(String(fleet.vehicleMaxWeight).replace(/[^0-9.-]/g, '')) || undefined : undefined),
           vehicleMaxVolume: typeof fleet.vehicleMaxVolume === 'number' ? fleet.vehicleMaxVolume : (typeof fleet.vehicleMaxVolume === 'string' ? parseFloat(String(fleet.vehicleMaxVolume).replace(/[^0-9.-]/g, '')) || undefined : undefined),
           loadPct: fleet.loadPct ?? 0,
+          driverId: fleet.driver?.id ?? fleet.driverId ?? undefined,
           driverName: fleet.driverName,
           driverPhone: fleet.driverPhone,
           driverExperience: fleet.driverExperience,
@@ -179,10 +193,27 @@ export default function EditFleetPage() {
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
     const eta = `${formData.etaDate} ${formData.etaTime}`;
 
-    // Extract the staged password into a local variable and immediately clear it
-    // from React state so it is not retained any longer than this call.
+    // Read the staged password (cleared only after a successful save)
     const driverPassword = formData.driverPassword;
-    setFormData((prev) => ({ ...prev, driverPassword: undefined }));
+
+    // Build driver portion: reassign via driverId OR update driver fields in-place
+    const driverPart: Record<string, unknown> = {};
+    if (formData.driverId) {
+      driverPart.driverId = formData.driverId;
+      const driverUpdate: Record<string, unknown> = {};
+      // When the user confirmed inline edits, include all editable driver fields
+      if (formData.driverEdited) {
+        if (formData.driverName !== undefined)       driverUpdate.name       = formData.driverName;
+        if (formData.driverPhone !== undefined)      driverUpdate.phone      = formData.driverPhone;
+        if (formData.driverExperience !== undefined) driverUpdate.experience = formData.driverExperience;
+        if (formData.driverStatus !== undefined)     driverUpdate.status     = formData.driverStatus;
+        if (formData.driverAvatar !== undefined)     driverUpdate.avatar     = formData.driverAvatar;
+        if (formData.driverUsername !== undefined)   driverUpdate.username   = formData.driverUsername;
+      }
+      // Staged password change from the Change Password modal
+      if (driverPassword) driverUpdate.password = driverPassword;
+      if (Object.keys(driverUpdate).length > 0) driverPart.driverInput = driverUpdate;
+    }
 
     const input = {
       route,
@@ -190,7 +221,7 @@ export default function EditFleetPage() {
       deliveryType: formData.deliveryType,
       eta,
       lastUpdate: 'Just now',
-      driverName: formData.driverName,
+      ...driverPart,
       totalOrders: formData.assignedOrders?.length ?? 0,
       deliveriesCompleted: formData.completedOrderIds?.length ?? 0,
       vehicleType: formData.vehicleType,
@@ -201,17 +232,15 @@ export default function EditFleetPage() {
       vehicleModel: formData.vehicleModel,
       vehicleMaxWeight: formData.vehicleMaxWeight,
       vehicleMaxVolume: formData.vehicleMaxVolume,
-      driverPhone: formData.driverPhone,
-      driverExperience: formData.driverExperience,
-      driverStatus: formData.driverStatus,
-      driverAvatar: formData.driverAvatar,
-      driverUsername: formData.driverUsername,
-      driverPassword,
       completedOrderIds: formData.completedOrderIds ?? [],
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
       customers: formData.assignedOrders?.map((o) => ({ storeName: o.storeName ?? '', contactName: '' })),
     };
     await updateFleet(user.id, fleetId, input);
+    // Only clear the staged password once the update succeeds
+    if (driverPassword) {
+      setFormData((prev) => ({ ...prev, driverPassword: undefined }));
+    }
     router.push(`/logistics/details?id=${fleetId}`);
   };
 
@@ -288,7 +317,7 @@ export default function EditFleetPage() {
       case 'vehicle':
         return <FleetVehicleInfo {...common} />;
       case 'driver':
-        return <FleetDriverInfo {...common} fleetId={fleetId} />;
+        return <FleetDriverInfo {...common} fleetId={fleetId} drivers={drivers} />;
       case 'orders':
         return (
           <FleetOrderSelection

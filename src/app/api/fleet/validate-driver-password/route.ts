@@ -34,21 +34,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid fleet ID' }, { status: 400, headers });
     }
 
-    // Ensure the fleet belongs to the authenticated distributor
+    // Ensure the fleet belongs to the authenticated distributor and join the driver
     const fleet = await prisma.fleet.findFirst({
       where: { id: fleetIdNum, userId: authenticatedUserId },
-      select: { driverPasswordHash: true },
+      select: { driver: { select: { passwordHash: true } } },
     });
 
     if (!fleet) {
       return NextResponse.json({ error: 'Fleet not found' }, { status: 404, headers });
     }
 
-    if (!fleet.driverPasswordHash) {
+    if (!fleet.driver?.passwordHash) {
       return NextResponse.json({ error: 'No password set for this driver' }, { status: 400, headers });
     }
 
-    const isValid = await compare(currentPassword, fleet.driverPasswordHash);
+    const isValid = await compare(currentPassword, fleet.driver.passwordHash);
     if (!isValid) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 401, headers });
     }

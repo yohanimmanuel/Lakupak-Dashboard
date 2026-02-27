@@ -23,7 +23,6 @@ async function syncOrdersToFleet(
       : DEFAULT_ASSIGNED_LOGISTICS_LABEL;
 
   const run = async (db: DbClient) => {
-    // Pre-check: detect orders already assigned to another fleet (non-null fleetId !== this fleet)
     if (orderIds.length > 0) {
       const alreadyAssigned = await db.order.findMany({
         where: {
@@ -40,8 +39,6 @@ async function syncOrdersToFleet(
         );
       }
     }
-
-    // Unassign orders that were in this fleet but are no longer in the list (clear fleet link and assigned logistics)
     await db.order.updateMany({
       where: {
         fleetId,
@@ -50,8 +47,6 @@ async function syncOrdersToFleet(
       },
       data: { fleetId: null, trackingNumber: null, assignedLogistics: null },
     });
-
-    // Assign orders in the list to this fleet (tracking = fleet code, assignedLogistics = fleet label e.g. "Distributor Fleet")
     if (orderIds.length > 0) {
       await db.order.updateMany({
         where: {
@@ -80,6 +75,19 @@ export const logisticsTypeDefs = /* GraphQL */ `
     contactName: String
   }
 
+  type Driver {
+    id: String!
+    name: String!
+    phone: String
+    experience: String
+    status: String
+    avatar: String
+    username: String!
+    fleetCount: Int
+    createdAt: String
+    updatedAt: String
+  }
+
   type Fleet {
     id: String!
     orderCode: String!
@@ -88,7 +96,14 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     eta: String!
     lastUpdate: String!
-    driverName: String!
+    driver: Driver
+    driverId: String
+    driverName: String
+    driverPhone: String
+    driverExperience: String
+    driverStatus: String
+    driverAvatar: String
+    driverUsername: String
     totalOrders: Int
     deliveriesCompleted: Int
     customers: [FleetCustomer!]
@@ -99,11 +114,6 @@ export const logisticsTypeDefs = /* GraphQL */ `
     vehicleModel: String
     vehicleMaxWeight: Int
     vehicleMaxVolume: Float
-    driverPhone: String
-    driverExperience: String
-    driverStatus: String
-    driverAvatar: String
-    driverUsername: String
     assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
@@ -121,6 +131,26 @@ export const logisticsTypeDefs = /* GraphQL */ `
     contactName: String
   }
 
+  input DriverInput {
+    name: String!
+    phone: String
+    experience: String
+    status: String
+    avatar: String
+    username: String!
+    password: String!
+  }
+
+  input UpdateDriverInput {
+    name: String
+    phone: String
+    experience: String
+    status: String
+    avatar: String
+    username: String
+    password: String
+  }
+
   input CreateFleetInput {
     fleetCode: String!
     route: String!
@@ -130,13 +160,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     eta: String!
     lastUpdate: String!
-    driverName: String!
-    driverPhone: String
-    driverExperience: String
-    driverStatus: String
-    driverAvatar: String
-    driverUsername: String
-    driverPassword: String
+    driverId: String
+    driverInput: DriverInput
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
@@ -160,13 +185,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     eta: String
     lastUpdate: String
-    driverName: String
-    driverPhone: String
-    driverExperience: String
-    driverStatus: String
-    driverAvatar: String
-    driverUsername: String
-    driverPassword: String
+    driverId: String
+    driverInput: UpdateDriverInput
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
@@ -191,14 +211,18 @@ export const logisticsTypeDefs = /* GraphQL */ `
       deliveryType: String
       search: String
     ): FleetConnection!
-
     fleet(userId: Int!, id: String!): Fleet
+    drivers(userId: Int!): [Driver!]!
+    driver(userId: Int!, id: String!): Driver
   }
 
   extend type Mutation {
     createFleet(userId: Int!, input: CreateFleetInput!): Fleet!
     updateFleet(userId: Int!, id: String!, input: UpdateFleetInput!): Fleet!
     deleteFleet(userId: Int!, id: String!): DeleteFleetResult!
+    createDriver(userId: Int!, input: DriverInput!): Driver!
+    updateDriver(userId: Int!, id: String!, input: UpdateDriverInput!): Driver!
+    deleteDriver(userId: Int!, id: String!): Boolean!
   }
 
   type DeleteFleetResult {
@@ -211,17 +235,9 @@ export const logisticsTypeDefs = /* GraphQL */ `
 // HELPERS
 // ============================================================================ //
 
-/**
- * Enforces the same password policy used throughout the dashboard.
- * Throws a descriptive GraphQL error so the client receives a clear message.
- */
 function validateDriverPassword(password: string): void {
-  if (password.length < 8) {
-    throw new Error('Driver password must be at least 8 characters long.');
-  }
-  if (password.length > 128) {
-    throw new Error('Driver password is too long (max 128 characters).');
-  }
+  if (password.length < 8) throw new Error('Driver password must be at least 8 characters long.');
+  if (password.length > 128) throw new Error('Driver password is too long (max 128 characters).');
   const hasUpper   = /[A-Z]/.test(password);
   const hasLower   = /[a-z]/.test(password);
   const hasNumber  = /\d/.test(password);
@@ -239,9 +255,7 @@ function parseJsonStringArray(val: unknown): string[] {
     try {
       const arr = JSON.parse(val) as unknown;
       return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
   return [];
 }
@@ -257,14 +271,40 @@ function parseJsonCustomers(val: unknown): { storeName?: string; contactName?: s
     try {
       const arr = JSON.parse(val) as unknown;
       return Array.isArray(arr) ? parseJsonCustomers(arr) : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
   return [];
 }
 
-function mapFleet(row: {
+type DriverRow = {
+  id: number;
+  name: string;
+  phone: string | null;
+  experience: string | null;
+  status: string | null;
+  avatar: string | null;
+  username: string;
+  createdAt: Date;
+  updatedAt: Date;
+  _count?: { fleets: number };
+};
+
+function mapDriver(row: DriverRow) {
+  return {
+    id: String(row.id),
+    name: row.name,
+    phone: row.phone ?? null,
+    experience: row.experience ?? null,
+    status: row.status ?? null,
+    avatar: row.avatar ?? null,
+    username: row.username,
+    fleetCount: row._count?.fleets ?? null,
+    createdAt: row.createdAt?.toISOString?.() ?? null,
+    updatedAt: row.updatedAt?.toISOString?.() ?? null,
+  };
+}
+
+type FleetRow = {
   id: number;
   fleetCode: string;
   route: string;
@@ -272,7 +312,6 @@ function mapFleet(row: {
   deliveryType: string | null;
   eta: string;
   lastUpdate: string;
-  driverName: string;
   totalOrders: number | null;
   deliveriesCompleted: number | null;
   assignedLogistics: string | null;
@@ -284,16 +323,15 @@ function mapFleet(row: {
   vehicleModel: string | null;
   vehicleMaxWeight: number | null;
   vehicleMaxVolume: number | null;
-  driverPhone: string | null;
-  driverExperience: string | null;
-  driverStatus: string | null;
-  driverAvatar: string | null;
-  driverUsername: string | null;
   assignedOrderIds: unknown;
   completedOrderIds: unknown;
   createdAt: Date;
   updatedAt: Date;
-}) {
+  driver: DriverRow | null;
+};
+
+function mapFleet(row: FleetRow) {
+  const d = row.driver;
   return {
     id: String(row.id),
     orderCode: row.fleetCode,
@@ -302,7 +340,14 @@ function mapFleet(row: {
     deliveryType: row.deliveryType ?? null,
     eta: row.eta,
     lastUpdate: row.lastUpdate,
-    driverName: row.driverName,
+    driverId: d ? String(d.id) : null,
+    driverName: d?.name ?? '',
+    driverPhone: d?.phone ?? null,
+    driverExperience: d?.experience ?? null,
+    driverStatus: d?.status ?? null,
+    driverAvatar: d?.avatar ?? null,
+    driverUsername: d?.username ?? null,
+    driver: d ? mapDriver(d) : null,
     totalOrders: row.totalOrders ?? null,
     deliveriesCompleted: row.deliveriesCompleted ?? null,
     assignedLogistics: row.assignedLogistics ?? null,
@@ -314,17 +359,14 @@ function mapFleet(row: {
     vehicleModel: row.vehicleModel ?? null,
     vehicleMaxWeight: row.vehicleMaxWeight ?? null,
     vehicleMaxVolume: row.vehicleMaxVolume ?? null,
-    driverPhone: row.driverPhone ?? null,
-    driverExperience: row.driverExperience ?? null,
-    driverStatus: row.driverStatus ?? null,
-    driverAvatar: row.driverAvatar ?? null,
-    driverUsername: row.driverUsername ?? null,
     assignedOrderIds: parseJsonStringArray(row.assignedOrderIds),
     completedOrderIds: parseJsonStringArray(row.completedOrderIds),
     createdAt: row.createdAt?.toISOString?.() ?? null,
     updatedAt: row.updatedAt?.toISOString?.() ?? null,
   };
 }
+
+const FLEET_INCLUDE = { driver: true } as const;
 
 // ============================================================================ //
 // RESOLVERS
@@ -334,38 +376,24 @@ export const logisticsResolvers = {
   Query: {
     async fleets(
       _: unknown,
-      args: {
-        userId: number;
-        page?: number;
-        limit?: number;
-        status?: string;
-        deliveryType?: string;
-        search?: string;
-      }
+      args: { userId: number; page?: number; limit?: number; status?: string; deliveryType?: string; search?: string }
     ) {
       const { userId, page = 1, limit = 50, status, deliveryType, search } = args;
       const { page: p, limit: l } = sanitizePagination(page, limit, 100);
 
-      const where: Prisma.FleetWhereInput = {
-        userId,
-      };
+      const where: Prisma.FleetWhereInput = { userId };
       if (status && status.trim()) where.status = status.trim();
       if (deliveryType && deliveryType.trim()) where.deliveryType = deliveryType.trim();
       if (search && search.trim()) {
         where.OR = [
           { fleetCode: { contains: search.trim(), mode: 'insensitive' } },
           { route: { contains: search.trim(), mode: 'insensitive' } },
-          { driverName: { contains: search.trim(), mode: 'insensitive' } },
+          { driver: { name: { contains: search.trim(), mode: 'insensitive' } } },
         ];
       }
 
       const [nodes, totalCount] = await Promise.all([
-        prisma.fleet.findMany({
-          where,
-          orderBy: { updatedAt: 'desc' },
-          skip: (p - 1) * l,
-          take: l,
-        }),
+        prisma.fleet.findMany({ where, include: FLEET_INCLUDE, orderBy: { updatedAt: 'desc' }, skip: (p - 1) * l, take: l }),
         prisma.fleet.count({ where }),
       ]);
 
@@ -379,64 +407,131 @@ export const logisticsResolvers = {
       const { userId, id } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) return null;
-      const row = await prisma.fleet.findFirst({
-        where: { id: numId, userId },
-      });
+      const row = await prisma.fleet.findFirst({ where: { id: numId, userId }, include: FLEET_INCLUDE });
       return row ? mapFleet(row) : null;
+    },
+
+    async drivers(_: unknown, args: { userId: number }) {
+      const rows = await prisma.driver.findMany({
+        where: { userId: args.userId },
+        include: { _count: { select: { fleets: true } } },
+        orderBy: { name: 'asc' },
+      });
+      return rows.map(mapDriver);
+    },
+
+    async driver(_: unknown, args: { userId: number; id: string }) {
+      const numId = parseInt(args.id, 10);
+      if (!Number.isInteger(numId) || numId <= 0) return null;
+      const row = await prisma.driver.findFirst({
+        where: { id: numId, userId: args.userId },
+        include: { _count: { select: { fleets: true } } },
+      });
+      return row ? mapDriver(row) : null;
     },
   },
 
   Mutation: {
     async createFleet(_: unknown, args: { userId: number; input: Record<string, unknown> }) {
       const { userId, input } = args;
-      const assignedIds = Array.isArray(input.assignedOrderIds)
-        ? (input.assignedOrderIds as string[])
-        : [];
+      const assignedIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
 
-      // Driver password handling:
-      // - Never silently modify the value being hashed
-      // - Explicitly reject leading/trailing whitespace so login behaviour is predictable
-      const rawPassword =
-        typeof input.driverPassword === 'string' ? (input.driverPassword as string) : null;
-      if (rawPassword && rawPassword !== rawPassword.trim()) {
-        throw new Error('Driver password must not start or end with spaces.');
+      // Resolve driver: link existing, optionally update its fields, or create a new one
+      let existingDriverId: number | null = null;
+      let newDriverData: Prisma.DriverUncheckedCreateInput | null = null;
+      // Staged field-level update for an existing driver (driverId + driverInput together)
+      let existingDriverUpdate: Record<string, unknown> | null = null;
+
+      if (input.driverId) {
+        const driverId = parseInt(input.driverId as string, 10);
+        if (!Number.isInteger(driverId) || driverId <= 0) throw new Error('Invalid driver ID.');
+        const existing = await prisma.driver.findFirst({ where: { id: driverId, userId } });
+        if (!existing) throw new Error('Driver not found or does not belong to your account.');
+        existingDriverId = driverId;
+
+        // When driverInput is also present, stage an update for the linked driver
+        if (input.driverInput) {
+          const di = input.driverInput as Record<string, unknown>;
+          const updateData: Record<string, unknown> = {};
+          if (di.name !== undefined)       updateData.name       = di.name as string;
+          if (di.phone !== undefined)      updateData.phone      = (di.phone as string) || null;
+          if (di.experience !== undefined) updateData.experience = (di.experience as string) || null;
+          if (di.status !== undefined)     updateData.status     = (di.status as string) || null;
+          if (di.avatar !== undefined)     updateData.avatar     = (di.avatar as string) || null;
+          if (di.username !== undefined)   updateData.username   = (di.username as string) || null;
+          if (di.password !== undefined) {
+            const rawPw = di.password as string;
+            if (rawPw !== rawPw.trim()) throw new Error('Driver password must not start or end with spaces.');
+            validateDriverPassword(rawPw);
+            updateData.passwordHash = await bcrypt.hash(rawPw, 12);
+          }
+          if (Object.keys(updateData).length > 0) existingDriverUpdate = updateData;
+        }
+      } else if (input.driverInput) {
+        const di = input.driverInput as Record<string, unknown>;
+        const rawPassword = typeof di.password === 'string' ? di.password : '';
+        if (!rawPassword) throw new Error('Driver password is required.');
+        if (rawPassword !== rawPassword.trim()) throw new Error('Driver password must not start or end with spaces.');
+        validateDriverPassword(rawPassword);
+        const passwordHash = await bcrypt.hash(rawPassword, 12);
+        // Stage data for creation inside the transaction so it can roll back with the fleet
+        newDriverData = {
+          userId,
+          name: (di.name as string) ?? '',
+          phone: (di.phone as string) || null,
+          experience: (di.experience as string) || null,
+          status: (di.status as string) || null,
+          avatar: (di.avatar as string) || null,
+          username: (di.username as string) ?? '',
+          passwordHash,
+        };
+      } else {
+        throw new Error('Either driverId or driverInput must be provided.');
       }
-      const plainPassword = rawPassword && rawPassword.length > 0 ? rawPassword : null;
-      if (plainPassword) validateDriverPassword(plainPassword);
-      const driverPasswordHash = plainPassword ? await bcrypt.hash(plainPassword, 12) : undefined;
+
       const row = await prisma.$transaction(async (tx) => {
+        // Resolve final driverId and apply any staged driver changes inside the transaction
+        let resolvedDriverId: number;
+        if (existingDriverId != null) {
+          resolvedDriverId = existingDriverId;
+          // Apply inline edits to the existing driver atomically with the fleet creation
+          if (existingDriverUpdate) {
+            await tx.driver.update({ where: { id: resolvedDriverId }, data: existingDriverUpdate });
+          }
+        } else if (newDriverData) {
+          const createdDriver = await tx.driver.create({ data: newDriverData });
+          resolvedDriverId = createdDriver.id;
+        } else {
+          throw new Error('Either driverId or driverInput must be provided.');
+        }
+
         const created = await tx.fleet.create({
           data: {
             userId,
+            driverId: resolvedDriverId,
             fleetCode: (input.fleetCode as string) ?? '',
             route: (input.route as string) ?? '',
-            routeFrom: (input.routeFrom as string) ?? undefined,
-            routeTo: (input.routeTo as string) ?? undefined,
+            routeFrom: (input.routeFrom as string) || null,
+            routeTo: (input.routeTo as string) || null,
             status: (input.status as string) ?? 'In Transit',
-            deliveryType: (input.deliveryType as string) ?? undefined,
+            deliveryType: (input.deliveryType as string) || null,
             eta: (input.eta as string) ?? '',
             lastUpdate: (input.lastUpdate as string) ?? 'Just now',
-            driverName: (input.driverName as string) ?? '',
-            driverPhone: (input.driverPhone as string) ?? undefined,
-            driverExperience: (input.driverExperience as string) ?? undefined,
-            driverStatus: (input.driverStatus as string) ?? undefined,
-            driverAvatar: (input.driverAvatar as string) ?? undefined,
-            driverUsername: (input.driverUsername as string) ?? undefined,
-            driverPasswordHash,
-            vehicleType: (input.vehicleType as string) ?? undefined,
-            vehicleBrand: (input.vehicleBrand as string) ?? undefined,
-            vehicleModel: (input.vehicleModel as string) ?? undefined,
-            vehicleMaxWeight: typeof input.vehicleMaxWeight === 'number' ? input.vehicleMaxWeight : undefined,
-            vehicleMaxVolume: typeof input.vehicleMaxVolume === 'number' ? input.vehicleMaxVolume : undefined,
-            loadPct: typeof input.loadPct === 'number' ? input.loadPct : undefined,
-            paymentTerms: (input.paymentTerms as string) ?? undefined,
-            totalOrders: typeof input.totalOrders === 'number' ? input.totalOrders : undefined,
-            deliveriesCompleted: typeof input.deliveriesCompleted === 'number' ? input.deliveriesCompleted : undefined,
-            assignedLogistics: (input.assignedLogistics as string) ?? undefined,
+            vehicleType: (input.vehicleType as string) || null,
+            vehicleBrand: (input.vehicleBrand as string) || null,
+            vehicleModel: (input.vehicleModel as string) || null,
+            vehicleMaxWeight: typeof input.vehicleMaxWeight === 'number' ? input.vehicleMaxWeight : null,
+            vehicleMaxVolume: typeof input.vehicleMaxVolume === 'number' ? input.vehicleMaxVolume : null,
+            loadPct: typeof input.loadPct === 'number' ? input.loadPct : null,
+            paymentTerms: (input.paymentTerms as string) || null,
+            totalOrders: typeof input.totalOrders === 'number' ? input.totalOrders : null,
+            deliveriesCompleted: typeof input.deliveriesCompleted === 'number' ? input.deliveriesCompleted : null,
+            assignedLogistics: (input.assignedLogistics as string) || null,
             assignedOrderIds: Array.isArray(input.assignedOrderIds) ? input.assignedOrderIds : undefined,
             completedOrderIds: Array.isArray(input.completedOrderIds) ? input.completedOrderIds : undefined,
             customers: Array.isArray(input.customers) ? input.customers : undefined,
           },
+          include: FLEET_INCLUDE,
         });
         await syncOrdersToFleet(created.id, created.fleetCode, assignedIds, tx, userId, created.assignedLogistics);
         return created;
@@ -447,29 +542,58 @@ export const logisticsResolvers = {
     async updateFleet(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }) {
       const { userId, id, input } = args;
       const numId = parseInt(id, 10);
-      if (!Number.isInteger(numId) || numId <= 0) {
-        throw new Error('Invalid fleet id');
-      }
-      const existing = await prisma.fleet.findFirst({ where: { id: numId, userId } });
-      if (!existing) {
-        throw new Error('Fleet not found');
+      if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid fleet id');
+
+      const existingFleet = await prisma.fleet.findFirst({ where: { id: numId, userId }, select: { driverId: true } });
+      if (!existingFleet) throw new Error('Fleet not found');
+
+      // Resolve driver changes
+      let driverIdUpdate: number | undefined;
+
+      if (input.driverId !== undefined) {
+        const driverId = parseInt(input.driverId as string, 10);
+        if (!Number.isInteger(driverId) || driverId <= 0) throw new Error('Invalid driver ID.');
+        const driver = await prisma.driver.findFirst({ where: { id: driverId, userId } });
+        if (!driver) throw new Error('Driver not found or does not belong to your account.');
+        driverIdUpdate = driverId;
       }
 
-      // Driver password handling:
-      // - Never silently modify the value being hashed
-      // - Explicitly reject leading/trailing whitespace so login behaviour is predictable
-      const rawPassword =
-        typeof input.driverPassword === 'string' ? (input.driverPassword as string) : null;
-      if (rawPassword && rawPassword !== rawPassword.trim()) {
-        throw new Error('Driver password must not start or end with spaces.');
-      }
-      const plainPassword = rawPassword && rawPassword.length > 0 ? rawPassword : null;
-      if (plainPassword) validateDriverPassword(plainPassword);
-      const driverPasswordHash = plainPassword ? await bcrypt.hash(plainPassword, 12) : undefined;
       const row = await prisma.$transaction(async (tx) => {
+        // Optionally update current driver's fields in-place when driverInput is provided
+        if (input.driverInput) {
+          const targetDriverId = driverIdUpdate ?? existingFleet.driverId;
+          if (targetDriverId) {
+            // Ensure the target driver actually belongs to this user
+            const driverOwnerCheck = await tx.driver.findFirst({
+              where: { id: targetDriverId, userId },
+              select: { id: true },
+            });
+            if (!driverOwnerCheck) throw new Error('Driver not found or does not belong to your account.');
+
+            const di = input.driverInput as Record<string, unknown>;
+            const driverData: Record<string, unknown> = {};
+            if (di.name !== undefined) driverData.name = di.name as string;
+            if (di.phone !== undefined) driverData.phone = (di.phone as string) || null;
+            if (di.experience !== undefined) driverData.experience = (di.experience as string) || null;
+            if (di.status !== undefined) driverData.status = (di.status as string) || null;
+            if (di.avatar !== undefined) driverData.avatar = (di.avatar as string) || null;
+            if (di.username !== undefined) driverData.username = (di.username as string) || null;
+            if (di.password !== undefined) {
+              const rawPw = di.password as string;
+              if (rawPw !== rawPw.trim()) throw new Error('Driver password must not start or end with spaces.');
+              validateDriverPassword(rawPw);
+              driverData.passwordHash = await bcrypt.hash(rawPw, 12);
+            }
+            if (Object.keys(driverData).length > 0) {
+              await tx.driver.update({ where: { id: targetDriverId }, data: driverData });
+            }
+          }
+        }
+
         const updated = await tx.fleet.update({
           where: { id: numId },
           data: {
+            ...(driverIdUpdate !== undefined && { driverId: driverIdUpdate }),
             ...(input.route !== undefined && { route: input.route as string }),
             ...(input.routeFrom !== undefined && { routeFrom: input.routeFrom as string }),
             ...(input.routeTo !== undefined && { routeTo: input.routeTo as string }),
@@ -477,23 +601,6 @@ export const logisticsResolvers = {
             ...(input.deliveryType !== undefined && { deliveryType: input.deliveryType as string }),
             ...(input.eta !== undefined && { eta: input.eta as string }),
             ...(input.lastUpdate !== undefined && { lastUpdate: input.lastUpdate as string }),
-            ...(input.driverName !== undefined && { driverName: input.driverName as string }),
-            ...(input.driverPhone !== undefined && { driverPhone: input.driverPhone as string }),
-            ...(input.driverExperience !== undefined && { driverExperience: input.driverExperience as string }),
-            ...(input.driverStatus !== undefined && { driverStatus: input.driverStatus as string }),
-            ...(input.driverAvatar !== undefined && { driverAvatar: input.driverAvatar as string }),
-            ...(input.driverUsername !== undefined && {
-              // Store null when the caller sends an empty string so the DB stays clean
-              driverUsername: (input.driverUsername as string).trim() || null,
-            }),
-            // If a new password hash was produced, use it; otherwise if the username
-            // is being explicitly cleared and no new password was given, clear the hash
-            // too so credentials never get orphaned.
-            ...(driverPasswordHash !== undefined
-              ? { driverPasswordHash }
-              : input.driverUsername !== undefined && !(input.driverUsername as string).trim()
-                ? { driverPasswordHash: null }
-                : {}),
             ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
             ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
             ...(input.vehicleModel !== undefined && { vehicleModel: input.vehicleModel as string }),
@@ -504,21 +611,14 @@ export const logisticsResolvers = {
             ...(input.totalOrders !== undefined && { totalOrders: input.totalOrders as number }),
             ...(input.deliveriesCompleted !== undefined && { deliveriesCompleted: input.deliveriesCompleted as number }),
             ...(input.assignedLogistics !== undefined && { assignedLogistics: input.assignedLogistics as string }),
-            ...(input.assignedOrderIds !== undefined && {
-              assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue,
-            }),
-            ...(input.completedOrderIds !== undefined && {
-              completedOrderIds: input.completedOrderIds as Prisma.InputJsonValue,
-            }),
-            ...(input.customers !== undefined && {
-              customers: input.customers as Prisma.InputJsonValue,
-            }),
+            ...(input.assignedOrderIds !== undefined && { assignedOrderIds: input.assignedOrderIds as Prisma.InputJsonValue }),
+            ...(input.completedOrderIds !== undefined && { completedOrderIds: input.completedOrderIds as Prisma.InputJsonValue }),
+            ...(input.customers !== undefined && { customers: input.customers as Prisma.InputJsonValue }),
           },
+          include: FLEET_INCLUDE,
         });
         if (input.assignedOrderIds !== undefined) {
-          const assignedIds = Array.isArray(input.assignedOrderIds)
-            ? (input.assignedOrderIds as string[])
-            : [];
+          const assignedIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
           await syncOrdersToFleet(numId, updated.fleetCode, assignedIds, tx, userId, updated.assignedLogistics);
         }
         return updated;
@@ -529,24 +629,85 @@ export const logisticsResolvers = {
     async deleteFleet(_: unknown, args: { userId: number; id: string }) {
       const { userId, id } = args;
       const numId = parseInt(id, 10);
-      if (!Number.isInteger(numId) || numId <= 0) {
-        throw new Error('Invalid fleet id');
-      }
+      if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid fleet id');
       const existing = await prisma.fleet.findFirst({ where: { id: numId, userId } });
-      if (!existing) {
-        throw new Error('Fleet not found');
-      }
+      if (!existing) throw new Error('Fleet not found');
       const deleted = await prisma.$transaction(async (tx) => {
         await tx.order.updateMany({
           where: { fleetId: numId },
           data: { fleetId: null, trackingNumber: null, assignedLogistics: null },
         });
-        return tx.fleet.delete({ where: { id: numId } });
+        return tx.fleet.delete({ where: { id: numId }, include: FLEET_INCLUDE });
       });
-      return {
-        success: true,
-        deleted: mapFleet(deleted),
-      };
+      return { success: true, deleted: mapFleet(deleted) };
+    },
+
+    // ---- Driver mutations ----
+
+    async createDriver(_: unknown, args: { userId: number; input: Record<string, unknown> }) {
+      const { userId, input } = args;
+      const rawPassword = typeof input.password === 'string' ? input.password : '';
+      if (!rawPassword) throw new Error('Driver password is required.');
+      if (rawPassword !== rawPassword.trim()) throw new Error('Driver password must not start or end with spaces.');
+      validateDriverPassword(rawPassword);
+      const passwordHash = await bcrypt.hash(rawPassword, 12);
+      const row = await prisma.driver.create({
+        data: {
+          userId,
+          name: (input.name as string) ?? '',
+          phone: (input.phone as string) || null,
+          experience: (input.experience as string) || null,
+          status: (input.status as string) || null,
+          avatar: (input.avatar as string) || null,
+          username: (input.username as string) ?? '',
+          passwordHash,
+        },
+        include: { _count: { select: { fleets: true } } },
+      });
+      return mapDriver(row);
+    },
+
+    async updateDriver(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }) {
+      const { userId, id, input } = args;
+      const numId = parseInt(id, 10);
+      if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid driver id');
+      const existing = await prisma.driver.findFirst({ where: { id: numId, userId } });
+      if (!existing) throw new Error('Driver not found');
+
+      const data: Record<string, unknown> = {};
+      if (input.name !== undefined) data.name = input.name as string;
+      if (input.phone !== undefined) data.phone = (input.phone as string) || null;
+      if (input.experience !== undefined) data.experience = (input.experience as string) || null;
+      if (input.status !== undefined) data.status = (input.status as string) || null;
+      if (input.avatar !== undefined) data.avatar = (input.avatar as string) || null;
+      if (input.username !== undefined) data.username = (input.username as string) || null;
+      if (input.password !== undefined) {
+        const rawPw = input.password as string;
+        if (rawPw !== rawPw.trim()) throw new Error('Driver password must not start or end with spaces.');
+        validateDriverPassword(rawPw);
+        data.passwordHash = await bcrypt.hash(rawPw, 12);
+      }
+
+      const row = await prisma.driver.update({
+        where: { id: numId },
+        data,
+        include: { _count: { select: { fleets: true } } },
+      });
+      return mapDriver(row);
+    },
+
+    async deleteDriver(_: unknown, args: { userId: number; id: string }) {
+      const { userId, id } = args;
+      const numId = parseInt(id, 10);
+      if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid driver id');
+      const existing = await prisma.driver.findFirst({ where: { id: numId, userId } });
+      if (!existing) throw new Error('Driver not found');
+      // Unlink from fleets and delete driver atomically
+      await prisma.$transaction(async (tx) => {
+        await tx.fleet.updateMany({ where: { driverId: numId }, data: { driverId: null } });
+        await tx.driver.delete({ where: { id: numId } });
+      });
+      return true;
     },
   },
 };

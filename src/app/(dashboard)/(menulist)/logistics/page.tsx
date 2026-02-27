@@ -7,10 +7,11 @@ import * as XLSX from 'xlsx';
 import OrderfleetList, {
   type FleetOrderSummary,
   type DeliveryType,
+  type DriverSummary,
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
-import { fetchFleets } from '@/data/logisticsFleetsApi';
+import { fetchFleets, fetchDrivers } from '@/data/logisticsFleetsApi';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -25,6 +26,7 @@ export default function LogisticsPage() {
   const router = useRouter();
   const { user } = useUserStore();
   const [fleets, setFleets] = useState<FleetOrderSummary[]>([]);
+  const [drivers, setDrivers] = useState<DriverSummary[]>([]);
   const [selectedFleetId, setSelectedFleetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,8 +64,9 @@ export default function LogisticsPage() {
     }
     
     try {
-      const result = await fetchFleets(uid);
+      const [result, driverList] = await Promise.all([fetchFleets(uid), fetchDrivers(uid)]);
       setFleets(result?.nodes ?? []);
+      setDrivers(driverList ?? []);
       setOverlayMessage(`Showing fleet data (${result?.nodes?.length ?? 0} fleets loaded)`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load fleets');
@@ -252,6 +255,8 @@ export default function LogisticsPage() {
             onSelectFleet={setSelectedFleetId}
             availableDeliveryTypes={availableDeliveryTypes}
             onFleetsDeleted={handleRefresh}
+            drivers={drivers}
+            onDriverDeleted={handleRefresh}
           />
         )}
         {loading ? (

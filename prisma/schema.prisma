@@ -41,6 +41,7 @@ model User {
   notifications Notification[]
   distributorReviewsReceived DistributorReview[]
   fleets        Fleet[]
+  drivers       Driver[]
 }
 
 model Company {
@@ -773,20 +774,9 @@ model Fleet {
   routeFrom           String?
   routeTo             String?
   status              String    // Available | Unavailable | In Transit | Checking
-                                // Legacy values 'Delivered' and 'Delayed' are normalised on read
-                                // (see normalizeFleetStatus in logisticsFleetsApi.ts).
-                                // Migrate permanently: UPDATE "Fleet" SET status='Available' WHERE status='Delivered';
-                                //                      UPDATE "Fleet" SET status='Checking'  WHERE status='Delayed';
   deliveryType        String?
   eta                 String
   lastUpdate          String
-  driverName          String
-  driverPhone         String?
-  driverExperience    String?
-  driverStatus        String?
-  driverAvatar        String?
-  driverUsername      String?   @unique // Login username for the Laku Driver app
-  driverPasswordHash  String?   // Bcrypt-hashed password; never returned to client
   vehicleType         String?
   vehicleBrand        String?
   vehicleModel        String?
@@ -802,9 +792,33 @@ model Fleet {
   customers           Json?     // { storeName: string; contactName: string }[]
   createdAt           DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+  driverId            Int?      // FK to Driver entity (null = legacy / ad-hoc driver entry)
+  driver              Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders              Order[]
 
   @@index([userId])
   @@index([userId, status])
+  @@index([driverId])
+}
+
+/// Canonical driver entity — one record per physical driver.
+/// Credentials (username + passwordHash) live here, not on Fleet.
+/// Fleet keeps denormalised snapshot fields (driverName etc.) for display.
+model Driver {
+  id            Int      @id @default(autoincrement())
+  userId        Int      // distributor owner
+  name          String
+  phone         String?
+  experience    String?
+  status        String?
+  avatar        String?
+  username      String   @unique   // Laku Driver app login
+  passwordHash  String             // bcrypt hash; never returned to client
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fleets        Fleet[]
+
+  @@index([userId])
 }

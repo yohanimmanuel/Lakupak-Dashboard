@@ -3,57 +3,42 @@ import type { FleetOrderSummary, FleetStatus } from '@/components/logisticsmanag
 
 /**
  * Normalizes legacy fleet status values to the current availability-centric set.
- *
- * Migration path for existing DB records:
- *   'Delivered' → 'Available'  (fleet completed its route; now back in the pool)
- *   'Delayed'   → 'Checking'   (fleet had an issue; operator should review)
- *
- * To permanently migrate the DB run once:
- *   UPDATE "Fleet" SET status = 'Available' WHERE status = 'Delivered';
- *   UPDATE "Fleet" SET status = 'Checking'  WHERE status = 'Delayed';
+ * Migrate permanently:
+ *   UPDATE "Fleet" SET status='Available' WHERE status='Delivered';
+ *   UPDATE "Fleet" SET status='Checking'  WHERE status='Delayed';
  */
 function normalizeFleetStatus(raw: string): FleetStatus {
-  const map: Record<string, FleetStatus> = {
-    Delivered: 'Available',
-    Delayed:   'Checking',
-  };
+  const map: Record<string, FleetStatus> = { Delivered: 'Available', Delayed: 'Checking' };
   const current: FleetStatus[] = ['Available', 'Unavailable', 'In Transit', 'Checking'];
   if (current.includes(raw as FleetStatus)) return raw as FleetStatus;
   return map[raw] ?? 'Checking';
 }
 
+// ---- Shared driver fragment ----
+const DRIVER_FRAGMENT = `
+  driver {
+    id name phone experience status avatar username fleetCount
+  }
+`;
+
+const FLEET_FIELDS = `
+  id orderCode route status deliveryType eta lastUpdate
+  driverId driverName driverPhone driverExperience driverStatus driverAvatar driverUsername
+  ${DRIVER_FRAGMENT}
+  totalOrders deliveriesCompleted
+  customers { storeName contactName }
+  vehicleType loadPct paymentTerms vehicleBrand vehicleModel vehicleMaxWeight vehicleMaxVolume
+  assignedLogistics assignedOrderIds completedOrderIds
+`;
+
+// ============================================================================
+// Fleet Queries / Mutations
+// ============================================================================
+
 const FLEETS_QUERY = /* GraphQL */ `
   query Fleets($userId: Int!, $page: Int, $limit: Int, $status: String, $deliveryType: String, $search: String) {
     fleets(userId: $userId, page: $page, limit: $limit, status: $status, deliveryType: $deliveryType, search: $search) {
-      nodes {
-        id
-        orderCode
-        route
-        status
-        deliveryType
-        eta
-        lastUpdate
-        driverName
-        totalOrders
-        deliveriesCompleted
-        customers { storeName contactName }
-        vehicleType
-        loadPct
-        paymentTerms
-        vehicleBrand
-        vehicleModel
-        vehicleMaxWeight
-        vehicleMaxVolume
-        driverPhone
-        driverExperience
-        driverStatus
-        driverAvatar
-        driverUsername
-        assignedLogistics
-        assignedOrderIds
-        assignedOrderIds
-        completedOrderIds
-      }
+      nodes { ${FLEET_FIELDS} }
       pagination { page limit totalCount totalPages }
     }
   }
@@ -61,100 +46,19 @@ const FLEETS_QUERY = /* GraphQL */ `
 
 const FLEET_QUERY = /* GraphQL */ `
   query Fleet($userId: Int!, $id: String!) {
-    fleet(userId: $userId, id: $id) {
-      id
-      orderCode
-      route
-      status
-      deliveryType
-      eta
-      lastUpdate
-      driverName
-      totalOrders
-      deliveriesCompleted
-      customers { storeName contactName }
-      vehicleType
-      loadPct
-      paymentTerms
-      vehicleBrand
-      vehicleModel
-      vehicleMaxWeight
-      vehicleMaxVolume
-      driverPhone
-      driverExperience
-      driverStatus
-      driverAvatar
-      driverUsername
-      assignedLogistics
-      assignedOrderIds
-      completedOrderIds
-    }
+    fleet(userId: $userId, id: $id) { ${FLEET_FIELDS} }
   }
 `;
 
 const CREATE_FLEET_MUTATION = /* GraphQL */ `
   mutation CreateFleet($userId: Int!, $input: CreateFleetInput!) {
-    createFleet(userId: $userId, input: $input) {
-      id
-      orderCode
-      route
-      status
-      deliveryType
-      eta
-      lastUpdate
-      driverName
-      totalOrders
-      deliveriesCompleted
-      customers { storeName contactName }
-      vehicleType
-      loadPct
-      paymentTerms
-      vehicleBrand
-      vehicleModel
-      vehicleMaxWeight
-      vehicleMaxVolume
-      driverPhone
-      driverExperience
-      driverStatus
-      driverAvatar
-      driverUsername
-      assignedLogistics
-      assignedOrderIds
-      completedOrderIds
-    }
+    createFleet(userId: $userId, input: $input) { ${FLEET_FIELDS} }
   }
 `;
 
 const UPDATE_FLEET_MUTATION = /* GraphQL */ `
   mutation UpdateFleet($userId: Int!, $id: String!, $input: UpdateFleetInput!) {
-    updateFleet(userId: $userId, id: $id, input: $input) {
-      id
-      orderCode
-      route
-      status
-      deliveryType
-      eta
-      lastUpdate
-      driverName
-      totalOrders
-      deliveriesCompleted
-      customers { storeName contactName }
-      vehicleType
-      loadPct
-      paymentTerms
-      vehicleBrand
-      vehicleModel
-      vehicleMaxWeight
-      vehicleMaxVolume
-      driverPhone
-      driverExperience
-      driverStatus
-      driverAvatar
-      driverUsername
-      assignedLogistics
-      assignedOrderIds
-      completedOrderIds
-    }
+    updateFleet(userId: $userId, id: $id, input: $input) { ${FLEET_FIELDS} }
   }
 `;
 
@@ -162,37 +66,89 @@ const DELETE_FLEET_MUTATION = /* GraphQL */ `
   mutation DeleteFleet($userId: Int!, $id: String!) {
     deleteFleet(userId: $userId, id: $id) {
       success
-      deleted {
-        id
-        orderCode
-        route
-        status
-        deliveryType
-        eta
-        lastUpdate
-        driverName
-        totalOrders
-        deliveriesCompleted
-        customers { storeName contactName }
-        vehicleType
-        loadPct
-        paymentTerms
-        vehicleBrand
-        vehicleModel
-        vehicleMaxWeight
-        vehicleMaxVolume
-        driverPhone
-        driverExperience
-        driverStatus
-        driverAvatar
-      driverUsername
-      assignedLogistics
-      assignedOrderIds
-      completedOrderIds
-      }
+      deleted { ${FLEET_FIELDS} }
     }
   }
 `;
+
+// ============================================================================
+// Driver Queries / Mutations
+// ============================================================================
+
+const DRIVER_FIELDS = `id name phone experience status avatar username fleetCount createdAt updatedAt`;
+
+const DRIVERS_QUERY = /* GraphQL */ `
+  query Drivers($userId: Int!) {
+    drivers(userId: $userId) { ${DRIVER_FIELDS} }
+  }
+`;
+
+const CREATE_DRIVER_MUTATION = /* GraphQL */ `
+  mutation CreateDriver($userId: Int!, $input: DriverInput!) {
+    createDriver(userId: $userId, input: $input) { ${DRIVER_FIELDS} }
+  }
+`;
+
+const UPDATE_DRIVER_MUTATION = /* GraphQL */ `
+  mutation UpdateDriver($userId: Int!, $id: String!, $input: UpdateDriverInput!) {
+    updateDriver(userId: $userId, id: $id, input: $input) { ${DRIVER_FIELDS} }
+  }
+`;
+
+const DELETE_DRIVER_MUTATION = /* GraphQL */ `
+  mutation DeleteDriver($userId: Int!, $id: String!) {
+    deleteDriver(userId: $userId, id: $id)
+  }
+`;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface DriverSummary {
+  id: string;
+  name: string;
+  phone?: string | null;
+  experience?: string | null;
+  status?: string | null;
+  avatar?: string | null;
+  username: string;
+  fleetCount?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+// ============================================================================
+// Mappers
+// ============================================================================
+
+type RawDriver = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  experience?: string | null;
+  status?: string | null;
+  avatar?: string | null;
+  username: string;
+  fleetCount?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+function mapDriver(raw: RawDriver): DriverSummary {
+  return {
+    id: raw.id,
+    name: raw.name,
+    phone: raw.phone ?? null,
+    experience: raw.experience ?? null,
+    status: raw.status ?? null,
+    avatar: raw.avatar ?? null,
+    username: raw.username,
+    fleetCount: raw.fleetCount ?? null,
+    createdAt: raw.createdAt ?? null,
+    updatedAt: raw.updatedAt ?? null,
+  };
+}
 
 function mapNodeToSummary(node: {
   id: string;
@@ -202,7 +158,14 @@ function mapNodeToSummary(node: {
   deliveryType?: string | null;
   eta: string;
   lastUpdate: string;
-  driverName: string;
+  driverId?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  driverExperience?: string | null;
+  driverStatus?: string | null;
+  driverAvatar?: string | null;
+  driverUsername?: string | null;
+  driver?: RawDriver | null;
   totalOrders?: number | null;
   deliveriesCompleted?: number | null;
   customers?: Array<{ storeName?: string | null; contactName?: string | null }> | null;
@@ -213,11 +176,6 @@ function mapNodeToSummary(node: {
   vehicleModel?: string | null;
   vehicleMaxWeight?: number | null;
   vehicleMaxVolume?: number | null;
-  driverPhone?: string | null;
-  driverExperience?: string | null;
-  driverStatus?: string | null;
-  driverAvatar?: string | null;
-  driverUsername?: string | null;
   assignedLogistics?: string | null;
   assignedOrderIds?: string[] | null;
   completedOrderIds?: string[] | null;
@@ -230,7 +188,14 @@ function mapNodeToSummary(node: {
     deliveryType: (node.deliveryType ?? undefined) as FleetOrderSummary['deliveryType'],
     eta: node.eta,
     lastUpdate: node.lastUpdate,
-    driverName: node.driverName,
+    driverId: node.driverId ?? undefined,
+    driverName: node.driverName ?? '',
+    driverPhone: node.driverPhone ?? undefined,
+    driverExperience: node.driverExperience ?? undefined,
+    driverStatus: node.driverStatus ?? undefined,
+    driverAvatar: node.driverAvatar ?? undefined,
+    driverUsername: node.driverUsername ?? undefined,
+    driver: node.driver ? mapDriver(node.driver) : undefined,
     totalOrders: node.totalOrders ?? undefined,
     deliveriesCompleted: node.deliveriesCompleted ?? undefined,
     assignedLogistics: node.assignedLogistics ?? undefined,
@@ -245,15 +210,14 @@ function mapNodeToSummary(node: {
     vehicleModel: node.vehicleModel ?? undefined,
     vehicleMaxWeight: node.vehicleMaxWeight ?? undefined,
     vehicleMaxVolume: node.vehicleMaxVolume ?? undefined,
-    driverPhone: node.driverPhone ?? undefined,
-    driverExperience: node.driverExperience ?? undefined,
-    driverStatus: node.driverStatus ?? undefined,
-    driverAvatar: node.driverAvatar ?? undefined,
-    driverUsername: node.driverUsername ?? undefined,
     assignedOrderIds: node.assignedOrderIds ?? undefined,
     completedOrderIds: node.completedOrderIds ?? undefined,
   };
 }
+
+// ============================================================================
+// Fleet API functions
+// ============================================================================
 
 export interface FleetsResult {
   nodes: FleetOrderSummary[];
@@ -307,6 +271,37 @@ export async function deleteFleet(userId: number, id: string): Promise<{ success
   if (!result.success) throw new Error('Delete fleet failed');
   return {
     success: result.success,
-    deleted: result.deleted && typeof result.deleted === 'object' ? mapNodeToSummary(result.deleted as Parameters<typeof mapNodeToSummary>[0]) : null,
+    deleted: result.deleted && typeof result.deleted === 'object'
+      ? mapNodeToSummary(result.deleted as Parameters<typeof mapNodeToSummary>[0])
+      : null,
   };
+}
+
+// ============================================================================
+// Driver API functions
+// ============================================================================
+
+export async function fetchDrivers(userId: number): Promise<DriverSummary[]> {
+  const data = await fetchGraphQL<{ drivers: unknown[] }>(DRIVERS_QUERY, { userId });
+  return (data.drivers ?? []).map((d) => mapDriver(d as RawDriver));
+}
+
+export async function createDriver(userId: number, input: Record<string, unknown>): Promise<DriverSummary> {
+  const data = await fetchGraphQL<{ createDriver: unknown }>(CREATE_DRIVER_MUTATION, { userId, input });
+  if (!data.createDriver || typeof data.createDriver !== 'object') throw new Error('Create driver returned no data');
+  return mapDriver(data.createDriver as RawDriver);
+}
+
+export async function updateDriver(userId: number, id: string, input: Record<string, unknown>): Promise<DriverSummary> {
+  const data = await fetchGraphQL<{ updateDriver: unknown }>(UPDATE_DRIVER_MUTATION, { userId, id, input });
+  if (!data.updateDriver || typeof data.updateDriver !== 'object') throw new Error('Update driver returned no data');
+  return mapDriver(data.updateDriver as RawDriver);
+}
+
+export async function deleteDriver(userId: number, id: string): Promise<boolean> {
+  const data = await fetchGraphQL<{ deleteDriver: boolean }>(DELETE_DRIVER_MUTATION, { userId, id });
+  if (data.deleteDriver === undefined || data.deleteDriver === null) {
+    throw new Error('Delete driver returned no data');
+  }
+  return data.deleteDriver;
 }

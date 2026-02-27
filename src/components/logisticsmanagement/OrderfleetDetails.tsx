@@ -17,9 +17,6 @@ import {
   Navigation2,
   ChevronRight,
   Edit,
-  Lock,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
@@ -64,7 +61,6 @@ function DetailRow({ label, value, icon: Icon }: { label: string; value: string;
 export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetDetailsProps) {
   const router = useRouter();
   const { user } = useUserStore();
-  const [showPasswordHash, setShowPasswordHash] = useState(false);
   const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
 
   useEffect(() => {

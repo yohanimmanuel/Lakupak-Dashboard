@@ -186,10 +186,13 @@ function VehicleTab({ fleet }: { fleet: FleetOrderSummary }) {
 function DriverTab({ fleet }: { fleet: FleetOrderSummary }) {
   return (
     <div className="grid h-full grid-cols-2 gap-x-4 gap-y-1">
-      <InfoRow label="Driver" value={fleet.driverName} />
-      <InfoRow label="Phone" value="+62 812-3456-7890" />
-      <InfoRow label="Experience" value="5+ years" />
-      <InfoRow label="Status" value="On Route" />
+      <InfoRow label="Driver" value={fleet.driverName || '—'} />
+      <InfoRow label="Phone" value={fleet.driverPhone || '—'} />
+      <InfoRow label="Experience" value={fleet.driverExperience || '—'} />
+      <InfoRow label="Status" value={fleet.driverStatus || '—'} />
+      {fleet.driverUsername && (
+        <InfoRow label="App Username" value={fleet.driverUsername} className="col-span-2" />
+      )}
     </div>
   );
 }
