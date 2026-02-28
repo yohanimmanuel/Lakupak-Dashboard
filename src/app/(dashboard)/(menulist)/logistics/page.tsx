@@ -222,13 +222,13 @@ export default function LogisticsPage() {
             Export Data
           </button>
 
-          {/* Add Fleet / Truck Button */}
+          {/* Add Fleet & Driver Button */}
           <button
             onClick={handleAddFleet}
             className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-semibold"
           >
             <Plus className="w-4 h-4" />
-            Add Fleet / Truck
+            Add Fleet & Driver
           </button>
         </div>
       </div>

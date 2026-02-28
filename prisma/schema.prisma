@@ -822,3 +822,20 @@ model Driver {
 
   @@index([userId])
 }
+
+/// A pending request from a driver to join a distributor's fleet.
+/// Created by the Laku-Driver app; resolved (approved/rejected) by the distributor on the dashboard.
+model DriverRequest {
+  id               String   @id @default(cuid())
+  name             String
+  phone            String
+  distributorEmail String
+  message          String?
+  /// "pending" | "approved" | "rejected"
+  status           String   @default("pending")
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([distributorEmail])
+  @@index([status])
+}

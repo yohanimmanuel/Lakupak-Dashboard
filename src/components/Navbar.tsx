@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { Search, MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X } from 'lucide-react';
+import { Search, MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -114,6 +114,13 @@ interface Notification {
   createdAt: string;
 }
 
+interface DriverRequestMetadata {
+  driverRequestId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  message?: string | null;
+}
+
 const Navbar = () => {
   const user = useUserStore(state => state.user);
   const clearUser = useUserStore(state => state.clearUser);
@@ -127,6 +134,7 @@ const Navbar = () => {
   const [showAllNotifModal, setShowAllNotifModal] = useState(false);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
   const [isLoadingAllNotifications, setIsLoadingAllNotifications] = useState(false);
+  const [driverRequestModalNotif, setDriverRequestModalNotif] = useState<Notification | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
@@ -310,6 +318,12 @@ const Navbar = () => {
     if (!notification.isRead) {
       handleMarkAsRead(notification.id);
     }
+    if (notification.type === 'driver_request') {
+      setShowNotifDropdown(false);
+      setShowAllNotifModal(false);
+      setDriverRequestModalNotif(notification);
+      return;
+    }
     if (notification.actionUrl) {
       setShowNotifDropdown(false);
       setShowAllNotifModal(false);
@@ -336,6 +350,8 @@ const Navbar = () => {
         return <Megaphone size={16} className="text-pink-500" />;
       case 'product':
         return <ShoppingBag size={16} className="text-indigo-500" />;
+      case 'driver_request':
+        return <Truck size={16} className="text-blue-500" />;
       case 'system':
         return <Settings size={16} className="text-gray-500" />;
       default:
@@ -656,6 +672,82 @@ const Navbar = () => {
                       </div>
                     ))
                   )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Driver request detail modal — opens when user clicks a driver_request notification */}
+          {driverRequestModalNotif && ReactDOM.createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center" data-portal-type="driver-request-modal">
+              <div
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setDriverRequestModalNotif(null)}
+                aria-hidden
+              />
+              <div
+                className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-4"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                      <Truck size={20} className="text-blue-600" />
+                    </div>
+                    <h2 className="font-semibold text-base text-gray-900">Driver access request</h2>
+                  </div>
+                  <button
+                    onClick={() => setDriverRequestModalNotif(null)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                    title="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                {(() => {
+                  const meta = (driverRequestModalNotif.metadata || {}) as DriverRequestMetadata;
+                  return (
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-gray-500 block text-xs font-medium mb-0.5">Name</span>
+                        <p className="text-gray-900 font-medium">{meta.driverName ?? '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block text-xs font-medium mb-0.5">Phone</span>
+                        <p className="text-gray-900">{meta.driverPhone ?? '—'}</p>
+                      </div>
+                      {meta.message && (
+                        <div>
+                          <span className="text-gray-500 block text-xs font-medium mb-0.5">Message</span>
+                          <p className="text-gray-700 whitespace-pre-wrap">{meta.message}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-100 flex gap-2">
+                  <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-800">
+                    <span className="font-semibold">How to add this driver:</span> Go to <strong>Logistics</strong> → click <strong>Add Fleet & Driver</strong>. In the flow, use the <strong>Driver</strong> step to create a new driver (with username and password) or link an existing one. You can then share the login credentials with this person.
+                  </p>
+                </div>
+                <div className="mt-5 flex gap-2 justify-end border-t border-gray-100 pt-4">
+                  <button
+                    onClick={() => setDriverRequestModalNotif(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDriverRequestModalNotif(null);
+                      router.push('/logistics/create');
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] hover:bg-[#084ba6] rounded-lg transition"
+                  >
+                    Add Fleet & Driver
+                  </button>
                 </div>
               </div>
             </div>,
