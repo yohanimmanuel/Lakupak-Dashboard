@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
         eta: true,
         lastUpdate: true,
         vehicleType: true,
+        vehicleMaxWeight: true,
+        vehicleMaxVolume: true,
         totalOrders: true,
         deliveriesCompleted: true,
         loadPct: true,
