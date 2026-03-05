@@ -295,6 +295,8 @@ export async function POST(request: NextRequest) {
       preferredPickupTime,
       shippingMethodLabel,
       shippingMethod,
+      estimatedDeliveryMinDays,
+      estimatedDeliveryMaxDays,
       userId 
     } = body;
     
@@ -369,6 +371,26 @@ export async function POST(request: NextRequest) {
     const normalizedPreferredPickupDate = parseOptionalDate(preferredPickupDate);
     const normalizedPreferredDeliveryTime = normalizeTimeValue(preferredDeliveryTime);
     const normalizedPreferredPickupTime = normalizeTimeValue(preferredPickupTime);
+
+    const normalizeDuration = (value: unknown) => {
+      if (value === null || value === undefined || value === '') return null;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0) return null;
+      return Math.floor(n);
+    };
+
+    let normalizedEstimatedMinDays = normalizeDuration(estimatedDeliveryMinDays);
+    let normalizedEstimatedMaxDays = normalizeDuration(estimatedDeliveryMaxDays);
+
+    if (
+      normalizedEstimatedMinDays != null &&
+      normalizedEstimatedMaxDays != null &&
+      normalizedEstimatedMinDays > normalizedEstimatedMaxDays
+    ) {
+      const tmp = normalizedEstimatedMinDays;
+      normalizedEstimatedMinDays = normalizedEstimatedMaxDays;
+      normalizedEstimatedMaxDays = tmp;
+    }
 
     // If client specifies distributorUserId, treat payload as a single-distributor order
     // Validate that all items actually belong to that distributor
@@ -463,6 +485,8 @@ export async function POST(request: NextRequest) {
         preferredPickupTime: normalizedPreferredPickupTime,
         shippingMethodLabel: normalizedShippingLabel,
         shippingMethod: normalizedShippingMethod,
+        estimatedDeliveryMinDays: normalizedEstimatedMinDays,
+        estimatedDeliveryMaxDays: normalizedEstimatedMaxDays,
         userId: distributorUserIdFromClient
       };
       const order = await prisma.order.create({ data: orderData });

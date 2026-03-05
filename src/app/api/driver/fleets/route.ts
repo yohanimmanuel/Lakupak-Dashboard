@@ -67,6 +67,8 @@ export async function GET(req: NextRequest) {
             contactPhone: true,
             deliveryAddress: true,
             orderStatus: true,
+            orderDate: true,
+            preferredDeliveryDate: true,
           },
         },
       },

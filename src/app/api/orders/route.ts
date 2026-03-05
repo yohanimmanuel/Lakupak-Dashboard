@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
+import type { Prisma as PrismaTypes } from '@/lib/prisma-generated';
+import { Prisma } from '@/lib/prisma-generated';
 
 // Helper function to convert Prisma Decimal to number
 const decimalToNumber = (value: unknown): number => {
@@ -1870,15 +1871,98 @@ export async function DELETE(request: NextRequest) {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // First, reverse any offer usage before deleting the order
       await reverseOfferUsage(body.orderId, tx);
-      
+
       // Delete OrderItem records first (due to foreign key constraint)
       await tx.orderItem.deleteMany({
-        where: { orderId: body.orderId }
+        where: { orderId: body.orderId },
       });
-      
+
+      // Remove this order from any fleets' assigned/completed order lists and customers JSON
+      const fleetsWithJson = await tx.fleet.findMany({
+        where: {
+          OR: [
+            { assignedOrderIds: { not: Prisma.JsonNull } },
+            { completedOrderIds: { not: Prisma.JsonNull } },
+          ],
+        },
+        select: {
+          id: true,
+          assignedOrderIds: true,
+          completedOrderIds: true,
+          customers: true,
+        },
+      });
+
+      for (const fleet of fleetsWithJson) {
+        const assigned: string[] = Array.isArray(fleet.assignedOrderIds)
+          ? (fleet.assignedOrderIds as string[])
+          : [];
+        const completed: string[] = Array.isArray(fleet.completedOrderIds)
+          ? (fleet.completedOrderIds as string[])
+          : [];
+        const customers: { storeName?: string; contactName?: string; orderId?: string }[] = Array.isArray(
+          fleet.customers,
+        )
+          ? (fleet.customers as { storeName?: string; contactName?: string; orderId?: string }[])
+          : [];
+
+        const nextAssigned: string[] = [];
+        const nextCustomers: typeof customers = [];
+
+        if (customers.length !== assigned.length) {
+          console.warn(
+            '[OrdersDelete] Fleet customers length mismatch',
+            JSON.stringify({
+              fleetId: fleet.id,
+              assignedCount: assigned.length,
+              customersCount: customers.length,
+              orderId: body.orderId,
+            }),
+          );
+        }
+
+        assigned.forEach((id, index) => {
+          if (id === body.orderId) return;
+          nextAssigned.push(id);
+
+          const byOrderId = customers.find((c) => c.orderId && c.orderId === id);
+          if (byOrderId) {
+            nextCustomers.push(byOrderId);
+          } else if (customers[index]) {
+            console.warn(
+              '[OrdersDelete] Falling back to index-based customer mapping',
+              JSON.stringify({
+                fleetId: fleet.id,
+                orderId: id,
+                index,
+              }),
+            );
+            nextCustomers.push(customers[index]);
+          }
+        });
+
+        const nextCompleted = completed.filter((id) => id !== body.orderId);
+
+        const shouldUpdate =
+          nextAssigned.length !== assigned.length ||
+          nextCompleted.length !== completed.length ||
+          nextCustomers.length !== customers.length;
+
+        if (shouldUpdate) {
+          await tx.fleet.update({
+            where: { id: fleet.id },
+            data: {
+              assignedOrderIds: nextAssigned as PrismaTypes.InputJsonValue,
+              completedOrderIds: nextCompleted as PrismaTypes.InputJsonValue,
+              customers: nextCustomers as PrismaTypes.InputJsonValue,
+            },
+          });
+        }
+      }
+
       // Delete the order
       await tx.order.delete({
-        where: { orderId: body.orderId }
+        where: { orderId: body.orderId },
       });
     });
 

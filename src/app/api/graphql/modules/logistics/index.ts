@@ -328,9 +328,27 @@ type FleetRow = {
   createdAt: Date;
   updatedAt: Date;
   driver: DriverRow | null;
+  orders: { orderId: string }[];
 };
 
 function mapFleet(row: FleetRow) {
+  const existingOrderIds = new Set(row.orders?.map((o) => o.orderId) ?? []);
+
+  const rawAssigned = parseJsonStringArray(row.assignedOrderIds);
+  const rawCompleted = parseJsonStringArray(row.completedOrderIds);
+  const rawCustomers = parseJsonCustomers(row.customers);
+
+  const assignedOrderIds: string[] = [];
+  const customers: ReturnType<typeof parseJsonCustomers> = [];
+
+  rawAssigned.forEach((orderId, index) => {
+    if (!existingOrderIds.has(orderId)) return;
+    assignedOrderIds.push(orderId);
+    if (rawCustomers[index]) customers.push(rawCustomers[index]);
+  });
+
+  const completedOrderIds = rawCompleted.filter((id) => existingOrderIds.has(id));
+
   const d = row.driver;
   return {
     id: String(row.id),
@@ -351,7 +369,7 @@ function mapFleet(row: FleetRow) {
     totalOrders: row.totalOrders ?? null,
     deliveriesCompleted: row.deliveriesCompleted ?? null,
     assignedLogistics: row.assignedLogistics ?? null,
-    customers: parseJsonCustomers(row.customers),
+    customers,
     vehicleType: row.vehicleType ?? null,
     loadPct: row.loadPct ?? null,
     paymentTerms: row.paymentTerms ?? null,
@@ -359,14 +377,14 @@ function mapFleet(row: FleetRow) {
     vehicleModel: row.vehicleModel ?? null,
     vehicleMaxWeight: row.vehicleMaxWeight ?? null,
     vehicleMaxVolume: row.vehicleMaxVolume ?? null,
-    assignedOrderIds: parseJsonStringArray(row.assignedOrderIds),
-    completedOrderIds: parseJsonStringArray(row.completedOrderIds),
+    assignedOrderIds,
+    completedOrderIds,
     createdAt: row.createdAt?.toISOString?.() ?? null,
     updatedAt: row.updatedAt?.toISOString?.() ?? null,
   };
 }
 
-const FLEET_INCLUDE = { driver: true } as const;
+const FLEET_INCLUDE = { driver: true, orders: { select: { orderId: true } } } as const;
 
 // ============================================================================ //
 // RESOLVERS
