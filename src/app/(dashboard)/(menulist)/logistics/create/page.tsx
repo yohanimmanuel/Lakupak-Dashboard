@@ -39,7 +39,6 @@ export interface FleetFormData {
   deliveryType?: FleetOrderSummary['deliveryType'];
   etaDate?: string;
   etaTime?: string;
-  eta?: string;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -150,7 +149,6 @@ export default function CreateFleetPage() {
       return;
     }
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
-    const eta = `${formData.etaDate} ${formData.etaTime}`;
 
     // Read staged password — cleared only on success
     const driverPassword = formData.driverPassword;
@@ -175,10 +173,10 @@ export default function CreateFleetPage() {
       driverPart = {
         driverInput: {
           name: formData.driverName ?? '',
-          phone: formData.driverPhone,
-          experience: formData.driverExperience,
-          status: formData.driverStatus,
-          avatar: formData.driverAvatar,
+          phone: formData.driverPhone ?? '',
+          experience: formData.driverExperience ?? '',
+          status: formData.driverStatus ?? '',
+          avatar: formData.driverAvatar ?? '',
           username: formData.driverUsername ?? '',
           password: driverPassword ?? '',
         },
@@ -192,7 +190,8 @@ export default function CreateFleetPage() {
       routeTo: formData.routeTo,
       status: formData.status ?? 'In Transit',
       deliveryType: formData.deliveryType,
-      eta,
+      etaCompletionDate: formData.etaDate?.trim() || undefined,
+      etaCompletionTime: formData.etaTime?.trim() || undefined,
       lastUpdate: 'Just now',
       ...driverPart,
       totalOrders: formData.assignedOrders?.length ?? 0,
@@ -259,9 +258,10 @@ export default function CreateFleetPage() {
     route: `${formData.routeFrom ?? ''} → ${formData.routeTo ?? ''}`,
     status: formData.status,
     deliveryType: formData.deliveryType,
+    etaCompletionDate: formData.etaDate ?? undefined,
+    etaCompletionTime: formData.etaTime ?? undefined,
     etaDate: formData.etaDate,
     etaTime: formData.etaTime,
-    eta: `${formData.etaDate ?? ''} ${formData.etaTime ?? ''}`,
     paymentTerms: formData.paymentTerms,
     assignedLogistics: formData.assignedLogistics || undefined,
     vehicleType: formData.vehicleType,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
+import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
         routeTo: true,
         status: true,
         deliveryType: true,
-        eta: true,
+        etaCompletionDate: true,
+        etaCompletionTime: true,
         lastUpdate: true,
         vehicleType: true,
         vehicleMaxWeight: true,
@@ -61,6 +63,7 @@ export async function GET(req: NextRequest) {
         customers: true,
         orders: {
           select: {
+            buyerId: true,
             orderId: true,
             storeName: true,
             contactPerson: true,
@@ -69,13 +72,71 @@ export async function GET(req: NextRequest) {
             orderStatus: true,
             orderDate: true,
             preferredDeliveryDate: true,
+            estimatedDeliveryDate: true,
+            estimatedDeliveryMinDays: true,
+            estimatedDeliveryMaxDays: true,
+            orderItemsRel: {
+              select: {
+                productNameSnapshot: true,
+                variantNameSnapshot: true,
+                packageQuantity: true,
+                packageType: true,
+                piecesPerPackage: true,
+                product: {
+                  select: {
+                    name: true,
+                    images: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
       orderBy: { id: 'desc' },
     });
 
-    return NextResponse.json({ fleets }, { status: 200, headers });
+    // Map buyerId -> MarketplaceUser profile (image + banner)
+    const marketplaceUserIds = new Set<number>();
+    for (const fleet of fleets) {
+      for (const order of fleet.orders) {
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+        if (marketplaceUserId !== null) {
+          marketplaceUserIds.add(marketplaceUserId);
+        }
+      }
+    }
+
+    let marketplaceProfilesById = new Map<number, { image: string | null; bannerImage: string | null }>();
+    if (marketplaceUserIds.size > 0) {
+      const profiles = await prisma.marketplaceUser.findMany({
+        where: { id: { in: Array.from(marketplaceUserIds) } },
+        select: {
+          id: true,
+          image: true,
+          bannerImage: true,
+        },
+      });
+      marketplaceProfilesById = new Map(
+        profiles.map((p) => [p.id, { image: p.image, bannerImage: p.bannerImage }]),
+      );
+    }
+
+    const enrichedFleets = fleets.map((fleet) => ({
+      ...fleet,
+      orders: fleet.orders.map((order) => {
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+        const profile =
+          marketplaceUserId !== null ? marketplaceProfilesById.get(marketplaceUserId) ?? null : null;
+        const { buyerId, ...rest } = order;
+        return {
+          ...rest,
+          buyerProfile: profile,
+        };
+      }),
+    }));
+
+    return NextResponse.json({ fleets: enrichedFleets }, { status: 200, headers });
   } catch (error) {
     // Do not leak raw DB errors to the client
     console.error('[DriverFleets] Failed to fetch fleets for driver', payload.sub, error);

@@ -22,7 +22,7 @@ const DRIVER_FRAGMENT = `
 `;
 
 const FLEET_FIELDS = `
-  id orderCode route status deliveryType eta lastUpdate
+  id orderCode route status deliveryType etaCompletionDate etaCompletionTime lastUpdate
   driverId driverName driverPhone driverExperience driverStatus driverAvatar driverUsername
   ${DRIVER_FRAGMENT}
   totalOrders deliveriesCompleted
@@ -156,7 +156,8 @@ function mapNodeToSummary(node: {
   route: string;
   status: string;
   deliveryType?: string | null;
-  eta: string;
+  etaCompletionDate?: string | null;
+  etaCompletionTime?: string | null;
   lastUpdate: string;
   driverId?: string | null;
   driverName?: string | null;
@@ -186,7 +187,8 @@ function mapNodeToSummary(node: {
     route: node.route,
     status: normalizeFleetStatus(node.status),
     deliveryType: (node.deliveryType ?? undefined) as FleetOrderSummary['deliveryType'],
-    eta: node.eta,
+    etaCompletionDate: node.etaCompletionDate ?? null,
+    etaCompletionTime: node.etaCompletionTime ?? null,
     lastUpdate: node.lastUpdate,
     driverId: node.driverId ?? undefined,
     driverName: node.driverName ?? '',

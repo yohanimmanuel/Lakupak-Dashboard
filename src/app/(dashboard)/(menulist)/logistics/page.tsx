@@ -8,6 +8,7 @@ import OrderfleetList, {
   type FleetOrderSummary,
   type DeliveryType,
   type DriverSummary,
+  formatEtaCompletion,
 } from '@/components/logisticsmanagement/OrderfleetList';
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
@@ -157,7 +158,7 @@ export default function LogisticsPage() {
         Route: f.route ?? '',
         Status: f.status ?? '',
         'Delivery Type': f.deliveryType ?? '',
-        ETA: f.eta ?? '',
+        ETA: formatEtaCompletion(f),
         'Last Update': f.lastUpdate ?? '',
         Driver: f.driverName ?? '',
         'Driver Phone': f.driverPhone ?? '',

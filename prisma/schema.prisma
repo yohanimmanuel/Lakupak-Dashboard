@@ -775,7 +775,8 @@ model Fleet {
   routeTo             String?
   status              String    // Available | Unavailable | In Transit | Checking
   deliveryType        String?
-  eta                 String
+  etaCompletionDate   DateTime? @db.Timestamptz(3)
+  etaCompletionTime   String?   // e.g. "12:00"
   lastUpdate          String
   vehicleType         String?
   vehicleBrand        String?

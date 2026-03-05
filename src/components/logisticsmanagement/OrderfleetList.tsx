@@ -9,6 +9,21 @@ import { deleteFleet, deleteDriver, type DriverSummary } from '@/data/logisticsF
 
 export type { DriverSummary };
 
+/** Format fleet ETA completion date + time for display. */
+export function formatEtaCompletion(fleet: { etaCompletionDate?: string | null; etaCompletionTime?: string | null }): string {
+  const d = fleet.etaCompletionDate;
+  const t = fleet.etaCompletionTime?.trim();
+  if (!d) return '—';
+  try {
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return '—';
+    const dateStr = date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return t ? `${dateStr} ${t}` : dateStr;
+  } catch {
+    return '—';
+  }
+}
+
 export type FleetStatus = 'Available' | 'Unavailable' | 'In Transit' | 'Checking';
 
 // Order statuses from orders module
@@ -24,7 +39,8 @@ export interface FleetOrderSummary {
   status: FleetStatus;
   orderStatus?: OrderStatus;
   deliveryType?: DeliveryType;
-  eta: string;
+  etaCompletionDate?: string | null;
+  etaCompletionTime?: string | null;
   lastUpdate: string;
   /** Nested driver object from the Driver relation */
   driver?: DriverSummary | null;

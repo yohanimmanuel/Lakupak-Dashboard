@@ -12,9 +12,12 @@ export interface FleetTripSummaryData {
   route?: string;
   status?: string;
   deliveryType?: string;
+  etaCompletionDate?: string | null;
+  etaCompletionTime?: string | null;
+  /** Form-only: date string for create/edit (e.g. YYYY-MM-DD) */
   etaDate?: string;
+  /** Form-only: time string (e.g. HH:mm) */
   etaTime?: string;
-  eta?: string;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -72,7 +75,16 @@ export default function FleetTripSummaryModal({
   if (!isOpen) return null;
 
   const route = data.route ?? (data.routeFrom && data.routeTo ? `${data.routeFrom} → ${data.routeTo}` : '');
-  const eta = data.eta ?? (data.etaDate && data.etaTime ? `${data.etaDate} ${data.etaTime}` : data.etaDate || data.etaTime || '');
+  const formatEtaDate = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const eta = data.etaCompletionDate
+    ? (data.etaCompletionTime?.trim()
+        ? `${formatEtaDate(data.etaCompletionDate)} ${data.etaCompletionTime.trim()}`.trim()
+        : formatEtaDate(data.etaCompletionDate))
+    : (data.etaDate && data.etaTime ? `${data.etaDate} ${data.etaTime}` : data.etaDate || data.etaTime || '');
   const vehicleInfo = getVehicleTypeInfo(data.vehicleType ?? '20ft_container');
   const orders = data.assignedOrders ?? [];
   const totalOrders = orders.length;

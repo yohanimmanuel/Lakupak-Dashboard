@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, Layers, ChevronRight } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
+import { formatEtaCompletion } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
@@ -84,7 +85,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
           <div className="flex items-center justify-end">
             <div className="space-y-1 text-right">
               <p className="text-xs font-medium text-gray-700">Estimated delivery completion</p>
-              <p className="text-lg font-semibold text-gray-900">{fleet.eta}</p>
+              <p className="text-lg font-semibold text-gray-900">{formatEtaCompletion(fleet)}</p>
             </div>
           </div>
         </div>
@@ -149,7 +150,7 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
 
       {/* Same-level details: ETA, Total Orders, Delivery Type, Assigned Logistics, Payment Terms */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-        <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={fleet.eta} />
+        <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={formatEtaCompletion(fleet)} />
         <InfoRowWithIcon icon={Layers} label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} />
         <InfoRowWithIcon icon={Layers} label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} />
         <InfoRowWithIcon icon={Truck} label="Assigned Logistics" value={fleet.assignedLogistics ?? 'Distributor Fleet'} />

@@ -7,6 +7,39 @@ type DbClient = Pick<typeof prisma, 'order'>;
 
 const DEFAULT_ASSIGNED_LOGISTICS_LABEL = 'Distributor Fleet';
 
+type TxWithOrder = Pick<Prisma.TransactionClient, 'order'>;
+
+/** Build a single Date from fleet etaCompletionDate + etaCompletionTime for Order.estimatedDeliveryDate. */
+function buildEtaCompletionDate(
+  etaCompletionDate: Date | null,
+  etaCompletionTime: string | null,
+): Date | null {
+  if (!etaCompletionDate) return null;
+  const d = new Date(etaCompletionDate.getTime());
+  const time = (etaCompletionTime ?? '').trim();
+  if (time) {
+    const match = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (match) {
+      d.setUTCHours(parseInt(match[1], 10), parseInt(match[2], 10), match[3] ? parseInt(match[3], 10) : 0, 0);
+    }
+  }
+  return d;
+}
+
+/** When a fleet's ETA completion is set/updated or cleared, sync Order.estimatedDeliveryDate for all orders assigned to that fleet. */
+async function syncFleetEtaToOrders(
+  fleetId: number,
+  etaCompletionDate: Date | null,
+  etaCompletionTime: string | null,
+  tx: TxWithOrder,
+): Promise<void> {
+  const date = buildEtaCompletionDate(etaCompletionDate, etaCompletionTime);
+  await tx.order.updateMany({
+    where: { fleetId },
+    data: { estimatedDeliveryDate: date },
+  });
+}
+
 /** Sync Order.fleetId, Order.trackingNumber, and Order.assignedLogistics when a fleet's assignedOrderIds changes. */
 async function syncOrdersToFleet(
   fleetId: number,
@@ -94,7 +127,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     route: String!
     status: String!
     deliveryType: String
-    eta: String!
+    etaCompletionDate: String
+    etaCompletionTime: String
     lastUpdate: String!
     driver: Driver
     driverId: String
@@ -158,7 +192,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     routeTo: String
     status: String!
     deliveryType: String
-    eta: String!
+    etaCompletionDate: String
+    etaCompletionTime: String
     lastUpdate: String!
     driverId: String
     driverInput: DriverInput
@@ -183,7 +218,8 @@ export const logisticsTypeDefs = /* GraphQL */ `
     routeTo: String
     status: String
     deliveryType: String
-    eta: String
+    etaCompletionDate: String
+    etaCompletionTime: String
     lastUpdate: String
     driverId: String
     driverInput: UpdateDriverInput
@@ -310,7 +346,8 @@ type FleetRow = {
   route: string;
   status: string;
   deliveryType: string | null;
-  eta: string;
+  etaCompletionDate: Date | null;
+  etaCompletionTime: string | null;
   lastUpdate: string;
   totalOrders: number | null;
   deliveriesCompleted: number | null;
@@ -356,7 +393,8 @@ function mapFleet(row: FleetRow) {
     route: row.route,
     status: row.status,
     deliveryType: row.deliveryType ?? null,
-    eta: row.eta,
+    etaCompletionDate: row.etaCompletionDate?.toISOString?.() ?? null,
+    etaCompletionTime: row.etaCompletionTime ?? null,
     lastUpdate: row.lastUpdate,
     driverId: d ? String(d.id) : null,
     driverName: d?.name ?? '',
@@ -523,6 +561,13 @@ export const logisticsResolvers = {
           throw new Error('Either driverId or driverInput must be provided.');
         }
 
+        const etaCompletionDateInput = input.etaCompletionDate as string | undefined;
+        const etaCompletionTimeInput = input.etaCompletionTime as string | undefined;
+        const etaCompletionDate = etaCompletionDateInput
+          ? new Date(etaCompletionDateInput)
+          : null;
+        const etaCompletionTime = (etaCompletionTimeInput?.trim() ?? null) || null;
+
         const created = await tx.fleet.create({
           data: {
             userId,
@@ -533,7 +578,8 @@ export const logisticsResolvers = {
             routeTo: (input.routeTo as string) || null,
             status: (input.status as string) ?? 'In Transit',
             deliveryType: (input.deliveryType as string) || null,
-            eta: (input.eta as string) ?? '',
+            etaCompletionDate: isNaN(etaCompletionDate?.getTime() ?? NaN) ? null : etaCompletionDate,
+            etaCompletionTime,
             lastUpdate: (input.lastUpdate as string) ?? 'Just now',
             vehicleType: (input.vehicleType as string) || null,
             vehicleBrand: (input.vehicleBrand as string) || null,
@@ -552,6 +598,9 @@ export const logisticsResolvers = {
           include: FLEET_INCLUDE,
         });
         await syncOrdersToFleet(created.id, created.fleetCode, assignedIds, tx, userId, created.assignedLogistics);
+        if (created.etaCompletionDate != null) {
+          await syncFleetEtaToOrders(created.id, created.etaCompletionDate, created.etaCompletionTime, tx);
+        }
         return created;
       });
       return mapFleet(row);
@@ -617,7 +666,17 @@ export const logisticsResolvers = {
             ...(input.routeTo !== undefined && { routeTo: input.routeTo as string }),
             ...(input.status !== undefined && { status: input.status as string }),
             ...(input.deliveryType !== undefined && { deliveryType: input.deliveryType as string }),
-            ...(input.eta !== undefined && { eta: input.eta as string }),
+            ...(input.etaCompletionDate !== undefined && {
+              etaCompletionDate: (() => {
+                const v = input.etaCompletionDate as string | null;
+                if (v == null || v === '') return null;
+                const d = new Date(v);
+                return isNaN(d.getTime()) ? null : d;
+              })(),
+            }),
+            ...(input.etaCompletionTime !== undefined && {
+              etaCompletionTime: (input.etaCompletionTime as string) || null,
+            }),
             ...(input.lastUpdate !== undefined && { lastUpdate: input.lastUpdate as string }),
             ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
             ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
@@ -638,6 +697,11 @@ export const logisticsResolvers = {
         if (input.assignedOrderIds !== undefined) {
           const assignedIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
           await syncOrdersToFleet(numId, updated.fleetCode, assignedIds, tx, userId, updated.assignedLogistics);
+        }
+        if (input.etaCompletionDate !== undefined || input.etaCompletionTime !== undefined) {
+          const date = updated.etaCompletionDate ?? null;
+          const time = updated.etaCompletionTime ?? null;
+          await syncFleetEtaToOrders(numId, date, time, tx);
         }
         return updated;
       });

@@ -30,7 +30,6 @@ export interface FleetFormData {
   deliveryType?: FleetOrderSummary['deliveryType'];
   etaDate?: string;
   etaTime?: string;
-  eta?: string;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -60,21 +59,16 @@ function parseRoute(route: string): { from: string; to: string } {
   return { from: parts[0] ?? '', to: parts[1] ?? '' };
 }
 
-function parseEta(eta: string): { date: string; time: string } {
-  const isoDate = eta.match(/(\d{4}-\d{2}-\d{2})/);
-  const timeMatch = eta.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  let time = '';
-  if (timeMatch) {
-    let h = parseInt(timeMatch[1], 10);
-    if (timeMatch[3]?.toUpperCase() === 'PM' && h < 12) h += 12;
-    else if (timeMatch[3]?.toUpperCase() === 'AM' && h === 12) h = 0;
-    time = `${String(h).padStart(2, '0')}:${timeMatch[2]}`;
+/** Format ISO/date string to YYYY-MM-DD for date input. */
+function toDateInputValue(d: string | null | undefined): string {
+  if (!d) return '';
+  try {
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  } catch {
+    return '';
   }
-  let date = isoDate ? isoDate[1] : '';
-  if (!date && eta && time) {
-    date = new Date().toISOString().slice(0, 10);
-  }
-  return { date, time };
 }
 
 export default function EditFleetPage() {
@@ -128,7 +122,6 @@ export default function EditFleetPage() {
           return;
         }
         const { from, to } = parseRoute(fleet.route);
-        const { date, time } = parseEta(fleet.eta);
         setFormData({
           orderCode: fleet.orderCode,
           routeFrom: from,
@@ -136,9 +129,8 @@ export default function EditFleetPage() {
           route: fleet.route,
           status: fleet.status,
           deliveryType: fleet.deliveryType ?? 'Standard Shipping',
-          etaDate: date || undefined,
-          etaTime: time || undefined,
-          eta: fleet.eta,
+          etaDate: toDateInputValue(fleet.etaCompletionDate) || undefined,
+          etaTime: fleet.etaCompletionTime?.trim() || undefined,
           paymentTerms: fleet.paymentTerms ?? 'En route',
           assignedLogistics: fleet.assignedLogistics ?? undefined,
           vehicleType: fleet.vehicleType ?? '20ft_container',
@@ -191,7 +183,6 @@ export default function EditFleetPage() {
   const performSave = async () => {
     if (!fleetId || user?.id == null) return;
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
-    const eta = `${formData.etaDate} ${formData.etaTime}`;
 
     // Read the staged password (cleared only after a successful save)
     const driverPassword = formData.driverPassword;
@@ -219,7 +210,8 @@ export default function EditFleetPage() {
       route,
       status: formData.status,
       deliveryType: formData.deliveryType,
-      eta,
+      etaCompletionDate: formData.etaDate?.trim() || undefined,
+      etaCompletionTime: formData.etaTime?.trim() || undefined,
       lastUpdate: 'Just now',
       ...driverPart,
       totalOrders: formData.assignedOrders?.length ?? 0,
@@ -278,9 +270,10 @@ export default function EditFleetPage() {
       route: `${formData.routeFrom ?? ''} → ${formData.routeTo ?? ''}`,
       status: formData.status,
       deliveryType: formData.deliveryType,
+      etaCompletionDate: formData.etaDate ? new Date(formData.etaDate).toISOString().slice(0, 10) : undefined,
+      etaCompletionTime: formData.etaTime ?? undefined,
       etaDate: formData.etaDate,
       etaTime: formData.etaTime,
-      eta: `${formData.etaDate ?? ''} ${formData.etaTime ?? ''}`,
       paymentTerms: formData.paymentTerms,
       assignedLogistics: formData.assignedLogistics ?? undefined,
       vehicleType: formData.vehicleType,
