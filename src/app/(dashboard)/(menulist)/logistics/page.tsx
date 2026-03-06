@@ -165,6 +165,7 @@ export default function LogisticsPage() {
         'Vehicle Type': f.vehicleType ?? '',
         'Vehicle Brand': f.vehicleBrand ?? '',
         'Vehicle Model': f.vehicleModel ?? '',
+        'Plate number': f.plateNumber ?? '',
         'Load %': f.loadPct ?? '',
         'Total Orders': f.totalOrders ?? '',
         'Deliveries Completed': f.deliveriesCompleted ?? '',

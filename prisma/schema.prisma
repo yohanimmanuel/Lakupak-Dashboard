@@ -781,6 +781,7 @@ model Fleet {
   vehicleType         String?
   vehicleBrand        String?
   vehicleModel        String?
+  plateNumber         String?   // e.g. "B 1234 XYZ" – differentiate identical vehicles
   vehicleMaxWeight    Int?
   vehicleMaxVolume    Float?
   loadPct             Int?

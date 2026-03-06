@@ -23,6 +23,7 @@ export interface FleetTripSummaryData {
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
+  plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   loadPct?: number;
@@ -147,6 +148,7 @@ export default function FleetTripSummaryModal({
               </div>
               <SummaryRow label="Brand" value={data.vehicleBrand ?? ''} />
               <SummaryRow label="Model" value={data.vehicleModel ?? ''} />
+              <SummaryRow label="Plate number" value={data.plateNumber ?? ''} />
               <SummaryRow label="Max Weight" value={data.vehicleMaxWeight != null ? `${data.vehicleMaxWeight.toLocaleString()} kg` : ''} />
               <SummaryRow label="Max Volume" value={data.vehicleMaxVolume != null ? `${data.vehicleMaxVolume.toLocaleString()} m³` : ''} />
               <SummaryRow label="Load %" value={data.loadPct != null ? `${data.loadPct}%` : ''} />

@@ -27,7 +27,7 @@ const FLEET_FIELDS = `
   ${DRIVER_FRAGMENT}
   totalOrders deliveriesCompleted
   customers { storeName contactName }
-  vehicleType loadPct paymentTerms vehicleBrand vehicleModel vehicleMaxWeight vehicleMaxVolume
+  vehicleType loadPct paymentTerms vehicleBrand vehicleModel plateNumber vehicleMaxWeight vehicleMaxVolume
   assignedLogistics assignedOrderIds completedOrderIds
 `;
 
@@ -175,6 +175,7 @@ function mapNodeToSummary(node: {
   paymentTerms?: string | null;
   vehicleBrand?: string | null;
   vehicleModel?: string | null;
+  plateNumber?: string | null;
   vehicleMaxWeight?: number | null;
   vehicleMaxVolume?: number | null;
   assignedLogistics?: string | null;
@@ -210,6 +211,7 @@ function mapNodeToSummary(node: {
     paymentTerms: node.paymentTerms ?? undefined,
     vehicleBrand: node.vehicleBrand ?? undefined,
     vehicleModel: node.vehicleModel ?? undefined,
+    plateNumber: node.plateNumber ?? undefined,
     vehicleMaxWeight: node.vehicleMaxWeight ?? undefined,
     vehicleMaxVolume: node.vehicleMaxVolume ?? undefined,
     assignedOrderIds: node.assignedOrderIds ?? undefined,

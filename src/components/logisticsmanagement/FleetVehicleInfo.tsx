@@ -9,6 +9,7 @@ import { VEHICLE_TYPE_LIST, getVehicleTypeInfo } from '@/config/vehicleTypes';
 export interface FleetVehicleFormData extends Partial<FleetOrderSummary> {
   vehicleBrand?: string;
   vehicleModel?: string;
+  plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
 }
@@ -135,6 +136,19 @@ export default function FleetVehicleInfo({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Plate number
+          </label>
+          <input
+            type="text"
+            value={formData.plateNumber || ''}
+            onChange={(e) => onFormChange({ plateNumber: e.target.value })}
+            placeholder="e.g. B 1234 XYZ"
+            className="w-full px-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+          />
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
             Brand <span className="text-red-500">*</span>

@@ -44,6 +44,7 @@ export interface FleetFormData {
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
+  plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   loadPct?: number;
@@ -203,6 +204,7 @@ export default function CreateFleetPage() {
       assignedLogistics: formData.assignedLogistics || undefined,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
+      plateNumber: formData.plateNumber?.trim() || undefined,
       vehicleMaxWeight: formData.vehicleMaxWeight,
       vehicleMaxVolume: formData.vehicleMaxVolume,
       assignedOrderIds: formData.assignedOrders?.map((o) => o.orderId),
@@ -267,6 +269,7 @@ export default function CreateFleetPage() {
     vehicleType: formData.vehicleType,
     vehicleBrand: formData.vehicleBrand,
     vehicleModel: formData.vehicleModel,
+    plateNumber: formData.plateNumber,
     vehicleMaxWeight: formData.vehicleMaxWeight,
     vehicleMaxVolume: formData.vehicleMaxVolume,
     loadPct: formData.loadPct,

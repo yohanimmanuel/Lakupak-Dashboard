@@ -205,6 +205,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               <div className="space-y-1 flex-shrink-0">
                 <DetailRow label="Brand" value={fleet.vehicleBrand ?? '—'} />
                 <DetailRow label="Model" value={fleet.vehicleModel ?? '—'} />
+                <DetailRow label="Plate number" value={fleet.plateNumber ?? '—'} />
                 <DetailRow label="Weight" value={weightStr} />
                 <DetailRow label="Volume" value={volumeStr} />
                 <DetailRow label="Vehicle Type" value={getVehicleTypeInfo(vehicleType)?.label ?? '—'} />

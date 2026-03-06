@@ -146,6 +146,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     paymentTerms: String
     vehicleBrand: String
     vehicleModel: String
+    plateNumber: String
     vehicleMaxWeight: Int
     vehicleMaxVolume: Float
     assignedLogistics: String
@@ -200,6 +201,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
+    plateNumber: String
     vehicleMaxWeight: Int
     vehicleMaxVolume: Float
     loadPct: Int
@@ -226,6 +228,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     vehicleType: String
     vehicleBrand: String
     vehicleModel: String
+    plateNumber: String
     vehicleMaxWeight: Int
     vehicleMaxVolume: Float
     loadPct: Int
@@ -358,6 +361,7 @@ type FleetRow = {
   paymentTerms: string | null;
   vehicleBrand: string | null;
   vehicleModel: string | null;
+  plateNumber: string | null;
   vehicleMaxWeight: number | null;
   vehicleMaxVolume: number | null;
   assignedOrderIds: unknown;
@@ -413,6 +417,7 @@ function mapFleet(row: FleetRow) {
     paymentTerms: row.paymentTerms ?? null,
     vehicleBrand: row.vehicleBrand ?? null,
     vehicleModel: row.vehicleModel ?? null,
+    plateNumber: row.plateNumber ?? null,
     vehicleMaxWeight: row.vehicleMaxWeight ?? null,
     vehicleMaxVolume: row.vehicleMaxVolume ?? null,
     assignedOrderIds,
@@ -584,6 +589,7 @@ export const logisticsResolvers = {
             vehicleType: (input.vehicleType as string) || null,
             vehicleBrand: (input.vehicleBrand as string) || null,
             vehicleModel: (input.vehicleModel as string) || null,
+            plateNumber: (input.plateNumber as string) || null,
             vehicleMaxWeight: typeof input.vehicleMaxWeight === 'number' ? input.vehicleMaxWeight : null,
             vehicleMaxVolume: typeof input.vehicleMaxVolume === 'number' ? input.vehicleMaxVolume : null,
             loadPct: typeof input.loadPct === 'number' ? input.loadPct : null,
@@ -681,6 +687,7 @@ export const logisticsResolvers = {
             ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),
             ...(input.vehicleBrand !== undefined && { vehicleBrand: input.vehicleBrand as string }),
             ...(input.vehicleModel !== undefined && { vehicleModel: input.vehicleModel as string }),
+            ...(input.plateNumber !== undefined && { plateNumber: input.plateNumber as string }),
             ...(input.vehicleMaxWeight !== undefined && { vehicleMaxWeight: input.vehicleMaxWeight as number }),
             ...(input.vehicleMaxVolume !== undefined && { vehicleMaxVolume: input.vehicleMaxVolume as number }),
             ...(input.loadPct !== undefined && { loadPct: input.loadPct as number }),

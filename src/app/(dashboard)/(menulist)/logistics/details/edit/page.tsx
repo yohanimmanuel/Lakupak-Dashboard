@@ -35,6 +35,7 @@ export interface FleetFormData {
   vehicleType?: string;
   vehicleBrand?: string;
   vehicleModel?: string;
+  plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   loadPct?: number;
@@ -136,6 +137,7 @@ export default function EditFleetPage() {
           vehicleType: fleet.vehicleType ?? '20ft_container',
           vehicleBrand: fleet.vehicleBrand,
           vehicleModel: fleet.vehicleModel,
+          plateNumber: fleet.plateNumber ?? undefined,
           vehicleMaxWeight: typeof fleet.vehicleMaxWeight === 'number' ? fleet.vehicleMaxWeight : (typeof fleet.vehicleMaxWeight === 'string' ? parseFloat(String(fleet.vehicleMaxWeight).replace(/[^0-9.-]/g, '')) || undefined : undefined),
           vehicleMaxVolume: typeof fleet.vehicleMaxVolume === 'number' ? fleet.vehicleMaxVolume : (typeof fleet.vehicleMaxVolume === 'string' ? parseFloat(String(fleet.vehicleMaxVolume).replace(/[^0-9.-]/g, '')) || undefined : undefined),
           loadPct: fleet.loadPct ?? 0,
@@ -222,6 +224,7 @@ export default function EditFleetPage() {
       assignedLogistics: formData.assignedLogistics ?? undefined,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
+      plateNumber: formData.plateNumber?.trim() || undefined,
       vehicleMaxWeight: formData.vehicleMaxWeight,
       vehicleMaxVolume: formData.vehicleMaxVolume,
       completedOrderIds: formData.completedOrderIds ?? [],
@@ -279,6 +282,7 @@ export default function EditFleetPage() {
       vehicleType: formData.vehicleType,
       vehicleBrand: formData.vehicleBrand,
       vehicleModel: formData.vehicleModel,
+      plateNumber: formData.plateNumber,
       vehicleMaxWeight: formData.vehicleMaxWeight,
       vehicleMaxVolume: formData.vehicleMaxVolume,
       loadPct: formData.loadPct,

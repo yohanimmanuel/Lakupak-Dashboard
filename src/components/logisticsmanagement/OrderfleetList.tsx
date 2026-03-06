@@ -59,6 +59,7 @@ export interface FleetOrderSummary {
   /** Vehicle details */
   vehicleBrand?: string;
   vehicleModel?: string;
+  plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
   /** Driver phone */
