@@ -129,6 +129,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     etaCompletionDate: String
     etaCompletionTime: String
+    assignedDate: String
     lastUpdate: String!
     driver: Driver
     driverId: String
@@ -195,6 +196,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     etaCompletionDate: String
     etaCompletionTime: String
+    assignedDate: String
     lastUpdate: String!
     driverId: String
     driverInput: DriverInput
@@ -222,6 +224,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     deliveryType: String
     etaCompletionDate: String
     etaCompletionTime: String
+    assignedDate: String
     lastUpdate: String
     driverId: String
     driverInput: UpdateDriverInput
@@ -351,6 +354,7 @@ type FleetRow = {
   deliveryType: string | null;
   etaCompletionDate: Date | null;
   etaCompletionTime: string | null;
+  assignedDate: Date | null;
   lastUpdate: string;
   totalOrders: number | null;
   deliveriesCompleted: number | null;
@@ -399,6 +403,7 @@ function mapFleet(row: FleetRow) {
     deliveryType: row.deliveryType ?? null,
     etaCompletionDate: row.etaCompletionDate?.toISOString?.() ?? null,
     etaCompletionTime: row.etaCompletionTime ?? null,
+    assignedDate: row.assignedDate ? row.assignedDate.toISOString().slice(0, 10) : null,
     lastUpdate: row.lastUpdate,
     driverId: d ? String(d.id) : null,
     driverName: d?.name ?? '',
@@ -572,6 +577,10 @@ export const logisticsResolvers = {
           ? new Date(etaCompletionDateInput)
           : null;
         const etaCompletionTime = (etaCompletionTimeInput?.trim() ?? null) || null;
+        const assignedDateInput = input.assignedDate as string | undefined;
+        const assignedDate = assignedDateInput
+          ? (() => { const d = new Date(assignedDateInput); return isNaN(d.getTime()) ? null : d; })()
+          : null;
 
         const created = await tx.fleet.create({
           data: {
@@ -585,6 +594,7 @@ export const logisticsResolvers = {
             deliveryType: (input.deliveryType as string) || null,
             etaCompletionDate: isNaN(etaCompletionDate?.getTime() ?? NaN) ? null : etaCompletionDate,
             etaCompletionTime,
+            assignedDate,
             lastUpdate: (input.lastUpdate as string) ?? 'Just now',
             vehicleType: (input.vehicleType as string) || null,
             vehicleBrand: (input.vehicleBrand as string) || null,
@@ -682,6 +692,14 @@ export const logisticsResolvers = {
             }),
             ...(input.etaCompletionTime !== undefined && {
               etaCompletionTime: (input.etaCompletionTime as string) || null,
+            }),
+            ...(input.assignedDate !== undefined && {
+              assignedDate: (() => {
+                const v = input.assignedDate as string | null;
+                if (v == null || v === '') return null;
+                const d = new Date(v);
+                return isNaN(d.getTime()) ? null : d;
+              })(),
             }),
             ...(input.lastUpdate !== undefined && { lastUpdate: input.lastUpdate as string }),
             ...(input.vehicleType !== undefined && { vehicleType: input.vehicleType as string }),

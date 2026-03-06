@@ -24,6 +24,18 @@ export function formatEtaCompletion(fleet: { etaCompletionDate?: string | null; 
   }
 }
 
+/** Format fleet assigned date (YYYY-MM-DD or ISO) for display. */
+export function formatAssignedDate(assignedDate?: string | null): string {
+  if (!assignedDate?.trim()) return '—';
+  try {
+    const date = new Date(assignedDate.trim());
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+}
+
 export type FleetStatus = 'Available' | 'Unavailable' | 'In Transit' | 'Checking';
 
 // Order statuses from orders module
@@ -41,6 +53,8 @@ export interface FleetOrderSummary {
   deliveryType?: DeliveryType;
   etaCompletionDate?: string | null;
   etaCompletionTime?: string | null;
+  /** Date drivers see this fleet (YYYY-MM-DD); when set, tasks use this date. */
+  assignedDate?: string | null;
   lastUpdate: string;
   /** Nested driver object from the Driver relation */
   driver?: DriverSummary | null;

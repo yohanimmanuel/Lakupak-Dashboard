@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, Layers, ChevronRight } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
-import { formatEtaCompletion } from './OrderfleetList';
+import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
@@ -84,6 +84,12 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
           </div>
           <div className="flex items-center justify-end">
             <div className="space-y-1 text-right">
+              {fleet.assignedDate != null && fleet.assignedDate !== '' && (
+                <>
+                  <p className="text-xs font-medium text-gray-700">Assigned date</p>
+                  <p className="text-base font-medium text-gray-900">{formatAssignedDate(fleet.assignedDate)}</p>
+                </>
+              )}
               <p className="text-xs font-medium text-gray-700">Estimated delivery completion</p>
               <p className="text-lg font-semibold text-gray-900">{formatEtaCompletion(fleet)}</p>
             </div>
@@ -148,8 +154,11 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
         </div>
       </div>
 
-      {/* Same-level details: ETA, Total Orders, Delivery Type, Assigned Logistics, Payment Terms */}
+      {/* Same-level details: Assigned date, ETA, Total Orders, Delivery Type, Assigned Logistics, Payment Terms */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {fleet.assignedDate != null && fleet.assignedDate !== '' && (
+          <InfoRowWithIcon icon={Clock} label="Assigned date" value={formatAssignedDate(fleet.assignedDate)} />
+        )}
         <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={formatEtaCompletion(fleet)} />
         <InfoRowWithIcon icon={Layers} label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} />
         <InfoRowWithIcon icon={Layers} label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} />

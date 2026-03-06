@@ -39,6 +39,7 @@ export interface FleetFormData {
   deliveryType?: FleetOrderSummary['deliveryType'];
   etaDate?: string;
   etaTime?: string;
+  assignedDate?: string;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -193,6 +194,7 @@ export default function CreateFleetPage() {
       deliveryType: formData.deliveryType,
       etaCompletionDate: formData.etaDate?.trim() || undefined,
       etaCompletionTime: formData.etaTime?.trim() || undefined,
+      assignedDate: formData.assignedDate?.trim() || undefined,
       lastUpdate: 'Just now',
       ...driverPart,
       totalOrders: formData.assignedOrders?.length ?? 0,
@@ -264,6 +266,7 @@ export default function CreateFleetPage() {
     etaCompletionTime: formData.etaTime ?? undefined,
     etaDate: formData.etaDate,
     etaTime: formData.etaTime,
+    assignedDate: formData.assignedDate ?? undefined,
     paymentTerms: formData.paymentTerms,
     assignedLogistics: formData.assignedLogistics || undefined,
     vehicleType: formData.vehicleType,

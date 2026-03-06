@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
         deliveryType: true,
         etaCompletionDate: true,
         etaCompletionTime: true,
+        assignedDate: true,
         lastUpdate: true,
         vehicleType: true,
         vehicleBrand: true,

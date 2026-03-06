@@ -19,7 +19,7 @@ import {
   Edit,
 } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
-import { formatEtaCompletion } from './OrderfleetList';
+import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
 import Image from 'next/image';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
@@ -159,6 +159,9 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 <h3 className="text-sm font-semibold text-gray-900">Trip Summary</h3>
               </div>
               <div className="space-y-1">
+                {fleet.assignedDate != null && fleet.assignedDate !== '' && (
+                  <DetailRow label="Assigned date" value={formatAssignedDate(fleet.assignedDate)} icon={Clock} />
+                )}
                 <DetailRow label="Estimated delivery completion" value={formatEtaCompletion(fleet)} icon={Clock} />
                 <DetailRow label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} icon={Layers} />
                 <DetailRow label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} icon={Layers} />

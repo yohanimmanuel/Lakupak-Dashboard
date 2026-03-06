@@ -777,6 +777,7 @@ model Fleet {
   deliveryType        String?
   etaCompletionDate   DateTime? @db.Timestamptz(3)
   etaCompletionTime   String?   // e.g. "12:00"
+  assignedDate        DateTime? @db.Date       // date drivers see tasks for this fleet (Basic Fleet Info)
   lastUpdate          String
   vehicleType         String?
   vehicleBrand        String?

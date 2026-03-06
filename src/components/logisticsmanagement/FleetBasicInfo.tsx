@@ -9,6 +9,8 @@ export interface FleetBasicFormData extends Partial<FleetOrderSummary> {
   routeTo?: string;
   etaDate?: string;
   etaTime?: string;
+  /** Assigned date (YYYY-MM-DD) – when drivers see this fleet in the app. */
+  assignedDate?: string;
   paymentTerms?: string;
 }
 
@@ -247,6 +249,20 @@ export default function FleetBasicInfo({
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">Assigned Date</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="date"
+              value={formData.assignedDate || ''}
+              onChange={(e) => onFormChange({ assignedDate: e.target.value })}
+              className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
+            />
+          </div>
+          <p className="mt-1 text-[10px] text-gray-400">Date drivers see this fleet in the app (task date)</p>
         </div>
 
         <div>
