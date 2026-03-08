@@ -55,7 +55,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Order ID required' }, { status: 400, headers });
   }
 
-  let body: { orderStatus?: string; failureReason?: string };
+  let body: { orderStatus?: string; failureReason?: string; pod?: string };
   try {
     body = await req.json();
   } catch {
@@ -64,6 +64,7 @@ export async function PATCH(
 
   const orderStatus = typeof body.orderStatus === 'string' ? body.orderStatus.trim() : undefined;
   const failureReason = typeof body.failureReason === 'string' ? body.failureReason.trim() : undefined;
+  const pod = typeof body.pod === 'string' ? body.pod.trim() : undefined;
   if (!orderStatus || !DRIVER_ALLOWED_STATUSES.includes(orderStatus as (typeof DRIVER_ALLOWED_STATUSES)[number])) {
     return NextResponse.json(
       { error: 'orderStatus must be one of: Shipped, Delivered, Failed' },
@@ -106,6 +107,7 @@ export async function PATCH(
       orderStatus: string;
       deliveredAt?: Date;
       deliveryConfirmation?: string;
+      pod?: string;
       cancellationReason?: string;
     } = {
       orderStatus,
@@ -114,6 +116,7 @@ export async function PATCH(
     };
     if (orderStatus === 'Delivered') {
       updateData.deliveredAt = new Date();
+      if (pod) updateData.pod = pod;
     }
     if (orderStatus === 'Failed' && failureReason) {
       updateData.cancellationReason = `[Delivery failed] ${failureReason}`;

@@ -1781,6 +1781,10 @@ export async function PUT(request: NextRequest) {
               title = 'Order Returned';
               body = `Your order #${order.orderId} return has been processed.`;
               break;
+            case 'Failed':
+              title = 'Delivery Failed';
+              body = `We're sorry. Delivery of your order #${order.orderId} could not be completed. Please contact support.`;
+              break;
           }
 
           const { tokenCount } = await sendExpoPushToMarketplaceUser(

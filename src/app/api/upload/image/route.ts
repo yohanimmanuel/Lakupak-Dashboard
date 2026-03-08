@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file');
-      const allowedFolders = ['products', 'avatars', 'banners', 'reviews'];
+      const allowedFolders = ['products', 'avatars', 'banners', 'reviews', 'pod'];
       const requestedFolder = (formData.get('folder') as string) || 'products';
       const folder = allowedFolders.includes(requestedFolder) ? requestedFolder : 'products';
       const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     // Legacy JSON body: base64 image (no client credentials exposed)
     const body = await req.json();
     const { image, folder: requestedFolder = 'products' } = body;
-    const allowedFolders = ['products', 'avatars', 'banners', 'reviews'];
+    const allowedFolders = ['products', 'avatars', 'banners', 'reviews', 'pod'];
     const folder = allowedFolders.includes(requestedFolder) ? requestedFolder : 'products';
     if (!image) {
       return NextResponse.json(
