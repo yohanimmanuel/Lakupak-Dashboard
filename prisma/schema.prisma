@@ -210,10 +210,42 @@ model MarketplaceUser {
   productReviews         ProductReview[]
   orderDeliveryReviews   OrderDeliveryReview[]
   distributorReviews     DistributorReview[]
+  orderReturnRequests    OrderReturnRequest[]
+  orderCancellations     OrderCancellation[]
+  passwordResetTokens    MarketplacePasswordResetToken[]
 
   @@index([phone])
   @@index([email])
   @@index([createdAt])
+}
+
+/// Password reset token for marketplace users (hashed token + expiry).
+model MarketplacePasswordResetToken {
+  id                Int             @id @default(autoincrement())
+  marketplaceUserId Int
+  tokenHash         String          // SHA-256 hash of the raw token sent in email
+  expiresAt         DateTime        @db.Timestamptz(3)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  marketplaceUser   MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
+
+  @@index([marketplaceUserId])
+  @@index([expiresAt])
+}
+
+/// Cancellation record from marketplace buyer (structured reason + detail).
+model OrderCancellation {
+  id                Int             @id @default(autoincrement())
+  orderId           String
+  marketplaceUserId Int             // Buyer (MarketplaceUser id) who cancelled
+  reason            String          // changed_mind, found_cheaper, wrong_item, delivery_issues, payment_issues, seller_issues, other
+  reasonDetail      String?         // Optional text when reason is "other" or extra details
+  cancelledAt       DateTime        @default(now()) @db.Timestamptz(3)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  order             Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  marketplaceUser   MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([marketplaceUserId])
 }
 
 model Address {
@@ -272,11 +304,15 @@ model Order {
   estimatedDeliveryMinDays Int?
   estimatedDeliveryMaxDays Int?
   deliveredAt             DateTime?   @db.Timestamptz(3)
+  receivedAt              DateTime?   @db.Timestamptz(3) // When buyer marks order as received (marketplace)
   userId                  Int?
   archivedAt              DateTime?   @db.Timestamptz(3)
   cancelledAt             DateTime?   @db.Timestamptz(3)
   cancelledBy             String?
   cancellationReason      String?
+  returnedAt              DateTime?   @db.Timestamptz(3)
+  returnReason            String?     // reason code from return request
+  returnReasonDetail      String?     // optional detail when reason is "other"
   isDeleted               Boolean     @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?
@@ -292,6 +328,8 @@ model Order {
   orderDeliveryReview     OrderDeliveryReview?
   fleetId                 Int?
   fleet                   Fleet?       @relation(fields: [fleetId], references: [id], onDelete: SetNull)
+  returnRequests          OrderReturnRequest[]
+  orderCancellations      OrderCancellation[]
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -305,6 +343,24 @@ model Order {
   @@index([userId, orderStatus, isDeleted])
   @@index([userId, isDeleted, archivedAt])
   @@index([fleetId])
+}
+
+/// Return/refund request from marketplace buyer (order must be Delivered or Received).
+model OrderReturnRequest {
+  id                Int             @id @default(autoincrement())
+  orderId           String
+  marketplaceUserId Int             // Buyer (MarketplaceUser id from JWT)
+  reason            String          // e.g. wrong_item, defective, not_as_described, changed_mind, late_delivery, other
+  reasonDetail      String?         // Optional text when reason is "other" or extra details
+  status            String          @default("Pending") // Pending | Approved | Rejected
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  order             Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  marketplaceUser   MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([marketplaceUserId])
+  @@index([status])
 }
 
 model OrderItem {

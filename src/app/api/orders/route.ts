@@ -191,6 +191,10 @@ export async function GET(request: NextRequest) {
             include: {
               product: true
             }
+          },
+          returnRequests: {
+            orderBy: { createdAt: 'asc' },
+            select: { reason: true, reasonDetail: true, createdAt: true }
           }
         }
       });
@@ -1154,19 +1158,49 @@ export async function PUT(request: NextRequest) {
         }, { status: 400, headers });
       }
 
-      // Update order with cancellation data
+      const cancelledAt = new Date();
+      const cancellationReasonText = body.reason || body.cancellationReason || 'User requested cancellation';
       const updateData = {
         orderStatus: 'Cancelled',
-        cancelledAt: new Date(),
+        cancelledAt,
         cancelledBy: body.cancelledBy || body.userId?.toString() || 'User',
-        cancellationReason: body.reason || body.cancellationReason || 'User requested cancellation'
+        cancellationReason: cancellationReasonText
       };
 
+      const validCancellationReasonCodes = [
+        'changed_mind', 'found_cheaper', 'wrong_item', 'delivery_issues',
+        'payment_issues', 'seller_issues', 'other'
+      ];
+      const reasonCode = typeof body.reasonCode === 'string' && validCancellationReasonCodes.includes(body.reasonCode)
+        ? body.reasonCode
+        : 'other';
+      const reasonDetail = typeof body.reasonDetail === 'string' && body.reasonDetail.trim()
+        ? body.reasonDetail.trim()
+        : null;
+
       try {
-        const updatedOrder = await prisma.order.update({ 
-          where: whereClause, 
-          data: updateData 
+        const updatedOrder = await prisma.order.update({
+          where: whereClause,
+          data: updateData
         });
+
+        // Persist structured cancel data (marketplace buyer id from order's buyerId)
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
+        if (marketplaceUserId != null && Number.isInteger(marketplaceUserId) && marketplaceUserId > 0) {
+          try {
+            await prisma.orderCancellation.create({
+              data: {
+                orderId: updatedOrder.orderId,
+                marketplaceUserId,
+                reason: reasonCode,
+                reasonDetail,
+                cancelledAt
+              }
+            });
+          } catch (createErr) {
+            // Don't fail the cancel if cancellation record fails (e.g. schema not migrated yet)
+          }
+        }
         
         // Auto-sync order to buyer profile after cancellation
         if (updatedOrder.buyerId && body.userId) {
@@ -1733,7 +1767,13 @@ export async function PUT(request: NextRequest) {
 
     // Create notification for order status change (for distributor dashboard)
     // Skip when status is Pending: "New Order Received" is only for first-time order creation, not status changes to Pending
-    if (sanitizedData.orderStatus && sanitizedData.orderStatus !== 'Pending' && order.userId) {
+    // Skip when status is Received: "Order Received" is only sent when the marketplace (buyer) marks it received, not when dashboard sets it
+    if (
+      sanitizedData.orderStatus &&
+      sanitizedData.orderStatus !== 'Pending' &&
+      sanitizedData.orderStatus !== 'Received' &&
+      order.userId
+    ) {
       try {
         await NotificationService.createOrderNotification(
           order.userId,

@@ -267,6 +267,15 @@ export const NotificationService = {
           actionUrl: `/orders/details/${orderId}`,
         });
         break;
+      case 'Received':
+        notifications.push({
+          type: 'order',
+          title: 'Order Received',
+          message: `Order #${orderId} from ${storeName} has been marked as received by the buyer.`,
+          metadata: { orderId, orderStatus, storeName },
+          actionUrl: `/orders/details/${orderId}`,
+        });
+        break;
       case 'Failed':
         notifications.push({
           type: 'order',

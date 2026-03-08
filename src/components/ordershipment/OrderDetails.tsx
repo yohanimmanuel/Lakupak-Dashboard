@@ -12,6 +12,19 @@ import MapComponent from './MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, geocodeViaProxy, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
+const RETURN_REASON_LABELS: Record<string, string> = {
+  wrong_item: 'Wrong item received',
+  defective: 'Defective or damaged',
+  not_as_described: 'Not as described',
+  changed_mind: 'Changed my mind',
+  late_delivery: 'Late delivery',
+  other: 'Other',
+};
+
+function getReturnReasonLabel(code: string): string {
+  return RETURN_REASON_LABELS[code] || code;
+}
+
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
   onBack: () => void;
@@ -645,8 +658,47 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
             </div>
 
-            {/* Proof of Delivery Preview */}
-            {order.pod ? (
+            {/* Proof of Delivery Preview / Cancellation or Return reason */}
+            {(orderStatus === 'Cancelled' || orderStatus === 'Returned') ? (
+              <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
+                <div className="text-sm font-semibold text-black mb-2">
+                  {orderStatus === 'Cancelled' ? 'Reason for cancellation' : 'Return information'}
+                </div>
+                {orderStatus === 'Cancelled' && order.cancellationReason ? (
+                  <div className="text-xs text-gray-700 space-y-1">
+                    <p><span className="font-medium text-gray-900">Reason:</span> {order.cancellationReason}</p>
+                    {order.cancelledAt && (
+                      <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.cancelledAt).toLocaleString()}</p>
+                    )}
+                  </div>
+                ) : orderStatus === 'Returned' ? (
+                  <div className="text-xs text-gray-700 space-y-1">
+                    {order.returnRequests && order.returnRequests.length > 0 ? (
+                      order.returnRequests.map((rr, index) => (
+                        <p key={index}>
+                          <span className="font-medium text-gray-900">Reason {index + 1}:</span>{' '}
+                          {getReturnReasonLabel(rr.reason)}{rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''}
+                          {' '}
+                          <span className="text-gray-500">({new Date(rr.createdAt).toLocaleString()})</span>
+                        </p>
+                      ))
+                    ) : order.returnReason ? (
+                      <>
+                        <p><span className="font-medium text-gray-900">Reason:</span> {getReturnReasonLabel(order.returnReason)}{order.returnReasonDetail ? ` — ${order.returnReasonDetail}` : ''}</p>
+                        {order.returnedAt && (
+                          <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.returnedAt).toLocaleString()}</p>
+                        )}
+                      </>
+                    ) : order.returnedAt ? (
+                      <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.returnedAt).toLocaleString()}</p>
+                    ) : null}
+                    {!order.returnRequests?.length && !order.returnReason && !order.returnedAt && <p className="text-gray-600">This order was returned.</p>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-600">No cancellation reason recorded.</p>
+                )}
+              </div>
+            ) : order.pod ? (
               <div className="mb-4">
                 <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
                 {String(order.pod).startsWith('data:') ? (

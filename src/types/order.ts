@@ -50,6 +50,14 @@ export interface Order {
   estimatedDeliveryMinDays?: number | null;
   estimatedDeliveryMaxDays?: number | null;
   deliveredAt?: Date;
+  cancelledAt?: Date | string | null;
+  cancelledBy?: string | null;
+  cancellationReason?: string | null;
+  returnedAt?: Date | string | null;
+  returnReason?: string | null;
+  returnReasonDetail?: string | null;
+  /** Multiple return reasons when buyer submitted more than one return request */
+  returnRequests?: Array<{ reason: string; reasonDetail?: string | null; createdAt: string | Date }>;
 }
 
 // Extended Order interface with snapshot fields for deleted buyer handling
