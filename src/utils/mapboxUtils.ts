@@ -16,6 +16,7 @@ export interface GeocodeResult {
  * - Packed: Purple (#a855f7 - purple-500) matching bg-purple-100 text-purple-800
  * - Shipped: Indigo (#6366f1 - indigo-500) matching bg-indigo-100 text-indigo-800
  * - Delivered: Green (#22c55e - green-500) matching bg-green-100 text-green-800
+ * - Failed: Red (#ef4444 - red-500) matching bg-red-100 text-red-800
  * - Cancelled: Red (#ef4444 - red-500) matching bg-red-100 text-red-800
  * - Returned: Orange (#f97316 - orange-500) matching bg-orange-100 text-orange-800
  */
@@ -31,6 +32,8 @@ export function getOrderStatusMarkerColor(status: string): string {
       return '#6366f1'; // Indigo (matches indigo badge)
     case 'Delivered':
       return '#22c55e'; // Green (matches green badge)
+    case 'Failed':
+      return '#ef4444'; // Red (delivery problem)
     case 'Cancelled':
       return '#ef4444'; // Red (matches red badge)
     case 'Returned':

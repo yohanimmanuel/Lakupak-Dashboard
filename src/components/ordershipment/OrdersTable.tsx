@@ -16,6 +16,7 @@ const statusTabs = [
   { label: "Packed" },
   { label: "Shipped" },
   { label: "Delivered" },
+  { label: "Failed" },
   { label: "Cancelled" },
   { label: "Returned" },
 ];
@@ -123,6 +124,7 @@ export default function OrdersTable({
       case 'Packed': return 'bg-purple-100 text-purple-500';
       case 'Shipped': return 'bg-indigo-100 text-indigo-500';
       case 'Delivered': return 'bg-green-100 text-green-500';
+      case 'Failed': return 'bg-red-100 text-red-500';
       case 'Cancelled': return 'bg-red-100 text-red-500';
       case 'Returned': return 'bg-orange-100 text-orange-500';
       default: return 'bg-gray-100 text-gray-500';

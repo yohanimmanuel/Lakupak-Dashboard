@@ -175,6 +175,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       case 'Packed': return 'bg-purple-100 text-purple-800 font-semibold';
       case 'Shipped': return 'bg-indigo-100 text-indigo-800 font-semibold';
       case 'Delivered': return 'bg-green-100 text-green-800 font-semibold';
+      case 'Failed': return 'bg-red-100 text-red-800 font-semibold';
       case 'Cancelled': return 'bg-red-100 text-red-800 font-semibold';
       case 'Returned': return 'bg-orange-100 text-orange-800 font-semibold';
       default: return 'bg-gray-100 text-gray-800 font-semibold';
@@ -363,7 +364,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               {/* Dropdown Menu */}
               {showStatusDropdown && (
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20">
-                  {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'].map(status => (
+                  {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Failed', 'Cancelled', 'Returned'].map(status => (
                     <button
                       key={status}
                       onClick={async () => {

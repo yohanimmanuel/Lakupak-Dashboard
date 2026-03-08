@@ -363,6 +363,7 @@ const ORDER_STATUS_VALUES: Order['orderStatus'][] = [
   'Packed',
   'Shipped',
   'Delivered',
+  'Failed',
   'Cancelled',
   'Returned',
 ];
@@ -883,6 +884,7 @@ const statusStyles: Record<Order['orderStatus'], string> = {
   Packed: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   Shipped: 'bg-sky-50 text-sky-700 border-sky-200',
   Delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Failed: 'bg-rose-50 text-rose-700 border-rose-200',
   Cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
   Returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };

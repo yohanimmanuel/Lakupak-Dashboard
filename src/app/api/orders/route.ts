@@ -1354,7 +1354,7 @@ export async function PUT(request: NextRequest) {
             updateData.deliveryConfirmation = 'in_transit';
           } else if (nextStatus === 'Delivered') {
             updateData.deliveryConfirmation = 'delivered';
-          } else if (nextStatus === 'Cancelled' || nextStatus === 'Returned') {
+          } else if (nextStatus === 'Cancelled' || nextStatus === 'Returned' || nextStatus === 'Failed') {
             updateData.deliveryConfirmation = nextStatus.toLowerCase();
           }
         }
@@ -1375,7 +1375,7 @@ export async function PUT(request: NextRequest) {
           }
         });
         
-        const noDeductStatuses = ['Pending', 'Cancelled', 'Returned'];
+        const noDeductStatuses = ['Pending', 'Cancelled', 'Returned', 'Failed'];
         const prevStatusNoDeduct = noDeductStatuses.includes(prevStatus);
         const nextStatusNoDeduct = noDeductStatuses.includes(nextStatus);
         

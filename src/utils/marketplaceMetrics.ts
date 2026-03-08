@@ -3,7 +3,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import { parseMoney } from '@/app/api/graphql/modules/common/utils';
 
-export const SOLD_COUNT_EXCLUDED_STATUSES = ['Pending', 'Cancelled', 'Returned'] as const;
+export const SOLD_COUNT_EXCLUDED_STATUSES = ['Pending', 'Cancelled', 'Returned', 'Failed'] as const;
 
 export async function calculateSoldCounts(
   prisma: PrismaClient,

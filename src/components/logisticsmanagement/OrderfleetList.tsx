@@ -39,7 +39,7 @@ export function formatAssignedDate(assignedDate?: string | null): string {
 export type FleetStatus = 'Available' | 'Unavailable' | 'In Transit' | 'Checking';
 
 // Order statuses from orders module
-export type OrderStatus = 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
+export type OrderStatus = 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Failed' | 'Cancelled' | 'Returned';
 
 // Delivery types from distributor operations shipping options
 export type DeliveryType = 'Standard Shipping' | 'Express Shipping' | 'Same-day Delivery' | 'Next-day Delivery' | 'Scheduled Delivery' | 'Pickup Available';

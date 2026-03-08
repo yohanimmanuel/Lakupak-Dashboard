@@ -267,6 +267,15 @@ export const NotificationService = {
           actionUrl: `/orders/details/${orderId}`,
         });
         break;
+      case 'Failed':
+        notifications.push({
+          type: 'order',
+          title: 'Delivery Failed',
+          message: `Order #${orderId} from ${storeName} could not be delivered.`,
+          metadata: { orderId, orderStatus, storeName },
+          actionUrl: `/orders/details/${orderId}`,
+        });
+        break;
       case 'Cancelled':
         notifications.push({
           type: 'order',

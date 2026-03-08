@@ -332,6 +332,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       'Packed': '#8B5CF6',
       'Shipped': '#10B981',
       'Delivered': '#10B981',
+      'Failed': '#EF4444',
       'Cancelled': '#EF4444',
       'Returned': '#6B7280'
     };
@@ -1276,6 +1277,7 @@ export const computeOrderStatusData = (orders: Order[]): OrderStatusData[] => {
     'Packed': '#8B5CF6',
     'Shipped': '#10B981',
     'Delivered': '#10B981',
+    'Failed': '#EF4444',
     'Cancelled': '#EF4444',
     'Returned': '#6B7280'
   };

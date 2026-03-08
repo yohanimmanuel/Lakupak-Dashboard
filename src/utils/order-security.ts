@@ -72,7 +72,7 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
   }
   
   // Status validation
-  const validOrderStatuses = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
+  const validOrderStatuses = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Failed', 'Cancelled', 'Returned'];
   if (orderData.orderStatus && !validOrderStatuses.includes(String(orderData.orderStatus))) {
     return { valid: false, error: 'Invalid order status' };
   }
@@ -205,7 +205,7 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
   
   // Status validation if provided
   if (orderData.orderStatus !== undefined) {
-    const validOrderStatuses = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
+    const validOrderStatuses = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Failed', 'Cancelled', 'Returned'];
     if (!validOrderStatuses.includes(String(orderData.orderStatus))) {
       return { valid: false, error: 'Invalid order status' };
     }
