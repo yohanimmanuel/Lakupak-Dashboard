@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "OrderReturnRequest" ALTER COLUMN "imageUrls" DROP NOT NULL,
+ALTER COLUMN "imageUrls" DROP DEFAULT,
+ALTER COLUMN "imageUrls" SET DATA TYPE TEXT;

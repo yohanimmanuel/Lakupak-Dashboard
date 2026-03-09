@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
           },
           returnRequests: {
             orderBy: { createdAt: 'asc' },
-            select: { reason: true, reasonDetail: true, createdAt: true }
+            select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true }
           }
         }
       });
@@ -1127,6 +1127,56 @@ export async function PUT(request: NextRequest) {
         }
       }
       return NextResponse.json({ success: true }, { headers });
+    }
+
+    // Accept / Reject return request from dashboard
+    if (body.returnRequestId && body.returnRequestStatus) {
+      const localHeaders = getOrderSecurityHeaders();
+      const id = Number(body.returnRequestId);
+      const status = String(body.returnRequestStatus);
+      if (!Number.isInteger(id) || id < 1) {
+        return NextResponse.json({ error: 'Invalid returnRequestId' }, { status: 400, headers: localHeaders });
+      }
+      if (!['Accepted', 'Rejected'].includes(status)) {
+        return NextResponse.json({ error: 'Invalid returnRequestStatus' }, { status: 400, headers: localHeaders });
+      }
+
+      try {
+        // Verify ownership: the caller must own the order linked to this return request
+        const existingReturnRequest = await prisma.orderReturnRequest.findUnique({
+          where: { id },
+          include: { order: true },
+        });
+
+        if (!existingReturnRequest) {
+          return NextResponse.json({ error: 'Return request not found' }, { status: 404, headers: localHeaders });
+        }
+
+        if (
+          body.userId &&
+          existingReturnRequest.order.userId &&
+          existingReturnRequest.order.userId !== Number(body.userId)
+        ) {
+          return NextResponse.json({ error: 'Forbidden: you do not own this order' }, { status: 403, headers: localHeaders });
+        }
+
+        const rr = await prisma.orderReturnRequest.update({
+          where: { id },
+          data: { status },
+        });
+
+        // Delegate order state change to the unified orderStatus flow below
+        body.orderId = rr.orderId;
+        body.returnStatus = status;
+        if (status === 'Accepted') {
+          body.orderStatus = 'Returned';
+          body.returnedAt = new Date().toISOString();
+          body.returnReason = rr.reason ?? null;
+          body.returnReasonDetail = rr.reasonDetail ?? null;
+        }
+      } catch (e) {
+        return NextResponse.json({ error: 'Failed to update return request status' }, { status: 500, headers: localHeaders });
+      }
     }
 
     // Cancel order functionality

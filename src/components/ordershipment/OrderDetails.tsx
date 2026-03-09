@@ -42,6 +42,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isProcessingReturn, setIsProcessingReturn] = useState(false);
   type DeliveryMethod = Order['deliveryMethod'];
   const toDateInputValue = (d?: Date | string | null) => {
     if (!d) return '';
@@ -67,6 +68,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
   const [durationError, setDurationError] = useState<string | null>(null);
+
+  const latestPendingReturnRequest =
+    order.returnRequests && order.returnRequests.find((rr) => rr.status === 'Pending');
 
   // POD file upload handler
   const handlePodUpload = async (file: File) => {
@@ -658,72 +662,202 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
             </div>
 
-            {/* Proof of Delivery Preview / Cancellation or Return reason */}
-            {(orderStatus === 'Cancelled' || orderStatus === 'Returned') ? (
-              <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
-                <div className="text-sm font-semibold text-black mb-2">
-                  {orderStatus === 'Cancelled' ? 'Reason for cancellation' : 'Return information'}
-                </div>
-                {orderStatus === 'Cancelled' && order.cancellationReason ? (
-                  <div className="text-xs text-gray-700 space-y-1">
-                    <p><span className="font-medium text-gray-900">Reason:</span> {order.cancellationReason}</p>
-                    {order.cancelledAt && (
-                      <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.cancelledAt).toLocaleString()}</p>
+            {/* Proof of Delivery / Cancellation / Return */}
+            {(() => {
+              if (orderStatus === 'Cancelled') {
+                return (
+                  <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
+                    <div className="text-sm font-semibold text-black mb-2">Reason for cancellation</div>
+                    {order.cancellationReason ? (
+                      <div className="text-xs text-gray-700 space-y-1">
+                        <p>
+                          <span className="font-medium text-gray-900">Reason:</span> {order.cancellationReason}
+                        </p>
+                        {order.cancelledAt && (
+                          <p>
+                            <span className="font-medium text-gray-900">Date:</span>{' '}
+                            {new Date(order.cancelledAt).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-600">No cancellation reason recorded.</p>
                     )}
                   </div>
-                ) : orderStatus === 'Returned' ? (
-                  <div className="text-xs text-gray-700 space-y-1">
-                    {order.returnRequests && order.returnRequests.length > 0 ? (
-                      order.returnRequests.map((rr, index) => (
-                        <p key={index}>
-                          <span className="font-medium text-gray-900">Reason {index + 1}:</span>{' '}
-                          {getReturnReasonLabel(rr.reason)}{rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''}
-                          {' '}
-                          <span className="text-gray-500">({new Date(rr.createdAt).toLocaleString()})</span>
-                        </p>
-                      ))
-                    ) : order.returnReason ? (
-                      <>
-                        <p><span className="font-medium text-gray-900">Reason:</span> {getReturnReasonLabel(order.returnReason)}{order.returnReasonDetail ? ` — ${order.returnReasonDetail}` : ''}</p>
-                        {order.returnedAt && (
-                          <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.returnedAt).toLocaleString()}</p>
-                        )}
-                      </>
-                    ) : order.returnedAt ? (
-                      <p><span className="font-medium text-gray-900">Date:</span> {new Date(order.returnedAt).toLocaleString()}</p>
-                    ) : null}
-                    {!order.returnRequests?.length && !order.returnReason && !order.returnedAt && <p className="text-gray-600">This order was returned.</p>}
+                );
+              }
+
+              if (order.returnRequests && order.returnRequests.length > 0) {
+                return (
+                  <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
+                    <div className="text-sm font-semibold text-black mb-2">Return information</div>
+                    <div className="text-xs text-gray-700 space-y-3">
+                      {order.returnRequests.map((rr, index) => (
+                        <div key={rr.id ?? index} className="border border-gray-200 rounded-lg p-2 mb-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-gray-900">
+                              Reason {index + 1}: {getReturnReasonLabel(rr.reason)}
+                              {rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''}
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded-full text-[10px] font-semibold ${
+                                rr.status === 'Accepted'
+                                  ? 'bg-green-100 text-green-700'
+                                  : rr.status === 'Rejected'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}
+                            >
+                              {rr.status}
+                            </span>
+                          </div>
+                          <p className="text-gray-500 mb-1">
+                            {new Date(rr.createdAt).toLocaleString()}
+                          </p>
+                          {rr.imageUrls && rr.imageUrls.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {rr.imageUrls.slice(0, 5).map((url, imgIdx) => (
+                                <a
+                                  key={`${rr.id}-${imgIdx}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block w-16 h-16 rounded-md overflow-hidden border border-gray-200"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`Return evidence ${imgIdx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {latestPendingReturnRequest && (
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={async () => {
+                              if (!latestPendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
+                              setIsProcessingReturn(true);
+                              try {
+                                const res = await fetch('/api/orders', {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    returnRequestId: latestPendingReturnRequest.id,
+                                    returnRequestStatus: 'Accepted',
+                                    userId: user.id,
+                                  }),
+                                });
+                                if (!res.ok) {
+                                  const text = await res.text().catch(() => '');
+                                  alert(`Failed to accept return: ${text || res.status}`);
+                                  return;
+                                }
+                                const updated = await res.json().catch(() => null);
+                                if (updated?.status === 'Accepted') {
+                                  // Optimistically reflect in UI
+                                  latestPendingReturnRequest.status = 'Accepted';
+                                  setOrderStatus('Returned');
+                                }
+                                window.location.reload();
+                              } catch (err) {
+                                alert('Failed to accept return. Please try again.');
+                              } finally {
+                                setIsProcessingReturn(false);
+                              }
+                            }}
+                            disabled={isProcessingReturn}
+                            className={`px-3 py-1 rounded-md text-white text-xs font-semibold ${
+                              isProcessingReturn
+                                ? 'bg-green-400 cursor-not-allowed opacity-70'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                          >
+                            {isProcessingReturn ? 'Processing...' : 'Accept return'}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!latestPendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
+                              setIsProcessingReturn(true);
+                              try {
+                                const res = await fetch('/api/orders', {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    returnRequestId: latestPendingReturnRequest.id,
+                                    returnRequestStatus: 'Rejected',
+                                    userId: user.id,
+                                  }),
+                                });
+                                if (!res.ok) {
+                                  const text = await res.text().catch(() => '');
+                                  alert(`Failed to reject return: ${text || res.status}`);
+                                  return;
+                                }
+                                const updated = await res.json().catch(() => null);
+                                if (updated?.status === 'Rejected') {
+                                  latestPendingReturnRequest.status = 'Rejected';
+                                }
+                                window.location.reload();
+                              } catch (err) {
+                                alert('Failed to reject return. Please try again.');
+                              } finally {
+                                setIsProcessingReturn(false);
+                              }
+                            }}
+                            disabled={isProcessingReturn}
+                            className={`px-3 py-1 rounded-md text-white text-xs font-semibold ${
+                              isProcessingReturn
+                                ? 'bg-red-400 cursor-not-allowed opacity-70'
+                                : 'bg-red-600 hover:bg-red-700'
+                            }`}
+                          >
+                            {isProcessingReturn ? 'Processing...' : 'Reject return'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-600">No cancellation reason recorded.</p>
-                )}
-              </div>
-            ) : order.pod ? (
-              <div className="mb-4">
-                <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
-                {String(order.pod).startsWith('data:') ? (
-                  <button
-                    className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
-                    onClick={() => setShowPodPreview(true)}
-                  >
-                    View Proof of Delivery
-                  </button>
-                ) : (
-                  <a
-                    href={order.pod as string}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
-                  >
-                    View Proof of Delivery
-                  </a>
-                )}
-              </div>
-            ) : (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
-                Proof of delivery will be shown here once the order status is set to <span className="font-semibold text-green-600">Delivered</span> and a proof of delivery file has been uploaded via <span className="font-semibold">Edit</span>.
-              </div>
-            )}
+                );
+              }
+
+              if (order.pod) {
+                return (
+                  <div className="mb-4">
+                    <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
+                    {String(order.pod).startsWith('data:') ? (
+                      <button
+                        className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                        onClick={() => setShowPodPreview(true)}
+                      >
+                        View Proof of Delivery
+                      </button>
+                    ) : (
+                      <a
+                        href={order.pod as string}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                      >
+                        View Proof of Delivery
+                      </a>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
+                  Proof of delivery will be shown here once the order status is set to{' '}
+                  <span className="font-semibold text-green-600">Delivered</span> and a proof of delivery
+                  file has been uploaded via <span className="font-semibold">Edit</span>.
+                </div>
+              );
+            })()}
           </div>
         </div>
 

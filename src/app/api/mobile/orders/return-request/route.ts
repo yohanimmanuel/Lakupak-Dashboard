@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { orderId, reason, reasonDetail } = body;
+    const { orderId, reason, reasonDetail, imageUrls } = body;
 
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
       return NextResponse.json(
@@ -112,29 +112,25 @@ export async function POST(request: NextRequest) {
         ? reasonDetail.trim()
         : null;
 
-    const returnedAt = new Date();
+    let safeImageUrls: string[] = [];
+    if (Array.isArray(imageUrls)) {
+      safeImageUrls = imageUrls
+        .filter((u) => typeof u === 'string')
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0)
+        .slice(0, 5);
+    }
+
     const created = await prisma.orderReturnRequest.create({
       data: {
         orderId: order.orderId,
         marketplaceUserId,
         reason,
         reasonDetail: detailText,
+        imageUrls: safeImageUrls,
         status: 'Pending',
       },
     });
-
-    // Only update order to Returned when not already returned (allows adding more reasons when already returned)
-    if (order.orderStatus !== 'Returned') {
-      await prisma.order.update({
-        where: { orderId: order.orderId },
-        data: {
-          orderStatus: 'Returned',
-          returnedAt,
-          returnReason: reason,
-          returnReasonDetail: detailText,
-        },
-      });
-    }
 
     // Broadcast order update so dashboard/live views refresh (same as cancel order)
     try {
@@ -143,14 +139,14 @@ export async function POST(request: NextRequest) {
       // Ignore broadcast errors
     }
 
-    // Notify distributor that the order was returned (same pattern as cancel)
+    // Notify distributor that a return request was submitted
     if (order.userId) {
       try {
         const storeName = order.storeName ?? order.storeNameSnapshot ?? 'Unknown Store';
         await NotificationService.createOrderNotification(
           order.userId,
           order.orderId,
-          'Returned',
+          'ReturnRequested',
           storeName,
           decimalToNumber(order.totalAmount)
         );
@@ -165,7 +161,7 @@ export async function POST(request: NextRequest) {
         marketplaceUserId,
         'Return Request Submitted',
         `Your return request for order #${order.orderId} has been submitted. We will process it and contact you if needed.`,
-        { orderId: order.orderId, orderStatus: 'Returned', type: 'order' }
+        { orderId: order.orderId, orderStatus: order.orderStatus, type: 'order' }
       );
       if (tokenCount === 0) {
         await broadcastNotification(

@@ -313,6 +313,7 @@ model Order {
   returnedAt              DateTime?   @db.Timestamptz(3)
   returnReason            String?     // reason code from return request
   returnReasonDetail      String?     // optional detail when reason is "other"
+  returnStatus            String?     // Pending | Accepted | Rejected
   isDeleted               Boolean     @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?
@@ -352,6 +353,7 @@ model OrderReturnRequest {
   marketplaceUserId Int             // Buyer (MarketplaceUser id from JWT)
   reason            String          // e.g. wrong_item, defective, not_as_described, changed_mind, late_delivery, other
   reasonDetail      String?         // Optional text when reason is "other" or extra details
+  imageUrls         String[]        @default([]) // Cloudinary evidence URLs, recommended max 5
   status            String          @default("Pending") // Pending | Approved | Rejected
   createdAt         DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @db.Timestamptz(3)

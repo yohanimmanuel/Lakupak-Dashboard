@@ -56,8 +56,16 @@ export interface Order {
   returnedAt?: Date | string | null;
   returnReason?: string | null;
   returnReasonDetail?: string | null;
+  returnStatus?: 'Pending' | 'Accepted' | 'Rejected' | null;
   /** Multiple return reasons when buyer submitted more than one return request */
-  returnRequests?: Array<{ reason: string; reasonDetail?: string | null; createdAt: string | Date }>;
+  returnRequests?: Array<{
+    id: number;
+    reason: string;
+    reasonDetail?: string | null;
+    status: 'Pending' | 'Accepted' | 'Rejected';
+    imageUrls?: string[];
+    createdAt: string | Date;
+  }>;
 }
 
 // Extended Order interface with snapshot fields for deleted buyer handling

@@ -303,6 +303,15 @@ export const NotificationService = {
           actionUrl: `/orders/details/${orderId}`,
         });
         break;
+      case 'ReturnRequested':
+        notifications.push({
+          type: 'order',
+          title: 'Return Request Submitted',
+          message: `Buyer has submitted a return/refund request for order #${orderId} from ${storeName}.`,
+          metadata: { orderId, orderStatus, storeName },
+          actionUrl: `/orders/details/${orderId}`,
+        });
+        break;
     }
 
     // Create all notifications
