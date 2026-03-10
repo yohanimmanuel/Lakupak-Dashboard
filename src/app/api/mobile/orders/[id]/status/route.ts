@@ -147,19 +147,15 @@ export async function PUT(
       }
     }
 
-    // Notify marketplace buyer (confirmation): Expo push first; if no Expo tokens, fallback to WebSocket
+    // Notify marketplace buyer with "Order Received" only (Expo first; WebSocket fallback when no Expo tokens).
+    // Do not use generic "order update" for Received — use only this dedicated notification.
     try {
       const title = 'Order Received';
-      const body = `Your order #${order.orderId} has been marked as received. Thank you for confirming!`;
+      const notificationBody = `Your order #${order.orderId} has been marked as received. Thank you for confirming!`;
       const payload = { orderId: order.orderId, orderStatus: 'Received', type: 'order' };
-      const { tokenCount } = await sendExpoPushToMarketplaceUser(
-        marketplaceUserId,
-        title,
-        body,
-        payload
-      );
+      const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, notificationBody, payload);
       if (tokenCount === 0) {
-        await broadcastNotification('order', title, body, payload, marketplaceUserId);
+        await broadcastNotification('order', title, notificationBody, payload, marketplaceUserId);
       }
     } catch {
       // Don't fail the status update if notification fails

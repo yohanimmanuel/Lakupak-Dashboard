@@ -1863,6 +1863,10 @@ export async function PUT(request: NextRequest) {
               title = 'Order Delivered';
               body = `Your order #${order.orderId} has been delivered. Enjoy your purchase!`;
               break;
+            case 'Received':
+              title = 'Order Received';
+              body = `Your order #${order.orderId} has been marked as received. Thank you for confirming!`;
+              break;
             case 'Cancelled':
               title = 'Order Cancelled';
               body = `Your order #${order.orderId} has been cancelled.`;

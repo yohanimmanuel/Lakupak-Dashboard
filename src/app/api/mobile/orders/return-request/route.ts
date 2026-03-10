@@ -155,23 +155,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notify marketplace buyer (confirmation): Expo push first; if no Expo tokens, fallback to WebSocket (same as cancel)
+    // Notify marketplace buyer (confirmation): always send both Expo push and WebSocket so in-app gets same content
     try {
-      const { tokenCount } = await sendExpoPushToMarketplaceUser(
-        marketplaceUserId,
-        'Return Request Submitted',
-        `Your return request for order #${order.orderId} has been submitted. We will process it and contact you if needed.`,
-        { orderId: order.orderId, orderStatus: order.orderStatus, type: 'order' }
-      );
-      if (tokenCount === 0) {
-        await broadcastNotification(
-          'order',
-          'Return Request Submitted',
-          `Your return request for order #${order.orderId} has been submitted. We will process it and contact you if needed.`,
-          { orderId: order.orderId, orderStatus: 'Returned', type: 'order' },
-          marketplaceUserId
-        );
-      }
+      const title = 'Return Request Submitted';
+      const body = `Your return request for order #${order.orderId} has been submitted. We will process it and contact you if needed.`;
+      const payload = { orderId: order.orderId, orderStatus: order.orderStatus, type: 'order' };
+      await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, payload);
+      await broadcastNotification('order', title, body, payload, marketplaceUserId);
     } catch {
       // Don't fail the return request if notification fails
     }

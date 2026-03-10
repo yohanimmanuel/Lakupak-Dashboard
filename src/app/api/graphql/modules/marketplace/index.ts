@@ -1835,7 +1835,8 @@ const fetchMobileOrders = async (args: {
             }
           }
         }
-      }
+      },
+      returnRequests: true
     }
   });
   
@@ -1887,7 +1888,18 @@ const fetchMobileOrders = async (args: {
       preferredDeliveryDate: order.preferredDeliveryDate?.toISOString() ?? null,
       preferredPickupDate: order.preferredPickupDate?.toISOString() ?? null,
       acceptedAt: order.acceptedAt?.toISOString() ?? null,
-      orderItems: orderItems
+      orderItems: orderItems,
+      returnRequests: (order.returnRequests ?? []).map((rr: { id: number; orderId: string; marketplaceUserId: number; reason: string; reasonDetail: string | null; imageUrls: string[]; status: string; createdAt: Date; updatedAt: Date }) => ({
+        id: rr.id,
+        orderId: rr.orderId,
+        marketplaceUserId: rr.marketplaceUserId,
+        reason: rr.reason,
+        reasonDetail: rr.reasonDetail,
+        imageUrls: rr.imageUrls ?? [],
+        status: rr.status,
+        createdAt: rr.createdAt?.toISOString() ?? null,
+        updatedAt: rr.updatedAt?.toISOString() ?? null,
+      })),
     };
   });
   

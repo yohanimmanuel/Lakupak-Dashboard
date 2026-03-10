@@ -15,6 +15,7 @@ const orderInclude = {
       product: true,
     },
   },
+  returnRequests: true,
 } as const;
 
 export const ordersTypeDefs = /* GraphQL */ `
@@ -61,6 +62,18 @@ export const ordersTypeDefs = /* GraphQL */ `
     phone: String
   }
 
+  type OrderReturnRequest {
+    id: Int!
+    orderId: String!
+    marketplaceUserId: Int!
+    reason: String!
+    reasonDetail: String
+    imageUrls: [String!]!
+    status: String!
+    createdAt: String
+    updatedAt: String
+  }
+
   type Order {
     id: String
     orderId: String!
@@ -105,6 +118,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     buyer: BuyerSummary
     seller: SellerInfo
     orderItems: [OrderItem!]!
+    returnRequests: [OrderReturnRequest!]
   }
 
   type OrderConnection {
@@ -232,6 +246,17 @@ const mapOrder = (
       }
     : null,
   orderItems: mapOrderItems(order?.orderItemsRel ?? []),
+  returnRequests: (order?.returnRequests ?? []).map((rr) => ({
+    id: rr.id,
+    orderId: rr.orderId,
+    marketplaceUserId: rr.marketplaceUserId,
+    reason: rr.reason,
+    reasonDetail: rr.reasonDetail ?? null,
+    imageUrls: rr.imageUrls ?? [],
+    status: rr.status,
+    createdAt: rr.createdAt?.toISOString() ?? null,
+    updatedAt: rr.updatedAt?.toISOString() ?? null,
+  })),
 });
 
 const fetchOrdersConnection = async (args: {
