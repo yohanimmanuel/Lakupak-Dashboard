@@ -352,6 +352,21 @@ const Navbar = () => {
         return <ShoppingBag size={16} className="text-indigo-500" />;
       case 'driver_request':
         return <Truck size={16} className="text-blue-500" />;
+      case 'driver':
+        // For driver status notifications we want:
+        // - Truck icon for in-progress / shipped
+        // - Check icon for completed
+        // - X icon for failed
+        {
+          const status = (metadata as { orderStatus?: string } | null)?.orderStatus;
+          if (status === 'Delivered') {
+            return <Check size={16} className="text-green-500" />;
+          }
+          if (status === 'Failed') {
+            return <X size={16} className="text-red-500" />;
+          }
+          return <Truck size={16} className="text-blue-500" />;
+        }
       case 'system':
         return <Settings size={16} className="text-gray-500" />;
       default:

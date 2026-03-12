@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import type { PrismaClient } from '@prisma/client';
 import { getSecurityHeaders } from '../../../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
+import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
+import { NotificationService } from '@/app/api/graphql/modules/notifications';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -41,6 +44,23 @@ const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
   // Pending, Confirmed, Delivered, Failed, Cancelled, Returned: no valid driver transitions
 };
 
+type OrderFailedReasonModel = {
+  create: (args: {
+    data: {
+      orderId: string;
+      driverId: number | null;
+      reason: string;
+      detail: string | null;
+    };
+  }) => Promise<unknown>;
+};
+
+function getOrderFailedReasonModel(client: PrismaClient): OrderFailedReasonModel | null {
+  const candidate = (client as PrismaClient & { orderFailedReason?: OrderFailedReasonModel }).orderFailedReason;
+  if (!candidate || typeof candidate.create !== 'function') return null;
+  return candidate;
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -77,7 +97,7 @@ export async function PATCH(
       where: { orderId: orderId.trim() },
       include: {
         fleet: {
-          select: { id: true, driverId: true },
+          select: { id: true, driverId: true, fleetCode: true },
         },
       },
     });
@@ -122,12 +142,99 @@ export async function PATCH(
       updateData.cancellationReason = `[Delivery failed] ${failureReason}`;
     }
 
-    await prisma.order.update({
+    const updated = await prisma.order.update({
       where: { orderId: orderId.trim() },
       data: updateData,
     });
 
-    return NextResponse.json({ success: true, orderStatus }, { status: 200, headers });
+    // Broadcast order update so marketplace + dashboards refresh
+    try {
+      await broadcastOrderUpdate([updated.orderId]);
+    } catch {
+      // best-effort
+    }
+
+    // Dashboard order notifications for distributor user
+    if (updated.userId) {
+      try {
+        const storeName = updated.storeName || 'Unknown Store';
+        await NotificationService.createOrderNotification(
+          updated.userId,
+          updated.orderId,
+          updated.orderStatus,
+          storeName,
+          Number(updated.totalAmount ?? 0),
+        );
+
+        // Additional driver-to-dashboard notification with explicit wording
+        const fleetCode = order.fleet?.fleetCode ?? null;
+        if (orderStatus === 'Shipped' || orderStatus === 'Delivered' || orderStatus === 'Failed') {
+          await NotificationService.createDriverStatusNotification(
+            updated.userId,
+            updated.orderId,
+            fleetCode,
+            orderStatus,
+            failureReason,
+          );
+        }
+      } catch {
+        // ignore notification errors
+      }
+    }
+
+    // Record structured failed reason when driver marks delivery as Failed
+    if (orderStatus === 'Failed') {
+      try {
+        const model = getOrderFailedReasonModel(prisma);
+        if (model) {
+          await model.create({
+            data: {
+              orderId: updated.orderId,
+              driverId: order.fleet?.driverId ?? null,
+              // Store the human-readable failure reason selected by the driver.
+              reason: failureReason || 'Delivery failed',
+              // Detail can carry a more descriptive message or be null.
+              detail: failureReason ? `Driver reported: ${failureReason}` : null,
+            },
+          });
+        }
+      } catch {
+        // best-effort only
+      }
+    }
+
+    // Marketplace buyer push/websocket notification
+    try {
+      const { parseMarketplaceUserIdFromBuyerId } = await import('@/utils/buyerSync');
+      const { sendExpoPushToMarketplaceUser } = await import('@/utils/expoPush');
+      const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updated.buyerId);
+
+      if (marketplaceUserId != null) {
+        let title = 'Order Updated';
+        let body = `Your order #${updated.orderId} status is now ${updated.orderStatus}.`;
+
+        if (orderStatus === 'Shipped') {
+          title = 'Order Shipped';
+          body = `Your order #${updated.orderId} has been shipped by your distributor.`;
+        } else if (orderStatus === 'Delivered') {
+          title = 'Order Delivered';
+          body = `Your order #${updated.orderId} has been delivered by your driver.`;
+        } else if (orderStatus === 'Failed') {
+          title = 'Delivery Failed';
+          body = `Delivery for order #${updated.orderId} could not be completed.`;
+        }
+
+        const payload = { orderId: updated.orderId, orderStatus: updated.orderStatus, type: 'order' };
+        const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, payload);
+        if (tokenCount === 0) {
+          await broadcastNotification('order', title, body, payload, marketplaceUserId);
+        }
+      }
+    } catch {
+      // ignore marketplace notification failures
+    }
+
+    return NextResponse.json({ success: true, orderStatus: updated.orderStatus }, { status: 200, headers });
   } catch (error) {
     console.error('[DriverOrderStatus] Failed to update order', orderId, error);
     return NextResponse.json({ error: 'Failed to update order status' }, { status: 500, headers });

@@ -664,6 +664,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
             {/* Proof of Delivery / Cancellation / Return */}
             {(() => {
+              if (orderStatus === 'Failed') {
+                const raw = order.cancellationReason || '';
+                const cleaned = raw.replace(/^\[Delivery failed\]\s*/i, '') || 'Delivery failed';
+                return (
+                  <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
+                    <div className="text-sm font-semibold text-black mb-2">Delivery failure reason</div>
+                    <div className="text-xs text-gray-700 space-y-1">
+                      <p>
+                        <span className="font-medium text-gray-900">Reason:</span> {cleaned}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
               if (orderStatus === 'Cancelled') {
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">

@@ -331,6 +331,7 @@ model Order {
   fleet                   Fleet?       @relation(fields: [fleetId], references: [id], onDelete: SetNull)
   returnRequests          OrderReturnRequest[]
   orderCancellations      OrderCancellation[]
+  orderFailedReasons      OrderFailedReason[]
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -344,6 +345,21 @@ model Order {
   @@index([userId, orderStatus, isDeleted])
   @@index([userId, isDeleted, archivedAt])
   @@index([fleetId])
+}
+
+/// Structured record for driver-reported delivery failures (separate from buyer cancellations/returns).
+model OrderFailedReason {
+  id          Int       @id @default(autoincrement())
+  orderId     String
+  driverId    Int?
+  reason      String    // Human-readable label selected by driver (e.g. "Customer unavailable")
+  detail      String?   // Optional free-text detail (for "other" or extra context)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  order       Order     @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  driver      Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([driverId])
 }
 
 /// Return/refund request from marketplace buyer (order must be Delivered or Received).
@@ -880,6 +896,7 @@ model Driver {
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fleets        Fleet[]
+  failedReasons OrderFailedReason[]
 
   @@index([userId])
 }

@@ -327,6 +327,47 @@ export const NotificationService = {
     return notifications.length;
   },
 
+  // Driver-to-dashboard status notification with explicit wording
+  async createDriverStatusNotification(
+    userId: number,
+    orderId: string,
+    fleetCode: string | null,
+    orderStatus: 'Shipped' | 'Delivered' | 'Failed',
+    failureReason?: string | null
+  ) {
+    let title = '';
+    let message = '';
+
+    if (orderStatus === 'Shipped') {
+      title = 'Driver Started Delivery';
+      message = `Your driver on fleet ID ${fleetCode ?? '-'} has started delivery for order #${orderId}.`;
+    } else if (orderStatus === 'Delivered') {
+      title = 'Driver Completed Delivery';
+      message = 'Your driver has completed the delivery. Check the order details for POD sent to customers.';
+    } else if (orderStatus === 'Failed') {
+      title = 'Delivery Failed';
+      const reason = (failureReason && failureReason.trim().length > 0) ? failureReason.trim() : 'an unspecified issue';
+      message = `Delivery failed due to ${reason}.`;
+    }
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'driver',
+        title,
+        message,
+        metadata: {
+          orderId,
+          fleetCode,
+          orderStatus,
+          failureReason: failureReason ?? null,
+        },
+        actionUrl: `/orders/details/${orderId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
   // Create inventory notification
   async createInventoryNotification(
     userId: number,
