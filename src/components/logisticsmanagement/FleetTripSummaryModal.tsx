@@ -14,6 +14,7 @@ export interface FleetTripSummaryData {
   deliveryType?: string;
   etaCompletionDate?: string | null;
   etaCompletionTime?: string | null;
+  assignedDate?: string;
   /** Form-only: date string for create/edit (e.g. YYYY-MM-DD) */
   etaDate?: string;
   /** Form-only: time string (e.g. HH:mm) */
@@ -81,6 +82,13 @@ export default function FleetTripSummaryModal({
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const assignedDateDisplay = (() => {
+    const raw = data.assignedDate?.trim();
+    if (!raw) return '';
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  })();
+
   const eta = data.etaCompletionDate
     ? (data.etaCompletionTime?.trim()
         ? `${formatEtaDate(data.etaCompletionDate)} ${data.etaCompletionTime.trim()}`.trim()
@@ -125,6 +133,7 @@ export default function FleetTripSummaryModal({
               <SummaryRow label="Route" value={route} />
               <SummaryRow label="Status" value={data.status ?? ''} />
               <SummaryRow label="Delivery Type" value={data.deliveryType ?? ''} />
+              <SummaryRow label="Assigned Date" value={assignedDateDisplay} />
               <SummaryRow label="ETA" value={eta} />
               <SummaryRow label="Payment Terms" value={data.paymentTerms ?? ''} />
               <SummaryRow label="Assigned Logistics" value={data.assignedLogistics ?? ''} />

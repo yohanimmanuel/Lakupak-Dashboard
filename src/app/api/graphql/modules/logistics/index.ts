@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
+import { broadcastNotification } from '@/utils/websocketBroadcast';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -619,6 +620,17 @@ export const logisticsResolvers = {
         }
         return created;
       });
+
+      if (row.driverId) {
+        broadcastNotification(
+          'fleet_assigned',
+          'New fleet assigned',
+          `Fleet ${row.fleetCode} has been assigned to you.`,
+          { fleetId: row.id, fleetCode: row.fleetCode },
+          row.driverId,
+        ).catch(() => {});
+      }
+
       return mapFleet(row);
     },
 
@@ -730,6 +742,17 @@ export const logisticsResolvers = {
         }
         return updated;
       });
+
+      if (driverIdUpdate && driverIdUpdate !== existingFleet.driverId) {
+        broadcastNotification(
+          'fleet_assigned',
+          'New fleet assigned',
+          `Fleet ${row.fleetCode} has been assigned to you.`,
+          { fleetId: row.id, fleetCode: row.fleetCode },
+          driverIdUpdate,
+        ).catch(() => {});
+      }
+
       return mapFleet(row);
     },
 

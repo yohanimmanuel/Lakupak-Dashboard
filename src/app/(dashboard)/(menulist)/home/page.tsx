@@ -1936,7 +1936,7 @@ const supplierInsights = useMemo(() => {
         };
       case 'orders':
         return {
-          subtitle: 'Latest customer activity and order status',
+          subtitle: 'Showing 4 latest customer activity and order status',
           action: (
             <Link
               href="/orders"
