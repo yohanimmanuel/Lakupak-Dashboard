@@ -140,22 +140,22 @@ export default function Statcards({ type, data }: StatcardsProps) {
           {
             label: 'Total Buyers',
             value: totalBuyers,
-            icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'Active Buyers',
             value: activeBuyers,
-            icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'Monthly Buyer Spend',
             value: cleanDecimals(avgMonthlySpend), // Store raw number, format in render
-            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'Avg. Order Frequency',
             value: avgOrderFreq + '/mo',
-            icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '0.0%', label: 'from last month', up: true }
           }
         ];
       } else {
@@ -261,36 +261,36 @@ export default function Statcards({ type, data }: StatcardsProps) {
           {
             label: 'Total Suppliers',
             value: totalSuppliers,
-            icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'Active Suppliers',
             value: activeSuppliers,
-            icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'Monthly Purchase Value',
             value: cleanDecimals(avgMonthlyValue), // Store raw number, format in render
-            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true }
           },
           {
             label: 'On-time Delivery Rate',
             value: onTimeRate + '%',
-            icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true }
+            icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '0.0%', label: 'from last month', up: true }
           }
         ];
       }
     } catch (error) {
       const fallbackStats = type === 'buyer' ? [
-        { label: 'Total Buyers', value: data.length, icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'Active Buyers', value: data.filter(b => b.status === 'Active').length, icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'Monthly Buyer Spend', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'Avg. Order Frequency', value: 'N/A', icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true } }
+      { label: 'Total Buyers', value: data.length, icon: <Users className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'Active Buyers', value: data.filter(b => b.status === 'Active').length, icon: <UserCheck className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'Monthly Buyer Spend', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'Avg. Order Frequency', value: 'N/A', icon: <Repeat className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '0.0%', label: 'from last month', up: true } }
       ] : [
-        { label: 'Total Suppliers', value: data.length, icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'Active Suppliers', value: data.filter(s => s.status === 'Active').length, icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'Monthly Purchase Value', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '+0%', label: 'from last month', up: true } },
-        { label: 'On-time Delivery Rate', value: 'N/A', icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '+0%', label: 'from last month', up: true } }
+      { label: 'Total Suppliers', value: data.length, icon: <Truck className="w-6 h-6 text-[#0a61d7]" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'Active Suppliers', value: data.filter(s => s.status === 'Active').length, icon: <CheckCircle className="w-6 h-6 text-green-500" />, color: 'bg-[#e6f7ec]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'Monthly Purchase Value', value: 'N/A', icon: <DollarSign className="w-6 h-6 text-yellow-500" />, color: 'bg-[#f7faff]', trend: { percent: '0.0%', label: 'from last month', up: true } },
+      { label: 'On-time Delivery Rate', value: 'N/A', icon: <Clock className="w-6 h-6 text-gray-500" />, color: 'bg-[#e6e6e6]', trend: { percent: '0.0%', label: 'from last month', up: true } }
       ];
       return fallbackStats;
     }

@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
+import { parseAmountSafely } from '@/utils/currencyUtils';
 
 const FINANCIAL_ANALYTICS_PAGE_QUERY = `
   query FinancialAnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
@@ -284,103 +285,71 @@ export default function FinancialAnalyticsPage() {
     const timestamp = new Date().toLocaleString();
     const timeRangeLabel = timeRanges.find(range => range.value === timeRange)?.label || timeRange;
     
-    // Helper function to parse currency strings to numbers
-    const parseCurrencyToNumber = (currencyString: string): number => {
+    // Helper: safely parse totals coming from GraphQL (Decimal/string/number)
+    const safeTotalAmount = (amount: unknown): number => {
+      return parseAmountSafely(amount as unknown);
+    };
+
+    // Helper function to parse currency strings to numbers (for product prices)
+    const parseCurrencyToNumber = (currencyString: string | undefined): number => {
       if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
       const cleanString = currencyString
-        .replace(/[Rp\s,]/g, '')
+        .replace(/[^\d.,-]/g, '')
         .replace(/\./g, '')
         .trim();
       const parsed = parseFloat(cleanString);
-      return isNaN(parsed) ? 0 : parsed;
+      return Number.isNaN(parsed) ? 0 : parsed;
     };
 
     // Calculate comprehensive metrics like FinancialAnalytics component
     const totalOrders = orders.length;
     const totalProducts = products.length;
     
-    // Calculate real revenue and profit from orders and products
-    let totalRevenue = 0;
-    let totalProfit = 0;
-    let totalBuyers = 0;
-    let totalSuppliers = 0;
-    
-    const uniqueBuyers = new Set<string>();
-    const uniqueSuppliers = new Set<string>();
-    
-    // Calculate product margins first
-    const productMargins: { [key: string]: number } = {};
+    // Build product cost lookup using recorded purchase prices only
+    const productCostById: Record<string, number> = {};
     products.forEach(product => {
-      const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
+      const purchasePrice = parseCurrencyToNumber(product.purchasePrice);
+      if (purchasePrice > 0) {
+        productCostById[product.productId] = purchasePrice;
       }
     });
+
+    // Revenue is based on full order totals (matches dashboard)
+    let totalRevenue = 0;
+    let totalProfit = 0;
+    const uniqueBuyers = new Set<string>();
 
     orders.forEach(order => {
       uniqueBuyers.add(String(order.buyerId));
-      
+
+      const orderRevenue = safeTotalAmount(order.totalAmount);
+      totalRevenue += orderRevenue;
+
+      // Compute COGS from product purchase prices
+      let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
-          const product = products.find(p => p.productId === item.productId);
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using package-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-              const itemProfit = itemRevenue - itemCost;
-              totalRevenue += itemRevenue;
-              totalProfit += itemProfit;
-            } else {
-              // Calculate revenue using package-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const revenue = (item.pricePerPackage || 0) * packageQuantity;
-              const avgMargin = Object.values(productMargins).length > 0
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
-              const profit = revenue * (avgMargin / 100);
-              totalRevenue += revenue;
-              totalProfit += profit;
-            }
-          } else {
-            // Calculate revenue using package-based pricing
+          const cost = productCostById[item.productId];
+          if (typeof cost === 'number' && cost > 0) {
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
-            const revenue = item.pricePerPackage * packageQuantity;
-            const avgMargin = Object.values(productMargins).length > 0
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
-            const profit = revenue * (avgMargin / 100);
-            totalRevenue += revenue;
-            totalProfit += profit;
+            const totalPieces = packageQuantity * piecesPerPackage;
+            orderCogs += cost * totalPieces;
           }
         });
-      } else {
-        const revenue = Number(order.totalAmount || 0);
-        const avgMargin = Object.values(productMargins).length > 0
-          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 30;
-        const profit = revenue * (avgMargin / 100);
-        totalRevenue += revenue;
-        totalProfit += profit;
       }
+
+      const orderProfit = orderRevenue - orderCogs;
+      totalProfit += orderProfit;
     });
 
-    totalBuyers = uniqueBuyers.size;
-    totalSuppliers = uniqueSuppliers.size;
+    const totalBuyers = uniqueBuyers.size;
+    const totalSuppliers = 0; // Not available from current query
     
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const monthlyGrowth = 12.5; // This would be calculated from historical data
     
-    // Calculate revenue trend data
+    // Calculate revenue trend data (matches dashboard logic: revenue = order total, profit = revenue - COGS)
     const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
     orders.forEach(order => {
       const orderDate = new Date(order.orderDate);
@@ -388,63 +357,60 @@ export default function FinancialAnalyticsPage() {
       
       if (!monthlyData[monthKey]) monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
       monthlyData[monthKey].orders += 1;
-      
+
+      const orderRevenue = safeTotalAmount(order.totalAmount);
+
+      let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
-          const product = products.find(p => p.productId === item.productId);
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            
-            let itemRevenue = 0;
-            let itemProfit = 0;
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using package-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-              itemProfit = itemRevenue - itemCost;
-            } else {
-              // Use unitPrice from order item if product prices are not available
-              // Calculate revenue using package-based pricing
+          const cost = productCostById[item.productId];
+          if (typeof cost === 'number' && cost > 0) {
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
-            itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-              const avgMargin = Object.values(productMargins).length > 0
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
-              itemProfit = itemRevenue * (avgMargin / 100);
-            }
-            
-            monthlyData[monthKey].revenue += itemRevenue;
-            monthlyData[monthKey].profit += itemProfit;
-          } else {
-            // If product not found, use order item data
-            // Calculate revenue using package-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const itemRevenue = item.pricePerPackage * packageQuantity;
-            const avgMargin = Object.values(productMargins).length > 0
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
-            const itemProfit = itemRevenue * (avgMargin / 100);
-            monthlyData[monthKey].revenue += itemRevenue;
-            monthlyData[monthKey].profit += itemProfit;
+            const totalPieces = packageQuantity * piecesPerPackage;
+            orderCogs += cost * totalPieces;
           }
         });
-      } else {
-        // If no orderItems, use totalAmount
-        const revenue = Number(order.totalAmount || 0);
-        const avgMargin = Object.values(productMargins).length > 0
-          ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-          : 30;
-        const profit = revenue * (avgMargin / 100);
-        monthlyData[monthKey].revenue += revenue;
-        monthlyData[monthKey].profit += profit;
       }
+
+      const orderProfit = orderRevenue - orderCogs;
+      monthlyData[monthKey].revenue += orderRevenue;
+      monthlyData[monthKey].profit += orderProfit;
     });
+
+    // Derive month-over-month growth metrics for export header
+    const monthlyEntriesSorted = Object.entries(monthlyData)
+      .map(([key, data]) => ({ key, ...data }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+    const last = monthlyEntriesSorted[monthlyEntriesSorted.length - 1];
+    const prev = monthlyEntriesSorted[monthlyEntriesSorted.length - 2];
+
+    const revenueGrowth =
+      last && prev && prev.revenue > 0
+        ? ((last.revenue - prev.revenue) / prev.revenue) * 100
+        : null;
+    const profitGrowth =
+      last && prev && prev.profit > 0
+        ? ((last.profit - prev.profit) / prev.profit) * 100
+        : null;
+
+    const lastMarginExport = last && last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
+    const prevMarginExport = prev && prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
+    const marginGrowth =
+      last &&
+      prev &&
+      prevMarginExport !== 0
+        ? ((lastMarginExport - prevMarginExport) / Math.abs(prevMarginExport)) * 100
+        : null;
+
+    const lastAovExport = last && last.orders > 0 ? last.revenue / last.orders : 0;
+    const prevAovExport = prev && prev.orders > 0 ? prev.revenue / prev.orders : 0;
+    const aovGrowth =
+      last &&
+      prev &&
+      prevAovExport !== 0
+        ? ((lastAovExport - prevAovExport) / Math.abs(prevAovExport)) * 100
+        : null;
 
     // Calculate category data
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
@@ -472,10 +438,8 @@ export default function FinancialAnalyticsPage() {
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-            const avgMargin = Object.values(productMargins).length > 0
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 30;
-            itemProfit = itemRevenue * (avgMargin / 100);
+            const fallbackMargin = 30;
+            itemProfit = itemRevenue * (fallbackMargin / 100);
           }
           
           if (!categoryStats[category]) categoryStats[category] = { revenue: 0, profit: 0 };
@@ -519,10 +483,8 @@ export default function FinancialAnalyticsPage() {
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const revenue = (item.pricePerPackage || 0) * packageQuantity;
-              const avgMargin = Object.values(productMargins).length > 0
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 30;
-              const profit = revenue * (avgMargin / 100);
+              const fallbackMargin = 30;
+              const profit = revenue * (fallbackMargin / 100);
               productStats[item.productId].revenue += revenue;
               productStats[item.productId].profit += profit;
             }
@@ -594,22 +556,38 @@ export default function FinancialAnalyticsPage() {
             <div class="metric-card">
                 <div class="metric-value">$${totalRevenue.toLocaleString()}</div>
                 <div class="metric-label">Total Revenue</div>
-                <div class="metric-change">+${monthlyGrowth}% vs last month</div>
+                <div class="metric-change">${
+                  revenueGrowth == null
+                    ? 'N/A vs last month'
+                    : `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth.toFixed(1)}% vs last month`
+                }</div>
             </div>
             <div class="metric-card">
                 <div class="metric-value">$${totalProfit.toLocaleString()}</div>
                 <div class="metric-label">Total Profit</div>
-                <div class="metric-change">+15.2% vs last month</div>
+                <div class="metric-change">${
+                  profitGrowth == null
+                    ? 'N/A vs last month'
+                    : `${profitGrowth >= 0 ? '+' : ''}${profitGrowth.toFixed(1)}% vs last month`
+                }</div>
             </div>
             <div class="metric-card">
                 <div class="metric-value">${profitMargin.toFixed(1)}%</div>
                 <div class="metric-label">Profit Margin</div>
-                <div class="metric-change">+2.1% vs last month</div>
+                <div class="metric-change">${
+                  marginGrowth == null
+                    ? 'N/A vs last month'
+                    : `${marginGrowth >= 0 ? '+' : ''}${marginGrowth.toFixed(1)}% vs last month`
+                }</div>
             </div>
             <div class="metric-card">
                 <div class="metric-value">$${averageOrderValue.toLocaleString()}</div>
                 <div class="metric-label">Average Order Value</div>
-                <div class="metric-change">-1.8% vs last month</div>
+                <div class="metric-change">${
+                  aovGrowth == null
+                    ? 'N/A vs last month'
+                    : `${aovGrowth >= 0 ? '+' : ''}${aovGrowth.toFixed(1)}% vs last month`
+                }</div>
             </div>
         </div>
     </div>

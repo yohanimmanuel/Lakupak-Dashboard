@@ -46,21 +46,21 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
       value: totalProducts,
       icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
       color: 'bg-[#f7faff]',
-      trend: { percent: '+0%', label: 'from last month', up: true }
+      trend: { percent: '0.0%', label: 'from last month', up: true }
     },
     {
       label: 'Published Products',
       value: activeProducts,
       icon: <CheckCircle className="w-6 h-6 text-green-500" />,
       color: 'bg-[#e6f7ec]',
-      trend: { percent: '+0%', label: 'from last month', up: true }
+      trend: { percent: '0.0%', label: 'from last month', up: true }
     },
     {
       label: 'Products with Offers',
       value: productsWithOffers,
       icon: <Gift className="w-6 h-6 text-purple-500" />,
       color: 'bg-[#f3e8ff]',
-      trend: { percent: '+0%', label: 'from last month', up: true }
+      trend: { percent: '0.0%', label: 'from last month', up: true }
     }
   ];
 

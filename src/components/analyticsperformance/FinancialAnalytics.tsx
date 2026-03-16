@@ -54,8 +54,6 @@ interface FinancialMetrics {
   totalProducts: number;
   totalBuyers: number;
   totalSuppliers: number;
-  monthlyGrowth: number;
-  orderGrowth: number;
 }
 
 interface RevenueData {
@@ -354,8 +352,6 @@ const FinancialAnalytics: React.FC = () => {
         totalProducts: 0,
         totalBuyers: 0,
         totalSuppliers: 0,
-        monthlyGrowth: 0,
-        orderGrowth: 0
       };
     }
 
@@ -424,8 +420,6 @@ const FinancialAnalytics: React.FC = () => {
       totalProducts: uniqueProducts.size,
       totalBuyers: uniqueBuyers.size,
       totalSuppliers: 0, // Not available from orders alone
-      monthlyGrowth: 0, // TODO: Calculate from historical data
-      orderGrowth: 0    // TODO: Calculate from historical data
     };
   }, [orders, products, hasData, userCurrency]);
 
@@ -493,6 +487,38 @@ const FinancialAnalytics: React.FC = () => {
       .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
     return sorted;
   }, [orders, products, hasData, userCurrency]);
+
+  // Derived month-over-month growth metrics based on revenueData
+  const growthMetrics = useMemo(() => {
+    if (!hasData || revenueData.length < 2) {
+      return {
+        revenueGrowth: null as number | null,
+        profitGrowth: null as number | null,
+        marginGrowth: null as number | null,
+        aovGrowth: null as number | null,
+      };
+    }
+
+    const last = revenueData[revenueData.length - 1];
+    const prev = revenueData[revenueData.length - 2];
+
+    const revenueGrowth =
+      prev.revenue > 0 ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
+    const profitGrowth =
+      prev.profit > 0 ? ((last.profit - prev.profit) / prev.profit) * 100 : null;
+
+    const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
+    const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
+    const marginGrowth =
+      prevMargin !== 0 ? ((lastMargin - prevMargin) / Math.abs(prevMargin)) * 100 : null;
+
+    const lastAov = last.orders > 0 ? last.revenue / last.orders : 0;
+    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0;
+    const aovGrowth =
+      prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
+
+    return { revenueGrowth, profitGrowth, marginGrowth, aovGrowth };
+  }, [hasData, revenueData]);
 
   // Calculate revenue forecast
   const revenueForecast = useMemo(() => {
@@ -844,7 +870,7 @@ const FinancialAnalytics: React.FC = () => {
   const MetricCard: React.FC<{
     title: string;
     value: string;
-    change: number;
+    change: number | null;
     icon: React.ReactNode;
     color: string;
   }> = ({ title, value, change, icon, color }) => (
@@ -858,17 +884,30 @@ const FinancialAnalytics: React.FC = () => {
           <div className="text-xl font-bold text-black">{value}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 mt-4 ml-1">
-        {change >= 0 ? (
-          <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-        ) : (
-          <TrendingDown className="w-5 h-5 text-[#f65911]" />
-        )}
-        <span className={change >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-          {Math.abs(change)}%
-        </span>
-        <span className="text-gray-400 text-xs">vs last month</span>
-      </div>
+    <div className="flex items-center gap-2 mt-4 ml-1">
+      {(() => {
+        const value = change ?? 0;
+        return (
+          <>
+            {value >= 0 ? (
+              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-[#f65911]" />
+            )}
+            <span
+              className={
+                value >= 0
+                  ? 'text-[#3ea73b] text-xs font-semibold'
+                  : 'text-[#f65911] text-xs font-semibold'
+              }
+            >
+              {Math.abs(value).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-xs">vs last month</span>
+          </>
+        );
+      })()}
+    </div>
     </div>
   );
 
@@ -885,28 +924,28 @@ const FinancialAnalytics: React.FC = () => {
         <MetricCard
           title="Total Sales"
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
-          change={calculateMetrics.monthlyGrowth}
+          change={growthMetrics.revenueGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Total Profit"
           value={utilsFormatCurrency(calculateMetrics.totalProfit, userCurrency)}
-          change={15.2}
+          change={growthMetrics.profitGrowth}
           icon={<TrendingUp className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
           title="Profit Margin"
           value={`${calculateMetrics.profitMargin.toFixed(1)}%`}
-          change={2.1}
+          change={growthMetrics.marginGrowth}
           icon={<TrendingUp className="w-6 h-6 text-yellow-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Average Order Value"
           value={utilsFormatCurrency(calculateMetrics.averageOrderValue, userCurrency)}
-          change={-1.8}
+          change={growthMetrics.aovGrowth}
           icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
           color="bg-[#e6e6e6]"
         />
@@ -1518,7 +1557,7 @@ const FinancialAnalytics: React.FC = () => {
 export const AnalyticsMetricCard: React.FC<{
   title: string;
   value: string;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }> = ({ title, value, change, icon, color }) => (
@@ -1533,15 +1572,22 @@ export const AnalyticsMetricCard: React.FC<{
       </div>
     </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      {change >= 0 ? (
-        <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-      ) : (
-        <TrendingDown className="w-5 h-5 text-[#f65911]" />
-      )}
-      <span className={change >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-        {Math.abs(change)}%
-      </span>
-      <span className="text-gray-400 text-xs">vs last month</span>
+      {(() => {
+        const valueChange = change ?? 0;
+        return (
+          <>
+            {valueChange >= 0 ? (
+              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-[#f65911]" />
+            )}
+            <span className={valueChange >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
+              {Math.abs(valueChange).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-xs">vs last month</span>
+          </>
+        );
+      })()}
     </div>
   </div>
 );

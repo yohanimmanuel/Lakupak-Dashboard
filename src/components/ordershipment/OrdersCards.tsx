@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { Package, CheckCircle, Clock, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Order } from '@/types/order';
 import { formatNumber } from '@/utils/dateUtils';
@@ -33,6 +33,88 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
     }, 0);
   
   const revenueCollected = totalRevenue - unpaidRevenue;
+
+  // Month-over-month growth metrics based on order totals
+  const growth = useMemo(() => {
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    if (!safeOrders.length) {
+      return {
+        ordersGrowth: 0,
+        totalRevenueGrowth: 0,
+        collectedGrowth: 0,
+        pendingGrowth: 0,
+        successGrowth: 0,
+      };
+    }
+
+    const byMonth: Record<string, { orders: number; totalRevenue: number; unpaidRevenue: number; delivered: number }> = {};
+
+    safeOrders.forEach(order => {
+      const d = new Date(order.orderDate);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth[key]) {
+        byMonth[key] = { orders: 0, totalRevenue: 0, unpaidRevenue: 0, delivered: 0 };
+      }
+      const bucket = byMonth[key];
+      bucket.orders += 1;
+      const amount = calculateOrderTotalAmount(order);
+      bucket.totalRevenue += amount;
+      if (order.paymentStatus === 'Unpaid') {
+        bucket.unpaidRevenue += amount;
+      }
+      if (order.orderStatus === 'Delivered') {
+        bucket.delivered += 1;
+      }
+    });
+
+    const keys = Object.keys(byMonth).sort();
+    if (keys.length < 2) {
+      return {
+        ordersGrowth: 0,
+        totalRevenueGrowth: 0,
+        collectedGrowth: 0,
+        pendingGrowth: 0,
+        successGrowth: 0,
+      };
+    }
+
+    const last = byMonth[keys[keys.length - 1]];
+    const prev = byMonth[keys[keys.length - 2]];
+
+    const collectedLast = last.totalRevenue - last.unpaidRevenue;
+    const collectedPrev = prev.totalRevenue - prev.unpaidRevenue;
+
+    const ordersGrowth =
+      prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : 0;
+    const totalRevenueGrowth =
+      prev.totalRevenue > 0
+        ? ((last.totalRevenue - prev.totalRevenue) / prev.totalRevenue) * 100
+        : 0;
+    const collectedGrowth =
+      collectedPrev > 0
+        ? ((collectedLast - collectedPrev) / collectedPrev) * 100
+        : 0;
+    const pendingGrowth =
+      prev.unpaidRevenue > 0
+        ? ((last.unpaidRevenue - prev.unpaidRevenue) / prev.unpaidRevenue) * 100
+        : 0;
+
+    const successLast = last.orders > 0 ? (last.delivered / last.orders) * 100 : 0;
+    const successPrev = prev.orders > 0 ? (prev.delivered / prev.orders) * 100 : 0;
+    const successGrowth =
+      successPrev !== 0
+        ? ((successLast - successPrev) / Math.abs(successPrev)) * 100
+        : 0;
+
+    return {
+      ordersGrowth,
+      totalRevenueGrowth,
+      collectedGrowth,
+      pendingGrowth,
+      successGrowth,
+    };
+  }, [orders]);
   
   // Use user's currency or server default (only on client)
   const displayCurrency = user?.currency || getDefaultCurrency();
@@ -50,10 +132,22 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <Package className="w-6 h-6 text-blue-600" />
           </div>
         </div>
-        <div className="flex items-center mt-4">
-          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-          <span className="text-xs text-green-600 font-medium">+12.5%</span>
-          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        <div className="flex items-center gap-2 mt-4 ml-1">
+          {growth.ordersGrowth >= 0 ? (
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-[#f65911]" />
+          )}
+          <span
+            className={
+              growth.ordersGrowth >= 0
+                ? "text-[#3ea73b] text-xs font-semibold"
+                : "text-[#f65911] text-xs font-semibold"
+            }
+          >
+            {Math.abs(growth.ordersGrowth).toFixed(1)}%
+          </span>
+          <span className="text-gray-400 text-xs">from last month</span>
         </div>
       </div>
 
@@ -70,10 +164,22 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <DollarSign className="w-6 h-6 text-blue-600" />
           </div>
         </div>
-        <div className="flex items-center mt-4">
-          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-          <span className="text-xs text-green-600 font-medium">+8.2%</span>
-          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        <div className="flex items-center gap-2 mt-4 ml-1">
+          {growth.totalRevenueGrowth >= 0 ? (
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-[#f65911]" />
+          )}
+          <span
+            className={
+              growth.totalRevenueGrowth >= 0
+                ? "text-[#3ea73b] text-xs font-semibold"
+                : "text-[#f65911] text-xs font-semibold"
+            }
+          >
+            {Math.abs(growth.totalRevenueGrowth).toFixed(1)}%
+          </span>
+          <span className="text-gray-400 text-xs">from last month</span>
         </div>
       </div>
 
@@ -90,10 +196,22 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <CheckCircle className="w-6 h-6 text-green-600" />
           </div>
         </div>
-        <div className="flex items-center mt-4">
-          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-          <span className="text-xs text-green-600 font-medium">0%</span>
-          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        <div className="flex items-center gap-2 mt-4 ml-1">
+          {growth.collectedGrowth >= 0 ? (
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-[#f65911]" />
+          )}
+          <span
+            className={
+              growth.collectedGrowth >= 0
+                ? "text-[#3ea73b] text-xs font-semibold"
+                : "text-[#f65911] text-xs font-semibold"
+            }
+          >
+            {Math.abs(growth.collectedGrowth).toFixed(1)}%
+          </span>
+          <span className="text-gray-400 text-xs">from last month</span>
         </div>
       </div>
 
@@ -110,10 +228,22 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <Clock className="w-6 h-6 text-orange-600" />
           </div>
         </div>
-        <div className="flex items-center mt-4">
-          <TrendingDown className="w-4 h-4 text-orange-500 mr-1" />
-          <span className="text-xs text-orange-600 font-medium">-2.1%</span>
-          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        <div className="flex items-center gap-2 mt-4 ml-1">
+          {growth.pendingGrowth >= 0 ? (
+            <TrendingDown className="w-5 h-5 text-[#f65911]" />
+          ) : (
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+          )}
+          <span
+            className={
+              growth.pendingGrowth >= 0
+                ? "text-[#f65911] text-xs font-semibold"
+                : "text-[#3ea73b] text-xs font-semibold"
+            }
+          >
+            {Math.abs(growth.pendingGrowth).toFixed(1)}%
+          </span>
+          <span className="text-gray-400 text-xs">from last month</span>
         </div>
       </div>
 
@@ -130,10 +260,22 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
             <CheckCircle className="w-6 h-6 text-purple-600" />
           </div>
         </div>
-        <div className="flex items-center mt-4">
-          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-          <span className="text-xs text-green-600 font-medium">+5.3%</span>
-          <span className="text-xs text-gray-500 ml-1">from last month</span>
+        <div className="flex items-center gap-2 mt-4 ml-1">
+          {growth.successGrowth >= 0 ? (
+            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-[#f65911]" />
+          )}
+          <span
+            className={
+              growth.successGrowth >= 0
+                ? "text-[#3ea73b] text-xs font-semibold"
+                : "text-[#f65911] text-xs font-semibold"
+            }
+          >
+            {Math.abs(growth.successGrowth).toFixed(1)}%
+          </span>
+          <span className="text-gray-400 text-xs">from last month</span>
         </div>
       </div>
     </div>

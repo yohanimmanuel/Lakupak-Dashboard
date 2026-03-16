@@ -495,12 +495,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
   const MetricCard: React.FC<{
     title: string;
     value: string;
-    change: number;
     icon: React.ReactNode;
     color: string;
-  }> = ({ title, value, change, icon, color }) => (
+  }> = ({ title, value, icon, color }) => (
     <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
-      <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+      <div className="flex items-center gap-4">
         <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
           {icon}
         </div>
@@ -508,17 +507,6 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{title}</div>
           <div className="text-xl font-bold text-black">{value}</div>
         </div>
-      </div>
-      <div className="flex items-center gap-2 mt-4 ml-1">
-        {change >= 0 ? (
-          <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-        ) : (
-          <TrendingDown className="w-5 h-5 text-[#f65911]" />
-        )}
-        <span className={change >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-          {Math.abs(change)}%
-        </span>
-        <span className="text-gray-400 text-xs">vs last month</span>
       </div>
     </div>
   );
@@ -535,28 +523,24 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         <MetricCard
           title="Order Completion Rate"
           value={`${calculateMetrics.completionRate.toFixed(1)}%`}
-          change={5.2}
           icon={<CheckCircle className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
           title="Avg Processing Time"
           value={`${calculateMetrics.averageProcessingTime.toFixed(1)}h`}
-          change={-8.5}
           icon={<Clock className="w-6 h-6 text-blue-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
           title="Tracking Coverage"
           value={`${calculateMetrics.trackingCoverageRate.toFixed(1)}%`}
-          change={12.3}
           icon={<Truck className="w-6 h-6 text-purple-500" />}
           color="bg-[#f3f4f6]"
         />
         <MetricCard
           title="Stock Health"
           value={`${(100 - calculateMetrics.stockoutRate).toFixed(1)}%`}
-          change={-2.1}
           icon={<Package className="w-6 h-6 text-orange-500" />}
           color="bg-[#fff7ed]"
         />
@@ -1014,7 +998,7 @@ export default OperationalPerformanceAnalytics;
 export const OperationalMetricCard: React.FC<{
   title: string;
   value: string;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }> = ({ title, value, change, icon, color }) => (
@@ -1029,15 +1013,32 @@ export const OperationalMetricCard: React.FC<{
       </div>
     </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      {change >= 0 ? (
-        <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-      ) : (
-        <TrendingDown className="w-5 h-5 text-[#f65911]" />
-      )}
-      <span className={change >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-        {Math.abs(change)}%
-      </span>
-      <span className="text-gray-400 text-xs">vs last month</span>
+      {(() => {
+        if (change === null || change === undefined) {
+          return (
+            <>
+              <ArrowRight className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-400 text-xs font-semibold">N/A</span>
+              <span className="text-gray-400 text-xs">vs last month</span>
+            </>
+          );
+        }
+
+        const changeValue = change;
+        return (
+          <>
+            {changeValue >= 0 ? (
+              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-[#f65911]" />
+            )}
+            <span className={changeValue >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
+              {Math.abs(changeValue).toFixed(1)}%
+            </span>
+            <span className="text-gray-400 text-xs">vs last month</span>
+          </>
+        );
+      })()}
     </div>
   </div>
 );

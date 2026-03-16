@@ -265,11 +265,11 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 	);
 };
 
-export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; userCurrency?: string }> = ({ piecesSold, unitsSold }) => (
+export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; change: number | null; userCurrency?: string }> = ({ piecesSold, unitsSold, change }) => (
 	<AnalyticsMetricCard
 		title="Pieces Sold"
 		value={`${piecesSold.toLocaleString()}`}
-		change={0}
+		change={change}
 		icon={<Package className="w-6 h-6 text-green-600" />}
 		color="bg-[#e6f7ec]"
 	/>
@@ -437,6 +437,86 @@ const CustomerSalesAnalytics: React.FC = () => {
 		return forecastSales(salesTrend, 'orders', 3);
 	}, [salesTrend]);
 
+	// Month-over-month growth metrics for key cards
+	const growthMetrics = useMemo(() => {
+		if (!hasData || salesTrend.length < 2) {
+			return {
+				ordersGrowth: null as number | null,
+				piecesGrowth: null as number | null,
+				avgPiecesGrowth: null as number | null,
+				avgOrderValueGrowth: null as number | null,
+			};
+		}
+
+		const last = salesTrend[salesTrend.length - 1];
+		const prev = salesTrend[salesTrend.length - 2];
+
+		const ordersGrowth =
+			prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : null;
+
+		const unitsCurrent = last.units;
+		const unitsPrev = prev.units;
+		const piecesGrowth =
+			unitsPrev > 0 ? ((unitsCurrent - unitsPrev) / unitsPrev) * 100 : null;
+
+		const avgPiecesLast = last.orders > 0 ? last.units / last.orders : 0;
+		const avgPiecesPrev = prev.orders > 0 ? prev.units / prev.orders : 0;
+		const avgPiecesGrowth =
+			avgPiecesPrev !== 0 ? ((avgPiecesLast - avgPiecesPrev) / Math.abs(avgPiecesPrev)) * 100 : null;
+
+		// For Avg Order Value, compute monthly revenue per order from orders list
+		const monthlyRevenue: Record<string, { revenue: number; orders: number }> = {};
+		orders.forEach(o => {
+			const d = new Date(o.orderDate);
+			const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+			if (!monthlyRevenue[key]) {
+				monthlyRevenue[key] = { revenue: 0, orders: 0 };
+			}
+			const amount = o.totalAmount
+				? (typeof o.totalAmount === 'number'
+						? (Number.isFinite(o.totalAmount) && !isNaN(o.totalAmount) ? o.totalAmount : 0)
+						: (typeof o.totalAmount === 'object' && o.totalAmount !== null && 'toNumber' in o.totalAmount
+							? (() => {
+								try {
+									const num = (o.totalAmount as { toNumber: () => number }).toNumber();
+									return Number.isFinite(num) && !isNaN(num) ? num : 0;
+								} catch {
+									return 0;
+								}
+							})()
+							: parseFloat(String(o.totalAmount)) || 0))
+				: 0;
+			monthlyRevenue[key].revenue += amount;
+			monthlyRevenue[key].orders += 1;
+		});
+
+		const monthlyKeysSorted = Object.keys(monthlyRevenue).sort();
+		if (monthlyKeysSorted.length < 2) {
+			return {
+				ordersGrowth,
+				piecesGrowth,
+				avgPiecesGrowth,
+				avgOrderValueGrowth: null,
+			};
+		}
+		const lastKey = monthlyKeysSorted[monthlyKeysSorted.length - 1];
+		const prevKey = monthlyKeysSorted[monthlyKeysSorted.length - 2];
+		const lastMonth = monthlyRevenue[lastKey];
+		const prevMonth = monthlyRevenue[prevKey];
+
+		const lastAov = lastMonth.orders > 0 ? lastMonth.revenue / lastMonth.orders : 0;
+		const prevAov = prevMonth.orders > 0 ? prevMonth.revenue / prevMonth.orders : 0;
+		const avgOrderValueGrowth =
+			prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
+
+		return {
+			ordersGrowth,
+			piecesGrowth,
+			avgPiecesGrowth,
+			avgOrderValueGrowth,
+		};
+	}, [hasData, salesTrend, orders]);
+
 	// Category units (better than duplicating Top Products already in financial)
 	const unitsByCategory = useMemo(() => {
 		if (!hasData || orders.length === 0) return [] as { category: string; units: number }[];
@@ -471,7 +551,22 @@ const CustomerSalesAnalytics: React.FC = () => {
 		orders.forEach(o => {
 			const buyerKey = String(o.buyerId);
 			const cur = map.get(buyerKey) || { orders: 0, totalValue: 0 };
-			const orderAmount = parseFloat(String(o.totalAmount || 0));
+			// Rank by actual purchase volume: use full order total (handle Prisma Decimal types)
+			let orderAmount = 0;
+			if (o.totalAmount != null) {
+				if (typeof o.totalAmount === 'number') {
+					orderAmount = Number.isFinite(o.totalAmount) && !isNaN(o.totalAmount) ? o.totalAmount : 0;
+				} else if (typeof o.totalAmount === 'object' && 'toNumber' in o.totalAmount) {
+					try {
+						const num = (o.totalAmount as { toNumber: () => number }).toNumber();
+						orderAmount = Number.isFinite(num) && !isNaN(num) ? num : 0;
+					} catch {
+						orderAmount = 0;
+					}
+				} else {
+					orderAmount = parseFloat(String(o.totalAmount)) || 0;
+				}
+			}
 			map.set(buyerKey, { orders: cur.orders + 1, totalValue: cur.totalValue + orderAmount });
 		});
 		const buyerIndex = new Map<string, BuyerLite>();
@@ -497,7 +592,8 @@ const CustomerSalesAnalytics: React.FC = () => {
 				};
 			})
 			.filter((x): x is TopCustomer => x !== null)
-			.sort((a, b) => b.orders - a.orders);
+			// Rank by purchase volume (totalValue), not just number of orders
+			.sort((a, b) => b.totalValue - a.totalValue);
 	}, [orders, products, buyers, hasData]);
 
 	// Pagination for Top Customers
@@ -523,26 +619,27 @@ const CustomerSalesAnalytics: React.FC = () => {
 				<AnalyticsMetricCard
 					title="Total Orders"
 					value={String(metrics.totalOrders)}
-					change={0}
+					change={growthMetrics.ordersGrowth}
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
 					color="bg-[#f7faff]"
 				/>
 				<CustomerPiecesSoldCard
 					piecesSold={metrics.totalPiecesSold || 0}
 					unitsSold={metrics.totalUnitsSold}
+					change={growthMetrics.piecesGrowth}
 					userCurrency={user?.currency}
 				/>
 				<AnalyticsMetricCard
 					title="Avg Pieces / Order"
 					value={`${(metrics.avgPiecesPerOrder || 0).toFixed(2)}`}
-					change={0}
+					change={growthMetrics.avgPiecesGrowth}
 					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
 					color="bg-[#fff7ed]"
 				/>
 				<AnalyticsMetricCard
 					title="Avg Order Value"
 					value={formatCurrencyShared(metrics.avgOrderValue, userCurrency)}
-					change={0}
+					change={growthMetrics.avgOrderValueGrowth}
 					icon={<Repeat className="w-6 h-6 text-violet-600" />}
 					color="bg-[#f5f3ff]"
 				/>

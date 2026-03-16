@@ -1712,12 +1712,14 @@ const supplierInsights = useMemo(() => {
     if (loading) {
       return [];
     }
+    // Growth metrics currently default to 0.0% to avoid misleading hardcoded values.
+    // When historical data is wired here, replace these zeros with real month-over-month changes.
     return [
       {
         id: 'totalRevenue',
         title: 'Total Sales',
         value: formatCurrency(totalRevenue, userCurrency),
-        change: 8.6,
+        change: 0,
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1725,7 +1727,7 @@ const supplierInsights = useMemo(() => {
         id: 'revenueCollected',
         title: 'Revenue Collected',
         value: formatCurrency(totalRevenue - pendingRevenue, userCurrency),
-        change: 3.1,
+        change: 0,
         icon: <CheckCircle className="w-6 h-6 text-green-500" />,
         color: 'bg-[#e6f7ec]',
       },
@@ -1733,7 +1735,7 @@ const supplierInsights = useMemo(() => {
         id: 'totalOrders',
         title: 'Total Orders',
         value: (aggregates?.totalOrders ?? orders.length).toLocaleString(),
-        change: 5.4,
+        change: 0,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
         color: 'bg-white',
       },
@@ -1741,12 +1743,12 @@ const supplierInsights = useMemo(() => {
         id: 'piecesSold',
         title: 'Pieces Sold',
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
-        change: 4.2,
+        change: 0,
         icon: <Package className="w-6 h-6 text-purple-600" />,
         color: 'bg-white',
       },
     ];
-  }, [loading, aggregates?.totalOrders, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
+  }, [loading, aggregates?.totalOrders, orders.length, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,

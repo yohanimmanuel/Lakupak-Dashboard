@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
+import { parseAmountSafely } from '@/utils/currencyUtils';
 
 const SALES_ANALYTICS_PAGE_QUERY = `
   query SalesAnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
@@ -136,18 +137,11 @@ export default function SalesAnalyticsPage() {
 		fetchData();
 	}, [user?.id]);
 
-	// ===== Types for export calculations (explicit, no any) =====
+  // ===== Types for export calculations (explicit, no any) =====
 	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string; productTypeSnapshot?: string }
 	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
 	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string }
 	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
-
-	const parseCurrencyToNumber = (currencyString: string | undefined): number => {
-		if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
-		const cleanString = currencyString.replace(/[^\d.-]/g, '').replace(/\./g, '').trim();
-		const parsed = parseFloat(cleanString);
-		return Number.isNaN(parsed) ? 0 : parsed;
-	};
 
 	const createWordDocument = (
 		orders: ExportOrder[],
@@ -156,33 +150,35 @@ export default function SalesAnalyticsPage() {
 		timeRangeValue: string
 	): string => {
 		const timestamp = new Date().toLocaleString();
-		const timeRangeLabel = timeRanges.find(r => r.value === timeRangeValue)?.label || timeRangeValue;
+    const timeRangeLabel = timeRanges.find(r => r.value === timeRangeValue)?.label || timeRangeValue;
 
-		// Build indices
-		const productIndex = new Map<string, ExportProduct>();
-		products.forEach(p => productIndex.set(String(p.productId), p));
+    // Helper: safely parse totals coming from GraphQL (Decimal/string/number)
+    const safeTotalAmount = (amount: unknown): number => {
+      return parseAmountSafely(amount as unknown);
+    };
+
+    // Build indices
+    const productIndex = new Map<string, ExportProduct>();
+    products.forEach(p => productIndex.set(String(p.productId), p));
 		const buyerIndex = new Map<string, ExportBuyer>();
 		buyers.forEach(b => buyerIndex.set(String(b.buyerId), b));
 
 		// Metrics
-		let totalUnitsSold = 0;
-		let revenueSum = 0;
+    let totalUnitsSold = 0;
+    let revenueSum = 0;
 		const buyerOrderCount = new Map<string, number>();
 		orders.forEach(o => {
-			buyerOrderCount.set(o.buyerId, (buyerOrderCount.get(o.buyerId) || 0) + 1);
-			if (o.orderItems && Array.isArray(o.orderItems)) {
-				o.orderItems.forEach(it => {
-					// Calculate units and revenue using package-based pricing
-					const piecesPerPackage = it.piecesPerPackage || 1;
-					const packageQuantity = it.packageQuantity || 1;
-					totalUnitsSold += packageQuantity * piecesPerPackage;
-					const prod = productIndex.get(String(it.productId));
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
-					revenueSum += unitPrice * packageQuantity;
-				});
-			} else if (typeof o.totalAmount === 'number') {
-				revenueSum += o.totalAmount;
-			}
+      buyerOrderCount.set(o.buyerId, (buyerOrderCount.get(o.buyerId) || 0) + 1);
+      if (o.orderItems && Array.isArray(o.orderItems)) {
+        o.orderItems.forEach(it => {
+          // Calculate units using package-based quantities (matches dashboard logic)
+          const piecesPerPackage = it.piecesPerPackage || 1;
+          const packageQuantity = it.packageQuantity || 1;
+          totalUnitsSold += packageQuantity * piecesPerPackage;
+        });
+      }
+      // Revenue matches dashboard: use full order total (including shipping/discounts)
+      revenueSum += safeTotalAmount(o.totalAmount);
 		});
 		const totalOrders = orders.length;
 		const uniqueCustomers = Array.from(buyerOrderCount.keys()).length;
@@ -192,31 +188,28 @@ export default function SalesAnalyticsPage() {
 		const avgOrderValue = totalOrders > 0 ? revenueSum / totalOrders : 0;
 
 		// Sales trend (by month)
-		const monthly: Record<string, { orders: number; units: number; revenue: number }> = {};
-		orders.forEach(o => {
-			const d = new Date(o.orderDate);
-			const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-			if (!monthly[key]) monthly[key] = { orders: 0, units: 0, revenue: 0 };
-			monthly[key].orders += 1;
-			if (o.orderItems && Array.isArray(o.orderItems)) {
-				o.orderItems.forEach(it => {
-					// Calculate units and revenue using package-based pricing
-					const piecesPerPackage = it.piecesPerPackage || 1;
-					const packageQuantity = it.packageQuantity || 1;
-					monthly[key].units += packageQuantity * piecesPerPackage;
-					const prod = productIndex.get(String(it.productId));
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
-					monthly[key].revenue += unitPrice * packageQuantity;
-				});
-			} else if (typeof o.totalAmount === 'number') {
-				monthly[key].revenue += o.totalAmount;
-			}
+    const monthly: Record<string, { orders: number; units: number; revenue: number }> = {};
+    orders.forEach(o => {
+      const d = new Date(o.orderDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthly[key]) monthly[key] = { orders: 0, units: 0, revenue: 0 };
+      monthly[key].orders += 1;
+      if (o.orderItems && Array.isArray(o.orderItems)) {
+        o.orderItems.forEach(it => {
+          // Units per order: packages × pieces per package
+          const piecesPerPackage = it.piecesPerPackage || 1;
+          const packageQuantity = it.packageQuantity || 1;
+          monthly[key].units += packageQuantity * piecesPerPackage;
+        });
+      }
+      // Revenue column uses the same order total as dashboard metrics
+      monthly[key].revenue += safeTotalAmount(o.totalAmount);
 		});
 		const monthlyEntries = Object.entries(monthly).sort(([a],[b]) => a.localeCompare(b));
 		const last6 = monthlyEntries.slice(-6);
 
 		// Units by category
-		const unitsByCategoryMap = new Map<string, number>();
+    const unitsByCategoryMap = new Map<string, number>();
 		orders.forEach(o => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
@@ -235,22 +228,11 @@ export default function SalesAnalyticsPage() {
 
 		// Top customers by revenue
 		type TopCustomer = { buyerId: string; name: string; businessType: string; orders: number; revenue: number };
-		const revenueByBuyer = new Map<string, { orders: number; revenue: number }>();
-		orders.forEach(o => {
-			let orderRevenue = 0;
-			if (o.orderItems && Array.isArray(o.orderItems)) {
-				o.orderItems.forEach(it => {
-					const prod = productIndex.get(it.productId);
-					// Calculate revenue using package-based pricing
-					const packageQuantity = it.packageQuantity || 1;
-					const unitPrice = prod ? parseCurrencyToNumber(prod.sellingPrice) : (it.pricePerPackage || 0);
-					orderRevenue += unitPrice * packageQuantity;
-				});
-			} else if (typeof o.totalAmount === 'number') {
-				orderRevenue = o.totalAmount;
-			}
-			const cur = revenueByBuyer.get(String(o.buyerId)) || { orders: 0, revenue: 0 };
-			revenueByBuyer.set(String(o.buyerId), { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
+    const revenueByBuyer = new Map<string, { orders: number; revenue: number }>();
+    orders.forEach(o => {
+      const orderRevenue = safeTotalAmount(o.totalAmount);
+      const cur = revenueByBuyer.get(String(o.buyerId)) || { orders: 0, revenue: 0 };
+      revenueByBuyer.set(String(o.buyerId), { orders: cur.orders + 1, revenue: cur.revenue + orderRevenue });
 		});
 		const topCustomers: TopCustomer[] = Array.from(revenueByBuyer.entries()).map(([buyerId, v]) => {
 			const buyer = buyerIndex.get(String(buyerId));
