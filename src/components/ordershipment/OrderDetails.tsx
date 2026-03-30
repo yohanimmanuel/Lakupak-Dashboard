@@ -536,10 +536,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex flex-col">
-                    <span className="text-gray-600">Shipping fee:</span>
+                    <span className="text-gray-600">Shipping cost:</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="font-medium text-black">{formatCurrency(order.shippingFee, user?.currency)}</span>
+                    <span className="font-medium text-black">Agreed separately</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
@@ -1358,7 +1358,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   </button>
                   {showDeliveryMethodDropdown && (
                     <div className="absolute left-0 right-0 mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20 overflow-hidden">
-                      {(['Distributor Fleet', '3rd-Party Courier', 'Pickup'] as const).map((method) => (
+                      {(['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'] as const).map((method) => (
                         <button
                           key={method}
                           type="button"
@@ -1490,7 +1490,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     deliveryNote: formFields.deliveryNote,
                     assignedLogistics: formFields.assignedLogistics,
                     trackingNumber: formFields.trackingNumber,
-                    deliveryMethod: formFields.deliveryMethod
+                    deliveryMethod: formFields.deliveryMethod,
+                    shippingMethodLabel: formFields.deliveryMethod,
+                    shippingMethod: formFields.deliveryMethod
                   };
                   if (orderStatus === 'Delivered' && formFields.pod) {
                     requestBody.pod = formFields.pod;

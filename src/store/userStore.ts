@@ -21,16 +21,9 @@ interface Company {
   deliveryTimeSlots?: string | null;
   preferredDeliveryDays?: string | null;
   specialInstructions?: string | null;
-  baseShippingRadius?: number | null;
-  baseShippingPrice?: number | null;
-  additionalPricePerKm?: number | null;
-  maxShippingRadius?: number | null;
-  freeShippingThreshold?: number | null;
-  expressShippingPrice?: number | null;
-  sameDayShippingPrice?: number | null;
-  nextDayShippingPrice?: number | null;
-  scheduledDeliveryPrice?: number | null;
   pickupAddress?: string | null;
+  defaultDeliveryLeadTimeMinDays?: number | null;
+  defaultDeliveryLeadTimeMaxDays?: number | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }

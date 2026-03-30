@@ -67,26 +67,9 @@ model Company {
   createdAt                   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt                   DateTime @updatedAt @db.Timestamptz(3)
   bannerImage                 String?
-  additionalPricePerKm        Decimal? @db.Decimal(12, 2)
-  baseShippingPrice           Decimal? @db.Decimal(12, 2)
-  baseShippingRadius          Decimal? @db.Decimal(12, 2)
-  freeShippingThreshold       Decimal? @db.Decimal(12, 2)
-  maxShippingRadius           Decimal? @db.Decimal(12, 2)
-  expressShippingPrice        Decimal? @db.Decimal(12, 2)
-  nextDayShippingPrice        Decimal? @db.Decimal(12, 2)
-  sameDayShippingPrice        Decimal? @db.Decimal(12, 2)
-  scheduledDeliveryPrice      Decimal? @db.Decimal(12, 2)
   pickupAddress               String?
   defaultDeliveryLeadTimeMinDays Int?
   defaultDeliveryLeadTimeMaxDays Int?
-  expressShippingMinDays      Int?
-  expressShippingMaxDays      Int?
-  sameDayShippingMinDays      Int?
-  sameDayShippingMaxDays      Int?
-  nextDayShippingMinDays      Int?
-  nextDayShippingMaxDays      Int?
-  scheduledDeliveryMinDays    Int?
-  scheduledDeliveryMaxDays    Int?
   users                       User[]
 }
 

@@ -377,7 +377,7 @@ export default function ProductMarketplacePubs({
               
               
               <div className="text-xs text-gray-500 mt-1">
-                Free shipping for orders above {formatCurrency(50000, userCurrency)}
+                Shipping cost agreed between buyer and seller
               </div>
             </div>
 

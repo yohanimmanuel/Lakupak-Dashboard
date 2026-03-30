@@ -371,9 +371,9 @@ const ORDER_STATUS_VALUES: Order['orderStatus'][] = [
 const PAYMENT_STATUS_VALUES: Order['paymentStatus'][] = ['Unpaid', 'Paid'];
 
 const DELIVERY_METHOD_VALUES: Order['deliveryMethod'][] = [
-  'Distributor Fleet',
-  '3rd-Party Courier',
-  'Pickup',
+  'Self Pickup',
+  'Seller/Distributor Delivery',
+  'Buyer-arranged Courier',
 ];
 
 const OFFER_BADGES: Array<NonNullable<Product['offerBadge']>> = [
@@ -601,7 +601,7 @@ function normalizeOrder(raw: Record<string, unknown>): Order | null {
     : 'Unpaid';
   const deliveryMethod = isDeliveryMethod(raw.deliveryMethod)
     ? raw.deliveryMethod
-    : 'Distributor Fleet';
+    : 'Seller/Distributor Delivery';
 
   const totalsFromItems = normalizedItems.reduce((sum, item) => {
     const packages = item.packageQuantity ?? 0;
@@ -2330,10 +2330,10 @@ const supplierInsights = useMemo(() => {
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">Total shipments</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
-                    {orders.filter(order => order.deliveryMethod === 'Distributor Fleet').length.toLocaleString()}
+                    {orders.filter(order => order.deliveryMethod === 'Seller/Distributor Delivery').length.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Distributor Fleet
+                    Seller / Distributor Delivery
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">

@@ -42,8 +42,7 @@ function normalizeCompanyForStore(company: Record<string, unknown> | null | unde
     return undefined;
   }
   const decimalKeys = [
-    "baseShippingRadius", "baseShippingPrice", "additionalPricePerKm", "maxShippingRadius",
-    "freeShippingThreshold", "expressShippingPrice", "sameDayShippingPrice", "nextDayShippingPrice", "scheduledDeliveryPrice",
+    "defaultDeliveryLeadTimeMinDays", "defaultDeliveryLeadTimeMaxDays",
   ];
   const out: Record<string, unknown> = { ...company };
   for (const key of decimalKeys) {

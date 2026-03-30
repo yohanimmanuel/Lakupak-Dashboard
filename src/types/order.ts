@@ -6,7 +6,7 @@ export interface Order {
   orderDate: Date;
   orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Failed' | 'Cancelled' | 'Returned';
   paymentStatus: 'Unpaid' | 'Paid';
-  deliveryMethod: 'Distributor Fleet' | '3rd-Party Courier' | 'Pickup';
+  deliveryMethod: 'Self Pickup' | 'Seller/Distributor Delivery' | 'Buyer-arranged Courier';
   deliveryOption?: string | null;
   shippingMethodLabel?: string;
   shippingMethod?: string;

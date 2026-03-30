@@ -82,7 +82,7 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
     return { valid: false, error: 'Invalid payment status' };
   }
   
-  const validDeliveryMethods = ['Distributor Fleet', '3rd-Party Courier', 'Pickup'];
+  const validDeliveryMethods = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'];
   if (orderData.deliveryMethod && !validDeliveryMethods.includes(String(orderData.deliveryMethod))) {
     return { valid: false, error: 'Invalid delivery method' };
   }
@@ -219,7 +219,7 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
   }
   
   if (orderData.deliveryMethod !== undefined) {
-    const validDeliveryMethods = ['Distributor Fleet', '3rd-Party Courier', 'Pickup'];
+    const validDeliveryMethods = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'];
     if (!validDeliveryMethods.includes(String(orderData.deliveryMethod))) {
       return { valid: false, error: 'Invalid delivery method' };
     }
@@ -227,6 +227,11 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
 
   if (orderData.deliveryOption !== undefined) {
     const validDeliveryOptions = [
+      // Current shipping options
+      'self_pickup',
+      'seller_delivery',
+      'buyer_courier',
+      // Legacy options (kept for historical order compatibility)
       'standard',
       'standard_delivery',
       'express',

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
-import { parseNumberByCurrency } from '../../../../config/currencyConfig';
 import { broadcastProductUpdate, broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
 
 export async function PUT(req: NextRequest) {
@@ -37,26 +36,9 @@ export async function PUT(req: NextRequest) {
       deliveryTimeSlots,
       preferredDeliveryDays,
       specialInstructions,
-      baseShippingRadius,
-      baseShippingPrice,
-      additionalPricePerKm,
-      maxShippingRadius,
-      freeShippingThreshold,
-        expressShippingPrice,
-        sameDayShippingPrice,
-        nextDayShippingPrice,
-        scheduledDeliveryPrice,
-        pickupAddress,
-        defaultDeliveryLeadTimeMinDays,
-        defaultDeliveryLeadTimeMaxDays,
-        expressShippingMinDays,
-        expressShippingMaxDays,
-        sameDayShippingMinDays,
-        sameDayShippingMaxDays,
-        nextDayShippingMinDays,
-        nextDayShippingMaxDays,
-        scheduledDeliveryMinDays,
-        scheduledDeliveryMaxDays
+      pickupAddress,
+      defaultDeliveryLeadTimeMinDays,
+      defaultDeliveryLeadTimeMaxDays,
     } = body;
     
     // Validate companyId
@@ -117,53 +99,29 @@ export async function PUT(req: NextRequest) {
     if (deliveryTimeSlots !== undefined) updateData.deliveryTimeSlots = Array.isArray(deliveryTimeSlots) ? JSON.stringify(deliveryTimeSlots) : deliveryTimeSlots;
     if (preferredDeliveryDays !== undefined) updateData.preferredDeliveryDays = Array.isArray(preferredDeliveryDays) ? JSON.stringify(preferredDeliveryDays) : preferredDeliveryDays;
     if (specialInstructions !== undefined) updateData.specialInstructions = specialInstructions?.trim() || null;
-    if (baseShippingRadius !== undefined) updateData.baseShippingRadius = baseShippingRadius ? Number(baseShippingRadius) : null;
-    if (baseShippingPrice !== undefined) updateData.baseShippingPrice = baseShippingPrice ? parseNumberByCurrency(baseShippingPrice.toString()) || null : null;
-    if (additionalPricePerKm !== undefined) updateData.additionalPricePerKm = additionalPricePerKm ? parseNumberByCurrency(additionalPricePerKm.toString()) || null : null;
-    if (maxShippingRadius !== undefined) updateData.maxShippingRadius = maxShippingRadius ? Number(maxShippingRadius) : null;
-    if (freeShippingThreshold !== undefined) updateData.freeShippingThreshold = freeShippingThreshold ? parseNumberByCurrency(freeShippingThreshold.toString()) || null : null;
-    if (expressShippingPrice !== undefined) updateData.expressShippingPrice = expressShippingPrice ? parseNumberByCurrency(expressShippingPrice.toString()) || null : null;
-    if (sameDayShippingPrice !== undefined) updateData.sameDayShippingPrice = sameDayShippingPrice ? parseNumberByCurrency(sameDayShippingPrice.toString()) || null : null;
-    if (nextDayShippingPrice !== undefined) updateData.nextDayShippingPrice = nextDayShippingPrice ? parseNumberByCurrency(nextDayShippingPrice.toString()) || null : null;
-    if (scheduledDeliveryPrice !== undefined) updateData.scheduledDeliveryPrice = scheduledDeliveryPrice ? parseNumberByCurrency(scheduledDeliveryPrice.toString()) || null : null;
     if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress?.trim() || null;
 
     const parseDays = (val: unknown): number | null => {
       const n = val === null || val === '' ? null : Number(val);
       return n != null && !Number.isNaN(n) && n >= 0 ? n : null;
     };
-    const pairs: { name: string; min: unknown; max: unknown }[] = [
-      { name: 'Default delivery lead time', min: defaultDeliveryLeadTimeMinDays, max: defaultDeliveryLeadTimeMaxDays },
-      { name: 'Express shipping', min: expressShippingMinDays, max: expressShippingMaxDays },
-      { name: 'Same-day shipping', min: sameDayShippingMinDays, max: sameDayShippingMaxDays },
-      { name: 'Next-day shipping', min: nextDayShippingMinDays, max: nextDayShippingMaxDays },
-      { name: 'Scheduled delivery', min: scheduledDeliveryMinDays, max: scheduledDeliveryMaxDays },
-    ];
-    for (const { name, min, max } of pairs) {
-      const minVal = min !== undefined ? parseDays(min) : null;
-      const maxVal = max !== undefined ? parseDays(max) : null;
+
+    if (defaultDeliveryLeadTimeMinDays !== undefined || defaultDeliveryLeadTimeMaxDays !== undefined) {
+      const minVal = defaultDeliveryLeadTimeMinDays !== undefined 
+        ? parseDays(defaultDeliveryLeadTimeMinDays) 
+        : existingCompany.defaultDeliveryLeadTimeMinDays;
+      const maxVal = defaultDeliveryLeadTimeMaxDays !== undefined 
+        ? parseDays(defaultDeliveryLeadTimeMaxDays) 
+        : existingCompany.defaultDeliveryLeadTimeMaxDays;
       if (minVal != null && maxVal != null && minVal > maxVal) {
         return NextResponse.json(
-          { error: `${name}: min days (${minVal}) cannot be greater than max days (${maxVal}). Please use a valid range.` },
+          { error: `Default delivery lead time: min days (${minVal}) cannot be greater than max days (${maxVal}). Please use a valid range.` },
           { status: 400, headers }
         );
       }
+      if (defaultDeliveryLeadTimeMinDays !== undefined) updateData.defaultDeliveryLeadTimeMinDays = minVal;
+      if (defaultDeliveryLeadTimeMaxDays !== undefined) updateData.defaultDeliveryLeadTimeMaxDays = maxVal;
     }
-
-    const setInt = (key: string, val: unknown) => {
-      const n = parseDays(val);
-      (updateData as Record<string, unknown>)[key] = n;
-    };
-    if (defaultDeliveryLeadTimeMinDays !== undefined) setInt('defaultDeliveryLeadTimeMinDays', defaultDeliveryLeadTimeMinDays);
-    if (defaultDeliveryLeadTimeMaxDays !== undefined) setInt('defaultDeliveryLeadTimeMaxDays', defaultDeliveryLeadTimeMaxDays);
-    if (expressShippingMinDays !== undefined) setInt('expressShippingMinDays', expressShippingMinDays);
-    if (expressShippingMaxDays !== undefined) setInt('expressShippingMaxDays', expressShippingMaxDays);
-    if (sameDayShippingMinDays !== undefined) setInt('sameDayShippingMinDays', sameDayShippingMinDays);
-    if (sameDayShippingMaxDays !== undefined) setInt('sameDayShippingMaxDays', sameDayShippingMaxDays);
-    if (nextDayShippingMinDays !== undefined) setInt('nextDayShippingMinDays', nextDayShippingMinDays);
-    if (nextDayShippingMaxDays !== undefined) setInt('nextDayShippingMaxDays', nextDayShippingMaxDays);
-    if (scheduledDeliveryMinDays !== undefined) setInt('scheduledDeliveryMinDays', scheduledDeliveryMinDays);
-    if (scheduledDeliveryMaxDays !== undefined) setInt('scheduledDeliveryMaxDays', scheduledDeliveryMaxDays);
 
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
@@ -172,14 +130,6 @@ export async function PUT(req: NextRequest) {
     
     // Check if shipping-related fields were updated
     const shippingFieldsChanged = 
-      baseShippingPrice !== undefined ||
-      additionalPricePerKm !== undefined ||
-      maxShippingRadius !== undefined ||
-      freeShippingThreshold !== undefined ||
-      expressShippingPrice !== undefined ||
-      sameDayShippingPrice !== undefined ||
-      nextDayShippingPrice !== undefined ||
-      scheduledDeliveryPrice !== undefined ||
       shippingPreferences !== undefined ||
       pickupAddress !== undefined;
     

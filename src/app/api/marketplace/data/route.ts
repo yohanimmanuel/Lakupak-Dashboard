@@ -10,16 +10,10 @@ interface Company {
   businessAddress: string | null;
   businessPhone: string | null;
   businessEmail: string | null;
-  baseShippingPrice: number | null;
-  baseShippingRadius: number | null;
-  freeShippingThreshold: number | null;
-  sameDayShippingPrice: number | null;
-  nextDayShippingPrice: number | null;
-  expressShippingPrice: number | null;
-  scheduledDeliveryPrice: number | null;
-  maxShippingRadius: number | null;
-  additionalPricePerKm: number | null;
   pickupAddress: string | null;
+  shippingPreferences: string | null;
+  defaultDeliveryLeadTimeMinDays: number | null;
+  defaultDeliveryLeadTimeMaxDays: number | null;
 }
 
 // Factory function for default company object
@@ -31,16 +25,10 @@ function createDefaultCompany(): Company {
     businessAddress: 'Not set',
     businessPhone: 'Not set',
     businessEmail: 'Not set',
-    baseShippingPrice: 0,
-    baseShippingRadius: 0,
-    freeShippingThreshold: 0,
-    sameDayShippingPrice: 0,
-    nextDayShippingPrice: 0,
-    expressShippingPrice: 0,
-    scheduledDeliveryPrice: 0,
-    maxShippingRadius: 0,
-    additionalPricePerKm: 0,
     pickupAddress: null,
+    shippingPreferences: null,
+    defaultDeliveryLeadTimeMinDays: null,
+    defaultDeliveryLeadTimeMaxDays: null,
   };
 }
 
@@ -84,7 +72,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 4. Parse and validate pagination parameters
+    // 4a. Parse and validate timeRange parameter
+    const validTimeRanges = ['7d', '30d', '90d', '1y'] as const;
+    type TimeRange = typeof validTimeRanges[number];
+    const rawTimeRange = searchParams.get('timeRange') || '30d';
+    const timeRange: TimeRange = (validTimeRanges as readonly string[]).includes(rawTimeRange)
+      ? (rawTimeRange as TimeRange)
+      : '30d';
+
+    const timeRangeDays: Record<TimeRange, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+    const since = new Date();
+    since.setDate(since.getDate() - timeRangeDays[timeRange]);
+
+    // 4b. Parse and validate pagination parameters
     const parsedPage = parseInt(searchParams.get('page') || '1', 10);
     const parsedLimit = parseInt(searchParams.get('limit') || '1000', 10);
     const page = Math.max(1, isNaN(parsedPage) ? 1 : parsedPage);
@@ -146,33 +146,28 @@ export async function GET(request: NextRequest) {
           businessAddress: true,
           businessPhone: true,
           businessEmail: true,
-          baseShippingPrice: true,
-          baseShippingRadius: true,
-          freeShippingThreshold: true,
-          sameDayShippingPrice: true,
-          nextDayShippingPrice: true,
-          expressShippingPrice: true,
-          scheduledDeliveryPrice: true,
-          maxShippingRadius: true,
-          additionalPricePerKm: true,
           pickupAddress: true,
+          shippingPreferences: true,
+          defaultDeliveryLeadTimeMinDays: true,
+          defaultDeliveryLeadTimeMaxDays: true,
         },
       }),
 
-      // 4. Fetch all orders for overall metrics
+      // 4. Fetch orders within the selected time range for metrics
       prisma.order.findMany({
-        where: { userId: parsedUserId },
+        where: { userId: parsedUserId, orderDate: { gte: since } },
         select: { 
           totalAmount: true, 
           id: true,
         },
       }),
 
-      // 5. Fetch user activities for this seller's products (visitors = MarketplaceUser; filter by productId)
+      // 5. Fetch user activities within the selected time range
       sellerProductIds.length > 0
         ? prisma.userActivity.findMany({
             where: {
               productId: { in: sellerProductIds },
+              createdAt: { gte: since },
             },
             select: {
               productId: true,

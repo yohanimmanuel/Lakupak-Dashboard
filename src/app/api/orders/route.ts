@@ -262,22 +262,8 @@ export async function GET(request: NextRequest) {
       let shippingOptionMaxDays: number | null = null;
       if (company) {
         const c = company as Record<string, unknown>;
-        if (deliveryOption === 'standard' || !deliveryOption) {
-          shippingOptionMinDays = num(c.defaultDeliveryLeadTimeMinDays) ?? 3;
-          shippingOptionMaxDays = num(c.defaultDeliveryLeadTimeMaxDays) ?? 5;
-        } else if (deliveryOption === 'express') {
-          shippingOptionMinDays = num(c.expressShippingMinDays) ?? 1;
-          shippingOptionMaxDays = num(c.expressShippingMaxDays) ?? 2;
-        } else if (deliveryOption === 'same_day') {
-          shippingOptionMinDays = num(c.sameDayShippingMinDays) ?? 0;
-          shippingOptionMaxDays = num(c.sameDayShippingMaxDays) ?? 0;
-        } else if (deliveryOption === 'next_day') {
-          shippingOptionMinDays = num(c.nextDayShippingMinDays) ?? 1;
-          shippingOptionMaxDays = num(c.nextDayShippingMaxDays) ?? 1;
-        } else if (deliveryOption === 'scheduled') {
-          shippingOptionMinDays = num(c.scheduledDeliveryMinDays);
-          shippingOptionMaxDays = num(c.scheduledDeliveryMaxDays);
-        }
+        shippingOptionMinDays = num(c.defaultDeliveryLeadTimeMinDays) ?? 3;
+        shippingOptionMaxDays = num(c.defaultDeliveryLeadTimeMaxDays) ?? 7;
       }
 
       // Convert order-level Decimal fields to numbers
@@ -616,7 +602,7 @@ export async function POST(request: NextRequest) {
       orderDateSnapshot: new Date(String(sanitizedData.orderDate || new Date())),
       orderStatus: String(sanitizedData.orderStatus || 'Pending'),
       paymentStatus: String(sanitizedData.paymentStatus || 'Unpaid'),
-      deliveryMethod: String(sanitizedData.deliveryMethod || 'Distributor Fleet'),
+      deliveryMethod: String(sanitizedData.deliveryMethod || 'Seller/Distributor Delivery'),
       deliveryOption: sanitizedData.deliveryOption ? String(sanitizedData.deliveryOption) : null,
       subtotal: subtotalCalc,
       discounts: discounts,

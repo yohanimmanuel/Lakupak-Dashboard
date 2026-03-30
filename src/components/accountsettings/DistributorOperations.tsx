@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown, DollarSign } from 'lucide-react';
+import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import { getCurrencySymbol, getDefaultCurrency } from '@/utils/currencyUtils';
-import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { generateSlug } from '@/utils/slugUtils';
 
@@ -37,30 +35,9 @@ interface CompanyProfileData {
   deliveryTimeSlots: string[];
   preferredDeliveryDays: string[];
   specialInstructions: string;
-  
-  // Shipping Fee Configuration
-  baseShippingRadius: number;
-  baseShippingPrice: string;
-  additionalPricePerKm: string;
-  maxShippingRadius: number;
-  freeShippingThreshold: string;
-  
-  // Additional shipping options pricing
-  expressShippingPrice: string;
-  sameDayShippingPrice: string;
-  nextDayShippingPrice: string;
-  scheduledDeliveryPrice: string;
   pickupAddress: string;
   defaultDeliveryLeadTimeMinDays: number | '';
   defaultDeliveryLeadTimeMaxDays: number | '';
-  expressShippingMinDays: number | '';
-  expressShippingMaxDays: number | '';
-  sameDayShippingMinDays: number | '';
-  sameDayShippingMaxDays: number | '';
-  nextDayShippingMinDays: number | '';
-  nextDayShippingMaxDays: number | '';
-  scheduledDeliveryMinDays: number | '';
-  scheduledDeliveryMaxDays: number | '';
 }
 
 const industryTypes = [
@@ -102,18 +79,13 @@ const deliveryDays = [
 ];
 
 const shippingOptions = [
-  'Standard Shipping',
-  'Express Shipping',
-  'Same-day Delivery',
-  'Next-day Delivery',
-  'Scheduled Delivery',
-  'Pickup Available'
+  'Self Pickup',
+  'Seller/Distributor Delivery',
+  'Buyer-arranged Courier',
 ];
 
 export default function DistributorOperations() {
   const { user, updateUser } = useUserStore();
-  const userCurrency = user?.currency || getDefaultCurrency();
-  const currencySymbol = getCurrencySymbol(userCurrency);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,26 +113,9 @@ export default function DistributorOperations() {
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
     specialInstructions: '',
-    baseShippingRadius: 50,
-    baseShippingPrice: '15000',
-    additionalPricePerKm: '500',
-    maxShippingRadius: 200,
-    freeShippingThreshold: '100000',
-    expressShippingPrice: '',
-    sameDayShippingPrice: '',
-    nextDayShippingPrice: '',
-    scheduledDeliveryPrice: '',
     pickupAddress: '',
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
-    expressShippingMinDays: '',
-    expressShippingMaxDays: '',
-    sameDayShippingMinDays: '',
-    sameDayShippingMaxDays: '',
-    nextDayShippingMinDays: '',
-    nextDayShippingMaxDays: '',
-    scheduledDeliveryMinDays: '',
-    scheduledDeliveryMaxDays: '',
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -183,26 +138,9 @@ export default function DistributorOperations() {
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
     specialInstructions: '',
-    baseShippingRadius: 50,
-    baseShippingPrice: '15000',
-    additionalPricePerKm: '500',
-    maxShippingRadius: 200,
-    freeShippingThreshold: '100000',
-    expressShippingPrice: '',
-    sameDayShippingPrice: '',
-    nextDayShippingPrice: '',
-        scheduledDeliveryPrice: '',
-        pickupAddress: '',
-        defaultDeliveryLeadTimeMinDays: '',
-        defaultDeliveryLeadTimeMaxDays: '',
-        expressShippingMinDays: '',
-        expressShippingMaxDays: '',
-        sameDayShippingMinDays: '',
-        sameDayShippingMaxDays: '',
-        nextDayShippingMinDays: '',
-        nextDayShippingMaxDays: '',
-        scheduledDeliveryMinDays: '',
-        scheduledDeliveryMaxDays: '',
+    pickupAddress: '',
+    defaultDeliveryLeadTimeMinDays: '',
+    defaultDeliveryLeadTimeMaxDays: '',
   });
   
   // Dropdown states
@@ -236,26 +174,9 @@ export default function DistributorOperations() {
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
-        baseShippingRadius: Number((company as { baseShippingRadius?: number })?.baseShippingRadius) || 50,
-        baseShippingPrice: (company as { baseShippingPrice?: number })?.baseShippingPrice ? formatNumberByCurrency((company as { baseShippingPrice: number }).baseShippingPrice, userCurrency) : '15000',
-        additionalPricePerKm: (company as { additionalPricePerKm?: number })?.additionalPricePerKm ? formatNumberByCurrency((company as { additionalPricePerKm: number }).additionalPricePerKm, userCurrency) : '500',
-        maxShippingRadius: Number((company as { maxShippingRadius?: number })?.maxShippingRadius) || 200,
-        freeShippingThreshold: (company as { freeShippingThreshold?: number })?.freeShippingThreshold ? formatNumberByCurrency((company as { freeShippingThreshold: number }).freeShippingThreshold, userCurrency) : '100000',
-        expressShippingPrice: (company as { expressShippingPrice?: number })?.expressShippingPrice ? formatNumberByCurrency((company as { expressShippingPrice: number }).expressShippingPrice, userCurrency) : '',
-        sameDayShippingPrice: (company as { sameDayShippingPrice?: number })?.sameDayShippingPrice ? formatNumberByCurrency((company as { sameDayShippingPrice: number }).sameDayShippingPrice, userCurrency) : '',
-        nextDayShippingPrice: (company as { nextDayShippingPrice?: number })?.nextDayShippingPrice ? formatNumberByCurrency((company as { nextDayShippingPrice: number }).nextDayShippingPrice, userCurrency) : '',
-        scheduledDeliveryPrice: (company as { scheduledDeliveryPrice?: number })?.scheduledDeliveryPrice ? formatNumberByCurrency((company as { scheduledDeliveryPrice: number }).scheduledDeliveryPrice, userCurrency) : '',
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
-        expressShippingMinDays: (company as { expressShippingMinDays?: number | null })?.expressShippingMinDays ?? '',
-        expressShippingMaxDays: (company as { expressShippingMaxDays?: number | null })?.expressShippingMaxDays ?? '',
-        sameDayShippingMinDays: (company as { sameDayShippingMinDays?: number | null })?.sameDayShippingMinDays ?? '',
-        sameDayShippingMaxDays: (company as { sameDayShippingMaxDays?: number | null })?.sameDayShippingMaxDays ?? '',
-        nextDayShippingMinDays: (company as { nextDayShippingMinDays?: number | null })?.nextDayShippingMinDays ?? '',
-        nextDayShippingMaxDays: (company as { nextDayShippingMaxDays?: number | null })?.nextDayShippingMaxDays ?? '',
-        scheduledDeliveryMinDays: (company as { scheduledDeliveryMinDays?: number | null })?.scheduledDeliveryMinDays ?? '',
-        scheduledDeliveryMaxDays: (company as { scheduledDeliveryMaxDays?: number | null })?.scheduledDeliveryMaxDays ?? '',
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -277,26 +198,9 @@ export default function DistributorOperations() {
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
-        baseShippingRadius: Number((company as { baseShippingRadius?: number })?.baseShippingRadius) || 50,
-        baseShippingPrice: (company as { baseShippingPrice?: number })?.baseShippingPrice ? formatNumberByCurrency((company as { baseShippingPrice: number }).baseShippingPrice, userCurrency) : '15000',
-        additionalPricePerKm: (company as { additionalPricePerKm?: number })?.additionalPricePerKm ? formatNumberByCurrency((company as { additionalPricePerKm: number }).additionalPricePerKm, userCurrency) : '500',
-        maxShippingRadius: Number((company as { maxShippingRadius?: number })?.maxShippingRadius) || 200,
-        freeShippingThreshold: (company as { freeShippingThreshold?: number })?.freeShippingThreshold ? formatNumberByCurrency((company as { freeShippingThreshold: number }).freeShippingThreshold, userCurrency) : '100000',
-        expressShippingPrice: (company as { expressShippingPrice?: number })?.expressShippingPrice ? formatNumberByCurrency((company as { expressShippingPrice: number }).expressShippingPrice, userCurrency) : '',
-        sameDayShippingPrice: (company as { sameDayShippingPrice?: number })?.sameDayShippingPrice ? formatNumberByCurrency((company as { sameDayShippingPrice: number }).sameDayShippingPrice, userCurrency) : '',
-        nextDayShippingPrice: (company as { nextDayShippingPrice?: number })?.nextDayShippingPrice ? formatNumberByCurrency((company as { nextDayShippingPrice: number }).nextDayShippingPrice, userCurrency) : '',
-        scheduledDeliveryPrice: company?.scheduledDeliveryPrice ? formatNumberByCurrency(company.scheduledDeliveryPrice, userCurrency) : '',
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
-        expressShippingMinDays: (company as { expressShippingMinDays?: number | null })?.expressShippingMinDays ?? '',
-        expressShippingMaxDays: (company as { expressShippingMaxDays?: number | null })?.expressShippingMaxDays ?? '',
-        sameDayShippingMinDays: (company as { sameDayShippingMinDays?: number | null })?.sameDayShippingMinDays ?? '',
-        sameDayShippingMaxDays: (company as { sameDayShippingMaxDays?: number | null })?.sameDayShippingMaxDays ?? '',
-        nextDayShippingMinDays: (company as { nextDayShippingMinDays?: number | null })?.nextDayShippingMinDays ?? '',
-        nextDayShippingMaxDays: (company as { nextDayShippingMaxDays?: number | null })?.nextDayShippingMaxDays ?? '',
-        scheduledDeliveryMinDays: (company as { scheduledDeliveryMinDays?: number | null })?.scheduledDeliveryMinDays ?? '',
-        scheduledDeliveryMaxDays: (company as { scheduledDeliveryMaxDays?: number | null })?.scheduledDeliveryMaxDays ?? '',
       });
     }
   }, [user]);
@@ -456,22 +360,12 @@ export default function DistributorOperations() {
       }
 
       // Pickup address validation
-      if (formData.shippingPreferences.includes('Pickup Available') && formData.pickupAddress.trim()) {
+      if (formData.shippingPreferences.includes('Self Pickup') && formData.pickupAddress.trim()) {
         if (formData.pickupAddress.trim().length < 10) {
           validationErrors.push('Pickup address must be at least 10 characters');
         } else if (formData.pickupAddress.trim().length > 500) {
           validationErrors.push('Pickup address must be less than 500 characters');
         }
-      }
-
-      // Numeric validations (coerce to number in case API/store returned strings, e.g. Prisma Decimal)
-      const baseRadius = Number(formData.baseShippingRadius);
-      const maxRadius = Number(formData.maxShippingRadius);
-      if (baseRadius < 1 || baseRadius > 1000 || !Number.isFinite(baseRadius)) {
-        validationErrors.push('Base shipping radius must be between 1 and 1000 km');
-      }
-      if (!Number.isFinite(maxRadius) || maxRadius < baseRadius) {
-        validationErrors.push('Maximum shipping radius must be greater than base shipping radius');
       }
 
       // XSS prevention
@@ -481,7 +375,7 @@ export default function DistributorOperations() {
         validationErrors.push('Invalid characters detected in input fields');
       }
 
-      // Day-range pairs: integer, non-negative, 0–90, and min ≤ max when both provided
+      // Delivery lead time validation
       const MIN_DAYS = 0;
       const MAX_DAYS = 90;
       const parseDaysField = (val: number | ''): number | null => {
@@ -512,10 +406,6 @@ export default function DistributorOperations() {
         }
       };
       validateDaysPair('Default delivery lead time', formData.defaultDeliveryLeadTimeMinDays, formData.defaultDeliveryLeadTimeMaxDays);
-      validateDaysPair('Express shipping', formData.expressShippingMinDays, formData.expressShippingMaxDays);
-      validateDaysPair('Same-day shipping', formData.sameDayShippingMinDays, formData.sameDayShippingMaxDays);
-      validateDaysPair('Next-day shipping', formData.nextDayShippingMinDays, formData.nextDayShippingMaxDays);
-      validateDaysPair('Scheduled delivery', formData.scheduledDeliveryMinDays, formData.scheduledDeliveryMaxDays);
 
       if (validationErrors.length > 0) {
         setError(validationErrors.join('. '));
@@ -577,26 +467,9 @@ export default function DistributorOperations() {
         deliveryTimeSlots: formData.deliveryTimeSlots,
         preferredDeliveryDays: formData.preferredDeliveryDays,
         specialInstructions: formData.specialInstructions.trim(),
-        baseShippingRadius: formData.baseShippingRadius,
-        baseShippingPrice: formData.baseShippingPrice,
-        additionalPricePerKm: formData.additionalPricePerKm,
-        maxShippingRadius: formData.maxShippingRadius,
-        freeShippingThreshold: formData.freeShippingThreshold,
-        expressShippingPrice: formData.shippingPreferences.includes('Express Shipping') ? formData.expressShippingPrice : null,
-        sameDayShippingPrice: formData.shippingPreferences.includes('Same-day Delivery') ? formData.sameDayShippingPrice : null,
-        nextDayShippingPrice: formData.shippingPreferences.includes('Next-day Delivery') ? formData.nextDayShippingPrice : null,
-        scheduledDeliveryPrice: formData.shippingPreferences.includes('Scheduled Delivery') ? formData.scheduledDeliveryPrice : null,
-        pickupAddress: formData.shippingPreferences.includes('Pickup Available') ? formData.pickupAddress : null,
+        pickupAddress: formData.shippingPreferences.includes('Self Pickup') ? (formData.pickupAddress?.trim() || null) : null,
         defaultDeliveryLeadTimeMinDays: formData.defaultDeliveryLeadTimeMinDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMinDays),
         defaultDeliveryLeadTimeMaxDays: formData.defaultDeliveryLeadTimeMaxDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMaxDays),
-        expressShippingMinDays: formData.expressShippingMinDays === '' ? null : Number(formData.expressShippingMinDays),
-        expressShippingMaxDays: formData.expressShippingMaxDays === '' ? null : Number(formData.expressShippingMaxDays),
-        sameDayShippingMinDays: formData.sameDayShippingMinDays === '' ? null : Number(formData.sameDayShippingMinDays),
-        sameDayShippingMaxDays: formData.sameDayShippingMaxDays === '' ? null : Number(formData.sameDayShippingMaxDays),
-        nextDayShippingMinDays: formData.nextDayShippingMinDays === '' ? null : Number(formData.nextDayShippingMinDays),
-        nextDayShippingMaxDays: formData.nextDayShippingMaxDays === '' ? null : Number(formData.nextDayShippingMaxDays),
-        scheduledDeliveryMinDays: formData.scheduledDeliveryMinDays === '' ? null : Number(formData.scheduledDeliveryMinDays),
-        scheduledDeliveryMaxDays: formData.scheduledDeliveryMaxDays === '' ? null : Number(formData.scheduledDeliveryMaxDays),
       };
 
 
@@ -1070,20 +943,21 @@ export default function DistributorOperations() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Shipping Options
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <p className="text-[11px] text-gray-500 mb-2">
+              Select the shipping methods you offer. Shipping costs are agreed directly between you and the buyer — no fees are set here.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {shippingOptions.map(option => {
-                const isStandardShipping = option === 'Standard Shipping';
-                const isChecked = isStandardShipping ? true : formData.shippingPreferences.includes(option);
-                
+                const isChecked = formData.shippingPreferences.includes(option);
                 return (
-                  <label key={option} className={`flex items-center space-x-2 ${isStandardShipping ? 'cursor-default' : 'cursor-pointer'}`}>
+                  <label key={option} className="flex items-center space-x-2 cursor-pointer">
                     <button
                       type="button"
                       onClick={() => {
-                        if (isEditing && !isStandardShipping) {
+                        if (isEditing) {
                           if (isChecked) {
                             handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
                           } else {
@@ -1091,13 +965,11 @@ export default function DistributorOperations() {
                           }
                         }
                       }}
-                      disabled={!isEditing || isStandardShipping}
+                      disabled={!isEditing}
                       className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
-                        isStandardShipping
-                          ? 'bg-green-500 border-green-500 opacity-60 cursor-default' // Always checked and disabled for Standard Shipping
-                          : isChecked
-                            ? 'bg-green-500 border-green-500'
-                            : 'bg-white border-gray-300 hover:border-green-400'
+                        isChecked
+                          ? 'bg-green-500 border-green-500'
+                          : 'bg-white border-gray-300 hover:border-green-400'
                       } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isChecked && (
@@ -1106,18 +978,15 @@ export default function DistributorOperations() {
                         </svg>
                       )}
                     </button>
-                    <span className={`text-xs ${isStandardShipping ? 'text-gray-500' : 'text-gray-700'}`}>
-                      {option}
-                      {isStandardShipping && <span className="text-gray-400 ml-1">(Required)</span>}
-                    </span>
+                    <span className="text-xs text-gray-700">{option}</span>
                   </label>
                 );
               })}
             </div>
           </div>
 
-          {/* Pickup Address - Only show if Pickup Available is selected */}
-          {formData.shippingPreferences.includes('Pickup Available') && (
+          {/* Pickup Address - Only show if Self Pickup is selected */}
+          {formData.shippingPreferences.includes('Self Pickup') && (
             <div className="mt-6">
               <label className="block text-xs font-medium text-gray-700 mb-2">
                 Pickup Address
@@ -1208,324 +1077,6 @@ export default function DistributorOperations() {
                 </div>
 
 
-                {/* Shipping Fee Configuration */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-gray-500" />
-                    Shipping Fee Configuration
-                  </h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Base Radius (km)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.baseShippingRadius}
-                        onChange={(e) => handleInputChange('baseShippingRadius', parseFloat(e.target.value) || 0)}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="e.g., 50"
-                        min="0"
-                        step="0.1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Base Shipping Price
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.baseShippingPrice}
-                          onChange={(e) => handleInputChange('baseShippingPrice', e.target.value)}
-                          disabled={!isEditing}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="15000"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Additional Price per km
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.additionalPricePerKm}
-                          onChange={(e) => handleInputChange('additionalPricePerKm', e.target.value)}
-                          disabled={!isEditing}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="500"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Max Delivery Radius (km)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.maxShippingRadius}
-                        onChange={(e) => handleInputChange('maxShippingRadius', parseFloat(e.target.value) || 0)}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="e.g., 200"
-                        min="0"
-                        step="10"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Free Shipping Threshold
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.freeShippingThreshold}
-                          onChange={(e) => handleInputChange('freeShippingThreshold', e.target.value)}
-                          disabled={!isEditing}
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                          placeholder="100000"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Shipping Options Pricing - Only show if selected */}
-                  {formData.shippingPreferences.some(pref => 
-                    ['Express Shipping', 'Same-day Delivery', 'Next-day Delivery', 'Scheduled Delivery'].includes(pref)
-                  ) && (
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                      <h5 className="text-sm font-medium text-gray-900 mb-4">
-                        Additional Shipping Options Pricing
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {formData.shippingPreferences.includes('Express Shipping') && (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Express Shipping Price
-                              </label>
-                              <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                  {currencySymbol}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={formData.expressShippingPrice}
-                                  onChange={(e) => handleInputChange('expressShippingPrice', e.target.value)}
-                                  disabled={!isEditing}
-                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="Enter express shipping price"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Default duration (days)
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.expressShippingMinDays}
-                                  onChange={(e) => handleInputChange('expressShippingMinDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Min"
-                                />
-                                <span className="text-xs text-gray-500">to</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.expressShippingMaxDays}
-                                  onChange={(e) => handleInputChange('expressShippingMaxDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Max"
-                                />
-                                <span className="text-xs text-gray-500">days</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.shippingPreferences.includes('Same-day Delivery') && (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Same-day Delivery Price
-                              </label>
-                              <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                  {currencySymbol}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={formData.sameDayShippingPrice}
-                                  onChange={(e) => handleInputChange('sameDayShippingPrice', e.target.value)}
-                                  disabled={!isEditing}
-                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="Enter same-day delivery price"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Default duration (days)
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.sameDayShippingMinDays}
-                                  onChange={(e) => handleInputChange('sameDayShippingMinDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Min"
-                                />
-                                <span className="text-xs text-gray-500">to</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.sameDayShippingMaxDays}
-                                  onChange={(e) => handleInputChange('sameDayShippingMaxDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Max"
-                                />
-                                <span className="text-xs text-gray-500">days</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.shippingPreferences.includes('Next-day Delivery') && (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Next-day Delivery Price
-                              </label>
-                              <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                  {currencySymbol}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={formData.nextDayShippingPrice}
-                                  onChange={(e) => handleInputChange('nextDayShippingPrice', e.target.value)}
-                                  disabled={!isEditing}
-                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="Enter next-day delivery price"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Default duration (days)
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.nextDayShippingMinDays}
-                                  onChange={(e) => handleInputChange('nextDayShippingMinDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Min"
-                                />
-                                <span className="text-xs text-gray-500">to</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.nextDayShippingMaxDays}
-                                  onChange={(e) => handleInputChange('nextDayShippingMaxDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Max"
-                                />
-                                <span className="text-xs text-gray-500">days</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.shippingPreferences.includes('Scheduled Delivery') && (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Scheduled Delivery Price
-                              </label>
-                              <div className="relative">
-                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                                  {currencySymbol}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={formData.scheduledDeliveryPrice}
-                                  onChange={(e) => handleInputChange('scheduledDeliveryPrice', e.target.value)}
-                                  disabled={!isEditing}
-                                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                                  placeholder="Enter scheduled delivery price"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Default duration (days)
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.scheduledDeliveryMinDays}
-                                  onChange={(e) => handleInputChange('scheduledDeliveryMinDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Min"
-                                />
-                                <span className="text-xs text-gray-500">to</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={90}
-                                  value={formData.scheduledDeliveryMaxDays}
-                                  onChange={(e) => handleInputChange('scheduledDeliveryMaxDays', e.target.value === '' ? '' : Number(e.target.value))}
-                                  disabled={!isEditing}
-                                  className="w-20 px-2 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50 text-black"
-                                  placeholder="Max"
-                                />
-                                <span className="text-xs text-gray-500">days</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">

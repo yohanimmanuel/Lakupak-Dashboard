@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Store, Truck, Package, DollarSign, Clock, Settings, ExternalLink } from 'lucide-react';
 import { generateSlug } from '@/utils/slugUtils';
-import { formatCurrency } from '@/utils/currencyUtils';
+
 
 interface Product {
   returnPolicyDays?: number;
@@ -17,16 +17,10 @@ interface Company {
   businessAddress?: string;
   businessPhone?: string;
   businessEmail?: string;
-  baseShippingPrice?: number;
-  baseShippingRadius?: number;
-  freeShippingThreshold?: number;
-  sameDayShippingPrice?: number;
-  nextDayShippingPrice?: number;
-  expressShippingPrice?: number;
-  scheduledDeliveryPrice?: number;
-  maxShippingRadius?: number;
-  additionalPricePerKm?: number;
   pickupAddress?: string;
+  shippingPreferences?: string;
+  defaultDeliveryLeadTimeMinDays?: number;
+  defaultDeliveryLeadTimeMaxDays?: number;
 }
 
 interface StorefrontInfoProps {
@@ -50,27 +44,28 @@ export default function StorefrontInfo({
   const storeSlug = generateSlug(storeName);
   
   // Shipping info
-  const freeShippingThreshold = company?.freeShippingThreshold || 0;
-  const baseShippingPrice = company?.baseShippingPrice || 0;
-  const sameDayShipping = company?.sameDayShippingPrice || 0;
-  const nextDayShipping = company?.nextDayShippingPrice || 0;
-  const expressShipping = company?.expressShippingPrice || 0;
-  const scheduledDelivery = company?.scheduledDeliveryPrice || 0;
-  const additionalPricePerKm = company?.additionalPricePerKm || 0;
-  const baseShippingRadius = company?.baseShippingRadius || 0;
-  const maxShippingRadius = company?.maxShippingRadius || 0;
   const pickupAddress = company?.pickupAddress || 'Not set';
+  const shippingPreferences: string[] = (() => {
+    try {
+      return JSON.parse(company?.shippingPreferences || '[]');
+    } catch {
+      return [];
+    }
+  })();
+  const leadTimeMin = company?.defaultDeliveryLeadTimeMinDays;
+  const leadTimeMax = company?.defaultDeliveryLeadTimeMaxDays;
+
+  const ALL_SHIPPING_OPTIONS = [
+    { key: 'Self Pickup', label: 'Self Pickup (Buyer collects)' },
+    { key: 'Seller/Distributor Delivery', label: 'Seller / Distributor Delivery' },
+    { key: 'Buyer-arranged Courier', label: 'Buyer-arranged Courier' },
+  ];
 
   // Calculate highest return policy from products
   const maxReturnPolicy = products.reduce((max, product) => {
     const days = product.returnPolicyDays || 0;
     return days > max ? days : max;
   }, 7); // Default to 7 days if no products have return policy
-
-  // Format price using user's currency
-  const formatPrice = (amount: number) => {
-    return formatCurrency(amount, userCurrency);
-  };
 
   return (
     <div className="bg-white rounded-lg border border-[#e6e6e6]">
@@ -132,10 +127,10 @@ export default function StorefrontInfo({
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Truck className="w-4 h-4 text-gray-600" />
-            Shipping Configuration
+            Shipping Options
           </h3>
           <div className="bg-white border border-[#e6e6e6] rounded-lg p-4 space-y-4">
-            {/* Pickup Address - full width on top */}
+            {/* Pickup Address */}
             <div className="flex items-center justify-between py-2 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-600" />
@@ -144,97 +139,37 @@ export default function StorefrontInfo({
               <span className="text-sm font-semibold text-gray-900">{pickupAddress}</span>
             </div>
 
-            {/* Shipping options in 2 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-0">
-              {/* Left column */}
-              <div className="space-y-0">
-                {baseShippingPrice > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
+            {/* Available shipping options */}
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500 mb-1">Available shipping methods (shipping costs agreed between parties)</p>
+              {ALL_SHIPPING_OPTIONS.map(({ key, label }) => {
+                const enabled = shippingPreferences.includes(key);
+                return (
+                  <div key={key} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm text-gray-900">Standard Shipping</span>
+                      <Truck className="w-4 h-4 text-gray-500" />
+                      <span className={`text-sm ${enabled ? 'text-gray-900' : 'text-gray-400'}`}>{label}</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(baseShippingPrice)}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {enabled ? 'Available' : 'Not offered'}
+                    </span>
                   </div>
-                )}
-                {baseShippingRadius > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm text-gray-900">Base Shipping Radius</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{baseShippingRadius} km</span>
-                  </div>
-                )}
-                {additionalPricePerKm > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm text-gray-900">Additional Price per KM</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(additionalPricePerKm)}</span>
-                  </div>
-                )}
-                {maxShippingRadius > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm text-gray-900">Maximum Shipping Radius</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{maxShippingRadius} km</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Right column */}
-              <div className="space-y-0">
-                <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-gray-900">Free Shipping Threshold</span>
-                  </div>
-                  <span className="text-sm font-semibold text-green-600">
-                    {freeShippingThreshold > 0 ? formatPrice(freeShippingThreshold) : 'Not set'}
-                  </span>
-                </div>
-                {sameDayShipping > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm text-gray-900">Same-Day Delivery</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(sameDayShipping)}</span>
-                  </div>
-                )}
-                {nextDayShipping > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-indigo-600" />
-                      <span className="text-sm text-gray-900">Next-Day Delivery</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(nextDayShipping)}</span>
-                  </div>
-                )}
-                {expressShipping > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-purple-600" />
-                      <span className="text-sm text-gray-900">Express Delivery</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(expressShipping)}</span>
-                  </div>
-                )}
-                {scheduledDelivery > 0 && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-amber-600" />
-                      <span className="text-sm text-gray-900">Scheduled Delivery</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatPrice(scheduledDelivery)}</span>
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
+
+            {/* Lead time */}
+            {(leadTimeMin != null || leadTimeMax != null) && (
+              <div className="flex items-center justify-between py-2 border-t border-gray-200 pt-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-900">Default Lead Time</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {leadTimeMin ?? '?'}–{leadTimeMax ?? '?'} days
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

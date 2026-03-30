@@ -117,11 +117,8 @@ export async function POST(req: NextRequest) {
         deliveryTimeSlots: JSON.stringify([]),
         preferredDeliveryDays: JSON.stringify([]),
         specialInstructions: '',
-        baseShippingRadius: 50,
-        baseShippingPrice: 15000,
-        additionalPricePerKm: 500,
-        maxShippingRadius: 200,
-        freeShippingThreshold: 100000
+        defaultDeliveryLeadTimeMinDays: 3,
+        defaultDeliveryLeadTimeMaxDays: 7
       }
     });
 

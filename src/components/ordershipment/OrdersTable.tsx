@@ -29,9 +29,9 @@ const paymentTabs = [
 
 const deliveryMethodTabs = [
   { label: "All Methods" },
-  { label: "Distributor Fleet" },
-  { label: "3rd-Party Courier" },
-  { label: "Pickup" },
+  { label: "Self Pickup" },
+  { label: "Seller/Distributor Delivery" },
+  { label: "Buyer-arranged Courier" },
 ];
 
 export default function OrdersTable({ 

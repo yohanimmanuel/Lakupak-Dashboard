@@ -37,16 +37,10 @@ interface Company {
   businessAddress?: string;
   businessPhone?: string;
   businessEmail?: string;
-  baseShippingPrice?: number;
-  baseShippingRadius?: number;
-  freeShippingThreshold?: number;
-  sameDayShippingPrice?: number;
-  nextDayShippingPrice?: number;
-  expressShippingPrice?: number;
-  scheduledDeliveryPrice?: number;
-  maxShippingRadius?: number;
-  additionalPricePerKm?: number;
   pickupAddress?: string;
+  shippingPreferences?: string;
+  defaultDeliveryLeadTimeMinDays?: number;
+  defaultDeliveryLeadTimeMaxDays?: number;
 }
 
 // Removed GraphQL query and helper function - now using consolidated REST API
@@ -99,7 +93,7 @@ export default function MarketplacePage() {
       // Single consolidated API call for all marketplace data
       // Fetches all products by default (limit=1000) for now
       // Can be updated to support client-side pagination in the future
-      const response = await fetch(`/api/marketplace/data?userId=${user.id}`);
+      const response = await fetch(`/api/marketplace/data?userId=${user.id}&timeRange=${timeRange}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch marketplace data');
@@ -126,7 +120,7 @@ export default function MarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, timeRange]);
 
   useEffect(() => {
     fetchMarketplaceData();
