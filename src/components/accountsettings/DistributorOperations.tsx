@@ -78,7 +78,7 @@ const deliveryDays = [
   'Sunday'
 ];
 
-const shippingOptions = [
+const ALL_SHIPPING_OPTIONS = [
   'Self Pickup',
   'Seller/Distributor Delivery',
   'Buyer-arranged Courier',
@@ -109,7 +109,7 @@ export default function DistributorOperations() {
     documentVerification: false,
     businessLicenseVerification: false,
     complianceStatus: 'Pending',
-    shippingPreferences: [],
+    shippingPreferences: ALL_SHIPPING_OPTIONS,
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
     specialInstructions: '',
@@ -134,7 +134,7 @@ export default function DistributorOperations() {
     documentVerification: false,
     businessLicenseVerification: false,
     complianceStatus: 'Pending',
-    shippingPreferences: [],
+    shippingPreferences: ALL_SHIPPING_OPTIONS,
     deliveryTimeSlots: [],
     preferredDeliveryDays: [],
     specialInstructions: '',
@@ -170,7 +170,7 @@ export default function DistributorOperations() {
         documentVerification: company?.documentVerification || false,
         businessLicenseVerification: company?.businessLicenseVerification || false,
         complianceStatus: company?.complianceStatus || 'Pending',
-        shippingPreferences: company?.shippingPreferences ? JSON.parse(company.shippingPreferences) : [],
+        shippingPreferences: ALL_SHIPPING_OPTIONS,
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
@@ -194,7 +194,7 @@ export default function DistributorOperations() {
         documentVerification: company?.documentVerification || false,
         businessLicenseVerification: company?.businessLicenseVerification || false,
         complianceStatus: company?.complianceStatus || 'Pending',
-        shippingPreferences: company?.shippingPreferences ? JSON.parse(company.shippingPreferences) : [],
+        shippingPreferences: ALL_SHIPPING_OPTIONS,
         deliveryTimeSlots: company?.deliveryTimeSlots ? JSON.parse(company.deliveryTimeSlots) : [],
         preferredDeliveryDays: company?.preferredDeliveryDays ? JSON.parse(company.preferredDeliveryDays) : [],
         specialInstructions: company?.specialInstructions || '',
@@ -467,7 +467,7 @@ export default function DistributorOperations() {
         deliveryTimeSlots: formData.deliveryTimeSlots,
         preferredDeliveryDays: formData.preferredDeliveryDays,
         specialInstructions: formData.specialInstructions.trim(),
-        pickupAddress: formData.shippingPreferences.includes('Self Pickup') ? (formData.pickupAddress?.trim() || null) : null,
+        pickupAddress: formData.pickupAddress?.trim() || null,
         defaultDeliveryLeadTimeMinDays: formData.defaultDeliveryLeadTimeMinDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMinDays),
         defaultDeliveryLeadTimeMaxDays: formData.defaultDeliveryLeadTimeMaxDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMaxDays),
       };
@@ -938,69 +938,24 @@ export default function DistributorOperations() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
         <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Truck className="w-5 h-5 text-gray-500" />
-          Shipping & Delivery Preferences
+          Shipping & Delivery Configurations
         </h2>
         
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Shipping Options
+          {/* Pickup Address */}
+          <div className="mt-6">
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Pickup Address
             </label>
-            <p className="text-[11px] text-gray-500 mb-2">
-              Select the shipping methods you offer. Shipping costs are agreed directly between you and the buyer — no fees are set here.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {shippingOptions.map(option => {
-                const isChecked = formData.shippingPreferences.includes(option);
-                return (
-                  <label key={option} className="flex items-center space-x-2 cursor-pointer">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isEditing) {
-                          if (isChecked) {
-                            handleInputChange('shippingPreferences', formData.shippingPreferences.filter(item => item !== option));
-                          } else {
-                            handleInputChange('shippingPreferences', [...formData.shippingPreferences, option]);
-                          }
-                        }
-                      }}
-                      disabled={!isEditing}
-                      className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
-                        isChecked
-                          ? 'bg-green-500 border-green-500'
-                          : 'bg-white border-gray-300 hover:border-green-400'
-                      } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {isChecked && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                    <span className="text-xs text-gray-700">{option}</span>
-                  </label>
-                );
-              })}
-            </div>
+            <input
+              type="text"
+              value={formData.pickupAddress}
+              onChange={(e) => handleInputChange('pickupAddress', e.target.value)}
+              disabled={!isEditing}
+              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+              placeholder="Enter pickup location address"
+            />
           </div>
-
-          {/* Pickup Address - Only show if Self Pickup is selected */}
-          {formData.shippingPreferences.includes('Self Pickup') && (
-            <div className="mt-6">
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                Pickup Address
-              </label>
-              <input
-                type="text"
-                value={formData.pickupAddress}
-                onChange={(e) => handleInputChange('pickupAddress', e.target.value)}
-                disabled={!isEditing}
-                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter pickup location address"
-              />
-            </div>
-          )}
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
