@@ -277,8 +277,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     '';
   const normalizedShippingMethod = shippingMethodLabel.toLowerCase();
   const formattedShippingOption = shippingMethodLabel ? formatDeliveryOption(shippingMethodLabel) : '';
-  const isPickupMethod = normalizedShippingMethod.includes('pickup');
+  const isPickupMethod = normalizedShippingMethod.includes('pickup') || normalizedShippingMethod.includes('self pickup');
   const isScheduledMethod = normalizedShippingMethod.includes('scheduled');
+  const isSellerDelivery = normalizedShippingMethod.includes('seller') || normalizedShippingMethod.includes('distributor');
+  const isBuyerCourier = normalizedShippingMethod.includes('courier') || normalizedShippingMethod.includes('buyer-arranged') || normalizedShippingMethod.includes('buyer arranged');
 
   const scheduleDateCandidate = isPickupMethod
     ? order.preferredPickupDate || order.preferredDeliveryDate || null
@@ -289,8 +291,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     : order.preferredDeliveryTime || order.preferredPickupTime || null;
 
   const formattedSchedule = formatSchedule(scheduleDateCandidate, scheduleTimeCandidate);
-  const shouldShowScheduleNotice = (isPickupMethod || isScheduledMethod) && Boolean(formattedSchedule);
-  const highlightShipping = isPickupMethod || isScheduledMethod;
+  // Show notice for any method whenever a scheduled date/time exists
+  const shouldShowScheduleNotice = Boolean(formattedSchedule);
+  const highlightShipping = isPickupMethod || isScheduledMethod || isSellerDelivery || isBuyerCourier;
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
   const requiredOrderFields = [
@@ -554,21 +557,23 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <span className="text-gray-600">Delivery Method:</span>
                   <span className="text-black font-medium">{order.deliveryMethod}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Shipping Option:</span>
-                  <span className={shippingAccentClass}>{formattedShippingOption || 'Not specified'}</span>
-                </div>
               </div>
             </div>
 
             {shouldShowScheduleNotice && formattedSchedule ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                 <div className="text-sm font-semibold text-yellow-700 mb-1">
-                  {isPickupMethod ? 'Scheduled Pickup' : 'Scheduled Delivery'}
+                  {isPickupMethod
+                    ? 'Scheduled Pickup'
+                    : isBuyerCourier
+                    ? 'Scheduled Courier Pickup'
+                    : 'Scheduled Delivery'}
                 </div>
                 <div className="text-xs text-yellow-600">
                   {isPickupMethod
                     ? 'Pickup has been scheduled for'
+                    : isBuyerCourier
+                    ? 'Courier pickup has been scheduled for'
                     : 'Delivery has been scheduled for'}{' '}
                   <span className="font-semibold">{formattedSchedule}</span>
                 </div>
