@@ -131,11 +131,11 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
             <div className="space-y-1 text-left rounded-lg bg-white/85 backdrop-blur-sm px-3 py-2 shadow-sm">
               {fleet.assignedDate != null && fleet.assignedDate !== '' && (
                 <>
-                  <p className="text-xs font-medium text-gray-700">Assigned date</p>
-                  <p className="text-base font-medium text-gray-900">{formatAssignedDate(fleet.assignedDate)}</p>
+                  <p className="text-xs font-medium text-gray-500">Assigned date</p>
+                  <p className="text-xs font-medium text-gray-600 mb-2">{formatAssignedDate(fleet.assignedDate)}</p>
                 </>
               )}
-              <p className="text-xs font-medium text-gray-700">Estimated delivery completion</p>
+              <p className="text-sm font-medium text-gray-700">Estimated delivery completion</p>
               <p className="text-lg font-semibold text-gray-900">{formatEtaCompletion(fleet)}</p>
             </div>
           </div>
