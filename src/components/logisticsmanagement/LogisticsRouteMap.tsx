@@ -30,6 +30,15 @@ function createDriverDotElement(): HTMLDivElement {
   return el;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 async function geocodePlace(query: string): Promise<[number, number] | null> {
   if (!TOKEN || !query.trim()) return null;
   try {
@@ -150,7 +159,11 @@ export default function LogisticsRouteMap({
         if (driverCoord) {
           new mapboxgl.Marker({ element: createDriverDotElement(), anchor: 'center' })
             .setLngLat(driverCoord)
-            .setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setText('Driver location'))
+            .setPopup(
+              new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(
+                `<div style="color:#111827;font-weight:600;">Driver location</div>`
+              )
+            )
             .addTo(map);
         }
 
@@ -161,7 +174,11 @@ export default function LogisticsRouteMap({
           el.textContent = String(i + 1);
           new mapboxgl.Marker({ element: el })
             .setLngLat(p.coord)
-            .setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setText(p.addr))
+            .setPopup(
+              new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(
+                `<div style="color:#111827;">${escapeHtml(p.addr)}</div>`
+              )
+            )
             .addTo(map!);
         });
 
