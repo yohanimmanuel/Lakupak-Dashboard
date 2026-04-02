@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Edit,
 } from 'lucide-react';
+import LogisticsRouteMap from './LogisticsRouteMap';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
@@ -46,6 +47,14 @@ const deliveryStatusStyles: Record<FleetStatus, string> = {
   'In Transit': 'bg-sky-100 text-sky-700',
   Checking: 'bg-amber-100 text-amber-700',
 };
+
+function fleetHasAssignedOrders(f: FleetOrderSummary): boolean {
+  return (f.assignedOrderIds?.length ?? 0) > 0;
+}
+
+function fleetHasDeliveryAddresses(f: FleetOrderSummary): boolean {
+  return (f.deliveryAddresses?.length ?? 0) > 0;
+}
 
 function DetailRow({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }) {
   return (
@@ -113,6 +122,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
   const loadPct = fleet.loadPct ?? 0;
   const weightStr = fleet.vehicleMaxWeight != null ? `${fleet.vehicleMaxWeight.toLocaleString()} kg` : '—';
   const volumeStr = fleet.vehicleMaxVolume != null ? `${fleet.vehicleMaxVolume.toLocaleString()} m³` : '—';
+  const showRouteMap = fleetHasAssignedOrders(fleet) && fleetHasDeliveryAddresses(fleet);
 
   return (
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
@@ -229,23 +239,50 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               </div>
             </div>
 
-            {/* Route / map placeholder */}
+            {/* Delivery Route — live Mapbox map */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#e6e6e6]">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#0a61d7]" />
                   Delivery Route
                 </h3>
-                <span className="text-xs text-gray-500">Live route preview</span>
+                {showRouteMap ? (
+                  <span className="text-xs text-gray-500">Live route preview</span>
+                ) : (
+                  <span className="text-xs text-gray-400">No active route</span>
+                )}
               </div>
-              <div className="relative h-[415px] bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 flex items-center justify-center">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(14,116,144,0.12),transparent_50%),radial-gradient(circle_at_70%_70%,rgba(37,99,235,0.14),transparent_50%)]" />
-                <div className="relative z-10 text-center">
-                  <Route className="w-12 h-12 text-[#0a61d7]/40 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-600">{fleet.route}</p>
-                  <p className="text-xs text-gray-500 mt-1">Map integration can be added here</p>
+              {showRouteMap ? (
+                <LogisticsRouteMap
+                  deliveryAddresses={fleet.deliveryAddresses!}
+                  driverLat={fleet.driverLat}
+                  driverLng={fleet.driverLng}
+                  height="415px"
+                />
+              ) : (
+                <div
+                  className="flex h-[415px] flex-col items-center justify-center gap-2 bg-slate-50 px-6 text-center"
+                  role="status"
+                >
+                  <Package className="h-10 w-10 text-gray-300" />
+                  {!fleetHasAssignedOrders(fleet) ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-800">No orders assigned</p>
+                      <p className="max-w-md text-xs text-gray-500">
+                        Assign orders to this fleet to see the map. The route text under the fleet code is only a label —
+                        directions use driver GPS and real delivery addresses.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-gray-800">Delivery addresses not available</p>
+                      <p className="max-w-md text-xs text-gray-500">
+                        Assigned orders need saved delivery addresses before the map can show stops.
+                      </p>
+                    </>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Customer information - list of customers with orders in this fleet */}

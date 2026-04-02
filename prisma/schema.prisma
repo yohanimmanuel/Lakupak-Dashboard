@@ -875,6 +875,9 @@ model Driver {
   avatar        String?
   username      String   @unique   // Laku Driver app login
   passwordHash  String             // bcrypt hash; never returned to client
+  lastLat       Float?             // last known GPS latitude (synced from Laku-Driver app)
+  lastLng       Float?             // last known GPS longitude
+  lastLocationAt DateTime? @db.Timestamptz(3) // when the location was last updated
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)

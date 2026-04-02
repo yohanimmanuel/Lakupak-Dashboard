@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Truck, User, Package, Route, ExternalLink, Clock, Layers, ChevronRight } from 'lucide-react';
+import LogisticsRouteMap from './LogisticsRouteMap';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
@@ -24,6 +25,14 @@ interface FleetDetailsProps {
 
 type TabType = 'order' | 'vehicle' | 'driver' | 'customer';
 
+function fleetHasAssignedOrders(f: FleetOrderSummary): boolean {
+  return (f.assignedOrderIds?.length ?? 0) > 0;
+}
+
+function fleetHasDeliveryAddresses(f: FleetOrderSummary): boolean {
+  return (f.deliveryAddresses?.length ?? 0) > 0;
+}
+
 export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('order');
 
@@ -40,6 +49,8 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       </div>
     );
   }
+
+  const showRouteMap = fleetHasAssignedOrders(fleet) && fleetHasDeliveryAddresses(fleet);
 
   return (
     <div className="flex h-full max-h-[calc(100vh+100px)] flex-col gap-3 rounded-lg bg-white border border-gray-200 p-4">
@@ -72,18 +83,52 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
         </div>
       </div>
 
-      {/* Map / route preview */}
-      <div className="relative h-[450px] flex-shrink-0 w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 via-sky-50 to-emerald-50 border border-blue-100/70">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.13),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(37,99,235,0.16),transparent_55%)]" />
-        <div className="relative z-10 flex h-full flex-col justify-between p-4">
-          <div className="flex items-center justify-end">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-gray-700 shadow-sm">
-              <Route className="h-3 w-3 text-[#0a61d7]" />
-              Live route preview
-            </span>
+      {/* Map / route preview — map only when orders + delivery addresses exist; route label is never used for routing */}
+      <div className="relative flex-shrink-0 w-full overflow-hidden rounded-lg border border-blue-100/70">
+        {showRouteMap ? (
+          <LogisticsRouteMap
+            deliveryAddresses={fleet.deliveryAddresses!}
+            driverLat={fleet.driverLat}
+            driverLng={fleet.driverLng}
+            height="450px"
+          />
+        ) : (
+          <div
+            className="flex h-[450px] flex-col items-center justify-center gap-2 bg-slate-50 px-6 text-center"
+            role="status"
+          >
+            <Package className="h-10 w-10 text-gray-400" />
+            {!fleetHasAssignedOrders(fleet) ? (
+              <>
+                <p className="text-sm font-semibold text-gray-500">No orders assigned</p>
+                <p className="max-w-sm text-xs text-gray-500">
+                  Assign orders to this fleet to see the live delivery route. The route shown next to the fleet code is
+                  only a label for your team.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-gray-800">Delivery addresses not available</p>
+                <p className="max-w-sm text-xs text-gray-500">
+                  Orders are assigned, but saved delivery addresses are missing. The map needs real buyer addresses to
+                  plot stops — it does not use the route label for directions.
+                </p>
+              </>
+            )}
           </div>
-          <div className="flex items-center justify-end">
-            <div className="space-y-1 text-right">
+        )}
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-4">
+          {showRouteMap && (
+            <div className="flex items-center justify-end">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-gray-700 shadow-sm">
+                <Route className="h-3 w-3 text-[#0a61d7]" />
+                Live route preview
+              </span>
+            </div>
+          )}
+          {!showRouteMap && <div />}
+          <div className="flex items-center justify-start">
+            <div className="space-y-1 text-left rounded-lg bg-white/85 backdrop-blur-sm px-3 py-2 shadow-sm">
               {fleet.assignedDate != null && fleet.assignedDate !== '' && (
                 <>
                   <p className="text-xs font-medium text-gray-700">Assigned date</p>

@@ -140,6 +140,9 @@ export const logisticsTypeDefs = /* GraphQL */ `
     driverStatus: String
     driverAvatar: String
     driverUsername: String
+    driverLat: Float
+    driverLng: Float
+    driverLocationAt: String
     totalOrders: Int
     deliveriesCompleted: Int
     customers: [FleetCustomer!]
@@ -154,6 +157,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     assignedLogistics: String
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
+    deliveryAddresses: [String!]
     createdAt: String
     updatedAt: String
   }
@@ -327,6 +331,9 @@ type DriverRow = {
   status: string | null;
   avatar: string | null;
   username: string;
+  lastLat: number | null;
+  lastLng: number | null;
+  lastLocationAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   _count?: { fleets: number };
@@ -374,7 +381,7 @@ type FleetRow = {
   createdAt: Date;
   updatedAt: Date;
   driver: DriverRow | null;
-  orders: { orderId: string }[];
+  orders: { orderId: string; deliveryAddress: string | null }[];
 };
 
 function mapFleet(row: FleetRow) {
@@ -395,6 +402,13 @@ function mapFleet(row: FleetRow) {
 
   const completedOrderIds = rawCompleted.filter((id) => existingOrderIds.has(id));
 
+  const deliveryAddressMap = new Map(
+    row.orders.filter((o) => o.deliveryAddress).map((o) => [o.orderId, o.deliveryAddress as string])
+  );
+  const deliveryAddresses = assignedOrderIds
+    .map((id) => deliveryAddressMap.get(id))
+    .filter((a): a is string => Boolean(a));
+
   const d = row.driver;
   return {
     id: String(row.id),
@@ -413,6 +427,9 @@ function mapFleet(row: FleetRow) {
     driverStatus: d?.status ?? null,
     driverAvatar: d?.avatar ?? null,
     driverUsername: d?.username ?? null,
+    driverLat: d?.lastLat ?? null,
+    driverLng: d?.lastLng ?? null,
+    driverLocationAt: d?.lastLocationAt?.toISOString() ?? null,
     driver: d ? mapDriver(d) : null,
     totalOrders: row.totalOrders ?? null,
     deliveriesCompleted: row.deliveriesCompleted ?? null,
@@ -428,12 +445,16 @@ function mapFleet(row: FleetRow) {
     vehicleMaxVolume: row.vehicleMaxVolume ?? null,
     assignedOrderIds,
     completedOrderIds,
+    deliveryAddresses,
     createdAt: row.createdAt?.toISOString?.() ?? null,
     updatedAt: row.updatedAt?.toISOString?.() ?? null,
   };
 }
 
-const FLEET_INCLUDE = { driver: true, orders: { select: { orderId: true } } } as const;
+const FLEET_INCLUDE = {
+  driver: true,
+  orders: { select: { orderId: true, deliveryAddress: true } },
+} as const;
 
 // ============================================================================ //
 // RESOLVERS

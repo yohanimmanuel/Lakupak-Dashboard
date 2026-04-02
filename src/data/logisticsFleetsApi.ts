@@ -28,7 +28,8 @@ const FLEET_FIELDS = `
   totalOrders deliveriesCompleted
   customers { storeName contactName }
   vehicleType loadPct paymentTerms vehicleBrand vehicleModel plateNumber vehicleMaxWeight vehicleMaxVolume
-  assignedLogistics assignedOrderIds completedOrderIds
+  assignedLogistics assignedOrderIds completedOrderIds deliveryAddresses
+  driverLat driverLng driverLocationAt
 `;
 
 // ============================================================================
@@ -182,6 +183,10 @@ function mapNodeToSummary(node: {
   assignedLogistics?: string | null;
   assignedOrderIds?: string[] | null;
   completedOrderIds?: string[] | null;
+  deliveryAddresses?: string[] | null;
+  driverLat?: number | null;
+  driverLng?: number | null;
+  driverLocationAt?: string | null;
 }): FleetOrderSummary {
   return {
     id: node.id,
@@ -218,6 +223,10 @@ function mapNodeToSummary(node: {
     vehicleMaxVolume: node.vehicleMaxVolume ?? undefined,
     assignedOrderIds: node.assignedOrderIds ?? undefined,
     completedOrderIds: node.completedOrderIds ?? undefined,
+    deliveryAddresses: node.deliveryAddresses ?? undefined,
+    driverLat: node.driverLat ?? undefined,
+    driverLng: node.driverLng ?? undefined,
+    driverLocationAt: node.driverLocationAt ?? undefined,
   };
 }
 

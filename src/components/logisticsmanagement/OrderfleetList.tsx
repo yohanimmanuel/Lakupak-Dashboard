@@ -90,6 +90,14 @@ export interface FleetOrderSummary {
   assignedOrderIds?: string[];
   /** Order IDs marked as delivered (for checklist) */
   completedOrderIds?: string[];
+  /** Actual delivery addresses from assigned orders (for real route mapping) */
+  deliveryAddresses?: string[];
+  /** Driver's last known GPS latitude (synced from Laku-Driver app) */
+  driverLat?: number | null;
+  /** Driver's last known GPS longitude */
+  driverLng?: number | null;
+  /** ISO timestamp of when the driver location was last updated */
+  driverLocationAt?: string | null;
   /** Distance left (km) – trip form / display only */
   distanceLeftKm?: number;
 }
