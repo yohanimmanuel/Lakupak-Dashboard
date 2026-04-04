@@ -1,7 +1,8 @@
 /**
- * Send push notifications to marketplace (mobile) users via Expo Push API.
- * Uses FCM on Android and APNs on iOS under the hood. Tokens are stored
- * in PushNotificationToken (Expo push tokens from the app).
+ * Send push notifications via Expo Push API.
+ * - Marketplace buyers  → sendExpoPushToMarketplaceUser (PushNotificationToken table)
+ * - Drivers             → sendExpoPushToDriver (DriverPushNotificationToken table)
+ * Uses FCM on Android and APNs on iOS under the hood.
  */
 import { prisma } from '@/lib/db';
 
@@ -82,6 +83,72 @@ export async function sendExpoPushToMarketplaceUser(
     return { tokenCount: expoTokens.length };
   } catch (e) {
     console.error('[ExpoPush] error:', e);
+    return { tokenCount: 0 };
+  }
+}
+
+/**
+ * Send a push notification to all active Expo push tokens for a driver.
+ * Best-effort: logs errors but does not throw.
+ */
+export async function sendExpoPushToDriver(
+  driverId: number,
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<{ tokenCount: number }> {
+  try {
+    const rows = await prisma.driverPushNotificationToken.findMany({
+      where: { driverId, isActive: true },
+      select: { token: true },
+    });
+    const expoTokens = rows.map((r) => r.token).filter(isExpoPushToken);
+
+    if (expoTokens.length === 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[ExpoPush] No driver tokens for driverId', driverId);
+      }
+      return { tokenCount: 0 };
+    }
+
+    const payload = {
+      to: expoTokens,
+      title,
+      body,
+      data: data ?? {},
+      sound: 'default' as const,
+      channelId: 'driver',
+      priority: 'high' as const,
+    };
+
+    const res = await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      console.error('[ExpoPush] driver send failed:', res.status, text);
+      return { tokenCount: 0 };
+    }
+
+    try {
+      const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
+      const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
+      if (errors.length > 0 && process.env.NODE_ENV === 'development') {
+        console.warn('[ExpoPush] driver delivery errors:', errors.map((e) => e?.message || e));
+      }
+    } catch { /* ignore */ }
+
+    return { tokenCount: expoTokens.length };
+  } catch (e) {
+    console.error('[ExpoPush] driver error:', e);
     return { tokenCount: 0 };
   }
 }

@@ -883,8 +883,26 @@ model Driver {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fleets        Fleet[]
   failedReasons OrderFailedReason[]
+  pushTokens    DriverPushNotificationToken[]
 
   @@index([userId])
+}
+
+/// Expo push notification tokens for Laku-Driver app users.
+model DriverPushNotificationToken {
+  id        Int      @id @default(autoincrement())
+  driverId  Int
+  token     String   @unique
+  platform  String   // 'ios' | 'android'
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([token])
+  @@index([isActive])
 }
 
 /// A pending request from a driver to join a distributor's fleet.

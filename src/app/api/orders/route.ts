@@ -35,7 +35,7 @@ import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackO
 import { validateVariant, parseVariantPrice } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate, broadcastProductUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
-import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { sendExpoPushToMarketplaceUser, sendExpoPushToDriver } from '@/utils/expoPush';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { 
   orderQueryRateLimiter,
@@ -1887,6 +1887,51 @@ export async function PUT(request: NextRequest) {
         }
       } catch (notifError) {
         // Don't fail the order update if notification fails
+      }
+
+      // Notify the assigned driver when an order in their fleet changes status
+      try {
+        const orderWithFleet = await prisma.order.findUnique({
+          where: { orderId: order.orderId },
+          select: { fleet: { select: { driverId: true, fleetCode: true } } },
+        });
+        const driverId = orderWithFleet?.fleet?.driverId;
+        const fleetCode = orderWithFleet?.fleet?.fleetCode;
+        if (driverId) {
+          const orderStatus = String(sanitizedData.orderStatus);
+          let driverTitle = 'Order Update';
+          let driverBody = `Order #${order.orderId} in your fleet is now ${orderStatus}.`;
+          switch (orderStatus) {
+            case 'Packed':
+              driverTitle = '📦 New Delivery Ready';
+              driverBody = `Order #${order.orderId}${fleetCode ? ` · Fleet ${fleetCode}` : ''} is packed and ready for pickup.`;
+              break;
+            case 'Shipped':
+              driverTitle = '🚛 Delivery In Progress';
+              driverBody = `Order #${order.orderId} has been marked as shipped.`;
+              break;
+            case 'Delivered':
+              driverTitle = '✅ Delivery Confirmed';
+              driverBody = `Order #${order.orderId} has been confirmed as delivered.`;
+              break;
+            case 'Cancelled':
+              driverTitle = '❌ Order Cancelled';
+              driverBody = `Order #${order.orderId} in your fleet has been cancelled.`;
+              break;
+            case 'Failed':
+              driverTitle = '⚠️ Delivery Failed';
+              driverBody = `Order #${order.orderId} delivery has been marked as failed.`;
+              break;
+          }
+          await sendExpoPushToDriver(driverId, driverTitle, driverBody, {
+            type: 'order_updated',
+            orderId: order.orderId,
+            orderStatus,
+            fleetCode: fleetCode ?? '',
+          });
+        }
+      } catch {
+        // Best-effort — never fail the order update because of driver notification
       }
     }
 

@@ -3,6 +3,7 @@ import { type Prisma } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastNotification } from '@/utils/websocketBroadcast';
+import { sendExpoPushToDriver } from '@/utils/expoPush';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -765,13 +766,35 @@ export const logisticsResolvers = {
       });
 
       if (driverIdUpdate && driverIdUpdate !== existingFleet.driverId) {
+        const fleetCode = row.fleetCode;
+        const route = row.route ?? '';
+        // Push notification (Expo) + WebSocket broadcast in parallel — both best-effort
+        sendExpoPushToDriver(
+          driverIdUpdate,
+          '🚛 New Fleet Assigned',
+          `Fleet ${fleetCode}${route ? ` · ${route}` : ''} has been assigned to you.`,
+          { type: 'fleet_assigned', fleetId: String(row.id), fleetCode },
+        ).catch(() => {});
         broadcastNotification(
           'fleet_assigned',
           'New fleet assigned',
-          `Fleet ${row.fleetCode} has been assigned to you.`,
-          { fleetId: row.id, fleetCode: row.fleetCode },
+          `Fleet ${fleetCode} has been assigned to you.`,
+          { fleetId: row.id, fleetCode },
           driverIdUpdate,
         ).catch(() => {});
+      }
+
+      // Notify when orders are added to an already-assigned fleet
+      if (input.assignedOrderIds !== undefined && row.driverId && row.driverId !== 0) {
+        const newOrderIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
+        if (newOrderIds.length > 0) {
+          sendExpoPushToDriver(
+            row.driverId,
+            '📦 Fleet Updated',
+            `${newOrderIds.length} order${newOrderIds.length > 1 ? 's' : ''} added to fleet ${row.fleetCode}.`,
+            { type: 'orders_added', fleetId: String(row.id), fleetCode: row.fleetCode },
+          ).catch(() => {});
+        }
       }
 
       return mapFleet(row);
