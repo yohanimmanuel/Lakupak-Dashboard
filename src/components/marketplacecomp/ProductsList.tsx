@@ -89,7 +89,7 @@ export default function ProductsList({ products }: ProductsListProps) {
           href="/products"
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
         >
-          Manage in Products
+          Manage Products
           <ExternalLink className="w-4 h-4" />
         </Link>
       </div>

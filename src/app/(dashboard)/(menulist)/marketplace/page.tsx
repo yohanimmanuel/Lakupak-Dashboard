@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
 import ProductsList from '@/components/marketplacecomp/ProductsList';
 import MarketplacePerformance from '@/components/marketplacecomp/MarketplacePerformance';
-import StorefrontInfo from '@/components/marketplacecomp/StorefrontInfo';
+import DistributorInfo from '@/components/marketplacecomp/DistributorInfo';
 import { Calendar, RefreshCw, ChevronDown } from 'lucide-react';
 
 interface ProductVariantOption {
@@ -239,8 +239,8 @@ export default function MarketplacePage() {
           overallMetrics={overallMetrics}
         />
 
-        {/* Storefront Info Section */}
-        <StorefrontInfo company={company} userCurrency={userCurrency} products={products} />
+        {/* Distributor info (B2B marketplace) */}
+        <DistributorInfo company={company} userCurrency={userCurrency} products={products} />
       </div>
     </div>
   );
