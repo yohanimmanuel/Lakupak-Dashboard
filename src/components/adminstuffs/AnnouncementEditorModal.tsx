@@ -121,8 +121,8 @@ export default function AnnouncementEditorModal({
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-2xl bg-white rounded-lg border border-[#e6e6e6] shadow-xl overflow-hidden">
-        <div className="h-16 px-5 flex items-center justify-between border-b border-[#e6e6e6]">
+      <div className="w-full max-w-2xl bg-white rounded-lg border border-[#e6e6e6] max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
+        <div className="h-16 p-4 flex items-center justify-between border-b border-[#e6e6e6]">
           <div>
             <p className="text-base font-semibold text-gray-900">
               {mode === 'create' ? 'Create announcement' : 'Edit announcement'}
@@ -138,7 +138,7 @@ export default function AnnouncementEditorModal({
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {error ? (
             <div className="border border-red-200 bg-red-50 rounded-lg px-4 py-3 text-sm text-red-700">
               {error}
@@ -258,7 +258,7 @@ export default function AnnouncementEditorModal({
                   <img
                     src={imageUrl}
                     alt="Announcement"
-                    className="mt-3 w-full h-28 object-cover rounded-lg border border-gray-200"
+                    className="mt-3 w-full h-[250px] object-cover rounded-lg border border-gray-200"
                   />
                 ) : null}
               </div>
@@ -285,7 +285,7 @@ export default function AnnouncementEditorModal({
           </button>
         </div>
 
-        <div className="px-5 py-4 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+        <div className="p-4 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
           <button
             onClick={onCloseAction}
             className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
