@@ -921,3 +921,37 @@ model DriverRequest {
   @@index([distributorEmail])
   @@index([status])
 }
+
+/// Platform administrators (Laku internal) — separate from distributor `User`.
+/// Used for managing marketplace-wide updates, banners, suspensions, etc.
+model PlatformAdmin {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  announcements PlatformAnnouncement[]
+}
+
+/// Marketplace-wide announcements shown in mobile "Latest updates".
+model PlatformAnnouncement {
+  id            Int      @id @default(autoincrement())
+  title         String
+  body          String
+  category      String   @default("update") // 'update' | 'promotion' | 'maintenance' etc.
+  imageUrl      String?
+  linkUrl       String?
+  isPublished   Boolean  @default(false)
+  publishedAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  createdByAdminId Int?
+  createdByAdmin   PlatformAdmin? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([isPublished, publishedAt])
+  @@index([category])
+}
