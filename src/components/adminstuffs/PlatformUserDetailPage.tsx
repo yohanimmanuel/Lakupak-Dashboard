@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   Building2,
+  Ban,
+  CheckCircle2,
   Loader2,
   MapPin,
   Navigation,
@@ -160,10 +162,166 @@ function DistributorSection({
   );
 }
 
+function SuspendDistributorControl({
+  userId,
+  isSuspended,
+  onUpdated,
+}: {
+  userId: number;
+  isSuspended: boolean;
+  onUpdated: (next: { isSuspended: boolean; suspendedAt: string | null; suspensionReason: string | null }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const nextSuspended = !isSuspended;
+      const res = await fetch(`/api/platform-admin/users/dashboard/${userId}/suspension`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ isSuspended: nextSuspended, reason: nextSuspended ? reason : null }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        user?: { isSuspended: boolean; suspendedAt: string | null; suspensionReason: string | null };
+      };
+      if (!res.ok) throw new Error(data?.error || 'Failed to update suspension');
+      const u = data.user;
+      if (!u) throw new Error('Invalid response');
+
+      onUpdated({
+        isSuspended: Boolean(u.isSuspended),
+        suspendedAt: u.suspendedAt ?? null,
+        suspensionReason: u.suspensionReason ?? null,
+      });
+      setOpen(false);
+      setReason('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to update suspension');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setErr(null);
+          setOpen(true);
+        }}
+        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
+          isSuspended
+            ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+            : 'bg-white text-red-700 border-red-200 hover:bg-red-50'
+        }`}
+      >
+        {isSuspended ? (
+          <>
+            <CheckCircle2 className="w-4 h-4" />
+            Unsuspend
+          </>
+        ) : (
+          <>
+            <Ban className="w-4 h-4" />
+            Suspend
+          </>
+        )}
+      </button>
+
+      {open ? (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md bg-white rounded-lg border border-[#e6e6e6] shadow-xl overflow-hidden">
+            <div className="h-14 px-4 flex items-center justify-between border-b border-[#e6e6e6]">
+              <h2 className="text-base font-semibold text-gray-900">{isSuspended ? 'Unsuspend distributor' : 'Suspend distributor'}</h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-700 disabled:opacity-50"
+                disabled={busy}
+                aria-label="Close"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {isSuspended ? (
+                <p className="text-sm text-gray-600">This will restore dashboard access for this distributor.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Suspending will block this distributor from signing in and using the dashboard.
+                  </p>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Reason (optional)</label>
+                    <textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      className="mt-1 w-full min-h-[84px] rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                      placeholder="e.g. Commission overdue, compliance breach, repeated violations…"
+                      disabled={busy}
+                    />
+                  </div>
+                </>
+              )}
+
+              {err ? (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>
+              ) : null}
+            </div>
+
+            <div className="p-4 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={busy}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 ${
+                  isSuspended ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {busy ? 'Saving…' : isSuspended ? 'Unsuspend' : 'Suspend'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 type ApiOk =
   | { source: 'dashboard'; data: Record<string, unknown> }
   | { source: 'marketplace'; data: Record<string, unknown> }
   | { source: 'driver'; data: Record<string, unknown> };
+
+function formatRelative(v: string | Date | null | undefined) {
+  if (!v) return null;
+  const d = typeof v === 'string' ? new Date(v) : v;
+  if (Number.isNaN(d.getTime())) return null;
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function PlatformUserDetailPage() {
   const params = useParams();
@@ -238,6 +396,9 @@ export default function PlatformUserDetailPage() {
       updatedAt: string;
       company: Record<string, unknown> | null;
       _count: Record<string, number>;
+      isSuspended?: boolean;
+      suspendedAt?: string | Date | null;
+      suspensionReason?: string | null;
     };
     const c = u.company;
     const displayName = (u.name || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email) as string;
@@ -246,6 +407,11 @@ export default function PlatformUserDetailPage() {
     const shippingItems = c ? parseStringList(c.shippingPreferences) : [];
     const slotItems = c ? parseStringList(c.deliveryTimeSlots) : [];
     const dayItems = c ? parseStringList(c.preferredDeliveryDays) : [];
+
+    const isSuspended = Boolean(u.isSuspended);
+    const suspendedAtLabel = u.suspendedAt ? formatDt(u.suspendedAt) : null;
+    const suspendedAtRelative = u.suspendedAt ? formatRelative(u.suspendedAt) : null;
+    const suspensionReason = (u.suspensionReason ?? '').trim();
 
     const complianceLabel = c ? String(c.complianceStatus ?? 'Pending').trim() || 'Pending' : '';
     const compliancePending =
@@ -298,9 +464,92 @@ export default function PlatformUserDetailPage() {
               ) : null}
             </p>
           </div>
+          <div className="sm:text-right">
+            {isSuspended ? (
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-900 text-xs font-semibold">
+                <Ban className="w-4 h-4" />
+                Suspended
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs font-semibold">
+                <CheckCircle2 className="w-4 h-4" />
+                Active
+              </span>
+            )}
+            {isSuspended && (suspendedAtLabel || suspensionReason) ? (
+              <div className="mt-2 text-[11px] text-gray-600 max-w-[320px] sm:ml-auto">
+                {suspendedAtLabel ? (
+                  <div>
+                    Since <span className="font-medium text-gray-800">{suspendedAtLabel}</span>
+                    {suspendedAtRelative ? <span className="text-gray-400"> · {suspendedAtRelative}</span> : null}
+                  </div>
+                ) : null}
+                {suspensionReason ? (
+                  <div className="mt-1">
+                    Reason: <span className="text-gray-800">{suspensionReason}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="space-y-5">
+          <DistributorSection title="Account access (suspension)" icon={Ban}>
+            <p className="text-xs text-gray-600 mb-3">
+              Suspending a distributor blocks dashboard access and can be used for compliance or payment enforcement.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  Status:{' '}
+                  <span className={isSuspended ? 'text-red-700' : 'text-emerald-700'}>
+                    {isSuspended ? 'Suspended' : 'Active'}
+                  </span>
+                </p>
+                {isSuspended ? (
+                  <>
+                    <p className="text-xs text-gray-600">
+                      This account is currently blocked from using the dashboard.
+                    </p>
+                    {suspendedAtLabel ? (
+                      <p className="text-xs text-gray-500">
+                        Suspended at <span className="font-medium text-gray-700">{suspendedAtLabel}</span>
+                        {suspendedAtRelative ? <span className="text-gray-400"> · {suspendedAtRelative}</span> : null}
+                      </p>
+                    ) : null}
+                    {suspensionReason ? (
+                      <p className="text-xs text-gray-600">
+                        Reason: <span className="text-gray-800">{suspensionReason}</span>
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-600">This account can sign in and use the dashboard normally.</p>
+                )}
+              </div>
+
+              <SuspendDistributorControl
+                userId={u.id}
+                isSuspended={isSuspended}
+                onUpdated={(next) => {
+                  setState((prev) => {
+                    if ('body' in prev && prev.body.source === 'dashboard') {
+                      return {
+                        loading: false,
+                        body: {
+                          source: 'dashboard',
+                          data: { ...(prev.body.data as Record<string, unknown>), ...next },
+                        },
+                      };
+                    }
+                    return prev;
+                  });
+                }}
+              />
+            </div>
+          </DistributorSection>
+
           <DistributorSection title="Login & profile" icon={UserCircle}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
               <DistributorField label="Email">

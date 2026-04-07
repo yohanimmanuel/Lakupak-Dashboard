@@ -27,12 +27,13 @@ export async function GET(req: NextRequest) {
   try {
     requirePlatformAdminId(req);
     const { searchParams } = new URL(req.url);
-    const allowedSources = new Set(['all', 'dashboard', 'marketplace', 'driver'] as const);
+    type AllowedSource = 'all' | 'dashboard' | 'marketplace' | 'driver';
+    const allowedSources = new Set<AllowedSource>(['all', 'dashboard', 'marketplace', 'driver']);
     const rawSource = (searchParams.get('source') ?? 'all').toLowerCase();
-    if (!allowedSources.has(rawSource as any)) {
+    if (!allowedSources.has(rawSource as AllowedSource)) {
       return NextResponse.json({ error: 'Invalid source' }, { status: 400, headers });
     }
-    const source = rawSource as 'all' | 'dashboard' | 'marketplace' | 'driver';
+    const source = rawSource as AllowedSource;
     const search = (searchParams.get('search') ?? '').trim();
     const take = Math.min(Math.max(Number(searchParams.get('limit') ?? '500') || 500, 1), 2000);
 

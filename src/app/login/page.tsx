@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
 import { 
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setUser = useUserStore(state => state.setUser);
   
   // Enhanced hooks for production features
@@ -30,6 +31,13 @@ export default function LoginPage() {
   
   // Performance tracking
   useAuthPerformanceTracking('Login');
+
+  useEffect(() => {
+    const err = searchParams?.get('error');
+    if (err === 'ACCOUNT_SUSPENDED') {
+      handleError({ error: "Your account is suspended. Please contact support." });
+    }
+  }, [searchParams, handleError]);
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +71,11 @@ export default function LoginPage() {
       });
       
       if (result?.error) {
-        handleError({ error: "Invalid email or password" });
+        if (result.error === 'ACCOUNT_SUSPENDED') {
+          handleError({ error: "Your account is suspended. Please contact support." });
+        } else {
+          handleError({ error: "Invalid email or password" });
+        }
         return;
       }
       

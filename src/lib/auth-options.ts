@@ -54,6 +54,10 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) {
           return null;
         }
+        if (user.isSuspended) {
+          // Prevent login for suspended distributor accounts.
+          throw new Error("ACCOUNT_SUSPENDED");
+        }
 
         const isValid = await compare(credentials.password, user.password);
         if (!isValid) {
@@ -76,6 +80,7 @@ export const authOptions: NextAuthOptions = {
           region: user.region,
           currency: user.currency,
           language: user.language,
+          isSuspended: user.isSuspended ?? false,
         };
       }
     }),
@@ -111,6 +116,11 @@ export const authOptions: NextAuthOptions = {
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
+          if (existing.isSuspended) {
+            // Surface suspension to the client instead of silently denying.
+            // NextAuth `signIn` callback supports returning a string to redirect.
+            return '/login?error=ACCOUNT_SUSPENDED';
+          }
           const linked = await prisma.account.findFirst({
             where: { provider: account.provider, providerAccountId: account.providerAccountId as string },
           });
@@ -190,6 +200,9 @@ export const authOptions: NextAuthOptions = {
               token.region = dbUser.region;
               token.currency = dbUser.currency;
               token.language = dbUser.language;
+              token.isSuspended = dbUser.isSuspended ?? false;
+              token.suspendedAt = dbUser.suspendedAt ? dbUser.suspendedAt.toISOString() : null;
+              token.suspensionReason = dbUser.suspensionReason ?? null;
 
               if (account?.provider === "google" && profile) {
                 const googleName = (profile.name as string) || '';
@@ -259,7 +272,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token?.sub && session.user) {
         const extendedUser = session.user as typeof session.user & {
-          id: number;
+          id: string;
           firstName: string | null;
           lastName: string | null;
           phone: string | null;
@@ -271,15 +284,19 @@ export const authOptions: NextAuthOptions = {
           region: string | null;
           currency: string | null;
           language: string | null;
+          isSuspended?: boolean;
+          suspendedAt?: string | null;
+          suspensionReason?: string | null;
         };
 
-        const userId = typeof token.sub === 'string' ? parseInt(token.sub, 10) : token.sub as number;
+        const userIdStr = String(token.sub);
+        const userIdNum = Number.parseInt(userIdStr, 10);
 
-        if (isNaN(userId)) {
+        if (Number.isNaN(userIdNum)) {
           console.error("[NextAuth][SECURITY] Invalid user ID in session token - aborting session creation", {
             tokenSub: token.sub,
             tokenSubType: typeof token.sub,
-            parsedValue: userId,
+            parsedValue: userIdNum,
             userEmail: session.user?.email,
             hasEmail: !!session.user?.email,
             timestamp: new Date().toISOString()
@@ -287,7 +304,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid user ID in session token - session creation aborted");
         }
 
-        extendedUser.id = userId;
+        extendedUser.id = userIdStr;
         extendedUser.firstName = (token as { firstName?: string }).firstName || null;
         extendedUser.lastName = (token as { lastName?: string }).lastName || null;
         extendedUser.phone = (token as { phone?: string }).phone || null;
@@ -299,6 +316,9 @@ export const authOptions: NextAuthOptions = {
         extendedUser.region = (token as { region?: string }).region || null;
         extendedUser.currency = (token as { currency?: string }).currency || null;
         extendedUser.language = (token as { language?: string }).language || null;
+        extendedUser.isSuspended = token.isSuspended ?? false;
+        extendedUser.suspendedAt = token.suspendedAt ?? null;
+        extendedUser.suspensionReason = token.suspensionReason ?? null;
       }
       return session;
     },

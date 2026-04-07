@@ -238,9 +238,9 @@ export default function AnnouncementsTable({
       const settled = await Promise.allSettled(
         idsToDelete.map(async (id) => {
           const res = await fetch(`/api/platform-admin/announcements/${id}`, { method: 'DELETE' });
-          const data = res.ok ? null : await res.json().catch(() => ({}));
+          const data = res.ok ? null : ((await res.json().catch(() => ({}))) as { error?: string });
           if (!res.ok) {
-            throw new Error((data as any)?.error || `Delete failed (id ${id})`);
+            throw new Error(data?.error || `Delete failed (id ${id})`);
           }
           return id;
         })

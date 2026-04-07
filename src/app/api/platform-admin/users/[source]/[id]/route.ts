@@ -27,6 +27,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
         where: { id },
         select: {
           id: true,
+          isSuspended: true,
+          suspendedAt: true,
+          suspensionReason: true,
           firstName: true,
           lastName: true,
           email: true,
