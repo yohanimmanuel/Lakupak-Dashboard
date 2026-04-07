@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import AnnouncementEditorModal, { EditableAnnouncement } from '@/components/adminstuffs/AnnouncementEditorModal';
 import AnnouncementsTable, { AnnouncementRow } from '@/components/adminstuffs/AnnouncementsTable';
@@ -9,6 +9,10 @@ export default function PlatformAdminAnnouncementsPage() {
   const [rows, setRows] = useState<AnnouncementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+
+  const applyRowsAction = (updater: (prev: AnnouncementRow[]) => AnnouncementRow[]) => {
+    setRows((prev) => updater(prev));
+  };
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
@@ -28,15 +32,6 @@ export default function PlatformAdminAnnouncementsPage() {
   useEffect(() => {
     load().catch(() => {});
   }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
-      const hay = `${r.title} ${r.body} ${r.category}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [rows, query]);
 
   const openCreate = () => {
     setEditorMode('create');
@@ -97,7 +92,13 @@ export default function PlatformAdminAnnouncementsPage() {
       {loading ? (
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-5 text-sm text-gray-600">Loading…</div>
       ) : (
-        <AnnouncementsTable rows={filtered} onEditAction={openEdit} onRefreshAction={load} />
+        <AnnouncementsTable
+          rows={rows}
+          searchQuery={query}
+          onEditAction={openEdit}
+          onRefreshAction={load}
+          onApplyRowsAction={applyRowsAction}
+        />
       )}
 
       <AnnouncementEditorModal

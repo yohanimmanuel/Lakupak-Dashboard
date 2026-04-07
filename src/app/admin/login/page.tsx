@@ -13,11 +13,13 @@ export default function PlatformAdminLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       const res = await fetch('/api/platform-admin/login', {
         method: 'POST',
@@ -29,7 +31,9 @@ export default function PlatformAdminLoginPage() {
         setError(data?.error || 'Login failed');
         return;
       }
-      router.replace(nextPath);
+      setSuccess('Login successful. Redirecting…');
+      // Small delay so the admin sees the success state.
+      setTimeout(() => router.replace(nextPath), 400);
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -69,7 +73,12 @@ export default function PlatformAdminLoginPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {success ? (
+            <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              {success}
+            </div>
+          ) : null}
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           <button
             disabled={loading}

@@ -52,6 +52,7 @@ export default function AnnouncementEditorModal({
   }, [open, initial]);
 
   const canSave = useMemo(() => title.trim().length >= 3 && body.trim().length >= 3, [title, body]);
+  const isSaveDisabled = !canSave || saving || uploadingImage;
 
   const categoryOptions = useMemo(
     () => [
@@ -295,7 +296,7 @@ export default function AnnouncementEditorModal({
           </button>
           <button
             onClick={save}
-            disabled={!canSave || saving}
+            disabled={isSaveDisabled}
             className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white text-sm font-medium hover:bg-[#084ba6] disabled:opacity-50 disabled:hover:bg-[#0a61d7]"
           >
             {saving ? 'Saving…' : 'Save'}

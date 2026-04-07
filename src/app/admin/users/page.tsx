@@ -1,27 +1,21 @@
 'use client';
 
 import React from 'react';
+import ManageUsersTable from '@/components/adminstuffs/ManageUsersTable';
 
 export default function AdminUsersPage() {
   return (
-    <div className="space-y-3">
-      <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
-        <p className="text-sm font-semibold text-gray-900">Manage users</p>
-        <p className="text-xs text-gray-600 mt-1">
-          Search distributors and marketplace users, view status, and manage suspensions (coming next).
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Manage users</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            View distributors (dashboard), marketplace accounts, and drivers in one place.
+          </p>
+        </div>
       </div>
 
-      <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">
-        This page is a placeholder for the MVP navigation. Next we’ll add:
-        <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-          <li>Distributor (`User`) lookup by email/name</li>
-          <li>Marketplace user lookup by phone/email</li>
-          <li>Suspend / unsuspend actions</li>
-          <li>Audit trail</li>
-        </ul>
-      </div>
+      <ManageUsersTable />
     </div>
   );
 }
-
