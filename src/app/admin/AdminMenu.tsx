@@ -85,10 +85,14 @@ export default function AdminMenu() {
         <button
           onClick={logout}
           disabled={signingOut}
-          className="w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          className={`w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 ${
+            !shouldShowExpanded ? 'px-2' : ''
+          }`}
+          title={!shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : undefined}
+          aria-label={!shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : undefined}
         >
           <LogOut className="w-4 h-4" />
-          {signingOut ? 'Signing out…' : 'Sign out'}
+          {shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : null}
         </button>
       </div>
     </div>
