@@ -2830,11 +2830,11 @@ const supplierInsights = useMemo(() => {
       {isWidgetManagerOpen && (
         <div
           ref={widgetManagerRef}
-          className="border border-[#e6e6e6] bg-white"
+          className="bg-white"
         >
-          <div className="flex items-start justify-between border-b border-[#e6e6e6] px-5 py-4">
+          <div className="flex items-start justify-between p-4 -mb-2">
             <div>
-              <h3 className="text-sm font-semibold text-black">Widget Library</h3>
+              <h3 className="text-md font-semibold text-black">Widget Library</h3>
               <p className="text-xs text-gray-500">
                 Drag widgets above to rearrange or add new modules.
               </p>
@@ -2848,8 +2848,8 @@ const supplierInsights = useMemo(() => {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="overflow-x-auto px-5 py-5">
-            <div className="flex min-w-full items-stretch gap-4">
+          <div className="overflow-x-auto p-4">
+            <div className="flex min-w-full items-stretch gap-3">
               {WIDGET_LIBRARY.map((widget) => {
                 const Icon = widget.icon;
                 const isActive = widgetOrder.includes(widget.id);
@@ -2859,7 +2859,7 @@ const supplierInsights = useMemo(() => {
                     draggable
                     onDragStart={(event) => handleLibraryDragStart(event, widget.id)}
                     onDragEnd={handleDragEnd}
-                    className={`group flex min-w-[22rem] max-w-[22rem] cursor-grab flex-col justify-between rounded-lg border border-[#e6e6e6] bg-white p-5 transition hover:border-[#0a61d7] active:cursor-grabbing ${
+                    className={`group flex min-w-[22rem] max-w-[22rem] cursor-grab flex-col justify-between rounded-lg border border-[#e6e6e6] bg-white p-4 transition hover:border-[#0a61d7] active:cursor-grabbing ${
                       isActive ? 'opacity-95' : ''
                     }`}
                   >
