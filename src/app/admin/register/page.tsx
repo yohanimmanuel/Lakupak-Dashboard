@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function PlatformAdminRegisterPage() {
   const router = useRouter();
@@ -43,9 +44,10 @@ export default function PlatformAdminRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1220] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0A61D7] flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-xl border border-[#e6e6e6] shadow-sm p-6">
-        <h1 className="text-xl font-semibold text-gray-900">Create platform admin</h1>
+        <Image src="/LakuTextLogo.svg" alt="Laku" width={100} height={100} />
+        <h1 className="text-xl font-semibold text-gray-900 mt-4">Create platform admin</h1>
         <p className="text-sm text-gray-600 mt-1">
           First-time setup only. Requires the bootstrap key.
         </p>

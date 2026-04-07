@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 
 export default function PlatformAdminLoginPage() {
   const router = useRouter();
@@ -42,9 +43,10 @@ export default function PlatformAdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1220] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0A61D7] flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-xl border border-[#e6e6e6] shadow-sm p-6">
-        <h1 className="text-xl font-semibold text-gray-900">Platform Admin</h1>
+        <Image src="/LakuTextLogo.svg" alt="Laku" width={100} height={100} />
+        <h1 className="text-xl font-semibold text-gray-900 mt-4">Platform Admin</h1>
         <p className="text-sm text-gray-600 mt-1">Sign in to manage Laku platform settings.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
