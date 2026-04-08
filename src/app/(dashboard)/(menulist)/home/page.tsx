@@ -2618,13 +2618,13 @@ const supplierInsights = useMemo(() => {
                   {hasCampaigns ? (
                     <>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <div className="rounded bg-gray-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-black">{campaignMetrics.totalCampaigns}</p>
-                          <p className="text-[10px] uppercase text-gray-500">Total</p>
+                        <div className="rounded bg-emerald-50 p-2 text-center">
+                          <p className="text-lg font-semibold text-emerald-700">{campaignMetrics.totalCampaigns}</p>
+                          <p className="text-[10px] uppercase text-emerald-600">Total</p>
                         </div>
                         <div className="rounded bg-amber-50 p-2 text-center">
                           <p className="text-lg font-semibold text-amber-700">{campaignMetrics.plannedCount}</p>
-                          <p className="text-[10px] uppercase text-amber-600">Planned</p>
+                          <p className="text-[10px] uppercase text-amber-600">Draft</p>
                         </div>
                         <div className="rounded bg-blue-50 p-2 text-center">
                           <p className="text-lg font-semibold text-[#0a61d7]">{campaignMetrics.sentCount}</p>
