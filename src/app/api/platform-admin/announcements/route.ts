@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { notifyMarketplacePublishedAnnouncement } from '@/utils/platformAnnouncementNotify';
 
 function parseLimit(req: NextRequest): number {
   const { searchParams } = new URL(req.url);
@@ -100,15 +101,30 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const announcementJson = {
+      ...created,
+      publishedAt: created.publishedAt ? created.publishedAt.toISOString() : null,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    };
+
+    if (created.isPublished) {
+      void notifyMarketplacePublishedAnnouncement({
+        id: created.id,
+        title: created.title,
+        body: created.body,
+        category: created.category,
+        imageUrl: created.imageUrl,
+        linkUrl: created.linkUrl,
+        publishedAt: announcementJson.publishedAt,
+        createdAt: announcementJson.createdAt,
+      });
+    }
+
     return NextResponse.json(
       {
         ok: true,
-        announcement: {
-          ...created,
-          publishedAt: created.publishedAt ? created.publishedAt.toISOString() : null,
-          createdAt: created.createdAt.toISOString(),
-          updatedAt: created.updatedAt.toISOString(),
-        },
+        announcement: announcementJson,
       },
       { status: 201, headers }
     );

@@ -87,6 +87,81 @@ export async function sendExpoPushToMarketplaceUser(
   }
 }
 
+const EXPO_BATCH_SIZE = 90;
+
+/**
+ * Broadcast-style push to every active marketplace Expo token (all users).
+ * Used for platform-wide announcements. Chunked for Expo API limits.
+ */
+export async function sendExpoPushToAllMarketplaceUsers(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<{ tokenCount: number }> {
+  try {
+    const rows = await prisma.pushNotificationToken.findMany({
+      where: { isActive: true },
+      select: { token: true },
+    });
+    const seen = new Set<string>();
+    const expoTokens: string[] = [];
+    for (const r of rows) {
+      if (!r.token || seen.has(r.token)) continue;
+      if (!isExpoPushToken(r.token)) continue;
+      seen.add(r.token);
+      expoTokens.push(r.token);
+    }
+
+    if (expoTokens.length === 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[ExpoPush] No marketplace tokens for broadcast');
+      }
+      return { tokenCount: 0 };
+    }
+
+    let sent = 0;
+    for (let i = 0; i < expoTokens.length; i += EXPO_BATCH_SIZE) {
+      const slice = expoTokens.slice(i, i + EXPO_BATCH_SIZE);
+      const messages = slice.map((to) => ({
+        to,
+        title,
+        body,
+        data: data ?? {},
+        sound: 'default' as const,
+        channelId: 'default',
+        priority: 'high' as const,
+      }));
+
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messages),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        console.error('[ExpoPush] broadcast batch failed:', res.status, text);
+        continue;
+      }
+      sent += slice.length;
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[ExpoPush] Broadcast sent to ~', sent, 'token(s)');
+    }
+
+    return { tokenCount: sent };
+  } catch (e) {
+    console.error('[ExpoPush] broadcast error:', e);
+    return { tokenCount: 0 };
+  }
+}
+
 /**
  * Send a push notification to all active Expo push tokens for a driver.
  * Best-effort: logs errors but does not throw.

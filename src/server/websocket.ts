@@ -28,12 +28,34 @@ interface ClientConnection {
   isAlive: boolean;
 }
 
+export type PlatformAnnouncementWsPayload = {
+  id: number;
+  title: string;
+  body: string;
+  category: string;
+  imageUrl: string | null;
+  linkUrl: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+};
+
 interface WebSocketMessage {
-  type: 'offer_updated' | 'product_updated' | 'prices_updated' | 'order_updated' | 'notification' | 'ping' | 'pong';
+  type:
+    | 'offer_updated'
+    | 'product_updated'
+    | 'prices_updated'
+    | 'order_updated'
+    | 'notification'
+    | 'platform_announcement_published'
+    | 'platform_announcement_unpublished'
+    | 'ping'
+    | 'pong';
   data?: unknown;
   productIds?: string[];
   offerIds?: string[];
   orderIds?: string[];
+  announcement?: PlatformAnnouncementWsPayload;
+  announcementId?: number;
   notification?: {
     type: string;
     title: string;
@@ -82,6 +104,10 @@ class MarketplaceWebSocketServer {
                   data.notification?.data,
                   data.notification?.targetUserId
                 );
+              } else if (data.type === 'platform_announcement_published' && data.announcement) {
+                this.broadcastPlatformAnnouncementPublished(data.announcement as PlatformAnnouncementWsPayload);
+              } else if (data.type === 'platform_announcement_unpublished' && typeof data.announcementId === 'number') {
+                this.broadcastPlatformAnnouncementUnpublished(data.announcementId);
               }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
@@ -294,6 +320,22 @@ class MarketplaceWebSocketServer {
       orderIds
     };
 
+    this.broadcast(message);
+  }
+
+  broadcastPlatformAnnouncementPublished(announcement: PlatformAnnouncementWsPayload): void {
+    const message: WebSocketMessage = {
+      type: 'platform_announcement_published',
+      announcement,
+    };
+    this.broadcast(message);
+  }
+
+  broadcastPlatformAnnouncementUnpublished(announcementId: number): void {
+    const message: WebSocketMessage = {
+      type: 'platform_announcement_unpublished',
+      announcementId,
+    };
     this.broadcast(message);
   }
 

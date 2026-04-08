@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { notifyMarketplacePublishedAnnouncement, notifyMarketplaceUnpublishedAnnouncement } from '@/utils/platformAnnouncementNotify';
 
 function getId(params: { announcementId?: string }) {
   const id = Number(params.announcementId);
@@ -36,6 +37,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ announcem
       return NextResponse.json({ error: 'No changes provided' }, { status: 400, headers });
     }
 
+    const prev = await prisma.platformAnnouncement.findUnique({
+      where: { id },
+      select: { isPublished: true },
+    });
+
     const updated = await prisma.platformAnnouncement.update({
       where: { id },
       data,
@@ -53,15 +59,33 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ announcem
       },
     });
 
+    const announcementJson = {
+      ...updated,
+      publishedAt: updated.publishedAt ? updated.publishedAt.toISOString() : null,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
+
+    if (updated.isPublished && !prev?.isPublished) {
+      void notifyMarketplacePublishedAnnouncement({
+        id: updated.id,
+        title: updated.title,
+        body: updated.body,
+        category: updated.category,
+        imageUrl: updated.imageUrl,
+        linkUrl: updated.linkUrl,
+        publishedAt: announcementJson.publishedAt,
+        createdAt: announcementJson.createdAt,
+      });
+    }
+    if (!updated.isPublished && prev?.isPublished) {
+      void notifyMarketplaceUnpublishedAnnouncement(updated.id);
+    }
+
     return NextResponse.json(
       {
         ok: true,
-        announcement: {
-          ...updated,
-          publishedAt: updated.publishedAt ? updated.publishedAt.toISOString() : null,
-          createdAt: updated.createdAt.toISOString(),
-          updatedAt: updated.updatedAt.toISOString(),
-        },
+        announcement: announcementJson,
       },
       { status: 200, headers }
     );
