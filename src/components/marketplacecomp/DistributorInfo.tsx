@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Store, Truck, Package, Clock, Settings } from 'lucide-react';
+import { Store, Truck, Package, Clock, Settings, Users } from 'lucide-react';
 import { generateSlug } from '@/utils/slugUtils';
 
 interface Product {
@@ -26,12 +26,16 @@ export interface DistributorInfoProps {
   company?: Company;
   userCurrency?: string;
   products?: Product[];
+  buyersCount?: number;
+  followersCount?: number;
 }
 
 export default function DistributorInfo({
   company,
   userCurrency: _userCurrency = 'IDR',
   products = [],
+  buyersCount = 0,
+  followersCount = 0,
 }: DistributorInfoProps) {
   const distributorName = company?.name || 'Your distributor name';
   const distributorAddress = company?.businessAddress || 'Not set';
@@ -39,6 +43,9 @@ export default function DistributorInfo({
   const distributorEmail = company?.businessEmail || 'Not set';
 
   const distributorSlug = generateSlug(distributorName);
+
+  const buyersLabel = useMemo(() => `${buyersCount}`, [buyersCount]);
+  const followersLabel = useMemo(() => `${followersCount}`, [followersCount]);
 
   const pickupAddress = company?.pickupAddress || 'Not set';
   const shippingPreferences: string[] = (() => {
@@ -82,6 +89,26 @@ export default function DistributorInfo({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Customers (prominent counters) */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-gray-600" />
+            Customers
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg bg-blue-50 border border-blue-100 p-4">
+              <p className="text-xs text-gray-600">Buyers</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{buyersLabel}</p>
+              <p className="text-xs text-gray-500 mt-1">Unique buyers</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 border border-blue-100 p-4">
+              <p className="text-xs text-gray-600">Followers</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{followersLabel}</p>
+              <p className="text-xs text-gray-500 mt-1">Marketplace followers</p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Store className="w-4 h-4 text-gray-600" />

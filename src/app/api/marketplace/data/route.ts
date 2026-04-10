@@ -159,6 +159,7 @@ export async function GET(request: NextRequest) {
         select: { 
           totalAmount: true, 
           id: true,
+          buyerId: true,
         },
       }),
 
@@ -184,6 +185,12 @@ export async function GET(request: NextRequest) {
     }, 0);
 
     const totalOrders = orders.length;
+
+    const uniqueBuyerIds = new Set<string>();
+    orders.forEach((o) => {
+      if (o.buyerId && typeof o.buyerId === 'string' && o.buyerId.trim()) uniqueBuyerIds.add(o.buyerId.trim());
+    });
+    const totalBuyers = uniqueBuyerIds.size;
 
     const totalViews = userActivities.filter(
       (a) => a.activityType === 'viewed'
@@ -323,6 +330,7 @@ export async function GET(request: NextRequest) {
       overallMetrics: {
         totalSales,
         totalOrders,
+        totalBuyers,
         totalViews,
         totalFavorites,
         totalAddedToCart,

@@ -44,6 +44,7 @@ model User {
   notifications Notification[]
   distributorReviewsReceived DistributorReview[]
   reportedDistributorReports DistributorReport[] @relation("ReportedDistributorReports")
+  distributorFollowers       DistributorFollowing[]
   fleets        Fleet[]
   drivers       Driver[]
 }
@@ -201,9 +202,26 @@ model MarketplaceUser {
   orderCancellations     OrderCancellation[]
   passwordResetTokens    MarketplacePasswordResetToken[]
   distributorReportsSubmitted DistributorReport[]
+  distributorFollowings       DistributorFollowing[]
 
   @@index([phone])
   @@index([email])
+  @@index([createdAt])
+}
+
+/// Marketplace buyer follows a dashboard distributor (seller).
+model DistributorFollowing {
+  id                Int             @id @default(autoincrement())
+  marketplaceUserId Int
+  distributorId     Int
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+
+  marketplaceUser MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
+  distributor     User            @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([marketplaceUserId, distributorId])
+  @@index([marketplaceUserId])
+  @@index([distributorId])
   @@index([createdAt])
 }
 

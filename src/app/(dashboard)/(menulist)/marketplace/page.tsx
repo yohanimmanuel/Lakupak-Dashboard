@@ -52,6 +52,7 @@ interface MarketplaceMetrics {
   totalFavorites?: number;
   totalAddedToCart?: number;
   cartAbandonedCount?: number;
+  totalBuyers?: number;
 }
 
 interface PaginationMetadata {
@@ -70,6 +71,7 @@ export default function MarketplacePage() {
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [company, setCompany] = useState<Company | undefined>();
   const [overallMetrics, setOverallMetrics] = useState<MarketplaceMetrics | undefined>();
+  const [followersCount, setFollowersCount] = useState<number>(0);
   const [paginationInfo, setPaginationInfo] = useState<PaginationMetadata | undefined>();
   const [timeRange, setTimeRange] = useState('30d');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -106,6 +108,17 @@ export default function MarketplacePage() {
       setCompany(data.company);
       setOverallMetrics(data.overallMetrics);
       setPaginationInfo(data.pagination);
+
+      // Followers count is shown prominently in Distributor section
+      try {
+        const r = await fetch(`/api/marketplace/followers-count?userId=${user.id}`);
+        if (r.ok) {
+          const fc = (await r.json()) as { followersCount?: number };
+          setFollowersCount(typeof fc.followersCount === 'number' ? fc.followersCount : 0);
+        }
+      } catch {
+        // silent
+      }
       
       // Log warning if results are truncated
       if (data.pagination?.isTruncated) {
@@ -229,18 +242,24 @@ export default function MarketplacePage() {
 
       {/* Main Content */}
       <div className="space-y-3">
-        {/* Products List Section */}
-        <ProductsList products={products} />
+        {/* Distributor info (B2B marketplace) */}
+        <DistributorInfo
+          company={company}
+          userCurrency={userCurrency}
+          products={products}
+          buyersCount={overallMetrics?.totalBuyers ?? 0}
+          followersCount={followersCount}
+        />
 
         {/* Performance Section (Main Focus) */}
-        <MarketplacePerformance 
-          products={products} 
+        <MarketplacePerformance
+          products={products}
           userCurrency={userCurrency}
           overallMetrics={overallMetrics}
         />
 
-        {/* Distributor info (B2B marketplace) */}
-        <DistributorInfo company={company} userCurrency={userCurrency} products={products} />
+        {/* Products List Section */}
+        <ProductsList products={products} />
       </div>
     </div>
   );
