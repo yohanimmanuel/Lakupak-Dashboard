@@ -16,6 +16,7 @@ if (require.main === module) {
 
 // Import jwt AFTER loading environment variables
 import { verifyAccessToken } from '../lib/jwt';
+import { verifyPlatformAdminToken } from '../lib/platform-admin-jwt';
 import { 
   websocketConnectionRateLimiter, 
   websocketMessageRateLimiter,
@@ -26,6 +27,8 @@ interface ClientConnection {
   ws: WebSocket;
   userId: number | null;
   isAlive: boolean;
+  /** True when JWT is a platform admin session (distinct from dashboard User.id). */
+  isPlatformAdmin?: boolean;
 }
 
 export type PlatformAnnouncementWsPayload = {
@@ -108,6 +111,8 @@ class MarketplaceWebSocketServer {
                 this.broadcastPlatformAnnouncementPublished(data.announcement as PlatformAnnouncementWsPayload);
               } else if (data.type === 'platform_announcement_unpublished' && typeof data.announcementId === 'number') {
                 this.broadcastPlatformAnnouncementUnpublished(data.announcementId);
+              } else if (data.type === 'platform_admin_inbox') {
+                this.broadcastPlatformAdminInbox();
               }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
@@ -143,7 +148,8 @@ class MarketplaceWebSocketServer {
         // Extract token from query string
         let token: string | null = null;
         let userId: number | null = null;
-        
+        let isPlatformAdmin = false;
+
         try {
           const url = new URL(request.url || '', `http://${request.headers.host}`);
           token = url.searchParams.get('token');
@@ -157,20 +163,27 @@ class MarketplaceWebSocketServer {
           }
         }
 
-        // Authenticate client
+        // Authenticate client (dashboard user JWT or platform admin JWT)
         if (token) {
           try {
-            // Remove "Bearer " prefix if present
-            const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
-            const payload = verifyAccessToken(cleanToken);
-            userId = payload.sub;
-          } catch (error) {
-            // Close connection if JWT_SECRET is not set (configuration error)
             if (!process.env.JWT_SECRET) {
               ws.close(1008, 'Server configuration error: JWT_SECRET not set');
               return;
             }
-            // Close connection for invalid token
+            const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+            try {
+              const pa = verifyPlatformAdminToken(cleanToken);
+              userId = pa.sub;
+              isPlatformAdmin = true;
+            } catch (err) {
+              // Only fall back if it's a signature/type mismatch, not a config error
+              if (err instanceof Error && err.message?.includes('secret')) {
+                throw err; // Re-throw configuration errors
+              }
+              const payload = verifyAccessToken(cleanToken);
+              userId = payload.sub;
+            }
+          } catch (error) {
             ws.close(1008, 'Invalid token');
             return;
           }
@@ -186,7 +199,8 @@ class MarketplaceWebSocketServer {
         const client: ClientConnection = {
           ws,
           userId,
-          isAlive: true
+          isAlive: true,
+          isPlatformAdmin,
         };
 
         // Add client to Set BEFORE setting up event handlers
@@ -337,6 +351,29 @@ class MarketplaceWebSocketServer {
       announcementId,
     };
     this.broadcast(message);
+  }
+
+  /** Notify platform admin dashboard clients to refetch inbox (e.g. new buyer report). */
+  broadcastPlatformAdminInbox(): void {
+    const message: WebSocketMessage = {
+      type: 'notification',
+      notification: {
+        type: 'platform_admin_inbox',
+        title: '',
+        body: '',
+        data: { hint: 'refetch' },
+      },
+    };
+    const messageStr = JSON.stringify(message);
+    this.clients.forEach((client) => {
+      if (client.isPlatformAdmin && client.ws.readyState === WebSocket.OPEN) {
+        try {
+          client.ws.send(messageStr);
+        } catch {
+          this.clients.delete(client);
+        }
+      }
+    });
   }
 
   // Broadcast notification to specific user or all clients

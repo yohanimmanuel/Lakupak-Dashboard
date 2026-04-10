@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getSecurityHeaders } from '@/utils/auth-security';
+import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+
+/**
+ * POST /api/platform-admin/reports/distributor/mark-all-read
+ * Mark all distributor reports as reviewed.
+ */
+export async function POST(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  try {
+    requirePlatformAdminId(req);
+    const now = new Date();
+    const result = await prisma.distributorReport.updateMany({
+      where: { adminReadAt: null, adminInboxDismissedAt: null },
+      data: { adminReadAt: now },
+    });
+    return NextResponse.json({ ok: true, updated: result.count }, { status: 200, headers });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+    }
+    console.error('platform-admin reports mark-all-read', err);
+    return NextResponse.json({ error: 'Failed to update reports' }, { status: 500, headers });
+  }
+}

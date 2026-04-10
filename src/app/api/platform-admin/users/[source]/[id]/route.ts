@@ -75,6 +75,28 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
               defaultDeliveryLeadTimeMaxDays: true,
             },
           },
+          reportedDistributorReports: {
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+            select: {
+              id: true,
+              reasonCode: true,
+              reasonText: true,
+              reasonDetail: true,
+              imageUrls: true,
+              createdAt: true,
+              adminReadAt: true,
+              reporter: {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
           _count: {
             select: {
               products: true,
@@ -89,6 +111,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
               salesTeams: true,
               notifications: true,
               distributorReviewsReceived: true,
+              reportedDistributorReports: true,
             },
           },
         },

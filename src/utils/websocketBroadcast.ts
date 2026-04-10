@@ -243,6 +243,28 @@ export async function broadcastPlatformAnnouncementUnpublished(announcementId: n
   }
 }
 
+/** Push to platform admin dashboard WebSocket clients so inbox (e.g. buyer reports) refetches immediately. */
+export async function broadcastPlatformAdminInboxRefresh(): Promise<void> {
+  try {
+    if (isServerRunning()) {
+      if (wsServer.getConnectedCount() > 0) {
+        wsServer.broadcastPlatformAdminInbox();
+      }
+    } else {
+      const wsPort = process.env.WS_PORT || '3001';
+      const wsHost = process.env.WS_HOST || 'localhost';
+      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'platform_admin_inbox' }),
+        signal: AbortSignal.timeout(5000),
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
 export async function broadcastNotification(
   type: string,
   title: string,

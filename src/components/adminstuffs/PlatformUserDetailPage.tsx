@@ -10,6 +10,7 @@ import {
   Building2,
   Ban,
   CheckCircle2,
+  Flag,
   Loader2,
   MapPin,
   Navigation,
@@ -399,6 +400,22 @@ export default function PlatformUserDetailPage() {
       isSuspended?: boolean;
       suspendedAt?: string | Date | null;
       suspensionReason?: string | null;
+      reportedDistributorReports?: Array<{
+        id: number;
+        reasonCode: string;
+        reasonText: string;
+        reasonDetail: string | null;
+        imageUrls: string[];
+        createdAt: string;
+        adminReadAt: string | null;
+        reporter: {
+          id: number;
+          username: string;
+          name: string | null;
+          email: string | null;
+          phone: string;
+        };
+      }>;
     };
     const c = u.company;
     const displayName = (u.name || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email) as string;
@@ -430,6 +447,7 @@ export default function PlatformUserDetailPage() {
       { label: 'Sales teams', value: u._count?.salesTeams ?? 0 },
       { label: 'Notifications', value: u._count?.notifications ?? 0 },
       { label: 'Seller reviews', value: u._count?.distributorReviewsReceived ?? 0 },
+      { label: 'Buyer reports', value: u._count?.reportedDistributorReports ?? 0 },
     ];
 
     return (
@@ -548,6 +566,96 @@ export default function PlatformUserDetailPage() {
                 }}
               />
             </div>
+          </DistributorSection>
+
+          <DistributorSection title="Buyer reports (marketplace)" icon={Flag}>
+            <p className="text-xs text-gray-600 mb-3">
+              Reports submitted by marketplace buyers about this distributor. New reports also appear in the admin
+              navbar bell.
+            </p>
+            {!u.reportedDistributorReports || u.reportedDistributorReports.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No reports filed against this distributor yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-[#e6e6e6]">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left font-medium px-3 py-2.5">When</th>
+                      <th className="text-left font-medium px-3 py-2.5">Reporter</th>
+                      <th className="text-left font-medium px-3 py-2.5">Reason</th>
+                      <th className="text-left font-medium px-3 py-2.5">Detail</th>
+                      <th className="text-left font-medium px-3 py-2.5">Photos</th>
+                      <th className="text-left font-medium px-3 py-2.5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {u.reportedDistributorReports.map((r) => {
+                      const reporterName =
+                        (r.reporter.name && r.reporter.name.trim()) ||
+                        r.reporter.username ||
+                        `Buyer #${r.reporter.id}`;
+                      const photos = Array.isArray(r.imageUrls) ? r.imageUrls : [];
+                      return (
+                        <tr key={r.id} className="border-t border-[#e6e6e6] bg-white">
+                          <td className="px-3 py-2.5 text-gray-800 whitespace-nowrap">{formatDt(r.createdAt)}</td>
+                          <td className="px-3 py-2.5">
+                            <Link
+                              href={`/admin/users/marketplace/${r.reporter.id}`}
+                              className="text-[#0a61d7] hover:underline font-medium"
+                            >
+                              {reporterName}
+                            </Link>
+                          </td>
+                          <td className="px-3 py-2.5 text-gray-800">
+                            <span className="font-medium">{r.reasonText}</span>
+                            <div className="text-[10px] text-gray-500 mt-0.5">{r.reasonCode}</div>
+                          </td>
+                          <td className="px-3 py-2.5 text-gray-700 max-w-[200px]">
+                            {r.reasonDetail ? (
+                              <span className="whitespace-pre-wrap break-words">{r.reasonDetail}</span>
+                            ) : (
+                              <span className="text-gray-400 italic">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 align-top">
+                            {photos.length === 0 ? (
+                              <span className="text-gray-400 italic">—</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                                {photos.slice(0, 5).map((url) => (
+                                  <a
+                                    key={url}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block shrink-0 rounded-md border border-[#e6e6e6] overflow-hidden bg-gray-50 hover:opacity-90"
+                                    title="Open image"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="" className="w-12 h-12 object-cover" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {r.adminReadAt ? (
+                              <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                Reviewed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">
+                                New
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </DistributorSection>
 
           <DistributorSection title="Login & profile" icon={UserCircle}>

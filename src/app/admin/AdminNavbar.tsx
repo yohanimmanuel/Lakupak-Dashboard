@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Menu as MenuIcon, User } from 'lucide-react';
 import { useAdminMenuContext } from './AdminClientLayout';
+import AdminDistributorReportsBell from '@/components/adminstuffs/AdminDistributorReportsBell';
 
 type Me = { name: string | null; email: string };
 
@@ -41,6 +42,7 @@ export default function AdminNavbar() {
       <div className="flex items-center gap-3 justify-end">
         {me && (
           <>
+            <AdminDistributorReportsBell />
             <div className="text-right">
               <p className="text-xs text-gray-500 leading-tight">Logged in as</p>
               <p className="text-sm font-semibold text-gray-900 leading-tight">{me.name || me.email}</p>

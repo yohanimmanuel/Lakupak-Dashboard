@@ -43,6 +43,7 @@ model User {
   campaigns     Campaign[]
   notifications Notification[]
   distributorReviewsReceived DistributorReview[]
+  reportedDistributorReports DistributorReport[] @relation("ReportedDistributorReports")
   fleets        Fleet[]
   drivers       Driver[]
 }
@@ -199,6 +200,7 @@ model MarketplaceUser {
   orderReturnRequests    OrderReturnRequest[]
   orderCancellations     OrderCancellation[]
   passwordResetTokens    MarketplacePasswordResetToken[]
+  distributorReportsSubmitted DistributorReport[]
 
   @@index([phone])
   @@index([email])
@@ -823,6 +825,30 @@ model DistributorReview {
   @@unique([userId, distributorId])
   @@index([distributorId])
   @@index([userId])
+}
+
+/// Buyer-reported issues against a dashboard distributor (seller) — surfaced in platform admin.
+model DistributorReport {
+  id                        Int             @id @default(autoincrement())
+  reportedDashboardUserId   Int
+  reporterMarketplaceUserId Int
+  reasonCode                String
+  reasonText                String
+  reasonDetail              String?
+  imageUrls                 String[]        @default([]) // Cloudinary (or HTTPS) evidence URLs, max 5
+  adminReadAt               DateTime?       @db.Timestamptz(3)
+  /// When set, hidden from platform admin notification bell only; row kept for user-detail / audit.
+  adminInboxDismissedAt     DateTime?       @db.Timestamptz(3)
+  createdAt                 DateTime        @default(now()) @db.Timestamptz(3)
+
+  reportedDashboardUser User            @relation("ReportedDistributorReports", fields: [reportedDashboardUserId], references: [id], onDelete: Cascade)
+  reporter              MarketplaceUser @relation(fields: [reporterMarketplaceUserId], references: [id], onDelete: Cascade)
+
+  @@index([reportedDashboardUserId])
+  @@index([reporterMarketplaceUserId])
+  @@index([createdAt])
+  @@index([adminReadAt])
+  @@index([adminInboxDismissedAt])
 }
 
 /// Distributor fleet / truck for logistics (route, vehicle, driver, assigned orders).
