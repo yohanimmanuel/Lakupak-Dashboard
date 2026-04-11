@@ -981,6 +981,7 @@ model PlatformAdmin {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
   announcements PlatformAnnouncement[]
+  homeOffers    MarketplaceHomeOffer[]
 }
 
 /// Marketplace-wide announcements shown in mobile "Latest updates".
@@ -1001,4 +1002,36 @@ model PlatformAnnouncement {
 
   @@index([isPublished, publishedAt])
   @@index([category])
+}
+
+/// Homepage “Special Offers” sale banner (platform admin → Marketplace home).
+model MarketplaceHomeOffer {
+  id              Int       @id @default(autoincrement())
+  title           String
+  subtitle        String    @default("")
+  discountText    String    @default("")
+  endDateText     String    @default("")
+  backgroundColor String    @default("#0a61d7")
+  textColor       String    @default("#FFFFFF")
+  /// Plain text / light markdown shown on the offer detail screen
+  detailsBody     String    @default("")
+  /// Optional hero image behind text (HTTPS URL). Tints with backgroundColor for readability.
+  bannerImageUrl  String?
+  /// Full-width designed banner (Canva/Photoshop). When set, home shows this image only; copy fields still power the detail screen.
+  customBannerImageUrl String?
+  /// Ionicons name for the large right-side icon (e.g. gift, flame, pricetag).
+  rightIconKey    String    @default("gift")
+  /// Ionicons name inside the discount pill (e.g. flash, pricetag, star).
+  discountIconKey String    @default("flash")
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime? @db.Timestamptz(3)
+  /// Lower numbers sort first when multiple rows are published
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  createdByAdminId Int?
+  createdByAdmin   PlatformAdmin? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([isPublished, sortOrder, publishedAt])
 }

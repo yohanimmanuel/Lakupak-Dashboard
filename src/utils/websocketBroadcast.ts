@@ -215,6 +215,32 @@ export async function broadcastPlatformAnnouncementPublished(
 }
 
 /**
+ * Broadcast that the homepage sale banner (“Offers”) changed; Marketplace refetches `/api/mobile/offers/home`.
+ */
+export async function broadcastMarketplaceHomeOffersRefresh(): Promise<void> {
+  try {
+    if (isServerRunning()) {
+      if (wsServer.getConnectedCount() > 0) {
+        wsServer.broadcastHomeOffersUpdated();
+      }
+    } else {
+      const wsPort = process.env.WS_PORT || '3001';
+      const wsHost = process.env.WS_HOST || 'localhost';
+      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'home_offers_updated' }),
+        signal: AbortSignal.timeout(5000),
+      });
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] broadcastMarketplaceHomeOffersRefresh error:', error);
+    }
+  }
+}
+
+/**
  * Broadcast an unpublished (removed) platform announcement so connected marketplace clients can remove it immediately.
  */
 export async function broadcastPlatformAnnouncementUnpublished(announcementId: number): Promise<void> {

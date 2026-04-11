@@ -51,6 +51,7 @@ interface WebSocketMessage {
     | 'notification'
     | 'platform_announcement_published'
     | 'platform_announcement_unpublished'
+    | 'home_offers_updated'
     | 'ping'
     | 'pong';
   data?: unknown;
@@ -113,6 +114,8 @@ class MarketplaceWebSocketServer {
                 this.broadcastPlatformAnnouncementUnpublished(data.announcementId);
               } else if (data.type === 'platform_admin_inbox') {
                 this.broadcastPlatformAdminInbox();
+              } else if (data.type === 'home_offers_updated') {
+                this.broadcastHomeOffersUpdated();
               }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
@@ -350,6 +353,11 @@ class MarketplaceWebSocketServer {
       type: 'platform_announcement_unpublished',
       announcementId,
     };
+    this.broadcast(message);
+  }
+
+  broadcastHomeOffersUpdated(): void {
+    const message: WebSocketMessage = { type: 'home_offers_updated' };
     this.broadcast(message);
   }
 
