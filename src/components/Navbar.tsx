@@ -136,8 +136,8 @@ const Navbar = () => {
   const [isLoadingAllNotifications, setIsLoadingAllNotifications] = useState(false);
   const [driverRequestModalNotif, setDriverRequestModalNotif] = useState<Notification | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const msgRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLButtonElement>(null);
+  const msgRef = useRef<HTMLButtonElement>(null);
   const { toggleMenu, isMobileMenuOpen, toggleMobileMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
@@ -523,9 +523,15 @@ const Navbar = () => {
         </div>
         {/* Message & Notification Group */}
         <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 border-r border-gray-200">
-          <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={msgRef}>
-            <MessageCircle size={20} className="text-gray-500" onClick={() => { setShowMsgDropdown(v => !v); setShowNotifDropdown(false); setShowDropdown(false); }} />
-          </div>
+          <button
+            type="button"
+            className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
+            ref={msgRef}
+            onClick={() => { setShowMsgDropdown(v => !v); setShowNotifDropdown(false); setShowDropdown(false); }}
+            aria-label="Messages"
+          >
+            <MessageCircle className="w-5 h-5 text-gray-500" />
+          </button>
           <DropdownPortal anchorRef={msgRef} show={showMsgDropdown}>
             <div className="px-2 pt-2 text-center">
               <div className="font-bold text-xs text-gray-800 mb-2">Your Messages</div>
@@ -537,14 +543,20 @@ const Navbar = () => {
               <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full text-xs shadow transition">View All Messages</button>
             </div>
           </DropdownPortal>
-          <div className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition" ref={notifRef}>
-            <Bell size={20} className="text-gray-500" onClick={() => { setShowNotifDropdown(v => !v); setShowMsgDropdown(false); setShowDropdown(false); }} />
+          <button
+            type="button"
+            className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
+            ref={notifRef}
+            onClick={() => { setShowNotifDropdown(v => !v); setShowMsgDropdown(false); setShowDropdown(false); }}
+            aria-label="Notifications"
+          >
+            <Bell className="w-5 h-5 text-gray-500" />
             {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold px-0.5">
                 {unreadCount > 99 ? '99+' : unreadCount}
-              </div>
+              </span>
             )}
-          </div>
+          </button>
           <DropdownPortal anchorRef={notifRef} show={showNotifDropdown} dataPortalType="notif">
             <div className="px-3 py-2 flex items-center justify-between border-b border-gray-200">
               <div className="font-semibold text-sm text-gray-800">Notifications</div>

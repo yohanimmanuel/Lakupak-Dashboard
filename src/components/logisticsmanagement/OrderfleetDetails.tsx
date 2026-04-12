@@ -17,7 +17,9 @@ import {
   Navigation2,
   ChevronRight,
   Edit,
+  Maximize2,
 } from 'lucide-react';
+import MapFullscreenModal from '@/components/MapFullscreenModal';
 import LogisticsRouteMap from './LogisticsRouteMap';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
@@ -72,6 +74,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
   const router = useRouter();
   const { user } = useUserStore();
   const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
+  const [routeMapFullscreen, setRouteMapFullscreen] = useState(false);
 
   useEffect(() => {
     if (user?.id == null) return;
@@ -246,11 +249,24 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                   <MapPin className="w-4 h-4 text-[#0a61d7]" />
                   Delivery Route
                 </h3>
-                {showRouteMap ? (
-                  <span className="text-xs text-gray-500">Live route preview</span>
-                ) : (
-                  <span className="text-xs text-gray-400">No active route</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {showRouteMap ? (
+                    <>
+                      <span className="text-xs text-gray-500">Live route preview</span>
+                      <button
+                        type="button"
+                        onClick={() => setRouteMapFullscreen(true)}
+                        className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                        aria-label="Open map full screen"
+                        title="Full screen map"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">No active route</span>
+                  )}
+                </div>
               </div>
               {showRouteMap ? (
                 <LogisticsRouteMap
@@ -321,6 +337,23 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
           </div>
         </div>
       </div>
+
+      <MapFullscreenModal
+        open={routeMapFullscreen}
+        onClose={() => setRouteMapFullscreen(false)}
+        title={`Delivery route · ${fleet.orderCode}`}
+      >
+        {showRouteMap ? (
+          <LogisticsRouteMap
+            key={`orderfleet-route-fs-${fleet.orderCode}`}
+            deliveryAddresses={fleet.deliveryAddresses!}
+            driverLat={fleet.driverLat}
+            driverLng={fleet.driverLng}
+            height="100%"
+            className="h-full rounded-none border-0 bg-white"
+          />
+        ) : null}
+      </MapFullscreenModal>
     </div>
   );
 }

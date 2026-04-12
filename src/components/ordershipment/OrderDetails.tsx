@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2 } from 'lucide-react';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderCalculations';
@@ -9,6 +9,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import MapComponent from './MapComponent';
+import MapFullscreenModal from '@/components/MapFullscreenModal';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, geocodeViaProxy, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
@@ -42,6 +43,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [showMapFullscreen, setShowMapFullscreen] = useState(false);
   const [isProcessingReturn, setIsProcessingReturn] = useState(false);
   type DeliveryMethod = Order['deliveryMethod'];
   const toDateInputValue = (d?: Date | string | null) => {
@@ -626,7 +628,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             
             {/* GPS Map */}
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-black mb-2">Delivery Location</h3>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-black">Delivery Location</h3>
+                {geocodeResult?.coordinates && !isGeocoding && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMapFullscreen(true)}
+                    className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                    title="View map full screen"
+                    aria-label="View delivery map full screen"
+                  >
+                    <Maximize2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
               {isGeocoding ? (
                 <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
                   <div className="text-center">
@@ -1540,6 +1555,32 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
         </div>
       )}
+
+      <MapFullscreenModal
+        open={showMapFullscreen}
+        onClose={() => setShowMapFullscreen(false)}
+        title={`Delivery location · ${order.orderId}`}
+      >
+        {geocodeResult?.coordinates ? (
+          <MapComponent
+            key="order-details-map-fullscreen"
+            accessToken={mapboxToken}
+            markers={[
+              {
+                id: order.id,
+                coordinates: geocodeResult.coordinates,
+                label: `${order.orderId} - ${order.orderStatus}`,
+                color: getOrderStatusMarkerColor(order.orderStatus),
+              },
+            ]}
+            center={geocodeResult.coordinates}
+            zoom={14}
+            height="100%"
+            className="h-full min-h-0 rounded-none border-0"
+            showControls={true}
+          />
+        ) : null}
+      </MapFullscreenModal>
     </div>
   );
 }

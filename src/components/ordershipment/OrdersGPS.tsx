@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { MapPin, Maximize2, X, Loader2 } from "lucide-react";
+import { MapPin, Maximize2, Loader2 } from "lucide-react";
 import { Order } from '@/types/order';
 import MapComponent from './MapComponent';
+import MapFullscreenModal from '@/components/MapFullscreenModal';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeMultipleAddresses, geocodeViaProxy, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 
@@ -174,52 +175,36 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
         </div>
       </div>
 
-      {/* Full Screen Modal */}
-      {showFullScreenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="relative max-w-7xl max-h-[90vh] w-full mx-4 bg-white rounded-lg overflow-hidden">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowFullScreenModal(false)}
-              className="absolute top-6 right-6 z-10 p-3 text-gray-500 hover:bg-gray-300 rounded-lg transition-colors"
-              aria-label="Close full screen map view"
-            >
-              <X className="w-8 h-8" />
-            </button>
-            
-            {/* Full Size Map */}
-            <div className="w-full h-full min-h-[80vh] p-6">
-              {isGeocoding && mapMarkers.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center">
-                    <Loader2 className="w-16 h-16 text-gray-400 mx-auto mb-4 animate-spin" />
-                    <p className="text-xl text-gray-500 font-medium">Loading map...</p>
-                    <p className="text-sm text-gray-400">Geocoding delivery addresses</p>
-                  </div>
-                </div>
-              ) : mapMarkers.length > 0 ? (
-                <MapComponent
-                  accessToken={mapboxToken}
-                  markers={mapMarkers}
-                  center={mapCenter}
-                  height="100%"
-                  className="min-h-[80vh]"
-                  showControls={true}
-                  onMarkerClick={handleMarkerClick}
-                />
-              ) : (
-                <div className="w-full h-140 flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center w-full">
-                    <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-xl text-gray-500 font-medium">No active deliveries</p>
-                    <p className="text-sm text-gray-400 mt-1">Orders with delivery addresses will appear here</p>
-                  </div>
-                </div>
-              )}
+      <MapFullscreenModal open={showFullScreenModal} onClose={() => setShowFullScreenModal(false)} title="Live delivery tracking">
+        {isGeocoding && mapMarkers.length === 0 ? (
+          <div className="flex h-full w-full items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <Loader2 className="mx-auto mb-4 h-16 w-16 animate-spin text-gray-400" />
+              <p className="text-xl font-medium text-gray-500">Loading map...</p>
+              <p className="text-sm text-gray-400">Geocoding delivery addresses</p>
             </div>
           </div>
-        </div>
-      )}
+        ) : mapMarkers.length > 0 ? (
+          <MapComponent
+            key="orders-gps-fullscreen"
+            accessToken={mapboxToken}
+            markers={mapMarkers}
+            center={mapCenter}
+            height="100%"
+            className="h-full min-h-0 rounded-none border-0"
+            showControls={true}
+            onMarkerClick={handleMarkerClick}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gray-100">
+            <div className="w-full text-center">
+              <MapPin className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+              <p className="text-xl font-medium text-gray-500">No active deliveries</p>
+              <p className="mt-1 text-sm text-gray-400">Orders with delivery addresses will appear here</p>
+            </div>
+          </div>
+        )}
+      </MapFullscreenModal>
     </>
   );
 }

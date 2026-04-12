@@ -119,6 +119,7 @@ export default function LogisticsRouteMap({
     }
 
     let map: mapboxgl.Map | null = null;
+    let resizeObserver: ResizeObserver | null = null;
     let cancelled = false;
 
     (async () => {
@@ -152,6 +153,13 @@ export default function LogisticsRouteMap({
       });
       mapRef.current = map;
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-left');
+
+      if (containerRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          map?.resize();
+        });
+        resizeObserver.observe(containerRef.current);
+      }
 
       map.on('load', async () => {
         if (cancelled || !map) return;
@@ -195,6 +203,7 @@ export default function LogisticsRouteMap({
         }
 
         setIsLoading(false);
+        requestAnimationFrame(() => map?.resize());
 
         if (allWaypoints.length >= 2) {
           const capped = allWaypoints.slice(0, 25);
@@ -221,6 +230,7 @@ export default function LogisticsRouteMap({
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       map?.remove();
       mapRef.current = null;
     };

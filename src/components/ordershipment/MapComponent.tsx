@@ -77,6 +77,20 @@ export default function MapComponent({
   }, [accessToken]);
 
   useEffect(() => {
+    if (!mapContainer.current || !map.current || !mapLoaded) return;
+    const ro = new ResizeObserver(() => {
+      map.current?.resize();
+    });
+    ro.observe(mapContainer.current);
+    return () => ro.disconnect();
+  }, [mapLoaded]);
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+    map.current.resize();
+  }, [height, mapLoaded]);
+
+  useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
     markersRef.current.forEach((marker) => marker.remove());

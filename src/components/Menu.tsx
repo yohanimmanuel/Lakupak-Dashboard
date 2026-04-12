@@ -279,7 +279,7 @@ const Menu = () => {
       {/* Logo Section */}
       <div className="mb-2">
         {shouldShowExpanded ? (
-          <div className="flex items-center justify-between px-4 mt-4 mb-2">
+          <div className="flex items-center justify-between px-4 mt-3.5 mb-2">
             <Link href="/home" className="flex items-center min-w-0 group">
               <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
                 <div className="bg-white">
@@ -313,8 +313,8 @@ const Menu = () => {
             </button>
           </div>
         )}
-        {/* Inset divider below logo/header */}
-        <div className="border-t border-gray-200 mt-1 ml-4 mr-4" />
+        {/* Full-width divider below logo/header */}
+        <div className="w-full border-t border-gray-200 mt-1" />
       </div>
       {/* Menu Items */}
       <div className="flex-1 overflow-y-auto">
