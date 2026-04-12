@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, EyeOff, Pencil, Plus, Search, Trash2, X, Zap } from 'lucide-react';
 import { OfferPreviewIcon } from '@/utils/offerPreviewIcons';
 import { cssSafeUrl } from '@/utils/cssSafeUrl';
+import SlidingSegmentedControl from '@/components/SlidingSegmentedControl';
 
 type OfferRow = {
   id: number;
@@ -452,27 +453,16 @@ export default function PlatformAdminOffersPage() {
         </div>
 
         <div className="px-5 py-3 border-b border-[#e6e6e6]">
-          <div className="relative w-full sm:w-auto flex items-center min-w-0 max-w-md">
-            <div className="absolute inset-0 bg-gray-100 rounded-lg" />
-            {(['All', 'Published', 'Draft'] as const).map((tab, idx, arr) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setSelectedTab(tab)}
-                className={`relative z-10 flex-1 px-4 sm:px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
-                  selectedTab === tab ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
-                } ${idx === 0 ? 'rounded-l-lg' : idx === arr.length - 1 ? 'rounded-r-lg' : ''}`}
-              >
-                <span
-                  className={`absolute inset-0 rounded-lg transition-all duration-200 ${
-                    selectedTab === tab ? 'bg-[#0a61d7]' : 'bg-transparent'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span className="relative">{tab}</span>
-              </button>
-            ))}
-          </div>
+          <SlidingSegmentedControl
+            className="max-w-md"
+            items={[
+              { key: 'All', label: 'All' },
+              { key: 'Published', label: 'Published' },
+              { key: 'Draft', label: 'Draft' },
+            ]}
+            value={selectedTab}
+            onChange={(key) => setSelectedTab(key as typeof selectedTab)}
+          />
         </div>
 
         {selectedIds.length > 0 && (

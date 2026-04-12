@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, FileText, Search } from 'lucide-react';
+import SlidingSegmentedControl from '@/components/SlidingSegmentedControl';
 
 type PlatformUserSource = 'dashboard' | 'marketplace' | 'driver';
 
@@ -115,27 +116,12 @@ export default function ManageUsersTable() {
       </div>
 
       <div className="px-5 py-3 border-b border-[#e6e6e6]">
-        <div className="relative w-full md:w-auto flex items-center min-w-0">
-          <div className="absolute inset-0 bg-gray-100 rounded-lg" />
-          {TABS.map((t, idx, arr) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`relative z-10 flex-1 px-3 sm:px-5 py-2 font-medium text-[13px] sm:text-[14px] transition-colors duration-200 focus:outline-none ${
-                tab === t.key ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
-              } ${idx === 0 ? 'rounded-l-lg' : idx === arr.length - 1 ? 'rounded-r-lg' : ''}`}
-            >
-              <span
-                className={`absolute inset-0 rounded-lg transition-all duration-200 ${
-                  tab === t.key ? 'bg-[#0a61d7]' : 'bg-transparent'
-                }`}
-                aria-hidden="true"
-              />
-              <span className="relative whitespace-nowrap">{t.label}</span>
-            </button>
-          ))}
-        </div>
+        <SlidingSegmentedControl
+          size="compact"
+          items={TABS.map((t) => ({ key: t.key, label: t.label }))}
+          value={tab}
+          onChange={(key) => setTab(key as (typeof TABS)[number]['key'])}
+        />
       </div>
 
       {error ? (
