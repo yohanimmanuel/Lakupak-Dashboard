@@ -401,16 +401,8 @@ export default function ProductMarketplacePubs({
                 <span className="text-sm font-medium text-gray-900">Sample Type</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Package Type:</span>
-                <span className="text-sm font-medium text-gray-900">Carton</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Qty of Pieces per Package:</span>
-                <span className="text-sm font-medium text-gray-900">10 pieces</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Price per Package:</span>
-                <span className="text-sm font-medium text-gray-900">{formatCurrency(150000, userCurrency)}</span>
+                <span className="text-sm text-gray-600">Category:</span>
+                <span className="text-sm font-medium text-gray-900">Sample Category</span>
               </div>
             </div>
 

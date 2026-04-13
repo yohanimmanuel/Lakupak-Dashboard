@@ -416,7 +416,7 @@ export default function PlatformAdminOffersPage() {
           <h1 className="text-xl font-semibold text-gray-900">Offers</h1>
           <p className="text-sm text-gray-600 mt-1">
             Manage the homepage sale banner in the Marketplace app. The first published offer (lowest sort order) is
-            shown on Home. Create or edit an offer on its own page — not in a popup.
+            shown on Home.
           </p>
         </div>
 
