@@ -1632,38 +1632,30 @@ const addSearchHistory = async (args: {
 
   const runTransaction = () =>
     prisma.$transaction(async (tx) => {
-      const allSearches = await tx.searchHistory.findMany({
+      // Use the DB unique constraint (userId, query) to make this concurrency-safe.
+      // Instead of delete+create (which can race), upsert and "touch" updatedAt.
+      const saved = await tx.searchHistory.upsert({
+        where: { userId_query: { userId, query: trimmedQuery } },
+        create: { userId, query: trimmedQuery },
+        // Ensure re-searching bumps recency for ordering + cleanup.
+        update: { updatedAt: new Date() },
+      });
+
+      // Enforce "max 10" per user. We keep the 10 most-recently updated rows.
+      // (Updated rows float to the top when a query is re-used.)
+      const overflow = await tx.searchHistory.findMany({
         where: { userId },
-        orderBy: { createdAt: 'desc' }
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        skip: 10,
+        select: { id: true },
       });
-
-      const existingIndex = allSearches.findIndex(
-        (s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase()
-      );
-      const existing = existingIndex !== -1 ? allSearches[existingIndex] : null;
-
-      if (existing) {
-        await tx.searchHistory.delete({ where: { id: existing.id } });
+      if (overflow.length > 0) {
+        await tx.searchHistory.deleteMany({
+          where: { id: { in: overflow.map((r) => r.id) } },
+        });
       }
 
-      const countAfterDeletion = existing ? allSearches.length - 1 : allSearches.length;
-
-      if (countAfterDeletion >= 10) {
-        const searchesToCheck = existing
-          ? allSearches.filter((s: { id: number }) => s.id !== existing.id)
-          : allSearches;
-        const sortedByOldest = [...searchesToCheck].sort(
-          (a: { createdAt: Date }, b: { createdAt: Date }) =>
-            a.createdAt.getTime() - b.createdAt.getTime()
-        );
-        if (sortedByOldest.length > 0) {
-          await tx.searchHistory.delete({ where: { id: sortedByOldest[0].id } });
-        }
-      }
-
-      return tx.searchHistory.create({
-        data: { userId, query: trimmedQuery },
-      });
+      return saved;
     }, { isolationLevel: 'ReadCommitted' });
 
   let lastError: unknown;
@@ -1707,8 +1699,9 @@ const removeSearchHistory = async (args: {
   const searchToDelete = allSearches.find((s: { query: string }) => s.query.toLowerCase() === trimmedQuery.toLowerCase());
 
   if (searchToDelete) {
-    await prisma.searchHistory.delete({
-      where: { id: searchToDelete.id }
+    // Idempotent: avoids P2025 if the row was deleted concurrently.
+    await prisma.searchHistory.deleteMany({
+      where: { id: searchToDelete.id },
     });
     return {
       success: true,
