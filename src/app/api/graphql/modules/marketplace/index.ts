@@ -17,6 +17,7 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
+import { getMeiliClient, MEILI_PRODUCTS_INDEX } from '@/lib/meili';
 // Keep marketplace facets stable on productType + synonyms.
 
 interface OfferDiscountType {
@@ -708,6 +709,50 @@ const fetchMarketplaceProducts = async (args: {
     }
   }
   
+  // Try Meilisearch first for search queries (better relevance + typos + facets).
+  // Fall back to Prisma when MEILI_HOST isn't set or Meili is unreachable.
+  let meiliHitIds: string[] | null = null;
+  let meiliTotalCount: number | null = null;
+  let meiliFacetProductTypes: Array<{ value: string; count: number }> | null = null;
+  if (search && search.trim()) {
+    const client = getMeiliClient();
+    if (client) {
+      try {
+        const index = client.index(MEILI_PRODUCTS_INDEX);
+        const filterParts: string[] = [];
+        if (category && category !== 'All') {
+          filterParts.push(`productType = "${String(category).replace(/"/g, '\\"')}"`);
+        }
+        const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
+        const meiliRes = await index.search(search.trim(), {
+          limit,
+          offset: (page - 1) * limit,
+          filter,
+          facets: ['productType'],
+        });
+        meiliHitIds = (meiliRes.hits as Array<{ id?: string }>)
+          .map((h) => h.id)
+          .filter(Boolean) as string[];
+        meiliTotalCount =
+          typeof meiliRes.estimatedTotalHits === 'number'
+            ? meiliRes.estimatedTotalHits
+            : meiliHitIds.length;
+
+        const facetDist = (meiliRes.facetDistribution ?? {}) as Record<string, Record<string, number> | undefined>;
+        const productTypeCounts = facetDist.productType ?? {};
+        meiliFacetProductTypes = Object.entries(productTypeCounts)
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 12);
+      } catch {
+        // ignore and fall back
+        meiliHitIds = null;
+        meiliTotalCount = null;
+        meiliFacetProductTypes = null;
+      }
+    }
+  }
+
   // Build where clause for published products only
   const whereClause: Record<string, unknown> = {
     marketplaceStatus: 'Published',
@@ -758,56 +803,82 @@ const fetchMarketplaceProducts = async (args: {
   const skip = (safePage - 1) * safeLimit;
   const take = safeLimit;
 
-  // Facets for Shopee-like "category pills" derived from current result-set
-  const [productTypeFacets] = await Promise.all([
-    prisma.product.groupBy({
-      by: ['productType'],
-      where: whereClause,
-      _count: { _all: true },
-      orderBy: { _count: { _all: 'desc' } },
-      take: 12,
-    }).catch(() => []),
-  ]);
+  // Facets for "category pills" derived from current result-set (stable productType list)
+  const facetProductTypes: Array<{ value: string; count: number }> = meiliFacetProductTypes
+    ? meiliFacetProductTypes
+    : await prisma.product
+        .groupBy({
+          by: ['productType'],
+          where: whereClause,
+          _count: { productType: true },
+          orderBy: { _count: { productType: 'desc' } },
+          take: 12,
+        })
+        .then((rows) =>
+          rows
+            .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
+            .map((r) => ({ value: String(r.productType), count: r._count.productType })),
+        )
+        .catch(() => []);
   
   // Get published products with user info, ordered by lastSyncAt to get most recent changes
-  const products = await prisma.product.findMany({
-    where: whereClause,
-    include: {
-      variants: true,
-      variantOptions: true,
-      user: {
-        select: {
-          firstName: true,
-          lastName: true,
-          company: {
-            select: {
-              name: true,
-              businessAddress: true,
-              businessPhone: true,
-              businessEmail: true,
-              industryType: true,
-              shippingPreferences: true,
-              pickupAddress: true,
-              logo: true,
-              bannerImage: true,
-              defaultDeliveryLeadTimeMinDays: true,
-              defaultDeliveryLeadTimeMaxDays: true,
-            }
-          }
-        }
-      }
+  const productInclude = {
+    variants: true,
+    variantOptions: true,
+    user: {
+      select: {
+        firstName: true,
+        lastName: true,
+        company: {
+          select: {
+            name: true,
+            businessAddress: true,
+            businessPhone: true,
+            businessEmail: true,
+            industryType: true,
+            shippingPreferences: true,
+            pickupAddress: true,
+            logo: true,
+            bannerImage: true,
+            defaultDeliveryLeadTimeMinDays: true,
+            defaultDeliveryLeadTimeMaxDays: true,
+          },
+        },
+      },
     },
-    skip,
-    take,
-    orderBy: [
-      { lastSyncAt: 'desc' },
-      { publishedAt: 'desc' }
-    ]
-  });
+  } as const;
+
+  const products = meiliHitIds
+    ? (() => {
+        return prisma.product
+          .findMany({
+            where: {
+              productId: { in: meiliHitIds },
+              marketplaceStatus: 'Published',
+              status: 'Published',
+            },
+            include: productInclude,
+          })
+          .then((rows) => {
+            const byId = new Map(rows.map((p) => [p.productId, p]));
+            return meiliHitIds.map((id) => byId.get(id)).filter(Boolean) as typeof rows;
+          });
+      })()
+    : prisma.product.findMany({
+        where: whereClause,
+        include: productInclude,
+        skip,
+        take,
+        orderBy: [{ lastSyncAt: 'desc' }, { publishedAt: 'desc' }],
+      });
+
+  const resolvedProducts = await products;
   
   // Get active offers for all products
-  const productIds = products.map(p => p.productId);
-  const userIds = [...new Set(products.map(p => p.userId).filter((id): id is number => id !== null))];
+  const productIds = resolvedProducts.map((p) => p.productId);
+  const userIds = [
+    ...new Set(resolvedProducts.map((p) => p.userId).filter((id): id is number => id !== null)),
+  ];
   const soldCountMap = await calculateSoldCounts(prisma, productIds);
   
   // Get only ACTIVE offers to check real-time status
@@ -969,7 +1040,7 @@ const fetchMarketplaceProducts = async (args: {
   });
   
   // Transform products for marketplace format
-  const marketplaceProducts = await Promise.all(products.map(async (product) => {
+  const marketplaceProducts = await Promise.all(resolvedProducts.map(async (product) => {
     const variantOptions = product.variantOptions || [];
     
     if (variantOptions.length === 0) {
@@ -1070,8 +1141,8 @@ const fetchMarketplaceProducts = async (args: {
       originalSellingPrice = undefined; // No strikethrough when no offer
     }
     
-    const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
-    const totalLowStockThreshold = variantOptions.reduce((max, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
+    const totalStock = variantOptions.reduce((sum: number, vo) => sum + (vo.stockQuantity || 0), 0);
+    const totalLowStockThreshold = variantOptions.reduce((max: number, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
     
     let stockStatus = 'In Stock';
     if (totalStock === 0) stockStatus = 'Out of Stock';
@@ -1100,7 +1171,7 @@ const fetchMarketplaceProducts = async (args: {
       stockStatus,
       variants: product.variants || [],
       variantOptions: product.variantOptions || [],
-      variantOptionsFormatted: variantOptions.map(vo => ({
+      variantOptionsFormatted: variantOptions.map((vo) => ({
         id: vo.id,
         sku: vo.sku,
         purchasePrice: safeParsePrice(vo.purchasePrice),
@@ -1199,20 +1270,16 @@ const fetchMarketplaceProducts = async (args: {
     };
   }));
   
-  const totalCount = await prisma.product.count({ where: whereClause });
+  const totalCount = meiliTotalCount ?? (await prisma.product.count({ where: whereClause }));
   const pagination = buildPaginationInfo(page, limit, totalCount);
   
   const result = {
     nodes: marketplaceProducts.filter(product => product !== null),
     pagination,
     facets: {
-      productTypes: (productTypeFacets as Array<{ productType: string | null; _count: { _all: number } }>)
-        .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
-        .map((r) => ({ value: String(r.productType), count: r._count._all })),
-      // Back-compat: keep field but mirror productTypes so the app never sees empty.
-      productCategories: (productTypeFacets as Array<{ productType: string | null; _count: { _all: number } }>)
-        .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
-        .map((r) => ({ value: String(r.productType), count: r._count._all })),
+      productTypes: facetProductTypes,
+      // Back-compat: mirror productTypes so the app never sees empty.
+      productCategories: facetProductTypes,
     },
     timestamp: new Date().toISOString()
   };

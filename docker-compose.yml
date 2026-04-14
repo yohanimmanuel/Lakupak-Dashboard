@@ -19,6 +19,24 @@ services:
       NEXT_PUBLIC_WS_PORT: "3001"
     restart: unless-stopped
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    environment:
+      MEILI_ENV: development
+      # IMPORTANT: For any shared/staging/production deployment, you MUST set `MEILI_MASTER_KEY`
+      # (do not rely on insecure defaults). For local-only dev you can set it in `.env`.
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:7700/health > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   postgres:
     profiles:
       - local-db
@@ -50,3 +68,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  meili_data:
