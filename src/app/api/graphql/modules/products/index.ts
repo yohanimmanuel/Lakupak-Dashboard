@@ -1,5 +1,9 @@
 import { type Prisma, type OfferDiscountType } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import {
+  normalizeMerchandisingCategorySlug,
+  normalizeSalesChannel,
+} from '@/constants/merchandisingTaxonomy';
 import { broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
 import { NotificationService } from '../notifications';
@@ -62,6 +66,7 @@ export const productsTypeDefs = /* GraphQL */ `
     supplier: String!
     status: String!
     productCategory: String!
+    merchandisingCategorySlug: String
     catalogName: String
     images: [String!]!
     halalCertified: Boolean
@@ -213,8 +218,9 @@ export const productsTypeDefs = /* GraphQL */ `
       brand: String!
       supplier: String!
       status: String
-      productCategory: String!
-      catalogName: String
+    productCategory: String!
+    merchandisingCategorySlug: String
+    catalogName: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -237,8 +243,9 @@ export const productsTypeDefs = /* GraphQL */ `
       brand: String
       supplier: String
       status: String
-      productCategory: String
-      catalogName: String
+    productCategory: String
+    merchandisingCategorySlug: String
+    catalogName: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -512,6 +519,7 @@ export const mapProduct = (
     supplier: product.supplier,
     status: product.status,
     productCategory: product.productCategory,
+    merchandisingCategorySlug: (product as { merchandisingCategorySlug?: string | null }).merchandisingCategorySlug ?? null,
     catalogName: product.catalogName ?? null,
     images: product.images ?? [],
     halalCertified: product.halalCertified ?? null,
@@ -783,6 +791,7 @@ const buildProductData = ({
   supplier,
   status,
   productCategory,
+  merchandisingCategorySlug,
   catalogName,
   images,
   halalCertified,
@@ -799,7 +808,9 @@ const buildProductData = ({
   brand: string;
   supplier: string;
   status?: string | null;
+  /** Sales channel: Retail / Wholesale / Both (stored in Product.productCategory). */
   productCategory: string;
+  merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
@@ -821,7 +832,8 @@ const buildProductData = ({
     supplier: supplier.trim(),
     status: finalStatus,
     marketplaceStatus: finalMarketplaceStatus,
-    productCategory: productCategory.trim(),
+    productCategory: normalizeSalesChannel(productCategory),
+    merchandisingCategorySlug: normalizeMerchandisingCategorySlug(merchandisingCategorySlug),
     catalogName: catalogName?.trim() || '',
     images: Array.isArray(images) ? images : [],
     halalCertified: halalCertified === true,
@@ -959,6 +971,7 @@ export const createProduct = async (args: {
   supplier: string;
   status?: string | null;
   productCategory: string;
+  merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
@@ -1012,6 +1025,7 @@ export const createProduct = async (args: {
     supplier,
     status = 'Draft',
     productCategory,
+    merchandisingCategorySlug,
     catalogName,
     images = [],
     halalCertified = false,
@@ -1043,6 +1057,7 @@ export const createProduct = async (args: {
     supplier,
     status,
     productCategory,
+    merchandisingCategorySlug,
     catalogName,
     images,
     halalCertified,
@@ -1173,6 +1188,7 @@ export const updateProduct = async (args: {
   supplier?: string | null;
   status?: string | null;
   productCategory?: string | null;
+  merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
@@ -1227,6 +1243,7 @@ export const updateProduct = async (args: {
     supplier,
     status,
     productCategory,
+    merchandisingCategorySlug,
     catalogName,
     images,
     halalCertified,
@@ -1297,7 +1314,14 @@ export const updateProduct = async (args: {
       cleanUpdateData.lastSyncAt = new Date(); // Update sync time when status changes
     }
   }
-  if (productCategory !== undefined) cleanUpdateData.productCategory = String(productCategory);
+  if (productCategory !== undefined) {
+    cleanUpdateData.productCategory = normalizeSalesChannel(String(productCategory));
+  }
+  if (merchandisingCategorySlug !== undefined) {
+    cleanUpdateData.merchandisingCategorySlug = normalizeMerchandisingCategorySlug(
+      String(merchandisingCategorySlug),
+    );
+  }
   if (catalogName !== undefined) cleanUpdateData.catalogName = String(catalogName);
   if (images !== undefined) cleanUpdateData.images = Array.isArray(images) ? images : [];
   if (halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(halalCertified);

@@ -83,7 +83,9 @@ export interface Product {
   brand: string;
   supplier: string;
   status: 'Draft' | 'Published';
+  /** Sales channel: Retail / Wholesale / Both */
   productCategory: string;
+  merchandisingCategorySlug?: string;
   catalogName: string;
   images: string[];
   // Product assurance
@@ -177,6 +179,7 @@ export interface ProductFormData {
   supplier: string;
   status: 'Draft' | 'Published';
   productCategory: string;
+  merchandisingCategorySlug?: string;
   catalogName: string;
   images: string[];
   // Product assurance

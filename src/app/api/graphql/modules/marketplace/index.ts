@@ -17,6 +17,7 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
+// Keep marketplace facets stable on productType + synonyms.
 
 interface OfferDiscountType {
   id: string;
@@ -95,6 +96,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     images: [String!]!
     category: String!
     productCategory: String!
+    salesChannel: String!
     brand: String
     unit: String!
     sku: String!
@@ -170,7 +172,18 @@ export const marketplaceTypeDefs = /* GraphQL */ `
   type MobileMarketplaceProductConnection {
     nodes: [MobileMarketplaceProduct!]!
     pagination: PaginationInfo!
+    facets: MarketplaceSearchFacets!
     timestamp: String!
+  }
+
+  type MarketplaceFacetValue {
+    value: String!
+    count: Int!
+  }
+
+  type MarketplaceSearchFacets {
+    productTypes: [MarketplaceFacetValue!]!
+    productCategories: [MarketplaceFacetValue!]!
   }
 
   type CartItem {
@@ -700,30 +713,61 @@ const fetchMarketplaceProducts = async (args: {
     marketplaceStatus: 'Published',
     status: 'Published'
   };
-  
-  // Build OR conditions for filtering
-  const orConditions: Record<string, unknown>[] = [];
-  
-  if (category && category !== 'All') {
-    orConditions.push({ productType: category });
-  }
-  
-  if (search) {
-    orConditions.push(
+
+  // Search term = OR across searchable fields + synonym expansion for productType
+  if (search && search.trim()) {
+    const searchOr: Record<string, unknown>[] = [
       { name: { contains: search, mode: 'insensitive' } },
       { description: { contains: search, mode: 'insensitive' } },
       { brand: { contains: search, mode: 'insensitive' } },
       { productType: { contains: search, mode: 'insensitive' } },
-    );
+    ];
+    const q = search.trim().toLowerCase();
+    const synonymToTypes: Array<{ needles: string[]; types: string[] }> = [
+      { needles: ['type c', 'type-c', 'usb c', 'usb-c'], types: ['Cables', 'Cables & Chargers', 'Mobile Accessories'] },
+      { needles: ['cable', 'wire'], types: ['Cables', 'Cables & Chargers'] },
+      { needles: ['charger', 'charging', 'adapter'], types: ['Chargers', 'Cables & Chargers', 'Mobile Accessories'] },
+      { needles: ['powerbank', 'power bank'], types: ['Mobile Accessories'] },
+      { needles: ['keyboard', 'mouse'], types: ['Computers & Peripherals'] },
+    ];
+    const expandedTypes = new Set<string>();
+    for (const row of synonymToTypes) {
+      if (row.needles.some((n) => q.includes(n))) {
+        row.types.forEach((t) => expandedTypes.add(t));
+      }
+    }
+    if (expandedTypes.size > 0) {
+      searchOr.push({ productType: { in: Array.from(expandedTypes) } });
+    }
+    whereClause.OR = searchOr;
   }
-  
-  if (orConditions.length > 0) {
-    whereClause.OR = orConditions;
+
+  // Category filter = productType only (sales channel is a separate filter on client)
+  if (category && category !== 'All') {
+    whereClause.AND = [
+      ...(Array.isArray(whereClause.AND) ? (whereClause.AND as Record<string, unknown>[]) : []),
+      {
+        OR: [
+          { productType: category },
+        ],
+      },
+    ];
   }
   
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
   const skip = (safePage - 1) * safeLimit;
   const take = safeLimit;
+
+  // Facets for Shopee-like "category pills" derived from current result-set
+  const [productTypeFacets] = await Promise.all([
+    prisma.product.groupBy({
+      by: ['productType'],
+      where: whereClause,
+      _count: { _all: true },
+      orderBy: { _count: { _all: 'desc' } },
+      take: 12,
+    }).catch(() => []),
+  ]);
   
   // Get published products with user info, ordered by lastSyncAt to get most recent changes
   const products = await prisma.product.findMany({
@@ -1072,7 +1116,10 @@ const fetchMarketplaceProducts = async (args: {
       })),
       images: product.images || [],
       category: product.productType || 'Uncategorized',
-      productCategory: product.productCategory || 'Uncategorized',
+      // Keep "category" pills stable by using productType; don't inject merchandising labels here.
+      productCategory: product.productType || 'Uncategorized',
+      // Sales channel lives in the DB `productCategory` field (Retail / Wholesale / Both).
+      salesChannel: product.productCategory || 'Retail',
       brand: product.brand,
       unit: 'Piece',
       sku: product.sku,
@@ -1158,6 +1205,15 @@ const fetchMarketplaceProducts = async (args: {
   const result = {
     nodes: marketplaceProducts.filter(product => product !== null),
     pagination,
+    facets: {
+      productTypes: (productTypeFacets as Array<{ productType: string | null; _count: { _all: number } }>)
+        .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
+        .map((r) => ({ value: String(r.productType), count: r._count._all })),
+      // Back-compat: keep field but mirror productTypes so the app never sees empty.
+      productCategories: (productTypeFacets as Array<{ productType: string | null; _count: { _all: number } }>)
+        .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
+        .map((r) => ({ value: String(r.productType), count: r._count._all })),
+    },
     timestamp: new Date().toISOString()
   };
   

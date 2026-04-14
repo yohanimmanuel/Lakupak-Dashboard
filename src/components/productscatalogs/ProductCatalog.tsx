@@ -2040,7 +2040,7 @@ export default function ProductCatalog({
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Product Category
+                    Product Category (by Channel)
                   </label>
                   <input
                     type="text"

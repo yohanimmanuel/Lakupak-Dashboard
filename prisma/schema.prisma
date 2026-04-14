@@ -128,7 +128,10 @@ model Product {
   brand             String
   supplier          String
   status            String
+  /// Sales channel: Retail / Wholesale / Both (not merchandising taxonomy)
   productCategory   String
+  /// Stable slug from MERCHANDISING_CATEGORIES (e.g. mobile-accessories)
+  merchandisingCategorySlug String?
   catalogName       String
   images            String[]
   createdAt         DateTime         @default(now()) @db.Timestamptz(3)
@@ -157,6 +160,7 @@ model Product {
   @@index([status])
   @@index([marketplaceStatus])
   @@index([productCategory])
+  @@index([merchandisingCategorySlug])
   @@index([userId, marketplaceStatus])
   @@index([createdAt])
 }
