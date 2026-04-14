@@ -690,6 +690,17 @@ const fetchMarketplaceProducts = async (args: {
   marketplaceUserId?: number;
 }) => {
   const { page = 1, limit = 20, category, search } = args;
+  const meiliTimeoutMs = (() => {
+    const raw = process.env.MEILI_SEARCH_TIMEOUT_MS;
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 800;
+  })();
+  const fallbackTrigramMinScore = (() => {
+    const raw = process.env.MARKETPLACE_SEARCH_FALLBACK_TRIGRAM_MIN_SCORE;
+    const n = raw ? Number(raw) : NaN;
+    // Trigram similarity is in [0,1]. 0.2 is a reasonable "typo-ish" threshold for short queries.
+    return Number.isFinite(n) && n > 0 ? n : 0.2;
+  })();
   
   // ONLY use cache for search queries (when search parameter is provided)
   // Regular marketplace listings should always be fresh to show real-time offer/price updates
@@ -724,12 +735,17 @@ const fetchMarketplaceProducts = async (args: {
           filterParts.push(`productType = "${String(category).replace(/"/g, '\\"')}"`);
         }
         const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
-        const meiliRes = await index.search(search.trim(), {
-          limit,
-          offset: (page - 1) * limit,
-          filter,
-          facets: ['productType'],
-        });
+        const meiliRes = await Promise.race([
+          index.search(search.trim(), {
+            limit,
+            offset: (page - 1) * limit,
+            filter,
+            facets: ['productType'],
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Meili search timeout after ${meiliTimeoutMs}ms`)), meiliTimeoutMs),
+          ),
+        ]);
         meiliHitIds = (meiliRes.hits as Array<{ id?: string }>)
           .map((h) => h.id)
           .filter(Boolean) as string[];
@@ -802,6 +818,122 @@ const fetchMarketplaceProducts = async (args: {
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
   const skip = (safePage - 1) * safeLimit;
   const take = safeLimit;
+
+  // If Meili isn't available, do a best-effort "relevance" ordering in Prisma fallback for search queries.
+  // This keeps MVP search usable even when Meili is down (at the cost of extra DB work).
+  if (!meiliHitIds && search && search.trim()) {
+    // 1) Try typo-ish fallback using Postgres pg_trgm similarity (if available).
+    // Supabase typically supports enabling pg_trgm, but we must not hard-require it at runtime.
+    // If the extension/functions aren't available, we fall back to the lightweight JS scorer below.
+    try {
+      const q = search.trim().toLowerCase();
+      const cat = category && category !== 'All' ? String(category) : null;
+
+      const rows = await prisma.$queryRaw<Array<{ productId: string; score: number }>>`
+        SELECT
+          p."productId" as "productId",
+          GREATEST(
+            similarity(lower(p."name"), ${q}),
+            similarity(lower(COALESCE(p."brand", '')), ${q}),
+            similarity(lower(COALESCE(p."productType", '')), ${q}),
+            similarity(lower(COALESCE(p."description", '')), ${q})
+          ) as "score"
+        FROM "public"."Product" p
+        WHERE p."marketplaceStatus" = 'Published'
+          AND p."status" = 'Published'
+          AND (${cat}::text IS NULL OR p."productType" = ${cat})
+          AND GREATEST(
+            similarity(lower(p."name"), ${q}),
+            similarity(lower(COALESCE(p."brand", '')), ${q}),
+            similarity(lower(COALESCE(p."productType", '')), ${q}),
+            similarity(lower(COALESCE(p."description", '')), ${q})
+          ) >= ${fallbackTrigramMinScore}
+        ORDER BY "score" DESC, p."lastSyncAt" DESC NULLS LAST, p."publishedAt" DESC NULLS LAST
+        LIMIT ${take} OFFSET ${skip}
+      `;
+
+      const countRows = await prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COUNT(*)::bigint as "total"
+        FROM "public"."Product" p
+        WHERE p."marketplaceStatus" = 'Published'
+          AND p."status" = 'Published'
+          AND (${cat}::text IS NULL OR p."productType" = ${cat})
+          AND GREATEST(
+            similarity(lower(p."name"), ${q}),
+            similarity(lower(COALESCE(p."brand", '')), ${q}),
+            similarity(lower(COALESCE(p."productType", '')), ${q}),
+            similarity(lower(COALESCE(p."description", '')), ${q})
+          ) >= ${fallbackTrigramMinScore}
+      `;
+
+      const ids = rows.map((r) => r.productId).filter(Boolean);
+      if (ids.length > 0) {
+        meiliHitIds = ids;
+        const total = countRows?.[0]?.total;
+        meiliTotalCount = typeof total === 'bigint' ? Number(total) : Number(total ?? ids.length);
+      }
+    } catch {
+      // ignore; extension might not be enabled
+    }
+
+    if (meiliHitIds) {
+      // Skip JS scorer if trigram fallback succeeded.
+    } else {
+    const q = search.trim().toLowerCase();
+    const tokens = q.split(/\s+/g).filter(Boolean).slice(0, 8);
+    const maxCandidates = Math.min(500, Math.max(80, safePage * safeLimit * 10));
+
+    const candidates = await prisma.product.findMany({
+      where: whereClause as any,
+      select: {
+        productId: true,
+        name: true,
+        description: true,
+        brand: true,
+        productType: true,
+        lastSyncAt: true,
+        publishedAt: true,
+        user: { select: { company: { select: { name: true } } } },
+      },
+      take: maxCandidates,
+      orderBy: [{ lastSyncAt: 'desc' }, { publishedAt: 'desc' }],
+    });
+
+    const scoreText = (haystack: string, w: number) => {
+      let s = 0;
+      if (!haystack) return 0;
+      if (haystack.includes(q)) s += 10 * w;
+      for (const t of tokens) {
+        if (t.length >= 2 && haystack.includes(t)) s += 2 * w;
+      }
+      if (haystack.startsWith(q)) s += 6 * w;
+      return s;
+    };
+
+    const scored = candidates
+      .map((p) => {
+        const name = String(p.name ?? '').toLowerCase();
+        const brand = String(p.brand ?? '').toLowerCase();
+        const type = String(p.productType ?? '').toLowerCase();
+        const desc = String(p.description ?? '').toLowerCase();
+        const seller = String(p.user?.company?.name ?? '').toLowerCase();
+        const score =
+          scoreText(name, 6) +
+          scoreText(brand, 3) +
+          scoreText(type, 3) +
+          scoreText(seller, 2) +
+          scoreText(desc, 1);
+        return { id: p.productId, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .filter((x) => x.score > 0);
+
+    const orderedIds = scored.map((s) => s.id);
+    meiliTotalCount = orderedIds.length;
+    const pageIds = orderedIds.slice(skip, skip + take);
+    meiliHitIds = pageIds.length ? pageIds : null;
+    }
+  }
 
   // Facets for "category pills" derived from current result-set (stable productType list)
   const facetProductTypes: Array<{ value: string; count: number }> = meiliFacetProductTypes
