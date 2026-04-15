@@ -949,7 +949,7 @@ const fetchMarketplaceProducts = async (args: {
           return nm ? nm : null;
         })();
         meiliTopHitSellerName = (() => {
-          const nm = typeof topHit?.sellerName === 'string' ? topHit.sellerName.trim() : '';
+          const nm = typeof topHit?.companyName === 'string' ? topHit.companyName.trim() : '';
           return nm ? nm : null;
         })();
         meiliTopHitProductType = (() => {
@@ -1714,16 +1714,26 @@ const fetchMarketplaceProducts = async (args: {
     // If we can strongly infer a typo correction from the top hit, allow it even without query logs
     // and even when many results exist (Meili typo tolerance may still return a lot of hits).
     if (!didYouMean && qNorm.length >= 3 && nodesCount > 0) {
-      const topCand = pickDidYouMeanCandidate(qNorm, [
-        meiliTopHitName,
-        meiliTopHitBrand,
-        meiliTopHitSellerName,
-        meiliTopHitProductType,
-      ]);
-      if (topCand) {
-        const maxDist = qNorm.length <= 8 ? 1 : 2;
-        if (boundedEditDistance(qNorm, topCand, maxDist) <= maxDist) {
-          didYouMean = topCand;
+      // Company/distributor names are often longer/multi-word, so allow a slightly looser typo threshold.
+      // We only use the single top hit to avoid noisy suggestions.
+      if (meiliTopHitSellerName) {
+        const maxDist = qNorm.length <= 10 ? 2 : 3;
+        if (boundedEditDistance(qNorm, meiliTopHitSellerName, maxDist) <= maxDist) {
+          didYouMean = meiliTopHitSellerName;
+        }
+      }
+
+      if (!didYouMean) {
+        const topCand = pickDidYouMeanCandidate(qNorm, [
+          meiliTopHitName,
+          meiliTopHitBrand,
+          meiliTopHitProductType,
+        ]);
+        if (topCand) {
+          const maxDist = qNorm.length <= 8 ? 1 : 2;
+          if (boundedEditDistance(qNorm, topCand, maxDist) <= maxDist) {
+            didYouMean = topCand;
+          }
         }
       }
     }

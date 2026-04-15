@@ -8,7 +8,7 @@ type MeiliMarketplaceDoc = {
   brand: string | null;
   productType: string;
   salesChannel: string | null;
-  sellerName: string | null;
+  companyName: string | null;
   sellingPrice: number | null;
   publishedAt: string | null;
   lastSyncAt: string | null;
@@ -51,7 +51,7 @@ export async function upsertMarketplaceProductToMeili(productId: string) {
     brand: p.brand ?? null,
     productType: p.productType,
     salesChannel: p.productCategory ?? null,
-    sellerName: p.user?.company?.name ?? null,
+    companyName: p.user?.company?.name ?? null,
     sellingPrice: p.variantOptions?.[0]?.sellingPrice != null ? Number(p.variantOptions[0].sellingPrice) : null,
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
     lastSyncAt: p.lastSyncAt ? p.lastSyncAt.toISOString() : null,
