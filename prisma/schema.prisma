@@ -555,6 +555,34 @@ model MarketplaceSearchQueryLog {
   @@index([engine, createdAt])
 }
 
+enum MarketplaceSearchTermMapKind {
+  SYNONYM
+  TRANSLATION
+}
+
+model MarketplaceSearchTermMap {
+  id           String   @id @default(cuid())
+  kind         MarketplaceSearchTermMapKind
+  fromTerm     String
+  toTerm       String
+  fromLocale   String?
+  toLocale     String?
+  bidirectional Boolean @default(true)
+  enabled      Boolean  @default(true)
+
+  createdByAdminId Int?
+  createdByAdmin   PlatformAdmin? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([kind, enabled])
+  @@index([fromTerm])
+  @@index([toTerm])
+  @@index([fromLocale, toLocale])
+  @@unique([kind, fromTerm, toTerm, fromLocale, toLocale])
+}
+
 model Offer {
   id                 String   @id @default(cuid())
   offerId            String   @unique
@@ -1005,6 +1033,7 @@ model PlatformAdmin {
 
   announcements PlatformAnnouncement[]
   homeOffers    MarketplaceHomeOffer[]
+  searchTermMaps MarketplaceSearchTermMap[]
 }
 
 /// Marketplace-wide announcements shown in mobile "Latest updates".

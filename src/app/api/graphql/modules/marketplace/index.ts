@@ -48,28 +48,69 @@ function facetDistributionHasHits(m: Record<string, number> | null | undefined):
   return Object.values(m).some((n) => typeof n === 'number' && n > 0);
 }
 
+function normSearchTerm(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+async function getMarketplaceSearchExpansions(
+  prismaClient: typeof prisma,
+  rawQuery: string,
+  cap: number,
+): Promise<string[]> {
+  const q = normSearchTerm(rawQuery);
+  if (!q) return [];
+
+  const tokens = q.split(' ').filter(Boolean);
+  const candidates = Array.from(new Set([q, ...tokens])).slice(0, 12);
+
+  const rows = await (prismaClient as any).marketplaceSearchTermMap.findMany({
+    where: {
+      enabled: true,
+      fromTerm: { in: candidates },
+    },
+    select: { toTerm: true },
+  });
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const t = normSearchTerm(r.toTerm);
+    if (!t) continue;
+    if (t === q) continue;
+    if (seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
 /**
  * Category pill counts aligned with pg_trgm product matching (no category chip filter — same idea as Meili facet pass).
  */
 async function trgmFacetCountsByProductType(
   prismaClient: typeof prisma,
   q: string,
+  extraTerms: string[],
   minScore: number,
 ): Promise<Record<string, number>> {
   try {
+    const terms = [normSearchTerm(q), ...extraTerms.map(normSearchTerm)].filter(Boolean).slice(0, 6);
+    if (terms.length === 0) return {};
     const rows = await prismaClient.$queryRaw<Array<{ productType: string; cnt: bigint }>>`
       SELECT
         trim(p."productType") AS "productType",
-        COUNT(*)::bigint AS "cnt"
+        COUNT(DISTINCT p."productId")::bigint AS "cnt"
       FROM "public"."Product" p
+      CROSS JOIN LATERAL unnest(${terms}::text[]) AS t("term")
       WHERE p."marketplaceStatus" = 'Published'
         AND p."status" = 'Published'
         AND trim(COALESCE(p."productType", '')) <> ''
         AND GREATEST(
-          similarity(lower(p."name"), ${q}),
-          similarity(lower(COALESCE(p."brand", '')), ${q}),
-          similarity(lower(COALESCE(p."productType", '')), ${q}),
-          similarity(lower(COALESCE(p."description", '')), ${q})
+          similarity(lower(p."name"), t."term"),
+          similarity(lower(COALESCE(p."brand", '')), t."term"),
+          similarity(lower(COALESCE(p."productType", '')), t."term"),
+          similarity(lower(COALESCE(p."description", '')), t."term")
         ) >= ${minScore}
       GROUP BY trim(p."productType")
     `;
@@ -239,6 +280,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     nodes: [MobileMarketplaceProduct!]!
     pagination: PaginationInfo!
     facets: MarketplaceSearchFacets!
+    didYouMean: String
     timestamp: String!
   }
 
@@ -794,6 +836,9 @@ const fetchMarketplaceProducts = async (args: {
   let meiliFacetProductTypeCounts: Record<string, number> | null = null;
   /** When pg_trgm serves results, pills use these counts so ordering matches the fuzzy match set (not empty Meili facets). */
   let trgmFacetProductTypeCounts: Record<string, number> | null = null;
+  const queryExpansions =
+    search && search.trim() ? await getMarketplaceSearchExpansions(prisma, search, 4).catch(() => []) : [];
+  const searchTerms = search && search.trim() ? [search.trim(), ...queryExpansions] : [];
   if (search && search.trim()) {
     const client = getMeiliClient();
     if (client) {
@@ -804,7 +849,7 @@ const fetchMarketplaceProducts = async (args: {
           filterParts.push(`productType = "${String(category).replace(/"/g, '\\"')}"`);
         }
         const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
-        const q = search.trim();
+        const primaryQ = search.trim();
         const meiliMatchingStrategy = parseMarketplaceMeiliMatchingStrategy();
         const meiliLocales = parseMarketplaceMeiliSearchLocales();
         const meiliOptionalParams = {
@@ -825,47 +870,70 @@ const fetchMarketplaceProducts = async (args: {
           facets: ['productType'],
         };
         // If optional params 400 on older Meilisearch, retry without them so Meili is used instead of silent pg fallback.
-        let meiliResHits: Awaited<ReturnType<typeof index.search>>;
-        try {
-          meiliResHits = await meiliRace(
-            index.search(q, { ...meiliSearchBase, ...meiliOptionalParams }),
-          );
-        } catch (err) {
-          const isBadRequest = err instanceof Error && 
-            (err.message.includes('400') || err.message.includes('Bad Request'));
-          if (isBadRequest && Object.keys(meiliOptionalParams).length > 0) {
-            meiliResHits = await meiliRace(index.search(q, meiliSearchBase));
-          } else {
+        const runMeili = async (q: string) => {
+          try {
+            return await meiliRace(index.search(q, { ...meiliSearchBase, ...meiliOptionalParams }));
+          } catch (err) {
+            const isBadRequest =
+              err instanceof Error && (err.message.includes('400') || err.message.includes('Bad Request'));
+            if (isBadRequest && Object.keys(meiliOptionalParams).length > 0) {
+              return await meiliRace(index.search(q, meiliSearchBase));
+            }
             throw err;
           }
-        }
-        meiliHitIds = (meiliResHits.hits as Array<{ id?: string }>)
-          .map((h) => h.id)
-          .filter(Boolean) as string[];
+        };
+
+        const meiliResPrimary = await runMeili(primaryQ);
+        const extraQs = queryExpansions.slice(0, 2);
+        const extraRes = await Promise.all(
+          extraQs.map(async (q2) => {
+            try {
+              return await runMeili(q2);
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        const mergedIds: string[] = [];
+        const seen = new Set<string>();
+        const pushHits = (res: any) => {
+          const ids = (res?.hits as Array<{ id?: string }> | undefined)?.map((h) => h.id).filter(Boolean) as
+            | string[]
+            | undefined;
+          if (!ids) return;
+          for (const id of ids) {
+            if (seen.has(id)) continue;
+            seen.add(id);
+            mergedIds.push(id);
+          }
+        };
+        pushHits(meiliResPrimary);
+        for (const r of extraRes) pushHits(r);
+
+        meiliHitIds = mergedIds;
         engineUsed = 'meili';
         meiliTotalCount =
-          typeof meiliResHits.estimatedTotalHits === 'number'
-            ? meiliResHits.estimatedTotalHits
-            : meiliHitIds.length;
+          typeof meiliResPrimary.estimatedTotalHits === 'number' ? meiliResPrimary.estimatedTotalHits : meiliHitIds.length;
 
         // If a category filter is applied, `facetDistribution` will only reflect that filtered scope.
         // For Shopee-style "show all categories but rank relevant ones on top", fetch facets without the category filter.
         const meiliFacetBase = { limit: 0, offset: 0, facets: ['productType'] };
-        let meiliResFacets = meiliResHits;
+        let meiliResFacets = meiliResPrimary;
         if (category && category !== 'All') {
           try {
             try {
               meiliResFacets = await meiliRace(
-                index.search(q, { ...meiliFacetBase, ...meiliOptionalParams }),
+                index.search(primaryQ, { ...meiliFacetBase, ...meiliOptionalParams }),
               );
             } catch {
               if (Object.keys(meiliOptionalParams).length > 0) {
-                meiliResFacets = await meiliRace(index.search(q, meiliFacetBase));
+                meiliResFacets = await meiliRace(index.search(primaryQ, meiliFacetBase));
               }
               // Keep meiliResHits-derived facets if facet-only query still fails — do not drop main Meili results.
             }
           } catch {
-            meiliResFacets = meiliResHits;
+            meiliResFacets = meiliResPrimary;
           }
         }
 
@@ -889,12 +957,14 @@ const fetchMarketplaceProducts = async (args: {
 
   // Search term = OR across searchable fields (Meili/pg_trgm handle relevance; Prisma path is substring match).
   if (search && search.trim()) {
-    whereClause.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-      { brand: { contains: search, mode: 'insensitive' } },
-      { productType: { contains: search, mode: 'insensitive' } },
-    ];
+    const ors: Record<string, unknown>[] = [];
+    for (const t of (searchTerms.length ? searchTerms : [search.trim()]).slice(0, 5)) {
+      ors.push({ name: { contains: t, mode: 'insensitive' } });
+      ors.push({ description: { contains: t, mode: 'insensitive' } });
+      ors.push({ brand: { contains: t, mode: 'insensitive' } });
+      ors.push({ productType: { contains: t, mode: 'insensitive' } });
+    }
+    whereClause.OR = ors;
   }
 
   // For category pills during search, we want "all categories" ranked by relevance for this query,
@@ -925,42 +995,50 @@ const fetchMarketplaceProducts = async (args: {
     // If the extension/functions aren't available, we fall back to the lightweight JS scorer below.
     try {
       const q = search.trim().toLowerCase();
+      const terms = [normSearchTerm(q), ...queryExpansions.map(normSearchTerm)].filter(Boolean).slice(0, 6);
       const cat = category && category !== 'All' ? String(category) : null;
 
       const rows = await prisma.$queryRaw<Array<{ productId: string; score: number }>>`
         SELECT
           p."productId" as "productId",
-          GREATEST(
-            similarity(lower(p."name"), ${q}),
-            similarity(lower(COALESCE(p."brand", '')), ${q}),
-            similarity(lower(COALESCE(p."productType", '')), ${q}),
-            similarity(lower(COALESCE(p."description", '')), ${q})
+          MAX(
+            GREATEST(
+              similarity(lower(p."name"), t."term"),
+              similarity(lower(COALESCE(p."brand", '')), t."term"),
+              similarity(lower(COALESCE(p."productType", '')), t."term"),
+              similarity(lower(COALESCE(p."description", '')), t."term")
+            )
           ) as "score"
         FROM "public"."Product" p
+        CROSS JOIN LATERAL unnest(${terms}::text[]) AS t("term")
         WHERE p."marketplaceStatus" = 'Published'
           AND p."status" = 'Published'
           AND (${cat}::text IS NULL OR p."productType" = ${cat})
-          AND GREATEST(
-            similarity(lower(p."name"), ${q}),
-            similarity(lower(COALESCE(p."brand", '')), ${q}),
-            similarity(lower(COALESCE(p."productType", '')), ${q}),
-            similarity(lower(COALESCE(p."description", '')), ${q})
-          ) >= ${fallbackTrigramMinScore}
+        GROUP BY p."productId", p."lastSyncAt", p."publishedAt"
+        HAVING MAX(
+          GREATEST(
+            similarity(lower(p."name"), t."term"),
+            similarity(lower(COALESCE(p."brand", '')), t."term"),
+            similarity(lower(COALESCE(p."productType", '')), t."term"),
+            similarity(lower(COALESCE(p."description", '')), t."term")
+          )
+        ) >= ${fallbackTrigramMinScore}
         ORDER BY "score" DESC, p."lastSyncAt" DESC NULLS LAST, p."publishedAt" DESC NULLS LAST
         LIMIT ${take} OFFSET ${skip}
       `;
 
       const countRows = await prisma.$queryRaw<Array<{ total: bigint }>>`
-        SELECT COUNT(*)::bigint as "total"
+        SELECT COUNT(DISTINCT p."productId")::bigint as "total"
         FROM "public"."Product" p
+        CROSS JOIN LATERAL unnest(${terms}::text[]) AS t("term")
         WHERE p."marketplaceStatus" = 'Published'
           AND p."status" = 'Published'
           AND (${cat}::text IS NULL OR p."productType" = ${cat})
           AND GREATEST(
-            similarity(lower(p."name"), ${q}),
-            similarity(lower(COALESCE(p."brand", '')), ${q}),
-            similarity(lower(COALESCE(p."productType", '')), ${q}),
-            similarity(lower(COALESCE(p."description", '')), ${q})
+            similarity(lower(p."name"), t."term"),
+            similarity(lower(COALESCE(p."brand", '')), t."term"),
+            similarity(lower(COALESCE(p."productType", '')), t."term"),
+            similarity(lower(COALESCE(p."description", '')), t."term")
           ) >= ${fallbackTrigramMinScore}
       `;
 
@@ -970,7 +1048,7 @@ const fetchMarketplaceProducts = async (args: {
         engineUsed = 'pg_trgm';
         const total = countRows?.[0]?.total;
         meiliTotalCount = typeof total === 'bigint' ? Number(total) : Number(total ?? ids.length);
-        trgmFacetProductTypeCounts = await trgmFacetCountsByProductType(prisma, q, fallbackTrigramMinScore);
+        trgmFacetProductTypeCounts = await trgmFacetCountsByProductType(prisma, q, queryExpansions, fallbackTrigramMinScore);
       }
     } catch {
       // ignore; extension might not be enabled
@@ -1549,6 +1627,93 @@ const fetchMarketplaceProducts = async (args: {
   const totalCount = meiliTotalCount ?? (await prisma.product.count({ where: whereClause }));
   const pagination = buildPaginationInfo(page, limit, totalCount);
 
+  let didYouMean: string | null = null;
+  if (search && search.trim()) {
+    const nodesCount = Array.isArray(marketplaceProducts) ? marketplaceProducts.length : 0;
+    const qNorm = normSearchTerm(search);
+    const allowNonZero =
+      (() => {
+        const raw = process.env.MARKETPLACE_DID_YOU_MEAN_MAX_RESULTS?.trim();
+        const n = raw ? Number(raw) : NaN;
+        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 3;
+      })();
+
+    if (qNorm.length >= 3 && nodesCount <= allowNonZero) {
+      // Noise control:
+      // - When results are non-zero, show only "typo-like" corrections (query-log similarity),
+      //   NOT synonym/translation expansions (those would appear too often).
+      // - When results are zero, allow term-map expansions first.
+      if (nodesCount === 0 && queryExpansions.length > 0) {
+        didYouMean = queryExpansions[0];
+      } else {
+        // Try pg_trgm suggestion from past search logs (best-effort; may not exist on some DBs).
+        try {
+          const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const rows = await prisma.$queryRaw<
+            Array<{ query: string; score: number; searches: bigint; zero: bigint; avgResults: number }>
+          >`
+            WITH agg AS (
+              SELECT
+                lower(trim("query")) AS "query",
+                COUNT(*)::bigint AS "searches",
+                SUM(CASE WHEN "resultCount" = 0 THEN 1 ELSE 0 END)::bigint AS "zero",
+                AVG("resultCount")::float8 AS "avgResults",
+                MAX("createdAt") AS "lastSeenAt"
+              FROM "public"."MarketplaceSearchQueryLog"
+              WHERE "createdAt" >= ${since}
+              GROUP BY lower(trim("query"))
+            )
+            SELECT
+              a."query" AS "query",
+              GREATEST(
+                similarity(a."query", ${qNorm}),
+                word_similarity(a."query", ${qNorm})
+              ) AS "score",
+              a."searches" AS "searches",
+              a."zero" AS "zero",
+              a."avgResults" AS "avgResults"
+            FROM agg a
+            ORDER BY "score" DESC, a."lastSeenAt" DESC
+            LIMIT 25
+          `;
+          const cur = rows.find((r) => normSearchTerm(r.query) === qNorm);
+          const curSearches = Number(cur?.searches ?? 0);
+          const curZero = Number(cur?.zero ?? 0);
+          const curZeroRate = curSearches > 0 ? curZero / curSearches : 1;
+          const curAvg = Number(cur?.avgResults ?? 0);
+          const best = rows.find((r) => {
+            const cand = normSearchTerm(r.query);
+            if (!cand || cand === qNorm) return false;
+            const score = Number(r.score);
+            // Show only when it looks like a typo correction (not too weak, not near-identical).
+            if (!Number.isFinite(score) || score < 0.42 || score > 0.92) return false;
+            // Suppress plain completions: "shoe" -> "shoes"
+            if (cand.startsWith(qNorm) && cand.length > qNorm.length) return false;
+            // Prevent "reverse suggestions": if we already have results, don't suggest queries that historically return none.
+            if (nodesCount > 0) {
+              // If the current query already behaves well historically, don't suggest anything.
+              if (Number.isFinite(curAvg) && curAvg >= 1 && curZeroRate <= 0.3) return false;
+              // For non-zero results, only show very typo-like suggestions.
+              if (score < 0.65) return false;
+              if (cand.charAt(0) !== qNorm.charAt(0)) return false;
+
+              const avg = Number(r.avgResults ?? 0);
+              if (!Number.isFinite(avg) || avg < 1) return false;
+              const searches = Number(r.searches ?? 0);
+              const zero = Number(r.zero ?? 0);
+              const zeroRate = searches > 0 ? zero / searches : 1;
+              if (zeroRate > 0.6) return false;
+            }
+            return true;
+          });
+          if (best?.query) didYouMean = normSearchTerm(best.query);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   const result = {
     nodes: marketplaceProducts.filter(product => product !== null),
     pagination,
@@ -1557,6 +1722,7 @@ const fetchMarketplaceProducts = async (args: {
       // Back-compat: mirror productTypes so the app never sees empty.
       productCategories: facetProductTypes,
     },
+    didYouMean,
     timestamp: new Date().toISOString()
   };
 
