@@ -52,6 +52,57 @@ function normSearchTerm(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function boundedEditDistance(aRaw: string, bRaw: string, maxDist: number): number {
+  const a = normSearchTerm(aRaw);
+  const b = normSearchTerm(bRaw);
+  if (!a || !b) return maxDist + 1;
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > maxDist) return maxDist + 1;
+
+  const m = a.length;
+  const n = b.length;
+  const prev = new Array(n + 1);
+  const cur = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i;
+    let rowMin = cur[0];
+    const ca = a.charCodeAt(i - 1);
+    for (let j = 1; j <= n; j++) {
+      const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      cur[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > maxDist) return maxDist + 1;
+    for (let j = 0; j <= n; j++) prev[j] = cur[j];
+  }
+  return prev[n];
+}
+
+function pickDidYouMeanCandidate(qNorm: string, candidates: Array<string | null | undefined>): string | null {
+  const q = normSearchTerm(qNorm);
+  if (!q) return null;
+  const maxDist = q.length <= 8 ? 2 : q.length <= 14 ? 3 : 4;
+
+  let best: { text: string; dist: number; len: number } | null = null;
+  for (const cRaw of candidates) {
+    const c = typeof cRaw === 'string' ? cRaw.trim() : '';
+    if (!c) continue;
+    const cNorm = normSearchTerm(c);
+    if (!cNorm || cNorm === q) continue;
+    // Basic typo-likeness: keep first char consistent for short queries
+    if (q.length <= 10 && cNorm.charAt(0) !== q.charAt(0)) continue;
+    const d = boundedEditDistance(q, cNorm, maxDist);
+    if (d > maxDist) continue;
+    const item = { text: c, dist: d, len: cNorm.length };
+    if (!best) best = item;
+    else if (item.dist < best.dist) best = item;
+    else if (item.dist === best.dist && item.len > best.len) best = item;
+  }
+  return best ? best.text : null;
+}
+
 async function getMarketplaceSearchExpansions(
   prismaClient: typeof prisma,
   rawQuery: string,
@@ -834,6 +885,10 @@ const fetchMarketplaceProducts = async (args: {
   let meiliHitIds: string[] | null = null;
   let meiliTotalCount: number | null = null;
   let meiliFacetProductTypeCounts: Record<string, number> | null = null;
+  let meiliTopHitName: string | null = null;
+  let meiliTopHitBrand: string | null = null;
+  let meiliTopHitSellerName: string | null = null;
+  let meiliTopHitProductType: string | null = null;
   /** When pg_trgm serves results, pills use these counts so ordering matches the fuzzy match set (not empty Meili facets). */
   let trgmFacetProductTypeCounts: Record<string, number> | null = null;
   const queryExpansions =
@@ -884,6 +939,23 @@ const fetchMarketplaceProducts = async (args: {
         };
 
         const meiliResPrimary = await runMeili(primaryQ);
+        const topHit = (meiliResPrimary.hits as any[])?.[0];
+        meiliTopHitName = (() => {
+          const nm = typeof topHit?.name === 'string' ? topHit.name.trim() : '';
+          return nm ? nm : null;
+        })();
+        meiliTopHitBrand = (() => {
+          const nm = typeof topHit?.brand === 'string' ? topHit.brand.trim() : '';
+          return nm ? nm : null;
+        })();
+        meiliTopHitSellerName = (() => {
+          const nm = typeof topHit?.sellerName === 'string' ? topHit.sellerName.trim() : '';
+          return nm ? nm : null;
+        })();
+        meiliTopHitProductType = (() => {
+          const nm = typeof topHit?.productType === 'string' ? topHit.productType.trim() : '';
+          return nm ? nm : null;
+        })();
         const extraQs = queryExpansions.slice(0, 2);
         const extraRes = await Promise.all(
           extraQs.map(async (q2) => {
@@ -1635,10 +1707,28 @@ const fetchMarketplaceProducts = async (args: {
       (() => {
         const raw = process.env.MARKETPLACE_DID_YOU_MEAN_MAX_RESULTS?.trim();
         const n = raw ? Number(raw) : NaN;
-        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 3;
+        // Default allows suggestions even when some results exist (typo tolerance can still return matches).
+        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 20;
       })();
 
-    if (qNorm.length >= 3 && nodesCount <= allowNonZero) {
+    // If we can strongly infer a typo correction from the top hit, allow it even without query logs
+    // and even when many results exist (Meili typo tolerance may still return a lot of hits).
+    if (!didYouMean && qNorm.length >= 3 && nodesCount > 0) {
+      const topCand = pickDidYouMeanCandidate(qNorm, [
+        meiliTopHitName,
+        meiliTopHitBrand,
+        meiliTopHitSellerName,
+        meiliTopHitProductType,
+      ]);
+      if (topCand) {
+        const maxDist = qNorm.length <= 8 ? 1 : 2;
+        if (boundedEditDistance(qNorm, topCand, maxDist) <= maxDist) {
+          didYouMean = topCand;
+        }
+      }
+    }
+
+    if (!didYouMean && qNorm.length >= 3 && nodesCount <= allowNonZero) {
       // Noise control:
       // - When results are non-zero, show only "typo-like" corrections (query-log similarity),
       //   NOT synonym/translation expansions (those would appear too often).
@@ -1646,8 +1736,55 @@ const fetchMarketplaceProducts = async (args: {
       if (nodesCount === 0 && queryExpansions.length > 0) {
         didYouMean = queryExpansions[0];
       } else {
-        // Try pg_trgm suggestion from past search logs (best-effort; may not exist on some DBs).
+        // 0) If we already have results, prefer suggesting the top hit name (works even without pg_trgm).
+        if (!didYouMean && nodesCount > 0) {
+          didYouMean = pickDidYouMeanCandidate(qNorm, [
+            meiliTopHitName,
+            meiliTopHitBrand,
+            meiliTopHitSellerName,
+            meiliTopHitProductType,
+          ]);
+        }
+
+        // 1) Prefer suggesting actual product names (ground truth) via pg_trgm.
         try {
+          const rows = await prisma.$queryRaw<Array<{ name: string; score: number }>>`
+            SELECT
+              p."name" AS "name",
+              GREATEST(
+                similarity(lower(p."name"), ${qNorm}),
+                word_similarity(lower(p."name"), ${qNorm})
+              ) AS "score"
+            FROM "public"."Product" p
+            WHERE p."marketplaceStatus" = 'Published'
+              AND p."status" = 'Published'
+              AND length(trim(p."name")) >= 3
+            ORDER BY "score" DESC, p."lastSyncAt" DESC NULLS LAST, p."publishedAt" DESC NULLS LAST
+            LIMIT 25
+          `;
+          const best = rows.find((r) => {
+            const cand = normSearchTerm(r.name);
+            if (!cand || cand === qNorm) return false;
+            const score = Number(r.score);
+            if (!Number.isFinite(score) || score < 0.42 || score > 0.92) return false;
+            // Suppress plain completions: "shoe" -> "shoes"
+            if (cand.startsWith(qNorm) && cand.length > qNorm.length) return false;
+            if (nodesCount > 0) {
+              // For non-zero results, only show very typo-like suggestions.
+              if (score < 0.65) return false;
+              if (cand.charAt(0) !== qNorm.charAt(0)) return false;
+            }
+            return true;
+          });
+          if (best?.name) {
+            didYouMean = best.name.trim();
+          }
+        } catch {
+          // ignore
+        }
+
+        // 2) Try pg_trgm suggestion from past search logs (best-effort; may not exist on some DBs).
+        if (!didYouMean) try {
           const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           const rows = await prisma.$queryRaw<
             Array<{ query: string; score: number; searches: bigint; zero: bigint; avgResults: number }>
