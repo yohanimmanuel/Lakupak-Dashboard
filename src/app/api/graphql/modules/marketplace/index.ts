@@ -18,7 +18,7 @@ import {
   invalidateSearchCache,
 } from '@/utils/searchCache';
 import { getMeiliClient, MEILI_PRODUCTS_INDEX } from '@/lib/meili';
-// Keep marketplace facets stable on productType + synonyms.
+// Keep marketplace facets stable on productType.
 
 /** Meili returns `[]` when there are no hits — that is truthy in JS, so never use `if (!ids)` alone. */
 function hasMarketplaceSearchHitIds(ids: string[] | null | undefined): ids is string[] {
@@ -887,32 +887,14 @@ const fetchMarketplaceProducts = async (args: {
     status: 'Published'
   };
 
-  // Search term = OR across searchable fields + synonym expansion for productType
+  // Search term = OR across searchable fields (Meili/pg_trgm handle relevance; Prisma path is substring match).
   if (search && search.trim()) {
-    const searchOr: Record<string, unknown>[] = [
+    whereClause.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { description: { contains: search, mode: 'insensitive' } },
       { brand: { contains: search, mode: 'insensitive' } },
       { productType: { contains: search, mode: 'insensitive' } },
     ];
-    const q = search.trim().toLowerCase();
-    const synonymToTypes: Array<{ needles: string[]; types: string[] }> = [
-      { needles: ['type c', 'type-c', 'usb c', 'usb-c'], types: ['Cables', 'Cables & Chargers', 'Mobile Accessories'] },
-      { needles: ['cable', 'wire'], types: ['Cables', 'Cables & Chargers'] },
-      { needles: ['charger', 'charging', 'adapter'], types: ['Chargers', 'Cables & Chargers', 'Mobile Accessories'] },
-      { needles: ['powerbank', 'power bank'], types: ['Mobile Accessories'] },
-      { needles: ['keyboard', 'mouse'], types: ['Computers & Peripherals'] },
-    ];
-    const expandedTypes = new Set<string>();
-    for (const row of synonymToTypes) {
-      if (row.needles.some((n) => q.includes(n))) {
-        row.types.forEach((t) => expandedTypes.add(t));
-      }
-    }
-    if (expandedTypes.size > 0) {
-      searchOr.push({ productType: { in: Array.from(expandedTypes) } });
-    }
-    whereClause.OR = searchOr;
   }
 
   // For category pills during search, we want "all categories" ranked by relevance for this query,
