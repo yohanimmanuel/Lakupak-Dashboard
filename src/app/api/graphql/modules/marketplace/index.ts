@@ -20,6 +20,71 @@ import {
 import { getMeiliClient, MEILI_PRODUCTS_INDEX } from '@/lib/meili';
 // Keep marketplace facets stable on productType + synonyms.
 
+/** Meili returns `[]` when there are no hits — that is truthy in JS, so never use `if (!ids)` alone. */
+function hasMarketplaceSearchHitIds(ids: string[] | null | undefined): ids is string[] {
+  return Array.isArray(ids) && ids.length > 0;
+}
+
+/** Only set when env is explicit — wrong defaults can 400 older Meilisearch (e.g. `locales`) and force pg_trgm. */
+function parseMarketplaceMeiliMatchingStrategy(): 'last' | 'all' | 'frequency' | undefined {
+  const raw = process.env.MARKETPLACE_MEILI_MATCHING_STRATEGY?.trim().toLowerCase();
+  if (raw === 'last' || raw === 'all' || raw === 'frequency') return raw;
+  return undefined;
+}
+
+/**
+ * Query-time locales (Meili 1.8+). Default **none** — sending `locales` on unsupported servers breaks search silently.
+ * Set `MARKETPLACE_MEILI_SEARCH_LOCALES=id,en` when your Meili version supports it.
+ */
+function parseMarketplaceMeiliSearchLocales(): string[] {
+  const raw = process.env.MARKETPLACE_MEILI_SEARCH_LOCALES?.trim();
+  if (!raw) return [];
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** Meili returns `{}` or all-zero facet maps when `estimatedTotalHits` is 0 — still truthy, so pills sorted A–Z. */
+function facetDistributionHasHits(m: Record<string, number> | null | undefined): boolean {
+  if (!m || typeof m !== 'object') return false;
+  return Object.values(m).some((n) => typeof n === 'number' && n > 0);
+}
+
+/**
+ * Category pill counts aligned with pg_trgm product matching (no category chip filter — same idea as Meili facet pass).
+ */
+async function trgmFacetCountsByProductType(
+  prismaClient: typeof prisma,
+  q: string,
+  minScore: number,
+): Promise<Record<string, number>> {
+  try {
+    const rows = await prismaClient.$queryRaw<Array<{ productType: string; cnt: bigint }>>`
+      SELECT
+        trim(p."productType") AS "productType",
+        COUNT(*)::bigint AS "cnt"
+      FROM "public"."Product" p
+      WHERE p."marketplaceStatus" = 'Published'
+        AND p."status" = 'Published'
+        AND trim(COALESCE(p."productType", '')) <> ''
+        AND GREATEST(
+          similarity(lower(p."name"), ${q}),
+          similarity(lower(COALESCE(p."brand", '')), ${q}),
+          similarity(lower(COALESCE(p."productType", '')), ${q}),
+          similarity(lower(COALESCE(p."description", '')), ${q})
+        ) >= ${minScore}
+      GROUP BY trim(p."productType")
+    `;
+    const m: Record<string, number> = {};
+    for (const r of rows) {
+      const k = r.productType != null ? String(r.productType).trim() : '';
+      if (!k) continue;
+      m[k] = typeof r.cnt === 'bigint' ? Number(r.cnt) : Number(r.cnt);
+    }
+    return m;
+  } catch {
+    return {};
+  }
+}
+
 interface OfferDiscountType {
   id: string;
   discountType: string;
@@ -690,6 +755,7 @@ const fetchMarketplaceProducts = async (args: {
   marketplaceUserId?: number;
 }) => {
   const { page = 1, limit = 20, category, search } = args;
+  let engineUsed: 'meili' | 'pg_trgm' | 'js_score' | 'prisma' | 'cache' = 'prisma';
   const meiliTimeoutMs = (() => {
     const raw = process.env.MEILI_SEARCH_TIMEOUT_MS;
     const n = raw ? Number(raw) : NaN;
@@ -713,6 +779,7 @@ const fetchMarketplaceProducts = async (args: {
   }>({ search: search || null, category: category || null, page, limit });
   
   if (cachedResult) {
+    if (search && search.trim()) engineUsed = 'cache';
     return {
       ...cachedResult,
       timestamp: new Date().toISOString()
@@ -724,7 +791,9 @@ const fetchMarketplaceProducts = async (args: {
   // Fall back to Prisma when MEILI_HOST isn't set or Meili is unreachable.
   let meiliHitIds: string[] | null = null;
   let meiliTotalCount: number | null = null;
-  let meiliFacetProductTypes: Array<{ value: string; count: number }> | null = null;
+  let meiliFacetProductTypeCounts: Record<string, number> | null = null;
+  /** When pg_trgm serves results, pills use these counts so ordering matches the fuzzy match set (not empty Meili facets). */
+  let trgmFacetProductTypeCounts: Record<string, number> | null = null;
   if (search && search.trim()) {
     const client = getMeiliClient();
     if (client) {
@@ -735,36 +804,79 @@ const fetchMarketplaceProducts = async (args: {
           filterParts.push(`productType = "${String(category).replace(/"/g, '\\"')}"`);
         }
         const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
-        const meiliRes = await Promise.race([
-          index.search(search.trim(), {
-            limit,
-            offset: (page - 1) * limit,
-            filter,
-            facets: ['productType'],
-          }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Meili search timeout after ${meiliTimeoutMs}ms`)), meiliTimeoutMs),
-          ),
-        ]);
-        meiliHitIds = (meiliRes.hits as Array<{ id?: string }>)
+        const q = search.trim();
+        const meiliMatchingStrategy = parseMarketplaceMeiliMatchingStrategy();
+        const meiliLocales = parseMarketplaceMeiliSearchLocales();
+        const meiliOptionalParams = {
+          ...(meiliMatchingStrategy ? { matchingStrategy: meiliMatchingStrategy } : {}),
+          ...(meiliLocales.length ? { locales: meiliLocales } : {}),
+        };
+        const meiliRace = <T>(p: Promise<T>) =>
+          Promise.race([
+            p,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`Meili search timeout after ${meiliTimeoutMs}ms`)), meiliTimeoutMs),
+            ),
+          ]);
+        const meiliSearchBase = {
+          limit,
+          offset: (page - 1) * limit,
+          filter,
+          facets: ['productType'],
+        };
+        // If optional params 400 on older Meilisearch, retry without them so Meili is used instead of silent pg fallback.
+        let meiliResHits: Awaited<ReturnType<typeof index.search>>;
+        try {
+          meiliResHits = await meiliRace(
+            index.search(q, { ...meiliSearchBase, ...meiliOptionalParams }),
+          );
+        } catch (err) {
+          const isBadRequest = err instanceof Error && 
+            (err.message.includes('400') || err.message.includes('Bad Request'));
+          if (isBadRequest && Object.keys(meiliOptionalParams).length > 0) {
+            meiliResHits = await meiliRace(index.search(q, meiliSearchBase));
+          } else {
+            throw err;
+          }
+        }
+        meiliHitIds = (meiliResHits.hits as Array<{ id?: string }>)
           .map((h) => h.id)
           .filter(Boolean) as string[];
+        engineUsed = 'meili';
         meiliTotalCount =
-          typeof meiliRes.estimatedTotalHits === 'number'
-            ? meiliRes.estimatedTotalHits
+          typeof meiliResHits.estimatedTotalHits === 'number'
+            ? meiliResHits.estimatedTotalHits
             : meiliHitIds.length;
 
-        const facetDist = (meiliRes.facetDistribution ?? {}) as Record<string, Record<string, number> | undefined>;
-        const productTypeCounts = facetDist.productType ?? {};
-        meiliFacetProductTypes = Object.entries(productTypeCounts)
-          .map(([value, count]) => ({ value, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 12);
+        // If a category filter is applied, `facetDistribution` will only reflect that filtered scope.
+        // For Shopee-style "show all categories but rank relevant ones on top", fetch facets without the category filter.
+        const meiliFacetBase = { limit: 0, offset: 0, facets: ['productType'] };
+        let meiliResFacets = meiliResHits;
+        if (category && category !== 'All') {
+          try {
+            try {
+              meiliResFacets = await meiliRace(
+                index.search(q, { ...meiliFacetBase, ...meiliOptionalParams }),
+              );
+            } catch {
+              if (Object.keys(meiliOptionalParams).length > 0) {
+                meiliResFacets = await meiliRace(index.search(q, meiliFacetBase));
+              }
+              // Keep meiliResHits-derived facets if facet-only query still fails — do not drop main Meili results.
+            }
+          } catch {
+            meiliResFacets = meiliResHits;
+          }
+        }
+
+        const facetDist = (meiliResFacets.facetDistribution ?? {}) as Record<string, Record<string, number> | undefined>;
+        meiliFacetProductTypeCounts = facetDist.productType ?? {};
       } catch {
         // ignore and fall back
         meiliHitIds = null;
         meiliTotalCount = null;
-        meiliFacetProductTypes = null;
+        meiliFacetProductTypeCounts = null;
+        engineUsed = 'prisma';
       }
     }
   }
@@ -803,6 +915,10 @@ const fetchMarketplaceProducts = async (args: {
     whereClause.OR = searchOr;
   }
 
+  // For category pills during search, we want "all categories" ranked by relevance for this query,
+  // so we compute facet counts from a where clause that does NOT include the selected category filter.
+  const facetWhereClause: Record<string, unknown> = { ...whereClause };
+
   // Category filter = productType only (sales channel is a separate filter on client)
   if (category && category !== 'All') {
     whereClause.AND = [
@@ -819,9 +935,9 @@ const fetchMarketplaceProducts = async (args: {
   const skip = (safePage - 1) * safeLimit;
   const take = safeLimit;
 
-  // If Meili isn't available, do a best-effort "relevance" ordering in Prisma fallback for search queries.
-  // This keeps MVP search usable even when Meili is down (at the cost of extra DB work).
-  if (!meiliHitIds && search && search.trim()) {
+  // If Meili is unavailable, errors, or returns **zero** hits, fall back to pg_trgm (then JS scorer).
+  // Important: Meili uses `[]` for no hits — `[]` is truthy, so we must use length checks, not `if (!ids)`.
+  if (!hasMarketplaceSearchHitIds(meiliHitIds) && search && search.trim()) {
     // 1) Try typo-ish fallback using Postgres pg_trgm similarity (if available).
     // Supabase typically supports enabling pg_trgm, but we must not hard-require it at runtime.
     // If the extension/functions aren't available, we fall back to the lightweight JS scorer below.
@@ -869,14 +985,16 @@ const fetchMarketplaceProducts = async (args: {
       const ids = rows.map((r) => r.productId).filter(Boolean);
       if (ids.length > 0) {
         meiliHitIds = ids;
+        engineUsed = 'pg_trgm';
         const total = countRows?.[0]?.total;
         meiliTotalCount = typeof total === 'bigint' ? Number(total) : Number(total ?? ids.length);
+        trgmFacetProductTypeCounts = await trgmFacetCountsByProductType(prisma, q, fallbackTrigramMinScore);
       }
     } catch {
       // ignore; extension might not be enabled
     }
 
-    if (meiliHitIds) {
+    if (hasMarketplaceSearchHitIds(meiliHitIds)) {
       // Skip JS scorer if trigram fallback succeeded.
     } else {
     const q = search.trim().toLowerCase();
@@ -932,13 +1050,18 @@ const fetchMarketplaceProducts = async (args: {
     meiliTotalCount = orderedIds.length;
     const pageIds = orderedIds.slice(skip, skip + take);
     meiliHitIds = pageIds.length ? pageIds : null;
+    if (meiliHitIds) engineUsed = 'js_score';
     }
   }
 
-  // Facets for "category pills" derived from current result-set (stable productType list)
-  const facetProductTypes: Array<{ value: string; count: number }> = meiliFacetProductTypes
-    ? meiliFacetProductTypes
-    : await prisma.product
+  // Facets for "category pills"
+  // - When searching: show ALL categories, rank relevant ones on top (Shopee-style).
+  // - When not searching: keep it lightweight (top categories only).
+  const facetProductTypes: Array<{ value: string; count: number }> = await (async () => {
+    const isSearching = !!(search && search.trim());
+
+    if (!isSearching) {
+      return prisma.product
         .groupBy({
           by: ['productType'],
           where: whereClause,
@@ -952,6 +1075,45 @@ const fetchMarketplaceProducts = async (args: {
             .map((r) => ({ value: String(r.productType), count: r._count.productType })),
         )
         .catch(() => []);
+    }
+
+    const allTypes = await prisma.product
+      .findMany({
+        where: { marketplaceStatus: 'Published', status: 'Published' },
+        distinct: ['productType'],
+        select: { productType: true },
+      })
+      .then((rows) =>
+        rows
+          .map((r) => (r.productType != null ? String(r.productType).trim() : ''))
+          .filter((v) => v.length > 0),
+      )
+      .then((vals) => Array.from(new Set(vals)).sort((a, b) => a.localeCompare(b)))
+      .catch(() => []);
+
+    const counts =
+      (facetDistributionHasHits(trgmFacetProductTypeCounts) ? trgmFacetProductTypeCounts : null) ??
+      (facetDistributionHasHits(meiliFacetProductTypeCounts) ? meiliFacetProductTypeCounts : null) ??
+      (await prisma.product
+        .groupBy({
+          by: ['productType'],
+          where: facetWhereClause,
+          _count: { productType: true },
+        })
+        .then((rows) => {
+          const m: Record<string, number> = {};
+          for (const r of rows) {
+            const k = r.productType != null ? String(r.productType).trim() : '';
+            if (k) m[k] = r._count.productType;
+          }
+          return m;
+        })
+        .catch(() => ({} as Record<string, number>)));
+
+    return allTypes
+      .map((value) => ({ value, count: counts[value] ?? 0 }))
+      .sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value));
+  })();
   
   // Get published products with user info, ordered by lastSyncAt to get most recent changes
   const productInclude = {
@@ -980,7 +1142,7 @@ const fetchMarketplaceProducts = async (args: {
     },
   } as const;
 
-  const products = meiliHitIds
+  const products = hasMarketplaceSearchHitIds(meiliHitIds)
     ? (() => {
         return prisma.product
           .findMany({
@@ -1404,7 +1566,7 @@ const fetchMarketplaceProducts = async (args: {
   
   const totalCount = meiliTotalCount ?? (await prisma.product.count({ where: whereClause }));
   const pagination = buildPaginationInfo(page, limit, totalCount);
-  
+
   const result = {
     nodes: marketplaceProducts.filter(product => product !== null),
     pagination,
@@ -1415,6 +1577,23 @@ const fetchMarketplaceProducts = async (args: {
     },
     timestamp: new Date().toISOString()
   };
+
+  // Fire-and-forget search telemetry for building real synonyms from real user queries.
+  if (search && search.trim()) {
+    prisma.marketplaceSearchQueryLog
+      .create({
+        data: {
+          marketplaceUserId: args.marketplaceUserId ?? null,
+          query: search.trim(),
+          category: category && category !== 'All' ? String(category) : null,
+          page,
+          limit,
+          resultCount: Array.isArray(result.nodes) ? result.nodes.length : 0,
+          engine: engineUsed,
+        },
+      })
+      .catch(() => {});
+  }
   
   // ONLY cache search queries (when search parameter is provided)
   // Regular marketplace listings should always be fresh to show real-time offer/price updates

@@ -536,6 +536,25 @@ model SearchHistory {
   @@unique([userId, query]) // Prevent duplicate queries per user
 }
 
+/// Raw marketplace search telemetry (used to find common typos and zero-result queries).
+model MarketplaceSearchQueryLog {
+  id          Int      @id @default(autoincrement())
+  /// Optional marketplace user id (if available in the request).
+  marketplaceUserId Int?
+  query       String
+  category    String?
+  page        Int?
+  limit       Int?
+  resultCount Int
+  /// Which engine answered the query ("meili" | "pg_trgm" | "js_score" | "prisma" | "cache").
+  engine      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@index([query, createdAt])
+  @@index([engine, createdAt])
+}
+
 model Offer {
   id                 String   @id @default(cuid())
   offerId            String   @unique

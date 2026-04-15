@@ -75,7 +75,13 @@ async function main() {
     filterableAttributes: ['productType', 'salesChannel', 'sellerName'],
     sortableAttributes: ['sellingPrice', 'publishedAt', 'lastSyncAt'],
     rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
-    typoTolerance: { enabled: true },
+    // Slightly more typo-forgiving than Meili defaults (5/9) for short product names.
+    typoTolerance: {
+      enabled: true,
+      minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
+    },
+    // Tokenization for Indonesian + English catalog copy (query can pass locales too).
+    localizedAttributes: [{ attributePatterns: ['name', 'description', 'brand', 'productType', 'sellerName'], locales: ['id', 'en'] }],
   };
 
   const products = await prisma.product.findMany({

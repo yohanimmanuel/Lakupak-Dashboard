@@ -1369,6 +1369,21 @@ export const updateProduct = async (args: {
     },
   });
 
+  // Keep Meilisearch 1:1 with DB for marketplace-published products.
+  // If Meili is unavailable, the marketplace resolver will fall back to DB search.
+  try {
+    const { upsertMarketplaceProductToMeili, deleteMarketplaceProductFromMeili } = await import(
+      '@/lib/meiliMarketplaceSync'
+    );
+    if (product.marketplaceStatus === 'Published' && product.status === 'Published') {
+      await upsertMarketplaceProductToMeili(product.productId);
+    } else {
+      await deleteMarketplaceProductFromMeili(product.productId);
+    }
+  } catch (e) {
+    console.warn('[Products] Meili sync failed on updateProduct:', e);
+  }
+
   // Update prices for THIS product only - await to ensure fresh prices in response
   // This ensures the returned product includes offer-derived prices
   // Use retry logic to handle transient failures
@@ -1835,6 +1850,21 @@ export const publishMarketplaceProduct = async (args: {
       user: productSellerInclude.include.user,
     },
   });
+
+  // Keep Meilisearch 1:1 with DB for marketplace-published products.
+  // When a product is unpublished, remove it from the Meili index.
+  try {
+    const { upsertMarketplaceProductToMeili, deleteMarketplaceProductFromMeili } = await import(
+      '@/lib/meiliMarketplaceSync'
+    );
+    if (updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published') {
+      await upsertMarketplaceProductToMeili(updatedProduct.productId);
+    } else {
+      await deleteMarketplaceProductFromMeili(updatedProduct.productId);
+    }
+  } catch (e) {
+    console.warn('[Products] Meili sync failed on publishMarketplaceProduct:', e);
+  }
 
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([updatedProduct.productId], userId),
