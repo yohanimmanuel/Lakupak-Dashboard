@@ -1723,6 +1723,49 @@ const fetchMarketplaceProducts = async (args: {
         }
       }
 
+      // If top hit isn't from the intended distributor (common when query matches product fields),
+      // try suggesting a distributor/company name directly from the DB (pg_trgm over Company.name).
+      // This catches cases like "tanjung peson jaay" -> "cv. tanjung pesona jaya".
+      if (!didYouMean) {
+        try {
+          const rows = await prisma.$queryRaw<Array<{ name: string; score: number }>>`
+            SELECT
+              c."name" AS "name",
+              GREATEST(
+                similarity(lower(c."name"), ${qNorm}),
+                word_similarity(lower(c."name"), ${qNorm})
+              ) AS "score"
+            FROM "public"."Company" c
+            WHERE EXISTS (
+              SELECT 1
+              FROM "public"."User" u
+              JOIN "public"."Product" p ON p."userId" = u."id"
+              WHERE u."companyId" = c."id"
+                AND p."marketplaceStatus" = 'Published'
+                AND p."status" = 'Published'
+            )
+              AND length(trim(c."name")) >= 3
+            ORDER BY "score" DESC, c."updatedAt" DESC
+            LIMIT 25
+          `;
+          const best = rows.find((r) => {
+            const cand = normSearchTerm(r.name);
+            if (!cand || cand === qNorm) return false;
+            const score = Number(r.score);
+            if (!Number.isFinite(score) || score < 0.55 || score > 0.92) return false;
+            // Suppress plain completions.
+            if (cand.startsWith(qNorm) && cand.length > qNorm.length) return false;
+            if (qNorm.length <= 10 && cand.charAt(0) !== qNorm.charAt(0)) return false;
+            return true;
+          });
+          if (best?.name) {
+            didYouMean = best.name.trim();
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       if (!didYouMean) {
         const topCand = pickDidYouMeanCandidate(qNorm, [
           meiliTopHitName,
