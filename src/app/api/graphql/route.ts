@@ -3,7 +3,9 @@ import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/jwt';
+import { prisma } from '@/lib/db';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
+import { GraphQLError } from 'graphql';
 
 import { baseTypeDefs, baseResolvers } from './modules/common/schema';
 import { mergeTypeDefs } from './modules/common/mergeTypeDefs';
@@ -38,13 +40,11 @@ import {
   clientQueryRateLimiter,
   clientCreationRateLimiter,
   clientUpdateRateLimiter,
-  orderQueryRateLimiter,
   orderCreationRateLimiter,
   orderUpdateRateLimiter,
   salesOperationRateLimiter,
   dashboardQueryRateLimiter,
   graphQLComplexityRateLimiter,
-  calculateGraphQLComplexity
 } from '@/utils/rateLimiter';
 
 const typeDefs = mergeTypeDefs([
@@ -94,8 +94,33 @@ const server = new ApolloServer({
 
 const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server, {
   context: async (req: NextRequest) => {
-    const jwtId = extractAuthenticatedUserId(req);
-    if (jwtId != null) return { user: { id: jwtId } };
+    // Marketplace mobile JWT auth
+    try {
+      const authHeader = req.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '');
+        const payload = verifyAccessToken(token);
+        const jwtId = payload.sub;
+        if (typeof jwtId === 'number' && jwtId > 0 && Number.isInteger(jwtId)) {
+          // Block suspended marketplace accounts from GraphQL (expensive ops: search, products, etc.)
+          const u = await prisma.marketplaceUser.findUnique({
+            where: { id: jwtId },
+            select: { isSuspended: true, suspensionReason: true },
+          });
+          if (u?.isSuspended) {
+            // Surface an auth-like error to the client; this also avoids expensive resolver work.
+            throw new GraphQLError('ACCOUNT_SUSPENDED', {
+              extensions: { code: 'ACCOUNT_SUSPENDED', reason: u.suspensionReason ?? null },
+            });
+          }
+          return { user: { id: jwtId } };
+        }
+      }
+    } catch (e) {
+      if (e instanceof GraphQLError && e.extensions?.code === 'ACCOUNT_SUSPENDED') throw e;
+      // ignore invalid token; fall through to NextAuth
+    }
+
     const { getServerSession } = await import('next-auth');
     const { authOptions } = await import('@/lib/auth-options');
     const session = await getServerSession(authOptions);
@@ -495,7 +520,7 @@ async function handler(request: NextRequest) {
     const operation = await extractGraphQLOperation(request);
     
     if (operation) {
-      const { query, variables = {} } = operation;
+      const { query } = operation;
       
       // Extract authenticated user ID from JWT token only
       // Requests without valid JWT are treated as anonymous (no user-based rate limiting)

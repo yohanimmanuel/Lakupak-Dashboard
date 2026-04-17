@@ -116,7 +116,10 @@ export default function AdminSearchLogsPage() {
       params.set('limit', String(limit));
       const res = await fetch(`/api/platform-admin/search/queries?${params.toString()}`);
       const data = (await res.json().catch(() => null)) as QueriesResponse | null;
-      if (!res.ok) throw new Error((data as any)?.error || 'Failed to load search logs');
+      if (!res.ok) {
+        const apiError = (data as unknown as { error?: string } | null)?.error;
+        throw new Error(apiError || 'Failed to load search logs');
+      }
       setRows(Array.isArray(data?.rows) ? data!.rows : []);
       setSince(typeof data?.since === 'string' ? data!.since : null);
     } catch (e) {
@@ -172,7 +175,10 @@ export default function AdminSearchLogsPage() {
         params.set('offset', String((Math.max(1, pageArg) - 1) * termRowsPerPage));
         const res = await fetch(`/api/platform-admin/search/term-maps?${params.toString()}`);
         const data = (await res.json().catch(() => null)) as TermMapListResponse | null;
-        if (!res.ok) throw new Error((data as any)?.error || 'Failed to load term maps');
+        if (!res.ok) {
+          const apiError = (data as unknown as { error?: string } | null)?.error;
+          throw new Error(apiError || 'Failed to load term maps');
+        }
         setTermRows(Array.isArray(data?.rows) ? data!.rows : []);
         setTermTotalCount(typeof data?.totalCount === 'number' ? data.totalCount : 0);
       } catch (e) {
@@ -242,7 +248,10 @@ export default function AdminSearchLogsPage() {
       params.set('limit', '100');
       const res = await fetch(`/api/platform-admin/search/queries?${params.toString()}`);
       const data = (await res.json().catch(() => null)) as QueriesResponse | null;
-      if (!res.ok) throw new Error((data as any)?.error || 'Failed to load search logs');
+      if (!res.ok) {
+        const apiError = (data as unknown as { error?: string } | null)?.error;
+        throw new Error(apiError || 'Failed to load search logs');
+      }
       setModalLogs(Array.isArray(data?.rows) ? data!.rows : []);
     } catch (e) {
       setModalLogsErr(e instanceof Error ? e.message : 'Failed to load search logs');
@@ -361,7 +370,7 @@ export default function AdminSearchLogsPage() {
           <SlidingSegmentedControl
             items={TABS as unknown as Array<{ key: string; label: string }>}
             value={tab}
-            onChange={(k) => setTab(k as any)}
+            onChange={(k) => setTab(k as (typeof TABS)[number]['key'])}
             size="compact"
           />
         </div>

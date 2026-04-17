@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { verifyAccessToken } from '../lib/jwt';
+import { prisma } from '@/lib/db';
 
 /**
  * Extract authenticated user ID from either JWT token or NextAuth session
@@ -18,7 +19,7 @@ export async function getAuthenticatedUserId(req: NextRequest): Promise<number |
         return payload.sub;
       }
       return null;
-    } catch (error) {
+    } catch {
       // Invalid JWT token, fall through to NextAuth check
     }
   }
@@ -40,10 +41,45 @@ export async function getAuthenticatedUserId(req: NextRequest): Promise<number |
         }
       }
     }
-  } catch (error) {
+  } catch {
     // Session check failed
   }
 
   return null;
+}
+
+type MarketplaceAuthResult =
+  | { ok: true; userId: number }
+  | { ok: false; reason: 'missing_token' | 'invalid_token' | 'suspended' };
+
+/**
+ * Auth helper for Marketplace mobile JWT flows.
+ * - Validates token
+ * - Ensures marketplace account is not suspended
+ */
+export async function getAuthenticatedMarketplaceUserId(req: NextRequest): Promise<MarketplaceAuthResult> {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return { ok: false, reason: 'missing_token' };
+
+  let userId: number;
+  try {
+    const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
+    userId = payload.sub;
+  } catch {
+    return { ok: false, reason: 'invalid_token' };
+  }
+
+  if (!Number.isInteger(userId) || userId <= 0) return { ok: false, reason: 'invalid_token' };
+
+  try {
+    const u = await prisma.marketplaceUser.findUnique({ where: { id: userId }, select: { isSuspended: true } });
+    if (!u) return { ok: false, reason: 'invalid_token' };
+    if (u.isSuspended) return { ok: false, reason: 'suspended' };
+  } catch {
+    // If DB check fails, prefer denying rather than allowing expensive access.
+    return { ok: false, reason: 'invalid_token' };
+  }
+
+  return { ok: true, userId };
 }
 

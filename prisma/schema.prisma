@@ -188,6 +188,9 @@ model MarketplaceUser {
   bio            String?
   phone          String         @unique
   country        String?
+  isSuspended    Boolean        @default(false)
+  suspendedAt    DateTime?
+  suspensionReason String?
   createdAt      DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
   name           String?

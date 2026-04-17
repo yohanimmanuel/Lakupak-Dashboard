@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { verifyAccessToken } from '@/lib/jwt';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { broadcastPlatformAdminInboxRefresh } from '@/utils/websocketBroadcast';
 
 const REASON_CODES = new Set(['fraud', 'poor_service', 'quality', 'policy', 'other']);
@@ -19,13 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
     }
 
-    let reporterMarketplaceUserId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      reporterMarketplaceUserId = payload.sub;
-    } catch {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
+    const reporterMarketplaceUserId = auth.userId;
 
     let body: {
       distributorId?: number | string;

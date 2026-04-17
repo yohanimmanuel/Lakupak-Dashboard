@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { Prisma } from '@prisma/client';
 
 type Kind = 'SYNONYM' | 'TRANSLATION';
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     const limit = parseLimit(req);
     const offset = parseOffset(req);
 
-    const where: any = {};
+    const where: Prisma.MarketplaceSearchTermMapWhereInput = {};
     if (kind) where.kind = kind;
     if (enabled !== null) where.enabled = enabled;
     if (q) {
@@ -187,19 +188,31 @@ export async function POST(req: NextRequest) {
     }
 
     const created = await prisma.$transaction(async (tx) => {
-      const results = [];
+      const results: Array<{
+        id: string;
+        kind: Kind;
+        fromTerm: string;
+        toTerm: string;
+        fromLocale: string | null;
+        toLocale: string | null;
+        bidirectional: boolean;
+        enabled: boolean;
+        createdByAdminId: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+      }> = [];
       for (const data of rowsToCreate) {
         const row = await tx.marketplaceSearchTermMap.upsert({
           where: {
             kind_fromTerm_toTerm_fromLocale_toLocale: {
-              kind: data.kind as any,
+              kind: data.kind,
               fromTerm: data.fromTerm,
               toTerm: data.toTerm,
               fromLocale: data.fromLocale,
               toLocale: data.toLocale,
             },
           },
-          create: data as any,
+          create: data,
           update: {
             enabled: data.enabled,
             bidirectional: data.bidirectional,

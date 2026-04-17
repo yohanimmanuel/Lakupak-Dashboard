@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { verifyAccessToken } from '@/lib/jwt';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 
 /** POST /api/mobile/reviews/order – submit product reviews + optional delivery review for an order. */
 export async function POST(request: NextRequest) {
   const headers = getSecurityHeaders();
 
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
-    }
-
-    let userId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      userId = payload.sub;
-    } catch {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
+    const userId = auth.userId;
 
     let body: {
       orderId?: string;

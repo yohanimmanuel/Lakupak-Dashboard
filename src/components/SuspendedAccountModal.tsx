@@ -33,6 +33,24 @@ export function SuspendedAccountModal() {
     }
   };
 
+  const goToLoginNow = () => {
+    clearTimers();
+    try {
+      if (storageKey) window.sessionStorage.removeItem(storageKey);
+    } catch {}
+    startedRef.current = true;
+    setCountdown(0);
+    try {
+      clearUser();
+    } catch {}
+    signOut({ redirect: false }).finally(() => {
+      router.replace('/login');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 500);
+    });
+  };
+
   // Poll session so suspensions apply within seconds (without waiting minutes).
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -99,7 +117,6 @@ export function SuspendedAccountModal() {
 
   useEffect(() => {
     return () => clearTimers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (status !== 'authenticated' || !isSuspended) return null;
@@ -136,6 +153,13 @@ export function SuspendedAccountModal() {
             <Loader2 className="w-4 h-4 animate-spin" />
             {blocking ? 'Suspension notice' : 'Preparing notice…'}
           </div>
+          <button
+            type="button"
+            onClick={goToLoginNow}
+            className="w-full inline-flex items-center justify-center rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+          >
+            Go to login
+          </button>
           <p className="text-[12px] text-gray-500">
             If you believe this is a mistake, please contact support.
           </p>

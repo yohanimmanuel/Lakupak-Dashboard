@@ -14,8 +14,8 @@ type PlatformUserRow = {
   subtitle: string | null;
   email: string | null;
   phone: string | null;
-  roleLabel: string;
   status: string | null;
+  isSuspended: boolean;
   avatar: string | null;
   createdAt: string;
 };
@@ -138,7 +138,7 @@ export default function ManageUsersTable() {
                   <th className="text-left font-medium px-4 py-3 uppercase">Profile</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Email</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Phone</th>
-                  <th className="text-left font-medium px-4 py-3 uppercase">Role</th>
+                  <th className="text-left font-medium px-4 py-3 uppercase">Account</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Source</th>
                   <th className="text-left font-medium px-5 py-3 uppercase">Joined</th>
                   <th className="text-center font-medium px-5 py-3 uppercase">Actions</th>
@@ -167,7 +167,7 @@ export default function ManageUsersTable() {
                                 (r.name || '?').charAt(0).toUpperCase()
                               )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="max-w-[200px]">
                               <p className="font-medium text-gray-900 truncate">{r.name}</p>
                               {r.subtitle ? (
                                 <p className="text-xs text-gray-500 truncate">{r.subtitle}</p>
@@ -175,15 +175,34 @@ export default function ManageUsersTable() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-800">{r.email ?? '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-800">
+                          {r.email ? (
+                            <button
+                              type="button"
+                              className="block max-w-[180px] truncate text-left hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded"
+                              title={r.email}
+                              aria-label={r.email}
+                              onClick={() => {
+                                navigator.clipboard?.writeText(r.email ?? '').catch(() => {});
+                              }}
+                            >
+                              {r.email}
+                            </button>
+                          ) : (
+                            <span className="block max-w-[180px] truncate">
+                              —
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-xs text-gray-700">{r.phone ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <span className="text-xs text-gray-800">{r.roleLabel}</span>
-                          {r.status ? (
-                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                              {r.status}
-                            </span>
-                          ) : null}
+                          <span
+                            className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${
+                              r.isSuspended ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {r.isSuspended ? 'Suspended' : 'Active'}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -191,6 +210,11 @@ export default function ManageUsersTable() {
                           >
                             {r.source}
                           </span>
+                          {r.source !== 'driver' && r.status ? (
+                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              {r.status}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-5 py-3 text-xs text-gray-700 whitespace-nowrap">{formatJoined(r.createdAt)}</td>
                         <td className="px-5 py-3 text-center">

@@ -41,29 +41,15 @@ export async function GET(request: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
-    // Verify JWT token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401, headers }
-      );
+    const { getAuthenticatedMarketplaceUserId } = await import('@/utils/auth-helpers');
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
-
-    const token = authHeader.replace('Bearer ', '');
-
-    // Verify JWT token
-    const { verifyAccessToken } = await import('../../../../lib/jwt');
-    let tokenUserId: number;
-    try {
-      const payload = verifyAccessToken(token);
-      tokenUserId = payload.sub;
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers }
-      );
-    }
+    const tokenUserId = auth.userId;
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -245,26 +231,15 @@ export async function POST(request: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
-    // Verify JWT token and bind request to authenticated marketplace user
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401, headers }
-      );
+    const { getAuthenticatedMarketplaceUserId } = await import('@/utils/auth-helpers');
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
-    const token = authHeader.replace('Bearer ', '');
-    const { verifyAccessToken } = await import('../../../../lib/jwt');
-    let tokenUserId: number;
-    try {
-      const payload = verifyAccessToken(token);
-      tokenUserId = payload.sub;
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers }
-      );
-    }
+    const tokenUserId = auth.userId;
 
     const body = await request.json();
     

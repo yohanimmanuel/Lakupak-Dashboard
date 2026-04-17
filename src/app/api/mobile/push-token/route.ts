@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyAccessToken } from '@/lib/jwt';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 
 // POST /api/mobile/push-token - Register push notification token (requires auth, ownership enforced)
 export async function POST(request: NextRequest) {
   try {
-    // (1) Authenticate and extract authenticated user id
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401 }
-      );
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
-
-    let authUserId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      authUserId = payload.sub;
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
-    }
+    const authUserId = auth.userId;
 
     const body = await request.json();
     const { userId, token, platform } = body;
@@ -132,25 +121,14 @@ export async function POST(request: NextRequest) {
 // DELETE /api/mobile/push-token - Remove push notification token (requires auth, ownership verified)
 export async function DELETE(request: NextRequest) {
   try {
-    // Require authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401 }
-      );
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
-
-    let authUserId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      authUserId = payload.sub;
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
-    }
+    const authUserId = auth.userId;
 
     const body = await request.json();
     const { token } = body;

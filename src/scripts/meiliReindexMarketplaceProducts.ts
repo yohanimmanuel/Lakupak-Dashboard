@@ -37,9 +37,11 @@ async function waitForMeiliTask(
   label: string,
 ) {
   // Prefer SDK helper when available.
-  const anyTasks = (client as any).tasks;
-  if (anyTasks && typeof anyTasks.waitForTask === 'function') {
-    const task = await anyTasks.waitForTask(taskUid);
+  const maybeClientWithWait = client as unknown as {
+    tasks?: { waitForTask?: (uid: number) => Promise<unknown> };
+  };
+  if (maybeClientWithWait.tasks?.waitForTask) {
+    const task = await maybeClientWithWait.tasks.waitForTask(taskUid);
     const status = task?.status as MeiliTaskStatus | undefined;
     if (status && status !== 'succeeded') {
       throw new Error(`${label} failed (taskUid=${taskUid}, status=${status}): ${task?.error?.message ?? 'unknown error'}`);
@@ -141,7 +143,7 @@ async function main() {
   await waitForMeiliTask(client, addTask.taskUid, `addDocuments(${tmpUid})`);
 
   // Some Meili servers accept only `{ indexes: [a, b] }` even if the SDK type includes `rename`.
-  const swapTask = await client.swapIndexes([{ indexes: [MEILI_PRODUCTS_INDEX, tmpUid] }] as any);
+  const swapTask = await client.swapIndexes([{ indexes: [MEILI_PRODUCTS_INDEX, tmpUid] }]);
   await waitForMeiliTask(client, swapTask.taskUid, `swapIndexes(${MEILI_PRODUCTS_INDEX}<->${tmpUid})`);
 
   // After swap, tmpUid now points at the old production index. Clean it up.

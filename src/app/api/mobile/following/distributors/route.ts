@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { verifyAccessToken } from '@/lib/jwt';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 
 /**
  * GET /api/mobile/following/distributors
@@ -17,18 +17,14 @@ export async function GET(request: NextRequest) {
     // Prisma client types may lag until `prisma generate` runs; keep runtime correct.
     const p = prisma as unknown as typeof prisma & { distributorFollowing: typeof prisma.userActivity };
 
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
-    }
-
-    let marketplaceUserId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      marketplaceUserId = payload.sub;
-    } catch {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
+    const marketplaceUserId = auth.userId;
 
     const followings = await p.distributorFollowing.findMany({
       where: { marketplaceUserId },
@@ -46,7 +42,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const items = (followings as Array<{ createdAt: Date; distributor: any }>).map((f) => {
+    const items = (followings as Array<{
+      createdAt: Date;
+      distributor: {
+        id: number;
+        name: string | null;
+        image: string | null;
+        company: { name: string | null; logo: string | null; bannerImage: string | null } | null;
+      };
+    }>).map((f) => {
       const company = f.distributor.company;
       return {
         distributorId: f.distributor.id,
@@ -71,18 +75,14 @@ export async function POST(request: NextRequest) {
     // Prisma client types may lag until `prisma generate` runs; keep runtime correct.
     const p = prisma as unknown as typeof prisma & { distributorFollowing: typeof prisma.userActivity };
 
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
-    }
-
-    let marketplaceUserId: number;
-    try {
-      const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
-      marketplaceUserId = payload.sub;
-    } catch {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
+    const marketplaceUserId = auth.userId;
 
     let body: { distributorId?: number | string };
     try {

@@ -8,12 +8,44 @@ export async function GET(req: NextRequest) {
   try {
     requirePlatformAdminId(req);
 
-    const [activeAdmins, totalAdmins, totalAnnouncements, publishedAnnouncements] = await Promise.all([
+    const [
+      activeAdmins,
+      totalAdmins,
+      totalAnnouncements,
+      publishedAnnouncements,
+      dashboardUsers,
+      dashboardSuspendedUsers,
+      marketplaceUsers,
+      marketplaceSuspendedUsers,
+      drivers,
+      totalHomeOffers,
+      publishedHomeOffers,
+      searchQueryLogs,
+      searchTermMaps,
+    ] = await Promise.all([
       prisma.platformAdmin.count({ where: { isActive: true } }),
       prisma.platformAdmin.count(),
       prisma.platformAnnouncement.count(),
       prisma.platformAnnouncement.count({ where: { isPublished: true } }),
+      prisma.user.count(),
+      prisma.user.count({ where: { isSuspended: true } }),
+      prisma.marketplaceUser.count(),
+      prisma.marketplaceUser.count({ where: { isSuspended: true } }),
+      prisma.driver.count(),
+      prisma.marketplaceHomeOffer.count(),
+      prisma.marketplaceHomeOffer.count({ where: { isPublished: true } }),
+      prisma.marketplaceSearchQueryLog.count(),
+      prisma.marketplaceSearchTermMap.count(),
     ]);
+
+    const draftAnnouncements = Math.max(0, totalAnnouncements - publishedAnnouncements);
+    // Drivers currently have no suspension fields in Prisma (`Driver` has no `isSuspended`),
+    // so they are treated as always active in these platform-wide metrics.
+    const platformUserTotal = dashboardUsers + marketplaceUsers + drivers;
+    const dashboardActiveUsers = Math.max(0, dashboardUsers - dashboardSuspendedUsers);
+    const marketplaceActiveUsers = Math.max(0, marketplaceUsers - marketplaceSuspendedUsers);
+    const platformSuspendedUsers = dashboardSuspendedUsers + marketplaceSuspendedUsers;
+    const platformActiveUsers = platformUserTotal - platformSuspendedUsers;
 
     return NextResponse.json(
       {
@@ -22,7 +54,22 @@ export async function GET(req: NextRequest) {
           activeAdmins,
           totalAnnouncements,
           publishedAnnouncements,
-          draftAnnouncements: Math.max(0, totalAnnouncements - publishedAnnouncements),
+          draftAnnouncements,
+          dashboardUsers,
+          dashboardActiveUsers,
+          dashboardSuspendedUsers,
+          marketplaceUsers,
+          marketplaceActiveUsers,
+          marketplaceSuspendedUsers,
+          drivers,
+          platformUserTotal,
+          platformActiveUsers,
+          platformSuspendedUsers,
+          totalHomeOffers,
+          publishedHomeOffers,
+          draftHomeOffers: Math.max(0, totalHomeOffers - publishedHomeOffers),
+          searchQueryLogs,
+          searchTermMaps,
         },
       },
       { status: 200, headers }

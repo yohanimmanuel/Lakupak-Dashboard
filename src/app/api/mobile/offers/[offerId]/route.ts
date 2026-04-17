@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { verifyAccessToken } from '@/lib/jwt';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 
 function getId(raw: string | undefined) {
   const id = Number(raw);
@@ -18,14 +18,11 @@ export async function GET(
   const headers = getSecurityHeaders();
 
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
-    }
-
-    try {
-      verifyAccessToken(authHeader.replace('Bearer ', ''));
-    } catch {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
 

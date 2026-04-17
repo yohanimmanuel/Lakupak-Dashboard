@@ -1,9 +1,24 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import ManageUsersTable from '@/components/adminstuffs/ManageUsersTable';
 
+type UserStatusMetrics = {
+  platformUserTotal: number;
+  platformActiveUsers: number;
+  platformSuspendedUsers: number;
+};
+
 export default function AdminUsersPage() {
+  const [m, setM] = useState<UserStatusMetrics | null>(null);
+
+  useEffect(() => {
+    fetch('/api/platform-admin/metrics')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => setM((d?.metrics as UserStatusMetrics) ?? null))
+      .catch(() => setM(null));
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -12,6 +27,24 @@ export default function AdminUsersPage() {
           <p className="text-sm text-gray-600 mt-1">
             View distributors (dashboard), marketplace accounts, and drivers in one place.
           </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
+          <p className="text-xs text-gray-600">Total users</p>
+          <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformUserTotal?.toLocaleString?.() ?? '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">All sources</p>
+        </div>
+        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
+          <p className="text-xs text-gray-600">Active</p>
+          <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformActiveUsers?.toLocaleString?.() ?? '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">Can access their apps</p>
+        </div>
+        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
+          <p className="text-xs text-gray-600">Suspended</p>
+          <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformSuspendedUsers?.toLocaleString?.() ?? '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">Blocked from access</p>
         </div>
       </div>
 

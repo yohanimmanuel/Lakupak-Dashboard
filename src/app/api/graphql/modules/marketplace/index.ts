@@ -114,7 +114,7 @@ async function getMarketplaceSearchExpansions(
   const tokens = q.split(' ').filter(Boolean);
   const candidates = Array.from(new Set([q, ...tokens])).slice(0, 12);
 
-  const rows = await (prismaClient as any).marketplaceSearchTermMap.findMany({
+  const rows = await prismaClient.marketplaceSearchTermMap.findMany({
     where: {
       enabled: true,
       fromTerm: { in: candidates },
@@ -939,7 +939,14 @@ const fetchMarketplaceProducts = async (args: {
         };
 
         const meiliResPrimary = await runMeili(primaryQ);
-        const topHit = (meiliResPrimary.hits as any[])?.[0];
+        const hits = (meiliResPrimary.hits ?? []) as unknown as Array<{
+          id?: string;
+          name?: unknown;
+          brand?: unknown;
+          companyName?: unknown;
+          productType?: unknown;
+        }>;
+        const topHit = hits[0];
         meiliTopHitName = (() => {
           const nm = typeof topHit?.name === 'string' ? topHit.name.trim() : '';
           return nm ? nm : null;
@@ -969,10 +976,11 @@ const fetchMarketplaceProducts = async (args: {
 
         const mergedIds: string[] = [];
         const seen = new Set<string>();
-        const pushHits = (res: any) => {
-          const ids = (res?.hits as Array<{ id?: string }> | undefined)?.map((h) => h.id).filter(Boolean) as
-            | string[]
-            | undefined;
+        const pushHits = (res: unknown) => {
+          const rr = res as { hits?: unknown } | null | undefined;
+          const ids = (rr?.hits as Array<{ id?: string }> | undefined)
+            ?.map((h) => h.id)
+            .filter((v): v is string => typeof v === 'string' && v.length > 0);
           if (!ids) return;
           for (const id of ids) {
             if (seen.has(id)) continue;
@@ -1134,7 +1142,7 @@ const fetchMarketplaceProducts = async (args: {
     const maxCandidates = Math.min(500, Math.max(80, safePage * safeLimit * 10));
 
     const candidates = await prisma.product.findMany({
-      where: whereClause as any,
+      where: whereClause,
       select: {
         productId: true,
         name: true,

@@ -3,8 +3,7 @@ import { compare } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
-  getSecurityHeaders, 
-  sanitizeUserData 
+  getSecurityHeaders
 } from '../../../../../utils/auth-security';
 import { loginRateLimiter } from '../../../../../utils/rateLimiter';
 
@@ -93,6 +92,14 @@ export async function POST(req: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    // Only reveal suspension status after successful authentication (avoid user enumeration).
+    if (user.isSuspended) {
+      return NextResponse.json(
+        { error: 'ACCOUNT_SUSPENDED', message: 'Your account has been suspended.' },
+        { status: 403, headers }
+      );
+    }
     
     // Generate JWT token
     const { signAccessToken } = await import('../../../../../lib/jwt');
@@ -117,7 +124,7 @@ export async function POST(req: NextRequest) {
       }
     });
     
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' }, 
       { status: 500, headers }

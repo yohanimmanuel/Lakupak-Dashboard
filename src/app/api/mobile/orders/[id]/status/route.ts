@@ -34,30 +34,15 @@ export async function PUT(
   const headers = getSecurityHeaders();
 
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401, headers }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { verifyAccessToken } = await import('@/lib/jwt');
-    let marketplaceUserId: number;
-    try {
-      const payload = verifyAccessToken(token);
-      const sub = payload.sub;
-      marketplaceUserId = typeof sub === 'number' ? sub : parseInt(String(sub), 10);
-      if (!Number.isInteger(marketplaceUserId) || marketplaceUserId < 1) {
-        throw new Error('Invalid sub');
+    const { getAuthenticatedMarketplaceUserId } = await import('@/utils/auth-helpers');
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
       }
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers }
-      );
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
+    const marketplaceUserId = auth.userId;
 
     const { id } = await params;
     const orderIdNum = parseInt(id, 10);

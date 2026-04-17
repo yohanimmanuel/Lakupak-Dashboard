@@ -12,8 +12,8 @@ export type PlatformUserRow = {
   subtitle: string | null;
   email: string | null;
   phone: string | null;
-  roleLabel: string;
   status: string | null;
+  isSuspended: boolean;
   avatar: string | null;
   createdAt: string;
 };
@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
           phone: true,
           image: true,
           avatar: true,
+          isSuspended: true,
           createdAt: true,
         },
       });
@@ -81,8 +82,8 @@ export async function GET(req: NextRequest) {
           subtitle: null,
           email: u.email,
           phone: u.phone ?? null,
-          roleLabel: 'Distributor',
           status: null,
+          isSuspended: Boolean(u.isSuspended),
           avatar: u.avatar ?? u.image ?? null,
           createdAt: u.createdAt.toISOString(),
         });
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
           email: true,
           phone: true,
           image: true,
+          isSuspended: true,
           createdAt: true,
         },
       });
@@ -125,8 +127,8 @@ export async function GET(req: NextRequest) {
           subtitle: u.username ? `@${u.username}` : null,
           email: u.email ?? null,
           phone: u.phone,
-          roleLabel: 'Marketplace',
           status: null,
+          isSuspended: Boolean(u.isSuspended),
           avatar: u.image ?? null,
           createdAt: u.createdAt.toISOString(),
         });
@@ -169,8 +171,8 @@ export async function GET(req: NextRequest) {
           subtitle: d.username ? `@${d.username}` : null,
           email: d.user?.email ?? null,
           phone: d.phone ?? null,
-          roleLabel: 'Driver',
           status: d.status ?? null,
+          isSuspended: false,
           avatar: d.avatar ?? null,
           createdAt: d.createdAt.toISOString(),
         });

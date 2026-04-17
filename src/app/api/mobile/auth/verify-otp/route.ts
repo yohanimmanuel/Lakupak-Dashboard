@@ -3,8 +3,7 @@ import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
-  getSecurityHeaders, 
-  sanitizeUserData 
+  getSecurityHeaders
 } from '../../../../../utils/auth-security';
 
 
@@ -217,6 +216,12 @@ export async function POST(req: NextRequest) {
     }
     
     if (existingUser) {
+      if (existingUser.isSuspended) {
+        return NextResponse.json(
+          { error: 'ACCOUNT_SUSPENDED', message: 'Your account has been suspended for a moment.' },
+          { status: 403, headers }
+        );
+      }
       // Generate JWT token
       const { signAccessToken } = await import('../../../../../lib/jwt');
       const token = signAccessToken({ 
@@ -248,30 +253,10 @@ export async function POST(req: NextRequest) {
     );
     
   } catch (error) {
+    console.error('OTP verification failed:', error);
     return NextResponse.json(
       { error: 'Verification failed. Please try again.' }, 
       { status: 500, headers }
     );
   }
-}
-
-// Helper function to verify OTP with external service
-async function verifyOtpWithService(phone: string, countryCode: string, code: string): Promise<boolean> {
-  // In production, integrate with WhatsApp/SMS service
-  // For now, return true for development
-  return true;
-}
-
-// Helper function to get currency by country code
-function getCurrencyByCountryCode(countryCode: string): string {
-  const currencyMap: { [key: string]: string } = {
-    'SG': 'SGD',
-    'ID': 'IDR',
-    'MY': 'MYR',
-    'PH': 'PHP',
-    'TH': 'THB',
-    'VN': 'VND',
-    'US': 'USD'
-  };
-  return currencyMap[countryCode] || 'IDR';
 }
