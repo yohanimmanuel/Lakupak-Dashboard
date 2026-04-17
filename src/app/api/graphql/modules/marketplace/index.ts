@@ -9,7 +9,7 @@ import { verifyAccessToken } from '@/lib/jwt';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
-import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
+import { syncMarketplaceUserToBuyerProfiles, syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import {
@@ -640,6 +640,10 @@ const updateMarketplaceUser = async (args: { userId: number; input: {
       ...(input.country && { country: input.country.trim() })
     }
   });
+
+  // Keep distributor-scoped Buyer profiles live with Marketplace user edits.
+  // (Orders remain snapshots and are not rewritten here.)
+  await syncMarketplaceUserToBuyerProfiles(updatedUser.id);
   
   return {
     id: updatedUser.id,
@@ -760,11 +764,15 @@ const createMarketplaceAddress = async (args: { userId: number; input: CreateMar
     });
 
   try {
-    return mapMarketplaceAddress(await executeCreate());
+    const created = mapMarketplaceAddress(await executeCreate());
+    await syncMarketplaceUserToBuyerProfiles(userId);
+    return created;
   } catch (error) {
     if (isDuplicateAddressIdError(error)) {
       await resetAddressIdSequence();
-      return mapMarketplaceAddress(await executeCreate());
+      const created = mapMarketplaceAddress(await executeCreate());
+      await syncMarketplaceUserToBuyerProfiles(userId);
+      return created;
     }
     throw error;
   }
@@ -813,7 +821,9 @@ const updateMarketplaceAddress = async (args: {
     return updatedAddress;
   });
 
-  return mapMarketplaceAddress(updated);
+  const result = mapMarketplaceAddress(updated);
+  await syncMarketplaceUserToBuyerProfiles(userId);
+  return result;
 };
 
 const deleteMarketplaceAddress = async (args: { userId: number; addressId: number }) => {
@@ -837,7 +847,9 @@ const deleteMarketplaceAddress = async (args: { userId: number; addressId: numbe
     return existing;
   });
 
-  return mapMarketplaceAddress(deleted);
+  const result = mapMarketplaceAddress(deleted);
+  await syncMarketplaceUserToBuyerProfiles(userId);
+  return result;
 };
 
 const fetchMarketplaceProducts = async (args: {

@@ -31,6 +31,58 @@ export function parseMarketplaceUserIdFromBuyerId(buyerId: string | null | undef
   return null;
 }
 
+/**
+ * Sync a MarketplaceUser profile into all distributor-scoped Buyer rows.
+ *
+ * This keeps the Dashboard buyer list/details "live" with the latest Marketplace profile,
+ * while Orders remain immutable snapshots.
+ *
+ * Buyer IDs follow buildMobileBuyerId():
+ * - Base: LKB-<padded 8 digits>
+ * - Per distributor: LKB-<padded 8 digits>-<distributorUserId>
+ */
+export async function syncMarketplaceUserToBuyerProfiles(marketplaceUserId: number): Promise<void> {
+  try {
+    if (!Number.isFinite(marketplaceUserId) || marketplaceUserId < 1) return;
+
+    const marketplaceUser = await prisma.marketplaceUser.findUnique({
+      where: { id: marketplaceUserId },
+      select: {
+        id: true,
+        name: true,
+        storeName: true,
+        email: true,
+        phone: true,
+        chosenAddress: true,
+        image: true,
+      },
+    });
+
+    if (!marketplaceUser) return;
+
+    const baseBuyerId = buildMobileBuyerId(marketplaceUser.id);
+
+    await prisma.buyer.updateMany({
+      where: {
+        buyerId: {
+          startsWith: baseBuyerId,
+        },
+      },
+      data: {
+        owner: marketplaceUser.name || 'Mobile User',
+        email: marketplaceUser.email || '',
+        phone: marketplaceUser.phone || '',
+        storeName: marketplaceUser.storeName || 'Mobile Store',
+        address: marketplaceUser.chosenAddress || '',
+        avatar: marketplaceUser.image || null,
+        updatedAt: new Date(),
+      },
+    });
+  } catch {
+    // best-effort sync; never block the main request
+  }
+}
+
 export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
   try {
     // Get buyer
