@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChartArea, Search, Tag, UserRound, Users } from 'lucide-react';
 import AdminLatestUpdatesCard from '@/components/adminstuffs/AdminLatestUpdatesCard';
+import { MarketplaceHomeOfferRowPreview } from '@/components/adminstuffs/MarketplaceHomeOfferRowPreview';
 
 export type PlatformAdminHomeMetrics = {
   totalAdmins: number;
@@ -58,7 +59,20 @@ function sourceBadgeClass(source: PlatformUserSource) {
 }
 
 type AdminRow = { id: number; email: string; name: string | null; isActive: boolean };
-type OfferRow = { id: number; title: string; subtitle: string; isPublished: boolean; sortOrder: number };
+type OfferRow = {
+  id: number;
+  title: string;
+  subtitle: string;
+  discountText: string;
+  backgroundColor: string;
+  textColor: string;
+  bannerImageUrl: string | null;
+  customBannerImageUrl: string | null;
+  rightIconKey: string;
+  discountIconKey: string;
+  isPublished: boolean;
+  sortOrder: number;
+};
 type SearchQueryRow = { query: string; searches: number; zeroRate: number; avgResults: number };
 
 function SectionShell({
@@ -66,12 +80,14 @@ function SectionShell({
   title,
   icon,
   subtitle,
+  contentClassName,
   children,
 }: {
   href: string;
   title: string;
   icon: React.ReactNode;
   subtitle: string;
+  contentClassName?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -93,7 +109,14 @@ function SectionShell({
           Manage <ArrowRight className="w-4 h-4" aria-hidden />
         </Link>
       </div>
-      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">{children}</div>
+      <div
+        className={
+          contentClassName ??
+          'border border-gray-200 rounded-lg overflow-hidden bg-white'
+        }
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -233,41 +256,48 @@ function OffersPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics | nu
     : 'Home banners and special-offer cards buyers see on the marketplace.';
 
   return (
-    <SectionShell href="/admin/offers" title="Offers" subtitle={subtitle} icon={<Tag className="w-5 h-5 text-[#0a61d7]" />}>
+    <SectionShell
+      href="/admin/offers"
+      title="Offers"
+      subtitle={subtitle}
+      icon={<Tag className="w-5 h-5 text-[#0a61d7]" />}
+      contentClassName="overflow-hidden"
+    >
       {loading ? (
         <div className="p-4 py-8 text-sm text-gray-600 text-center">Loading…</div>
       ) : items.length === 0 ? (
         <div className="p-4 py-8 text-sm text-gray-600 text-center">No offers yet.</div>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-600">
-            <tr>
-              <th className="text-left font-medium px-4 py-2 uppercase">Title</th>
-              <th className="text-left font-medium px-4 py-2 uppercase">Status</th>
-              <th className="text-right font-medium px-4 py-2 uppercase">Sort</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {items.map((o) => (
-              <tr key={o.id} className="hover:bg-gray-50/70">
-                <td className="px-4 py-2 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{o.title}</p>
-                  {o.subtitle?.trim() ? <p className="text-xs text-gray-500 truncate">{o.subtitle}</p> : null}
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                      o.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {o.isPublished ? 'Live' : 'Draft'}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-right text-xs text-gray-600 whitespace-nowrap">{o.sortOrder}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-2 bg-white">
+          {items.map((o) => (
+            <div
+              key={o.id}
+              className="rounded-lg border border-gray-200 px-3 py-3 hover:bg-gray-50/70 flex items-center gap-3"
+            >
+              <MarketplaceHomeOfferRowPreview row={o} />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{o.title}</p>
+                    {o.subtitle?.trim() ? <p className="text-xs text-gray-500 truncate">{o.subtitle}</p> : null}
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        o.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {o.isPublished ? 'Live' : 'Draft'}
+                    </span>
+                    <span className="text-[11px] font-semibold text-gray-600 whitespace-nowrap">#{o.sortOrder}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </SectionShell>
   );
