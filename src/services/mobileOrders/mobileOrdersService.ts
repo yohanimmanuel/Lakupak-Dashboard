@@ -9,6 +9,8 @@ import { validateVariant } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { orderCreationRateLimiter, orderQueryRateLimiter } from '@/utils/rateLimiter';
+import { computeTotalQtyNeededWithBuyXGetY, selectVariantOption } from '@/domain/marketplace/orderItemRules';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 export interface OrderItemInput {
   productId: string;
@@ -569,11 +571,9 @@ export async function createMobileMarketplaceOrders(
       where: { orderId: { in: [order.orderId] } },
       include: { orderItemsRel: { include: { product: true } } },
     });
-    try {
-      await broadcastOrderUpdate([order.orderId]);
-    } catch (err) {
-      console.error('[mobileOrdersService] Failed to broadcast order update:', err);
-    }
+    enqueueSideEffect('broadcastOrderUpdate(mobileOrders.single)', async () => broadcastOrderUpdate([order.orderId]), {
+      retries: 2,
+    });
 
     return NextResponse.json(
       { success: true, orders: createdOrdersFull, order: createdOrdersFull[0] },
@@ -660,8 +660,14 @@ export async function createMobileMarketplaceOrders(
       }
 
       const orderedQty = parseInt(String(item.packageQuantity || 1));
-      const orderedPieces = orderedQty * piecesPerPackage;
-      let totalQtyNeeded = orderedPieces;
+      const qtyForPrecheck = computeTotalQtyNeededWithBuyXGetY({
+        packageQuantity: orderedQty,
+        piecesPerPackage,
+        moqPieces: variantOption.moq,
+        promotionDetails: null,
+      });
+      let orderedPieces = qtyForPrecheck.orderedPieces;
+      let totalQtyNeeded = qtyForPrecheck.totalQtyNeeded;
 
       const productOffers = await prisma.offer.findMany({
         where: {
@@ -692,15 +698,14 @@ export async function createMobileMarketplaceOrders(
               : 0,
           };
 
-          const promotionGift = calculateOrderItemPromotion(
-            promotionDetails,
-            orderedQty,
+          const promoQty = computeTotalQtyNeededWithBuyXGetY({
+            packageQuantity: orderedQty,
             piecesPerPackage,
-            variantOption.moq,
-          );
-          if (promotionGift && promotionGift.freeQty > 0) {
-            totalQtyNeeded = orderedPieces + promotionGift.freeQty;
-          }
+            moqPieces: variantOption.moq,
+            promotionDetails,
+          });
+          orderedPieces = promoQty.orderedPieces;
+          totalQtyNeeded = promoQty.totalQtyNeeded;
         }
       }
 
@@ -830,22 +835,13 @@ export async function createMobileMarketplaceOrders(
             });
             if (!product) throw new Error(`Product not found: ${item.productId}`);
 
-            let variantOption = null;
-            if (item.variantId) {
-              variantOption = product.variantOptions?.find((vo) => vo.id === item.variantId);
-              if (!variantOption) {
-                throw new Error(`Variant option with ID ${item.variantId} not found for product: ${item.productId}`);
-              }
-            } else {
-              variantOption = product.variantOptions?.find((vo) => vo.isDefault) || product.variantOptions?.[0];
-            }
-
+            const variantOption = selectVariantOption(product, { variantId: item.variantId ?? null });
             if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
 
             // Compute total quantity needed INCLUDING buy_x_get_y free items inside the transaction.
             const packageQuantity = parseInt(String(item.packageQuantity || 1));
             const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
-            const orderedPieces = packageQuantity * piecesPerPackage;
+            let orderedPieces = packageQuantity * piecesPerPackage;
             let totalQtyNeeded = orderedPieces;
 
             const productOffers = await tx.offer.findMany({
@@ -877,17 +873,14 @@ export async function createMobileMarketplaceOrders(
                       )
                     : 0,
                 };
-
-                const promotionGift = calculateOrderItemPromotion(
-                  promotionDetails,
+                const qty = computeTotalQtyNeededWithBuyXGetY({
                   packageQuantity,
                   piecesPerPackage,
-                  variantOption.moq,
-                );
-
-                if (promotionGift && promotionGift.freeQty > 0) {
-                  totalQtyNeeded = orderedPieces + promotionGift.freeQty;
-                }
+                  moqPieces: variantOption.moq,
+                  promotionDetails,
+                });
+                orderedPieces = qty.orderedPieces;
+                totalQtyNeeded = qty.totalQtyNeeded;
               }
             }
 
@@ -1113,11 +1106,11 @@ export async function createMobileMarketplaceOrders(
     include: { orderItemsRel: { include: { product: true } } },
   });
   if (createdOrders.length > 0) {
-    try {
-      await broadcastOrderUpdate(createdOrders.map((o) => o.orderId));
-    } catch (err) {
-      console.error('[mobileOrdersService] Failed to broadcast order update:', err);
-    }
+    enqueueSideEffect(
+      'broadcastOrderUpdate(mobileOrders.multi)',
+      async () => broadcastOrderUpdate(createdOrders.map((o) => o.orderId)),
+      { retries: 2 },
+    );
   }
   return NextResponse.json(
     { success: true, orders: createdOrdersFull, order: createdOrdersFull[0] },

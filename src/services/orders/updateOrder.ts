@@ -10,6 +10,7 @@ import { sendExpoPushToMarketplaceUser, sendExpoPushToDriver } from '@/utils/exp
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { decimalToNumber, broadcastSoldCountUpdates, calculateTotalQuantityWithPromotions } from './utils';
+import { getUnitPriceFromVariantOption, selectVariantOption } from '@/domain/marketplace/orderItemRules';
 
 // Move-only extraction of PUT handler from `ordersRouteService.ts`.
 export async function updateOrderHandler(request: NextRequest) {
@@ -618,25 +619,12 @@ export async function updateOrderHandler(request: NextRequest) {
             // Use the selected variant's sellingPrice when available; fall back to first variant only when missing.
             // Use variantOptions for pricing/stock (new structure) - now Decimal type, not string.
             const itemWithVariant = item as { variantOptionId?: number | null; variantId?: number | null };
-            const selectedVariant =
-              (itemWithVariant.variantOptionId
-                ? product.variantOptions?.find((vo) => vo.id === itemWithVariant.variantOptionId)
-                : null) ||
-              (itemWithVariant.variantId
-                ? product.variantOptions?.find((vo) => vo.id === itemWithVariant.variantId)
-                : null) ||
-              product.variantOptions?.[0] ||
-              null;
-
-            const variantSellingPrice =
-              selectedVariant ? (selectedVariant as { sellingPrice?: number | string | unknown }).sellingPrice : null;
-            if (!selectedVariant || variantSellingPrice === null || variantSellingPrice === undefined) {
+            const selectedVariant = selectVariantOption(product, itemWithVariant);
+            const consistentUnitPrice = selectedVariant ? getUnitPriceFromVariantOption(selectedVariant) : 0;
+            if (!selectedVariant || consistentUnitPrice <= 0) {
               throw new Error(`No variants with pricing found for product: ${item.productId}`);
             }
 
-            // Handle Decimal type - convert to number if needed
-            const consistentUnitPrice =
-              typeof variantSellingPrice === 'number' ? variantSellingPrice : parsePrice(String(variantSellingPrice));
             const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
 
             return tx.orderItem.create({

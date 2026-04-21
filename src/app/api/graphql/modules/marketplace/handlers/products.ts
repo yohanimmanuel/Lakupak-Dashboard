@@ -18,6 +18,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 interface OfferDiscountType {
   id: string;
@@ -865,30 +866,26 @@ export const fetchMarketplaceProducts = async (args: {
 
           // Keep behavior consistent with `deactivateExpiredOffers`: broadcast offer/price/product updates
           // and invalidate marketplace search cache so clients don't see stale offer pricing.
-          try {
-            const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import(
-              '@/utils/websocketBroadcast'
-            );
-            const productIds: string[] = Array.isArray(primaryOffer.offerProducts)
-              ? primaryOffer.offerProducts.map((op: any) => String(op.productId))
-              : [];
+          enqueueSideEffect(
+            `offerDeactivated(primaryOffer=${String(primaryOffer.id)})`,
+            async () => {
+              const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import(
+                '@/utils/websocketBroadcast'
+              );
+              const productIds: string[] = Array.isArray(primaryOffer.offerProducts)
+                ? primaryOffer.offerProducts.map((op: any) => String(op.productId))
+                : [];
+              if (productIds.length === 0) return;
 
-            const broadcastPromises: Promise<void>[] = [];
-            if (productIds.length > 0) {
-              broadcastPromises.push(
+              await Promise.allSettled([
                 broadcastOfferUpdate(primaryOffer.id, productIds),
                 broadcastPriceUpdate(productIds),
                 broadcastProductUpdate(productIds),
-              );
-            }
-
-            if (broadcastPromises.length > 0) {
-              await Promise.allSettled(broadcastPromises);
+              ]);
               await invalidateSearchCache('search-cache:marketplace:*');
-            }
-          } catch (err) {
-            console.error('[Marketplace] Failed to broadcast offer deactivation/cache invalidation:', err);
-          }
+            },
+            { retries: 2 },
+          );
         } catch (error) {
           console.error(`[Marketplace] Failed to deactivate offer ${primaryOffer.id}:`, error);
         }
