@@ -1,0 +1,203 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getOrderSecurityHeaders } from '@/utils/order-security';
+import { orderQueryRateLimiter } from '@/utils/rateLimiter';
+import { decimalToNumber } from './utils';
+
+export async function getOrdersHandler(request: NextRequest) {
+  const headers = getOrderSecurityHeaders();
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const archivedFlag = searchParams.get('archived');
+    const userId = searchParams.get('userId');
+    const checkExists = searchParams.get('checkExists');
+    const orderIds = searchParams.get('orderIds');
+
+    if (userId && !isNaN(Number(userId))) {
+      const rateLimitResponse = await orderQueryRateLimiter(request, Number(userId));
+      if (rateLimitResponse) return rateLimitResponse;
+    }
+
+    if (checkExists === 'true' && orderIds) {
+      try {
+        const orderIdArray = JSON.parse(orderIds);
+        if (!Array.isArray(orderIdArray) || !orderIdArray.every((id) => typeof id === 'string')) {
+          return NextResponse.json({ error: 'Invalid orderIds format' }, { status: 400, headers });
+        }
+        const existingOrders = await prisma.order.findMany({
+          where: { orderId: { in: orderIdArray }, isDeleted: false },
+          select: { orderId: true },
+        });
+        const existingOrderIds = existingOrders.map((order: { orderId: string }) => order.orderId);
+        return NextResponse.json({ existingOrderIds }, { headers });
+      } catch {
+        return NextResponse.json({ error: 'Invalid orderIds format' }, { status: 400, headers });
+      }
+    }
+
+    const userWhere: Record<string, unknown> =
+      userId && !isNaN(Number(userId)) ? { userId: Number(userId) } : {};
+
+    if (id) {
+      const includeDeleted = searchParams.get('includeDeleted') === 'true';
+      const order = await prisma.order.findFirst({
+        where: {
+          orderId: id,
+          ...userWhere,
+          ...(includeDeleted ? {} : { isDeleted: false }),
+        },
+        include: {
+          buyer: true,
+          user: { include: { company: true } },
+          orderItemsRel: { include: { product: true } },
+          returnRequests: {
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true },
+          },
+        },
+      });
+
+      if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: any) => ({
+        productId: oi.productId ?? null,
+        subtotal: decimalToNumber(oi.subtotal),
+        packageType: oi.packageType,
+        piecesPerPackage: oi.piecesPerPackage,
+        packageQuantity: oi.packageQuantity,
+        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null,
+        productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
+        category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
+        brand: oi.product?.brand || 'Unknown Brand',
+        description: oi.product?.description || '',
+        images: oi.product?.images || [],
+        productDeleted: !oi.product,
+        productNameSnapshot: oi.productNameSnapshot || null,
+        productSkuSnapshot: oi.productSkuSnapshot || null,
+        productTypeSnapshot: oi.productTypeSnapshot || null,
+        variantNameSnapshot: oi.variantNameSnapshot || null,
+        variantId: oi.variantId || null,
+        variantOptionId: oi.variantOptionId || null,
+        offerApplied: oi.offerApplied || false,
+        offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
+        offerNameSnapshot: oi.offerNameSnapshot || null,
+        originalPriceSnapshot: oi.originalPriceSnapshot
+          ? typeof oi.originalPriceSnapshot === 'number'
+            ? oi.originalPriceSnapshot
+            : Number(oi.originalPriceSnapshot)
+          : null,
+        discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null,
+        discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null,
+        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
+      }));
+
+      const company = (order as any).user?.company;
+      const num = (v: unknown) => (v != null && !Number.isNaN(Number(v)) ? Number(v) : null);
+      let shippingOptionMinDays: number | null = null;
+      let shippingOptionMaxDays: number | null = null;
+      if (company) {
+        shippingOptionMinDays = num(company.defaultDeliveryLeadTimeMinDays) ?? 3;
+        shippingOptionMaxDays = num(company.defaultDeliveryLeadTimeMaxDays) ?? 7;
+      }
+
+      const orderResponse = {
+        ...order,
+        subtotal: decimalToNumber((order as any).subtotal),
+        discounts: decimalToNumber((order as any).discounts),
+        shippingFee: decimalToNumber((order as any).shippingFee),
+        totalAmount: decimalToNumber((order as any).totalAmount),
+        orderItems: enrichedOrderItems,
+        shippingOptionMinDays: shippingOptionMinDays ?? null,
+        shippingOptionMaxDays: shippingOptionMaxDays ?? null,
+      };
+      return NextResponse.json(orderResponse, { headers });
+    }
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const status = searchParams.get('status');
+    const buyerId = searchParams.get('buyerId');
+
+    if (Number.isNaN(page) || Number.isNaN(limit) || page < 1 || limit < 1 || limit > 1000) {
+      return NextResponse.json({ error: 'Invalid pagination parameters' }, { status: 400, headers });
+    }
+
+    const skip = (page - 1) * limit;
+    const where: Record<string, unknown> = { ...userWhere };
+    if (archivedFlag === '1' || archivedFlag === 'true') where.archivedAt = { not: null };
+    else where.archivedAt = null;
+
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
+    if (!includeDeleted) where.isDeleted = false;
+
+    if (status && status !== 'All') where.orderStatus = status;
+    if (buyerId) where.buyerId = buyerId;
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { buyer: true, user: true, orderItemsRel: { include: { product: true } } },
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    const ordersWithParsedItems = orders.map((order: any) => {
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: any) => ({
+        productId: oi.productId ?? null,
+        subtotal: decimalToNumber(oi.subtotal),
+        packageType: oi.packageType,
+        piecesPerPackage: oi.piecesPerPackage,
+        packageQuantity: oi.packageQuantity,
+        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null,
+        productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
+        category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
+        brand: oi.product?.brand || 'Unknown Brand',
+        description: oi.product?.description || '',
+        images: oi.product?.images || [],
+        productDeleted: !oi.product,
+        productNameSnapshot: oi.productNameSnapshot || null,
+        productSkuSnapshot: oi.productSkuSnapshot || null,
+        productTypeSnapshot: oi.productTypeSnapshot || null,
+        variantNameSnapshot: oi.variantNameSnapshot || null,
+        variantId: oi.variantId || null,
+        variantOptionId: oi.variantOptionId || null,
+        offerApplied: oi.offerApplied || false,
+        offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
+        offerNameSnapshot: oi.offerNameSnapshot || null,
+        originalPriceSnapshot: oi.originalPriceSnapshot
+          ? typeof oi.originalPriceSnapshot === 'number'
+            ? oi.originalPriceSnapshot
+            : Number(oi.originalPriceSnapshot)
+          : null,
+        discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null,
+        discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null,
+        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
+      }));
+      return {
+        ...order,
+        subtotal: decimalToNumber(order.subtotal),
+        discounts: decimalToNumber(order.discounts),
+        shippingFee: decimalToNumber(order.shippingFee),
+        totalAmount: decimalToNumber(order.totalAmount),
+        orderItems: enrichedOrderItems,
+      };
+    });
+
+    return NextResponse.json(
+      {
+        orders: ordersWithParsedItems,
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      },
+      { headers },
+    );
+  } catch (error) {
+    console.error('[getOrdersHandler] Failed to fetch orders:', error);
+    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500, headers });
+  }
+}
+

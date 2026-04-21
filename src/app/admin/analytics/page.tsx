@@ -80,6 +80,8 @@ function dayLabel(isoDay: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+const chartAxisTick = { fontSize: 12, fill: '#6B7280' } as const;
+
 function fmtDurSec(sec: number | null | undefined) {
   if (sec === undefined || sec === null || Number.isNaN(sec) || sec <= 0) return '—';
   const totalSec = Math.round(sec);
@@ -392,8 +394,15 @@ export default function AdminAnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
-                    <YAxis allowDecimals={false} />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
                     <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
                     <Line
                       type="monotone"
@@ -438,9 +447,23 @@ export default function AdminAnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
-                    <YAxis yAxisId="left" allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
+                    <YAxis yAxisId="left" allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                      tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`}
+                    />
                     <Tooltip
                       content={<ChartTooltip percentNames={new Set(['Zero-result rate'])} />}
                       labelFormatter={(l) => dayLabel(String(l))}
@@ -515,8 +538,18 @@ export default function AdminAnalyticsPage() {
                     margin={{ top: 10, right: 24, left: 8, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
                     <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
                       tickFormatter={(v) => {
                         const n = Number(v);
                         if (n >= 3600) return `${Math.round(n / 3600)}h`;
@@ -555,8 +588,15 @@ export default function AdminAnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
-                    <YAxis allowDecimals={false} />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
                     <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
                     <Line
                       type="monotone"
@@ -577,8 +617,20 @@ export default function AdminAnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
-                    <YAxis tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                      tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`}
+                    />
                     <Tooltip content={<ChartTooltip percentNames={new Set(['Growth efficiency'])} />} labelFormatter={(l) => dayLabel(String(l))} />
                     <Line
                       type="monotone"

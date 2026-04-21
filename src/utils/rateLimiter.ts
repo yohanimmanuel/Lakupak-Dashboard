@@ -870,7 +870,7 @@ export async function orderQueryRateLimiter(
 }
 
 /**
- * Orders: Updates - 100 per minute per user (or IP if userId is null)
+ * Orders: Updates - 50 per minute per user (or IP if userId is null)
  */
 export async function orderUpdateRateLimiter(
   req: NextRequest,
@@ -881,7 +881,7 @@ export async function orderUpdateRateLimiter(
   
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100,
+    maxRequests: 50,
     message: 'Too many order updates. Please slow down.',
     keyGenerator: () => key,
   });
