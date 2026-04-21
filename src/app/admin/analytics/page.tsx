@@ -216,7 +216,7 @@ export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [days, setDays] = useState<1 | 3 | 7 | 30 | 60>(30);
+  const [days, setDays] = useState<3 | 7 | 30 | 60>(30);
   const [tab, setTab] = useState<'growth' | 'finance' | 'operational'>('growth');
   const [sessionAppTab, setSessionAppTab] = useState<'marketplace' | 'dashboard' | 'driver'>('marketplace');
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
@@ -307,24 +307,24 @@ export default function AdminAnalyticsPage() {
               className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
               onClick={() => setShowDaysDropdown((v) => !v)}
             >
-              {days === 1 ? 'Daily' : `Last ${days} days`}
+              {`Last ${days} days`}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showDaysDropdown ? (
               <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                {[1, 3, 7, 30, 60].map((d) => (
+                {[3, 7, 30, 60].map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => {
-                      setDays(d as 1 | 3 | 7 | 30 | 60);
+                      setDays(d as 3 | 7 | 30 | 60);
                       setShowDaysDropdown(false);
                     }}
                     className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
                       days === d ? 'text-[#0a61d7] font-semibold hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {d === 1 ? 'Daily' : `${d} days`}
+                    {`${d} days`}
                   </button>
                 ))}
               </div>
@@ -522,7 +522,7 @@ export default function AdminAnalyticsPage() {
                   className="w-full sm:max-w-[480px]"
                 />
                 <Metric
-                  label={`Period average (${days === 1 ? '1 day' : `${days} days`})`}
+                  label={`Period average (${days} days)`}
                   value={sessionKpiPick && sessionKpiPick.samples > 0 ? fmtDurSec(sessionKpiPick.avgSec) : '—'}
                   hint={
                     sessionKpiPick
