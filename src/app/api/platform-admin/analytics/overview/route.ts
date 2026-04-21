@@ -297,7 +297,12 @@ export async function GET(req: NextRequest) {
 
     const mauSince = addUtcDays(untilDay, -29);
 
-    const [wauBuyers, mauBuyers] = await Promise.all([
+    const [
+      wauBuyers,
+      mauBuyers,
+      sessionDailyByApp,
+      sessionPeriodByApp,
+    ] = await Promise.all([
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(DISTINCT t."marketplaceUserId")::bigint AS "count"
         FROM (
@@ -320,7 +325,61 @@ export async function GET(req: NextRequest) {
           WHERE "marketplaceUserId" IS NOT NULL AND "createdAt" >= ${mauSince} AND "createdAt" <= ${until}
         ) t
       `.then((r) => Number(r?.[0]?.count ?? 0)),
+
+      prisma.$queryRaw<
+        Array<{ day: Date; app: string; avgSec: number | null; samples: bigint }>
+      >`
+        SELECT date_trunc('day', s."startedAt") AS "day",
+          s."app"::text AS "app",
+          AVG(s."durationSec")::float AS "avgSec",
+          COUNT(*)::bigint AS "samples"
+        FROM "public"."AppSessionSample" s
+        WHERE s."startedAt" >= ${since} AND s."startedAt" <= ${until}
+        GROUP BY 1, 2
+        ORDER BY 1 ASC, 2 ASC
+      `,
+
+      prisma.$queryRaw<Array<{ app: string; avgSec: number | null; samples: bigint }>>`
+        SELECT s."app"::text AS "app",
+          AVG(s."durationSec")::float AS "avgSec",
+          COUNT(*)::bigint AS "samples"
+        FROM "public"."AppSessionSample" s
+        WHERE s."startedAt" >= ${since} AND s."startedAt" <= ${until}
+        GROUP BY 1
+      `,
     ]);
+
+    const sessionDayMap = new Map<string, { avgSec: number; samples: number }>();
+    for (const r of sessionDailyByApp) {
+      const app = String(r.app ?? '');
+      const key = `${app}|${isoDay(r.day)}`;
+      sessionDayMap.set(key, {
+        avgSec: Number(r.avgSec ?? 0),
+        samples: Number(r.samples ?? 0),
+      });
+    }
+
+    const buildSessionSeries = (
+      app: 'DASHBOARD' | 'MARKETPLACE' | 'DRIVER'
+    ): Array<{ day: string; avgSec: number; samples: number }> =>
+      days.map((d) => {
+        const x = sessionDayMap.get(`${app}|${d}`);
+        return { day: d, avgSec: x?.avgSec ?? 0, samples: x?.samples ?? 0 };
+      });
+
+    const sessionPeriodMap = new Map<string, { avgSec: number; samples: number }>();
+    for (const r of sessionPeriodByApp) {
+      sessionPeriodMap.set(String(r.app ?? ''), {
+        avgSec: Number(r.avgSec ?? 0),
+        samples: Number(r.samples ?? 0),
+      });
+    }
+
+    const sessionKpi = (app: 'DASHBOARD' | 'MARKETPLACE' | 'DRIVER') => {
+      const x = sessionPeriodMap.get(app);
+      if (!x || x.samples <= 0) return { avgSec: null as number | null, samples: 0 };
+      return { avgSec: x.avgSec, samples: x.samples };
+    };
 
     return NextResponse.json(
       {
@@ -342,6 +401,16 @@ export async function GET(req: NextRequest) {
             buyersMAU: mauBuyers,
             buyersStickyRatio: mauBuyers > 0 ? wauBuyers / mauBuyers : 0,
           },
+          sessionUsage: {
+            dashboard: sessionKpi('DASHBOARD'),
+            marketplace: sessionKpi('MARKETPLACE'),
+            driver: sessionKpi('DRIVER'),
+          },
+        },
+        sessionSeries: {
+          dashboard: buildSessionSeries('DASHBOARD'),
+          marketplace: buildSessionSeries('MARKETPLACE'),
+          driver: buildSessionSeries('DRIVER'),
         },
         series,
       },

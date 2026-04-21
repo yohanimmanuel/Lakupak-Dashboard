@@ -484,6 +484,35 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+enum AppName {
+  DASHBOARD
+  MARKETPLACE
+  DRIVER
+}
+
+enum AppActorType {
+  DASHBOARD_USER
+  MARKETPLACE_USER
+  DRIVER
+}
+
+/// Session duration samples used for average time spent metrics across apps.
+model AppSessionSample {
+  id           String       @id @default(cuid())
+  app          AppName
+  actorType    AppActorType
+  /// Points to the actor primary key (User.id / MarketplaceUser.id / Driver.id) depending on actorType.
+  actorId      Int
+  startedAt    DateTime     @db.Timestamptz(3)
+  endedAt      DateTime     @db.Timestamptz(3)
+  durationSec  Int
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([app, startedAt])
+  @@index([actorType, actorId, startedAt])
+  @@index([createdAt])
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique

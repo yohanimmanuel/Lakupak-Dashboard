@@ -25,6 +25,10 @@ type AnalyticsSeriesRow = {
   searchZeroRate: number;
 };
 
+type SessionUsageKpi = { avgSec: number | null; samples: number };
+
+type SessionSeriesRow = { day: string; avgSec: number; samples: number };
+
 type AnalyticsPayload = {
   params: { since: string; until: string; grain: 'day' };
   kpis: {
@@ -45,6 +49,16 @@ type AnalyticsPayload = {
       driversActivationRate: number;
     };
     retention: { buyersWAU: number; buyersMAU: number; buyersStickyRatio: number };
+    sessionUsage: {
+      dashboard: SessionUsageKpi;
+      marketplace: SessionUsageKpi;
+      driver: SessionUsageKpi;
+    };
+  };
+  sessionSeries: {
+    dashboard: SessionSeriesRow[];
+    marketplace: SessionSeriesRow[];
+    driver: SessionSeriesRow[];
   };
   series: AnalyticsSeriesRow[];
 };
@@ -64,6 +78,54 @@ function dayLabel(isoDay: string) {
   const d = new Date(`${isoDay}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return isoDay;
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function fmtDurSec(sec: number | null | undefined) {
+  if (sec === undefined || sec === null || Number.isNaN(sec) || sec <= 0) return '—';
+  const totalSec = Math.round(sec);
+  if (totalSec <= 0) return '—';
+
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+
+  if (m < 60) {
+    if (m === 0) return `${s}s`;
+    return s ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${h}h ${mm}m`;
+}
+
+function SessionChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: SessionSeriesRow }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload;
+  if (!row) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2 text-xs">
+      <p className="font-semibold text-gray-900">{label ? dayLabel(String(label)) : ''}</p>
+      <div className="mt-1 space-y-0.5 text-gray-700">
+        <div className="flex justify-between gap-4">
+          <span>Avg session</span>
+          <span className="font-semibold text-gray-900">
+            {row.samples > 0 ? fmtDurSec(row.avgSec) : '—'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Samples</span>
+          <span className="font-semibold text-gray-900">{fmtInt(row.samples)}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CardShell({
@@ -154,6 +216,7 @@ export default function AdminAnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<1 | 3 | 7 | 30 | 60>(30);
   const [tab, setTab] = useState<'growth' | 'finance' | 'operational'>('growth');
+  const [sessionAppTab, setSessionAppTab] = useState<'marketplace' | 'dashboard' | 'driver'>('marketplace');
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
   const daysDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -190,6 +253,20 @@ export default function AdminAnalyticsPage() {
   }, []);
 
   const series = data?.series ?? [];
+  const sessionSeriesPick = useMemo(() => {
+    if (!data) return null;
+    if (sessionAppTab === 'marketplace') return data.sessionSeries.marketplace;
+    if (sessionAppTab === 'dashboard') return data.sessionSeries.dashboard;
+    return data.sessionSeries.driver;
+  }, [data, sessionAppTab]);
+
+  const sessionKpiPick = useMemo(() => {
+    if (!data) return null;
+    if (sessionAppTab === 'marketplace') return data.kpis.sessionUsage.marketplace;
+    if (sessionAppTab === 'dashboard') return data.kpis.sessionUsage.dashboard;
+    return data.kpis.sessionUsage.driver;
+  }, [data, sessionAppTab]);
+
   const headerSubtitle = 'Track platform-wide growth, activation, and early retention signals.';
   const rangeLabel = useMemo(() => {
     if (!data) return null;
@@ -403,6 +480,74 @@ export default function AdminAnalyticsPage() {
               </div>
             </CardShell>
           </div>
+
+          <CardShell
+            title="Average session length"
+            subtitle="Mean duration per recorded session sample (telemetry). Switch app to compare."
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <SlidingSegmentedControl
+                  size="compact"
+                  items={[
+                    { key: 'marketplace', label: 'Marketplace' },
+                    { key: 'dashboard', label: 'Dashboard' },
+                    { key: 'driver', label: 'Driver' },
+                  ]}
+                  value={sessionAppTab}
+                  onChange={(k) => setSessionAppTab(k as typeof sessionAppTab)}
+                  className="w-full sm:max-w-[480px]"
+                />
+                <Metric
+                  label={`Period average (${days === 1 ? '1 day' : `${days} days`})`}
+                  value={sessionKpiPick && sessionKpiPick.samples > 0 ? fmtDurSec(sessionKpiPick.avgSec) : '—'}
+                  hint={
+                    sessionKpiPick
+                      ? `${fmtInt(sessionKpiPick.samples)} session sample${sessionKpiPick.samples === 1 ? '' : 's'}`
+                      : undefined
+                  }
+                />
+              </div>
+              <div className="h-[300px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={sessionSeriesPick ?? []}
+                    margin={{ top: 10, right: 24, left: 8, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={18} />
+                    <YAxis
+                      tickFormatter={(v) => {
+                        const n = Number(v);
+                        if (n >= 3600) return `${Math.round(n / 3600)}h`;
+                        if (n >= 60) return `${Math.round(n / 60)}m`;
+                        return `${Math.round(n)}s`;
+                      }}
+                    />
+                    <Tooltip
+                      content={<SessionChartTooltip />}
+                      labelFormatter={(l) => String(l)}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avgSec"
+                      name="Avg session"
+                      stroke={
+                        sessionAppTab === 'dashboard'
+                          ? '#0a61d7'
+                          : sessionAppTab === 'marketplace'
+                            ? '#f97316'
+                            : '#ea580c'
+                      }
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardShell>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <CardShell title="Net growth" subtitle="New accounts minus suspensions (buyers + distributors)">

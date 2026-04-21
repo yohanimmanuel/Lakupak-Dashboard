@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AuthSync } from "@/components/AuthSync";
 import { SessionWarningModal } from "@/components/SessionWarningModal";
 import { SuspendedAccountModal } from "@/components/SuspendedAccountModal";
+import AppSessionTracker from "@/components/AppSessionTracker";
 
 function DashboardOnlyOverlays() {
   const pathname = usePathname() ?? "";
@@ -28,6 +29,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       refetchOnWindowFocus={false} // Disable automatic refetch on window focus to reduce requests
     >
       <DashboardOnlyOverlays />
+      {/* Record dashboard web session durations for platform analytics. */}
+      {isAdmin ? null : <AppSessionTracker />}
       {children}
     </SessionProvider>
   );
