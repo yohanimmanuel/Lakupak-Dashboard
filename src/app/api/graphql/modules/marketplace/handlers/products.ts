@@ -1,5 +1,4 @@
 import type { Prisma } from '@/lib/db';
-import { Prisma as PrismaNamespace } from '@/lib/db';
 import { prisma } from '../../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
 import { calculateSoldCounts, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
@@ -11,6 +10,7 @@ import {
   invalidateSearchCache,
 } from '@/utils/searchCache';
 import { getMeiliClient, MEILI_PRODUCTS_INDEX } from '@/lib/meili';
+import type { SearchParams } from 'meilisearch';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { verifyAccessToken } from '@/lib/jwt';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
@@ -20,15 +20,43 @@ import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
-interface OfferDiscountType {
-  id: string;
-  discountType: string;
-  discountValue: number;
-  minQuantity: number | null;
-  freeQuantity?: number | null;
-  isActive: boolean;
-  description: string | null;
-}
+type OfferForMarketplace = Prisma.OfferGetPayload<{
+  include: {
+    offerProducts: true;
+    offerDiscountTypes: true;
+    dateRanges: true;
+  };
+}>;
+
+type MarketplaceOfferDiscountType = OfferForMarketplace['offerDiscountTypes'][number];
+
+const marketplaceProductInclude = {
+  variants: true,
+  variantOptions: true,
+  user: {
+    select: {
+      firstName: true,
+      lastName: true,
+      company: {
+        select: {
+          name: true,
+          businessAddress: true,
+          businessPhone: true,
+          businessEmail: true,
+          industryType: true,
+          shippingPreferences: true,
+          pickupAddress: true,
+          logo: true,
+          bannerImage: true,
+          defaultDeliveryLeadTimeMinDays: true,
+          defaultDeliveryLeadTimeMaxDays: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ProductInclude;
+
+type MarketplaceProductRow = Prisma.ProductGetPayload<{ include: typeof marketplaceProductInclude }>;
 
 /** Meili returns `[]` when there are no hits — that is truthy in JS, so never use `if (!ids)` alone. */
 function hasMarketplaceSearchHitIds(ids: string[] | null | undefined): ids is string[] {
@@ -254,7 +282,7 @@ export const fetchMarketplaceProducts = async (args: {
         const primaryQ = search.trim();
         const meiliMatchingStrategy = parseMarketplaceMeiliMatchingStrategy();
         const meiliLocales = parseMarketplaceMeiliSearchLocales();
-        const meiliOptionalParams = {
+        const meiliOptionalParams: SearchParams = {
           ...(meiliMatchingStrategy ? { matchingStrategy: meiliMatchingStrategy } : {}),
           ...(meiliLocales.length ? { locales: meiliLocales } : {}),
         };
@@ -347,17 +375,17 @@ export const fetchMarketplaceProducts = async (args: {
 
         // If a category filter is applied, `facetDistribution` will only reflect that filtered scope.
         // For Shopee-style "show all categories but rank relevant ones on top", fetch facets without the category filter.
-        const meiliFacetBase = { limit: 0, offset: 0, facets: ['productType'] };
-        let meiliResFacets = meiliResPrimary as any;
+        const meiliFacetBase: SearchParams = { limit: 0, offset: 0, facets: ['productType'] };
+        let meiliResFacets: typeof meiliResPrimary = meiliResPrimary;
         if (category && category !== 'All') {
           try {
             try {
               meiliResFacets = await meiliRace(
-                index.search(primaryQ, { ...meiliFacetBase, ...meiliOptionalParams } as any),
+                index.search(primaryQ, { ...meiliFacetBase, ...meiliOptionalParams }),
               );
             } catch {
               if (Object.keys(meiliOptionalParams).length > 0) {
-                meiliResFacets = await meiliRace(index.search(primaryQ, meiliFacetBase as any));
+                meiliResFacets = await meiliRace(index.search(primaryQ, meiliFacetBase));
               }
               // Keep meiliResHits-derived facets if facet-only query still fails — do not drop main Meili results.
             }
@@ -379,14 +407,14 @@ export const fetchMarketplaceProducts = async (args: {
   }
 
   // Build where clause for published products only
-  const whereClause: Record<string, unknown> = {
+  const whereClause: Prisma.ProductWhereInput = {
     marketplaceStatus: 'Published',
-    status: 'Published'
+    status: 'Published',
   };
 
   // Search term = OR across searchable fields (Meili/pg_trgm handle relevance; Prisma path is substring match).
   if (search && search.trim()) {
-    const ors: Record<string, unknown>[] = [];
+    const ors: Prisma.ProductWhereInput[] = [];
     for (const t of (searchTerms.length ? searchTerms : [search.trim()]).slice(0, 5)) {
       ors.push({ name: { contains: t, mode: 'insensitive' } });
       ors.push({ description: { contains: t, mode: 'insensitive' } });
@@ -398,12 +426,13 @@ export const fetchMarketplaceProducts = async (args: {
 
   // For category pills during search, we want "all categories" ranked by relevance for this query,
   // so we compute facet counts from a where clause that does NOT include the selected category filter.
-  const facetWhereClause: Record<string, unknown> = { ...whereClause };
+  const facetWhereClause: Prisma.ProductWhereInput = { ...whereClause };
 
   // Category filter = productType only (sales channel is a separate filter on client)
   if (category && category !== 'All') {
+    const existingAnd = Array.isArray(whereClause.AND) ? whereClause.AND : whereClause.AND ? [whereClause.AND] : [];
     whereClause.AND = [
-      ...(Array.isArray(whereClause.AND) ? (whereClause.AND as Record<string, unknown>[]) : []),
+      ...existingAnd,
       {
         OR: [
           { productType: category },
@@ -491,7 +520,7 @@ export const fetchMarketplaceProducts = async (args: {
     const maxCandidates = Math.min(500, Math.max(80, safePage * safeLimit * 10));
 
     const candidates = await prisma.product.findMany({
-      where: whereClause as any,
+      where: whereClause,
       select: {
         productId: true,
         name: true,
@@ -523,7 +552,7 @@ export const fetchMarketplaceProducts = async (args: {
         const brand = String(p.brand ?? '').toLowerCase();
         const type = String(p.productType ?? '').toLowerCase();
         const desc = String(p.description ?? '').toLowerCase();
-        const seller = String((p as any).user?.company?.name ?? '').toLowerCase();
+        const seller = String(p.user?.company?.name ?? '').toLowerCase();
         const score =
           scoreText(name, 6) +
           scoreText(brand, 3) +
@@ -553,15 +582,15 @@ export const fetchMarketplaceProducts = async (args: {
       return prisma.product
         .groupBy({
           by: ['productType'],
-          where: whereClause as any,
+          where: whereClause,
           _count: { productType: true },
           orderBy: { _count: { productType: 'desc' } },
           take: 12,
         })
         .then((rows) =>
           rows
-            .filter((r) => !!(r as any).productType && String((r as any).productType).trim().length > 0)
-            .map((r) => ({ value: String((r as any).productType), count: (r as any)._count.productType })),
+            .filter((r) => !!r.productType && String(r.productType).trim().length > 0)
+            .map((r) => ({ value: String(r.productType), count: r._count.productType })),
         )
         .catch(() => []);
     }
@@ -574,7 +603,7 @@ export const fetchMarketplaceProducts = async (args: {
       })
       .then((rows) =>
         rows
-          .map((r) => ((r as any).productType != null ? String((r as any).productType).trim() : ''))
+          .map((r) => (r.productType != null ? String(r.productType).trim() : ''))
           .filter((v) => v.length > 0),
       )
       .then((vals) => Array.from(new Set(vals)).sort((a, b) => a.localeCompare(b)))
@@ -586,14 +615,14 @@ export const fetchMarketplaceProducts = async (args: {
       (await prisma.product
         .groupBy({
           by: ['productType'],
-          where: facetWhereClause as any,
+          where: facetWhereClause,
           _count: { productType: true },
         })
         .then((rows) => {
           const m: Record<string, number> = {};
           for (const r of rows) {
-            const k = (r as any).productType != null ? String((r as any).productType).trim() : '';
-            if (k) m[k] = (r as any)._count.productType;
+            const k = r.productType != null ? String(r.productType).trim() : '';
+            if (k) m[k] = r._count.productType;
           }
           return m;
         })
@@ -604,52 +633,26 @@ export const fetchMarketplaceProducts = async (args: {
       .sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value));
   })();
   
-  // Get published products with user info, ordered by lastSyncAt to get most recent changes
-  const productInclude = {
-    variants: true,
-    variantOptions: true,
-    user: {
-      select: {
-        firstName: true,
-        lastName: true,
-        company: {
-          select: {
-            name: true,
-            businessAddress: true,
-            businessPhone: true,
-            businessEmail: true,
-            industryType: true,
-            shippingPreferences: true,
-            pickupAddress: true,
-            logo: true,
-            bannerImage: true,
-            defaultDeliveryLeadTimeMinDays: true,
-            defaultDeliveryLeadTimeMaxDays: true,
-          },
-        },
-      },
-    },
-  } as const;
-
-  const products = hasMarketplaceSearchHitIds(meiliHitIds)
+  const products: Promise<MarketplaceProductRow[]> = hasMarketplaceSearchHitIds(meiliHitIds)
     ? (() => {
+        const ids = meiliHitIds;
         return prisma.product
           .findMany({
             where: {
-              productId: { in: meiliHitIds },
+              productId: { in: ids },
               marketplaceStatus: 'Published',
               status: 'Published',
-            } as any,
-            include: productInclude as any,
+            },
+            include: marketplaceProductInclude,
           })
           .then((rows) => {
-            const byId = new Map(rows.map((p: any) => [p.productId, p]));
-            return meiliHitIds!.map((id) => byId.get(id)).filter(Boolean) as typeof rows;
+            const byId = new Map(rows.map((p) => [p.productId, p]));
+            return ids.map((id) => byId.get(id)).filter((p): p is MarketplaceProductRow => Boolean(p));
           });
       })()
     : prisma.product.findMany({
-        where: whereClause as any,
-        include: productInclude as any,
+        where: whereClause,
+        include: marketplaceProductInclude,
         skip,
         take,
         orderBy: [{ lastSyncAt: 'desc' }, { publishedAt: 'desc' }],
@@ -658,10 +661,8 @@ export const fetchMarketplaceProducts = async (args: {
   const resolvedProducts = await products;
   
   // Get active offers for all products
-  const productIds = resolvedProducts.map((p: any) => p.productId);
-  const userIds = [
-    ...new Set(resolvedProducts.map((p: any) => p.userId).filter((id: any): id is number => id !== null)),
-  ];
+  const productIds = resolvedProducts.map((p) => p.productId);
+  const userIds = [...new Set(resolvedProducts.map((p) => p.userId).filter((id): id is number => id != null))];
   const soldCountMap = await calculateSoldCounts(prisma, productIds);
   
   // Get only ACTIVE offers to check real-time status
@@ -692,12 +693,12 @@ export const fetchMarketplaceProducts = async (args: {
           },
         },
       ],
-    } as any,
+    },
     include: {
       offerProducts: true,
       offerDiscountTypes: true,
-      dateRanges: true
-    } as any
+      dateRanges: true,
+    },
   });
 
   // Deactivate expired offers based on date ranges
@@ -714,7 +715,7 @@ export const fetchMarketplaceProducts = async (args: {
         // Collect all broadcasts to run in parallel
         const broadcastPromises: Promise<void>[] = [];
       
-      for (const { offerId, productIds } of (result as any).activatedOffers) {
+      for (const { offerId, productIds } of result.activatedOffers) {
           // Run all broadcasts in parallel for this offer
           broadcastPromises.push(
             broadcastOfferUpdate(offerId, productIds),
@@ -724,7 +725,7 @@ export const fetchMarketplaceProducts = async (args: {
       }
       
       // Broadcast for deactivated offers (active → scheduled/inactive)
-      for (const { offerId, productIds } of (result as any).deactivatedOffers) {
+      for (const { offerId, productIds } of result.deactivatedOffers) {
           // Run all broadcasts in parallel for this offer
           broadcastPromises.push(
             broadcastOfferUpdate(offerId, productIds),
@@ -772,13 +773,13 @@ export const fetchMarketplaceProducts = async (args: {
   };
 
   // Filter offers - keep offer if at least one discount type is still usable AND date constraints are met
-  const validOffers = [];
-  
-  for (const offer of allOffers as any[]) {
+  const validOffers: OfferForMarketplace[] = [];
+
+  for (const offer of allOffers) {
     // Check date ranges if they exist
     // Note: Date ranges are used for filtering active offers in marketplace
     // If offer has date ranges, at least one must be active for the offer to be valid
-    const hasActiveDateRange = isWithinActiveDateRange((offer as any).dateRanges || []);
+    const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
     if (!hasActiveDateRange) {
       continue; // Skip this offer if no active date range matches (for marketplace display only)
     }
@@ -786,7 +787,7 @@ export const fetchMarketplaceProducts = async (args: {
     // Check if at least one discount type is active
     let hasValidDiscountType = false;
     
-    for (const discountType of (offer as any).offerDiscountTypes) {
+    for (const discountType of offer.offerDiscountTypes) {
       if (discountType.isActive === true) {
         hasValidDiscountType = true;
         break;
@@ -796,14 +797,14 @@ export const fetchMarketplaceProducts = async (args: {
     if (!hasValidDiscountType) {
       try {
         await prisma.offer.update({
-          where: { id: (offer as any).id },
+          where: { id: offer.id },
           data: { status: 'inactive' },
         });
       } catch (error) {
-        console.error(`[Marketplace] Failed to deactivate offer ${(offer as any).id}:`, error);
+        console.error(`[Marketplace] Failed to deactivate offer ${offer.id}:`, error);
       }
     } else {
-      validOffers.push(offer as any);
+      validOffers.push(offer);
     }
   }
   
@@ -811,32 +812,32 @@ export const fetchMarketplaceProducts = async (args: {
   // We don't update prices here to avoid race conditions and ensure consistency
   
   // Create a map of product offers using only valid offers
-  const productOffersMap = new Map();
-  validOffers.forEach((offer: any) => {
-    offer.offerProducts.forEach((op: any) => {
+  const productOffersMap = new Map<string, OfferForMarketplace[]>();
+  validOffers.forEach((offer) => {
+    offer.offerProducts.forEach((op) => {
       if (!productOffersMap.has(op.productId)) {
         productOffersMap.set(op.productId, []);
       }
-      (productOffersMap.get(op.productId) as any).push(offer);
+      productOffersMap.get(op.productId)!.push(offer);
     });
   });
   
   // Transform products for marketplace format
-  const marketplaceProducts = await Promise.all(resolvedProducts.map(async (product: any) => {
+  const marketplaceProducts = await Promise.all(resolvedProducts.map(async (product) => {
     const variantOptions = product.variantOptions || [];
     
     if (variantOptions.length === 0) {
       return null;
     }
     
-    const firstVariantOption = variantOptions.find((vo: any) => vo.isDefault) || variantOptions[0];
+    const firstVariantOption = variantOptions.find((vo) => vo.isDefault) || variantOptions[0];
     const sellingPrice = safeParsePrice(firstVariantOption.sellingPrice);
     const purchasePrice = safeParsePrice(firstVariantOption.purchasePrice);
     const storedOriginalPrice = firstVariantOption.originalSellingPrice 
       ? safeParsePrice(firstVariantOption.originalSellingPrice) 
       : null;
     
-    const productOffers = productOffersMap.get(product.productId) || [];
+    const productOffers = productOffersMap.get(product.productId) ?? [];
     let offerBadge = undefined;
     let hasActiveOffer = false;
     let offerId = undefined;
@@ -847,10 +848,10 @@ export const fetchMarketplaceProducts = async (args: {
     let hasPriceDiscounts = false;
     let promotionDetails = undefined;
     
-    if ((productOffers as any).length > 0) {
-      const primaryOffer = (productOffers as any)[0];
+    if (productOffers.length > 0) {
+      const primaryOffer = productOffers[0];
       
-      const activeDiscountTypes = [];
+      const activeDiscountTypes: MarketplaceOfferDiscountType[] = [];
       for (const dt of primaryOffer.offerDiscountTypes) {
         if (dt.isActive === true) {
           activeDiscountTypes.push(dt);
@@ -873,7 +874,7 @@ export const fetchMarketplaceProducts = async (args: {
                 '@/utils/websocketBroadcast'
               );
               const productIds: string[] = Array.isArray(primaryOffer.offerProducts)
-                ? primaryOffer.offerProducts.map((op: any) => String(op.productId))
+                ? primaryOffer.offerProducts.map((op) => String(op.productId))
                 : [];
               if (productIds.length === 0) return;
 
@@ -892,12 +893,8 @@ export const fetchMarketplaceProducts = async (args: {
       }
       
       if (activeDiscountTypes.length > 0) {
-        hasPriceDiscounts = activeDiscountTypes.some((dt: OfferDiscountType) => 
-          dt.discountType === 'percentage' || dt.discountType === 'fixed'
-        );
-        const hasPromotions = activeDiscountTypes.some((dt: OfferDiscountType) => 
-          dt.discountType === 'buy_x_get_y'
-        );
+        hasPriceDiscounts = activeDiscountTypes.some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
+        const hasPromotions = activeDiscountTypes.some((dt) => dt.discountType === 'buy_x_get_y');
         
         // Determine badge type based on active discount types
         if (hasPriceDiscounts && hasPromotions) {
@@ -912,8 +909,8 @@ export const fetchMarketplaceProducts = async (args: {
         
         // Set discount information if there are price discounts
         if (hasPriceDiscounts) {
-          const fixedDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'fixed');
-          const percentageDiscount = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'percentage');
+          const fixedDiscount = activeDiscountTypes.find((dt) => dt.discountType === 'fixed');
+          const percentageDiscount = activeDiscountTypes.find((dt) => dt.discountType === 'percentage');
           discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
           // Convert Decimal to number for GraphQL Float type
           const rawDiscountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
@@ -923,7 +920,7 @@ export const fetchMarketplaceProducts = async (args: {
         }
         
         // Set promotion details if there are buy X get Y promotions
-        const buyXGetYPromo = activeDiscountTypes.find((dt: OfferDiscountType) => dt.discountType === 'buy_x_get_y');
+        const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
         if (buyXGetYPromo) {
           // Convert Decimal discountValue to number
           const freeQty = safeParsePrice(buyXGetYPromo.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
@@ -950,8 +947,8 @@ export const fetchMarketplaceProducts = async (args: {
       originalSellingPrice = undefined; // No strikethrough when no offer
     }
     
-    const totalStock = variantOptions.reduce((sum: number, vo: any) => sum + (vo.stockQuantity || 0), 0);
-    const totalLowStockThreshold = variantOptions.reduce((max: number, vo: any) => Math.max(max, vo.lowStockThreshold || 0), 0);
+    const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
+    const totalLowStockThreshold = variantOptions.reduce((max, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
     
     let stockStatus = 'In Stock';
     if (totalStock === 0) stockStatus = 'Out of Stock';
@@ -980,7 +977,7 @@ export const fetchMarketplaceProducts = async (args: {
       stockStatus,
       variants: product.variants || [],
       variantOptions: product.variantOptions || [],
-      variantOptionsFormatted: variantOptions.map((vo: any) => ({
+      variantOptionsFormatted: variantOptions.map((vo) => ({
         id: vo.id,
         sku: vo.sku,
         purchasePrice: safeParsePrice(vo.purchasePrice),
@@ -1079,7 +1076,7 @@ export const fetchMarketplaceProducts = async (args: {
     };
   }));
   
-  const totalCount = meiliTotalCount ?? (await prisma.product.count({ where: whereClause as any }));
+  const totalCount = meiliTotalCount ?? (await prisma.product.count({ where: whereClause }));
   const pagination = buildPaginationInfo(page, limit, totalCount);
 
   let didYouMean: string | null = null;
@@ -1309,10 +1306,10 @@ export const fetchMarketplaceProducts = async (args: {
           category: category && category !== 'All' ? String(category) : null,
           page,
           limit,
-          resultCount: Array.isArray((result as any).nodes) ? (result as any).nodes.length : 0,
+          resultCount: result.nodes.length,
           engine: engineUsed,
         },
-      } as any)
+      })
       .catch(() => {});
   }
   

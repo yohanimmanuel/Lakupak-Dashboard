@@ -7,7 +7,7 @@ import FleetBasicInfo from '@/components/logisticsmanagement/FleetBasicInfo';
 import FleetVehicleInfo from '@/components/logisticsmanagement/FleetVehicleInfo';
 import FleetDriverInfo from '@/components/logisticsmanagement/FleetDriverInfo';
 import FleetOrderSelection, { type AssignedOrder } from '@/components/logisticsmanagement/FleetOrderSelection';
-import FleetTripSummaryModal from '@/components/logisticsmanagement/FleetTripSummaryModal';
+import FleetTripSummaryModal, { type FleetTripSummaryData } from '@/components/logisticsmanagement/FleetTripSummaryModal';
 import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsmanagement/OrderfleetList';
 import { createFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
@@ -37,9 +37,9 @@ export interface FleetFormData {
   route?: string;
   status?: FleetOrderSummary['status'];
   deliveryType?: FleetOrderSummary['deliveryType'];
-  etaDate?: string;
-  etaTime?: string;
-  assignedDate?: string;
+  etaDate?: string | null;
+  etaTime?: string | null;
+  assignedDate?: string | null;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -255,7 +255,7 @@ export default function CreateFleetPage() {
 
   const handleCancel = () => router.push('/logistics');
 
-  const summaryData = {
+  const summaryData: FleetTripSummaryData = {
     orderCode: fleetCode,
     routeFrom: formData.routeFrom,
     routeTo: formData.routeTo,

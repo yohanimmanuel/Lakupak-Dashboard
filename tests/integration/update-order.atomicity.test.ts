@@ -136,7 +136,7 @@ describe('orders update - atomicity on failure', () => {
         offerApplied: false,
         promotionDetailsSnapshot: null,
         moqSnapshot: 1,
-      } as any,
+      },
     });
 
     const beforeVariant = await prisma.variantOption.findUnique({ where: { id: goodVariant.id } });

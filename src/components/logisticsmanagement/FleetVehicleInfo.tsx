@@ -6,13 +6,19 @@ import { Truck, ChevronDown } from 'lucide-react';
 import type { FleetOrderSummary } from './OrderfleetList';
 import { VEHICLE_TYPE_LIST, getVehicleTypeInfo } from '@/config/vehicleTypes';
 
-export interface FleetVehicleFormData extends Partial<FleetOrderSummary> {
+export type FleetVehicleFormData = Omit<
+  Partial<FleetOrderSummary>,
+  'assignedDate' | 'etaCompletionDate' | 'etaCompletionTime'
+> & {
+  assignedDate?: string | null;
+  etaCompletionDate?: string | null;
+  etaCompletionTime?: string | null;
   vehicleBrand?: string;
   vehicleModel?: string;
   plateNumber?: string;
   vehicleMaxWeight?: number;
   vehicleMaxVolume?: number;
-}
+};
 
 interface FleetVehicleInfoProps {
   formData: FleetVehicleFormData;

@@ -214,13 +214,17 @@ export async function createOrderHandler(request: NextRequest) {
       userId: distributorUserId || (typeof sanitizedData.userId === 'number' ? sanitizedData.userId : null),
     };
 
-    const order = await prisma.order.create({
+    const createdOrderInclude = {
+      buyer: true,
+      user: true,
+      orderItemsRel: { include: { product: true } },
+    } satisfies Prisma.OrderInclude;
+
+    type CreatedOrder = Prisma.OrderGetPayload<{ include: typeof createdOrderInclude }>;
+
+    const order: CreatedOrder = await prisma.order.create({
       data: orderData,
-      include: {
-        buyer: true,
-        user: true,
-        orderItemsRel: { include: { product: true } },
-      },
+      include: createdOrderInclude,
     });
 
     if (Array.isArray(consistentOrderItems) && consistentOrderItems.length > 0) {
@@ -291,7 +295,7 @@ export async function createOrderHandler(request: NextRequest) {
                 .join(', ');
             }
 
-            let orderItemData: any = {
+            let orderItemData: Prisma.OrderItemUncheckedCreateInput = {
               orderId: sanitizedData.orderId as string,
               productId: item.productId as string,
               subtotal: consistentSubtotal,
@@ -362,7 +366,7 @@ export async function createOrderHandler(request: NextRequest) {
       }
     }
 
-    const enrichedOrderItems = (order.orderItemsRel || []).map((oi: any) => ({
+    const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
       productId: oi.productId ?? null,
       subtotal: decimalToNumber(oi.subtotal),
       packageType: oi.packageType,

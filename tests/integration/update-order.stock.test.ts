@@ -116,7 +116,7 @@ describe('orders update - stock deduct/restore', () => {
         offerApplied: false,
         promotionDetailsSnapshot: null,
         moqSnapshot: 1,
-      } as any,
+      },
     });
 
     const res = await updateOrderHandler(
@@ -230,7 +230,7 @@ describe('orders update - stock deduct/restore', () => {
         offerApplied: false,
         promotionDetailsSnapshot: null,
         moqSnapshot: 1,
-      } as any,
+      },
     });
 
     const before = await prisma.variantOption.findUnique({ where: { id: variant.id } });
@@ -347,7 +347,7 @@ describe('orders update - stock deduct/restore', () => {
         offerApplied: false,
         promotionDetailsSnapshot: null,
         moqSnapshot: 1,
-      } as any,
+      },
     });
 
     const res = await updateOrderHandler(

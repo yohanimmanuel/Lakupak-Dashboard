@@ -14,11 +14,11 @@ export interface FleetTripSummaryData {
   deliveryType?: string;
   etaCompletionDate?: string | null;
   etaCompletionTime?: string | null;
-  assignedDate?: string;
+  assignedDate?: string | null;
   /** Form-only: date string for create/edit (e.g. YYYY-MM-DD) */
-  etaDate?: string;
+  etaDate?: string | null;
   /** Form-only: time string (e.g. HH:mm) */
-  etaTime?: string;
+  etaTime?: string | null;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;

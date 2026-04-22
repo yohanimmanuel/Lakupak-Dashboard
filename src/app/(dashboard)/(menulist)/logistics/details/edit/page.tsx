@@ -28,9 +28,9 @@ export interface FleetFormData {
   route?: string;
   status?: FleetOrderSummary['status'];
   deliveryType?: FleetOrderSummary['deliveryType'];
-  etaDate?: string;
-  etaTime?: string;
-  assignedDate?: string;
+  etaDate?: string | null;
+  etaTime?: string | null;
+  assignedDate?: string | null;
   paymentTerms?: string;
   assignedLogistics?: string;
   vehicleType?: string;
@@ -278,8 +278,8 @@ export default function EditFleetPage() {
       deliveryType: formData.deliveryType,
       etaCompletionDate: formData.etaDate ? new Date(formData.etaDate).toISOString().slice(0, 10) : undefined,
       etaCompletionTime: formData.etaTime ?? undefined,
-      etaDate: formData.etaDate,
-      etaTime: formData.etaTime,
+      etaDate: formData.etaDate ?? undefined,
+      etaTime: formData.etaTime ?? undefined,
       assignedDate: formData.assignedDate ?? undefined,
       paymentTerms: formData.paymentTerms,
       assignedLogistics: formData.assignedLogistics ?? undefined,

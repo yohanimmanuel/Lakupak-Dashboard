@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@/lib/db';
 import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { orderQueryRateLimiter } from '@/utils/rateLimiter';
 import { decimalToNumber } from './utils';
@@ -37,8 +38,18 @@ export async function getOrdersHandler(request: NextRequest) {
       }
     }
 
-    const userWhere: Record<string, unknown> =
+    const userWhere: Prisma.OrderWhereInput =
       userId && !isNaN(Number(userId)) ? { userId: Number(userId) } : {};
+
+    const orderDetailInclude = {
+      buyer: true,
+      user: { include: { company: true } },
+      orderItemsRel: { include: { product: true } },
+      returnRequests: {
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true },
+      },
+    } satisfies Prisma.OrderInclude;
 
     if (id) {
       const includeDeleted = searchParams.get('includeDeleted') === 'true';
@@ -48,20 +59,12 @@ export async function getOrdersHandler(request: NextRequest) {
           ...userWhere,
           ...(includeDeleted ? {} : { isDeleted: false }),
         },
-        include: {
-          buyer: true,
-          user: { include: { company: true } },
-          orderItemsRel: { include: { product: true } },
-          returnRequests: {
-            orderBy: { createdAt: 'asc' },
-            select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true },
-          },
-        },
+        include: orderDetailInclude,
       });
 
       if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
 
-      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: any) => ({
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
         productId: oi.productId ?? null,
         subtotal: decimalToNumber(oi.subtotal),
         packageType: oi.packageType,
@@ -93,7 +96,7 @@ export async function getOrdersHandler(request: NextRequest) {
         promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
       }));
 
-      const company = (order as any).user?.company;
+      const company = order.user?.company;
       const num = (v: unknown) => (v != null && !Number.isNaN(Number(v)) ? Number(v) : null);
       let shippingOptionMinDays: number | null = null;
       let shippingOptionMaxDays: number | null = null;
@@ -104,10 +107,10 @@ export async function getOrdersHandler(request: NextRequest) {
 
       const orderResponse = {
         ...order,
-        subtotal: decimalToNumber((order as any).subtotal),
-        discounts: decimalToNumber((order as any).discounts),
-        shippingFee: decimalToNumber((order as any).shippingFee),
-        totalAmount: decimalToNumber((order as any).totalAmount),
+        subtotal: decimalToNumber(order.subtotal),
+        discounts: decimalToNumber(order.discounts),
+        shippingFee: decimalToNumber(order.shippingFee),
+        totalAmount: decimalToNumber(order.totalAmount),
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,
@@ -125,7 +128,7 @@ export async function getOrdersHandler(request: NextRequest) {
     }
 
     const skip = (page - 1) * limit;
-    const where: Record<string, unknown> = { ...userWhere };
+    const where: Prisma.OrderWhereInput = { ...userWhere };
     if (archivedFlag === '1' || archivedFlag === 'true') where.archivedAt = { not: null };
     else where.archivedAt = null;
 
@@ -135,19 +138,27 @@ export async function getOrdersHandler(request: NextRequest) {
     if (status && status !== 'All') where.orderStatus = status;
     if (buyerId) where.buyerId = buyerId;
 
+    const orderListInclude = {
+      buyer: true,
+      user: true,
+      orderItemsRel: { include: { product: true } },
+    } satisfies Prisma.OrderInclude;
+
+    type OrderListRow = Prisma.OrderGetPayload<{ include: typeof orderListInclude }>;
+
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { buyer: true, user: true, orderItemsRel: { include: { product: true } } },
+        include: orderListInclude,
       }),
       prisma.order.count({ where }),
     ]);
 
-    const ordersWithParsedItems = orders.map((order: any) => {
-      const enrichedOrderItems = (order.orderItemsRel || []).map((oi: any) => ({
+    const ordersWithParsedItems = orders.map((order: OrderListRow) => {
+      const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
         productId: oi.productId ?? null,
         subtotal: decimalToNumber(oi.subtotal),
         packageType: oi.packageType,

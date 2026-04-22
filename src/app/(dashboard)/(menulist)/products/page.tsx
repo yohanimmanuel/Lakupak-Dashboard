@@ -13,6 +13,7 @@ import { generateUniqueProductId } from "@/utils/product-security";
 import { getProductTotalStock } from "@/utils/stockUtils";
 import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
 import { fetchGraphQL } from "@/lib/graphqlClient";
+import { useProductUpdateSocket } from '@/hooks/useProductUpdateSocket';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -181,6 +182,12 @@ export default function ProductsPage() {
       }
     };
   }, [fetchProducts]); // Use fetchProducts instead of user?.id since fetchProducts is properly memoized
+
+  // Keep product table in sync with stock/price changes triggered elsewhere (e.g. order status transitions).
+  // When we receive a product broadcast, force-refresh to bypass any cache.
+  useProductUpdateSocket(user?.id, () => {
+    fetchProducts(true);
+  });
 
   // Convert product data to table row format
   const profileToTableRow = (product: Product): ProductTableRow => {

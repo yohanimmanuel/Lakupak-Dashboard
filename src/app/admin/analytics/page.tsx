@@ -29,6 +29,42 @@ type SessionUsageKpi = { avgSec: number | null; samples: number };
 
 type SessionSeriesRow = { day: string; avgSec: number; samples: number };
 
+type OperationalSeriesRow = {
+  day: string;
+  ordersCreated: number;
+  ordersAccepted: number;
+  ordersDelivered: number;
+  ordersCancelled: number;
+  buyerCancellations: number;
+  buyerReturnRequests: number;
+  driverFailures: number;
+  activeDrivers: number;
+};
+
+type OperationalPayload = {
+  params: { since: string; until: string; grain: 'day' };
+  kpis: {
+    distributors: {
+      openOrders: number;
+      medianTimeToAcceptSec: number;
+      medianTimeToDeliverSec: number;
+      lowStockVariants: number;
+      outOfStockVariants: number;
+    };
+    buyers: {
+      cancellations: number;
+      returnRequests: number;
+      medianDeliveredToReceivedSec: number;
+    };
+    drivers: {
+      failures: number;
+      activeDriversInPeriod: number;
+      fleetStatuses: Array<{ status: string; count: number }>;
+    };
+  };
+  series: OperationalSeriesRow[];
+};
+
 type AnalyticsPayload = {
   params: { since: string; until: string; grain: 'day' };
   kpis: {
@@ -214,11 +250,13 @@ function ChartTooltip({
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
+  const [operationalData, setOperationalData] = useState<OperationalPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<3 | 7 | 30 | 60>(30);
   const [tab, setTab] = useState<'growth' | 'finance' | 'operational'>('growth');
   const [sessionAppTab, setSessionAppTab] = useState<'marketplace' | 'dashboard' | 'driver'>('marketplace');
+  const [operationalFocus, setOperationalFocus] = useState<'distributors' | 'buyers' | 'drivers'>('distributors');
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
   const daysDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -228,10 +266,17 @@ export default function AdminAnalyticsPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/platform-admin/analytics/overview?grain=day&days=${days}`);
-        if (!res.ok) throw new Error('Failed to load analytics');
-        const json = (await res.json()) as AnalyticsPayload;
-        if (alive) setData(json);
+        if (tab === 'operational') {
+          const res = await fetch(`/api/platform-admin/analytics/operational?grain=day&days=${days}`);
+          if (!res.ok) throw new Error('Failed to load analytics');
+          const json = (await res.json()) as OperationalPayload;
+          if (alive) setOperationalData(json);
+        } else {
+          const res = await fetch(`/api/platform-admin/analytics/overview?grain=day&days=${days}`);
+          if (!res.ok) throw new Error('Failed to load analytics');
+          const json = (await res.json()) as AnalyticsPayload;
+          if (alive) setData(json);
+        }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : 'Failed to load analytics');
       } finally {
@@ -242,7 +287,7 @@ export default function AdminAnalyticsPage() {
     return () => {
       alive = false;
     };
-  }, [days]);
+  }, [days, tab]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -271,13 +316,15 @@ export default function AdminAnalyticsPage() {
 
   const headerSubtitle = 'Track platform-wide growth, activation, and early retention signals.';
   const rangeLabel = useMemo(() => {
-    if (!data) return null;
-    const since = new Date(data.params.since);
-    const until = new Date(data.params.until);
-    const s = Number.isNaN(since.getTime()) ? data.params.since : since.toLocaleDateString();
-    const u = Number.isNaN(until.getTime()) ? data.params.until : until.toLocaleDateString();
-    return `Showing growth metrics from ${s} to ${u}`;
-  }, [data]);
+    const p = tab === 'operational' ? operationalData?.params : data?.params;
+    if (!p) return null;
+    const since = new Date(p.since);
+    const until = new Date(p.until);
+    const s = Number.isNaN(since.getTime()) ? p.since : since.toLocaleDateString();
+    const u = Number.isNaN(until.getTime()) ? p.until : until.toLocaleDateString();
+    const metricType = tab === 'operational' ? 'operational' : tab === 'finance' ? 'finance' : 'growth';
+    return `Showing ${metricType} metrics from ${s} to ${u}`;
+  }, [data, operationalData, tab]);
 
   return (
     <div className="space-y-3">
@@ -339,14 +386,252 @@ export default function AdminAnalyticsPage() {
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-red-700">
           {error}
         </div>
-      ) : tab !== 'growth' ? (
+      ) : tab === 'finance' ? (
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900">{tab === 'finance' ? 'Finance analytics' : 'Operational analytics'}</p>
-          <p className="mt-2">
-            Placeholder for now. Next we’ll wire platform-wide metrics for{' '}
-            {tab === 'finance' ? 'GMV, revenue, discounts, and top distributors/products.' : 'SLAs, cancellations/returns, delivery failures, and quality signals.'}
-          </p>
+          <p className="font-semibold text-gray-900">Finance analytics</p>
+          <p className="mt-2">Placeholder for now. Next we’ll wire platform-wide metrics for GMV, revenue, discounts, and top distributors/products.</p>
         </div>
+      ) : tab === 'operational' ? (
+        !operationalData ? (
+          <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">No data.</div>
+        ) : (
+          <>
+            <CardShell
+              title="Operational focus"
+              subtitle="Monitor platform health and execution for distributors, buyers, and drivers."
+            >
+              <SlidingSegmentedControl
+                size="compact"
+                items={[
+                  { key: 'distributors', label: 'Distributors' },
+                  { key: 'buyers', label: 'Buyers' },
+                  { key: 'drivers', label: 'Drivers' },
+                ]}
+                value={operationalFocus}
+                onChange={(k) => setOperationalFocus(k as typeof operationalFocus)}
+                className="sm:max-w-[520px]"
+              />
+            </CardShell>
+
+            {operationalFocus === 'distributors' ? (
+              <>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <CardShell title="Open orders" subtitle="Not cancelled and not delivered yet">
+                      <Metric label="Backlog" value={fmtInt(operationalData.kpis.distributors.openOrders)} />
+                    </CardShell>
+                    <CardShell title="Fulfillment speed" subtitle="Median (p50) time between order events">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Metric
+                          label="Created → Accepted"
+                          value={fmtDurSec(operationalData.kpis.distributors.medianTimeToAcceptSec)}
+                        />
+                        <Metric
+                          label="Accepted → Delivered"
+                          value={fmtDurSec(operationalData.kpis.distributors.medianTimeToDeliverSec)}
+                        />
+                      </div>
+                    </CardShell>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <CardShell title="Stock health" subtitle="Variant-level inventory (active variants)">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Metric label="Low stock" value={fmtInt(operationalData.kpis.distributors.lowStockVariants)} />
+                        <Metric label="Out of stock" value={fmtInt(operationalData.kpis.distributors.outOfStockVariants)} />
+                      </div>
+                    </CardShell>
+                    <CardShell title="Delivery trend" subtitle="Total delivered in selected period">
+                      <Metric
+                        label={`Delivered (${days}d)`}
+                        value={fmtInt(operationalData.series.reduce((s, r) => s + r.ordersDelivered, 0))}
+                      />
+                    </CardShell>
+                    <CardShell title="Cancellation trend" subtitle="Total cancelled in selected period">
+                      <Metric
+                        label={`Cancelled (${days}d)`}
+                        value={fmtInt(operationalData.series.reduce((s, r) => s + r.ordersCancelled, 0))}
+                      />
+                    </CardShell>
+                  </div>
+                </div>
+
+                <CardShell title="Order execution (daily)">
+                  <div className="h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={operationalData.series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="day"
+                          tickFormatter={dayLabel}
+                          minTickGap={18}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={chartAxisTick}
+                        />
+                        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
+                        <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
+                        <Line type="monotone" dataKey="ordersCreated" name="Orders created" stroke="#93c5fd" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="ordersAccepted" name="Orders accepted" stroke="#0a61d7" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="ordersDelivered" name="Orders delivered" stroke="#f97316" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="ordersCancelled" name="Orders cancelled" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="6 4" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardShell>
+              </>
+            ) : operationalFocus === 'buyers' ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+                  <CardShell title="Order volume" subtitle="How often buyers place orders">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric
+                        label={`Created (${days}d)`}
+                        value={fmtInt(operationalData.series.reduce((s, r) => s + r.ordersCreated, 0))}
+                      />
+                      <Metric
+                        label={`Delivered (${days}d)`}
+                        value={fmtInt(operationalData.series.reduce((s, r) => s + r.ordersDelivered, 0))}
+                      />
+                    </div>
+                  </CardShell>
+                  <CardShell title="Friction" subtitle="Signals of buyer dissatisfaction">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric label={`Cancellations (${days}d)`} value={fmtInt(operationalData.kpis.buyers.cancellations)} />
+                      <Metric label={`Return requests (${days}d)`} value={fmtInt(operationalData.kpis.buyers.returnRequests)} />
+                    </div>
+                  </CardShell>
+                  <CardShell title="Delivery satisfaction proxy" subtitle="Median delivered → received time">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric
+                        label="Delivered → Received (p50)"
+                        value={fmtDurSec(operationalData.kpis.buyers.medianDeliveredToReceivedSec)}
+                      />
+                      <Metric
+                        label="Avg cancellations/day"
+                        value={fmtInt(Math.round(operationalData.kpis.buyers.cancellations / Math.max(1, operationalData.series.length)))}
+                      />
+                    </div>
+                  </CardShell>
+                </div>
+
+                <CardShell title="Buyer friction (daily)">
+                  <div className="h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={operationalData.series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="day"
+                          tickFormatter={dayLabel}
+                          minTickGap={18}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={chartAxisTick}
+                        />
+                        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
+                        <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
+                        <Line type="monotone" dataKey="ordersCreated" name="Orders created" stroke="#0a61d7" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="buyerCancellations" name="Cancellations" stroke="#f97316" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="buyerReturnRequests" name="Return requests" stroke="#fb923c" strokeWidth={2} dot={false} strokeDasharray="6 4" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardShell>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+                  <CardShell title="Active drivers" subtitle="Drivers with location updates in range">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric label="Peak active (daily)" value={fmtInt(operationalData.kpis.drivers.activeDriversInPeriod)} />
+                      <Metric
+                        label="Avg active/day"
+                        value={fmtInt(
+                          Math.round(
+                            operationalData.series.reduce((s, r) => s + r.activeDrivers, 0) / Math.max(1, operationalData.series.length)
+                          )
+                        )}
+                      />
+                    </div>
+                  </CardShell>
+                  <CardShell title="Delivery failures" subtitle="Driver-reported delivery issues">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric label={`Failures (${days}d)`} value={fmtInt(operationalData.kpis.drivers.failures)} />
+                      <Metric
+                        label="Avg failures/day"
+                        value={fmtInt(Math.round(operationalData.kpis.drivers.failures / Math.max(1, operationalData.series.length)))}
+                      />
+                    </div>
+                  </CardShell>
+                  <CardShell title="Fleet status snapshot" subtitle="Current fleet availability mix">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Metric
+                        label="Top status"
+                        value={
+                          operationalData.kpis.drivers.fleetStatuses[0]
+                            ? `${operationalData.kpis.drivers.fleetStatuses[0].status} (${fmtInt(operationalData.kpis.drivers.fleetStatuses[0].count)})`
+                            : '—'
+                        }
+                      />
+                      <Metric
+                        label="2nd status"
+                        value={
+                          operationalData.kpis.drivers.fleetStatuses[1]
+                            ? `${operationalData.kpis.drivers.fleetStatuses[1].status} (${fmtInt(operationalData.kpis.drivers.fleetStatuses[1].count)})`
+                            : '—'
+                        }
+                      />
+                    </div>
+                  </CardShell>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <CardShell title="Driver activity (daily)">
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={operationalData.series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="day"
+                            tickFormatter={dayLabel}
+                            minTickGap={18}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={chartAxisTick}
+                          />
+                          <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
+                          <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
+                          <Line type="monotone" dataKey="activeDrivers" name="Active drivers" stroke="#0a61d7" strokeWidth={2.5} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardShell>
+
+                  <CardShell title="Failures (daily)">
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={operationalData.series} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="day"
+                            tickFormatter={dayLabel}
+                            minTickGap={18}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={chartAxisTick}
+                          />
+                          <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={chartAxisTick} />
+                          <Tooltip content={<ChartTooltip />} labelFormatter={(l) => dayLabel(String(l))} />
+                          <Line type="monotone" dataKey="driverFailures" name="Delivery failures" stroke="#f97316" strokeWidth={2.5} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardShell>
+                </div>
+              </>
+            )}
+          </>
+        )
       ) : !data ? (
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">No data.</div>
       ) : (

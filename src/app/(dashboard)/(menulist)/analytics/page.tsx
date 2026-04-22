@@ -341,6 +341,7 @@ export default function AnalyticsPage() {
             <CustomerPiecesSoldCard 
               piecesSold={customerMetrics.totalPiecesSold || 0} 
               unitsSold={customerMetrics.totalUnitsSold} 
+              change={null}
             />
             {/* Operational metric card reused */}
             <OperationalMetricCard

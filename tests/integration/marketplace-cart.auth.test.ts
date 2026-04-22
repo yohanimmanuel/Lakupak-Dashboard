@@ -10,8 +10,8 @@ describe('marketplace cart mutations - auth/ownership', () => {
 
   it('rejects updateCartItem when unauthenticated', async () => {
     const res = await marketplaceResolvers.Mutation.updateCartItem(
-      null as any,
-      { input: { cartItemId: 123, quantity: 2 } } as any,
+      undefined,
+      { input: { cartItemId: 123, quantity: 2 } },
       {},
     );
     expect(res).toEqual({ success: false, cartItem: null, message: 'Unauthorized' });
@@ -52,8 +52,8 @@ describe('marketplace cart mutations - auth/ownership', () => {
     });
 
     const res = await marketplaceResolvers.Mutation.removeCartItem(
-      null as any,
-      { cartItemId: item.userActivities[0].id } as any,
+      undefined,
+      { cartItemId: item.userActivities[0].id },
       { user: { id: userB.id } },
     );
 
@@ -92,8 +92,8 @@ describe('marketplace cart mutations - auth/ownership', () => {
     });
 
     const res = await marketplaceResolvers.Mutation.updateCartItem(
-      null as any,
-      { input: { cartItemId: item.userActivities[0].id, quantity: 5 } } as any,
+      undefined,
+      { input: { cartItemId: item.userActivities[0].id, quantity: 5 } },
       { user: { id: userB.id } },
     );
 

@@ -158,13 +158,19 @@ export async function createMobileMarketplaceOrders(
 ): Promise<NextResponse> {
   const headers = getSecurityHeaders();
 
-  let body: any;
+  let bodyUnknown: unknown;
   try {
-    body = await request.json();
+    bodyUnknown = await request.json();
   } catch (err) {
     console.error('[mobileOrdersService] Invalid JSON body:', err);
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
+
+  if (!bodyUnknown || typeof bodyUnknown !== 'object' || Array.isArray(bodyUnknown)) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
+  }
+
+  const body = bodyUnknown as Record<string, unknown>;
   const {
     orderId,
     orderDate,
@@ -321,12 +327,13 @@ export async function createMobileMarketplaceOrders(
     const groupTotalAmount = groupSubtotal + groupShipping - groupDiscounts;
 
     const groupOrderId = String(orderId);
+    const orderDateValue = parseOptionalDate(orderDate) ?? new Date();
     const orderData = {
       orderId: groupOrderId,
       buyerId: buyerPerDistributorId,
       buyerIdSnapshot: buyerPerDistributorId,
-      orderDate: new Date(orderDate || new Date()),
-      orderDateSnapshot: new Date(orderDate || new Date()),
+      orderDate: orderDateValue,
+      orderDateSnapshot: orderDateValue,
       orderStatus: String(orderStatus || 'Pending'),
       paymentStatus: String(paymentStatus || 'Unpaid'),
       deliveryMethod: String(deliveryMethod || 'Seller/Distributor Delivery'),
@@ -786,12 +793,13 @@ export async function createMobileMarketplaceOrders(
     const groupTotalAmount = groupSubtotal + groupShipping - groupDiscounts;
 
     const groupOrderId = distributorToItems.size > 1 ? `${String(orderId)}-${groupIndex}` : String(orderId);
+    const orderDateValue = parseOptionalDate(orderDate) ?? new Date();
     const orderData = {
       orderId: groupOrderId,
       buyerId: buyerPerDistributorId,
       buyerIdSnapshot: buyerPerDistributorId,
-      orderDate: new Date(orderDate || new Date()),
-      orderDateSnapshot: new Date(orderDate || new Date()),
+      orderDate: orderDateValue,
+      orderDateSnapshot: orderDateValue,
       orderStatus: String(orderStatus || 'Pending'),
       paymentStatus: String(paymentStatus || 'Unpaid'),
       deliveryMethod: String(deliveryMethod || 'Seller/Distributor Delivery'),

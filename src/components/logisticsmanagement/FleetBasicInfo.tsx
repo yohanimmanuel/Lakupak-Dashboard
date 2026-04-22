@@ -4,15 +4,15 @@ import React, { useMemo, useLayoutEffect, useRef } from 'react';
 import { MapPin, Calendar, Clock, CreditCard, ChevronDown, Truck } from 'lucide-react';
 import type { FleetOrderSummary, FleetStatus, DeliveryType } from './OrderfleetList';
 
-export interface FleetBasicFormData extends Partial<FleetOrderSummary> {
+export type FleetBasicFormData = Omit<Partial<FleetOrderSummary>, 'etaDate' | 'etaTime' | 'assignedDate'> & {
   routeFrom?: string;
   routeTo?: string;
-  etaDate?: string;
-  etaTime?: string;
+  etaDate?: string | null;
+  etaTime?: string | null;
   /** Assigned date (YYYY-MM-DD) – when drivers see this fleet in the app. */
-  assignedDate?: string;
+  assignedDate?: string | null;
   paymentTerms?: string;
-}
+};
 
 interface FleetBasicInfoProps {
   formData: FleetBasicFormData;

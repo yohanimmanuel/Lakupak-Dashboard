@@ -872,8 +872,12 @@ export async function updateOrderHandler(request: NextRequest) {
     // Invalidate dashboard cache after order update
     if (order.userId) {
       try {
-        const { invalidateDashboardCache } = await import('@/lib/queryCache');
-        await invalidateDashboardCache(order.userId);
+        const { invalidateDashboardCache, invalidateProductCache } = await import('@/lib/queryCache');
+        await Promise.all([
+          invalidateDashboardCache(order.userId),
+          // Order status transitions can restore/deduct stock; clear product list cache so the table refreshes correctly.
+          invalidateProductCache(order.userId),
+        ]);
       } catch (error) {
         // Ignore cache invalidation errors
       }
