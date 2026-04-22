@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createTestDb } from './test-db';
+import { createTestDb, dropTestDb } from './test-db';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,5 +26,14 @@ export default async function globalSetup() {
       DIRECT_URL: databaseUrl,
     },
   });
+
+  // Vitest teardown hook: run after all tests in this run.
+  return async () => {
+    try {
+      await dropTestDb(baseUrl, dbName);
+    } catch (err) {
+      console.error('[vitest] Failed to drop test database:', err);
+    }
+  };
 }
 

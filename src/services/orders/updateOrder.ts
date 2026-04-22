@@ -337,8 +337,19 @@ export async function updateOrderHandler(request: NextRequest) {
     
     // Recalculate entire order if orderItems are provided
     let recalculatedData = { ...sanitizedData };
-    if (sanitizedData.orderItems) {
-      const orderItems = Array.isArray(sanitizedData.orderItems) ? sanitizedData.orderItems : [];
+    const parsedOrderItems: unknown =
+      typeof (sanitizedData as { orderItems?: unknown }).orderItems === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(String((sanitizedData as { orderItems: string }).orderItems));
+            } catch {
+              return null;
+            }
+          })()
+        : (sanitizedData as { orderItems?: unknown }).orderItems;
+
+    if (Array.isArray(parsedOrderItems)) {
+      const orderItems = parsedOrderItems;
       const consistentOrderItems = await ensureAllPriceConsistency(orderItems);
       const subtotalCalc = consistentOrderItems.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);
       const totalQtyCalc = consistentOrderItems.reduce((sum, it) => {
@@ -351,12 +362,23 @@ export async function updateOrderHandler(request: NextRequest) {
         subtotal: subtotalCalc,
         totalAmount: subtotalCalc + Number(sanitizedData.shippingFee || 0) - Number(sanitizedData.discounts || 0),
         totalOrders: totalQtyCalc,
-        orderItems: JSON.stringify(consistentOrderItems)
       };
     }
     
-    // Convert orderItems to JSON string if provided
     const updateData: Record<string, unknown> = recalculatedData;
+    // Some Prisma client builds (and older generated artifacts) don't allow writing relation scalar FKs
+    // directly (e.g. `userId`). Prefer relation updates for compatibility.
+    if (typeof (sanitizedData as { userId?: unknown }).userId === 'number') {
+      updateData.user = { connect: { id: (sanitizedData as { userId: number }).userId } };
+    }
+    if ('userId' in updateData) {
+      delete (updateData as { userId?: unknown }).userId;
+    }
+    // `Order` doesn't have an `orderItems` scalar field in the current Prisma schema.
+    // Order items are stored in `OrderItem` rows (`orderItemsRel`) and updated below.
+    if ('orderItems' in updateData) {
+      delete (updateData as { orderItems?: unknown }).orderItems;
+    }
     if (sanitizedData.orderDate) {
       updateData.orderDate = new Date(String(sanitizedData.orderDate));
     }
@@ -597,14 +619,14 @@ export async function updateOrderHandler(request: NextRequest) {
       });
 
       // Update OrderItem records if orderItems were provided
-      if (sanitizedData.orderItems && Array.isArray(sanitizedData.orderItems)) {
+      if (Array.isArray(parsedOrderItems)) {
         // Delete existing OrderItem records for this order
         await tx.orderItem.deleteMany({
           where: { orderId: sanitizedData.orderId as string },
         });
 
         // Create new OrderItem records with price consistency
-        const orderItemPromises = (sanitizedData.orderItems as Array<{ productId: string; quantity: number }>).map(
+        const orderItemPromises = (parsedOrderItems as Array<{ productId: string; quantity: number }>).map(
           async (item: { productId: string; quantity: number }) => {
             // Fetch the product with variants to ensure price consistency
             const product = await tx.product.findFirst({

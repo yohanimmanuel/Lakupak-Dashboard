@@ -59,5 +59,45 @@ describe('marketplace cart mutations - auth/ownership', () => {
 
     expect(res).toEqual({ success: false, cartItem: null, message: 'Forbidden' });
   });
+
+  it('rejects updateCartItem when cartItem belongs to another user', async () => {
+    const userA = await prisma.marketplaceUser.create({
+      data: { username: 'a2', phone: '+620000000012' },
+      select: { id: true },
+    });
+    const userB = await prisma.marketplaceUser.create({
+      data: { username: 'b2', phone: '+620000000013' },
+      select: { id: true },
+    });
+
+    const item = await prisma.marketplaceUser.update({
+      where: { id: userA.id },
+      data: {
+        userActivities: {
+          create: {
+            productId: 'P-2',
+            productData: {},
+            activityType: 'cart',
+            metadata: { quantity: 1, selected: true },
+          },
+        },
+      },
+      select: {
+        userActivities: {
+          select: { id: true },
+          orderBy: { id: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    const res = await marketplaceResolvers.Mutation.updateCartItem(
+      null as any,
+      { input: { cartItemId: item.userActivities[0].id, quantity: 5 } } as any,
+      { user: { id: userB.id } },
+    );
+
+    expect(res).toEqual({ success: false, cartItem: null, message: 'Forbidden' });
+  });
 });
 

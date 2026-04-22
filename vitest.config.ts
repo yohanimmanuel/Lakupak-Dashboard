@@ -10,8 +10,11 @@ export default defineConfig({
     globals: true,
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    // Integration tests share one DB per run and use resetDb(); keep them sequential to avoid cross-test interference.
+    fileParallelism: false,
+    maxConcurrency: 1,
+    sequence: { concurrent: false },
     globalSetup: ['./tests/integration/vitest.global-setup.ts'],
-    globalTeardown: ['./tests/integration/vitest.global-teardown.ts'],
     include: ['tests/integration/**/*.test.ts'],
   },
   resolve: {
