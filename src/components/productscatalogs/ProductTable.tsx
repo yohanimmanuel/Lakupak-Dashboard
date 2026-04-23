@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { Product, ProductTableRow } from "@/types/product";
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { formatNumberByCurrency } from '@/config/currencyConfig';
-import { getProductTotalStock } from '@/utils/stockUtils';
+import { getProductTotalStock } from '../../utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 
 const statusTabs = [
@@ -54,12 +54,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  // Helper function to calculate original price range from variantOptions and legacyVariants
+  // Helper function to calculate original price range from variantOptions
   const getOriginalPriceRange = (originalProduct: Product | undefined): string | null => {
     if (!originalProduct) return null;
     
     const variantOptions = originalProduct.variantOptions || [];
-    const legacyVariants = originalProduct.legacyVariants || [];
     
     // Collect all originalSellingPrices
     const originalPrices: number[] = [];
@@ -68,16 +67,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     variantOptions.forEach(option => {
       if (option.originalSellingPrice && option.originalSellingPrice !== '') {
         const price = parsePrice(String(option.originalSellingPrice), userCurrency);
-        if (price > 0) {
-          originalPrices.push(price);
-        }
-      }
-    });
-    
-    // Add prices from legacyVariants
-    legacyVariants.forEach(variant => {
-      if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
-        const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
         if (price > 0) {
           originalPrices.push(price);
         }
@@ -165,8 +154,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
-      // Calculate total stock from variants
-      const productStock = getProductTotalStock(p.variants || []);
+      const productStock = getProductTotalStock(p.variantOptions || []);
       const stock = productStock.totalStock;
       const threshold = productStock.lowStockThreshold;
       if (selectedStockFilter === "high") return threshold > 0 ? stock > threshold : stock > 0;
@@ -303,28 +291,24 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     if (!product) return false;
     
     // Check if product has at least one complete variant (piece-based system)
-    const hasCompleteVariant = (product.legacyVariants && product.legacyVariants.length > 0 && 
-      product.legacyVariants.some(variant => 
-        variant.purchasePrice && 
-        variant.sellingPrice && 
-        variant.isActive
-      )) || (product.variantOptions && product.variantOptions.length > 0 && 
-      product.variantOptions.some(option => 
-        option.purchasePrice && 
-        option.sellingPrice && 
-        option.isActive
-      ));
+    const hasCompleteVariant =
+      (product.variantOptions && product.variantOptions.length > 0 &&
+        product.variantOptions.some(option =>
+          option.purchasePrice &&
+          option.sellingPrice &&
+          option.isActive
+        ));
     
     // Check variant-level stock (piece-based system)
-    // Use legacyVariants (has stock data) instead of variants (definitions only)
-    const productStock = getProductTotalStock((product as Product & { legacyVariants?: Array<{ stockQuantity: number; lowStockThreshold?: number }> }).legacyVariants || []);
     const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
       totalStock: total.totalStock + (option.stockQuantity || 0),
       lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
     }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
     
-    const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-    const hasStock = totalStock >= 0;
+    const totalStock = variantOptionsStock.totalStock;
+    // Marketplace publishing requires product to have stock on hand.
+    // Note: `totalStock` is a sum of variant stock quantities and will not go negative.
+    const hasStock = totalStock > 0;
     
     // Check required fields for marketplace publishing
     const hasRequiredFields = Boolean(product.sku && 
@@ -796,27 +780,21 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         
         const missingDataCount = currentPageOriginalProducts.filter(product => {
             // Check if product has at least one complete variant (piece-based system)
-          const hasCompleteVariant = (product.legacyVariants && product.legacyVariants.length > 0 && 
-            product.legacyVariants.some(variant => 
-              variant.purchasePrice && 
-              variant.sellingPrice && 
-              variant.isActive
-            )) || (product.variantOptions && product.variantOptions.length > 0 && 
-            product.variantOptions.some(option => 
-              option.purchasePrice && 
-              option.sellingPrice && 
-              option.isActive
-            ));
+          const hasCompleteVariant =
+            (product.variantOptions && product.variantOptions.length > 0 &&
+              product.variantOptions.some(option =>
+                option.purchasePrice &&
+                option.sellingPrice &&
+                option.isActive
+              ));
           
           // Check variant-level stock (piece-based system)
-          // Use legacyVariants (has stock data) instead of variants (definitions only)
-          const productStock = getProductTotalStock((product as Product & { legacyVariants?: Array<{ stockQuantity: number; lowStockThreshold?: number }> }).legacyVariants || []);
           const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
             totalStock: total.totalStock + (option.stockQuantity || 0),
             lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
           }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
           
-          const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
+          const totalStock = variantOptionsStock.totalStock;
           const hasStock = totalStock >= 0;
           
           // Use the same logic as isProductComplete function
@@ -1113,9 +1091,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               const hasIncompleteData = originalProduct ? (() => {
                 // Check if product has variants and if the first variant has required data (piece-based system)
                 const firstVariantOption = originalProduct.variantOptions?.[0];
-                const firstLegacyVariant = originalProduct.legacyVariants?.[0];
-                const hasCompleteVariant = (firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice) ||
-                                          (firstLegacyVariant?.purchasePrice && firstLegacyVariant?.sellingPrice);
+                const hasCompleteVariant = Boolean(firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice);
                 
                 const hasRequiredFields = Boolean(originalProduct.sku && 
                                          originalProduct.name && 
@@ -1126,13 +1102,12 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                          hasCompleteVariant);
                 
                 // Check variant-level stock (piece-based system)
-                const productStock = getProductTotalStock(originalProduct.legacyVariants || []);
                 const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
                   totalStock: total.totalStock + (option.stockQuantity || 0),
                   lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
                 }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                 
-                const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
+                const totalStock = variantOptionsStock.totalStock;
                 const hasStock = totalStock >= 0;
                 
                 const hasImages = Boolean(originalProduct.images && originalProduct.images.length > 0);
@@ -1217,19 +1192,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    <div className="flex items-center gap-2">
                      <span className="text-black">
                        {(() => {
-                         const productStock = getProductTotalStock(product.variants || []);
+                         const productStock = getProductTotalStock(product.variantOptions || []);
                          return productStock.totalStock;
                        })()}
                      </span>
                      {(() => {
-                       const productStock = getProductTotalStock(product.variants || []);
-                       const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
-                         totalStock: total.totalStock + (option.stockQuantity || 0),
-                         lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
-                       }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-                       
-                       const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-                       const totalLowStockThreshold = Math.max(productStock.lowStockThreshold, variantOptionsStock.lowStockThreshold);
+                       const productStock = getProductTotalStock(product.variantOptions || []);
+                       const totalStock = productStock.totalStock;
+                       const totalLowStockThreshold = productStock.lowStockThreshold;
                        
                        if (totalStock === 0) {
                          return (
@@ -1293,18 +1263,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                           // Check if any original price is higher than current price
                           const originalPrices: number[] = [];
                           const variantOptions = originalProduct?.variantOptions || [];
-                          const legacyVariants = originalProduct?.legacyVariants || [];
                           
                           variantOptions.forEach(option => {
                             if (option.originalSellingPrice && option.originalSellingPrice !== '') {
                               const price = parsePrice(String(option.originalSellingPrice), userCurrency);
-                              if (price > 0) originalPrices.push(price);
-                            }
-                          });
-                          
-                          legacyVariants.forEach(variant => {
-                            if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
-                              const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
                               if (price > 0) originalPrices.push(price);
                             }
                           });
@@ -1428,18 +1390,18 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const hasMissingBasicFields = basicFields.some(field => field);
                
                const firstVariantOption = originalProduct.variantOptions?.[0];
-               const firstLegacyVariant = originalProduct.legacyVariants?.[0];
-               const hasMissingPricing = !(firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice) &&
-                                       !(firstLegacyVariant?.purchasePrice && firstLegacyVariant?.sellingPrice);
+               const hasMissingPricing = !(firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice);
                
-               const productStock = getProductTotalStock(originalProduct.legacyVariants || []);
                const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
-                 totalStock: total.totalStock + (option.stockQuantity || 0),
+                 totalStock: total.totalStock + (option.stockQuantity ?? 0),
                  lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
                }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                
-               const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-               const hasMissingStock = totalStock < 0;
+               const hasMissingStock = Boolean(
+                 originalProduct.variantOptions?.some(
+                   (o) => o.stockQuantity == null || Number.isNaN(o.stockQuantity as unknown as number),
+                 ),
+               );
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
              })() : false;
@@ -1575,25 +1537,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
                      Stock: {(() => {
-                       const productStock = getProductTotalStock(product.variants || []);
-                       const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
-                         totalStock: total.totalStock + (option.stockQuantity || 0),
-                         lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
-                       }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-                       
-                       const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-                       return `${totalStock} pieces`;
+                       const productStock = getProductTotalStock(product.variantOptions || []);
+                       return `${productStock.totalStock} pieces`;
                      })()}
                    </span>
                    {(() => {
-                     const productStock = getProductTotalStock(product.variants || []);
-                     const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
-                       totalStock: total.totalStock + (option.stockQuantity || 0),
-                       lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
-                     }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-                     
-                     const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-                     const totalLowStockThreshold = Math.max(productStock.lowStockThreshold, variantOptionsStock.lowStockThreshold);
+                     const productStock = getProductTotalStock(product.variantOptions || []);
+                     const totalStock = productStock.totalStock;
+                     const totalLowStockThreshold = productStock.lowStockThreshold;
                      
                      if (totalStock === 0) {
                        return (
@@ -1622,18 +1573,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                        // Check if any original price is higher than current price
                        const originalPrices: number[] = [];
                        const variantOptions = originalProduct?.variantOptions || [];
-                       const legacyVariants = originalProduct?.legacyVariants || [];
                        
                        variantOptions.forEach(option => {
                          if (option.originalSellingPrice && option.originalSellingPrice !== '') {
                            const price = parsePrice(String(option.originalSellingPrice), userCurrency);
-                           if (price > 0) originalPrices.push(price);
-                         }
-                       });
-                       
-                       legacyVariants.forEach(variant => {
-                         if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
-                           const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
                            if (price > 0) originalPrices.push(price);
                          }
                        });
@@ -1775,17 +1718,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                const hasMissingBasicFields = basicFields.some(field => field);
                
                const firstVariantOption = originalProduct.variantOptions?.[0];
-               const firstLegacyVariant = originalProduct.legacyVariants?.[0];
-               const hasMissingPricing = !(firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice) &&
-                                       !(firstLegacyVariant?.purchasePrice && firstLegacyVariant?.sellingPrice);
+               const hasMissingPricing = !(firstVariantOption?.purchasePrice && firstVariantOption?.sellingPrice);
                
-               const productStock = getProductTotalStock(originalProduct.legacyVariants || []);
                const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
                  totalStock: total.totalStock + (option.stockQuantity || 0),
                  lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
                }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                
-               const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
+               const totalStock = variantOptionsStock.totalStock;
                const hasMissingStock = totalStock < 0;
                
                return hasMissingBasicFields || hasMissingPricing || hasMissingStock;
@@ -1951,25 +1891,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
                      {(() => {
-                       const productStock = getProductTotalStock(product.variants || []);
-                       const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
-                         totalStock: total.totalStock + (option.stockQuantity || 0),
-                         lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
-                       }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-                       
-                       const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-                       return totalStock;
+                       const productStock = getProductTotalStock(product.variantOptions || []);
+                       return productStock.totalStock;
                      })()}
                    </span>
                    {(() => {
-                     const productStock = getProductTotalStock(product.variants || []);
-                     const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
-                       totalStock: total.totalStock + (option.stockQuantity || 0),
-                       lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
-                     }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-                     
-                     const totalStock = productStock.totalStock + variantOptionsStock.totalStock;
-                     const totalLowStockThreshold = Math.max(productStock.lowStockThreshold, variantOptionsStock.lowStockThreshold);
+                     const productStock = getProductTotalStock(product.variantOptions || []);
+                     const totalStock = productStock.totalStock;
+                     const totalLowStockThreshold = productStock.lowStockThreshold;
                      
                      if (totalStock === 0) {
                        return (
@@ -1998,18 +1927,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                        // Check if any original price is higher than current price
                        const originalPrices: number[] = [];
                        const variantOptions = originalProduct?.variantOptions || [];
-                       const legacyVariants = originalProduct?.legacyVariants || [];
-                       
                        variantOptions.forEach(option => {
                          if (option.originalSellingPrice && option.originalSellingPrice !== '') {
                            const price = parsePrice(String(option.originalSellingPrice), userCurrency);
-                           if (price > 0) originalPrices.push(price);
-                         }
-                       });
-                       
-                       legacyVariants.forEach(variant => {
-                         if (variant.originalSellingPrice && variant.originalSellingPrice !== '') {
-                           const price = parsePrice(String(variant.originalSellingPrice), userCurrency);
                            if (price > 0) originalPrices.push(price);
                          }
                        });

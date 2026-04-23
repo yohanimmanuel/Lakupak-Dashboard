@@ -43,6 +43,84 @@ function decimalToNumber(value: unknown): number {
   return Number(value) || 0;
 }
 
+function buildOrderItemCreateData(params: {
+  orderId: string;
+  item: OrderItemInput;
+  product: { productId: string; images?: unknown; userId?: number | null };
+  variantOption: { id: number; attributes?: unknown; sellingPrice?: unknown; moq?: number | null };
+  piecesPerPackage: number;
+  packageQuantity: number;
+  variantNameSnapshot: string | null;
+  currencySnapshot: string;
+  offerValidation: any;
+}) {
+  const {
+    orderId,
+    item,
+    product,
+    variantOption,
+    piecesPerPackage,
+    packageQuantity,
+    variantNameSnapshot,
+    currencySnapshot,
+    offerValidation,
+  } = params;
+
+  const baseData = {
+    orderId,
+    productId: String(item.productId || ''),
+    subtotal: parseFloat(String(item.subtotal || 0)),
+    packageType: String(item.packageType || 'Box'),
+    piecesPerPackage,
+    packageQuantity,
+    pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
+    productNameSnapshot: String(item.productName || 'Unknown Product'),
+    productSkuSnapshot: String(item.productSku || ''),
+    productTypeSnapshot: String(item.category || 'Uncategorized'),
+    productImageSnapshot:
+      Array.isArray(product.images) && (product.images as unknown[]).length > 0 ? (product.images as string[])[0] : null,
+    variantId: null as number | null,
+    variantOptionId: variantOption.id || null,
+    variantNameSnapshot,
+    variantAttributesSnapshot:
+      variantOption.attributes && typeof variantOption.attributes === 'object'
+        ? (variantOption.attributes as unknown as import('@/lib/prisma-generated').Prisma.InputJsonValue)
+        : undefined,
+    unitPriceSnapshot: parsePrice(
+      variantOption.sellingPrice as
+        | string
+        | number
+        | { toNumber?: () => number; toString?: () => string }
+        | null
+        | undefined,
+    ),
+    currencySnapshot,
+    offerApplied: false,
+    offerBadgeSnapshot: null as string | null,
+    offerNameSnapshot: null as string | null,
+    originalPriceSnapshot: null as string | null,
+    discountPercentage: null as number | null,
+    discountAmount: null as number | null,
+    promotionDetailsSnapshot: null as string | null,
+    moqSnapshot: variantOption.moq || null,
+  };
+
+  if (offerValidation?.isValid && offerValidation?.offerId) {
+    return {
+      ...baseData,
+      offerApplied: true,
+      offerBadgeSnapshot: offerValidation.offerBadge || null,
+      offerNameSnapshot: offerValidation.offerName || null,
+      originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
+      discountPercentage: offerValidation.discountPercentage || null,
+      discountAmount: offerValidation.discountAmount || null,
+      promotionDetailsSnapshot: offerValidation.promotionDetails ? JSON.stringify(offerValidation.promotionDetails) : null,
+    };
+  }
+
+  return baseData;
+}
+
 export async function getMobileMarketplaceOrders(request: NextRequest, tokenUserId: number) {
   const headers = getSecurityHeaders();
 
@@ -439,6 +517,11 @@ export async function createMobileMarketplaceOrders(
 
     if (Array.isArray(orderItems) && orderItems.length > 0) {
       const usedOfferIds: string[] = [];
+      const distributorCurrencySnapshot =
+        (await prisma.user.findUnique({
+          where: { id: distributorUserIdFromClient },
+          select: { currency: true },
+        }))?.currency ?? 'IDR';
       await prisma.$transaction(async (tx) => {
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
           const product = await tx.product.findFirst({
@@ -503,30 +586,6 @@ export async function createMobileMarketplaceOrders(
             variantNameSnapshot = item.variantName || 'Default';
           }
 
-          let orderItemData = {
-            orderId: order.orderId,
-            productId: String(item.productId || ''),
-            subtotal: parseFloat(String(item.subtotal || 0)),
-            packageType: String(item.packageType || 'Box'),
-            piecesPerPackage,
-            packageQuantity,
-            pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
-            productNameSnapshot: String(item.productName || 'Unknown Product'),
-            productSkuSnapshot: String(item.productSku || ''),
-            productTypeSnapshot: String(item.category || 'Uncategorized'),
-            variantId: null,
-            variantOptionId: variantOption.id || null,
-            variantNameSnapshot,
-            offerApplied: false,
-            offerBadgeSnapshot: null as string | null,
-            offerNameSnapshot: null as string | null,
-            originalPriceSnapshot: null as string | null,
-            discountPercentage: null as number | null,
-            discountAmount: null as number | null,
-            promotionDetailsSnapshot: null as string | null,
-            moqSnapshot: variantOption.moq || null,
-          };
-
           if (offerValidation.isValid && offerValidation.offerId) {
             if (!usedOfferIds.includes(offerValidation.offerId)) usedOfferIds.push(offerValidation.offerId);
             if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
@@ -545,19 +604,19 @@ export async function createMobileMarketplaceOrders(
                 tx,
               );
             }
-            orderItemData = {
-              ...orderItemData,
-              offerApplied: true,
-              offerBadgeSnapshot: offerValidation.offerBadge || null,
-              offerNameSnapshot: offerValidation.offerName || null,
-              originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
-              discountPercentage: offerValidation.discountPercentage || null,
-              discountAmount: offerValidation.discountAmount || null,
-              promotionDetailsSnapshot: offerValidation.promotionDetails
-                ? JSON.stringify(offerValidation.promotionDetails)
-                : null,
-            };
           }
+
+          const orderItemData = buildOrderItemCreateData({
+            orderId: order.orderId,
+            item,
+            product,
+            variantOption,
+            piecesPerPackage,
+            packageQuantity,
+            variantNameSnapshot,
+            currencySnapshot: distributorCurrencySnapshot,
+            offerValidation,
+          });
 
           return tx.orderItem.create({ data: orderItemData });
         });
@@ -832,6 +891,11 @@ export async function createMobileMarketplaceOrders(
     const usedOfferIds: string[] = [];
     let order;
     try {
+      const distributorCurrencySnapshot =
+        (await prisma.user.findUnique({
+          where: { id: distributorUserId },
+          select: { currency: true },
+        }))?.currency ?? 'IDR';
       order = await prisma.$transaction(async (tx) => {
         const createdOrder = await tx.order.create({ data: orderData });
 
@@ -958,30 +1022,6 @@ export async function createMobileMarketplaceOrders(
               variantNameSnapshot = item.variantName || 'Default';
             }
 
-            let orderItemData = {
-              orderId: createdOrder.orderId,
-              productId: String(item.productId || ''),
-              subtotal: parseFloat(String(item.subtotal || 0)),
-              packageType: String(item.packageType || 'Box'),
-              piecesPerPackage,
-              packageQuantity,
-              pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
-              productNameSnapshot: String(item.productName || 'Unknown Product'),
-              productSkuSnapshot: String(item.productSku || ''),
-              productTypeSnapshot: String(item.category || 'Uncategorized'),
-              variantId: null,
-              variantOptionId: variantOption.id || null,
-              variantNameSnapshot,
-              offerApplied: false,
-              offerBadgeSnapshot: null as string | null,
-              offerNameSnapshot: null as string | null,
-              originalPriceSnapshot: null as string | null,
-              discountPercentage: null as number | null,
-              discountAmount: null as number | null,
-              promotionDetailsSnapshot: null as string | null,
-              moqSnapshot: variantOption.moq || null,
-            };
-
             if (offerValidation.isValid && offerValidation.offerId) {
               if (!usedOfferIds.includes(offerValidation.offerId)) usedOfferIds.push(offerValidation.offerId);
               if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
@@ -1000,19 +1040,19 @@ export async function createMobileMarketplaceOrders(
                   tx,
                 );
               }
-              orderItemData = {
-                ...orderItemData,
-                offerApplied: true,
-                offerBadgeSnapshot: offerValidation.offerBadge || null,
-                offerNameSnapshot: offerValidation.offerName || null,
-                originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
-                discountPercentage: offerValidation.discountPercentage || null,
-                discountAmount: offerValidation.discountAmount || null,
-                promotionDetailsSnapshot: offerValidation.promotionDetails
-                  ? JSON.stringify(offerValidation.promotionDetails)
-                  : null,
-              };
             }
+
+            const orderItemData = buildOrderItemCreateData({
+              orderId: createdOrder.orderId,
+              item,
+              product,
+              variantOption,
+              piecesPerPackage,
+              packageQuantity,
+              variantNameSnapshot,
+              currencySnapshot: distributorCurrencySnapshot,
+              offerValidation,
+            });
 
             return tx.orderItem.create({ data: orderItemData });
           });

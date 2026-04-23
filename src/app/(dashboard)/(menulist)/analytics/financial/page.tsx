@@ -64,7 +64,6 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         variants: variantDefinitions
       }
     }
@@ -118,7 +117,6 @@ export default function FinancialAnalyticsPage() {
             nodes: Array<
               Product & {
                 variants?: Product['variants'];
-                legacyVariants?: Product['legacyVariants'];
               }
             >;
           };

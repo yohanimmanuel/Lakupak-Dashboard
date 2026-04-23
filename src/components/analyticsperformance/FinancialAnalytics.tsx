@@ -170,7 +170,6 @@ const FINANCIAL_ANALYTICS_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         variants: variantDefinitions
       }
     }
@@ -313,7 +312,6 @@ const FinancialAnalytics: React.FC = () => {
           nodes: Array<
             Product & {
               variants?: Product['variants'];
-              legacyVariants?: Product['legacyVariants'];
             }
           >;
         };
@@ -327,7 +325,6 @@ const FinancialAnalytics: React.FC = () => {
       const productsList = (data.products?.nodes ?? []).map((product) => ({
         ...product,
         variants: (product.variants ?? []) as Product['variants'],
-        legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
       }));
         
         setOrders(ordersList);
@@ -362,9 +359,8 @@ const FinancialAnalytics: React.FC = () => {
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
       const firstVariantOption = p.variantOptions?.[0];
-      const firstLegacyVariant = p.legacyVariants?.[0];
       const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+        firstVariantOption?.purchasePrice || '0'
       );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
@@ -433,9 +429,8 @@ const FinancialAnalytics: React.FC = () => {
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
       const firstVariantOption = p.variantOptions?.[0];
-      const firstLegacyVariant = p.legacyVariants?.[0];
       const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+        firstVariantOption?.purchasePrice || '0'
       );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
@@ -537,15 +532,9 @@ const FinancialAnalytics: React.FC = () => {
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      // Prioritize variantOptions (new structure) over legacyVariants
       const firstVariantOption = product.variantOptions?.[0];
-      const firstLegacyVariant = product.legacyVariants?.[0];
-      const sellingPrice = parseCurrencyToNumber(
-        firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
-      );
-      const purchasePrice = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
-      );
+      const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -559,8 +548,6 @@ const FinancialAnalytics: React.FC = () => {
           // Calculate actual revenue and profit using product prices
           const product = products.find(p => p.productId === item.productId) as Product | undefined;
           const variantOption = product?.variantOptions?.[0];
-          const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
-          const legacyDefinition = product?.variants?.[0];
           
           // Get category based on selected filter
           let category = 'Uncategorized';
@@ -572,16 +559,10 @@ const FinancialAnalytics: React.FC = () => {
           
           if (product) {
             const sellingPrice = parseCurrencyToNumber(
-              variantOption?.sellingPrice ||
-                legacyVariant?.sellingPrice ||
-                legacyDefinition?.sellingPrice ||
-                '0'
+              variantOption?.sellingPrice || '0'
             );
             const purchasePrice = parseCurrencyToNumber(
-              variantOption?.purchasePrice ||
-                legacyVariant?.purchasePrice ||
-                legacyDefinition?.purchasePrice ||
-                '0'
+              variantOption?.purchasePrice || '0'
             );
             
             if (sellingPrice > 0 && purchasePrice > 0) {
@@ -658,15 +639,9 @@ const FinancialAnalytics: React.FC = () => {
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
     products.forEach(product => {
-      // Prioritize variantOptions (new structure) over legacyVariants
       const firstVariantOption = product.variantOptions?.[0];
-      const firstLegacyVariant = product.legacyVariants?.[0];
-      const sellingPrice = parseCurrencyToNumber(
-        firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
-      );
-      const purchasePrice = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
-      );
+      const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
+      const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
       
       if (sellingPrice > 0 && purchasePrice > 0) {
         const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
@@ -684,8 +659,6 @@ const FinancialAnalytics: React.FC = () => {
             // Find the product to get its name and category
                 const product = products.find(p => p.productId === productId) as Product | undefined;
                 const variantOption = product?.variantOptions?.[0];
-                const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
-                const legacyDefinition = product?.variants?.[0];
             
             // Get category - use the same simple logic as CustomerSalesAnalytics
             const category = product?.productCategory || 'Uncategorized';
@@ -706,19 +679,11 @@ const FinancialAnalytics: React.FC = () => {
           
           if (product) {
             const variantOption = product.variantOptions?.[0];
-            const legacyVariant = (product.legacyVariants as ProductVariant[] | undefined)?.[0];
-            const legacyDefinition = product.variants?.[0];
             const sellingPrice = parseCurrencyToNumber(
-              variantOption?.sellingPrice ||
-                legacyVariant?.sellingPrice ||
-                legacyDefinition?.sellingPrice ||
-                '0'
+              variantOption?.sellingPrice || '0'
             );
             const purchasePrice = parseCurrencyToNumber(
-              variantOption?.purchasePrice ||
-                legacyVariant?.purchasePrice ||
-                legacyDefinition?.purchasePrice ||
-                '0'
+              variantOption?.purchasePrice || '0'
             );
             
             if (sellingPrice > 0 && purchasePrice > 0) {
@@ -798,9 +763,8 @@ const FinancialAnalytics: React.FC = () => {
     const productCostById: Record<string, number> = {};
     products.forEach(p => {
       const firstVariantOption = p.variantOptions?.[0];
-      const firstLegacyVariant = p.legacyVariants?.[0];
       const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+        firstVariantOption?.purchasePrice || '0'
       );
       if (!isNaN(cost) && cost > 0) {
         productCostById[p.productId] = cost;
@@ -1809,9 +1773,8 @@ export const calculateRevenueData = (
   const productCostById: Record<string, number> = {};
   products.forEach(p => {
     const firstVariantOption = p.variantOptions?.[0];
-    const firstLegacyVariant = p.legacyVariants?.[0];
     const cost = parseCurrencyToNumber(
-      firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
+      firstVariantOption?.purchasePrice || '0'
     );
     if (!isNaN(cost) && cost > 0) {
       productCostById[p.productId] = cost;
@@ -1901,15 +1864,9 @@ export const calculateTopProducts = (
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
-    // Prioritize variantOptions (new structure) over legacyVariants
     const firstVariantOption = product.variantOptions?.[0];
-    const firstLegacyVariant = product.legacyVariants?.[0];
-    const sellingPrice = parseCurrencyToNumber(
-      firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'
-    );
-    const purchasePrice = parseCurrencyToNumber(
-      firstVariantOption?.purchasePrice || firstLegacyVariant?.purchasePrice || '0'
-    );
+    const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
+    const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
     if (sellingPrice > 0 && purchasePrice > 0) {
       const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
       productMargins[product.productId] = margin;
@@ -1924,8 +1881,6 @@ export const calculateTopProducts = (
         const productId = pid as string;
         const product = products.find(p => p.productId === productId) as Product | undefined;
         const variantOption = product?.variantOptions?.[0];
-        const legacyVariant = (product?.legacyVariants as ProductVariant[] | undefined)?.[0];
-        const legacyDefinition = product?.variants?.[0];
         if (!product) { return; }
         if (!productStats[productId]) {
           // Get category - use the same simple logic as CustomerSalesAnalytics
@@ -1943,16 +1898,10 @@ export const calculateTopProducts = (
 
         if (product) {
           const sellingPrice = parseCurrencyToNumber(
-            variantOption?.sellingPrice ||
-              legacyVariant?.sellingPrice ||
-              legacyDefinition?.sellingPrice ||
-              '0'
+            variantOption?.sellingPrice || '0'
           );
           const purchasePrice = parseCurrencyToNumber(
-            variantOption?.purchasePrice ||
-              legacyVariant?.purchasePrice ||
-              legacyDefinition?.purchasePrice ||
-              '0'
+            variantOption?.purchasePrice || '0'
           );
           if (sellingPrice > 0 && purchasePrice > 0) {
             // Calculate revenue and cost using package-based pricing

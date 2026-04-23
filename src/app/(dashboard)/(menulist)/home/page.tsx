@@ -270,7 +270,6 @@ const DASHBOARD_SNAPSHOT_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         hasActiveOffer
         offerBadge
         offerId
@@ -742,9 +741,6 @@ function normalizeProduct(raw: Record<string, unknown>): Product | null {
     variants: Array.isArray(raw.variants)
       ? (raw.variants as Product['variants'])
       : undefined,
-    legacyVariants: Array.isArray(raw.legacyVariants)
-      ? (raw.legacyVariants as Product['legacyVariants'])
-      : undefined,
     createdAt: raw.createdAt ? parseDate(raw.createdAt) : undefined,
     updatedAt: raw.updatedAt ? parseDate(raw.updatedAt) : undefined,
     userId: typeof raw.userId === 'number' ? raw.userId : undefined,
@@ -923,18 +919,6 @@ function normalizeDashboardCampaign(raw: Record<string, unknown>): DashboardCamp
 const resolveProductStock = (product: Product) => {
   if (product.variantOptions && product.variantOptions.length > 0) {
     const variantStocks = product.variantOptions.map((variant) => ({
-      stockQuantity: Number(variant.stockQuantity ?? 0),
-      lowStockThreshold: Number(variant.lowStockThreshold ?? 0),
-    }));
-    const { totalStock, lowStockThreshold } = getProductTotalStock(variantStocks);
-    return {
-      totalStock,
-      lowStockThreshold: lowStockThreshold || Number(product.lowStockThreshold ?? 0),
-    };
-  }
-
-  if (product.legacyVariants && product.legacyVariants.length > 0) {
-    const variantStocks = product.legacyVariants.map((variant) => ({
       stockQuantity: Number(variant.stockQuantity ?? 0),
       lowStockThreshold: Number(variant.lowStockThreshold ?? 0),
     }));

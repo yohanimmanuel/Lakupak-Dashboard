@@ -78,7 +78,6 @@ export const productsTypeDefs = /* GraphQL */ `
     stockStatus: String
     variantOptions: [ProductVariantOption!]!
     variantDefinitions: [JSONObject!]
-    legacyVariants: [JSONObject!]
     createdAt: String
     updatedAt: String
     userId: Int
@@ -161,22 +160,6 @@ export const productsTypeDefs = /* GraphQL */ `
     isActive: Boolean!
   }
 
-  input LegacyVariantInput {
-    variantName: String!
-    variantType: String
-    sku: String
-    purchasePrice: String!
-    sellingPrice: String!
-    originalSellingPrice: String
-    moq: Int
-    stockQuantity: Int!
-    lowStockThreshold: Int!
-    stockStatus: String!
-    attributes: JSONObject
-    isDefault: Boolean!
-    isActive: Boolean!
-  }
-
   type DeleteProductResult {
     success: Boolean!
     deleted: Product
@@ -229,7 +212,6 @@ export const productsTypeDefs = /* GraphQL */ `
       currency: String
       variantDefinitions: [VariantDefinitionInput!]
       variantOptions: [VariantOptionInput!]
-      variants: [LegacyVariantInput!]
     ): Product!
 
     updateProduct(
@@ -254,7 +236,6 @@ export const productsTypeDefs = /* GraphQL */ `
       currency: String
       variantDefinitions: [VariantDefinitionInput!]
       variantOptions: [VariantOptionInput!]
-      variants: [LegacyVariantInput!]
     ): Product!
 
     deleteProduct(userId: Int!, id: String!): DeleteProductResult!
@@ -531,7 +512,6 @@ export const mapProduct = (
     stockStatus: (product as { stockStatus?: string }).stockStatus ?? null,
     variantOptions: variants,
     variantDefinitions: (product.variants as unknown[]) ?? [],
-    legacyVariants: (product as { legacyVariants?: unknown[] }).legacyVariants ?? [],
     createdAt: product.createdAt?.toISOString() ?? null,
     updatedAt: product.updatedAt?.toISOString() ?? null,
     userId: product.userId ?? null,
@@ -888,50 +868,6 @@ const createVariantOptionsPayload = (
     };
   });
 
-const createLegacyVariantPayload = (
-  variants: Array<{
-    variantName: string;
-    variantType?: string | null;
-    sku?: string | null;
-    purchasePrice: string;
-    sellingPrice: string;
-    originalSellingPrice?: string | null;
-    moq?: number | null;
-    stockQuantity: number;
-    lowStockThreshold: number;
-    stockStatus: string;
-    attributes?: Record<string, unknown> | null;
-    isDefault: boolean;
-    isActive: boolean;
-  }>,
-  currency?: string | null,
-) =>
-  variants.map((variant) => {
-    // Parse prices as numbers and round to 2 decimal places for Decimal precision
-    const purchasePriceNum = parseNumberByCurrency(variant.purchasePrice || '', currency ?? undefined);
-    const sellingPriceNum = parseNumberByCurrency(variant.sellingPrice || '', currency ?? undefined);
-    const originalSellingPriceNum = variant.originalSellingPrice && typeof variant.originalSellingPrice === 'string'
-      ? parseNumberByCurrency(variant.originalSellingPrice, currency ?? undefined)
-      : null;
-    
-    return {
-      variantName: variant.variantName || 'Default Variant',
-      attributes: (variant.attributes || {}) as Prisma.InputJsonValue,
-      sku: variant.sku || null,
-      purchasePrice: Math.round(purchasePriceNum * 100) / 100, // Decimal type, not string
-      sellingPrice: Math.round(sellingPriceNum * 100) / 100, // Decimal type, not string
-      originalSellingPrice: originalSellingPriceNum !== null
-        ? Math.round(originalSellingPriceNum * 100) / 100
-        : null, // Decimal type, not string
-      moq: variant.moq || null,
-      stockQuantity: variant.stockQuantity || 0,
-      lowStockThreshold: variant.lowStockThreshold || 0,
-      stockStatus: variant.stockStatus || 'In Stock',
-      isDefault: variant.isDefault || false,
-      isActive: variant.isActive !== false,
-    };
-  });
-
 const broadcastProductChanges = async (productId?: string | null) => {
   if (!productId) return;
   try {
@@ -998,21 +934,6 @@ export const createProduct = async (args: {
     isDefault: boolean;
     isActive: boolean;
   }> | null;
-  variants?: Array<{
-    variantName: string;
-    variantType?: string | null;
-    sku?: string | null;
-    purchasePrice: string;
-    sellingPrice: string;
-    originalSellingPrice?: string | null;
-    moq?: number | null;
-    stockQuantity: number;
-    lowStockThreshold: number;
-    stockStatus: string;
-    attributes?: Record<string, unknown> | null;
-    isDefault: boolean;
-    isActive: boolean;
-  }> | null;
 }) => {
   const {
     userId,
@@ -1035,7 +956,6 @@ export const createProduct = async (args: {
     currency = 'IDR',
     variantDefinitions,
     variantOptions,
-    variants,
   } = args;
 
   let finalProductId = productId || generateUniqueProductId();
@@ -1083,11 +1003,7 @@ export const createProduct = async (args: {
         ? {
             create: createVariantOptionsPayload(variantOptions, currency ?? undefined),
           }
-        : variants && !variantOptions && !variantDefinitions
-          ? {
-              create: createLegacyVariantPayload(variants, currency ?? undefined),
-            }
-          : undefined,
+        : undefined,
     },
     include: {
       variantOptions: { select: variantOptionSelect },
@@ -1215,21 +1131,6 @@ export const updateProduct = async (args: {
     isDefault: boolean;
     isActive: boolean;
   }> | null;
-  variants?: Array<{
-    variantName: string;
-    variantType?: string | null;
-    sku?: string | null;
-    purchasePrice: string;
-    sellingPrice: string;
-    originalSellingPrice?: string | null;
-    moq?: number | null;
-    stockQuantity: number;
-    lowStockThreshold: number;
-    stockStatus: string;
-    attributes?: Record<string, unknown> | null;
-    isDefault: boolean;
-    isActive: boolean;
-  }> | null;
 }) => {
   const {
     userId,
@@ -1253,7 +1154,6 @@ export const updateProduct = async (args: {
     currency = 'IDR',
     variantDefinitions,
     variantOptions,
-    variants,
   } = args;
 
   const where = id
@@ -1329,44 +1229,65 @@ export const updateProduct = async (args: {
   if (originalProduct !== undefined) cleanUpdateData.originalProduct = Boolean(originalProduct);
   if (returnPolicyDays !== undefined) cleanUpdateData.returnPolicyDays = Number(returnPolicyDays);
 
-  const product = await prisma.product.update({
-    where: updateWhere,
-    data: {
-      ...cleanUpdateData,
-      ...(variantDefinitions &&
-        Array.isArray(variantDefinitions) &&
-        variantDefinitions.length > 0 && {
-          variants: {
-            deleteMany: {},
-            create: variantDefinitions.map((def) => ({
-              variantType: def.variantType,
-              options: def.options,
-              position: def.position,
-            })),
-          },
-        }),
-      ...(variantOptions &&
-        Array.isArray(variantOptions) &&
-        variantOptions.length > 0 && {
-          variantOptions: {
-            deleteMany: {},
-            create: createVariantOptionsPayload(variantOptions, currency ?? undefined),
-          },
-        }),
-      ...(variants &&
-        !variantOptions &&
-        !variantDefinitions && {
-          variantOptions: {
-            deleteMany: {},
-            create: createLegacyVariantPayload(variants, currency ?? undefined),
-          },
-        }),
-    },
-    include: {
-      variantOptions: { select: variantOptionSelect },
-      variants: true,
-      user: productSellerInclude.include.user,
-    },
+  const product = await prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
+      where: updateWhere,
+      data: {
+        ...cleanUpdateData,
+        ...(variantDefinitions &&
+          Array.isArray(variantDefinitions) &&
+          variantDefinitions.length > 0 && {
+            variants: {
+              deleteMany: {},
+              create: variantDefinitions.map((def) => ({
+                variantType: def.variantType,
+                options: def.options,
+                position: def.position,
+              })),
+            },
+          }),
+      },
+      include: {
+        variants: true,
+        user: productSellerInclude.include.user,
+      },
+    });
+
+    // IMPORTANT: preserve VariantOption ids so pending OrderItems keep their `variantOptionId`.
+    // We upsert by the DB-unique key (productId, variantName) and delete only removed options.
+    if (variantOptions && Array.isArray(variantOptions) && variantOptions.length > 0) {
+      const payload = createVariantOptionsPayload(variantOptions, currency ?? undefined);
+      const keepNames = payload.map((p) => p.variantName);
+
+      await Promise.all(
+        payload.map((p) =>
+          tx.variantOption.upsert({
+            where: {
+              productId_variantName: {
+                productId: updated.id,
+                variantName: p.variantName,
+              },
+            },
+            update: {
+              ...p,
+            },
+            create: {
+              ...p,
+              productId: updated.id,
+            },
+          }),
+        ),
+      );
+
+      await tx.variantOption.deleteMany({
+        where: {
+          productId: updated.id,
+          variantName: { notIn: keepNames },
+        },
+      });
+    }
+
+    return updated;
   });
 
   // Keep Meilisearch 1:1 with DB for marketplace-published products.
@@ -1422,7 +1343,7 @@ export const updateProduct = async (args: {
   }
 
   // Check stock levels and trigger inventory notifications if thresholds crossed
-  if (productBeforeUpdate && (variantOptions || variants) && updatedProduct.variantOptions) {
+  if (productBeforeUpdate && variantOptions && updatedProduct.variantOptions) {
     const previousVariants = productBeforeUpdate.variantOptions || [];
     const newVariants = updatedProduct.variantOptions || [];
 

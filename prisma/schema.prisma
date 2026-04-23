@@ -406,12 +406,16 @@ model OrderItem {
   productNameSnapshot      String?
   productSkuSnapshot       String?
   productTypeSnapshot      String?
+  productImageSnapshot     String? // Primary image at time of order
   variantNameSnapshot      String? // Variant name at time of order
+  variantAttributesSnapshot Json? // Structured attributes at time of order (e.g. {"Color":"Red","Size":"M"})
   test                     String?
   packageQuantity          Int?            @default(1)
   packageType              String?
   piecesPerPackage         Int?            @default(1)
   pricePerPackage          Decimal? @db.Decimal(12, 2)
+  unitPriceSnapshot        Decimal? @db.Decimal(12, 2) // VariantOption sellingPrice at time of order
+  currencySnapshot         String? // Seller currency at time of order (usually User.currency)
   // Offer snapshots - preserve offer status at time of purchase
   offerApplied             Boolean?        @default(false)
   offerBadgeSnapshot       String? // 'Discount', 'Promotion', 'All Offers', 'Offer'

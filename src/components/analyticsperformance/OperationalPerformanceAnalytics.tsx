@@ -159,7 +159,6 @@ const OPERATIONAL_ANALYTICS_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         variants: variantDefinitions
       }
     }
@@ -196,7 +195,6 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           nodes: Array<
             Product & {
               variants?: Product['variants'];
-              legacyVariants?: Product['legacyVariants'];
             }
           >;
         };
@@ -210,7 +208,6 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       const productsList = (data.products?.nodes ?? []).map((product) => ({
         ...product,
         variants: (product.variants ?? []) as Product['variants'],
-        legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
       }));
         
         setOrders(ordersList);
@@ -275,22 +272,17 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     // Inventory metrics
     const totalProducts = products.length;
     const lowStockPieces = products.filter(product => {
-      // Prioritize variantOptions (new structure) over legacyVariants
       const variantOptionsStock = product.variantOptions?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const totalStock = variantOptionsStock + legacyVariantsStock;
+      const totalStock = variantOptionsStock;
       
       const variantOptionsThreshold = product.variantOptions?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-      const legacyVariantsThreshold = product.legacyVariants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-      const totalLowStockThreshold = variantOptionsThreshold + legacyVariantsThreshold;
+      const totalLowStockThreshold = variantOptionsThreshold;
       
       return totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
     }).length;
     const stockoutPieces = products.filter(product => {
-      // Prioritize variantOptions (new structure) over legacyVariants
       const variantOptionsStock = product.variantOptions?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const totalStock = variantOptionsStock + legacyVariantsStock;
+      const totalStock = variantOptionsStock;
       return totalStock === 0;
     }).length;
     const stockoutRate = totalProducts > 0 ? (stockoutPieces / totalProducts) * 100 : 0;
@@ -420,14 +412,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       
       categoryData[category].total += 1;
       
-      // Prioritize variantOptions (new structure) over legacyVariants
       const variantOptionsStock = product.variantOptions?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const totalStock = variantOptionsStock + legacyVariantsStock;
+      const totalStock = variantOptionsStock;
       
       const variantOptionsThreshold = product.variantOptions?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-      const legacyVariantsThreshold = product.legacyVariants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-      const totalLowStockThreshold = variantOptionsThreshold + legacyVariantsThreshold;
+      const totalLowStockThreshold = variantOptionsThreshold;
       
       if (totalStock === 0) {
         categoryData[category].stockout += 1;

@@ -14,22 +14,23 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   const totalProducts = products.length;
   const activeProducts = products.filter(product => product.status === 'Published').length;
   const lowStockAlerts = products.filter(product => {
-    // Calculate stock from both legacy variants and new variant options
-    const legacyStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    const variantOptionsStock = product.variantOptions?.reduce((sum, option) => sum + (option.stockQuantity || 0), 0) || 0;
-    const totalStock = legacyStock + variantOptionsStock;
-    
-    const legacyThreshold = product.legacyVariants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-    const variantOptionsThreshold = product.variantOptions?.reduce((sum, option) => sum + (option.lowStockThreshold || 0), 0) || 0;
-    const totalLowStockThreshold = Math.max(legacyThreshold, variantOptionsThreshold);
+    const legacyVariants = (product as unknown as { legacyVariants?: Array<{ stockQuantity?: number; lowStockThreshold?: number }> })
+      .legacyVariants;
+    const totalStock =
+      (product.variantOptions?.reduce((sum, option) => sum + (option.stockQuantity || 0), 0) || 0) +
+      (legacyVariants?.reduce((sum, v) => sum + (v.stockQuantity || 0), 0) || 0);
+    const totalLowStockThreshold = Math.max(
+      product.variantOptions?.reduce((max, option) => Math.max(max, option.lowStockThreshold || 0), 0) || 0,
+      legacyVariants?.reduce((max, v) => Math.max(max, v.lowStockThreshold || 0), 0) || 0,
+    );
     
     return totalStock > 0 && totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
   }).length;
   const outOfStock = products.filter(product => {
-    // Calculate stock from both legacy variants and new variant options
-    const legacyStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    const variantOptionsStock = product.variantOptions?.reduce((sum, option) => sum + (option.stockQuantity || 0), 0) || 0;
-    const totalStock = legacyStock + variantOptionsStock;
+    const legacyVariants = (product as unknown as { legacyVariants?: Array<{ stockQuantity?: number }> }).legacyVariants;
+    const totalStock =
+      (product.variantOptions?.reduce((sum, option) => sum + (option.stockQuantity || 0), 0) || 0) +
+      (legacyVariants?.reduce((sum, v) => sum + (v.stockQuantity || 0), 0) || 0);
     return totalStock === 0;
   }).length;
   const productsWithOffers = products.filter(product => 

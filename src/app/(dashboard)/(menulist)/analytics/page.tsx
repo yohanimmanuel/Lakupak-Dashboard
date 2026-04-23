@@ -83,7 +83,6 @@ const ANALYTICS_PAGE_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         variants: variantDefinitions
       }
     }
@@ -210,7 +209,6 @@ export default function AnalyticsPage() {
             nodes: Array<
               Product & {
                 variants?: Product['variants'];
-                legacyVariants?: Product['legacyVariants'];
               }
             >;
           };
@@ -224,7 +222,6 @@ export default function AnalyticsPage() {
         const productsList = (data.products?.nodes ?? []).map((product) => ({
           ...product,
           variants: (product.variants ?? []) as Product['variants'],
-          legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
         }));
 
           setOrders(ordersList);

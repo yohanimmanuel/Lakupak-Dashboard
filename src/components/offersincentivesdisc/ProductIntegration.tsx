@@ -205,11 +205,9 @@ export default function ProductIntegration({
   const calculateDiscountAmount = (product: ProductWithOffer): number => {
     if (!discountTypes || discountTypes.length === 0) return 0;
     
-    // Use variantOptions first, then fallback to legacyVariants
     const firstVariantOption = product.variantOptions?.[0];
-    const firstLegacyVariant = product.legacyVariants?.[0];
     const productPrice = parseNumberByCurrency(
-      String(firstVariantOption?.sellingPrice || firstLegacyVariant?.sellingPrice || '0'), 
+      String(firstVariantOption?.sellingPrice || '0'), 
       userCurrency
     );
     let totalDiscount = 0;
@@ -290,7 +288,6 @@ export default function ProductIntegration({
                   attributes
                 }
                 variantDefinitions
-                legacyVariants
                 hasActiveOffer
                 offerBadge
                 offerId
@@ -797,22 +794,13 @@ export default function ProductIntegration({
   // Calculate price range for display
   const getPriceDisplay = (product: ProductWithOffer): string => {
     const variantOptions = product.variantOptions || [];
-    const legacyVariants = product.legacyVariants || [];
     
-    // Collect all prices from variantOptions and legacyVariants
+    // Collect all prices from variantOptions
     const prices: number[] = [];
     
     // Add prices from variantOptions
     variantOptions.forEach(option => {
       const price = parsePrice(String(option.sellingPrice), userCurrency);
-      if (price > 0) {
-        prices.push(price);
-      }
-    });
-    
-    // Add prices from legacyVariants
-    legacyVariants.forEach(variant => {
-      const price = parsePrice(String(variant.sellingPrice), userCurrency);
       if (price > 0) {
         prices.push(price);
       }
@@ -833,14 +821,12 @@ export default function ProductIntegration({
   };
 
   const getStockStatus = (product: ProductWithOffer) => {
-    // Calculate total stock from variantOptions and legacyVariants
+    // Calculate total stock from variantOptions
     const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
-    const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    const totalStock = variantOptionsStock + legacyVariantsStock;
+    const totalStock = variantOptionsStock;
     
     const variantOptionsThreshold = product.variantOptions?.reduce((sum, vo) => sum + (vo.lowStockThreshold || 0), 0) || 0;
-    const legacyVariantsThreshold = product.legacyVariants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-    const totalLowStockThreshold = variantOptionsThreshold + legacyVariantsThreshold;
+    const totalLowStockThreshold = variantOptionsThreshold;
     
     if (totalStock === 0) return { color: 'text-red-600', bg: 'bg-red-50', label: 'Out of Stock' };
     if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) return { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Low Stock' };
@@ -1186,8 +1172,7 @@ export default function ProductIntegration({
                     <span className={`${getStockStatus(product).color}`}>
                       {(() => {
                         const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
-                        const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-                        return variantOptionsStock + legacyVariantsStock;
+                        return variantOptionsStock;
                       })()} units
                     </span>
                   </div>
@@ -1293,8 +1278,7 @@ export default function ProductIntegration({
                       <span className={`${getStockStatus(product).color}`}>
                         {(() => {
                           const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
-                          const legacyVariantsStock = product.legacyVariants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-                          return variantOptionsStock + legacyVariantsStock;
+                          return variantOptionsStock;
                         })()}
                       </span>
                     </td>

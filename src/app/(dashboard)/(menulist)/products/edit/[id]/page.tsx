@@ -66,7 +66,6 @@ export default function EditProductPage() {
                 attributes
               }
               variantDefinitions
-              legacyVariants
               createdAt
               updatedAt
               userId

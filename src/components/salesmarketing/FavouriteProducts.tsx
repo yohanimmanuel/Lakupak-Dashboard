@@ -82,7 +82,6 @@ export default function FavouriteProducts({
                 attributes
               }
               variantDefinitions
-              legacyVariants
             }
             pagination {
               totalCount
@@ -191,17 +190,11 @@ export default function FavouriteProducts({
   // Calculate price display
   const getPriceDisplay = (product: Product): string => {
     const variantOptions = product.variantOptions || [];
-    const legacyVariants = product.legacyVariants || [];
     
     const prices: number[] = [];
     
     variantOptions.forEach(option => {
       const price = parsePrice(String(option.sellingPrice), userCurrency);
-      if (price > 0) prices.push(price);
-    });
-    
-    legacyVariants.forEach(variant => {
-      const price = parsePrice(String(variant.sellingPrice), userCurrency);
       if (price > 0) prices.push(price);
     });
     

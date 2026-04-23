@@ -103,8 +103,6 @@ export interface Product {
   variantOptions?: VariantOption[]; // Actual combinations
   // New variants (for variant definitions with position and options)
   variants?: ProductVariantDefinition[];
-  // Legacy variants (for backward compatibility)
-  legacyVariants?: ProductVariant[];
   createdAt?: Date;
   updatedAt?: Date;
   userId?: number;
@@ -144,8 +142,6 @@ export interface ProductTableRow {
   userId: number;
   // New variant structure for price range calculation
   variantOptions?: VariantOption[];
-  // Legacy variants for backward compatibility
-  variants?: ProductVariant[];
 }
 
 export interface ProductImportRow {

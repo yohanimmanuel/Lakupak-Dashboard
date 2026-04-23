@@ -23,7 +23,6 @@ import { Product, ProductFormData } from "@/types/product";
 import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
-import { getProductTotalStock, getVariantStockStatus } from '@/utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 
@@ -142,26 +141,6 @@ export default function ProductCatalog({
           }))
         }));
       setVariants(loadedVariants);
-    } else if (product?.legacyVariants && product.legacyVariants.length > 0) {
-      // Legacy structure: group variants by type
-      const groupedVariants = product.legacyVariants.reduce((acc, variant) => {
-        const type = variant.variantType || 'Default';
-        if (!acc[type]) {
-          acc[type] = {
-            id: `variant-${type}`,
-            variantType: type,
-            moq: variant.moq,
-            options: []
-          };
-        }
-        acc[type].options.push({
-        id: variant.id?.toString() || Math.random().toString(36).substr(2, 9),
-          name: variant.variantName
-        });
-        return acc;
-      }, {} as Record<string, { id: string; variantType: string; moq?: number; options: Array<{ id: string; name: string }> }>);
-      
-      setVariants(Object.values(groupedVariants));
     } else {
       // Create default variant
       setVariants([{
@@ -262,36 +241,6 @@ export default function ProductCatalog({
         options: [{ id: 'option-1', name: '' }]
       }]);
       setCombinations(loadedCombinations);
-    } else if (product?.legacyVariants && product.legacyVariants.length > 0) {
-      // Legacy structure: convert variants to combinations
-      const legacyCombinations: Combination[] = product.legacyVariants.map(variant => {
-        // If originalSellingPrice exists, use it for the form (this is the original price before discount)
-        // Otherwise, use sellingPrice (which is the actual price when no offer is active)
-        const variantData = variant as { originalSellingPrice?: string | null; sellingPrice?: string | null };
-        const hasOffer = variantData.originalSellingPrice && String(variantData.originalSellingPrice).trim() !== '';
-        const formSellingPrice = hasOffer
-          ? String(variantData.originalSellingPrice)
-          : variant.sellingPrice || '';
-        // Store the database's sellingPrice (discounted price) for display when offer is active
-        const dbSellingPrice = variant.sellingPrice || '';
-        
-        return {
-        id: `combination-${variant.id}`,
-        variantName: variant.variantName,
-        sku: variant.sku || '',
-        purchasePrice: variant.purchasePrice || '',
-          sellingPrice: formSellingPrice,
-          // Store database sellingPrice for display (discounted price when offer is active)
-          dbSellingPrice: dbSellingPrice,
-          // Preserve originalSellingPrice if it exists, so it doesn't get lost on save
-          originalSellingPrice: hasOffer ? String(variantData.originalSellingPrice) : undefined,
-        moq: variant.moq,
-        stockQuantity: variant.stockQuantity || 0,
-        lowStockThreshold: variant.lowStockThreshold || 0,
-        stockStatus: variant.stockStatus || 'In Stock'
-        };
-      });
-      setCombinations(legacyCombinations);
     } else {
       // Create default combination
       setCombinations([{

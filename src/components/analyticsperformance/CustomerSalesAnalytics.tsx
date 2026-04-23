@@ -326,7 +326,6 @@ const CUSTOMER_ANALYTICS_QUERY = `
           isActive
           attributes
         }
-        legacyVariants
         variants: variantDefinitions
       }
     }
@@ -392,7 +391,6 @@ const CustomerSalesAnalytics: React.FC = () => {
 						nodes: Array<
 							Product & {
 								variants?: Product['variants'];
-								legacyVariants?: Product['legacyVariants'];
 							}
 						>;
 					};
@@ -410,7 +408,6 @@ const CustomerSalesAnalytics: React.FC = () => {
 				const productsList = (data.products?.nodes ?? []).map((product) => ({
 					...product,
 					variants: (product.variants ?? []) as Product['variants'],
-					legacyVariants: (product.legacyVariants ?? []) as Product['legacyVariants'],
 				}));
 				const buyersList = data.buyers?.nodes ?? [];
 

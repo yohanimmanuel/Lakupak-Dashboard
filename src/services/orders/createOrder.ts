@@ -232,6 +232,16 @@ export async function createOrderHandler(request: NextRequest) {
         const usedOfferIds: string[] = [];
 
         await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const sellerCurrency =
+            distributorUserId && !Number.isNaN(Number(distributorUserId))
+              ? (
+                  await tx.user.findUnique({
+                    where: { id: Number(distributorUserId) },
+                    select: { currency: true },
+                  })
+                )?.currency ?? 'IDR'
+              : 'IDR';
+
           const orderItemPromises = consistentOrderItems.map(async (item: OrderItem) => {
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId) },
@@ -306,9 +316,17 @@ export async function createOrderHandler(request: NextRequest) {
               productNameSnapshot: product.name,
               productSkuSnapshot: product.sku,
               productTypeSnapshot: product.productType,
+              productImageSnapshot: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
               variantId: item.variantId || null,
               variantOptionId: (selectedVariant as { id?: number }).id || null,
               variantNameSnapshot,
+              variantAttributesSnapshot:
+                (selectedVariant as { attributes?: unknown }).attributes &&
+                typeof (selectedVariant as { attributes?: unknown }).attributes === 'object'
+                  ? ((selectedVariant as { attributes?: unknown }).attributes as Prisma.InputJsonValue)
+                  : undefined,
+              unitPriceSnapshot: consistentUnitPrice,
+              currencySnapshot: sellerCurrency,
               offerApplied: false,
               offerBadgeSnapshot: null,
               offerNameSnapshot: null,
