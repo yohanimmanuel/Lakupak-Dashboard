@@ -17,6 +17,7 @@ services:
       DB_SSL_REJECT_UNAUTHORIZED: "false"
       WS_PORT: "3001"
       NEXT_PUBLIC_WS_PORT: "3001"
+      MEILI_HOST: http://meilisearch:7700
     restart: unless-stopped
 
   meilisearch:

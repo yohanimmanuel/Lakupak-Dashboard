@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "ws": "tsx src/server/websocket.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run ws\"",
-    "meili:reindex:marketplace": "tsx src/scripts/meiliReindexMarketplaceProducts.ts",
+    "meili:reindex:marketplace": "npx --yes tsx src/scripts/meiliReindexMarketplaceProducts.ts",
     "marketplace:search:report": "tsx src/scripts/marketplaceSearchReport.ts"
   },
   "dependencies": {
