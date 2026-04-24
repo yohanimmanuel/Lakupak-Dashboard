@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Package,
   Gift,
+  RefreshCw,
   ChevronUp,
   ChevronDown
 } from "lucide-react";
@@ -120,9 +121,14 @@ export default function ProductCatalog({
     }>;
   }>>([]);
 
+  // Draft variants for typing (prevents lag + accidental table rebuilds while editing labels)
+  const [variantDrafts, setVariantDrafts] = useState<typeof variants>([]);
+
   // Final combinations table (manual entry)
   const [combinations, setCombinations] = useState<Combination[]>([]);
   const combinationsRef = useRef<Combination[]>([]);
+  const [variationRefreshTick, setVariationRefreshTick] = useState(0);
+  const didInitVariationListRef = useRef(false);
 
 
   // Initialize variants from product data
@@ -154,6 +160,19 @@ export default function ProductCatalog({
       }]);
     }
   }, [product]);
+
+  // Keep drafts in sync with committed variants (but don't drive the table from drafts)
+  useEffect(() => {
+    setVariantDrafts(JSON.parse(JSON.stringify(variants)));
+  }, [variants]);
+
+  // Initial build of variation list once variants are loaded.
+  useEffect(() => {
+    if (didInitVariationListRef.current) return;
+    if (!Array.isArray(variants) || variants.length === 0) return;
+    didInitVariationListRef.current = true;
+    setVariationRefreshTick((v) => v + 1);
+  }, [variants]);
 
   // Initialize combinations from product data (map attributes -> current variant columns)
   useEffect(() => {
@@ -262,6 +281,60 @@ export default function ProductCatalog({
   const [saving, setSaving] = useState(false);
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [variantGuardModal, setVariantGuardModal] = useState<{
+    title: string;
+    intro?: string;
+    items?: Array<{
+      variantName: string;
+      orderItemCount: number;
+      orderIds?: string[];
+    }>;
+    footer?: string;
+    message?: string;
+  } | null>(null);
+
+  const VARIANT_OPTION_USAGE_QUERY = `
+    query VariantOptionUsage($userId: Int!, $productId: String!, $variantNames: [String!], $variantOptionIds: [Int!]) {
+      variantOptionUsage(
+        userId: $userId
+        productId: $productId
+        variantNames: $variantNames
+        variantOptionIds: $variantOptionIds
+      ) {
+        variantName
+        orderItemCount
+        orderIds
+      }
+    }
+  `;
+
+  const getAffectedVariantOptionIds = (params: {
+    variantType: string;
+    optionName?: string;
+  }): number[] => {
+    const { variantType, optionName } = params;
+    const opts = product?.variantOptions;
+    if (!Array.isArray(opts) || opts.length === 0) return [];
+
+    const type = String(variantType || '').trim();
+    const optName = optionName != null ? String(optionName).trim() : '';
+    if (!type) return [];
+
+    return opts
+      .filter((vo) => {
+        const attrs =
+          vo.attributes && typeof vo.attributes === 'object' ? (vo.attributes as Record<string, unknown>) : null;
+        if (attrs && Object.prototype.hasOwnProperty.call(attrs, type)) {
+          if (!optName) return true; // variant type operation (rename/delete layer)
+          return String(attrs[type] ?? '') === optName;
+        }
+        // Fallback for older persisted data without attributes.
+        const name = vo.variantName ? String(vo.variantName) : '';
+        return optName ? name.includes(`${type}: ${optName}`) : name.includes(`${type}: `);
+      })
+      .map((vo) => Number(vo.id))
+      .filter((id) => Number.isFinite(id));
+  };
   
   // Derive current mode and status from props - use directly instead of state
   // Logic: Published products are view-only, Draft products are editable
@@ -462,17 +535,147 @@ export default function ProductCatalog({
 
   const removeVariant = (variantId: string) => {
     if (variants.length > 1) {
+      // For existing products, only block if this deletion would affect variants tied to orders.
+      if (currentMode === 'edit' && user?.id && formData.productId) {
+        const targetVariant = variants.find((v) => v.id === variantId);
+        const targetType = targetVariant?.variantType ? String(targetVariant.variantType) : '';
+
+        // If the variant type is empty (often a newly-added layer not yet configured),
+        // deleting it cannot correspond to any persisted VariantOption, so don't block.
+        const affectedVariantOptionIds = targetType ? getAffectedVariantOptionIds({ variantType: targetType }) : [];
+        if (affectedVariantOptionIds.length > 0) {
+          fetchGraphQL<{ variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }> }>(
+            VARIANT_OPTION_USAGE_QUERY,
+            {
+              userId: user.id,
+              productId: String(formData.productId),
+              variantNames: null,
+              variantOptionIds: affectedVariantOptionIds,
+            },
+          )
+            .then((res) => {
+              const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+              if (tied.length > 0) {
+                setVariantGuardModal({
+                  title: 'Cannot delete: used in orders',
+                intro: 'Some affected variant options are referenced by existing order items:',
+                items: tied.slice(0, 8).map((u) => ({
+                  variantName: u.variantName,
+                  orderItemCount: u.orderItemCount,
+                  orderIds: u.orderIds ?? [],
+                })),
+                footer:
+                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
+                  'To keep data integrity, delete/rename is blocked for those variants.',
+                });
+                return;
+              }
+              setVariants((prev) => prev.filter((variant) => variant.id !== variantId));
+            })
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
+              setVariantGuardModal({ title: 'Cannot validate deletion', message: msg });
+            });
+          return;
+        }
+      }
       setVariants(prev => prev.filter(variant => variant.id !== variantId));
     }
   };
 
   const updateVariant = (variantId: string, field: string, value: string | number | undefined) => {
+    // Keep typing fast: update drafts only for label edits.
+    if (field === 'variantType') {
+      setVariantDrafts((prev) =>
+        prev.map((variant) => (variant.id === variantId ? { ...variant, variantType: String(value ?? '') } : variant)),
+      );
+      return;
+    }
+
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         return { ...variant, [field]: value };
       }
       return variant;
     }));
+  };
+
+  const showRenameBlockedModal = (
+    tied: Array<{ variantName: string; orderItemCount: number; orderIds?: string[] }>,
+  ) => {
+    setVariantGuardModal({
+      title: 'Cannot rename: used in orders',
+      intro: 'This rename would affect variant options referenced by existing order items:',
+      items: tied.slice(0, 8).map((u) => ({
+        variantName: u.variantName,
+        orderItemCount: u.orderItemCount,
+        orderIds: u.orderIds ?? [],
+      })),
+      footer:
+        tied.length > 8
+          ? `...and ${tied.length - 8} more.\n\nThis variant is used in past orders. Create a new variant to continue selling.`
+          : 'This variant is used in past orders. Create a new variant to continue selling.',
+    });
+  };
+
+  const commitVariantTypeRename = (variantId: string) => {
+    const draft = variantDrafts.find((v) => v.id === variantId);
+    const committed = variants.find((v) => v.id === variantId);
+    const next = draft?.variantType ? String(draft.variantType) : '';
+    const prev = committed?.variantType ? String(committed.variantType) : '';
+
+    if (!committed || prev === next) return;
+
+    // Block renaming variant types when affected variants are used in past orders.
+    if (currentMode === 'edit' && user?.id && formData.productId && prev && next) {
+      const affectedVariantOptionIds = getAffectedVariantOptionIds({ variantType: prev });
+      if (affectedVariantOptionIds.length > 0) {
+        fetchGraphQL<{ variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }> }>(
+          VARIANT_OPTION_USAGE_QUERY,
+          {
+            userId: user.id,
+            productId: String(formData.productId),
+            variantNames: null,
+            variantOptionIds: affectedVariantOptionIds,
+          },
+        )
+          .then((res) => {
+            const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+            if (tied.length > 0) {
+              const lines = tied
+                .slice(0, 8)
+                .map((u) => `- ${u.variantName} (${u.orderItemCount})`)
+                .join('\n');
+              setVariantGuardModal({
+                title: 'Cannot rename: used in orders',
+                message:
+                  `This rename would affect variant options referenced by existing order items:\n\n${lines}` +
+                  (tied.length > 8 ? `\n- ...and ${tied.length - 8} more` : '') +
+                  `\n\nThis variant is used in past orders. Create a new variant to continue selling.`,
+              });
+              // revert draft back to committed
+              setVariantDrafts((prevDrafts) =>
+                prevDrafts.map((v) => (v.id === variantId ? { ...v, variantType: prev } : v)),
+              );
+              return;
+            }
+
+            setVariants((prevState) =>
+              prevState.map((v) => (v.id === variantId ? { ...v, variantType: next } : v)),
+            );
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
+            setVariantGuardModal({ title: 'Cannot validate rename', message: msg });
+            setVariantDrafts((prevDrafts) =>
+              prevDrafts.map((v) => (v.id === variantId ? { ...v, variantType: prev } : v)),
+            );
+          });
+        return;
+      }
+    }
+
+    setVariants((prevState) => prevState.map((v) => (v.id === variantId ? { ...v, variantType: next } : v)));
   };
 
   const addVariantOption = (variantId: string) => {
@@ -492,6 +695,56 @@ export default function ProductCatalog({
   };
 
   const removeVariantOption = (variantId: string, optionId: string) => {
+    if (currentMode === 'edit' && user?.id && formData.productId) {
+      const targetVariant = variants.find((v) => v.id === variantId);
+      const opt = targetVariant?.options?.find((o) => o.id === optionId);
+      const variantType = targetVariant?.variantType ? String(targetVariant.variantType) : '';
+      const optionName = opt?.name ? String(opt.name) : '';
+
+      const affectedVariantOptionIds =
+        variantType && optionName ? getAffectedVariantOptionIds({ variantType, optionName }) : [];
+      if (affectedVariantOptionIds.length > 0) {
+        fetchGraphQL<{ variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }> }>(
+          VARIANT_OPTION_USAGE_QUERY,
+          {
+            userId: user.id,
+            productId: String(formData.productId),
+            variantNames: null,
+            variantOptionIds: affectedVariantOptionIds,
+          },
+        )
+          .then((res) => {
+            const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+            if (tied.length > 0) {
+              setVariantGuardModal({
+                title: 'Cannot delete: used in orders',
+                intro: 'Removing this option impacts variant options referenced by existing order items:',
+                items: tied.slice(0, 8).map((u) => ({
+                  variantName: u.variantName,
+                  orderItemCount: u.orderItemCount,
+                  orderIds: u.orderIds ?? [],
+                })),
+                footer:
+                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
+                  'To keep data integrity, delete/rename is blocked for those variants.',
+              });
+              return;
+            }
+            setVariants((prev) =>
+              prev.map((variant) =>
+                variant.id === variantId
+                  ? { ...variant, options: variant.options.filter((o) => o.id !== optionId) }
+                  : variant,
+              ),
+            );
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
+            setVariantGuardModal({ title: 'Cannot validate deletion', message: msg });
+          });
+        return;
+      }
+    }
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         return {
@@ -504,6 +757,21 @@ export default function ProductCatalog({
   };
 
   const updateVariantOption = (variantId: string, optionId: string, field: string, value: string) => {
+    // Keep typing fast: update drafts only for label edits.
+    if (field === 'name') {
+      setVariantDrafts((prev) =>
+        prev.map((variant) =>
+          variant.id === variantId
+            ? {
+                ...variant,
+                options: variant.options.map((opt) => (opt.id === optionId ? { ...opt, name: value } : opt)),
+              }
+            : variant,
+        ),
+      );
+      return;
+    }
+
     setVariants(prev => prev.map(variant => {
       if (variant.id === variantId) {
         return {
@@ -518,6 +786,171 @@ export default function ProductCatalog({
       }
       return variant;
     }));
+  };
+
+  const commitVariantOptionRename = (variantId: string, optionId: string) => {
+    const committedVariant = variants.find((v) => v.id === variantId);
+    const draftVariant = variantDrafts.find((v) => v.id === variantId);
+    const prevOpt = committedVariant?.options?.find((o) => o.id === optionId);
+    const nextOpt = draftVariant?.options?.find((o) => o.id === optionId);
+
+    const prevName = prevOpt?.name ? String(prevOpt.name) : '';
+    const nextName = nextOpt?.name ? String(nextOpt.name) : '';
+    const variantType = committedVariant?.variantType ? String(committedVariant.variantType) : '';
+
+    if (!committedVariant || prevName === nextName) return;
+
+    if (currentMode === 'edit' && user?.id && formData.productId && prevName && nextName && variantType) {
+      const affectedVariantOptionIds = getAffectedVariantOptionIds({ variantType, optionName: prevName });
+      if (affectedVariantOptionIds.length > 0) {
+        fetchGraphQL<{ variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }> }>(
+          VARIANT_OPTION_USAGE_QUERY,
+          {
+            userId: user.id,
+            productId: String(formData.productId),
+            variantNames: null,
+            variantOptionIds: affectedVariantOptionIds,
+          },
+        )
+          .then((res) => {
+            const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+            if (tied.length > 0) {
+              const lines = tied
+                .slice(0, 8)
+                .map((u) => `- ${u.variantName} (${u.orderItemCount})`)
+                .join('\n');
+              setVariantGuardModal({
+                title: 'Cannot rename: used in orders',
+                message:
+                  `This rename would affect variant options referenced by existing order items:\n\n${lines}` +
+                  (tied.length > 8 ? `\n- ...and ${tied.length - 8} more` : '') +
+                  `\n\nThis variant is used in past orders. Create a new variant to continue selling.`,
+              });
+              // revert draft back to committed
+              setVariantDrafts((prevDrafts) =>
+                prevDrafts.map((v) =>
+                  v.id === variantId
+                    ? { ...v, options: v.options.map((o) => (o.id === optionId ? { ...o, name: prevName } : o)) }
+                    : v,
+                ),
+              );
+              return;
+            }
+
+            // Commit rename
+            setVariants((prevState) =>
+              prevState.map((variant) =>
+                variant.id === variantId
+                  ? {
+                      ...variant,
+                      options: variant.options.map((o) => (o.id === optionId ? { ...o, name: nextName } : o)),
+                    }
+                  : variant,
+              ),
+            );
+
+            // Preserve row inputs: update existing combinations that used the old option name
+            setCombinations((prevCombos) =>
+              prevCombos.map((combo) => {
+                const current = combo[`variant_${variantId}`];
+                if (typeof current === 'string' && current === prevName) {
+                  return updateCombinationVariantValue(combo, variantId, nextName);
+                }
+                return combo;
+              }),
+            );
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
+            setVariantGuardModal({ title: 'Cannot validate rename', message: msg });
+            setVariantDrafts((prevDrafts) =>
+              prevDrafts.map((v) =>
+                v.id === variantId
+                  ? { ...v, options: v.options.map((o) => (o.id === optionId ? { ...o, name: prevName } : o)) }
+                  : v,
+              ),
+            );
+          });
+        return;
+      }
+    }
+
+    // No blocking: commit rename
+    setVariants((prevState) =>
+      prevState.map((variant) =>
+        variant.id === variantId
+          ? { ...variant, options: variant.options.map((o) => (o.id === optionId ? { ...o, name: nextName } : o)) }
+          : variant,
+      ),
+    );
+    setCombinations((prevCombos) =>
+      prevCombos.map((combo) => {
+        const current = combo[`variant_${variantId}`];
+        if (typeof current === 'string' && current === prevName) {
+          return updateCombinationVariantValue(combo, variantId, nextName);
+        }
+        return combo;
+      }),
+    );
+  };
+
+  const guardVariantTypeEditOnFocus = async (variantId: string): Promise<boolean> => {
+    const committed = variants.find((v) => v.id === variantId);
+    const prev = committed?.variantType ? String(committed.variantType) : '';
+    if (!(currentMode === 'edit' && user?.id && formData.productId && prev)) return false;
+
+    const affectedVariantOptionIds = getAffectedVariantOptionIds({ variantType: prev });
+    if (affectedVariantOptionIds.length === 0) return false;
+
+    try {
+      const res = await fetchGraphQL<{
+        variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }>;
+      }>(VARIANT_OPTION_USAGE_QUERY, {
+        userId: user.id,
+        productId: String(formData.productId),
+        variantNames: null,
+        variantOptionIds: affectedVariantOptionIds,
+      });
+      const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+      if (tied.length > 0) {
+        showRenameBlockedModal(tied);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const guardVariantOptionEditOnFocus = async (variantId: string, optionId: string): Promise<boolean> => {
+    const committedVariant = variants.find((v) => v.id === variantId);
+    const committedOpt = committedVariant?.options?.find((o) => o.id === optionId);
+    const prevName = committedOpt?.name ? String(committedOpt.name) : '';
+    const variantType = committedVariant?.variantType ? String(committedVariant.variantType) : '';
+
+    if (!(currentMode === 'edit' && user?.id && formData.productId && prevName && variantType)) return false;
+
+    const affectedVariantOptionIds = getAffectedVariantOptionIds({ variantType, optionName: prevName });
+    if (affectedVariantOptionIds.length === 0) return false;
+
+    try {
+      const res = await fetchGraphQL<{
+        variantOptionUsage: Array<{ variantName: string; orderItemCount: number; orderIds: string[] }>;
+      }>(VARIANT_OPTION_USAGE_QUERY, {
+        userId: user.id,
+        productId: String(formData.productId),
+        variantNames: null,
+        variantOptionIds: affectedVariantOptionIds,
+      });
+      const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
+      if (tied.length > 0) {
+        showRenameBlockedModal(tied);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   };
 
   // Validate numeric input (allows positive numbers, decimals, and empty string)
@@ -551,13 +984,19 @@ export default function ProductCatalog({
     }));
   };
 
+  const updateCombinationVariantValue = (combo: Combination, variantId: string, nextValue: string): Combination => {
+    return { ...combo, [`variant_${variantId}`]: nextValue };
+  };
+
   // Keep ref in sync with combinations state
   useEffect(() => {
     combinationsRef.current = combinations;
   }, [combinations]);
 
-  // Auto-generate combinations when variant options change
+  // Rebuild combinations only when user clicks Refresh (or initial load).
   useEffect(() => {
+    if (variationRefreshTick === 0) return;
+
     const validVariants = variants.filter(v => v.variantType && v.options.some(opt => opt.name));
     
     if (validVariants.length === 0) {
@@ -586,64 +1025,108 @@ export default function ProductCatalog({
     const optionArrays = validVariants.map(v => v.options.filter(opt => opt.name).map(opt => opt.name));
     const combinationsGenerated = cartesian(optionArrays);
     
-    // Create a map for existing combinations for efficient lookup
-    const existingCombinationsMap = new Map<string, Combination>();
-    combinationsRef.current.forEach(combo => {
-      const attributes: Record<string, string> = {};
-      validVariants.forEach(variant => {
-        const variantValue = combo[`variant_${variant.id}`];
-        if (typeof variantValue === 'string') {
-          attributes[variant.variantType] = variantValue;
-        }
+    // Preserve existing row inputs by keying combinations on stable variant ids + values
+    // (so renaming variantType doesn't reset the whole row).
+    const keyFor = (valsByVariantId: Record<string, string>, variantIds: string[]) =>
+      variantIds.map((id) => `${id}:${valsByVariantId[id] ?? 'None'}`).join('|');
+
+    const variantIdsInOrder = validVariants.map((v) => v.id);
+
+    const existingFullKeyMap = new Map<string, Combination>();
+    const existingPrefixKeyMap = new Map<string, Combination>();
+
+    combinationsRef.current.forEach((combo) => {
+      const valsByVariantId: Record<string, string> = {};
+      validVariants.forEach((variant) => {
+        const v = combo[`variant_${variant.id}`];
+        if (typeof v === 'string' && v.trim() !== '') valsByVariantId[variant.id] = v;
       });
-      const key = JSON.stringify(attributes); // Use attributes as a unique key
-      existingCombinationsMap.set(key, combo);
+
+      // Full key (missing values treated as "None")
+      existingFullKeyMap.set(keyFor(valsByVariantId, variantIdsInOrder), combo);
+
+      // Prefix keys allow preserving inputs when new variant dimensions are added later.
+      for (let len = variantIdsInOrder.length; len >= 1; len -= 1) {
+        const prefixIds = variantIdsInOrder.slice(0, len);
+        const prefixKey = keyFor(valsByVariantId, prefixIds);
+        if (!existingPrefixKeyMap.has(prefixKey)) existingPrefixKeyMap.set(prefixKey, combo);
+      }
     });
 
-    const newCombinations: Combination[] = combinationsGenerated.map((combinationValues, index) => {
-      const attributes: Record<string, string> = {};
-      validVariants.forEach((variant, idx) => {
-        attributes[variant.variantType] = combinationValues[idx];
-      });
-      const key = JSON.stringify(attributes);
+    const usedSourceIds = new Set<string>();
+    const makeStableId = (fullKey: string) => `combination-${fullKey}`;
 
-      let combinationData: Combination;
-      if (existingCombinationsMap.has(key)) {
-        // Preserve existing data for this combination
-        combinationData = existingCombinationsMap.get(key)!;
-        // Remove from map to track which ones are left (i.e., removed)
-        existingCombinationsMap.delete(key);
-      } else {
-        // Create a new combination with default values
-        combinationData = {
-          id: `combination-${Date.now()}-${index}`, // Ensure unique ID
-          sku: '',
-          purchasePrice: '',
-          sellingPrice: '',
-          moq: undefined,
-          stockQuantity: 0,
-          lowStockThreshold: 0,
-          stockStatus: 'In Stock' as const,
-          variantName: '' // Will be set below
-        };
+    const newCombinations: Combination[] = combinationsGenerated.map((combinationValues, index) => {
+      const valsByVariantId: Record<string, string> = {};
+      validVariants.forEach((variant, idx) => {
+        valsByVariantId[variant.id] = combinationValues[idx];
+      });
+
+      const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
+      const stableId = makeStableId(fullKey);
+
+      let combinationData: Combination | undefined = existingFullKeyMap.get(fullKey);
+      if (!combinationData) {
+        // Fallback: try to match prefix (helps when a new variant dimension is introduced)
+        for (let len = variantIdsInOrder.length - 1; len >= 1; len -= 1) {
+          const prefixIds = variantIdsInOrder.slice(0, len);
+          const prefixKey = keyFor(valsByVariantId, prefixIds);
+          const found = existingPrefixKeyMap.get(prefixKey);
+          if (found) {
+            combinationData = found;
+            break;
+          }
+        }
       }
+
+      // Always create a fresh object with a unique id.
+      // If we matched an existing combo, copy its editable fields; never reuse the same source twice.
+      const canCopyFromExisting =
+        combinationData && typeof combinationData.id === 'string' && !usedSourceIds.has(combinationData.id);
+      if (canCopyFromExisting && combinationData?.id) usedSourceIds.add(combinationData.id);
+
+      const base: Combination = canCopyFromExisting
+        ? {
+            id: stableId,
+            sku: combinationData!.sku ?? '',
+            purchasePrice: combinationData!.purchasePrice ?? '',
+            sellingPrice: combinationData!.sellingPrice ?? '',
+            originalSellingPrice: combinationData!.originalSellingPrice,
+            dbSellingPrice: combinationData!.dbSellingPrice,
+            moq: combinationData!.moq,
+            stockQuantity: combinationData!.stockQuantity ?? 0,
+            lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
+            stockStatus: (combinationData!.stockStatus ?? 'In Stock') as 'In Stock' | 'Low Stock' | 'Out of Stock',
+            variantName: '',
+          }
+        : {
+            id: stableId,
+            sku: '',
+            purchasePrice: '',
+            sellingPrice: '',
+            moq: undefined,
+            stockQuantity: 0,
+            lowStockThreshold: 0,
+            stockStatus: 'In Stock' as const,
+            variantName: '',
+          };
 
       // Set variant values (dynamic columns)
       validVariants.forEach((variant, idx) => {
-        combinationData[`variant_${variant.id}`] = combinationValues[idx];
+        base[`variant_${variant.id}`] = combinationValues[idx];
       });
 
       // Generate variant name
       const variantName = validVariants
         .map((v, idx) => `${v.variantType}: ${combinationValues[idx]}`)
         .join(' | ');
-      combinationData.variantName = variantName;
+      base.variantName = variantName;
 
-      return combinationData;
+      return base;
     });
     
     setCombinations(newCombinations);
-  }, [variants]);
+  }, [variationRefreshTick]);
 
 
   const handleImageUpload = async (files: FileList) => {
@@ -822,6 +1305,29 @@ export default function ProductCatalog({
         ...formData,
         status: status
       };
+
+      // Guardrail warning: removing variants can affect existing orders.
+      // Backend will archive (deactivate) ordered variants instead of deleting, but we still warn upfront.
+      if (currentMode === 'edit' && product?.variantOptions && product.variantOptions.length > 0) {
+        const previousNames = new Set(
+          product.variantOptions.map((vo) => (vo?.variantName ? String(vo.variantName) : '')).filter(Boolean),
+        );
+        const nextNames = new Set(
+          (combinations || []).map((c) => (c?.variantName ? String(c.variantName) : '')).filter(Boolean),
+        );
+        const removed = Array.from(previousNames).filter((name) => !nextNames.has(name));
+        if (removed.length > 0) {
+          const ok = window.confirm(
+            `You are removing ${removed.length} variant option(s).\n\n` +
+              `If any of these variants are referenced by existing orders, they will be archived (deactivated) instead of deleted to preserve order history.\n\n` +
+              `Continue?`,
+          );
+          if (!ok) {
+            setSaving(false);
+            return;
+          }
+        }
+      }
 
       // Generate product ID in LKP format if not exists
       if (!finalData.productId && currentMode === 'add') {
@@ -1109,7 +1615,10 @@ export default function ProductCatalog({
           savedProduct = data.updateProduct;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
-          alert(`Error updating product: ${errorMessage}`);
+          setVariantGuardModal({
+            title: 'Update blocked',
+            message: errorMessage,
+          });
           setSaving(false);
           return;
         }
@@ -2104,6 +2613,10 @@ export default function ProductCatalog({
                   Product Variants
                   <span className="text-xs text-gray-500 font-normal">(Define variants and options)</span>
                 </h2>
+                <p className="mt-2 text-xs text-gray-600">
+                  Please define a <span className="font-semibold">clear and complete</span> variant structure first.
+                  Avoid frequent changes unless required, because editing variants can impact existing variant lists and order integrity.
+                </p>
               </div>
 
             {/* Simplified Variants Input */}
@@ -2118,8 +2631,20 @@ export default function ProductCatalog({
                         </label>
                         <input
                           type="text"
-                          value={variant.variantType}
+                          value={(variantDrafts.find((v) => v.id === variant.id)?.variantType ?? variant.variantType) as string}
                           onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
+                          onFocus={(e) => {
+                            guardVariantTypeEditOnFocus(variant.id).then((blocked) => {
+                              if (blocked) (e.target as HTMLInputElement).blur();
+                            });
+                          }}
+                          onBlur={() => commitVariantTypeRename(variant.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              commitVariantTypeRename(variant.id);
+                            }
+                          }}
                           disabled={isViewMode || isOfferConnected}
                           className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
                           placeholder="e.g., Color, Size, Flavor"
@@ -2185,8 +2710,24 @@ export default function ProductCatalog({
                         <div key={option.id} className="flex items-center gap-1">
                         <input
                           type="text"
-                            value={option.name}
+                            value={
+                              (variantDrafts
+                                .find((v) => v.id === variant.id)
+                                ?.options.find((o) => o.id === option.id)?.name ?? option.name) as string
+                            }
                             onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
+                            onFocus={(e) => {
+                              guardVariantOptionEditOnFocus(variant.id, option.id).then((blocked) => {
+                                if (blocked) (e.target as HTMLInputElement).blur();
+                              });
+                            }}
+                            onBlur={() => commitVariantOptionRename(variant.id, option.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                commitVariantOptionRename(variant.id, option.id);
+                              }
+                            }}
                           disabled={isViewMode || isOfferConnected}
                             className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                             placeholder="e.g., White"
@@ -2243,10 +2784,27 @@ export default function ProductCatalog({
                 </div>
               )}
               <div className="mb-4">
-                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                  <Package className="w-5 h-5 text-gray-500" />
-                  Variation Lists
-                </h2>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-gray-500" />
+                    Variation Lists
+                  </h2>
+                  {!isViewMode && (
+                    <button
+                      type="button"
+                      disabled={isOfferConnected}
+                      onClick={() => setVariationRefreshTick((v) => v + 1)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Refresh variation table"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Refresh
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-600">
+                  Fill this table carefully. If you need to change variants later, create new variants instead of renaming/deleting ones that were used in past orders.
+                </p>
               </div>
 
               {/* Apply To All Section */}
@@ -2609,6 +3167,64 @@ export default function ProductCatalog({
             <div>
               <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
               <p className="text-xs text-white/90">Product has been updated successfully.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Variant guard modal (no browser confirm) */}
+      {variantGuardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="p-4">
+              <h3 className="text-md font-semibold text-gray-900">{variantGuardModal.title}</h3>
+              {variantGuardModal.intro && (
+                <p className="mt-2 text-xs text-gray-700">{variantGuardModal.intro}</p>
+              )}
+
+              {Array.isArray(variantGuardModal.items) && variantGuardModal.items.length > 0 && (
+                <ul className="mt-3 space-y-2 text-xs text-gray-700">
+                  {variantGuardModal.items.map((it) => (
+                    <li key={it.variantName} className="leading-5">
+                      <div className="font-medium">
+                        - {it.variantName} ({it.orderItemCount})
+                      </div>
+                      {Array.isArray(it.orderIds) && it.orderIds.length > 0 && (
+                        <div className="mt-1 text-xs text-gray-600">
+                          Orders:{' '}
+                          {it.orderIds!.map((oid, idx) => (
+                            <React.Fragment key={oid}>
+                              <a
+                                href={`/orders/details/${encodeURIComponent(oid)}`}
+                                className="text-[#0a61d7] hover:underline"
+                              >
+                                {oid}
+                              </a>
+                              {idx < it.orderIds!.length - 1 ? ', ' : ''}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {variantGuardModal.message && (
+                <p className="mt-3 text-xs text-gray-700 whitespace-pre-line">{variantGuardModal.message}</p>
+              )}
+              {variantGuardModal.footer && (
+                <p className="mt-3 text-xs text-gray-700 whitespace-pre-line">{variantGuardModal.footer}</p>
+              )}
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVariantGuardModal(null)}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#0a61d7] text-white hover:bg-[#0851b8] focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/40"
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
         </div>

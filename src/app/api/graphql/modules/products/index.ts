@@ -170,6 +170,12 @@ export const productsTypeDefs = /* GraphQL */ `
     message: String!
   }
 
+  type VariantOptionUsage {
+    variantName: String!
+    orderItemCount: Int!
+    orderIds: [String!]!
+  }
+
   extend type Query {
     products(
       userId: Int!
@@ -181,6 +187,13 @@ export const productsTypeDefs = /* GraphQL */ `
     ): ProductConnection!
 
     product(userId: Int!, id: String!): Product
+
+    variantOptionUsage(
+      userId: Int!
+      productId: String!
+      variantNames: [String!]
+      variantOptionIds: [Int!]
+    ): [VariantOptionUsage!]!
 
     marketplaceProducts(
       page: Int = 1
@@ -1259,32 +1272,84 @@ export const updateProduct = async (args: {
       const payload = createVariantOptionsPayload(variantOptions, currency ?? undefined);
       const keepNames = payload.map((p) => p.variantName);
 
+      // Map existing VariantOptions by variantName so we can apply guardrails.
+      const existingVariantOptions = await tx.variantOption.findMany({
+        where: { productId: updated.id },
+        select: {
+          id: true,
+          variantName: true,
+          attributes: true,
+          sku: true,
+        },
+      });
+      const existingByName = new Map(existingVariantOptions.map((vo) => [vo.variantName, vo]));
+
       await Promise.all(
         payload.map((p) =>
-          tx.variantOption.upsert({
-            where: {
-              productId_variantName: {
-                productId: updated.id,
-                variantName: p.variantName,
+          (async () => {
+            const existing = existingByName.get(p.variantName);
+
+            // If this VariantOption has ever been ordered, block any identity mutation to preserve integrity.
+            const hasOrderHistory = existing
+              ? (await tx.orderItem.count({ where: { variantOptionId: existing.id } })) > 0
+              : false;
+
+            if (hasOrderHistory && existing) {
+              const nextAttrs = p.attributes ?? null;
+              const prevAttrs = existing.attributes ?? null;
+              const attrsChanged = JSON.stringify(prevAttrs) !== JSON.stringify(nextAttrs);
+              const skuChanged = (existing.sku ?? null) !== (p.sku ?? null);
+              if (attrsChanged || skuChanged) {
+                throw new Error(
+                  `This variant is used in past orders. Create a new variant to continue selling.`,
+                );
+              }
+            }
+
+            return tx.variantOption.upsert({
+              where: {
+                productId_variantName: {
+                  productId: updated.id,
+                  variantName: p.variantName,
+                },
               },
-            },
-            update: {
-              ...p,
-            },
-            create: {
-              ...p,
-              productId: updated.id,
-            },
-          }),
+              update: {
+                ...p,
+              },
+              create: {
+                ...p,
+                productId: updated.id,
+              },
+            });
+          })(),
         ),
       );
 
-      await tx.variantOption.deleteMany({
-        where: {
-          productId: updated.id,
-          variantName: { notIn: keepNames },
-        },
+      // Guardrail: block deletion of VariantOptions referenced by orders.
+      const removed = await tx.variantOption.findMany({
+        where: { productId: updated.id, variantName: { notIn: keepNames } },
+        select: { id: true, variantName: true },
       });
+
+      const removableIds: number[] = [];
+      for (const vo of removed) {
+        const usedCount = await tx.orderItem.count({ where: { variantOptionId: vo.id } });
+        if (usedCount > 0) {
+          throw new Error(
+            `This variant is used in past orders. Create a new variant to continue selling.`,
+          );
+        } else {
+          removableIds.push(vo.id);
+        }
+      }
+
+      if (removableIds.length > 0) {
+        await tx.variantOption.deleteMany({
+          where: {
+            id: { in: removableIds },
+          },
+        });
+      }
     }
 
     return updated;
@@ -1841,6 +1906,61 @@ export const productsResolvers = {
     products: (_: unknown, args: Parameters<typeof fetchProductsConnection>[0]) =>
       fetchProductsConnection(args),
     product: (_: unknown, args: Parameters<typeof fetchSingleProduct>[0]) => fetchSingleProduct(args),
+    variantOptionUsage: async (
+      _: unknown,
+      args: { userId: number; productId: string; variantNames?: string[] | null; variantOptionIds?: number[] | null },
+    ) => {
+      const { userId, productId } = args;
+      const variantNames = Array.isArray(args.variantNames) ? args.variantNames.filter(Boolean).map(String) : [];
+      const variantOptionIds = Array.isArray(args.variantOptionIds)
+        ? args.variantOptionIds.filter((n) => typeof n === 'number' && Number.isFinite(n))
+        : [];
+
+      if (variantNames.length === 0 && variantOptionIds.length === 0) return [];
+
+      const product = await prisma.product.findFirst({
+        where: { userId, productId: String(productId) },
+        select: { id: true },
+      });
+      if (!product) {
+        throw new Error('Product not found or you do not have permission to view it');
+      }
+
+      const options = await prisma.variantOption.findMany({
+        where: {
+          productId: product.id,
+          ...(variantOptionIds.length > 0 ? { id: { in: variantOptionIds } } : {}),
+          ...(variantOptionIds.length === 0 && variantNames.length > 0 ? { variantName: { in: variantNames } } : {}),
+        },
+        select: { id: true, variantName: true },
+      });
+
+      if (options.length === 0) return [];
+
+      const optionIdToName = new Map(options.map((o) => [o.id, o.variantName]));
+      const orderItems = await prisma.orderItem.findMany({
+        where: { variantOptionId: { in: options.map((o) => o.id) } },
+        select: { orderId: true, variantOptionId: true },
+      });
+
+      const byOptionId = new Map<number, { orderItemCount: number; orderIds: Set<string> }>();
+      for (const oi of orderItems) {
+        if (!oi.variantOptionId) continue;
+        const entry = byOptionId.get(oi.variantOptionId) ?? { orderItemCount: 0, orderIds: new Set<string>() };
+        entry.orderItemCount += 1;
+        entry.orderIds.add(oi.orderId);
+        byOptionId.set(oi.variantOptionId, entry);
+      }
+
+      return options.map((opt) => {
+        const entry = byOptionId.get(opt.id);
+        return {
+          variantName: optionIdToName.get(opt.id) ?? opt.variantName,
+          orderItemCount: entry?.orderItemCount ?? 0,
+          orderIds: entry ? Array.from(entry.orderIds).sort() : [],
+        };
+      });
+    },
     marketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProductsConnection>[0]) =>
       fetchMarketplaceProductsConnection(args),
   },
