@@ -787,7 +787,7 @@ export default function AdminAnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             </CardShell>
-          </div>
+      </div>
 
           <CardShell
             title="Average session length"
@@ -930,7 +930,7 @@ export default function AdminAnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             </CardShell>
-          </div>
+      </div>
         </>
       )}
     </div>

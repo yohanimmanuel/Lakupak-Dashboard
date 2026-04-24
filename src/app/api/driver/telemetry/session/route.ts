@@ -31,6 +31,8 @@ function verifyDriverToken(req: NextRequest): { sub: number; type: string } | nu
 type Body = { startedAt: string; endedAt: string; durationSec: number };
 
 const MERGE_GAP_SEC = 90;
+/** Serializes merge/create per driver (see pg_advisory_xact_lock in POST). */
+const SESSION_MERGE_ADVISORY_KEY1 = 872_003;
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -62,59 +64,68 @@ export async function POST(req: NextRequest) {
   }
 
   const safeDuration = Math.min(Math.floor(durationSec), 6 * 60 * 60);
+  const CAP_SEC = 6 * 60 * 60;
 
   try {
-    const p = prisma as unknown as {
-      appSessionSample: {
-        findFirst: (args: {
-          where: { app: 'DRIVER'; actorType: 'DRIVER'; actorId: number };
-          orderBy: { endedAt: 'desc' };
-          select: { id: true; startedAt: true; endedAt: true; durationSec: true };
-        }) => Promise<{ id: string; startedAt: Date; endedAt: Date; durationSec: number } | null>;
-        create: (args: {
-          data: {
-            app: 'DRIVER';
-            actorType: 'DRIVER';
-            actorId: number;
-            startedAt: Date;
-            endedAt: Date;
-            durationSec: number;
-          };
-        }) => Promise<unknown>;
-        update: (args: { where: { id: string }; data: { endedAt: Date; durationSec: number } }) => Promise<unknown>;
-      };
+    type SessionDelegate = {
+      create: (args: {
+        data: {
+          app: 'DRIVER';
+          actorType: 'DRIVER';
+          actorId: number;
+          startedAt: Date;
+          endedAt: Date;
+          durationSec: number;
+        };
+      }) => Promise<unknown>;
+      update: (args: { where: { id: string }; data: { endedAt: Date; durationSec: number } }) => Promise<unknown>;
     };
 
-    const last = await p.appSessionSample.findFirst({
-      where: { app: 'DRIVER', actorType: 'DRIVER', actorId: payload.sub },
-      orderBy: { endedAt: 'desc' },
-      select: { id: true, startedAt: true, endedAt: true, durationSec: true },
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SESSION_MERGE_ADVISORY_KEY1}, ${payload.sub})`;
+
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; startedAt: Date; endedAt: Date; durationSec: number }>
+      >`
+        SELECT s."id", s."startedAt", s."endedAt", s."durationSec"
+        FROM "AppSessionSample" s
+        WHERE s."app" = 'DRIVER'::"AppName"
+          AND s."actorType" = 'DRIVER'::"AppActorType"
+          AND s."actorId" = ${payload.sub}
+        ORDER BY s."endedAt" DESC
+        LIMIT 1
+        FOR UPDATE
+      `;
+
+      const last = locked[0] ?? null;
+      const gapSec = last ? Math.floor((startedAt.getTime() - last.endedAt.getTime()) / 1000) : null;
+
+      const p = tx as unknown as { appSessionSample: SessionDelegate };
+
+      if (last && gapSec !== null && gapSec >= -MERGE_GAP_SEC && gapSec <= MERGE_GAP_SEC) {
+        const mergedEndedAt = new Date(Math.max(last.endedAt.getTime(), endedAt.getTime()));
+        const spanFromStartSec = Math.max(
+          0,
+          Math.floor((mergedEndedAt.getTime() - last.startedAt.getTime()) / 1000)
+        );
+        const mergedDurationSec = Math.min(Math.max(spanFromStartSec, last.durationSec + safeDuration), CAP_SEC);
+        await p.appSessionSample.update({
+          where: { id: last.id },
+          data: { endedAt: mergedEndedAt, durationSec: mergedDurationSec },
+        });
+      } else {
+        await p.appSessionSample.create({
+          data: {
+            app: 'DRIVER',
+            actorType: 'DRIVER',
+            actorId: payload.sub,
+            startedAt,
+            endedAt,
+            durationSec: safeDuration,
+          },
+        });
+      }
     });
-    const gapSec = last ? Math.floor((startedAt.getTime() - last.endedAt.getTime()) / 1000) : null;
-    if (last && gapSec !== null && gapSec >= 0 && gapSec <= MERGE_GAP_SEC) {
-      const CAP_SEC = 6 * 60 * 60;
-      const mergedEndedAt = new Date(Math.max(last.endedAt.getTime(), endedAt.getTime()));
-      const spanFromStartSec = Math.max(
-        0,
-        Math.floor((mergedEndedAt.getTime() - last.startedAt.getTime()) / 1000)
-      );
-      const mergedDurationSec = Math.min(Math.max(spanFromStartSec, last.durationSec + safeDuration), CAP_SEC);
-      await p.appSessionSample.update({
-        where: { id: last.id },
-        data: { endedAt: mergedEndedAt, durationSec: mergedDurationSec },
-      });
-    } else {
-      await p.appSessionSample.create({
-        data: {
-          app: 'DRIVER',
-          actorType: 'DRIVER',
-          actorId: payload.sub,
-          startedAt,
-          endedAt,
-          durationSec: safeDuration,
-        },
-      });
-    }
 
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch {

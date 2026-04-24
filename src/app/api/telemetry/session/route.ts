@@ -10,6 +10,8 @@ type Body = {
 };
 
 const MERGE_GAP_SEC = 90;
+/** Serializes merge/create per dashboard user (see pg_advisory_xact_lock in POST). */
+const SESSION_MERGE_ADVISORY_KEY1 = 872_002;
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -39,62 +41,68 @@ export async function POST(req: NextRequest) {
 
     // Guardrails: ignore pathological values (e.g. stuck tab).
     const safeDuration = Math.min(Math.floor(durationSec), 6 * 60 * 60); // cap at 6h
+    const CAP_SEC = 6 * 60 * 60;
 
-    const p = prisma as unknown as {
-      appSessionSample: {
-        findFirst: (args: {
-          where: { app: 'DASHBOARD'; actorType: 'DASHBOARD_USER'; actorId: number };
-          orderBy: { endedAt: 'desc' };
-          select: { id: true; startedAt: true; endedAt: true; durationSec: true };
-        }) => Promise<{ id: string; startedAt: Date; endedAt: Date; durationSec: number } | null>;
-        create: (args: {
-          data: {
-            app: 'DASHBOARD';
-            actorType: 'DASHBOARD_USER';
-            actorId: number;
-            startedAt: Date;
-            endedAt: Date;
-            durationSec: number;
-          };
-        }) => Promise<unknown>;
-        update: (args: {
-          where: { id: string };
-          data: { endedAt: Date; durationSec: number };
-        }) => Promise<unknown>;
-      };
+    type SessionDelegate = {
+      create: (args: {
+        data: {
+          app: 'DASHBOARD';
+          actorType: 'DASHBOARD_USER';
+          actorId: number;
+          startedAt: Date;
+          endedAt: Date;
+          durationSec: number;
+        };
+      }) => Promise<unknown>;
+      update: (args: { where: { id: string }; data: { endedAt: Date; durationSec: number } }) => Promise<unknown>;
     };
 
-    const last = await p.appSessionSample.findFirst({
-      where: { app: 'DASHBOARD', actorType: 'DASHBOARD_USER', actorId: userId },
-      orderBy: { endedAt: 'desc' },
-      select: { id: true, startedAt: true, endedAt: true, durationSec: true },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SESSION_MERGE_ADVISORY_KEY1}, ${userId})`;
 
-    const gapSec = last ? Math.floor((startedAt.getTime() - last.endedAt.getTime()) / 1000) : null;
-    if (last && gapSec !== null && gapSec >= 0 && gapSec <= MERGE_GAP_SEC) {
-      const CAP_SEC = 6 * 60 * 60;
-      const mergedEndedAt = new Date(Math.max(last.endedAt.getTime(), endedAt.getTime()));
-      const spanFromStartSec = Math.max(
-        0,
-        Math.floor((mergedEndedAt.getTime() - last.startedAt.getTime()) / 1000)
-      );
-      const mergedDurationSec = Math.min(Math.max(spanFromStartSec, last.durationSec + safeDuration), CAP_SEC);
-      await p.appSessionSample.update({
-        where: { id: last.id },
-        data: { endedAt: mergedEndedAt, durationSec: mergedDurationSec },
-      });
-    } else {
-      await p.appSessionSample.create({
-        data: {
-          app: 'DASHBOARD',
-          actorType: 'DASHBOARD_USER',
-          actorId: userId,
-          startedAt,
-          endedAt,
-          durationSec: safeDuration,
-        },
-      });
-    }
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; startedAt: Date; endedAt: Date; durationSec: number }>
+      >`
+        SELECT s."id", s."startedAt", s."endedAt", s."durationSec"
+        FROM "AppSessionSample" s
+        WHERE s."app" = 'DASHBOARD'::"AppName"
+          AND s."actorType" = 'DASHBOARD_USER'::"AppActorType"
+          AND s."actorId" = ${userId}
+        ORDER BY s."endedAt" DESC
+        LIMIT 1
+        FOR UPDATE
+      `;
+
+      const last = locked[0] ?? null;
+      const gapSec = last ? Math.floor((startedAt.getTime() - last.endedAt.getTime()) / 1000) : null;
+
+      const p = tx as unknown as { appSessionSample: SessionDelegate };
+
+      // Allow minor overlaps (negative gap) so concurrent / delayed sends still merge into one row.
+      if (last && gapSec !== null && gapSec >= -MERGE_GAP_SEC && gapSec <= MERGE_GAP_SEC) {
+        const mergedEndedAt = new Date(Math.max(last.endedAt.getTime(), endedAt.getTime()));
+        const spanFromStartSec = Math.max(
+          0,
+          Math.floor((mergedEndedAt.getTime() - last.startedAt.getTime()) / 1000)
+        );
+        const mergedDurationSec = Math.min(Math.max(spanFromStartSec, last.durationSec + safeDuration), CAP_SEC);
+        await p.appSessionSample.update({
+          where: { id: last.id },
+          data: { endedAt: mergedEndedAt, durationSec: mergedDurationSec },
+        });
+      } else {
+        await p.appSessionSample.create({
+          data: {
+            app: 'DASHBOARD',
+            actorType: 'DASHBOARD_USER',
+            actorId: userId,
+            startedAt,
+            endedAt,
+            durationSec: safeDuration,
+          },
+        });
+      }
+    });
 
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch {
