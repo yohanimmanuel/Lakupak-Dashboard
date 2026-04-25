@@ -1,14 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
+import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { broadcastProductUpdate, broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readOptionalTrimmedString(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return undefined;
+  return value.trim();
+}
+
+function readOptionalTrimmedStringOrNull(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
   
   try {
+    const authenticatedUserId = await getAuthenticatedUserId(req);
+    if (!authenticatedUserId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401, headers }
+      );
+    }
+
     // Parse and validate request body
-    let body;
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
@@ -17,6 +44,15 @@ export async function PUT(req: NextRequest) {
         { status: 400, headers }
       );
     }
+
+    if (!isPlainObject(body)) {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400, headers }
+      );
+    }
+
+    const bodyRecord = body;
     
     const { 
       companyId, 
@@ -39,19 +75,49 @@ export async function PUT(req: NextRequest) {
       pickupAddress,
       defaultDeliveryLeadTimeMinDays,
       defaultDeliveryLeadTimeMaxDays,
-    } = body;
-    
+      billingBankName,
+      billingBankAccountName,
+      billingBankAccountNumber,
+      billingCompanyName,
+      billingAddressLine1,
+      billingCity,
+      billingState,
+      billingPostalCode,
+      billingCountry,
+      billingContactPhone,
+      billingContactEmail,
+    } = bodyRecord;
+
+    const companyIdParsed =
+      typeof companyId === 'number' && Number.isInteger(companyId) && companyId > 0
+        ? companyId
+        : typeof companyId === 'string' && /^\d+$/.test(companyId)
+          ? (() => { const n = parseInt(companyId, 10); return n > 0 ? n : null; })()
+          : null;
+
     // Validate companyId
-    if (!companyId || typeof companyId !== 'number') {
+    if (companyIdParsed === null) {
       return NextResponse.json(
         { error: 'Valid company ID is required' }, 
         { status: 400, headers }
       );
     }
+
+    const owningUser = await prisma.user.findUnique({
+      where: { id: authenticatedUserId },
+      select: { companyId: true },
+    });
+
+    if (!owningUser?.companyId || owningUser.companyId !== companyIdParsed) {
+      return NextResponse.json(
+        { error: 'You can only update your own company profile' },
+        { status: 403, headers }
+      );
+    }
     
     // Check if company exists
     const existingCompany = await prisma.company.findUnique({
-      where: { id: companyId }
+      where: { id: companyIdParsed }
     });
     
     if (!existingCompany) {
@@ -62,12 +128,12 @@ export async function PUT(req: NextRequest) {
     }
     
     // Check for email conflicts if business email is being updated
-    if (businessEmail && businessEmail !== existingCompany.businessEmail) {
+    if (typeof businessEmail === 'string' && businessEmail && businessEmail !== existingCompany.businessEmail) {
       const normalizedEmail = businessEmail.trim().toLowerCase();
       const emailExists = await prisma.company.findFirst({
         where: { 
           businessEmail: normalizedEmail,
-          id: { not: companyId }
+          id: { not: companyIdParsed }
         }
       });
       
@@ -83,23 +149,49 @@ export async function PUT(req: NextRequest) {
     // Update company data
     const updateData: Record<string, unknown> = {};
     
-    if (name !== undefined) updateData.name = name.trim();
-    if (businessRegistrationNumber !== undefined) updateData.businessRegistrationNumber = businessRegistrationNumber?.trim() || null;
-    if (taxId !== undefined) updateData.taxId = taxId?.trim() || null;
-    if (logo !== undefined) updateData.logo = logo?.trim() || null;
-    if (bannerImage !== undefined) updateData.bannerImage = bannerImage?.trim() || null;
-    if (industryType !== undefined) updateData.industryType = industryType?.trim() || null;
-    if (businessDescription !== undefined) updateData.businessDescription = businessDescription?.trim() || null;
-    if (yearsInOperation !== undefined) updateData.yearsInOperation = yearsInOperation?.trim() || null;
-    if (companySize !== undefined) updateData.companySize = companySize?.trim() || null;
-    if (businessAddress !== undefined) updateData.businessAddress = businessAddress?.trim() || null;
-    if (businessPhone !== undefined) updateData.businessPhone = businessPhone?.trim() || null;
-    if (businessEmail !== undefined) updateData.businessEmail = businessEmail?.trim().toLowerCase() || null;
+    if (name !== undefined) {
+      const n = readOptionalTrimmedString(name);
+      if (n === undefined) {
+        return NextResponse.json({ error: 'Company name must be a string' }, { status: 400, headers });
+      }
+      updateData.name = n;
+    }
+    if (businessRegistrationNumber !== undefined) {
+      updateData.businessRegistrationNumber = readOptionalTrimmedStringOrNull(businessRegistrationNumber) ?? null;
+    }
+    if (taxId !== undefined) updateData.taxId = readOptionalTrimmedStringOrNull(taxId) ?? null;
+    if (logo !== undefined) updateData.logo = readOptionalTrimmedStringOrNull(logo) ?? null;
+    if (bannerImage !== undefined) updateData.bannerImage = readOptionalTrimmedStringOrNull(bannerImage) ?? null;
+    if (industryType !== undefined) updateData.industryType = readOptionalTrimmedStringOrNull(industryType) ?? null;
+    if (businessDescription !== undefined) updateData.businessDescription = readOptionalTrimmedStringOrNull(businessDescription) ?? null;
+    if (yearsInOperation !== undefined) updateData.yearsInOperation = readOptionalTrimmedStringOrNull(yearsInOperation) ?? null;
+    if (companySize !== undefined) updateData.companySize = readOptionalTrimmedStringOrNull(companySize) ?? null;
+    if (businessAddress !== undefined) updateData.businessAddress = readOptionalTrimmedStringOrNull(businessAddress) ?? null;
+    if (businessPhone !== undefined) updateData.businessPhone = readOptionalTrimmedStringOrNull(businessPhone) ?? null;
+    if (businessEmail !== undefined) {
+      const e = readOptionalTrimmedStringOrNull(businessEmail);
+      updateData.businessEmail = e ? e.toLowerCase() : e;
+    }
     if (shippingPreferences !== undefined) updateData.shippingPreferences = Array.isArray(shippingPreferences) ? JSON.stringify(shippingPreferences) : shippingPreferences;
     if (deliveryTimeSlots !== undefined) updateData.deliveryTimeSlots = Array.isArray(deliveryTimeSlots) ? JSON.stringify(deliveryTimeSlots) : deliveryTimeSlots;
     if (preferredDeliveryDays !== undefined) updateData.preferredDeliveryDays = Array.isArray(preferredDeliveryDays) ? JSON.stringify(preferredDeliveryDays) : preferredDeliveryDays;
-    if (specialInstructions !== undefined) updateData.specialInstructions = specialInstructions?.trim() || null;
-    if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress?.trim() || null;
+    if (specialInstructions !== undefined) updateData.specialInstructions = readOptionalTrimmedStringOrNull(specialInstructions) ?? null;
+    if (pickupAddress !== undefined) updateData.pickupAddress = readOptionalTrimmedStringOrNull(pickupAddress) ?? null;
+    if (billingBankName !== undefined) updateData.billingBankName = readOptionalTrimmedStringOrNull(billingBankName) ?? null;
+    if (billingBankAccountName !== undefined) updateData.billingBankAccountName = readOptionalTrimmedStringOrNull(billingBankAccountName) ?? null;
+    if (billingBankAccountNumber !== undefined) updateData.billingBankAccountNumber = readOptionalTrimmedStringOrNull(billingBankAccountNumber) ?? null;
+
+    if (billingCompanyName !== undefined) updateData.billingCompanyName = readOptionalTrimmedStringOrNull(billingCompanyName) ?? null;
+    if (billingAddressLine1 !== undefined) updateData.billingAddressLine1 = readOptionalTrimmedStringOrNull(billingAddressLine1) ?? null;
+    if (billingCity !== undefined) updateData.billingCity = readOptionalTrimmedStringOrNull(billingCity) ?? null;
+    if (billingState !== undefined) updateData.billingState = readOptionalTrimmedStringOrNull(billingState) ?? null;
+    if (billingPostalCode !== undefined) updateData.billingPostalCode = readOptionalTrimmedStringOrNull(billingPostalCode) ?? null;
+    if (billingCountry !== undefined) updateData.billingCountry = readOptionalTrimmedStringOrNull(billingCountry) ?? null;
+    if (billingContactPhone !== undefined) updateData.billingContactPhone = readOptionalTrimmedStringOrNull(billingContactPhone) ?? null;
+    if (billingContactEmail !== undefined) {
+      const be = readOptionalTrimmedStringOrNull(billingContactEmail);
+      updateData.billingContactEmail = be ? be.toLowerCase() : be;
+    }
 
     const parseDays = (val: unknown): number | null => {
       const n = val === null || val === '' ? null : Number(val);
@@ -124,7 +216,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const updatedCompany = await prisma.company.update({
-      where: { id: companyId },
+      where: { id: companyIdParsed },
       data: updateData
     });
     
@@ -143,11 +235,22 @@ export async function PUT(req: NextRequest) {
       bannerImage !== undefined ||
       businessAddress !== undefined ||
       businessPhone !== undefined ||
-      businessEmail !== undefined;
+      businessEmail !== undefined ||
+      billingBankName !== undefined ||
+      billingBankAccountName !== undefined ||
+      billingBankAccountNumber !== undefined ||
+      billingCompanyName !== undefined ||
+      billingAddressLine1 !== undefined ||
+      billingCity !== undefined ||
+      billingState !== undefined ||
+      billingPostalCode !== undefined ||
+      billingCountry !== undefined ||
+      billingContactPhone !== undefined ||
+      billingContactEmail !== undefined;
     
     // Get company users for broadcasting updates
     const companyUsers = await prisma.user.findMany({
-      where: { companyId: companyId },
+      where: { companyId: companyIdParsed },
       select: { id: true }
     });
     

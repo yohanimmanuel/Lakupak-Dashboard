@@ -51,8 +51,7 @@ export async function GET(
     const company = user.company;
     const displayName = company?.name || user.name || `Distributor #${user.id}`;
 
-    const p = prisma as unknown as typeof prisma & { distributorFollowing: typeof prisma.userActivity };
-    const followersCount = await p.distributorFollowing.count({ where: { distributorId: user.id } });
+    const followersCount = await prisma.distributorFollowing.count({ where: { distributorId: user.id } });
 
     const parseJsonArray = (s: string | null | undefined): string[] => {
       if (!s || typeof s !== 'string') return [];

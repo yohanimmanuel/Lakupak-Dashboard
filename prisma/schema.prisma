@@ -62,6 +62,19 @@ model Company {
   businessAddress             String?
   businessPhone               String?
   businessEmail               String?
+  /// Bank account used for buyer manual transfers and future billing/commission charges.
+  billingBankName             String?
+  billingBankAccountName      String?
+  billingBankAccountNumber    String?
+  /// Billing / invoice address (may differ from business or pickup address).
+  billingCompanyName     String?
+  billingAddressLine1    String?
+  billingCity            String?
+  billingState           String?
+  billingPostalCode      String?
+  billingCountry         String?
+  billingContactPhone    String?
+  billingContactEmail    String?
   documentVerification        Boolean  @default(false)
   businessLicenseVerification Boolean  @default(false)
   complianceStatus            String   @default("Pending")
@@ -76,6 +89,43 @@ model Company {
   defaultDeliveryLeadTimeMinDays Int?
   defaultDeliveryLeadTimeMaxDays Int?
   users                       User[]
+  paymentMethods              CompanyPaymentMethod[]
+}
+
+enum CompanyPaymentMethodKind {
+  CARD
+  BANK_TRANSFER
+  EWALLET
+}
+
+enum CompanyPaymentMethodStatus {
+  ACTIVE
+  EXPIRED
+  PENDING
+}
+
+/// Saved payment methods for a distributor company (cards, bank debit accounts, e-wallets).
+model CompanyPaymentMethod {
+  id                 String                     @id @default(cuid())
+  companyId          Int
+  kind               CompanyPaymentMethodKind
+  label              String
+  last4              String?
+  expiryMonth        Int?
+  expiryYear         Int?
+  bankName           String?
+  accountHolderName  String?
+  accountNumberLast4 String?
+  ewalletProvider    String?
+  isDefault          Boolean                    @default(false)
+  status             CompanyPaymentMethodStatus @default(ACTIVE)
+  createdAt          DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime                   @updatedAt @db.Timestamptz(3)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, isDefault])
 }
 
 model Buyer {

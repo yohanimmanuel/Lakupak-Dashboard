@@ -985,6 +985,29 @@ export async function cartOperationRateLimiter(
 }
 
 /**
+ * Marketplace: Checkout seller bank lookup - strict to prevent enumeration
+ * 30 per minute per buyer+seller+ip, with burst protection and progressive penalty.
+ */
+export async function checkoutSellerBankRateLimiter(
+  req: NextRequest,
+  marketplaceUserId: number,
+  sellerUserId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `checkout-seller-bank:${marketplaceUserId}:${sellerUserId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    message: 'Too many bank detail lookups. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 6,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
  * Marketplace: User activity tracking - 100 per minute per user
  */
 export async function userActivityRateLimiter(

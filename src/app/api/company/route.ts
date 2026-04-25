@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         },
       },
       select: {
+        id: true,
         name: true,
         logo: true,
         bannerImage: true,
@@ -59,6 +60,17 @@ export async function GET(request: NextRequest) {
         businessPhone: true,
         businessEmail: true,
         pickupAddress: true,
+        billingBankName: true,
+        billingBankAccountName: true,
+        billingBankAccountNumber: true,
+        billingCompanyName: true,
+        billingAddressLine1: true,
+        billingCity: true,
+        billingState: true,
+        billingPostalCode: true,
+        billingCountry: true,
+        billingContactPhone: true,
+        billingContactEmail: true,
       },
     });
 

@@ -38,6 +38,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
+  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeliveryMethodDropdown, setShowDeliveryMethodDropdown] = useState(false);
   const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
@@ -208,6 +210,28 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       default: return 'bg-gray-100 text-gray-800 font-semibold';
     }
   };
+
+  const PAYMENT_STATUS_OPTIONS: Array<Order['paymentStatus']> = ['Unpaid', 'Paid'];
+
+  const paymentMethodLabel = (() => {
+    const raw = (order.paymentTerms || '').trim();
+    if (!raw) return 'Payment';
+    if (raw.toLowerCase().includes('cash')) return 'COD';
+    if (raw.toLowerCase().includes('cod')) return 'COD';
+    if (raw.toLowerCase().includes('bank')) return 'BANK';
+    if (raw.toLowerCase().includes('transfer')) return 'BANK';
+    return raw;
+  })();
+
+  const paymentMethodSubtitle = (() => {
+    const raw = (order.paymentTerms || '').trim();
+    if (!raw) return 'Method';
+    if (raw.toLowerCase().includes('cash')) return 'Cash on Delivery';
+    if (raw.toLowerCase().includes('cod')) return 'Cash on Delivery';
+    if (raw.toLowerCase().includes('bank')) return 'Transfer';
+    if (raw.toLowerCase().includes('transfer')) return 'Transfer';
+    return raw;
+  })();
 
   const calculateSubtotal = () => calculateOrderSubtotal(order);
   const calculateTotalAmount = () => calculateOrderTotalAmount(order);
@@ -433,10 +457,51 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               )}
             </div>
             
-            {/* Payment Status (Read-only, managed by mobile app) */}
-            <button className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getPaymentStatusColor(order.paymentStatus)}`}>
-              {order.paymentStatus}
-            </button>
+            {/* Payment Status (manual) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowPaymentDropdown((v) => !v)}
+                className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)}`}
+              >
+                {paymentStatus}
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {showPaymentDropdown && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+                  {PAYMENT_STATUS_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/orders', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              orderId: order.orderId,
+                              paymentStatus: status,
+                              ...(user?.id ? { userId: user.id } : {}),
+                            }),
+                          });
+                          if (!response.ok) return;
+                          setPaymentStatus(status);
+                          setShowPaymentDropdown(false);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg ${
+                        paymentStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             
             
             {/* Edit Button */}
@@ -519,8 +584,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="bg-gray-50 rounded-lg p-4 border border-[#e6e6e6] mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="text-sm font-semibold text-black">BANK</div>
-                  <div className="text-sm text-gray-600">Transfer</div>
+                  <div className="text-sm font-semibold text-black">{paymentMethodLabel}</div>
+                  <div className="text-sm text-gray-600">{paymentMethodSubtitle}</div>
                 </div>
                 <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
                   {order.paymentStatus.toUpperCase()}

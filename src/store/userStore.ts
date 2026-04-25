@@ -24,6 +24,11 @@ interface Company {
   pickupAddress?: string | null;
   defaultDeliveryLeadTimeMinDays?: number | null;
   defaultDeliveryLeadTimeMaxDays?: number | null;
+  /**
+   * Non-sensitive reference to the billing profile.
+   * Full billing details should be fetched server-side with authenticated calls.
+   */
+  billingProfileId?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -48,6 +53,50 @@ interface SessionData {
   user: User;
   timestamp: number;
   expiresAt: number;
+}
+
+type PersistedCompany = Omit<
+  Company,
+  // Nothing sensitive should be persisted to localStorage.
+  never
+>;
+
+type PersistedUser = Omit<User, 'company'> & {
+  company?: PersistedCompany;
+};
+
+type PersistedSessionData = Omit<SessionData, 'user'> & {
+  user: PersistedUser;
+};
+
+function sanitizeUserForStorage(user: User): PersistedUser {
+  // Currently we only strip sensitive company billing/contact fields from persistence.
+  // If more fields become sensitive later, centralize their redaction here.
+  const company = user.company
+    ? {
+        ...user.company,
+        // Ensure any accidentally attached billing fields never persist.
+        // (Fields removed from the type above, but keep runtime-safe redaction too.)
+        billingProfileId: user.company.billingProfileId ?? null,
+      }
+    : undefined;
+
+  if (company) {
+    const c = company as unknown as Record<string, unknown>;
+    delete c.billingBankName;
+    delete c.billingBankAccountName;
+    delete c.billingBankAccountNumber;
+    delete c.billingCompanyName;
+    delete c.billingAddressLine1;
+    delete c.billingCity;
+    delete c.billingState;
+    delete c.billingPostalCode;
+    delete c.billingCountry;
+    delete c.billingContactPhone;
+    delete c.billingContactEmail;
+  }
+
+  return { ...user, company };
 }
 
 interface UserStore {
@@ -77,13 +126,13 @@ const getInitialUser = (): { user: User | null; sessionExpiry: number | null } =
   try {
     const stored = localStorage.getItem('userSession');
     if (stored) {
-      const sessionData: SessionData = JSON.parse(stored);
+      const sessionData: PersistedSessionData = JSON.parse(stored);
       const now = Date.now();
       
       // Check if session is still valid
       if (now < sessionData.expiresAt) {
         return { 
-          user: sessionData.user, 
+          user: sessionData.user as unknown as User, 
           sessionExpiry: sessionData.expiresAt 
         };
       } else {
@@ -117,8 +166,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const duration = rememberMe ? REMEMBER_ME_DURATION : SESSION_DURATION;
     const expiresAt = now + duration;
     
-    const sessionData: SessionData = {
-      user,
+    const sessionData: PersistedSessionData = {
+      user: sanitizeUserForStorage(user),
       timestamp: now,
       expiresAt
     };
@@ -149,8 +198,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
     // Update localStorage if available
     if (typeof window !== 'undefined' && sessionExpiry) {
       try {
-        const sessionData: SessionData = {
-          user: updatedUser,
+        const sessionData: PersistedSessionData = {
+          user: sanitizeUserForStorage(updatedUser),
           timestamp: Date.now(),
           expiresAt: sessionExpiry
         };

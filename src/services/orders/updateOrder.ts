@@ -396,14 +396,40 @@ export async function updateOrderHandler(request: NextRequest) {
       variantName?: string;
     }> = [];
 
+    let previousPaymentStatus: string | null = null;
+    let previousOrderStatus: string | null = null;
+
     // Make status changes, stock adjustments, item replacement, and final update atomic.
     const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Capture previous payment status for dedicated buyer notifications on payment transitions,
+      // even when orderStatus isn't being updated in this request.
+      if (
+        typeof sanitizedData.orderId === 'string' &&
+        (sanitizedData.orderStatus !== undefined || sanitizedData.paymentStatus !== undefined)
+      ) {
+        const existingForPayment = await tx.order.findUnique({
+          where: { orderId: String(sanitizedData.orderId) },
+          select: { paymentStatus: true, orderStatus: true },
+        });
+        if (existingForPayment) {
+          previousPaymentStatus =
+            typeof existingForPayment.paymentStatus === 'string'
+              ? existingForPayment.paymentStatus
+              : String(existingForPayment.paymentStatus || '');
+          previousOrderStatus =
+            typeof existingForPayment.orderStatus === 'string'
+              ? existingForPayment.orderStatus
+              : String(existingForPayment.orderStatus || '');
+        }
+      }
+
       // Auto-set acceptedAt on status transition to Confirmed when not provided
       if (!sanitizedData.acceptedAt && typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
         const existing = await tx.order.findUnique({ where: { orderId: String(sanitizedData.orderId) } });
         if (existing) {
           const nextStatus = String(sanitizedData.orderStatus);
           const prevStatus = String(existing.orderStatus || '');
+          // keep previousPaymentStatus from the earlier read; do not overwrite
           if (nextStatus === 'Confirmed' && !existing.acceptedAt) {
             updateData.acceptedAt = new Date();
             if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
@@ -733,6 +759,7 @@ export async function updateOrderHandler(request: NextRequest) {
       sanitizedData.orderStatus &&
       sanitizedData.orderStatus !== 'Pending' &&
       sanitizedData.orderStatus !== 'Received' &&
+      String(sanitizedData.orderStatus) !== (previousOrderStatus ?? ''),
       order.userId
     ) {
       try {
@@ -748,12 +775,66 @@ export async function updateOrderHandler(request: NextRequest) {
       }
     }
 
-    // Notify marketplace buyer + driver
+    // Notify marketplace buyer on payment status transitions (dedicated message; mirror orderStatus push behavior).
+    if (
+      sanitizedData.paymentStatus !== undefined &&
+      String(sanitizedData.paymentStatus) === 'Paid' &&
+      previousPaymentStatus !== 'Paid'
+    ) {
+      try {
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+        if (marketplaceUserId != null) {
+          const title = 'Payment Confirmed';
+          const bodyText = `Your payment has been confirmed for order #${order.orderId}.`;
+          const payload = { orderId: order.orderId, paymentStatus: 'Paid', type: 'payment' };
+          const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, bodyText, payload);
+          if (tokenCount === 0) {
+            await broadcastNotification('payment', title, bodyText, payload, marketplaceUserId);
+          }
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
+        }
+      } catch {
+        // best-effort
+      }
+    }
+
+    if (
+      sanitizedData.paymentStatus !== undefined &&
+      String(sanitizedData.paymentStatus) === 'Unpaid' &&
+      previousPaymentStatus !== null &&
+      previousPaymentStatus !== 'Unpaid'
+    ) {
+      try {
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+        if (marketplaceUserId != null) {
+          const title = 'Payment Status Updated';
+          const bodyText = `Payment status for order #${order.orderId} is now Unpaid.`;
+          const payload = { orderId: order.orderId, paymentStatus: 'Unpaid', type: 'payment' };
+          const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, bodyText, payload);
+          if (tokenCount === 0) {
+            await broadcastNotification('payment', title, bodyText, payload, marketplaceUserId);
+          }
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
+        }
+      } catch {
+        // best-effort
+      }
+    }
+
+    // Notify marketplace buyer + driver (order status changes)
     if (sanitizedData.orderStatus) {
       try {
         const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
         if (marketplaceUserId != null) {
           const orderStatus = String(sanitizedData.orderStatus);
+          if (orderStatus === (previousOrderStatus ?? '')) {
+            // Avoid duplicate "Order Update" notifications when client re-sends the same status
+            // (e.g. when only paymentStatus changed).
+            // Still allow broadcastOrderUpdate for data refresh elsewhere.
+            throw new Error('__skip_order_status_notification__');
+          }
           let title = 'Order Update';
           let bodyText = `Your order #${order.orderId} status has been updated.`;
 
@@ -811,7 +892,11 @@ export async function updateOrderHandler(request: NextRequest) {
           console.warn('[Orders] Status: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
         }
       } catch (notifError) {
-        // Don't fail the order update if notification fails
+        if (notifError instanceof Error && notifError.message === '__skip_order_status_notification__') {
+          // no-op
+        } else {
+          // Don't fail the order update if notification fails
+        }
       }
 
       try {
