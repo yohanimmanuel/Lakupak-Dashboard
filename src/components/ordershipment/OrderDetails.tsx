@@ -443,6 +443,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           
                           setOrderStatus(status);
                           setShowStatusDropdown(false);
+                          // Mirror ProductCatalog pattern: force full reload so state re-initializes cleanly
+                          window.location.href = window.location.href;
                         } catch (error) {
                         }
                       }}
@@ -488,6 +490,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           if (!response.ok) return;
                           setPaymentStatus(status);
                           setShowPaymentDropdown(false);
+                          // Mirror ProductCatalog pattern: force full reload so state re-initializes cleanly
+                          window.location.href = window.location.href;
                         } catch {
                           // ignore
                         }

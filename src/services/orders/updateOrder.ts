@@ -759,7 +759,7 @@ export async function updateOrderHandler(request: NextRequest) {
       sanitizedData.orderStatus &&
       sanitizedData.orderStatus !== 'Pending' &&
       sanitizedData.orderStatus !== 'Received' &&
-      String(sanitizedData.orderStatus) !== (previousOrderStatus ?? ''),
+      String(sanitizedData.orderStatus) !== (previousOrderStatus ?? '') &&
       order.userId
     ) {
       try {
