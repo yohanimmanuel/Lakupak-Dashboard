@@ -394,7 +394,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="relative group">
               <button
                 className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} hover:opacity-80 transition-all duration-200`}
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                onClick={() => {
+                  setShowPaymentDropdown(false);
+                  setShowStatusDropdown((v) => !v);
+                }}
                 title="Update your order or shipment status here"
               >
                 {orderStatus}
@@ -463,7 +466,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setShowPaymentDropdown((v) => !v)}
+                onClick={() => {
+                  setShowStatusDropdown(false);
+                  setShowPaymentDropdown((v) => !v);
+                }}
                 className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)}`}
               >
                 {paymentStatus}
