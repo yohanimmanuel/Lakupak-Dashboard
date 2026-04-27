@@ -289,8 +289,10 @@ export default function ProductCatalog({
       orderItemCount: number;
       orderIds?: string[];
     }>;
+    policy?: string;
     footer?: string;
     message?: string;
+    action?: { kind: 'create_option'; variantId: string; initialName: string } | null;
   } | null>(null);
 
   const VARIANT_OPTION_USAGE_QUERY = `
@@ -558,15 +560,21 @@ export default function ProductCatalog({
               if (tied.length > 0) {
                 setVariantGuardModal({
                   title: 'Cannot delete: used in orders',
-                intro: 'Some affected variant options are referenced by existing order items:',
-                items: tied.slice(0, 8).map((u) => ({
-                  variantName: u.variantName,
-                  orderItemCount: u.orderItemCount,
-                  orderIds: u.orderIds ?? [],
-                })),
-                footer:
-                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
-                  'To keep data integrity, delete/rename is blocked for those variants.',
+                  intro: 'Some affected variant options are referenced by existing order items:',
+                  items: tied.slice(0, 8).map((u) => ({
+                    variantName: u.variantName,
+                    orderItemCount: u.orderItemCount,
+                    orderIds: u.orderIds ?? [],
+                  })),
+                  policy:
+                    'Policy (order integrity):\n' +
+                    'Variants used in past orders cannot be renamed or deleted.\n' +
+                    'To continue selling, create a new option/variant and keep the old one for history.\n' +
+                    'To stop selling an option, leave it for past orders and stop using it for new sales.',
+                  footer:
+                    (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
+                    'To keep data integrity, delete/rename is blocked for those variants.',
+                  action: null,
                 });
                 return;
               }
@@ -602,6 +610,7 @@ export default function ProductCatalog({
 
   const showRenameBlockedModal = (
     tied: Array<{ variantName: string; orderItemCount: number; orderIds?: string[] }>,
+    action?: { kind: 'create_option'; variantId: string; initialName: string } | null,
   ) => {
     setVariantGuardModal({
       title: 'Cannot rename: used in orders',
@@ -611,10 +620,16 @@ export default function ProductCatalog({
         orderItemCount: u.orderItemCount,
         orderIds: u.orderIds ?? [],
       })),
+      policy:
+        'Policy (order integrity):\n' +
+        'Variants used in past orders cannot be renamed or deleted.\n' +
+        'To continue selling, create a new option/variant and keep the old one for history.\n' +
+        'To stop selling an option, leave it for past orders and stop using it for new sales.',
       footer:
         tied.length > 8
           ? `...and ${tied.length - 8} more.\n\nThis variant is used in past orders. Create a new variant to continue selling.`
           : 'This variant is used in past orders. Create a new variant to continue selling.',
+      action: action ?? null,
     });
   };
 
@@ -678,20 +693,27 @@ export default function ProductCatalog({
     setVariants((prevState) => prevState.map((v) => (v.id === variantId ? { ...v, variantType: next } : v)));
   };
 
-  const addVariantOption = (variantId: string) => {
-    setVariants(prev => prev.map(variant => {
-      if (variant.id === variantId) {
-        const newOption = {
-          id: `${variantId}-option-${Date.now()}`,
-          name: ''
-        };
-        return {
-          ...variant,
-          options: [...variant.options, newOption]
-        };
-      }
-      return variant;
-    }));
+  const addVariantOption = (variantId: string, initialName = '') => {
+    const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newOptionId = `${variantId}-option-${uniq}`;
+    setVariants((prev) =>
+      prev.map((variant) => {
+        if (variant.id === variantId) {
+          const newOption = { id: newOptionId, name: initialName };
+          return { ...variant, options: [...variant.options, newOption] };
+        }
+        return variant;
+      }),
+    );
+
+    // Keep drafts aligned so the input doesn't snap back.
+    setVariantDrafts((prev) =>
+      prev.map((variant) =>
+        variant.id === variantId
+          ? { ...variant, options: [...variant.options, { id: newOptionId, name: initialName }] }
+          : variant,
+      ),
+    );
   };
 
   const removeVariantOption = (variantId: string, optionId: string) => {
@@ -724,9 +746,15 @@ export default function ProductCatalog({
                   orderItemCount: u.orderItemCount,
                   orderIds: u.orderIds ?? [],
                 })),
+                policy:
+                  'Policy (order integrity):\n' +
+                  'Variants used in past orders cannot be renamed or deleted.\n' +
+                  'To continue selling, create a new option/variant and keep the old one for history.\n' +
+                  'To stop selling an option, leave it for past orders and stop using it for new sales.',
                 footer:
                   (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
                   'To keep data integrity, delete/rename is blocked for those variants.',
+                action: null,
               });
               return;
             }
@@ -815,16 +843,23 @@ export default function ProductCatalog({
           .then((res) => {
             const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
             if (tied.length > 0) {
-              const lines = tied
-                .slice(0, 8)
-                .map((u) => `- ${u.variantName} (${u.orderItemCount})`)
-                .join('\n');
               setVariantGuardModal({
                 title: 'Cannot rename: used in orders',
-                message:
-                  `This rename would affect variant options referenced by existing order items:\n\n${lines}` +
-                  (tied.length > 8 ? `\n- ...and ${tied.length - 8} more` : '') +
-                  `\n\nThis variant is used in past orders. Create a new variant to continue selling.`,
+                intro: 'This rename would affect variant options referenced by existing order items:',
+                items: tied.slice(0, 8).map((u) => ({
+                  variantName: u.variantName,
+                  orderItemCount: u.orderItemCount,
+                  orderIds: u.orderIds ?? [],
+                })),
+                policy:
+                  'Policy (order integrity):\n' +
+                  'Variants used in past orders cannot be renamed or deleted.\n' +
+                  'To continue selling, create a new option/variant and keep the old one for history.\n' +
+                  'To stop selling an option, leave it for past orders and stop using it for new sales.',
+                footer:
+                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
+                  'This variant is used in past orders. Create a new variant to continue selling.',
+                action: { kind: 'create_option', variantId, initialName: nextName },
               });
               // revert draft back to committed
               setVariantDrafts((prevDrafts) =>
@@ -913,7 +948,8 @@ export default function ProductCatalog({
       });
       const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
       if (tied.length > 0) {
-        showRenameBlockedModal(tied);
+        // Block rename, but allow creating a new option instead.
+        showRenameBlockedModal(tied, { kind: 'create_option', variantId, initialName: '' });
         return true;
       }
       return false;
@@ -1306,28 +1342,7 @@ export default function ProductCatalog({
         status: status
       };
 
-      // Guardrail warning: removing variants can affect existing orders.
-      // Backend will archive (deactivate) ordered variants instead of deleting, but we still warn upfront.
-      if (currentMode === 'edit' && product?.variantOptions && product.variantOptions.length > 0) {
-        const previousNames = new Set(
-          product.variantOptions.map((vo) => (vo?.variantName ? String(vo.variantName) : '')).filter(Boolean),
-        );
-        const nextNames = new Set(
-          (combinations || []).map((c) => (c?.variantName ? String(c.variantName) : '')).filter(Boolean),
-        );
-        const removed = Array.from(previousNames).filter((name) => !nextNames.has(name));
-        if (removed.length > 0) {
-          const ok = window.confirm(
-            `You are removing ${removed.length} variant option(s).\n\n` +
-              `If any of these variants are referenced by existing orders, they will be archived (deactivated) instead of deleted to preserve order history.\n\n` +
-              `Continue?`,
-          );
-          if (!ok) {
-            setSaving(false);
-            return;
-          }
-        }
-      }
+      // Note: we rely on the variant guard modal + backend enforcement for order integrity.
 
       // Generate product ID in LKP format if not exists
       if (!finalData.productId && currentMode === 'add') {
@@ -2611,12 +2626,24 @@ export default function ProductCatalog({
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-gray-500" />
                   Product Variants
-                  <span className="text-xs text-gray-500 font-normal">(Define variants and options)</span>
+                  <span className="relative group inline-flex items-center">
+                    <Info
+                      tabIndex={0}
+                      aria-describedby="product-variants-info-tooltip"
+                      aria-label="Product variants information"
+                      className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
+                    />
+                    <span
+                      id="product-variants-info-tooltip"
+                      role="tooltip"
+                      className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    >
+                      <span className="block text-xs font-medium">
+                        Define a <span className="font-semibold">clear and complete</span> variant structure first. Avoid frequent changes unless required, because editing variants can impact existing variant lists and order integrity. <span className="font-semibold"> Refresh </span> the variation table after adding/removing variants to apply changes.
+                      </span>
+                    </span>
+                  </span>
                 </h2>
-                <p className="mt-2 text-xs text-gray-600">
-                  Please define a <span className="font-semibold">clear and complete</span> variant structure first.
-                  Avoid frequent changes unless required, because editing variants can impact existing variant lists and order integrity.
-                </p>
               </div>
 
             {/* Simplified Variants Input */}
@@ -2788,6 +2815,23 @@ export default function ProductCatalog({
                   <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5 text-gray-500" />
                     Variation Lists
+                    <span className="relative group inline-flex items-center">
+                      <Info
+                        tabIndex={0}
+                        aria-describedby="variation-lists-info-tooltip"
+                        aria-label="Variation lists information"
+                        className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
+                      />
+                      <span
+                        id="variation-lists-info-tooltip"
+                        role="tooltip"
+                        className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[320px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        <span className="block text-xs font-medium">
+                          Fill this table carefully. If you need to change variants later, create new variants instead of renaming/deleting ones that were used in past orders.
+                        </span>
+                      </span>
+                    </span>
                   </h2>
                   {!isViewMode && (
                     <button
@@ -2802,9 +2846,6 @@ export default function ProductCatalog({
                     </button>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-gray-600">
-                  Fill this table carefully. If you need to change variants later, create new variants instead of renaming/deleting ones that were used in past orders.
-                </p>
               </div>
 
               {/* Apply To All Section */}
@@ -3216,7 +3257,25 @@ export default function ProductCatalog({
               {variantGuardModal.footer && (
                 <p className="mt-3 text-xs text-gray-700 whitespace-pre-line">{variantGuardModal.footer}</p>
               )}
+              {variantGuardModal.policy && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-semibold text-gray-900">What to do instead</p>
+                  <p className="mt-1 text-xs text-gray-700 whitespace-pre-line">{variantGuardModal.policy}</p>
+                </div>
+              )}
               <div className="mt-4 flex justify-end gap-2">
+                {variantGuardModal.action?.kind === 'create_option' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addVariantOption(variantGuardModal.action!.variantId, variantGuardModal.action!.initialName);
+                      setVariantGuardModal(null);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/30"
+                  >
+                    Create new option
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setVariantGuardModal(null)}
