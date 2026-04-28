@@ -4,6 +4,12 @@ import { resetDb } from './helpers';
 import { productsResolvers } from '@/app/api/graphql/modules/products';
 
 describe('products.variantOptionUsage (integration)', () => {
+  type VariantOptionUsage = {
+    variantName: string;
+    orderItemCount: number;
+    orderIds: string[];
+  };
+
   beforeEach(async () => {
     await resetDb();
   });
@@ -135,7 +141,8 @@ describe('products.variantOptionUsage (integration)', () => {
       variantNames: null,
     });
 
-    const byName = new Map(res.map((r: any) => [r.variantName, r]));
+    const resTyped = res as VariantOptionUsage[];
+    const byName = new Map(resTyped.map((r) => [r.variantName, r]));
     expect(byName.get(used.variantName)?.orderItemCount).toBe(1);
     expect(byName.get(unused.variantName)?.orderItemCount).toBe(0);
   });

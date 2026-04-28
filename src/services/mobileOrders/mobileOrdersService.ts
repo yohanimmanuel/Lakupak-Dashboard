@@ -3,7 +3,13 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { buildMobileBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
+import {
+  validateOfferForProduct,
+  trackOfferUsage as trackOfferUsageUtil,
+  trackOfferUsageForAllTypes,
+  updateOfferStatusesBasedOnLimits,
+} from '@/utils/offerValidation';
+import type { OfferValidationResult } from '@/utils/offerValidation';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { validateVariant } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
@@ -52,7 +58,7 @@ function buildOrderItemCreateData(params: {
   packageQuantity: number;
   variantNameSnapshot: string | null;
   currencySnapshot: string;
-  offerValidation: any;
+  offerValidation: OfferValidationResult;
 }) {
   const {
     orderId,
