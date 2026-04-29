@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import { createMobileMarketplaceOrders, getMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
+import { orderCreationRateLimiter, orderQueryRateLimiter } from '@/utils/rateLimiter';
 
 
 // GET /api/mobile/orders - Get mobile marketplace user's orders
@@ -17,6 +18,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const tokenUserId = auth.userId;
+
+    const rateLimitResponse = await orderQueryRateLimiter(request, tokenUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     return await getMobileMarketplaceOrders(request, tokenUserId);
   } catch (error) {
     return NextResponse.json(
@@ -40,6 +45,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const tokenUserId = auth.userId;
+
+    const rateLimitResponse = await orderCreationRateLimiter(request, tokenUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     return await createMobileMarketplaceOrders(request, tokenUserId);
   } catch (error) {
     return NextResponse.json(

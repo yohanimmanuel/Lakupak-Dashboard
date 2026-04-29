@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
+import { driverPushTokenRateLimiter } from '@/utils/rateLimiter';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
   const payload = verifyDriverToken(req);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverPushTokenRateLimiter(req, payload.sub);
+  if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -86,6 +90,9 @@ export async function DELETE(req: NextRequest) {
   const payload = verifyDriverToken(req);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverPushTokenRateLimiter(req, payload.sub);
+  if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;
   try { body = await req.json(); } catch {

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
+import { driverMutationRateLimiter } from '@/utils/rateLimiter';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -70,6 +71,9 @@ export async function PATCH(req: NextRequest) {
   const payload = verifyDriverToken(req);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverMutationRateLimiter(req, payload.sub, 'me-update');
+  if (rateLimitResponse) return rateLimitResponse;
 
   let body: unknown;
   try { body = await req.json(); } catch {

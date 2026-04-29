@@ -4,6 +4,7 @@ import {
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
+import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,9 @@ export async function GET(req: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    const rateLimitResponse = await settingsOperationRateLimiter(req, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
     
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');

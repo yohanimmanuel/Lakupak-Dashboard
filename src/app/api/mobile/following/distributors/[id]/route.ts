@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * GET /api/mobile/following/distributors/[id]
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, marketplaceUserId, 'following-check');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     const distributorId = id ? parseInt(id, 10) : NaN;
@@ -59,6 +63,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, marketplaceUserId, 'following-unfollow');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     const distributorId = id ? parseInt(id, 10) : NaN;

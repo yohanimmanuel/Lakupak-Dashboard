@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'platform-metrics');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const [
       activeAdmins,

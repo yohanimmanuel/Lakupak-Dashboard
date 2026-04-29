@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplacePushTokenRateLimiter } from '@/utils/rateLimiter';
 
 // POST /api/mobile/push-token - Register push notification token (requires auth, ownership enforced)
 export async function POST(request: NextRequest) {
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
     const authUserId = auth.userId;
+
+    const rateLimitResponse = await marketplacePushTokenRateLimiter(request, authUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
     const { userId, token, platform } = body;
@@ -130,6 +134,9 @@ export async function DELETE(request: NextRequest) {
     }
     const authUserId = auth.userId;
 
+    const rateLimitResponse = await marketplacePushTokenRateLimiter(request, authUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = await request.json();
     const { token } = body;
 
@@ -175,22 +182,26 @@ export async function DELETE(request: NextRequest) {
 // GET /api/mobile/push-token - Get user's push tokens
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing required parameter: userId' },
-        { status: 400 }
-      );
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
+    const authUserId = auth.userId;
 
-    const parsedUserId = parseInt(userId, 10);
-    if (isNaN(parsedUserId)) {
-      return NextResponse.json(
-        { error: 'Invalid userId format' },
-        { status: 400 }
-      );
+    const rateLimitResponse = await marketplacePushTokenRateLimiter(request, authUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const { searchParams } = new URL(request.url);
+    const userIdParam = searchParams.get('userId');
+    const parsedUserId = userIdParam ? parseInt(userIdParam, 10) : authUserId;
+    if (!Number.isFinite(parsedUserId) || parsedUserId <= 0) {
+      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
+    }
+    if (parsedUserId !== authUserId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const tokens = await prisma.pushNotificationToken.findMany({

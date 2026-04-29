@@ -5,6 +5,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { broadcastMarketplaceHomeOffersRefresh } from '@/utils/websocketBroadcast';
 import { normalizeOfferIconKey } from '@/utils/marketplaceHomeOfferIcons';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 function getId(params: { offerId?: string }) {
   const id = Number(params.offerId);
@@ -70,7 +71,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ offerId: st
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ offerId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const id = getId(params);
     if (!id) return NextResponse.json({ error: 'Invalid offer id' }, { status: 400, headers });
@@ -148,7 +153,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ offerId: 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ offerId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const id = getId(params);
     if (!id) return NextResponse.json({ error: 'Invalid offer id' }, { status: 400, headers });

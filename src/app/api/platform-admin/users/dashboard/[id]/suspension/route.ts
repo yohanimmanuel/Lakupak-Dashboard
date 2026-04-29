@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { Prisma } from '@prisma/client';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 function parseId(params: { id?: string }) {
   const n = Number(params.id);
@@ -12,7 +13,11 @@ function parseId(params: { id?: string }) {
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const id = parseId(params);
     if (!id) return NextResponse.json({ error: 'Invalid user id' }, { status: 400, headers });

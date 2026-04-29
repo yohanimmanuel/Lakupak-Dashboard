@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 export type PlatformUserSource = 'dashboard' | 'marketplace' | 'driver';
 
@@ -25,7 +26,11 @@ function buildContains(search: string) {
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'users-list');
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { searchParams } = new URL(req.url);
     type AllowedSource = 'all' | 'dashboard' | 'marketplace' | 'driver';
     const allowedSources = new Set<AllowedSource>(['all', 'dashboard', 'marketplace', 'driver']);

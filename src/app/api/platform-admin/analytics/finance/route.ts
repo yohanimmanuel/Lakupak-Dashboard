@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { parseAmountSafely } from '@/utils/currencyUtils';
 import { calculatePromotionGift, type PromotionDetails } from '@/utils/promotionUtils';
 import { requirePlatformAdminId, UnauthorizedPlatformAdminError } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 type Grain = 'day';
 
@@ -103,7 +104,10 @@ function parsePromotionSnapshot(snapshot: string | null | undefined): PromotionD
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'analytics-finance');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const grain = parseGrain(req);
     const until = parseUntil(req);

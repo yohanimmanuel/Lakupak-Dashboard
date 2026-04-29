@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { notifyMarketplacePublishedAnnouncement, notifyMarketplaceUnpublishedAnnouncement } from '@/utils/platformAnnouncementNotify';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 function getId(params: { announcementId?: string }) {
   const id = Number(params.announcementId);
@@ -12,7 +13,11 @@ function getId(params: { announcementId?: string }) {
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ announcementId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const id = getId(params);
     if (!id) return NextResponse.json({ error: 'Invalid announcement id' }, { status: 400, headers });
@@ -100,7 +105,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ announcem
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ announcementId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const id = getId(params);
     if (!id) return NextResponse.json({ error: 'Invalid announcement id' }, { status: 400, headers });

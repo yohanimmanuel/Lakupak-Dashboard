@@ -1317,6 +1317,306 @@ export async function dashboardQueryRateLimiter(
   });
 }
 
+// ============================================================================
+// HIGH-ABUSE MUTATION ENDPOINTS (MOBILE / TELEMETRY / COST AMPLIFIERS)
+// ============================================================================
+
+/**
+ * Marketplace: Pay intent - buyer indicates they will pay manually.
+ * Tight per-user limits because this triggers fanout (DB notification, WS, push).
+ */
+export async function marketplacePayIntentRateLimiter(
+  req: NextRequest,
+  marketplaceUserId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `marketplace-pay-intent:${marketplaceUserId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10,
+    message: 'Too many payment intent requests. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 2,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Marketplace: Return / refund request - creates DB row and notifications.
+ * Keep this strict to reduce fraud/spam and DB write amplification.
+ */
+export async function marketplaceReturnRequestRateLimiter(
+  req: NextRequest,
+  marketplaceUserId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `marketplace-return-request:${marketplaceUserId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10,
+    message: 'Too many return requests. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 1,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Mapbox Geocode proxy - high cost amplifier (can fan out to many external calls).
+ * Enforce per-user limits even though auth is required.
+ */
+export async function mapboxGeocodeRateLimiter(
+  req: NextRequest,
+  userId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `mapbox-geocode:${userId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 60,
+    message: 'Too many geocoding requests. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 3,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Telemetry: Session samples - high frequency mutation endpoint.
+ * Separate from dashboardQueryRateLimiter; this is write-heavy and should be capped.
+ */
+export async function telemetrySessionRateLimiter(
+  req: NextRequest,
+  userId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `telemetry-session:${userId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 60,
+    message: 'Too many telemetry requests. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 20,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Driver Telemetry: Session samples - high frequency mutation endpoint.
+ */
+export async function driverTelemetrySessionRateLimiter(
+  req: NextRequest,
+  driverId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `driver-telemetry-session:${driverId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000,
+    maxRequests: 60,
+    message: 'Too many telemetry requests. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 20,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Campaign tracking (open/click) - public-ish mutation; protect from abuse/skew.
+ */
+export async function campaignTrackRateLimiter(req: NextRequest): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `campaign-track:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 30,
+    message: 'Too many tracking events. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 10,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Marketplace push token CRUD - protect from churn/abuse.
+ */
+export async function marketplacePushTokenRateLimiter(
+  req: NextRequest,
+  marketplaceUserId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `marketplace-push-token:${marketplaceUserId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 30,
+    message: 'Too many push token operations. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 5,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Marketplace: Generic mutation limiter - use for write operations that don't have a dedicated preset.
+ * Keep keys action-scoped to avoid cross-endpoint starvation.
+ */
+export async function marketplaceMutationRateLimiter(
+  req: NextRequest,
+  marketplaceUserId: number,
+  action: string
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const safeAction = String(action || 'mutation').slice(0, 64);
+  const key = `marketplace-mutation:${safeAction}:${marketplaceUserId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 30,
+    message: 'Too many requests. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 10,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Driver: Generic mutation limiter - use for driver-authenticated write operations.
+ */
+export async function driverMutationRateLimiter(
+  req: NextRequest,
+  driverId: number,
+  action: string
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const safeAction = String(action || 'mutation').slice(0, 64);
+  const key = `driver-mutation:${safeAction}:${driverId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    message: 'Too many requests. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 10,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * OTP verification - strict to prevent brute-force even when UI doesn't call it.
+ * Keyed by phone+ip to reduce credential stuffing across numbers.
+ */
+export async function otpVerifyRateLimiter(
+  req: NextRequest,
+  phone: string
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const safePhone = String(phone || '').trim().slice(0, 32);
+  const key = `otp-verify:${safePhone}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    maxRequests: 10,
+    message: 'Too many verification attempts. Please try again in a few minutes.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 5,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Platform Admin: Mutation operations - protect admin surfaces from abuse (session theft, automation).
+ */
+export async function platformAdminMutationRateLimiter(
+  req: NextRequest,
+  adminId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `platform-admin-mutation:${adminId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 60,
+    message: 'Too many admin operations. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 20,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Platform Admin: Read-heavy operations (analytics/search/users) - these can be expensive.
+ */
+export async function platformAdminReadRateLimiter(
+  req: NextRequest,
+  adminId: number,
+  action: string
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const safeAction = String(action || 'read').slice(0, 64);
+  const key = `platform-admin-read:${safeAction}:${adminId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 120,
+    message: 'Too many requests. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 30,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Token issuance endpoints (ws-token, etc.) - tighter because they can be abused to scale access.
+ */
+export async function tokenIssueRateLimiter(
+  req: NextRequest,
+  subjectId: number,
+  kind: 'dashboard' | 'platform-admin'
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `token-issue:${kind}:${subjectId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 20,
+    message: 'Too many token requests. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 8,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
+ * Driver: Push token operations - protect from token churn.
+ */
+export async function driverPushTokenRateLimiter(
+  req: NextRequest,
+  driverId: number
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `driver-push-token:${driverId}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10,
+    message: 'Too many push token operations. Please slow down.',
+    keyGenerator: () => key,
+    burstLimit: 5,
+    burstWindowMs: 1000,
+  });
+}
+
 /**
  * Get current rate limit status for a key (useful for debugging)
  */

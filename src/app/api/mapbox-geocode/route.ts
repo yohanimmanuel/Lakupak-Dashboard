@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
+import { mapboxGeocodeRateLimiter } from '@/utils/rateLimiter';
 
 /** Geocode result shape matching client GeocodeResult */
 interface GeocodeResultBody {
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rateLimitResponse = await mapboxGeocodeRateLimiter(request, userId);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const serverToken =
     process.env.MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   if (!serverToken) {
@@ -30,9 +34,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const MAX_ADDRESSES = 100;
+  const MAX_ADDRESSES = 25;
+  const MAX_ADDRESS_LENGTH = 300;
 
-  const addresses = Array.isArray(body?.addresses) ? body.addresses : [];
+  const addresses = Array.isArray(body?.addresses)
+    ? body.addresses.filter((a) => typeof a === 'string').map((a) => a.trim()).filter((a) => a.length > 0)
+    : [];
   if (addresses.length === 0) {
     return NextResponse.json({ results: {} });
   }
@@ -41,6 +48,9 @@ export async function POST(request: NextRequest) {
       { error: `Maximum ${MAX_ADDRESSES} addresses allowed per request` },
       { status: 400 }
     );
+  }
+  if (addresses.some((a) => a.length > MAX_ADDRESS_LENGTH)) {
+    return NextResponse.json({ error: 'One or more addresses are too long' }, { status: 400 });
   }
 
   const results: Record<string, GeocodeResultBody> = {};

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
+import { telemetrySessionRateLimiter } from '@/utils/rateLimiter';
 
 type Body = {
   startedAt: string;
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthenticatedUserId(req);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+
+    const rateLimitResponse = await telemetrySessionRateLimiter(req, userId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await req.json().catch(() => null)) as Body | null;
     if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });

@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
+
+function isProbablyHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
 /** POST /api/mobile/reviews/order – submit product reviews + optional delivery review for an order. */
 export async function POST(request: NextRequest) {
@@ -16,6 +26,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const userId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, userId, 'review-order');
+    if (rateLimitResponse) return rateLimitResponse;
 
     let body: {
       orderId?: string;
@@ -93,7 +106,11 @@ export async function POST(request: NextRequest) {
       const title = typeof pr.title === 'string' ? pr.title.trim().slice(0, 500) : null;
       const comment = typeof pr.comment === 'string' ? pr.comment.trim().slice(0, 2000) : null;
       const imageUrls = Array.isArray(pr.imageUrls)
-        ? pr.imageUrls.filter((u): u is string => typeof u === 'string').slice(0, 5)
+        ? pr.imageUrls
+            .filter((u): u is string => typeof u === 'string')
+            .map((u) => u.trim())
+            .filter((u) => u.length > 0 && u.length <= 2048 && isProbablyHttpUrl(u))
+            .slice(0, 5)
         : [];
 
       await prisma.productReview.upsert({

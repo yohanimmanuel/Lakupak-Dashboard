@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 type Body = {
   startedAt: string;
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
       if (auth.reason === 'suspended') return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
     }
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(req, auth.userId, 'telemetry-session');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await req.json().catch(() => null)) as Body | null;
     if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });

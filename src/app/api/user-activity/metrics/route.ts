@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getClientIp, rateLimit } from '@/utils/rateLimiter';
 
 export async function POST(request: NextRequest) {
   try {
-    const { productId } = await request.json();
+    // Public-ish analytics endpoint: rate limit per IP to reduce scraping/DB pressure.
+    const ip = getClientIp(request);
+    const rateLimitResponse = await rateLimit(request, {
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 60,
+      message: 'Too many requests. Please slow down.',
+      keyGenerator: () => `user-activity-metrics:${ip}`,
+      burstLimit: 20,
+      burstWindowMs: 1000,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const body = await request.json().catch(() => null);
+    const productId = body && typeof body === 'object' ? (body as { productId?: unknown }).productId : undefined;
 
     if (!productId) {
       return NextResponse.json(

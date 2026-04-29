@@ -4,6 +4,7 @@ import { getSecurityHeaders, validateAuthInput } from '@/utils/auth-security';
 import { hash } from 'bcryptjs';
 import { signPlatformAdminToken } from '@/lib/platform-admin-jwt';
 import { PLATFORM_ADMIN_COOKIE } from '@/utils/platform-admin-auth';
+import { getClientIp, rateLimit } from '@/utils/rateLimiter';
 
 /**
  * One-time bootstrap endpoint to create the FIRST PlatformAdmin.
@@ -25,6 +26,19 @@ export async function POST(req: NextRequest) {
   if (provided !== bootstrapKey) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers });
   }
+
+  // Even though this is guarded by a secret header, rate limit to reduce brute-force/noise.
+  const ip = getClientIp(req);
+  const rateLimitResponse = await rateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10,
+    message: 'Too many bootstrap attempts. Please slow down.',
+    keyGenerator: () => `platform-admin-bootstrap:${ip}`,
+    progressivePenalty: true,
+    burstLimit: 3,
+    burstWindowMs: 1000,
+  });
+  if (rateLimitResponse) return rateLimitResponse;
 
   const body = await req.json().catch(() => null);
   if (!body) {

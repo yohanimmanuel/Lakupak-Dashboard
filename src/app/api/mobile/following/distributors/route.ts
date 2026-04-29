@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * GET /api/mobile/following/distributors
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, marketplaceUserId, 'following-list');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const followings = await p.distributorFollowing.findMany({
       where: { marketplaceUserId },
@@ -83,6 +87,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, marketplaceUserId, 'following-follow');
+    if (rateLimitResponse) return rateLimitResponse;
 
     let body: { distributorId?: number | string };
     try {

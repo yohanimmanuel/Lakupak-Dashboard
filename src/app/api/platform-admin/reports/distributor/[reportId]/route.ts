@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * DELETE /api/platform-admin/reports/distributor/[reportId]
@@ -10,7 +11,11 @@ import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ reportId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    await requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { reportId } = await ctx.params;
     const id = parseInt(reportId, 10);
     if (!Number.isFinite(id) || id < 1) {

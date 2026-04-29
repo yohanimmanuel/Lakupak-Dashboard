@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
+import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
 
 class ConflictError extends Error {
   readonly status = 409;
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    const rateLimitResponse = await settingsOperationRateLimiter(req, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Parse and validate request body
     let body;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * GET /api/platform-admin/reports/distributor?limit=20
@@ -10,7 +11,11 @@ import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'reports-inbox');
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { searchParams } = new URL(req.url);
     const limitRaw = searchParams.get('limit');
     const limit = Math.min(50, Math.max(1, parseInt(limitRaw || '15', 10) || 15));

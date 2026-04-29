@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 function parseDays(req: NextRequest): number {
   const raw = new URL(req.url).searchParams.get('days');
@@ -20,7 +21,11 @@ function parseLimit(req: NextRequest): number {
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'search-queries');
+    if (rateLimitResponse) return rateLimitResponse;
+
     const days = parseDays(req);
     const limit = parseLimit(req);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

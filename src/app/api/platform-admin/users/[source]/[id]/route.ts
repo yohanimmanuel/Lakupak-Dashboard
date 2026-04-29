@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
 
 const SOURCES = ['dashboard', 'marketplace', 'driver'] as const;
 type Source = (typeof SOURCES)[number];
@@ -14,7 +15,11 @@ function parseSource(s: string | undefined): Source | null {
 export async function GET(req: NextRequest, ctx: { params: Promise<{ source: string; id: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminReadRateLimiter(req, adminId, 'user-detail');
+    if (rateLimitResponse) return rateLimitResponse;
+
     const params = await ctx.params;
     const source = parseSource(params.source);
     const id = Number(params.id);

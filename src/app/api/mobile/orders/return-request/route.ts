@@ -5,6 +5,7 @@ import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
+import { marketplaceReturnRequestRateLimiter } from '@/utils/rateLimiter';
 
 const decimalToNumber = (value: unknown): number => {
   if (value === null || value === undefined) return 0;
@@ -30,6 +31,15 @@ const VALID_REASONS = [
   'other',
 ];
 
+function isProbablyHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * POST /api/mobile/orders/return-request
  * Body: { orderId: string, reason: string, reasonDetail?: string }
@@ -49,6 +59,9 @@ export async function POST(request: NextRequest) {
     }
     const marketplaceUserId = auth.userId;
 
+    const rateLimitResponse = await marketplaceReturnRequestRateLimiter(request, marketplaceUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = await request.json().catch(() => ({}));
     const { orderId, reason, reasonDetail, imageUrls } = body;
 
@@ -57,6 +70,10 @@ export async function POST(request: NextRequest) {
         { error: 'Order ID is required' },
         { status: 400, headers }
       );
+    }
+    const safeOrderId = orderId.trim();
+    if (safeOrderId.length > 64) {
+      return NextResponse.json({ error: 'Order ID is too long' }, { status: 400, headers });
     }
 
     if (!reason || typeof reason !== 'string' || !VALID_REASONS.includes(reason)) {
@@ -96,13 +113,16 @@ export async function POST(request: NextRequest) {
       typeof reasonDetail === 'string' && reasonDetail.trim()
         ? reasonDetail.trim()
         : null;
+    if (detailText && detailText.length > 1000) {
+      return NextResponse.json({ error: 'reasonDetail is too long' }, { status: 400, headers });
+    }
 
     let safeImageUrls: string[] = [];
     if (Array.isArray(imageUrls)) {
       safeImageUrls = imageUrls
         .filter((u) => typeof u === 'string')
         .map((u) => u.trim())
-        .filter((u) => u.length > 0)
+        .filter((u) => u.length > 0 && u.length <= 2048 && isProbablyHttpUrl(u))
         .slice(0, 5);
     }
 

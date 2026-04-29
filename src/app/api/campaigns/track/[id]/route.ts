@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { campaignTrackRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * Track campaign open or click event
@@ -11,6 +12,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const rateLimitResponse = await campaignTrackRateLimiter(request);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { id } = await params;
     const body = await request.json();
     const { type } = body;
@@ -29,10 +33,15 @@ export async function POST(
       );
     }
 
+    const safeId = id.trim();
+    if (safeId.length > 128) {
+      return NextResponse.json({ error: 'Campaign ID is too long' }, { status: 400 });
+    }
+
     // Find campaign by ID or campaignId
     const campaign = await prisma.campaign.findFirst({
       where: {
-        OR: [{ id }, { campaignId: id }],
+        OR: [{ id: safeId }, { campaignId: safeId }],
       },
     });
 

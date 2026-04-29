@@ -5,6 +5,7 @@ import { getSecurityHeaders } from '../../../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
+import { driverMutationRateLimiter } from '@/utils/rateLimiter';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -69,6 +70,9 @@ export async function PATCH(
   const payload = verifyDriverToken(req);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverMutationRateLimiter(req, payload.sub, 'order-status');
+  if (rateLimitResponse) return rateLimitResponse;
 
   const { orderId } = await params;
   if (!orderId?.trim()) {

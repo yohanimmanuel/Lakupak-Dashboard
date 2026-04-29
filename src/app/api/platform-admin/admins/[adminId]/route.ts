@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ adminId: string }> }) {
   const headers = getSecurityHeaders();
   try {
     const actorId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, actorId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { adminId } = await ctx.params;
     const id = Number(adminId);
     if (!Number.isFinite(id) || id <= 0) {

@@ -5,6 +5,7 @@ import {
   validateAuthInput, 
   getSecurityHeaders
 } from '../../../../../utils/auth-security';
+import { otpVerifyRateLimiter } from '@/utils/rateLimiter';
 
 
 export async function POST(req: NextRequest) {
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
         { status: 400, headers }
       );
     }
+
+    const rateLimitResponse = await otpVerifyRateLimiter(req, String(phone));
+    if (rateLimitResponse) return rateLimitResponse;
     
     // For now, accept any 6-digit code (in production, you'd verify against stored OTP)
     // TODO: Implement proper OTP storage and verification with expiration

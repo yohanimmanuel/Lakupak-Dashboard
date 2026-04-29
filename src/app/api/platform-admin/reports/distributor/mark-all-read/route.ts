@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * POST /api/platform-admin/reports/distributor/mark-all-read
@@ -10,7 +11,11 @@ import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const now = new Date();
     const result = await prisma.distributorReport.updateMany({
       where: { adminReadAt: null, adminInboxDismissedAt: null },

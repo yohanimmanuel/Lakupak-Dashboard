@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { broadcastProductUpdate, broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
+import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -33,6 +34,9 @@ export async function PUT(req: NextRequest) {
         { status: 401, headers }
       );
     }
+
+    const rateLimitResponse = await settingsOperationRateLimiter(req, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Parse and validate request body
     let body: unknown;

@@ -14,6 +14,7 @@ import {
   type CompanyPaymentMethodResponseJson,
 } from '../paymentMethodRouteTypes';
 import { broadcastProductUpdatesForCompanyId } from '@/utils/broadcastCompanyProductUpdates';
+import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
 
 function serializePaymentMethod(row: CompanyPaymentMethod): CompanyPaymentMethodResponseJson {
   return {
@@ -68,6 +69,9 @@ export async function PATCH(
     if (!authenticatedUserId) {
       return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401, headers });
     }
+
+    const rateLimitResponse = await settingsOperationRateLimiter(request, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id: methodId } = await context.params;
     if (!methodId || typeof methodId !== 'string') {
@@ -183,6 +187,9 @@ export async function DELETE(
     if (!authenticatedUserId) {
       return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401, headers });
     }
+
+    const rateLimitResponse = await settingsOperationRateLimiter(request, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id: methodId } = await context.params;
     if (!methodId || typeof methodId !== 'string') {

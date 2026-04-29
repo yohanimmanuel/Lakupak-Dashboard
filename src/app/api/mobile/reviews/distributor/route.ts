@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 const WOULD_ORDER_AGAIN_VALUES = ['yes', 'no', 'maybe'] as const;
 
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const userId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, userId, 'review-distributor');
+    if (rateLimitResponse) return rateLimitResponse;
 
     let body: {
       id?: string | number;

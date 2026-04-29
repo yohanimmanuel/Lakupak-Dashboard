@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 function normTerm(s: unknown): string {
   if (typeof s !== 'string') return '';
@@ -18,7 +19,11 @@ function normLocale(s: unknown): string | null {
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { id } = await ctx.params;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400, headers });
 
@@ -88,7 +93,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const { id } = await ctx.params;
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400, headers });
 

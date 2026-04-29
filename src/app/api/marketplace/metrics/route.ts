@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
+import { dashboardQueryRateLimiter } from '@/utils/rateLimiter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const rateLimitResponse = await dashboardQueryRateLimiter(request, authenticatedUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // 2. Get and validate requested userId
     const { searchParams } = new URL(request.url);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import jwt from 'jsonwebtoken';
+import { driverTelemetrySessionRateLimiter } from '@/utils/rateLimiter';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -39,6 +40,9 @@ export async function POST(req: NextRequest) {
   const payload = verifyDriverToken(req);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
   if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverTelemetrySessionRateLimiter(req, payload.sub);
+  if (rateLimitResponse) return rateLimitResponse;
 
   const body = (await req.json().catch(() => null)) as Body | null;
   if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });

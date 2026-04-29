@@ -6,6 +6,7 @@ import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 const decimalToNumber = (value: unknown): number => {
   if (value === null || value === undefined) return 0;
@@ -43,6 +44,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, marketplaceUserId, 'order-mark-received');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     const orderIdNum = parseInt(id, 10);

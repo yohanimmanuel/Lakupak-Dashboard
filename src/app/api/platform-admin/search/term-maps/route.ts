@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { Prisma } from '@prisma/client';
+import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
 type Kind = 'SYNONYM' | 'TRANSLATION';
 
@@ -118,6 +119,10 @@ export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
   try {
     const adminId = requirePlatformAdminId(req);
+
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return NextResponse.json({ error: 'Invalid request format' }, { status: 400, headers });
 

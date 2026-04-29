@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { broadcastPlatformAdminInboxRefresh } from '@/utils/websocketBroadcast';
+import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 const REASON_CODES = new Set(['fraud', 'poor_service', 'quality', 'policy', 'other']);
 
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const reporterMarketplaceUserId = auth.userId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, reporterMarketplaceUserId, 'report-distributor');
+    if (rateLimitResponse) return rateLimitResponse;
 
     let body: {
       distributorId?: number | string;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import { broadcastDashboardNotification } from '@/utils/websocketBroadcast';
+import { getClientIp, rateLimit } from '@/utils/rateLimiter';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -12,6 +13,19 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid request format' }, { status: 400, headers });
   }
+
+  // Public endpoint: rate limit early to prevent spam/abuse
+  const ip = getClientIp(req);
+  const rateLimitResponse = await rateLimit(req, {
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    message: 'Too many requests. Please try again shortly.',
+    keyGenerator: () => `driver-request:${ip}`,
+    progressivePenalty: true,
+    burstLimit: 3,
+    burstWindowMs: 1000,
+  });
+  if (rateLimitResponse) return rateLimitResponse;
 
   const { name, phone, distributorEmail, message } = body as {
     name?: unknown;

@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastDashboardNotification, broadcastNotification, broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { marketplacePayIntentRateLimiter } from '@/utils/rateLimiter';
 
 /**
  * POST /api/mobile/orders/[id]/pay-intent
@@ -25,6 +26,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
     const marketplaceUserId = auth.userId;
+
+    // Rate limiting: pay intent triggers fanout (DB notification, WS, push)
+    const rateLimitResponse = await marketplacePayIntentRateLimiter(request, marketplaceUserId);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const { id } = await params;
     const orderIdNum = parseInt(id, 10);
