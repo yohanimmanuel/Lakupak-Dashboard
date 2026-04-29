@@ -158,6 +158,7 @@ export default function FinancialAnalyticsPage() {
               orderId
               buyerId
               orderDate
+              paymentStatus
               totalAmount
               orderItems {
                 productId
@@ -179,6 +180,7 @@ export default function FinancialAnalyticsPage() {
             orderId: string;
             buyerId?: string | null;
             orderDate: string;
+            paymentStatus?: string | null;
             totalAmount?: number | null;
             orderItems?: Array<{
               productId: string;
@@ -231,6 +233,7 @@ export default function FinancialAnalyticsPage() {
       const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order) => ({
         buyerId: order.buyerId || '',
         orderDate: order.orderDate,
+        paymentStatus: order.paymentStatus ?? undefined,
         totalAmount: order.totalAmount ?? undefined,
         orderItems: order.orderItems?.map((item) => ({
           productId: item.productId,
@@ -275,7 +278,13 @@ export default function FinancialAnalyticsPage() {
 
   // Types for export generation (explicit, no any)
   type ExportOrderItem = { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; productTypeSnapshot?: string };
-  type ExportOrder = { buyerId: string; orderDate: string | Date; totalAmount?: number; orderItems?: ExportOrderItem[] };
+  type ExportOrder = {
+    buyerId: string;
+    orderDate: string | Date;
+    totalAmount?: number;
+    orderItems?: ExportOrderItem[];
+    paymentStatus?: string | null;
+  };
   type ExportProduct = { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string };
 
   // Helper function to create Word document content
@@ -312,9 +321,12 @@ export default function FinancialAnalyticsPage() {
       }
     });
 
-    // Revenue is based on full order totals (matches dashboard)
+    const isPaid = (o: ExportOrder) => o.paymentStatus === 'Paid';
+
+    // Revenue: all orders (matches dashboard Total Sales). Profit & margin: paid orders only.
     let totalRevenue = 0;
     let totalProfit = 0;
+    let totalPaidRevenue = 0;
     const uniqueBuyers = new Set<string>();
 
     orders.forEach(order => {
@@ -323,7 +335,6 @@ export default function FinancialAnalyticsPage() {
       const orderRevenue = safeTotalAmount(order.totalAmount);
       totalRevenue += orderRevenue;
 
-      // Compute COGS from product purchase prices
       let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
@@ -338,23 +349,26 @@ export default function FinancialAnalyticsPage() {
       }
 
       const orderProfit = orderRevenue - orderCogs;
-      totalProfit += orderProfit;
+      if (isPaid(order)) {
+        totalProfit += orderProfit;
+        totalPaidRevenue += orderRevenue;
+      }
     });
 
     const totalBuyers = uniqueBuyers.size;
-    const totalSuppliers = 0; // Not available from current query
-    
-    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const totalSuppliers = 0;
+
+    const profitMargin = totalPaidRevenue > 0 ? (totalProfit / totalPaidRevenue) * 100 : 0;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    
-    // Calculate revenue trend data (matches dashboard logic: revenue = order total, profit = revenue - COGS)
-    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
+
+    const monthlyAll: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
+    const monthlyPaid: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
     orders.forEach(order => {
       const orderDate = new Date(order.orderDate);
       const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!monthlyData[monthKey]) monthlyData[monthKey] = { revenue: 0, profit: 0, orders: 0 };
-      monthlyData[monthKey].orders += 1;
+
+      if (!monthlyAll[monthKey]) monthlyAll[monthKey] = { revenue: 0, profit: 0, orders: 0 };
+      monthlyAll[monthKey].orders += 1;
 
       const orderRevenue = safeTotalAmount(order.totalAmount);
 
@@ -372,43 +386,57 @@ export default function FinancialAnalyticsPage() {
       }
 
       const orderProfit = orderRevenue - orderCogs;
-      monthlyData[monthKey].revenue += orderRevenue;
-      monthlyData[monthKey].profit += orderProfit;
+      monthlyAll[monthKey].revenue += orderRevenue;
+      monthlyAll[monthKey].profit += orderProfit;
+
+      if (isPaid(order)) {
+        if (!monthlyPaid[monthKey]) monthlyPaid[monthKey] = { revenue: 0, profit: 0, orders: 0 };
+        monthlyPaid[monthKey].orders += 1;
+        monthlyPaid[monthKey].revenue += orderRevenue;
+        monthlyPaid[monthKey].profit += orderProfit;
+      }
     });
 
-    // Derive month-over-month growth metrics for export header
-    const monthlyEntriesSorted = Object.entries(monthlyData)
+    const monthlyEntriesAll = Object.entries(monthlyAll)
       .map(([key, data]) => ({ key, ...data }))
       .sort((a, b) => a.key.localeCompare(b.key));
-    const last = monthlyEntriesSorted[monthlyEntriesSorted.length - 1];
-    const prev = monthlyEntriesSorted[monthlyEntriesSorted.length - 2];
+    const monthlyEntriesPaid = Object.entries(monthlyPaid)
+      .map(([key, data]) => ({ key, ...data }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+
+    const lastAll = monthlyEntriesAll[monthlyEntriesAll.length - 1];
+    const prevAll = monthlyEntriesAll[monthlyEntriesAll.length - 2];
+    const lastPaid = monthlyEntriesPaid[monthlyEntriesPaid.length - 1];
+    const prevPaid = monthlyEntriesPaid[monthlyEntriesPaid.length - 2];
 
     const revenueGrowth =
-      last && prev && prev.revenue > 0
-        ? ((last.revenue - prev.revenue) / prev.revenue) * 100
+      lastAll && prevAll && prevAll.revenue > 0
+        ? ((lastAll.revenue - prevAll.revenue) / prevAll.revenue) * 100
         : null;
     const profitGrowth =
-      last && prev && prev.profit > 0
-        ? ((last.profit - prev.profit) / prev.profit) * 100
+      lastPaid && prevPaid && prevPaid.profit > 0
+        ? ((lastPaid.profit - prevPaid.profit) / prevPaid.profit) * 100
         : null;
 
-    const lastMarginExport = last && last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
-    const prevMarginExport = prev && prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
+    const lastMarginExport = lastPaid && lastPaid.revenue > 0 ? (lastPaid.profit / lastPaid.revenue) * 100 : 0;
+    const prevMarginExport = prevPaid && prevPaid.revenue > 0 ? (prevPaid.profit / prevPaid.revenue) * 100 : 0;
     const marginGrowth =
-      last &&
-      prev &&
+      lastPaid &&
+      prevPaid &&
       prevMarginExport !== 0
         ? ((lastMarginExport - prevMarginExport) / Math.abs(prevMarginExport)) * 100
         : null;
 
-    const lastAovExport = last && last.orders > 0 ? last.revenue / last.orders : 0;
-    const prevAovExport = prev && prev.orders > 0 ? prev.revenue / prev.orders : 0;
+    const lastAovExport = lastAll && lastAll.orders > 0 ? lastAll.revenue / lastAll.orders : 0;
+    const prevAovExport = prevAll && prevAll.orders > 0 ? prevAll.revenue / prevAll.orders : 0;
     const aovGrowth =
-      last &&
-      prev &&
+      lastAll &&
+      prevAll &&
       prevAovExport !== 0
         ? ((lastAovExport - prevAovExport) / Math.abs(prevAovExport)) * 100
         : null;
+
+    const monthlyData = monthlyPaid;
 
     // Calculate category data
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
@@ -447,8 +475,7 @@ export default function FinancialAnalyticsPage() {
       }
     });
 
-    // Calculate top performing products
-    const productStats: { [key: string]: { revenue: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { revenue: number; sales: number; unitsSold: number; category: string; name: string; profit: number } } = {};
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
@@ -460,6 +487,7 @@ export default function FinancialAnalyticsPage() {
             if (!productStats[item.productId]) {
               productStats[item.productId] = {
                 revenue: 0,
+                sales: 0,
                 unitsSold: 0,
                 category: product.productType || 'Uncategorized',
                 name: product.name,
@@ -468,26 +496,29 @@ export default function FinancialAnalyticsPage() {
             }
             
             if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using package-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
               const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
-              productStats[item.productId].revenue += itemRevenue;
-              productStats[item.productId].profit += itemProfit;
+              productStats[item.productId].sales += itemRevenue;
+              if (isPaid(order)) {
+                productStats[item.productId].revenue += itemRevenue;
+                productStats[item.productId].profit += itemProfit;
+              }
             } else {
-              // Calculate revenue using package-based pricing
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const revenue = (item.pricePerPackage || 0) * packageQuantity;
               const fallbackMargin = 30;
               const profit = revenue * (fallbackMargin / 100);
-              productStats[item.productId].revenue += revenue;
-              productStats[item.productId].profit += profit;
+              productStats[item.productId].sales += revenue;
+              if (isPaid(order)) {
+                productStats[item.productId].revenue += revenue;
+                productStats[item.productId].profit += profit;
+              }
             }
             
-            // Calculate units sold using package-based pricing
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
             productStats[item.productId].unitsSold += packageQuantity * piecesPerPackage;
@@ -503,6 +534,7 @@ export default function FinancialAnalyticsPage() {
           name: stats.name,
           productType: stats.category,
           revenue: stats.revenue,
+          sales: stats.sales,
           profit: stats.profit,
           margin,
           unitsSold: stats.unitsSold,
@@ -594,14 +626,14 @@ export default function FinancialAnalyticsPage() {
     <div class="section">
         <h2>Revenue Trend & Category Analysis</h2>
         
-        <h3>Revenue Trend (Last 6 Months)</h3>
+        <h3>Revenue Trend — paid orders (Last 6 Months)</h3>
         <table>
             <thead>
                 <tr>
                     <th>Month</th>
-                    <th>Revenue</th>
-                    <th>Profit/Loss</th>
-                    <th>Orders</th>
+                    <th>Revenue (paid)</th>
+                    <th>Profit/Loss (paid)</th>
+                    <th>Orders (paid)</th>
                     <th>Growth Rate</th>
                 </tr>
             </thead>
@@ -695,7 +727,6 @@ export default function FinancialAnalyticsPage() {
                   
                   // Calculate overall conversion rate: (Total Orders / Total Products Available) * 100
                   // This shows what percentage of available products actually got ordered
-                  const totalOrders = Object.values(monthlyData).reduce((sum, data) => sum + data.orders, 0);
                   const totalProductsAvailable = products.length;
                   const conversionRate = totalProductsAvailable > 0 ? (totalOrders / totalProductsAvailable) * 100 : 0;
                   
@@ -718,6 +749,7 @@ export default function FinancialAnalyticsPage() {
                     <th>Rank</th>
                     <th>Product Name</th>
                     <th>Category</th>
+                    <th>Sales</th>
                     <th>Revenue</th>
                     <th>Units Sold</th>
                     <th>Profit Margin</th>
@@ -728,7 +760,6 @@ export default function FinancialAnalyticsPage() {
                 ${topProducts.slice(0, 5).map((product, index) => {
                   // Calculate individual product conversion rate: (Orders containing this product / Total Orders) * 100
                   // This shows what percentage of all orders include this specific product
-                  const totalOrders = Object.values(monthlyData).reduce((sum, data) => sum + data.orders, 0);
                   
                   // Count how many orders contain this product
                   let ordersWithThisProduct = 0;
@@ -746,6 +777,7 @@ export default function FinancialAnalyticsPage() {
                       <td>${index + 1}</td>
                       <td>${product.name}</td>
                       <td>${product.productType}</td>
+                      <td>$${product.sales.toLocaleString()}</td>
                       <td>$${product.revenue.toLocaleString()}</td>
                       <td>${product.unitsSold}</td>
                       <td>${product.margin.toFixed(1)}%</td>
@@ -769,7 +801,7 @@ export default function FinancialAnalyticsPage() {
             </thead>
             <tbody>
                 ${(() => {
-                  const monthlyEntries = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b));
+                  const monthlyEntries = Object.entries(monthlyAll).sort(([a], [b]) => a.localeCompare(b));
                   const last6Months = monthlyEntries.slice(-6); // Get last 6 months
                   
                   return last6Months.map(([month, data], index) => {
