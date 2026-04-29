@@ -49,6 +49,14 @@ export function isOrderPaid(order: Pick<Order, 'paymentStatus'>): boolean {
   return order.paymentStatus === 'Paid';
 }
 
+function getPaidAtDate(order: Pick<Order, 'paidAt' | 'orderDate'>): Date {
+  const paidAt = order.paidAt ? new Date(order.paidAt) : null;
+  if (paidAt && !Number.isNaN(paidAt.getTime())) {
+    return paidAt;
+  }
+  return new Date(order.orderDate);
+}
+
 // Types for financial data
 interface FinancialMetrics {
   totalRevenue: number;
@@ -105,6 +113,7 @@ const FINANCIAL_ANALYTICS_QUERY = `
         id
         buyerId
         orderDate
+        paidAt
         orderStatus
         paymentStatus
         deliveryMethod
@@ -454,7 +463,7 @@ const FinancialAnalytics: React.FC = () => {
     orders.forEach(order => {
       if (!isOrderPaid(order)) return;
 
-      const date = new Date(order.orderDate);
+      const date = getPaidAtDate(order);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
       const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
 
@@ -1880,7 +1889,7 @@ export const calculateRevenueData = (
   orders.forEach(order => {
     if (!isOrderPaid(order)) return;
 
-    const date = new Date(order.orderDate);
+    const date = getPaidAtDate(order);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
     const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
     

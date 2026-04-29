@@ -115,6 +115,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     estimatedDeliveryMinDays: Int
     estimatedDeliveryMaxDays: Int
     deliveredAt: String
+    paidAt: String
     buyer: BuyerSummary
     seller: SellerInfo
     orderItems: [OrderItem!]!
@@ -224,6 +225,7 @@ const mapOrder = (
   estimatedDeliveryMinDays: order?.estimatedDeliveryMinDays ?? null,
   estimatedDeliveryMaxDays: order?.estimatedDeliveryMaxDays ?? null,
   deliveredAt: order?.deliveredAt?.toISOString() ?? null,
+  paidAt: order?.paidAt?.toISOString() ?? null,
   buyer: order?.buyer
     ? {
         buyerId: order.buyer.buyerId,

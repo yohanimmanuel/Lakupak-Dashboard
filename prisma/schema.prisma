@@ -368,6 +368,7 @@ model Order {
   estimatedDeliveryMaxDays Int?
   deliveredAt             DateTime?   @db.Timestamptz(3)
   receivedAt              DateTime?   @db.Timestamptz(3) // When buyer marks order as received (marketplace)
+  paidAt                  DateTime?   @db.Timestamptz(3) // When paymentStatus transitions to Paid
   userId                  Int?
   archivedAt              DateTime?   @db.Timestamptz(3)
   cancelledAt             DateTime?   @db.Timestamptz(3)
@@ -403,6 +404,7 @@ model Order {
   @@index([buyerId])
   @@index([createdAt])
   @@index([orderDate])
+  @@index([paidAt])
   @@index([archivedAt])
   @@index([isDeleted])
   @@index([userId, orderStatus, isDeleted])

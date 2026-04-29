@@ -198,6 +198,7 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         deliveryConfirmation
         pod
         orderDate
+        paidAt
         createdAt
         updatedAt
         acceptedBy
@@ -613,6 +614,7 @@ function normalizeOrder(raw: Record<string, unknown>): Order | null {
     orderId: parseString(raw.orderId, baseId),
     buyerId: parseString(raw.buyerId, 'unknown-buyer'),
     orderDate: parseDate(raw.orderDate),
+    paidAt: raw.paidAt ? parseDate(raw.paidAt) : null,
     orderStatus,
     paymentStatus,
     deliveryMethod,

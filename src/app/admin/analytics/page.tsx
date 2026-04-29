@@ -65,6 +65,32 @@ type OperationalPayload = {
   series: OperationalSeriesRow[];
 };
 
+type FinanceSeriesRow = {
+  day: string;
+  sales: number;
+  revenuePaid: number;
+  profitPaid: number;
+  orders: number;
+  paidOrders: number;
+};
+
+type FinancePayload = {
+  params: { since: string; until: string; grain: 'day' };
+  kpis: {
+    gmv: {
+      totalSales: number;
+      totalProfit: number;
+      profitMargin: number;
+      totalOrders: number;
+      paidOrders: number;
+    };
+    revenue: {
+      paidRevenue: number;
+    };
+  };
+  series: FinanceSeriesRow[];
+};
+
 type AnalyticsPayload = {
   params: { since: string; until: string; grain: 'day' };
   kpis: {
@@ -107,6 +133,16 @@ function fmtInt(n: number | undefined) {
 function fmtPct(n: number | undefined) {
   if (n === undefined || Number.isNaN(n)) return '—';
   return `${Math.round(n * 100)}%`;
+}
+
+function fmtPctValue(n: number | undefined) {
+  if (n === undefined || Number.isNaN(n)) return '—';
+  return `${n.toFixed(2)}%`;
+}
+
+function fmtCurrency(n: number | undefined) {
+  if (n === undefined || Number.isNaN(n)) return '—';
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 }
 
 function dayLabel(isoDay: string) {
@@ -251,6 +287,7 @@ function ChartTooltip({
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
   const [operationalData, setOperationalData] = useState<OperationalPayload | null>(null);
+  const [financeData, setFinanceData] = useState<FinancePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<3 | 7 | 30 | 60>(30);
@@ -271,6 +308,11 @@ export default function AdminAnalyticsPage() {
           if (!res.ok) throw new Error('Failed to load analytics');
           const json = (await res.json()) as OperationalPayload;
           if (alive) setOperationalData(json);
+        } else if (tab === 'finance') {
+          const res = await fetch(`/api/platform-admin/analytics/finance?grain=day&days=${days}`);
+          if (!res.ok) throw new Error('Failed to load analytics');
+          const json = (await res.json()) as FinancePayload;
+          if (alive) setFinanceData(json);
         } else {
           const res = await fetch(`/api/platform-admin/analytics/overview?grain=day&days=${days}`);
           if (!res.ok) throw new Error('Failed to load analytics');
@@ -300,6 +342,7 @@ export default function AdminAnalyticsPage() {
   }, []);
 
   const series = data?.series ?? [];
+  const financeSeries = financeData?.series ?? [];
   const sessionSeriesPick = useMemo(() => {
     if (!data) return null;
     if (sessionAppTab === 'marketplace') return data.sessionSeries.marketplace;
@@ -316,7 +359,12 @@ export default function AdminAnalyticsPage() {
 
   const headerSubtitle = 'Track platform-wide growth, activation, and early retention signals.';
   const rangeLabel = useMemo(() => {
-    const p = tab === 'operational' ? operationalData?.params : data?.params;
+    const p =
+      tab === 'operational'
+        ? operationalData?.params
+        : tab === 'finance'
+          ? financeData?.params
+          : data?.params;
     if (!p) return null;
     const since = new Date(p.since);
     const until = new Date(p.until);
@@ -324,7 +372,7 @@ export default function AdminAnalyticsPage() {
     const u = Number.isNaN(until.getTime()) ? p.until : until.toLocaleDateString();
     const metricType = tab === 'operational' ? 'operational' : tab === 'finance' ? 'finance' : 'growth';
     return `Showing ${metricType} metrics from ${s} to ${u}`;
-  }, [data, operationalData, tab]);
+  }, [data, operationalData, financeData, tab]);
 
   return (
     <div className="space-y-3">
@@ -387,10 +435,77 @@ export default function AdminAnalyticsPage() {
           {error}
         </div>
       ) : tab === 'finance' ? (
-        <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900">Finance analytics</p>
-          <p className="mt-2">Placeholder for now. Next we’ll wire platform-wide metrics for GMV, revenue, discounts, and top distributors/products.</p>
-        </div>
+        !financeData ? (
+          <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">No finance data.</div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <CardShell title="Total sales" subtitle="Gross sales from all orders in range">
+                <Metric label={`All orders (${days}d)`} value={fmtCurrency(financeData.kpis.gmv.totalSales)} />
+              </CardShell>
+              <CardShell title="GMV Revenue" subtitle="Collected revenue from paid orders only">
+                <Metric label={`Paid orders (${days}d)`} value={fmtCurrency(financeData.kpis.revenue.paidRevenue)} />
+              </CardShell>
+              <CardShell title="Total profit" subtitle="Profit after COGS on paid orders">
+                <Metric label="Revenue - COGS" value={fmtCurrency(financeData.kpis.gmv.totalProfit)} />
+              </CardShell>
+              <CardShell title="Profit margin" subtitle="Profit as a percentage of paid revenue">
+                <Metric
+                  label="Profit / paid revenue"
+                  value={fmtPctValue(financeData.kpis.gmv.profitMargin)}
+                />
+              </CardShell>
+            </div>
+
+            <CardShell title="Financial trend (daily)" subtitle="Sales includes all orders. Revenue and profit are paid-only.">
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={financeSeries} margin={{ top: 10, right: 24, left: 20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="day"
+                      tickFormatter={dayLabel}
+                      minTickGap={18}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                    />
+                    <YAxis
+                      width={88}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={chartAxisTick}
+                      tickFormatter={(v) => fmtCurrency(Number(v))}
+                    />
+                    <Tooltip
+                      formatter={(value: unknown, name: string) => {
+                        const numeric = typeof value === 'number' ? value : Number(value ?? 0);
+                        if (name === 'Orders' || name === 'Paid Orders') return [fmtInt(numeric), name];
+                        return [fmtCurrency(numeric), name];
+                      }}
+                      labelFormatter={(l) => dayLabel(String(l))}
+                      labelStyle={{ color: '#111827' }}
+                    />
+                    <Line type="monotone" dataKey="sales" name="Sales (all)" stroke="#0a61d7" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="revenuePaid" name="Revenue (paid)" stroke="#16a34a" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="profitPaid" name="Profit (paid)" stroke="#f97316" strokeWidth={2.5} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardShell>
+
+            <CardShell
+              title="Commission revenue (placeholder)"
+              subtitle="Derived distributor commission-fee revenue is not implemented yet."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <Metric label="Commission revenue (paid)" value="Coming soon" />
+                <Metric label="Commission invoices paid" value="Coming soon" />
+                <Metric label="Collection rate" value="Coming soon" />
+              </div>
+            </CardShell>
+          </div>
+        )
       ) : tab === 'operational' ? (
         !operationalData ? (
           <div className="bg-white border border-[#e6e6e6] rounded-xl p-6 text-sm text-gray-600">No data.</div>

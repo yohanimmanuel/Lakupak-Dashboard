@@ -423,6 +423,15 @@ export async function updateOrderHandler(request: NextRequest) {
         }
       }
 
+      if (sanitizedData.paymentStatus !== undefined) {
+        const nextPaymentStatus = String(sanitizedData.paymentStatus);
+        if (nextPaymentStatus === 'Paid' && previousPaymentStatus !== 'Paid') {
+          updateData.paidAt = new Date();
+        } else if (nextPaymentStatus === 'Unpaid' && previousPaymentStatus === 'Paid') {
+          updateData.paidAt = null;
+        }
+      }
+
       // Auto-set acceptedAt on status transition to Confirmed when not provided
       if (!sanitizedData.acceptedAt && typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
         const existing = await tx.order.findUnique({ where: { orderId: String(sanitizedData.orderId) } });

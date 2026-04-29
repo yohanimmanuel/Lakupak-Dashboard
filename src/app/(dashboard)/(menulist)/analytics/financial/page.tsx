@@ -15,6 +15,7 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
         orderId
         buyerId
         orderDate
+        paidAt
         orderStatus
         paymentStatus
         deliveryMethod
@@ -158,6 +159,7 @@ export default function FinancialAnalyticsPage() {
               orderId
               buyerId
               orderDate
+              paidAt
               paymentStatus
               totalAmount
               orderItems {
@@ -180,6 +182,7 @@ export default function FinancialAnalyticsPage() {
             orderId: string;
             buyerId?: string | null;
             orderDate: string;
+            paidAt?: string | null;
             paymentStatus?: string | null;
             totalAmount?: number | null;
             orderItems?: Array<{
@@ -233,6 +236,7 @@ export default function FinancialAnalyticsPage() {
       const orders: ExportOrder[] = (ordersData.orders?.nodes || []).map((order) => ({
         buyerId: order.buyerId || '',
         orderDate: order.orderDate,
+        paidAt: order.paidAt ?? undefined,
         paymentStatus: order.paymentStatus ?? undefined,
         totalAmount: order.totalAmount ?? undefined,
         orderItems: order.orderItems?.map((item) => ({
@@ -281,6 +285,7 @@ export default function FinancialAnalyticsPage() {
   type ExportOrder = {
     buyerId: string;
     orderDate: string | Date;
+    paidAt?: string | Date | null;
     totalAmount?: number;
     orderItems?: ExportOrderItem[];
     paymentStatus?: string | null;
@@ -390,10 +395,15 @@ export default function FinancialAnalyticsPage() {
       monthlyAll[monthKey].profit += orderProfit;
 
       if (isPaid(order)) {
-        if (!monthlyPaid[monthKey]) monthlyPaid[monthKey] = { revenue: 0, profit: 0, orders: 0 };
-        monthlyPaid[monthKey].orders += 1;
-        monthlyPaid[monthKey].revenue += orderRevenue;
-        monthlyPaid[monthKey].profit += orderProfit;
+        const paidAtRaw = order.paidAt;
+        const paidAtString = typeof paidAtRaw === 'string' ? paidAtRaw.trim() : null;
+        const parsedPaidAt = paidAtString ? new Date(paidAtString) : paidAtRaw ? new Date(paidAtRaw) : null;
+        const paidDate = parsedPaidAt && !Number.isNaN(parsedPaidAt.getTime()) ? parsedPaidAt : orderDate;
+        const paidMonthKey = `${paidDate.getFullYear()}-${String(paidDate.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyPaid[paidMonthKey]) monthlyPaid[paidMonthKey] = { revenue: 0, profit: 0, orders: 0 };
+        monthlyPaid[paidMonthKey].orders += 1;
+        monthlyPaid[paidMonthKey].revenue += orderRevenue;
+        monthlyPaid[paidMonthKey].profit += orderProfit;
       }
     });
 

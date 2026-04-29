@@ -32,6 +32,7 @@ const ANALYTICS_PAGE_QUERY = `
         orderId
         buyerId
         orderDate
+        paidAt
         orderStatus
         paymentStatus
         deliveryMethod

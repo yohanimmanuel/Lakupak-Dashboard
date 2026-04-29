@@ -50,6 +50,7 @@ export interface Order {
   estimatedDeliveryMinDays?: number | null;
   estimatedDeliveryMaxDays?: number | null;
   deliveredAt?: Date;
+  paidAt?: Date | string | null;
   cancelledAt?: Date | string | null;
   cancelledBy?: string | null;
   cancellationReason?: string | null;
