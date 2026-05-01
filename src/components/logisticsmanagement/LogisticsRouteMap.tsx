@@ -12,8 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-
-const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 
 function createDriverDotElement(): HTMLDivElement {
   const el = document.createElement('div');
@@ -39,12 +38,12 @@ function escapeHtml(text: string): string {
     .replaceAll("'", '&#039;');
 }
 
-async function geocodePlace(query: string): Promise<[number, number] | null> {
-  if (!TOKEN || !query.trim()) return null;
+async function geocodePlace(token: string, query: string): Promise<[number, number] | null> {
+  if (!token || !query.trim()) return null;
   try {
     const res = await fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query.trim())}.json` +
-        `?access_token=${TOKEN}&limit=1`
+        `?access_token=${token}&limit=1`
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -57,14 +56,15 @@ async function geocodePlace(query: string): Promise<[number, number] | null> {
 }
 
 async function fetchDrivingRoute(
+  token: string,
   waypoints: [number, number][]
 ): Promise<GeoJSON.Geometry | null> {
-  if (!TOKEN || waypoints.length < 2) return null;
+  if (!token || waypoints.length < 2) return null;
   try {
     const coords = waypoints.map((w) => w.join(',')).join(';');
     const res = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}` +
-        `?access_token=${TOKEN}&geometries=geojson&overview=full&steps=false`
+        `?access_token=${token}&geometries=geojson&overview=full&steps=false`
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -97,6 +97,8 @@ export default function LogisticsRouteMap({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
+  const { token, isLoading: tokenLoading } = useMapboxToken();
+
   const addressKey = deliveryAddresses.join('|');
   const driverCoord =
     typeof driverLat === 'number' && typeof driverLng === 'number'
@@ -104,9 +106,10 @@ export default function LogisticsRouteMap({
       : null;
 
   useEffect(() => {
+    if (tokenLoading) return;
     if (!containerRef.current) return;
 
-    if (!TOKEN) {
+    if (!token) {
       setIsLoading(false);
       setHasError(true);
       return;
@@ -123,7 +126,7 @@ export default function LogisticsRouteMap({
     let cancelled = false;
 
     (async () => {
-      const stopCoords = await Promise.all(deliveryAddresses.map((addr) => geocodePlace(addr)));
+      const stopCoords = await Promise.all(deliveryAddresses.map((addr) => geocodePlace(token, addr)));
 
       const stopPairs = deliveryAddresses
         .map((addr, i) => ({ addr, coord: stopCoords[i] }))
@@ -142,7 +145,7 @@ export default function LogisticsRouteMap({
 
       const center = allWaypoints[0];
 
-      mapboxgl.accessToken = TOKEN;
+      mapboxgl.accessToken = token;
       map = new mapboxgl.Map({
         container: containerRef.current!,
         style: 'mapbox://styles/mapbox/streets-v12',
@@ -207,7 +210,7 @@ export default function LogisticsRouteMap({
 
         if (allWaypoints.length >= 2) {
           const capped = allWaypoints.slice(0, 25);
-          const geometry = await fetchDrivingRoute(capped);
+          const geometry = await fetchDrivingRoute(token, capped);
           if (cancelled || !geometry || !map) return;
           map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry, properties: {} } });
           map.addLayer({
@@ -235,7 +238,7 @@ export default function LogisticsRouteMap({
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressKey, driverLat, driverLng]);
+  }, [addressKey, driverLat, driverLng, token, tokenLoading]);
 
   if (hasError) {
     return (
