@@ -26,6 +26,9 @@ function getReturnReasonLabel(code: string): string {
   return RETURN_REASON_LABELS[code] || code;
 }
 
+/** Statuses where POD is shown and can be edited — distributor delivery records after handoff */
+const POD_TRACKING_STATUSES = ['Delivered', 'Received', 'Returned'] as const;
+
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
   onBack: () => void;
@@ -196,6 +199,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       case 'Packed': return 'bg-purple-100 text-purple-800 font-semibold';
       case 'Shipped': return 'bg-indigo-100 text-indigo-800 font-semibold';
       case 'Delivered': return 'bg-green-100 text-green-800 font-semibold';
+      case 'Received': return 'bg-emerald-100 text-emerald-800 font-semibold';
       case 'Failed': return 'bg-red-100 text-red-800 font-semibold';
       case 'Cancelled': return 'bg-red-100 text-red-800 font-semibold';
       case 'Returned': return 'bg-orange-100 text-orange-800 font-semibold';
@@ -930,17 +934,48 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           </button>
                         </div>
                       )}
+                    {order.pod && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
+                        {String(order.pod).startsWith('data:') ? (
+                          <button
+                            type="button"
+                            className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                            onClick={() => setShowPodPreview(true)}
+                          >
+                            View Proof of Delivery
+                          </button>
+                        ) : (
+                          <a
+                            href={order.pod as string}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
+                          >
+                            View Proof of Delivery
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {!order.pod &&
+                      (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
+                        <div className="mt-4 pt-4 border-t border-dashed border-gray-200 text-xs text-gray-600">
+                          No proof of delivery on file. Upload via <span className="font-semibold">Edit</span>{' '}
+                          to keep distributor records (Delivered, Received, or Returned).
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               }
 
-              if (order.pod) {
+              if (order.pod && !(order.returnRequests && order.returnRequests.length > 0)) {
                 return (
                   <div className="mb-4">
                     <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
                     {String(order.pod).startsWith('data:') ? (
                       <button
+                        type="button"
                         className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                         onClick={() => setShowPodPreview(true)}
                       >
@@ -960,13 +995,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 );
               }
 
-              return (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
-                  Proof of delivery will be shown here once the order status is set to{' '}
-                  <span className="font-semibold text-green-600">Delivered</span> and a proof of delivery
-                  file has been uploaded via <span className="font-semibold">Edit</span>.
-                </div>
-              );
+              if (
+                !order.pod &&
+                (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus)
+              ) {
+                return (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
+                    No proof of delivery on file. Upload via <span className="font-semibold">Edit</span> to
+                    keep distributor records — recommended for orders marked{' '}
+                    <span className="font-semibold text-green-600">Delivered</span>,{' '}
+                    <span className="font-semibold text-emerald-700">Received</span>, or{' '}
+                    <span className="font-semibold text-amber-700">Returned</span>.
+                  </div>
+                );
+              }
+
+              return null;
             })()}
           </div>
         </div>
@@ -1501,7 +1545,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     onChange={(e) => setFormFields({ ...formFields, deliveryNote: e.target.value })}
                   />
                 </div>
-                {orderStatus === 'Delivered' && (
+                {(POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
                   <div className="md:col-span-2">
                     <label className="text-xs text-gray-500">Proof of Delivery (POD)</label>
                     <div
@@ -1589,7 +1633,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     shippingMethodLabel: formFields.deliveryMethod,
                     shippingMethod: formFields.deliveryMethod
                   };
-                  if (orderStatus === 'Delivered' && formFields.pod) {
+                  if ((POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && formFields.pod) {
                     requestBody.pod = formFields.pod;
                     requestBody.deliveryConfirmation = 'delivered';
                   }
