@@ -6,13 +6,18 @@ import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { parsePrice } from '@/utils/currencyUtils';
 import { syncOrderToBuyerProfile, parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
-import { sendExpoPushToMarketplaceUser, sendExpoPushToDriver } from '@/utils/expoPush';
+import {
+  getMarketplaceUserPushLanguage,
+  sendExpoPushToMarketplaceUser,
+  sendExpoPushToDriver,
+} from '@/utils/expoPush';
 import { translateDriverOrderUpdate } from '@/utils/driverPushTranslations';
 import {
   translateMarketplaceBuyerOrderCancelled,
   translateMarketplaceBuyerOrderStatus,
   translateMarketplacePaymentConfirmed,
   translateMarketplacePaymentUnpaid,
+  translateMarketplaceReturnRequestRejected,
 } from '@/utils/marketplacePushTranslations';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
@@ -166,6 +171,34 @@ export async function updateOrderHandler(request: NextRequest) {
           body.returnedAt = new Date().toISOString();
           body.returnReason = rr.reason ?? null;
           body.returnReasonDetail = rr.reasonDetail ?? null;
+        }
+
+        // Rejection does not change Order.orderStatus, so the buyer push block below never runs.
+        // Notify the marketplace buyer explicitly (Expo + WebSocket), same pattern as POST /return-request.
+        if (status === 'Rejected') {
+          try {
+            const marketplaceUserId = existingReturnRequest.marketplaceUserId;
+            if (marketplaceUserId != null) {
+              const orderRow = existingReturnRequest.order;
+              const rejectTranslations = translateMarketplaceReturnRequestRejected({
+                orderId: orderRow.orderId,
+              });
+              const payload = {
+                orderId: orderRow.orderId,
+                orderStatus: orderRow.orderStatus,
+                type: 'order' as const,
+                returnRequestStatus: 'Rejected' as const,
+              };
+              const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, rejectTranslations, payload);
+              if (tokenCount === 0) {
+                const wsLang = await getMarketplaceUserPushLanguage(marketplaceUserId);
+                const wsCopy = rejectTranslations[wsLang] ?? rejectTranslations.en;
+                await broadcastNotification('order', wsCopy.title, wsCopy.body, payload, marketplaceUserId);
+              }
+            }
+          } catch {
+            // best-effort
+          }
         }
       } catch (e) {
         return NextResponse.json({ error: 'Failed to update return request status' }, { status: 500, headers: localHeaders });

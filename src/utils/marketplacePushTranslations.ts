@@ -183,6 +183,23 @@ export function translateMarketplaceReturnRequestSubmitted(params: { orderId: st
   };
 }
 
+export function translateMarketplaceReturnRequestRejected(params: { orderId: string }): Record<
+  DriverPushLanguage,
+  MarketplacePushPayload
+> {
+  const { orderId } = params;
+  return {
+    id: {
+      title: 'Permintaan Pengembalian Ditolak',
+      body: `Permintaan pengembalian untuk pesanan #${orderId} ditolak oleh distributor.`,
+    },
+    en: {
+      title: 'Return Request Declined',
+      body: `Your return request for order #${orderId} was declined by the distributor.`,
+    },
+  };
+}
+
 export function translateMarketplacePaymentIntentSubmitted(params: { orderId: string }): Record<
   DriverPushLanguage,
   MarketplacePushPayload
