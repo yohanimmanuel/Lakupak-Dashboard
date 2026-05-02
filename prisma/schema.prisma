@@ -1081,6 +1081,9 @@ model DriverPushNotificationToken {
   token     String   @unique
   platform  String   // 'ios' | 'android'
   isActive  Boolean  @default(true)
+  /** BCP-47 / 2-letter code reported by the driver app (e.g. 'id', 'en').
+   * Used by the server to localize OS push banners delivered while the app is idle/closed. */
+  language  String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 

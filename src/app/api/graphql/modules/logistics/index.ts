@@ -4,6 +4,7 @@ import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToDriver } from '@/utils/expoPush';
+import { translateDriverFleetAssigned, translateDriverOrdersAdded } from '@/utils/driverPushTranslations';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -771,8 +772,7 @@ export const logisticsResolvers = {
         // Push notification (Expo) + WebSocket broadcast in parallel — both best-effort
         sendExpoPushToDriver(
           driverIdUpdate,
-          '🚛 New Fleet Assigned',
-          `Fleet ${fleetCode}${route ? ` · ${route}` : ''} has been assigned to you.`,
+          translateDriverFleetAssigned({ fleetCode, route }),
           { type: 'fleet_assigned', fleetId: String(row.id), fleetCode },
         ).catch(() => {});
         broadcastNotification(
@@ -790,8 +790,7 @@ export const logisticsResolvers = {
         if (newOrderIds.length > 0) {
           sendExpoPushToDriver(
             row.driverId,
-            '📦 Fleet Updated',
-            `${newOrderIds.length} order${newOrderIds.length > 1 ? 's' : ''} added to fleet ${row.fleetCode}.`,
+            translateDriverOrdersAdded({ fleetCode: row.fleetCode, count: newOrderIds.length }),
             { type: 'orders_added', fleetId: String(row.id), fleetCode: row.fleetCode },
           ).catch(() => {});
         }

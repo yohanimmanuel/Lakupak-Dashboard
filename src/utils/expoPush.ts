@@ -5,6 +5,11 @@
  * Uses FCM on Android and APNs on iOS under the hood.
  */
 import { prisma } from '@/lib/db';
+import {
+  type DriverPushLanguage,
+  type DriverPushPayload,
+  normalizeDriverPushLanguage,
+} from './driverPushTranslations';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -164,64 +169,107 @@ export async function sendExpoPushToAllMarketplaceUsers(
 
 /**
  * Send a push notification to all active Expo push tokens for a driver.
+ *
+ * Two ways to call:
+ *   1. Legacy/single-language: pass `title` and `body` as strings — every device gets the same text.
+ *   2. Localized: pass a `Record<DriverPushLanguage, DriverPushPayload>` map and tokens are
+ *      grouped by their stored language so each device receives its translation.
+ *
  * Best-effort: logs errors but does not throw.
  */
 export async function sendExpoPushToDriver(
   driverId: number,
-  title: string,
-  body: string,
-  data?: Record<string, unknown>
+  titleOrTranslations: string | Record<DriverPushLanguage, DriverPushPayload>,
+  bodyOrData?: string | Record<string, unknown>,
+  data?: Record<string, unknown>,
 ): Promise<{ tokenCount: number }> {
   try {
+    const isLocalized = typeof titleOrTranslations !== 'string';
+    const dataPayload =
+      (isLocalized ? (bodyOrData as Record<string, unknown> | undefined) : data) ?? {};
+
     const rows = await prisma.driverPushNotificationToken.findMany({
       where: { driverId, isActive: true },
-      select: { token: true },
+      select: { token: true, language: true },
     });
-    const expoTokens = rows.map((r) => r.token).filter(isExpoPushToken);
+    const validRows = rows.filter((r) => isExpoPushToken(r.token));
 
-    if (expoTokens.length === 0) {
+    if (validRows.length === 0) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('[ExpoPush] No driver tokens for driverId', driverId);
       }
       return { tokenCount: 0 };
     }
 
-    const payload = {
-      to: expoTokens,
-      title,
-      body,
-      data: data ?? {},
-      sound: 'default' as const,
-      channelId: 'driver',
-      priority: 'high' as const,
-    };
+    // Group tokens by language so we can send each group its own translated payload.
+    // For the legacy (string title/body) call shape we just collapse everyone into one group.
+    type Group = { language: DriverPushLanguage; tokens: string[] };
+    const groups: Group[] = [];
 
-    const res = await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    const text = await res.text();
-    if (!res.ok) {
-      console.error('[ExpoPush] driver send failed:', res.status, text);
-      return { tokenCount: 0 };
+    if (isLocalized) {
+      const translations = titleOrTranslations as Record<DriverPushLanguage, DriverPushPayload>;
+      const buckets = new Map<DriverPushLanguage, string[]>();
+      for (const r of validRows) {
+        const lang = normalizeDriverPushLanguage(r.language);
+        if (!translations[lang]) continue; // safety; normalize already falls back
+        const list = buckets.get(lang) ?? [];
+        list.push(r.token);
+        buckets.set(lang, list);
+      }
+      for (const [language, tokens] of buckets) {
+        if (tokens.length > 0) groups.push({ language, tokens });
+      }
+    } else {
+      groups.push({ language: 'id', tokens: validRows.map((r) => r.token) });
     }
 
-    try {
-      const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
-      const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
-      if (errors.length > 0 && process.env.NODE_ENV === 'development') {
-        console.warn('[ExpoPush] driver delivery errors:', errors.map((e) => e?.message || e));
-      }
-    } catch { /* ignore */ }
+    let totalSent = 0;
+    for (const group of groups) {
+      const { title, body } = isLocalized
+        ? (titleOrTranslations as Record<DriverPushLanguage, DriverPushPayload>)[group.language]
+        : { title: titleOrTranslations as string, body: (bodyOrData as string) ?? '' };
 
-    return { tokenCount: expoTokens.length };
+      const payload = {
+        to: group.tokens,
+        title,
+        body,
+        data: dataPayload,
+        sound: 'default' as const,
+        channelId: 'driver',
+        priority: 'high' as const,
+      };
+
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        console.error('[ExpoPush] driver send failed:', res.status, text);
+        continue;
+      }
+
+      try {
+        const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
+        const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
+        if (errors.length > 0 && process.env.NODE_ENV === 'development') {
+          console.warn('[ExpoPush] driver delivery errors:', errors.map((e) => e?.message || e));
+        }
+      } catch {
+        // ignore parse errors
+      }
+
+      totalSent += group.tokens.length;
+    }
+
+    return { tokenCount: totalSent };
   } catch (e) {
     console.error('[ExpoPush] driver error:', e);
     return { tokenCount: 0 };

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
-  const { token, platform } = (body ?? {}) as Record<string, unknown>;
+  const { token, platform, language } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof token !== 'string' || !token.trim()) {
     return NextResponse.json({ error: 'token is required' }, { status: 400, headers });
@@ -56,6 +56,9 @@ export async function POST(req: NextRequest) {
   if (!['ios', 'android'].includes(platform as string)) {
     return NextResponse.json({ error: 'platform must be ios or android' }, { status: 400, headers });
   }
+  // Optional — used so the server can localize OS push banners delivered while the app is idle/closed.
+  const normalizedLanguage =
+    typeof language === 'string' && /^[a-z]{2}$/i.test(language) ? language.toLowerCase() : null;
 
   try {
     // If another driver owns this token (device switch) reassign it
@@ -63,19 +66,70 @@ export async function POST(req: NextRequest) {
     if (existing && existing.driverId !== payload.sub) {
       await prisma.driverPushNotificationToken.update({
         where: { token },
-        data: { driverId: payload.sub, platform: platform as string, isActive: true },
+        data: {
+          driverId: payload.sub,
+          platform: platform as string,
+          isActive: true,
+          ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
+        },
       });
       return NextResponse.json({ ok: true }, { headers });
     }
 
     await prisma.driverPushNotificationToken.upsert({
       where: { token },
-      update: { platform: platform as string, isActive: true },
-      create: { driverId: payload.sub, token, platform: platform as string, isActive: true },
+      update: {
+        platform: platform as string,
+        isActive: true,
+        ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
+      },
+      create: {
+        driverId: payload.sub,
+        token,
+        platform: platform as string,
+        isActive: true,
+        ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
+      },
     });
     return NextResponse.json({ ok: true }, { headers });
   } catch (err) {
     console.error('[driver/push-token POST]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers });
+  }
+}
+
+/**
+ * PATCH /api/driver/push-token
+ * Update the preferred language on every active push token belonging to the driver.
+ * Lets the app keep the server's translation language in sync without needing the
+ * Expo push token cached client-side. Body: { language: 'id' | 'en' }
+ */
+export async function PATCH(req: NextRequest) {
+  const headers = getSecurityHeaders();
+  const payload = verifyDriverToken(req);
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+  if (payload.type !== 'driver') return NextResponse.json({ error: 'Invalid token type' }, { status: 403, headers });
+
+  const rateLimitResponse = await driverPushTokenRateLimiter(req, payload.sub);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  let body: unknown;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
+  }
+  const { language } = (body ?? {}) as Record<string, unknown>;
+  if (typeof language !== 'string' || !/^[a-z]{2}$/i.test(language)) {
+    return NextResponse.json({ error: 'language must be a 2-letter code' }, { status: 400, headers });
+  }
+
+  try {
+    await prisma.driverPushNotificationToken.updateMany({
+      where: { driverId: payload.sub, isActive: true },
+      data: { language: language.toLowerCase() },
+    });
+    return NextResponse.json({ ok: true }, { headers });
+  } catch (err) {
+    console.error('[driver/push-token PATCH]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers });
   }
 }

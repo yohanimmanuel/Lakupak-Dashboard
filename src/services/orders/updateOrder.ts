@@ -7,6 +7,7 @@ import { parsePrice } from '@/utils/currencyUtils';
 import { syncOrderToBuyerProfile, parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser, sendExpoPushToDriver } from '@/utils/expoPush';
+import { translateDriverOrderUpdate } from '@/utils/driverPushTranslations';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { decimalToNumber, broadcastSoldCountUpdates, calculateTotalQuantityWithPromotions } from './utils';
@@ -917,31 +918,12 @@ export async function updateOrderHandler(request: NextRequest) {
         const fleetCode = orderWithFleet?.fleet?.fleetCode;
         if (driverId) {
           const orderStatus = String(sanitizedData.orderStatus);
-          let driverTitle = 'Order Update';
-          let driverBody = `Order #${order.orderId} in your fleet is now ${orderStatus}.`;
-          switch (orderStatus) {
-            case 'Packed':
-              driverTitle = '📦 New Delivery Ready';
-              driverBody = `Order #${order.orderId}${fleetCode ? ` · Fleet ${fleetCode}` : ''} is packed and ready for pickup.`;
-              break;
-            case 'Shipped':
-              driverTitle = '🚛 Delivery In Progress';
-              driverBody = `Order #${order.orderId} has been marked as shipped.`;
-              break;
-            case 'Delivered':
-              driverTitle = '✅ Delivery Confirmed';
-              driverBody = `Order #${order.orderId} has been confirmed as delivered.`;
-              break;
-            case 'Cancelled':
-              driverTitle = '❌ Order Cancelled';
-              driverBody = `Order #${order.orderId} in your fleet has been cancelled.`;
-              break;
-            case 'Failed':
-              driverTitle = '⚠️ Delivery Failed';
-              driverBody = `Order #${order.orderId} delivery has been marked as failed.`;
-              break;
-          }
-          await sendExpoPushToDriver(driverId, driverTitle, driverBody, {
+          const translations = translateDriverOrderUpdate({
+            orderId: String(order.orderId),
+            status: orderStatus,
+            fleetCode: fleetCode ?? undefined,
+          });
+          await sendExpoPushToDriver(driverId, translations, {
             type: 'order_updated',
             orderId: order.orderId,
             orderStatus,
