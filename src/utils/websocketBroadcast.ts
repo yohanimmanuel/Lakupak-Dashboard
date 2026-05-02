@@ -1,4 +1,7 @@
 // WebSocket broadcast utility for real-time updates
+import { prisma } from '@/lib/db';
+import { normalizeDriverPushLanguage, type DriverPushLanguage } from '@/utils/driverPushTranslations';
+import type { MarketplacePushPayload } from '@/utils/marketplacePushTranslations';
 import { wsServer } from '../server/websocket';
 
 // Check if WebSocket server is running in this process

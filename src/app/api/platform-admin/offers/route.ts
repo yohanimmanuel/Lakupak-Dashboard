@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { broadcastMarketplaceHomeOffersRefresh } from '@/utils/websocketBroadcast';
+import { notifyMarketplacePublishedHomeOffer } from '@/utils/homeOfferNotify';
 import { normalizeOfferIconKey } from '@/utils/marketplaceHomeOfferIcons';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
@@ -159,6 +160,10 @@ export async function POST(req: NextRequest) {
         updatedAt: true,
       },
     });
+
+    if (created.isPublished) {
+      void notifyMarketplacePublishedHomeOffer(created);
+    }
 
     const offerJson = {
       ...created,

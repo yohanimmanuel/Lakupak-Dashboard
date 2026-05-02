@@ -4,6 +4,10 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { broadcastMarketplaceHomeOffersRefresh } from '@/utils/websocketBroadcast';
+import {
+  notifyMarketplacePublishedHomeOffer,
+  notifyMarketplaceUnpublishedHomeOffer,
+} from '@/utils/homeOfferNotify';
 import { normalizeOfferIconKey } from '@/utils/marketplaceHomeOfferIcons';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 
@@ -123,6 +127,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ offerId: 
       return NextResponse.json({ error: 'No changes provided' }, { status: 400, headers });
     }
 
+    const previous = await prisma.marketplaceHomeOffer.findUnique({
+      where: { id },
+      select: { isPublished: true },
+    });
+
     const updated = await prisma.marketplaceHomeOffer.update({
       where: { id },
       data,
@@ -137,6 +146,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ offerId: 
     };
 
     void broadcastMarketplaceHomeOffersRefresh();
+
+    const wasPublished = previous?.isPublished === true;
+    const nowPublished = updated.isPublished === true;
+    if (nowPublished && !wasPublished) {
+      void notifyMarketplacePublishedHomeOffer(updated);
+    } else if (!nowPublished && wasPublished) {
+      void notifyMarketplaceUnpublishedHomeOffer(id);
+    }
 
     return NextResponse.json({ ok: true, offer: offerJson }, { status: 200, headers });
   } catch (err) {
@@ -162,8 +179,15 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ offerId:
     const id = getId(params);
     if (!id) return NextResponse.json({ error: 'Invalid offer id' }, { status: 400, headers });
 
+    const existing = await prisma.marketplaceHomeOffer.findUnique({
+      where: { id },
+      select: { isPublished: true },
+    });
     await prisma.marketplaceHomeOffer.delete({ where: { id } });
     void broadcastMarketplaceHomeOffersRefresh();
+    if (existing?.isPublished) {
+      void notifyMarketplaceUnpublishedHomeOffer(id);
+    }
 
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch (err) {
