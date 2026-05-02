@@ -10,6 +10,7 @@ import {
   type DriverPushPayload,
   normalizeDriverPushLanguage,
 } from './driverPushTranslations';
+import type { MarketplacePushPayload } from './marketplacePushTranslations';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -18,24 +19,47 @@ function isExpoPushToken(token: string): boolean {
 }
 
 /**
+ * Resolve buyer notification copy language for WebSocket/in-app (MarketplaceUser has no locale column).
+ * Uses the most recently updated active push token's `language`, same basis as
+ * `sendExpoPushToMarketplaceUser` grouping — falls back via {@link normalizeDriverPushLanguage}.
+ */
+export async function getMarketplaceUserPushLanguage(marketplaceUserId: number): Promise<DriverPushLanguage> {
+  const row = await prisma.pushNotificationToken.findFirst({
+    where: { userId: marketplaceUserId, isActive: true },
+    orderBy: { updatedAt: 'desc' },
+    select: { language: true },
+  });
+  return normalizeDriverPushLanguage(row?.language);
+}
+
+/**
  * Send a push notification to all active Expo push tokens for a marketplace user.
- * Best-effort: logs errors but does not throw. Call when order status changes, etc.
+ *
+ * Two call shapes (mirrors `sendExpoPushToDriver`):
+ *   1. Legacy: `title` and `body` strings — same text to every device.
+ *   2. Localized: `Record<DriverPushLanguage, MarketplacePushPayload>` — tokens grouped by stored `language`.
+ *
+ * Best-effort: logs errors but does not throw.
  * @returns { tokenCount } so caller can fallback to WebSocket when 0 (e.g. FCM not configured, no token saved).
  */
 export async function sendExpoPushToMarketplaceUser(
   marketplaceUserId: number,
-  title: string,
-  body: string,
-  data?: Record<string, unknown>
+  titleOrTranslations: string | Record<DriverPushLanguage, MarketplacePushPayload>,
+  bodyOrData?: string | Record<string, unknown>,
+  data?: Record<string, unknown>,
 ): Promise<{ tokenCount: number }> {
   try {
+    const isLocalized = typeof titleOrTranslations !== 'string';
+    const dataPayload =
+      (isLocalized ? (bodyOrData as Record<string, unknown> | undefined) : data) ?? {};
+
     const rows = await prisma.pushNotificationToken.findMany({
       where: { userId: marketplaceUserId, isActive: true },
-      select: { token: true },
+      select: { token: true, language: true },
     });
-    const expoTokens = rows.map((r) => r.token).filter(isExpoPushToken);
+    const validRows = rows.filter((r) => isExpoPushToken(r.token));
 
-    if (expoTokens.length === 0) {
+    if (validRows.length === 0) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('[ExpoPush] No tokens for userId', marketplaceUserId, '- use WebSocket fallback if app is in foreground.');
       }
@@ -43,49 +67,77 @@ export async function sendExpoPushToMarketplaceUser(
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[ExpoPush] Sending to', expoTokens.length, 'token(s) for userId', marketplaceUserId);
+      console.warn('[ExpoPush] Sending to', validRows.length, 'token(s) for userId', marketplaceUserId);
     }
 
-    const payload = {
-      to: expoTokens,
-      title,
-      body,
-      data: data || {},
-      sound: 'default' as const,
-      channelId: 'orders',
-      priority: 'high' as const,
-    };
+    type Group = { language: DriverPushLanguage; tokens: string[] };
+    const groups: Group[] = [];
 
-    const res = await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    const text = await res.text();
-
-    if (!res.ok) {
-      console.error('[ExpoPush] send failed:', res.status, text);
-      return { tokenCount: 0 };
-    }
-
-    // Expo can return 200 with per-ticket errors (e.g. DeviceNotRegistered, InvalidCredentials)
-    try {
-      const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
-      const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
-      if (errors.length > 0 && process.env.NODE_ENV === 'development') {
-        console.warn('[ExpoPush] Expo reported delivery errors:', errors.map((e) => e?.message || e));
+    if (isLocalized) {
+      const translations = titleOrTranslations as Record<DriverPushLanguage, MarketplacePushPayload>;
+      const buckets = new Map<DriverPushLanguage, string[]>();
+      for (const r of validRows) {
+        const lang = normalizeDriverPushLanguage(r.language);
+        if (!translations[lang]) continue;
+        const list = buckets.get(lang) ?? [];
+        list.push(r.token);
+        buckets.set(lang, list);
       }
-    } catch {
-      // ignore parse errors
+      for (const [language, tokens] of buckets) {
+        if (tokens.length > 0) groups.push({ language, tokens });
+      }
+    } else {
+      groups.push({ language: 'id', tokens: validRows.map((r) => r.token) });
     }
 
-    return { tokenCount: expoTokens.length };
+    let totalSent = 0;
+    for (const group of groups) {
+      const { title, body } = isLocalized
+        ? (titleOrTranslations as Record<DriverPushLanguage, MarketplacePushPayload>)[group.language]
+        : { title: titleOrTranslations as string, body: (bodyOrData as string) ?? '' };
+
+      const payload = {
+        to: group.tokens,
+        title,
+        body,
+        data: dataPayload,
+        sound: 'default' as const,
+        channelId: 'orders',
+        priority: 'high' as const,
+      };
+
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      const text = await res.text();
+
+      if (!res.ok) {
+        console.error('[ExpoPush] send failed:', res.status, text);
+        continue;
+      }
+
+      try {
+        const json = JSON.parse(text) as { data?: Array<{ status?: string; message?: string }> };
+        const errors = json?.data?.filter((d) => d?.status === 'error') ?? [];
+        if (errors.length > 0 && process.env.NODE_ENV === 'development') {
+          console.warn('[ExpoPush] Expo reported delivery errors:', errors.map((e) => e?.message || e));
+        }
+      } catch {
+        // ignore parse errors
+      }
+
+      totalSent += group.tokens.length;
+    }
+
+    return { tokenCount: totalSent };
   } catch (e) {
     console.error('[ExpoPush] error:', e);
     return { tokenCount: 0 };

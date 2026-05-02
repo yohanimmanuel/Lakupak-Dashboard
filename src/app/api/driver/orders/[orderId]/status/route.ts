@@ -214,24 +214,25 @@ export async function PATCH(
       const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updated.buyerId);
 
       if (marketplaceUserId != null) {
-        let title = 'Order Updated';
-        let body = `Your order #${updated.orderId} status is now ${updated.orderStatus}.`;
-
-        if (orderStatus === 'Shipped') {
-          title = 'Order Shipped';
-          body = `Your order #${updated.orderId} has been shipped by your distributor.`;
-        } else if (orderStatus === 'Delivered') {
-          title = 'Order Delivered';
-          body = `Your order #${updated.orderId} has been delivered by your driver.`;
-        } else if (orderStatus === 'Failed') {
-          title = 'Delivery Failed';
-          body = `Delivery for order #${updated.orderId} could not be completed.`;
-        }
-
+        const { translateMarketplaceBuyerOrderFromDriverApp } = await import('@/utils/marketplacePushTranslations');
+        const driverPushTranslations = translateMarketplaceBuyerOrderFromDriverApp({
+          orderId: updated.orderId,
+          orderStatus: String(updated.orderStatus),
+        });
         const payload = { orderId: updated.orderId, orderStatus: updated.orderStatus, type: 'order' };
-        const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, payload);
+        const { tokenCount } = await sendExpoPushToMarketplaceUser(
+          marketplaceUserId,
+          driverPushTranslations,
+          payload,
+        );
         if (tokenCount === 0) {
-          await broadcastNotification('order', title, body, payload, marketplaceUserId);
+          await broadcastNotification(
+            'order',
+            driverPushTranslations.en.title,
+            driverPushTranslations.en.body,
+            payload,
+            marketplaceUserId,
+          );
         }
       }
     } catch {

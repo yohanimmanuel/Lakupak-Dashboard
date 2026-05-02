@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
-import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { getMarketplaceUserPushLanguage, sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { translateMarketplaceReturnRequestSubmitted } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { marketplaceReturnRequestRateLimiter } from '@/utils/rateLimiter';
 
@@ -162,11 +163,12 @@ export async function POST(request: NextRequest) {
 
     // Notify marketplace buyer (confirmation): always send both Expo push and WebSocket so in-app gets same content
     try {
-      const title = 'Return Request Submitted';
-      const body = `Your return request for order #${order.orderId} has been submitted. We will process it and contact you if needed.`;
+      const returnTranslations = translateMarketplaceReturnRequestSubmitted({ orderId: order.orderId });
       const payload = { orderId: order.orderId, orderStatus: order.orderStatus, type: 'order' };
-      await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, payload);
-      await broadcastNotification('order', title, body, payload, marketplaceUserId);
+      await sendExpoPushToMarketplaceUser(marketplaceUserId, returnTranslations, payload);
+      const wsLang = await getMarketplaceUserPushLanguage(marketplaceUserId);
+      const wsCopy = returnTranslations[wsLang];
+      await broadcastNotification('order', wsCopy.title, wsCopy.body, payload, marketplaceUserId);
     } catch {
       // Don't fail the return request if notification fails
     }

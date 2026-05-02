@@ -8,6 +8,12 @@ import { syncOrderToBuyerProfile, parseMarketplaceUserIdFromBuyerId } from '@/ut
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser, sendExpoPushToDriver } from '@/utils/expoPush';
 import { translateDriverOrderUpdate } from '@/utils/driverPushTranslations';
+import {
+  translateMarketplaceBuyerOrderCancelled,
+  translateMarketplaceBuyerOrderStatus,
+  translateMarketplacePaymentConfirmed,
+  translateMarketplacePaymentUnpaid,
+} from '@/utils/marketplacePushTranslations';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { decimalToNumber, broadcastSoldCountUpdates, calculateTotalQuantityWithPromotions } from './utils';
@@ -277,17 +283,19 @@ export async function updateOrderHandler(request: NextRequest) {
         try {
           const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
           if (marketplaceUserId != null) {
+            const cancelTranslations = translateMarketplaceBuyerOrderCancelled({
+              orderId: updatedOrder.orderId,
+            });
             const { tokenCount } = await sendExpoPushToMarketplaceUser(
               marketplaceUserId,
-              'Order Cancelled',
-              `Your order #${updatedOrder.orderId} has been cancelled.`,
-              { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' }
+              cancelTranslations,
+              { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' },
             );
             if (tokenCount === 0) {
               await broadcastNotification(
                 'order',
-                'Order Cancelled',
-                `Your order #${updatedOrder.orderId} has been cancelled.`,
+                cancelTranslations.en.title,
+                cancelTranslations.en.body,
                 { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' },
                 marketplaceUserId
               );
@@ -794,12 +802,21 @@ export async function updateOrderHandler(request: NextRequest) {
       try {
         const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
         if (marketplaceUserId != null) {
-          const title = 'Payment Confirmed';
-          const bodyText = `Your payment has been confirmed for order #${order.orderId}.`;
           const payload = { orderId: order.orderId, paymentStatus: 'Paid', type: 'payment' };
-          const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, bodyText, payload);
+          const payTranslations = translateMarketplacePaymentConfirmed({ orderId: order.orderId });
+          const { tokenCount } = await sendExpoPushToMarketplaceUser(
+            marketplaceUserId,
+            payTranslations,
+            payload,
+          );
           if (tokenCount === 0) {
-            await broadcastNotification('payment', title, bodyText, payload, marketplaceUserId);
+            await broadcastNotification(
+              'payment',
+              payTranslations.en.title,
+              payTranslations.en.body,
+              payload,
+              marketplaceUserId,
+            );
           }
         } else if (process.env.NODE_ENV === 'development') {
           console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
@@ -818,12 +835,21 @@ export async function updateOrderHandler(request: NextRequest) {
       try {
         const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
         if (marketplaceUserId != null) {
-          const title = 'Payment Status Updated';
-          const bodyText = `Payment status for order #${order.orderId} is now Unpaid.`;
           const payload = { orderId: order.orderId, paymentStatus: 'Unpaid', type: 'payment' };
-          const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, bodyText, payload);
+          const payTranslations = translateMarketplacePaymentUnpaid({ orderId: order.orderId });
+          const { tokenCount } = await sendExpoPushToMarketplaceUser(
+            marketplaceUserId,
+            payTranslations,
+            payload,
+          );
           if (tokenCount === 0) {
-            await broadcastNotification('payment', title, bodyText, payload, marketplaceUserId);
+            await broadcastNotification(
+              'payment',
+              payTranslations.en.title,
+              payTranslations.en.body,
+              payload,
+              marketplaceUserId,
+            );
           }
         } else if (process.env.NODE_ENV === 'development') {
           console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
@@ -845,57 +871,23 @@ export async function updateOrderHandler(request: NextRequest) {
             // Still allow broadcastOrderUpdate for data refresh elsewhere.
             throw new Error('__skip_order_status_notification__');
           }
-          let title = 'Order Update';
-          let bodyText = `Your order #${order.orderId} status has been updated.`;
-
-          switch (orderStatus) {
-            case 'Confirmed':
-              title = 'Order Confirmed';
-              bodyText = `Great news! Your order #${order.orderId} has been confirmed and is being processed.`;
-              break;
-            case 'Packed':
-              title = 'Order Packed';
-              bodyText = `Your order #${order.orderId} has been packed and is ready for shipping.`;
-              break;
-            case 'Shipped':
-              title = 'Order Shipped';
-              bodyText = `Your order #${order.orderId} is on its way! Track your delivery for updates.`;
-              break;
-            case 'Delivered':
-              title = 'Order Delivered';
-              bodyText = `Your order #${order.orderId} has been delivered. Enjoy your purchase!`;
-              break;
-            case 'Received':
-              title = 'Order Received';
-              bodyText = `Your order #${order.orderId} has been marked as received. Thank you for confirming!`;
-              break;
-            case 'Cancelled':
-              title = 'Order Cancelled';
-              bodyText = `Your order #${order.orderId} has been cancelled.`;
-              break;
-            case 'Returned':
-              title = 'Order Returned';
-              bodyText = `Your order #${order.orderId} return has been processed.`;
-              break;
-            case 'Failed':
-              title = 'Delivery Failed';
-              bodyText = `We're sorry. Delivery of your order #${order.orderId} could not be completed. Please contact support.`;
-              break;
-          }
-
+          const orderPushTranslations = translateMarketplaceBuyerOrderStatus({
+            orderId: order.orderId,
+            status: orderStatus,
+          });
+          const orderPayload = { orderId: order.orderId, orderStatus, type: 'order' as const };
           const { tokenCount } = await sendExpoPushToMarketplaceUser(
             marketplaceUserId,
-            title,
-            bodyText,
-            { orderId: order.orderId, orderStatus, type: 'order' }
+            orderPushTranslations,
+            orderPayload,
           );
           if (tokenCount === 0) {
             await broadcastNotification(
               'order',
-              title,
-              bodyText,
-              { orderId: order.orderId, orderStatus, type: 'order' },
-              marketplaceUserId
+              orderPushTranslations.en.title,
+              orderPushTranslations.en.body,
+              orderPayload,
+              marketplaceUserId,
             );
           }
         } else if (process.env.NODE_ENV === 'development') {

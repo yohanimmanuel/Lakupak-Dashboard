@@ -5,6 +5,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { translateMarketplaceBuyerOrderStatus } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
@@ -139,12 +140,24 @@ export async function PUT(
     // Notify marketplace buyer with "Order Received" only (Expo first; WebSocket fallback when no Expo tokens).
     // Do not use generic "order update" for Received — use only this dedicated notification.
     try {
-      const title = 'Order Received';
-      const notificationBody = `Your order #${order.orderId} has been marked as received. Thank you for confirming!`;
+      const receivedTranslations = translateMarketplaceBuyerOrderStatus({
+        orderId: order.orderId,
+        status: 'Received',
+      });
       const payload = { orderId: order.orderId, orderStatus: 'Received', type: 'order' };
-      const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, notificationBody, payload);
+      const { tokenCount } = await sendExpoPushToMarketplaceUser(
+        marketplaceUserId,
+        receivedTranslations,
+        payload,
+      );
       if (tokenCount === 0) {
-        await broadcastNotification('order', title, notificationBody, payload, marketplaceUserId);
+        await broadcastNotification(
+          'order',
+          receivedTranslations.en.title,
+          receivedTranslations.en.body,
+          payload,
+          marketplaceUserId,
+        );
       }
     } catch {
       // Don't fail the status update if notification fails

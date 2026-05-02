@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await request.json();
-    const { userId, token, platform } = body;
+    const { userId, token, platform, language } = body;
 
     if (!userId || !token || !platform) {
       return NextResponse.json(
@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedLanguage =
+      typeof language === 'string' && /^[a-z]{2}$/i.test(language) ? language.toLowerCase() : null;
+
     // Guard: marketplace user must exist (authorization is based on authUserId)
     const marketplaceUser = await prisma.marketplaceUser.findUnique({
       where: { id: authUserId },
@@ -76,6 +79,7 @@ export async function POST(request: NextRequest) {
           userId: authUserId,
           platform,
           isActive: true,
+          ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
           updatedAt: new Date(),
         },
       });
@@ -95,6 +99,7 @@ export async function POST(request: NextRequest) {
       update: {
         platform,
         isActive: true,
+        ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
         updatedAt: new Date(),
       },
       create: {
@@ -102,6 +107,7 @@ export async function POST(request: NextRequest) {
         token,
         platform,
         isActive: true,
+        ...(normalizedLanguage != null ? { language: normalizedLanguage } : {}),
       },
     });
 
@@ -117,6 +123,42 @@ export async function POST(request: NextRequest) {
     console.error('Error registering push token:', error);
     return NextResponse.json(
       { error: 'Failed to register push token' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/mobile/push-token — set preferred language on all active tokens for the authenticated user
+export async function PATCH(request: NextRequest) {
+  try {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    }
+    const authUserId = auth.userId;
+
+    const rateLimitResponse = await marketplacePushTokenRateLimiter(request, authUserId);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const body = await request.json();
+    const { language } = body as Record<string, unknown>;
+    if (typeof language !== 'string' || !/^[a-z]{2}$/i.test(language)) {
+      return NextResponse.json({ error: 'language must be a 2-letter code' }, { status: 400 });
+    }
+
+    await prisma.pushNotificationToken.updateMany({
+      where: { userId: authUserId, isActive: true },
+      data: { language: language.toLowerCase(), updatedAt: new Date() },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating push token language:', error);
+    return NextResponse.json(
+      { error: 'Failed to update push token language' },
       { status: 500 }
     );
   }

@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { broadcastDashboardNotification, broadcastNotification, broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
+import { translateMarketplacePaymentIntentSubmitted } from '@/utils/marketplacePushTranslations';
 import { marketplacePayIntentRateLimiter } from '@/utils/rateLimiter';
 
 /**
@@ -100,12 +101,21 @@ export async function POST(
 
     // Let marketplace buyer know we notified the distributor (push first; WS fallback)
     try {
-      const title = 'Payment intent submitted';
-      const body = `We notified the distributor for order #${order.orderId}. Please complete your manual transfer.`;
+      const payIntentTranslations = translateMarketplacePaymentIntentSubmitted({ orderId: order.orderId });
       const payload = { orderId: order.orderId, type: 'payment' };
-      const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, title, body, payload);
+      const { tokenCount } = await sendExpoPushToMarketplaceUser(
+        marketplaceUserId,
+        payIntentTranslations,
+        payload,
+      );
       if (tokenCount === 0) {
-        await broadcastNotification('payment', title, body, payload, marketplaceUserId);
+        await broadcastNotification(
+          'payment',
+          payIntentTranslations.en.title,
+          payIntentTranslations.en.body,
+          payload,
+          marketplaceUserId,
+        );
       }
     } catch {
       // best-effort

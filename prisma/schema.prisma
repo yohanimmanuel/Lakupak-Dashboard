@@ -912,6 +912,8 @@ model PushNotificationToken {
   token           String          @unique
   platform        String          // 'ios' | 'android' | 'web'
   isActive        Boolean         @default(true)
+  /** BCP-47 / 2-letter code from the marketplace app (e.g. 'id', 'en'). Used to localize OS push when idle/closed. */
+  language        String?
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
   
