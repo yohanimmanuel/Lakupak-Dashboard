@@ -52,6 +52,7 @@ type OrderFailedReasonModel = {
       driverId: number | null;
       reason: string;
       detail: string | null;
+      imageUrls: string[];
     };
   }) => Promise<unknown>;
 };
@@ -79,7 +80,13 @@ export async function PATCH(
     return NextResponse.json({ error: 'Order ID required' }, { status: 400, headers });
   }
 
-  let body: { orderStatus?: string; failureReason?: string; pod?: string };
+  let body: {
+    orderStatus?: string;
+    failureReason?: string;
+    pod?: string;
+    failureProof?: string;
+    failureEvidenceUrls?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -89,6 +96,18 @@ export async function PATCH(
   const orderStatus = typeof body.orderStatus === 'string' ? body.orderStatus.trim() : undefined;
   const failureReason = typeof body.failureReason === 'string' ? body.failureReason.trim() : undefined;
   const pod = typeof body.pod === 'string' ? body.pod.trim() : undefined;
+  const failureProof = typeof body.failureProof === 'string' ? body.failureProof.trim() : undefined;
+  const rawEvidenceUrls = body.failureEvidenceUrls;
+  let failureEvidenceUrls: string[] = [];
+  if (Array.isArray(rawEvidenceUrls)) {
+    failureEvidenceUrls = rawEvidenceUrls
+      .filter((u): u is string => typeof u === 'string')
+      .map((u) => u.trim())
+      .filter(Boolean);
+  }
+  if (failureEvidenceUrls.length === 0 && failureProof) {
+    failureEvidenceUrls = [failureProof];
+  }
   if (!orderStatus || !DRIVER_ALLOWED_STATUSES.includes(orderStatus as (typeof DRIVER_ALLOWED_STATUSES)[number])) {
     return NextResponse.json(
       { error: 'orderStatus must be one of: Shipped, Delivered, Failed' },
@@ -143,7 +162,11 @@ export async function PATCH(
       if (pod) updateData.pod = pod;
     }
     if (orderStatus === 'Failed' && failureReason) {
-      updateData.cancellationReason = `[Delivery failed] ${failureReason}`;
+      const evidenceNote =
+        failureEvidenceUrls.length > 0
+          ? ` (${failureEvidenceUrls.length} photo${failureEvidenceUrls.length === 1 ? '' : 's'})`
+          : '';
+      updateData.cancellationReason = `[Delivery failed] ${failureReason}${evidenceNote}`;
     }
 
     const updated = await prisma.order.update({
@@ -197,8 +220,8 @@ export async function PATCH(
               driverId: order.fleet?.driverId ?? null,
               // Store the human-readable failure reason selected by the driver.
               reason: failureReason || 'Delivery failed',
-              // Detail can carry a more descriptive message or be null.
               detail: failureReason ? `Driver reported: ${failureReason}` : null,
+              imageUrls: failureEvidenceUrls,
             },
           });
         }

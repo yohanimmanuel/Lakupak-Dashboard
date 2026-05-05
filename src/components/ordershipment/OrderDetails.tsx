@@ -766,6 +766,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               if (orderStatus === 'Failed') {
                 const raw = order.cancellationReason || '';
                 const cleaned = raw.replace(/^\[Delivery failed\]\s*/i, '') || 'Delivery failed';
+                const failedReasons = (
+                  order as OrderWithSnapshots & { orderFailedReasons?: Array<{ imageUrls?: string[] }> }
+                ).orderFailedReasons;
+                const latestFailed = failedReasons?.[failedReasons.length - 1];
+                const failedImageUrls = (latestFailed?.imageUrls ?? []).filter((u) => typeof u === 'string' && u);
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
                     <div className="text-sm font-semibold text-black mb-2">Delivery failure reason</div>
@@ -774,6 +779,25 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <span className="font-medium text-gray-900">Reason:</span> {cleaned}
                       </p>
                     </div>
+                    {failedImageUrls.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {failedImageUrls.slice(0, 5).map((url, imgIdx) => (
+                          <a
+                            key={`failed-${order.orderId}-${imgIdx}`}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block w-16 h-16 rounded-md overflow-hidden border border-gray-200"
+                          >
+                            <img
+                              src={url}
+                              alt={`Failure evidence ${imgIdx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               }

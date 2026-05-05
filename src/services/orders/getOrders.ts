@@ -45,6 +45,10 @@ export async function getOrdersHandler(request: NextRequest) {
       buyer: true,
       user: { include: { company: true } },
       orderItemsRel: { include: { product: true } },
+      orderFailedReasons: {
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, reason: true, detail: true, imageUrls: true, createdAt: true },
+      },
       returnRequests: {
         orderBy: { createdAt: 'asc' },
         select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true },

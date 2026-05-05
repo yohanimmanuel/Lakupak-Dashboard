@@ -59,6 +59,27 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Enrich each review with what that buyer actually purchased (variant/package snapshots)
+    const orderIds = Array.from(new Set(reviews.map((r) => r.orderId).filter(Boolean)));
+    const orderItems = orderIds.length
+      ? await prisma.orderItem.findMany({
+          where: { orderId: { in: orderIds }, productId: trimmedId },
+          select: {
+            orderId: true,
+            productId: true,
+            productNameSnapshot: true,
+            variantNameSnapshot: true,
+            packageType: true,
+            piecesPerPackage: true,
+          },
+        })
+      : [];
+
+    const orderItemByOrderId = new Map<string, (typeof orderItems)[number]>();
+    for (const oi of orderItems) {
+      if (oi.orderId) orderItemByOrderId.set(oi.orderId, oi);
+    }
+
     const totalReviews = aggregateResult._count.id;
     const avgRating = aggregateResult._avg.rating;
     const overallRating =
@@ -71,17 +92,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const list = reviews.map((r) => ({
-      id: r.id,
-      rating: r.rating,
-      title: r.title ?? undefined,
-      comment: r.comment ?? undefined,
-      imageUrls: r.imageUrls ?? [],
-      createdAt: r.createdAt.toISOString(),
-      reviewerDisplayName:
-        (r.user?.name && r.user.name.trim()) || (r.user?.username && r.user.username.trim()) || 'Customer',
-      reviewerProfileImage: r.user?.image ?? undefined,
-    }));
+    const list = reviews.map((r) => {
+      const oi = orderItemByOrderId.get(r.orderId);
+      const pieces = typeof oi?.piecesPerPackage === 'number' && oi.piecesPerPackage > 0 ? oi.piecesPerPackage : null;
+      const packType = (oi?.packageType ?? '').trim() || null;
+      const purchasedPack =
+        packType && pieces ? `${packType} · ${pieces} pcs` : packType ? packType : pieces ? `${pieces} pcs` : null;
+      return {
+        id: r.id,
+        rating: r.rating,
+        title: r.title ?? undefined,
+        comment: r.comment ?? undefined,
+        imageUrls: r.imageUrls ?? [],
+        createdAt: r.createdAt.toISOString(),
+        reviewerDisplayName:
+          (r.user?.name && r.user.name.trim()) || (r.user?.username && r.user.username.trim()) || 'Customer',
+        reviewerProfileImage: r.user?.image ?? undefined,
+        purchasedProductName: (oi?.productNameSnapshot ?? '').trim() || undefined,
+        purchasedVariantName: (oi?.variantNameSnapshot ?? '').trim() || undefined,
+        purchasedPackage: purchasedPack ?? undefined,
+      };
+    });
 
     const totalPages = totalReviews === 0 ? 0 : Math.ceil(totalReviews / limit);
 

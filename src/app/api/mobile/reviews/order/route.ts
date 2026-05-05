@@ -162,3 +162,86 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+/**
+ * GET /api/mobile/reviews/order?orderId=xxx
+ * Returns the authenticated buyer's existing product reviews (and optional delivery review) for an order.
+ */
+export async function GET(request: NextRequest) {
+  const headers = getSecurityHeaders();
+
+  try {
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
+    }
+    const userId = auth.userId;
+
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('orderId');
+    if (!orderId || typeof orderId !== 'string' || orderId.trim() === '') {
+      return NextResponse.json({ error: 'orderId is required' }, { status: 400, headers });
+    }
+
+    const trimmedOrderId = orderId.trim();
+
+    // Verify ownership of order (buyerId -> marketplace user id)
+    const order = await prisma.order.findUnique({
+      where: { orderId: trimmedOrderId },
+      select: { orderId: true, buyerId: true },
+    });
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+
+    const { parseMarketplaceUserIdFromBuyerId } = await import('@/utils/buyerSync');
+    const orderBuyerMarketplaceId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+    if (orderBuyerMarketplaceId === null || orderBuyerMarketplaceId !== userId) {
+      return NextResponse.json({ error: 'You can only access reviews for your own orders' }, { status: 403, headers });
+    }
+
+    const [productReviews, deliveryReview] = await Promise.all([
+      prisma.productReview.findMany({
+        where: { userId, orderId: trimmedOrderId },
+        select: {
+          productId: true,
+          rating: true,
+          title: true,
+          comment: true,
+          imageUrls: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.orderDeliveryReview.findUnique({
+        where: { orderId: trimmedOrderId },
+        select: { deliveryRating: true, deliveryComment: true, updatedAt: true },
+      }),
+    ]);
+
+    return NextResponse.json(
+      {
+        orderId: trimmedOrderId,
+        productReviews: productReviews.map((r) => ({
+          productId: r.productId,
+          rating: r.rating,
+          title: r.title ?? null,
+          comment: r.comment ?? null,
+          imageUrls: r.imageUrls ?? [],
+          updatedAt: r.updatedAt.toISOString(),
+        })),
+        deliveryReview: deliveryReview
+          ? {
+              deliveryRating: deliveryReview.deliveryRating ?? null,
+              deliveryComment: deliveryReview.deliveryComment ?? null,
+              updatedAt: deliveryReview.updatedAt.toISOString(),
+            }
+          : null,
+      },
+      { status: 200, headers },
+    );
+  } catch (e) {
+    console.error('Order reviews fetch error:', e);
+    return NextResponse.json({ error: 'Failed to load reviews.' }, { status: 500, headers });
+  }
+}

@@ -210,6 +210,23 @@ export async function GET(request: NextRequest) {
     // Get all product IDs for fetching order items
     const productIds = products.map(p => p.productId);
 
+    // Fetch review counts per product within the selected time range
+    const reviewGroups = productIds.length > 0
+      ? await prisma.productReview.groupBy({
+          by: ['productId'],
+          where: {
+            productId: { in: productIds },
+            createdAt: { gte: since },
+          },
+          _count: { id: true },
+        })
+      : [];
+    const reviewCountByProductId = new Map<string, number>();
+    for (const g of reviewGroups) {
+      reviewCountByProductId.set(g.productId, g._count.id);
+    }
+    const totalReviews = reviewGroups.reduce((sum, g) => sum + g._count.id, 0);
+
     // Fetch all order items for all products in one query
     const orderItems = await prisma.orderItem.findMany({
       where: {
@@ -314,6 +331,7 @@ export async function GET(request: NextRequest) {
         publishedAt: product.status === 'Published' && product.publishedAt 
           ? product.publishedAt.toISOString() 
           : undefined,
+        reviews: reviewCountByProductId.get(product.productId) ?? 0,
         ...metrics,
       };
     });
@@ -335,6 +353,7 @@ export async function GET(request: NextRequest) {
         totalFavorites,
         totalAddedToCart,
         cartAbandonedCount: totalCartAbandonedCount,
+        totalReviews,
       },
       pagination: {
         totalCount: productCount,
