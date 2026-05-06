@@ -30,7 +30,22 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const { firstName, lastName, email, password, company, address, region } = body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      bio,
+      password,
+      company,
+      address,
+      region,
+      yearsInOperation,
+      businessRegistrationNumber,
+      taxId,
+      industryType,
+      companySize,
+    } = body;
     
     // Helper function to return validation errors
     const returnValidationError = (error: string) => 
@@ -54,6 +69,34 @@ export async function POST(req: NextRequest) {
     // Validate address
     if (!address || typeof address !== 'string' || address.trim().length === 0) {
       return returnValidationError('Company address is required');
+    }
+
+    // Required phone number validation
+    if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
+      return returnValidationError('Phone number is required');
+    }
+    if (phone.trim().length > 30) {
+      return returnValidationError('Invalid phone number');
+    }
+    if (bio && (typeof bio !== 'string' || bio.trim().length > 200)) {
+      return returnValidationError('Bio is too long');
+    }
+
+    // Validate additional company credentials
+    if (!yearsInOperation || typeof yearsInOperation !== 'string' || yearsInOperation.trim().length === 0) {
+      return returnValidationError('Years in operation is required');
+    }
+    if (!businessRegistrationNumber || typeof businessRegistrationNumber !== 'string' || businessRegistrationNumber.trim().length === 0) {
+      return returnValidationError('Business registration number is required');
+    }
+    if (taxId && (typeof taxId !== 'string' || taxId.length > 80)) {
+      return returnValidationError('Invalid Tax ID');
+    }
+    if (!industryType || typeof industryType !== 'string' || industryType.trim().length === 0) {
+      return returnValidationError('Industry type is required');
+    }
+    if (!companySize || typeof companySize !== 'string' || companySize.trim().length === 0) {
+      return returnValidationError('Company size is required');
     }
     
     // Validate region and get currency
@@ -106,10 +149,12 @@ export async function POST(req: NextRequest) {
         businessAddress: address.trim(),
         businessEmail: normalizedEmail,
         businessPhone: '', // Will be updated later
-        industryType: '',
+        industryType: String(industryType).trim(),
         businessDescription: '',
-        yearsInOperation: '',
-        companySize: '',
+        yearsInOperation: String(yearsInOperation).trim(),
+        companySize: String(companySize).trim(),
+        businessRegistrationNumber: String(businessRegistrationNumber).trim(),
+        taxId: String(taxId ?? '').trim(),
         documentVerification: false,
         businessLicenseVerification: false,
         complianceStatus: 'Pending',
@@ -128,6 +173,8 @@ export async function POST(req: NextRequest) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizedEmail,
+        phone: String(phone ?? '').trim() || null,
+        bio: String(bio ?? '').trim() || null,
         password: hashed,
         companyId: companyData.id,
         region: region,

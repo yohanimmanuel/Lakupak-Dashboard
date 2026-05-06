@@ -90,6 +90,7 @@ model Company {
   defaultDeliveryLeadTimeMaxDays Int?
   users                       User[]
   paymentMethods              CompanyPaymentMethod[]
+  commissionInvoices          CommissionInvoice[]
 }
 
 enum CompanyPaymentMethodKind {
@@ -126,6 +127,43 @@ model CompanyPaymentMethod {
 
   @@index([companyId])
   @@index([companyId, isDefault])
+}
+
+enum CommissionInvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  VOID
+}
+
+/// Commission fee invoice submitted by a platform admin to a distributor company.
+/// The invoice document (PDF/DOCX) is generated outside Laku and uploaded here for record-keeping.
+model CommissionInvoice {
+  id                   String                 @id @default(cuid())
+  /// Human-readable invoice number (e.g. COM-2026-05-0001).
+  invoiceNo            String                 @unique
+  companyId            Int
+  /// Month being billed (normalized to first day of month, UTC).
+  billingMonth         DateTime               @db.Timestamptz(3)
+  amount               Decimal                @db.Decimal(18, 2)
+  currency             String                 @default("IDR")
+  status               CommissionInvoiceStatus @default(PENDING)
+  issuedAt             DateTime               @default(now()) @db.Timestamptz(3)
+  dueAt                DateTime?              @db.Timestamptz(3)
+  description          String?
+  documentUrl          String
+  documentPublicId     String?
+  createdByAdminId     Int?
+  createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime               @updatedAt @db.Timestamptz(3)
+
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByAdmin   PlatformAdmin? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, billingMonth])
+  @@index([companyId, status])
+  @@index([issuedAt])
+  @@index([dueAt])
 }
 
 model Buyer {
@@ -1128,6 +1166,7 @@ model PlatformAdmin {
   announcements PlatformAnnouncement[]
   homeOffers    MarketplaceHomeOffer[]
   searchTermMaps MarketplaceSearchTermMap[]
+  commissionInvoices CommissionInvoice[]
 }
 
 /// Marketplace-wide announcements shown in mobile "Latest updates".

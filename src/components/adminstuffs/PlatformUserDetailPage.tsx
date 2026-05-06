@@ -22,6 +22,14 @@ import {
   Truck,
   UserCircle,
   Users,
+  Receipt,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Trash2,
+  Eye,
+  Edit,
 } from 'lucide-react';
 
 function formatDt(v: string | Date | null | undefined) {
@@ -160,6 +168,854 @@ function DistributorSection({
       </div>
       <div className="p-4 text-sm">{children}</div>
     </div>
+  );
+}
+
+type CommissionInvoiceRow = {
+  id: string;
+  invoiceNo: string;
+  billingMonth: string;
+  amount: string;
+  currency: string;
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'VOID' | string;
+  issuedAt: string;
+  dueAt: string | null;
+  description: string | null;
+  documentUrl: string;
+  downloadName?: string;
+  downloadUrl?: string;
+};
+
+function formatMonth(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
+function formatMoney(amount: string, currency: string) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return `${currency} ${amount}`;
+  const curr = String(currency ?? '').trim().toUpperCase();
+  if (curr === 'IDR') {
+    return `Rp ${n.toLocaleString('id-ID')}`;
+  }
+  // Intl.NumberFormat throws RangeError for invalid currency codes; don't crash render.
+  try {
+    if (!/^[A-Z]{3}$/.test(curr)) {
+      return `${curr || 'CUR'} ${n.toLocaleString()}`;
+    }
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: curr }).format(n);
+  } catch {
+    return `${curr || 'CUR'} ${n.toLocaleString()}`;
+  }
+}
+
+function invoiceStatusPill(status: string) {
+  const s = status.trim().toUpperCase();
+  if (s === 'PAID') return 'bg-emerald-50 text-emerald-900 border-emerald-200';
+  if (s === 'OVERDUE') return 'bg-red-50 text-red-900 border-red-200';
+  if (s === 'VOID') return 'bg-slate-100 text-slate-700 border-slate-200';
+  return 'bg-amber-50 text-amber-900 border-amber-200';
+}
+
+function CommissionInvoicesSection({ companyId }: { companyId: number }) {
+  const [rows, setRows] = useState<CommissionInvoiceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [activeInvoice, setActiveInvoice] = useState<CommissionInvoiceRow | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const rowsPerPage = 5;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [statusBusyIds, setStatusBusyIds] = useState<Set<string>>(() => new Set());
+  const [confirmAction, setConfirmAction] = useState<
+    | { kind: 'delete'; ids: string[] }
+    | { kind: 'status'; ids: string[]; status: 'PENDING' | 'PAID' }
+    | null
+  >(null);
+
+  const [billingMonth, setBillingMonth] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  });
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('IDR');
+  const [dueAt, setDueAt] = useState('');
+  const [description, setDescription] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/platform-admin/commission-invoices?companyId=${companyId}`);
+      const json = (await res.json().catch(() => null)) as
+        | { invoices: CommissionInvoiceRow[] }
+        | { error?: string }
+        | null;
+      const apiError =
+        json && typeof json === 'object' && 'error' in json && typeof (json as { error?: unknown }).error === 'string'
+          ? String((json as { error?: string }).error)
+          : null;
+      if (!res.ok) throw new Error(apiError || 'Failed to load commission invoices');
+      const invoices =
+        json && typeof json === 'object' && 'invoices' in json && Array.isArray((json as { invoices?: unknown }).invoices)
+          ? ((json as { invoices: CommissionInvoiceRow[] }).invoices ?? [])
+          : [];
+      setRows(invoices);
+      setPage(1);
+      setSelectedIds([]);
+    } catch (e) {
+      setRows([]);
+      setError(e instanceof Error ? e.message : 'Failed to load commission invoices');
+      setPage(1);
+      setSelectedIds([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
+  const submit = async () => {
+    if (!file) {
+      setError('Please attach an invoice file (PDF or DOCX).');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set('companyId', String(companyId));
+      fd.set('billingMonth', billingMonth);
+      fd.set('amount', amount);
+      fd.set('currency', currency);
+      if (dueAt.trim()) fd.set('dueAt', dueAt);
+      if (description.trim()) fd.set('description', description.trim());
+      fd.set('file', file);
+
+      const res = await fetch('/api/platform-admin/commission-invoices', { method: 'POST', body: fd });
+      const json = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(json?.error || 'Failed to create invoice');
+
+      setOpen(false);
+      setAmount('');
+      setDueAt('');
+      setDescription('');
+      setFile(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create invoice');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setActiveInvoice(null);
+    setAmount('');
+    setDueAt('');
+    setDescription('');
+    setFile(null);
+    setError(null);
+    setOpen(true);
+  };
+
+  const openEditModal = (row: CommissionInvoiceRow) => {
+    setModalMode('edit');
+    setActiveInvoice(row);
+    // Prefill fields for display
+    const month = new Date(row.billingMonth);
+    if (!Number.isNaN(month.getTime())) {
+      const y = month.getUTCFullYear();
+      const m = String(month.getUTCMonth() + 1).padStart(2, '0');
+      setBillingMonth(`${y}-${m}`);
+    }
+    setAmount(row.amount);
+    setCurrency(row.currency);
+    setDueAt(row.dueAt ? row.dueAt.slice(0, 10) : '');
+    setDescription(row.description ?? '');
+    setFile(null);
+    setError(null);
+    setOpen(true);
+  };
+
+  const updateInvoice = async () => {
+    if (!activeInvoice) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set('billingMonth', billingMonth);
+      fd.set('amount', amount);
+      fd.set('currency', currency);
+      // allow clearing dueAt by sending empty string
+      fd.set('dueAt', dueAt.trim());
+      fd.set('description', description.trim());
+      fd.set('status', String(activeInvoice.status ?? '').toUpperCase());
+      if (file) fd.set('file', file);
+
+      const res = await fetch(`/api/platform-admin/commission-invoices/${encodeURIComponent(activeInvoice.id)}`, {
+        method: 'PATCH',
+        body: fd,
+      });
+      const json = (await res.json().catch(() => null)) as { error?: string; invoice?: unknown } | null;
+      if (!res.ok) throw new Error(json?.error || 'Failed to update invoice');
+
+      setOpen(false);
+      setFile(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update invoice');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openDeleteConfirm = (ids: string[]) => {
+    const unique = Array.from(new Set(ids)).filter(Boolean);
+    if (unique.length === 0) return;
+    setConfirmAction({ kind: 'delete', ids: unique });
+  };
+
+  const openStatusConfirm = (ids: string[], status: 'PENDING' | 'PAID') => {
+    const unique = Array.from(new Set(ids)).filter(Boolean);
+    if (unique.length === 0) return;
+    setConfirmAction({ kind: 'status', ids: unique, status });
+  };
+
+  const performDelete = async (ids: string[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const results = await Promise.allSettled(
+        ids.map(async (invoiceId) => {
+          const res = await fetch(`/api/platform-admin/commission-invoices/${encodeURIComponent(invoiceId)}`, {
+            method: 'DELETE',
+          });
+          const json = (await res.json().catch(() => null)) as { error?: string } | null;
+          if (!res.ok) throw new Error(json?.error || 'Failed to delete invoice');
+          return invoiceId;
+        })
+      );
+      const deletedIds = results
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+        .map((r) => r.value);
+      const failedCount = results.filter((r) => r.status === 'rejected').length;
+      setRows((prev) => prev.filter((r) => !deletedIds.includes(r.id)));
+      setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+      if (failedCount > 0) {
+        setError(`Failed to delete ${failedCount} invoice(s). ${deletedIds.length} deleted successfully.`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete invoices');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const toRow = Math.min(page * rowsPerPage, totalRows);
+  const pagedRows = rows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allSelected) {
+        return [];
+      }
+      return rows.map((r) => r.id);
+    });
+  };
+
+  const patchInvoiceStatus = async (invoiceId: string, status: 'PENDING' | 'PAID') => {
+    setStatusBusyIds((prev) => new Set(prev).add(invoiceId));
+    try {
+      const res = await fetch(`/api/platform-admin/commission-invoices/${encodeURIComponent(invoiceId)}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const json = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(json?.error || 'Failed to update invoice status');
+      setRows((prev) => prev.map((r) => (r.id === invoiceId ? { ...r, status } : r)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update invoice status');
+      throw e;
+    } finally {
+      setStatusBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(invoiceId);
+        return next;
+      });
+    }
+  };
+
+  const bulkSetStatus = async (ids: string[], status: 'PENDING' | 'PAID') => {
+    if (ids.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await Promise.all(ids.map((id) => patchInvoiceStatus(id, status)));
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update invoice statuses');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <DistributorSection title="Commission fee records" icon={Receipt}>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+        <p className="text-xs text-gray-600">
+          Admin-submitted commission invoices (generated outside Laku). Distributors see these under Settings → Billing & Payment.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            openCreateModal();
+          }}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 bg-white hover:bg-gray-50 text-gray-800"
+        >
+          <Upload className="w-4 h-4 text-[#0a61d7]" />
+          Submit invoice
+        </button>
+      </div>
+
+      {selectedIds.length > 0 ? (
+        <div className="mb-3 rounded-lg border border-gray-200 bg-white px-3 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="text-xs text-gray-700">
+            <span className="font-semibold">{selectedIds.length}</span> selected
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openStatusConfirm(selectedIds, 'PAID')}
+              disabled={busy}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+              title="Mark selected as paid"
+            >
+              <Check className="w-4 h-4" />
+              Mark paid
+            </button>
+            <button
+              type="button"
+              onClick={() => openStatusConfirm(selectedIds, 'PENDING')}
+              disabled={busy}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+              title="Mark selected as pending"
+            >
+              Mark pending
+            </button>
+            <button
+              type="button"
+              onClick={() => openDeleteConfirm(selectedIds)}
+              disabled={busy}
+              className="p-1.5 rounded-lg hover:bg-red-100 transition-colors focus:outline-none disabled:opacity-60"
+              title="Delete selected invoices"
+              aria-label="Delete selected invoices"
+            >
+              <Trash2 className="w-4 h-4 text-red-600" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              disabled={busy}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">{error}</div>
+      ) : null}
+
+      {loading ? (
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading commission invoices…
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">No commission invoices submitted yet.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-[#e6e6e6] bg-white">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50 text-gray-600">
+              <tr>
+                <th className="text-left font-medium px-3 py-2.5 w-10">
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-all duration-200 ${
+                      allSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                    aria-label={allSelected ? 'Deselect all' : 'Select all'}
+                    title={allSelected ? 'Deselect all' : 'Select all'}
+                  >
+                    {allSelected ? (
+                      <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : null}
+                  </button>
+                </th>
+                <th className="text-left font-medium px-3 py-2.5">Month</th>
+                <th className="text-left font-medium px-3 py-2.5">Invoice</th>
+                <th className="text-left font-medium px-3 py-2.5">Amount</th>
+                <th className="text-left font-medium px-3 py-2.5">Due</th>
+                <th className="text-left font-medium px-3 py-2.5">Status</th>
+                <th className="text-right font-medium px-3 py-2.5">Document</th>
+                <th className="text-right font-medium px-3 py-2.5">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pagedRows.map((r) => (
+                <tr
+                  key={r.id}
+                  className="hover:bg-gray-50/80 cursor-pointer"
+                  onClick={() => toggleSelect(r.id)}
+                  role="button"
+                  aria-label={selectedIds.includes(r.id) ? `Deselect ${r.invoiceNo}` : `Select ${r.invoiceNo}`}
+                >
+                  <td className="px-3 py-2.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(r.id);
+                      }}
+                      className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-all duration-200 ${
+                        selectedIds.includes(r.id)
+                          ? 'bg-green-500 border-green-500'
+                          : 'bg-white border-gray-300 hover:border-green-400'
+                      }`}
+                      aria-label={selectedIds.includes(r.id) ? 'Deselect row' : 'Select row'}
+                      title={selectedIds.includes(r.id) ? 'Deselect' : 'Select'}
+                    >
+                      {selectedIds.includes(r.id) ? (
+                        <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : null}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2.5 text-gray-800 whitespace-nowrap">{formatMonth(r.billingMonth)}</td>
+                  <td className="px-3 py-2.5 text-gray-900 font-medium">{r.invoiceNo}</td>
+                  <td className="px-3 py-2.5 text-gray-900 whitespace-nowrap">{formatMoney(r.amount, r.currency)}</td>
+                  <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap">{r.dueAt ? formatDt(r.dueAt) : '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full border ${invoiceStatusPill(
+                          r.status
+                        )}`}
+                      >
+                        {String(r.status).toUpperCase()}
+                      </span>
+                      {String(r.status).toUpperCase() !== 'VOID' ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openStatusConfirm([r.id], String(r.status).toUpperCase() === 'PAID' ? 'PENDING' : 'PAID');
+                          }}
+                          disabled={busy || statusBusyIds.has(r.id)}
+                          className="text-[11px] font-semibold text-[#0a61d7] hover:underline disabled:opacity-50"
+                          title={String(r.status).toUpperCase() === 'PAID' ? 'Mark as pending' : 'Mark as paid'}
+                        >
+                          {statusBusyIds.has(r.id)
+                            ? 'Saving…'
+                            : String(r.status).toUpperCase() === 'PAID'
+                              ? 'Mark pending'
+                              : 'Mark paid'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <a
+                      href={`/api/platform-admin/commission-invoices/${encodeURIComponent(r.id)}/download`}
+                      target="_self"
+                      download={r.downloadName}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 hover:bg-gray-50 text-[#0a61d7]"
+                      title="Open"
+                    >
+                      <Receipt className="w-4 h-4" />
+                      Open
+                    </a>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(r);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
+                        title="Edit invoice"
+                      >
+                        <Edit className="w-4 h-4 text-gray-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteConfirm([r.id]);
+                        }}
+                        disabled={busy}
+                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors focus:outline-none disabled:opacity-60"
+                        title="Delete invoice"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {totalRows > 0 ? (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-500">
+            Showing {fromRow} to {toRow} of {totalRows} results
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-2 text-sm rounded-lg ${
+                      page === pageNum
+                        ? 'bg-[#0a61d7] text-white'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                    aria-label={`Go to page ${pageNum}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {totalPages > 5 && (
+                <>
+                  {totalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
+                  <button
+                    type="button"
+                    onClick={() => setPage(totalPages)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      page === totalPages
+                        ? 'bg-[#0a61d7] text-white'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                    aria-label={`Go to page ${totalPages}`}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Confirmation Modal (delete / mark status) */}
+      {confirmAction ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
+            {confirmAction.kind === 'delete' ? (
+              <>
+                <h2 className="text-lg font-bold mb-2 text-red-500">
+                  {confirmAction.ids.length > 1 ? 'Delete Invoices' : 'Delete Invoice'}
+                </h2>
+                <p className="mb-4 text-gray-500">
+                  {confirmAction.ids.length > 1
+                    ? `Are you sure you want to delete ${confirmAction.ids.length} invoices? This action cannot be undone.`
+                    : 'Are you sure you want to delete this invoice? This action cannot be undone.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2
+                  className={`text-lg font-bold mb-2 ${
+                    confirmAction.status === 'PAID' ? 'text-emerald-600' : 'text-amber-600'
+                  }`}
+                >
+                  {confirmAction.status === 'PAID' ? 'Mark as Paid' : 'Mark as Pending'}
+                </h2>
+                <p className="mb-4 text-gray-500">
+                  {confirmAction.ids.length > 1
+                    ? `Are you sure you want to mark ${confirmAction.ids.length} invoices as ${
+                        confirmAction.status === 'PAID' ? 'Paid' : 'Pending'
+                      }?`
+                    : `Are you sure you want to mark this invoice as ${confirmAction.status === 'PAID' ? 'Paid' : 'Pending'}?`}
+                </p>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={() => setConfirmAction(null)}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 disabled:opacity-60 ${
+                  confirmAction.kind === 'delete'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : confirmAction.status === 'PAID'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+                onClick={() => {
+                  const action = confirmAction;
+                  setConfirmAction(null);
+                  if (action.kind === 'delete') {
+                    void performDelete(action.ids);
+                    return;
+                  }
+                  void bulkSetStatus(action.ids, action.status);
+                }}
+                disabled={busy}
+              >
+                {confirmAction.kind === 'delete'
+                  ? 'Delete'
+                  : confirmAction.status === 'PAID'
+                    ? 'Mark paid'
+                    : 'Mark pending'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {open ? (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg bg-white rounded-lg border border-[#e6e6e6] shadow-xl overflow-hidden">
+            <div className="h-14 px-4 flex items-center justify-between border-b border-[#e6e6e6]">
+              <h2 className="text-base font-semibold text-gray-900">
+                {modalMode === 'edit' ? 'Edit commission invoice' : 'Submit commission invoice'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-700 disabled:opacity-50"
+                disabled={busy}
+                aria-label="Close"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {modalMode === 'edit' && activeInvoice ? (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">{activeInvoice.invoiceNo}</span>
+                    <span
+                      className={`inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full border ${invoiceStatusPill(
+                        activeInvoice.status
+                      )}`}
+                    >
+                      {String(activeInvoice.status).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <a
+                      href={`/api/platform-admin/commission-invoices/${encodeURIComponent(activeInvoice.id)}/download`}
+                      target="_self"
+                      download={activeInvoice.downloadName}
+                      className="text-[#0a61d7] hover:underline font-medium"
+                    >
+                      Open document
+                    </a>
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Billing month</label>
+                  <input
+                    type="month"
+                    value={billingMonth}
+                    onChange={(e) => setBillingMonth(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                    disabled={busy}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+                  <input
+                    type="text"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                    disabled={busy}
+                    maxLength={8}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                    placeholder="e.g. 1500000"
+                    disabled={busy}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Due date (optional)</label>
+                  <input
+                    type="date"
+                    value={dueAt}
+                    onChange={(e) => setDueAt(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                    disabled={busy}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Description (optional)</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7]"
+                  placeholder="e.g. Commission fee for May 2026"
+                  disabled={busy}
+                />
+              </div>
+
+              {modalMode !== 'edit' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Invoice document (PDF/DOCX)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200"
+                    disabled={busy}
+                  />
+                  {file ? <p className="text-[11px] text-gray-500 mt-1">{file.name}</p> : null}
+                </div>
+              ) : null}
+
+              {modalMode === 'edit' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Replace document (optional)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200"
+                    disabled={busy}
+                  />
+                  {file ? <p className="text-[11px] text-gray-500 mt-1">{file.name}</p> : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="p-4 border-t border-[#e6e6e6] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              {modalMode === 'edit' ? (
+                <button
+                  type="button"
+                  onClick={() => void updateInvoice()}
+                  disabled={busy || !amount.trim() || !billingMonth.trim()}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#0a52c0] disabled:opacity-50"
+                >
+                  {busy ? 'Saving…' : 'Save changes'}
+                </button>
+              ) : null}
+              {modalMode !== 'edit' ? (
+                <button
+                  type="button"
+                  onClick={() => void submit()}
+                  disabled={busy || !amount.trim() || !billingMonth.trim() || !file}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#0a52c0] disabled:opacity-50"
+                >
+                  {busy ? 'Submitting…' : 'Submit invoice'}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </DistributorSection>
   );
 }
 
@@ -712,6 +1568,8 @@ export default function PlatformUserDetailPage() {
               />
             </div>
           </DistributorSection>
+
+          {typeof c?.id === 'number' ? <CommissionInvoicesSection companyId={c.id} /> : null}
 
           <DistributorSection title="Buyer reports (marketplace)" icon={Flag}>
             <p className="text-xs text-gray-600 mb-3">

@@ -21,7 +21,10 @@ import {
   Clock,
   Shield,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Filter,
+  Info,
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import {
@@ -51,11 +54,15 @@ interface BillingBankAccountForm {
 
 interface Invoice {
   id: string;
+  invoiceNo: string;
   date: string;
   amount: number;
   status: 'paid' | 'pending' | 'overdue';
-  dueDate: string;
+  dueDate: string | null;
   description: string;
+  documentUrl?: string;
+  downloadName?: string;
+  downloadUrl?: string;
 }
 
 type PaymentMethodFormKind = CompanyPaymentMethodKind;
@@ -245,24 +252,9 @@ export default function BillingPayment() {
     accountNumber: '',
   });
 
-  const [invoices] = useState<Invoice[]>([
-    {
-      id: 'INV-2024-001',
-      date: '2024-01-15',
-      amount: 1500000,
-      status: 'paid',
-      dueDate: '2024-02-15',
-      description: 'Monthly Subscription - Pro Plan',
-    },
-    {
-      id: 'INV-2024-002',
-      date: '2024-02-15',
-      amount: 1500000,
-      status: 'pending',
-      dueDate: '2024-03-15',
-      description: 'Monthly Subscription - Pro Plan',
-    },
-  ]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const invoicesPerPage = 3;
 
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showEditAddressModal, setShowEditAddressModal] = useState(false);
@@ -410,6 +402,85 @@ export default function BillingPayment() {
       }
     };
   }, [user?.id, reloadBillingSettings]);
+
+  const reloadInvoices = useCallback(async () => {
+    const uid = useUserStore.getState().user?.id;
+    if (!uid) return;
+    try {
+      const res = await fetch(`/api/company/commission-invoices?userId=${uid}`, { method: 'GET', credentials: 'include' });
+      const json = (await res.json().catch(() => null)) as
+        | {
+            invoices: Array<{
+              id: string;
+              invoiceNo: string;
+              issuedAt: string;
+              amount: string;
+              status: string;
+              dueAt: string | null;
+              description: string | null;
+              documentUrl: string;
+              downloadName?: string;
+              downloadUrl?: string;
+            }>;
+          }
+        | { error?: string }
+        | null;
+      const apiError =
+        json && typeof json === 'object' && 'error' in json && typeof (json as { error?: unknown }).error === 'string'
+          ? String((json as { error?: string }).error)
+          : null;
+      if (!res.ok) throw new Error(apiError || 'Failed to load invoices');
+      const rows =
+        json && typeof json === 'object' && 'invoices' in json && Array.isArray((json as { invoices?: unknown }).invoices)
+          ? ((json as { invoices: Array<Record<string, unknown>> }).invoices ?? [])
+          : [];
+      const mapped: Invoice[] = rows
+        .map((r) => {
+          const amountNum = Number((r as { amount?: unknown }).amount);
+          const statusRaw = String((r as { status?: unknown }).status ?? '').toLowerCase();
+          const status: Invoice['status'] =
+            statusRaw === 'paid' ? 'paid' : statusRaw === 'overdue' ? 'overdue' : 'pending';
+          return {
+            id: String((r as { id?: unknown }).id ?? ''),
+            invoiceNo: String((r as { invoiceNo?: unknown }).invoiceNo ?? ''),
+            date: String((r as { issuedAt?: unknown }).issuedAt ?? ''),
+            amount: Number.isFinite(amountNum) ? amountNum : 0,
+            status,
+            dueDate: (r as { dueAt?: unknown }).dueAt ? String((r as { dueAt?: unknown }).dueAt) : null,
+            description:
+              ((
+                (r as { description?: unknown }).description
+                  ? String((r as { description?: unknown }).description)
+                  : 'Commission fee invoice'
+              ).trim() || 'Commission fee invoice'),
+            documentUrl: String((r as { documentUrl?: unknown }).documentUrl ?? ''),
+            downloadName: (r as { downloadName?: unknown }).downloadName ? String((r as { downloadName?: unknown }).downloadName) : undefined,
+            downloadUrl: (r as { downloadUrl?: unknown }).downloadUrl ? String((r as { downloadUrl?: unknown }).downloadUrl) : undefined,
+          };
+        })
+        .filter((x) => Boolean(x.id) && Boolean(x.invoiceNo));
+      setInvoices(mapped);
+      setInvoicePage(1);
+    } catch (e) {
+      // Non-blocking: invoice section can show empty state.
+      console.error('Failed to load commission invoices', e);
+      setInvoices([]);
+      setInvoicePage(1);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadInvoices();
+  }, [reloadInvoices]);
+
+  const invoiceTotalRows = invoices.length;
+  const invoiceTotalPages = Math.max(1, Math.ceil(invoiceTotalRows / invoicesPerPage));
+  const invoiceFromRow = invoiceTotalRows === 0 ? 0 : (invoicePage - 1) * invoicesPerPage + 1;
+  const invoiceToRow = Math.min(invoicePage * invoicesPerPage, invoiceTotalRows);
+  const pagedInvoices = useMemo(() => {
+    const start = (invoicePage - 1) * invoicesPerPage;
+    return invoices.slice(start, start + invoicesPerPage);
+  }, [invoices, invoicePage]);
 
   useEffect(() => {
     if (success) {
@@ -677,7 +748,16 @@ export default function BillingPayment() {
   };
 
   const handleDownloadInvoice = (invoiceId: string) => {
-    setSuccess(`Invoice ${invoiceId} downloaded successfully`);
+    const inv = invoices.find((x) => x.id === invoiceId);
+    if (!inv) return;
+    const a = document.createElement('a');
+    a.href = `/api/company/commission-invoices/${encodeURIComponent(inv.id)}/download`;
+    a.target = '_self';
+    if (inv.downloadName) a.download = inv.downloadName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setSuccess(`Invoice ${inv.invoiceNo || invoiceId} downloaded successfully`);
   };
 
   const getStatusColor = (status: string) => {
@@ -909,11 +989,42 @@ export default function BillingPayment() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-md font-semibold text-black mb-1">Invoices & Billing History</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-md font-semibold text-black">Invoices & Billing History</h3>
+                <span className="relative group inline-flex items-center">
+                  <Info
+                    tabIndex={0}
+                    aria-describedby="commission-invoices-info-tooltip"
+                    aria-label="Invoices information"
+                    className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
+                  />
+                  <span
+                    id="commission-invoices-info-tooltip"
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <span className="block font-medium">
+                      Payment policy
+                    </span>
+                    <span className="mt-1 block">
+                      Please pay commission invoices by the <span className="font-semibold">due date</span> shown on the invoice.
+                      If an invoice has no due date, treat the <span className="font-semibold">end of the billing month</span> as the deadline.
+                    </span>
+                    <span className="mt-2 block">
+                      A <span className="font-semibold">14-day grace period</span> applies after the deadline.
+                    </span>
+                    <span className="mt-2 block text-red-700">
+                      <span className="font-semibold">Warning:</span> invoices that remain unpaid after the grace period may result in a
+                      <span className="font-semibold"> temporary account suspension</span> until payment is confirmed.
+                    </span>
+                  </span>
+                </span>
+              </div>
               <p className="text-xs text-gray-600">View and download our invoices to track your commission fees</p>
             </div>
             <button
               type="button"
+              disabled={invoices.length === 0}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Download className="h-4 w-4" />
@@ -922,7 +1033,15 @@ export default function BillingPayment() {
           </div>
 
           <div className="space-y-3">
-            {invoices.map((invoice) => (
+            {invoices.length === 0 ? (
+              <div className="p-6 border border-dashed border-gray-200 rounded-lg bg-gray-50">
+                <p className="text-sm font-medium text-gray-900">No invoices yet</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  When the admin submits your monthly commission invoice, it will appear here.
+                </p>
+              </div>
+            ) : null}
+            {pagedInvoices.map((invoice) => (
               <div
                 key={invoice.id}
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -933,7 +1052,7 @@ export default function BillingPayment() {
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-black">{invoice.id}</span>
+                      <span className="text-sm font-medium text-black">{invoice.invoiceNo}</span>
                       <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(invoice.status)}`}>
                         {invoice.status}
                       </span>
@@ -946,7 +1065,7 @@ export default function BillingPayment() {
                       </span>
                       <span className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
-                        Due: {new Date(invoice.dueDate).toLocaleDateString()}
+                        {invoice.dueDate ? `Due: ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}
                       </span>
                     </div>
                   </div>
@@ -967,6 +1086,73 @@ export default function BillingPayment() {
               </div>
             ))}
           </div>
+
+          {invoiceTotalRows > 0 ? (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Showing {invoiceFromRow} to {invoiceToRow} of {invoiceTotalRows} invoices
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInvoicePage(Math.max(1, invoicePage - 1))}
+                  disabled={invoicePage === 1}
+                  className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, invoiceTotalPages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setInvoicePage(pageNum)}
+                        className={`px-3 py-2 text-sm rounded-lg ${
+                          invoicePage === pageNum
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                        }`}
+                        aria-label={`Go to page ${pageNum}`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {invoiceTotalPages > 5 && (
+                    <>
+                      {invoiceTotalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
+                      <button
+                        type="button"
+                        onClick={() => setInvoicePage(invoiceTotalPages)}
+                        className={`px-3 py-1 text-sm rounded ${
+                          invoicePage === invoiceTotalPages
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                        }`}
+                        aria-label={`Go to page ${invoiceTotalPages}`}
+                      >
+                        {invoiceTotalPages}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setInvoicePage(Math.min(invoiceTotalPages, invoicePage + 1))}
+                  disabled={invoicePage === invoiceTotalPages}
+                  className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Billing Account — bank details for buyer transfers & future platform billing */}

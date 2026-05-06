@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { Search, MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info } from 'lucide-react';
+import { Search, MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -352,6 +352,8 @@ const Navbar = () => {
         return <ShoppingBag size={16} className="text-indigo-500" />;
       case 'driver_request':
         return <Truck size={16} className="text-blue-500" />;
+      case 'billing':
+        return <Receipt size={16} className="text-[#0a61d7]" />;
       case 'driver':
         // For driver status notifications we want:
         // - Truck icon for in-progress / shipped

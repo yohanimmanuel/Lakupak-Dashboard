@@ -33,6 +33,7 @@
     "ioredis": "^5.4.1",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.539.0",
     "luxon": "^3.7.2",
     "mapbox-gl": "^3.16.0",

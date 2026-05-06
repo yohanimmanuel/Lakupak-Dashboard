@@ -17,28 +17,65 @@ import {
   FormStepIndicator
 } from '@/utils/auth-enhancements';
 
-const steps = ["User Info", "Company Info", "Set Password"];
+const steps = ["User Info", "Company Info", "Business Credentials", "Set Password"];
+
+const INDUSTRY_OPTIONS = [
+  'Wholesale & Distribution',
+  'Retail',
+  'Food & Beverage',
+  'Pharmacy & Healthcare',
+  'Electronics',
+  'Fashion',
+  'Logistics',
+  'Manufacturing',
+  'Other',
+] as const;
+
+const COMPANY_SIZE_OPTIONS = [
+  '1-10 employees',
+  '11-50 employees',
+  '51-200 employees',
+  '201-500 employees',
+  '500+ employees',
+] as const;
 
 export default function RegisterPage() {
   const [step, setStep] = useState(0);
   const [stepKey, setStepKey] = useState(0);
   
   // Form data
-  const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "" });
-  const [companyInfo, setCompanyInfo] = useState({ company: "", address: "", region: "ID" });
+  const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "", phone: "", bio: "" });
+  const [companyInfo, setCompanyInfo] = useState({ company: "", address: "", region: "ID", yearsInOperation: "" });
+  const [businessCreds, setBusinessCreds] = useState({
+    businessRegistrationNumber: "",
+    taxId: "",
+    industryType: "Wholesale & Distribution",
+    companySize: "11-50 employees",
+  });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
+  const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
+  const industryDropdownRef = useRef<HTMLDivElement>(null);
+  const [showCompanySizeDropdown, setShowCompanySizeDropdown] = useState(false);
+  const companySizeDropdownRef = useRef<HTMLDivElement>(null);
   
   // Validation states
   const [validationStates, setValidationStates] = useState({
     firstName: true,
     lastName: true,
     email: true,
+    phone: true,
+    bio: true,
     company: true,
     address: true,
     region: true,
+    yearsInOperation: true,
+    businessRegistrationNumber: true,
+    taxId: true,
+    industryType: true,
+    companySize: true,
     password: true,
     confirmPassword: true
   });
@@ -65,9 +102,12 @@ export default function RegisterPage() {
           userInfo.firstName.trim() && 
           userInfo.lastName.trim() && 
           userInfo.email.trim() && 
+          userInfo.phone.trim() &&
           validationStates.firstName && 
           validationStates.lastName && 
-          validationStates.email
+          validationStates.email &&
+          validationStates.phone &&
+          validationStates.bio
         );
       case 1:
         return (
@@ -75,9 +115,21 @@ export default function RegisterPage() {
           companyInfo.address.trim() && 
           companyInfo.region &&
           validationStates.company &&
-          validationStates.region
+          validationStates.region &&
+          companyInfo.yearsInOperation.trim() &&
+          validationStates.yearsInOperation
         );
       case 2:
+        return (
+          businessCreds.businessRegistrationNumber.trim() &&
+          businessCreds.industryType.trim() &&
+          businessCreds.companySize.trim() &&
+          validationStates.businessRegistrationNumber &&
+          validationStates.industryType &&
+          validationStates.companySize &&
+          validationStates.taxId
+        );
+      case 3:
         return (
           password && 
           confirmPassword && 
@@ -87,7 +139,7 @@ export default function RegisterPage() {
       default:
         return false;
     }
-  }, [step, userInfo, companyInfo, password, confirmPassword, validationStates]);
+  }, [step, userInfo, companyInfo, businessCreds, password, confirmPassword, validationStates]);
 
   const handleNext = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +152,7 @@ export default function RegisterPage() {
       return;
     }
     
-    if (step < 2) {
+    if (step < 3) {
       // Move to next step
       setStep(step + 1);
       setStepKey(prev => prev + 1);
@@ -121,10 +173,17 @@ export default function RegisterPage() {
           firstName: userInfo.firstName.trim(),
           lastName: userInfo.lastName.trim(),
           email: userInfo.email.trim(),
+          phone: userInfo.phone.trim(),
+          bio: userInfo.bio.trim(),
           password,
           company: companyInfo.company.trim(),
           address: companyInfo.address.trim(),
           region: companyInfo.region,
+          yearsInOperation: companyInfo.yearsInOperation.trim(),
+          businessRegistrationNumber: businessCreds.businessRegistrationNumber.trim(),
+          taxId: businessCreds.taxId.trim(),
+          industryType: businessCreds.industryType.trim(),
+          companySize: businessCreds.companySize.trim(),
         }),
       });
       
@@ -142,6 +201,8 @@ export default function RegisterPage() {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
+        phone: data.phone,
+        bio: data.bio,
         companyId: data.companyId,
         company: data.company,
         region: data.region,
@@ -181,7 +242,7 @@ export default function RegisterPage() {
     } finally {
       stopLoading();
     }
-  }, [step, userInfo, companyInfo, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
+  }, [step, userInfo, companyInfo, businessCreds, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
 
   const handleBack = useCallback(() => {
     if (step > 0) {
@@ -213,19 +274,25 @@ export default function RegisterPage() {
       if (regionDropdownRef.current && !regionDropdownRef.current.contains(event.target as Node)) {
         setShowRegionDropdown(false);
       }
+      if (industryDropdownRef.current && !industryDropdownRef.current.contains(event.target as Node)) {
+        setShowIndustryDropdown(false);
+      }
+      if (companySizeDropdownRef.current && !companySizeDropdownRef.current.contains(event.target as Node)) {
+        setShowCompanySizeDropdown(false);
+      }
     };
 
-    if (showRegionDropdown) {
+    if (showRegionDropdown || showIndustryDropdown || showCompanySizeDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showRegionDropdown]);
+  }, [showRegionDropdown, showIndustryDropdown, showCompanySizeDropdown]);
 
   return (
-    <div className="grid grid-cols-9 min-h-screen w-full flex bg-white">
+    <div className="grid grid-cols-9 min-h-screen w-full bg-white">
       {/* Left: Registration Form */}
       <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
         <div>
@@ -234,7 +301,7 @@ export default function RegisterPage() {
           </a>
         </div>
         <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>
-        <p className="mb-8 text-gray-500">Register your distributor account in three easy steps.</p>
+        <p className="mb-8 text-gray-500">Register your distributor account in four easy steps.</p>
         
         <FormStepIndicator steps={steps} currentStep={step} />
         
@@ -282,15 +349,53 @@ export default function RegisterPage() {
                     />
                   </div>
                 </div>
+                <div className="flex gap-4">
+                  <div className="w-1/2">
+                    <ValidatedInput
+                      label="Email"
+                      type="email"
+                      value={userInfo.email}
+                      onChange={(value) => setUserInfo({ ...userInfo, email: value })}
+                      onValidation={(valid) => updateValidation('email', valid)}
+                      validator={validateAuthInput.email}
+                      placeholder="your.email@company.com"
+                      required
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <ValidatedInput
+                      label="Phone Number"
+                      type="tel"
+                      value={userInfo.phone}
+                      onChange={(value) => setUserInfo({ ...userInfo, phone: value })}
+                      onValidation={(valid) => updateValidation('phone', valid)}
+                      validator={(value) => {
+                        const raw = String(value ?? '');
+                        const t = raw.trim();
+                        if (!t) return { valid: false, error: 'Phone number is required' };
+                        if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
+                        // allow digits/spaces/+()- for international formats
+                        if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
+                        return { valid: true };
+                      }}
+                      placeholder="e.g. +62 812 3456 7890"
+                      required
+                    />
+                  </div>
+                </div>
                 <ValidatedInput
-                  label="Email"
-                  type="email"
-                  value={userInfo.email}
-                  onChange={(value) => setUserInfo({ ...userInfo, email: value })}
-                  onValidation={(valid) => updateValidation('email', valid)}
-                  validator={validateAuthInput.email}
-                  placeholder="your.email@company.com"
-                  required
+                  label="Bio"
+                  type="text"
+                  value={userInfo.bio}
+                  onChange={(value) => setUserInfo({ ...userInfo, bio: value })}
+                  onValidation={(valid) => updateValidation('bio', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: true }; // optional
+                    if (t.length > 200) return { valid: false, error: 'Bio is too long (max 200 chars)' };
+                    return { valid: true };
+                  }}
+                  placeholder="Optional"
                 />
               </div>
             )}
@@ -354,10 +459,136 @@ export default function RegisterPage() {
                   placeholder="Complete business address"
                   required
                 />
+                <ValidatedInput
+                  label="Years in Operation"
+                  type="text"
+                  value={companyInfo.yearsInOperation}
+                  onChange={(value) => setCompanyInfo({ ...companyInfo, yearsInOperation: value })}
+                  onValidation={(valid) => updateValidation('yearsInOperation', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Years in operation is required' };
+                    if (t.length > 50) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="e.g. 5 years"
+                  required
+                />
               </div>
             )}
             
             {step === 2 && (
+              <div className="space-y-4">
+                <ValidatedInput
+                  label="Business Registration Number"
+                  type="text"
+                  value={businessCreds.businessRegistrationNumber}
+                  onChange={(value) => setBusinessCreds({ ...businessCreds, businessRegistrationNumber: value })}
+                  onValidation={(valid) => updateValidation('businessRegistrationNumber', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Business registration number is required' };
+                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="e.g. NIB123..."
+                  required
+                />
+                <ValidatedInput
+                  label="Tax ID"
+                  type="text"
+                  value={businessCreds.taxId}
+                  onChange={(value) => setBusinessCreds({ ...businessCreds, taxId: value })}
+                  onValidation={(valid) => updateValidation('taxId', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: true }; // optional
+                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="Optional"
+                />
+
+                <div className="flex gap-4">
+                  <div className="w-1/2 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Industry Type <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative" ref={industryDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
+                        className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        aria-expanded={showIndustryDropdown}
+                        aria-label="Select industry type"
+                      >
+                        <span>{businessCreds.industryType}</span>
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                      </button>
+                      {showIndustryDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                          {INDUSTRY_OPTIONS.map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                setBusinessCreds({ ...businessCreds, industryType: opt });
+                                setShowIndustryDropdown(false);
+                                updateValidation('industryType', true);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                                businessCreds.industryType === opt ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="w-1/2 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Company Size <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative" ref={companySizeDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowCompanySizeDropdown(!showCompanySizeDropdown)}
+                        className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        aria-expanded={showCompanySizeDropdown}
+                        aria-label="Select company size"
+                      >
+                        <span>{businessCreds.companySize}</span>
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                      </button>
+                      {showCompanySizeDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                          {COMPANY_SIZE_OPTIONS.map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                setBusinessCreds({ ...businessCreds, companySize: opt });
+                                setShowCompanySizeDropdown(false);
+                                updateValidation('companySize', true);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                                businessCreds.companySize === opt ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
               <div className="space-y-4">
                 <ValidatedInput
                   label="Password"
@@ -397,11 +628,11 @@ export default function RegisterPage() {
               <LoadingButton
                 type="submit"
                 loading={loading}
-                loadingText={step < 2 ? "Processing..." : "Creating Account..."}
+                loadingText={step < 3 ? "Processing..." : "Creating Account..."}
                 disabled={!validateCurrentStep()}
                 className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
-                {step < 2 ? "Next" : "Create Account"}
+                {step < 3 ? "Next" : "Create Account"}
               </LoadingButton>
             </div>
             

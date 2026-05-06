@@ -3,6 +3,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChartArea, Search, Tag, UserRound, Users } from 'lucide-react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import AdminLatestUpdatesCard from '@/components/adminstuffs/AdminLatestUpdatesCard';
 import { MarketplaceHomeOfferRowPreview } from '@/components/adminstuffs/MarketplaceHomeOfferRowPreview';
 
@@ -75,6 +84,13 @@ type OfferRow = {
 };
 type SearchQueryRow = { query: string; searches: number; zeroRate: number; avgResults: number };
 
+type AnalyticsOverviewPayload = {
+  kpis: {
+    retention: { buyersWAU: number; buyersMAU: number; buyersStickyRatio: number };
+  };
+  series: Array<{ day: string; buyerDAU: number; searchZeroRate: number }>;
+};
+
 function SectionShell({
   href,
   title,
@@ -118,6 +134,132 @@ function SectionShell({
         {children}
       </div>
     </div>
+  );
+}
+
+function dayLabel(isoDay: string) {
+  const d = new Date(`${isoDay}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return isoDay;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function fmtPct(n: number | undefined) {
+  if (n === undefined || Number.isNaN(n)) return '—';
+  return `${Math.round(n * 100)}%`;
+}
+
+function AnalyticsPreviewCard() {
+  const [data, setData] = useState<AnalyticsOverviewPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/platform-admin/analytics/overview?grain=day&days=30', {
+          credentials: 'include',
+        });
+        const json = (await res.json().catch(() => null)) as AnalyticsOverviewPayload | { error?: string } | null;
+        const apiError =
+          json && typeof json === 'object' && 'error' in json && typeof (json as { error?: unknown }).error === 'string'
+            ? String((json as { error?: string }).error)
+            : null;
+        if (!res.ok) throw new Error(apiError || 'Failed to load analytics');
+        if (alive) setData(json && typeof json === 'object' && !('error' in json) ? (json as AnalyticsOverviewPayload) : null);
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : 'Failed to load analytics');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const series = data?.series ?? [];
+  const latest = series.length ? series[series.length - 1] : null;
+  const last7 = series.slice(-7);
+  const avgZeroRate7d =
+    last7.length > 0 ? last7.reduce((s, r) => s + (r.searchZeroRate ?? 0), 0) / last7.length : null;
+
+  return (
+    <SectionShell
+      href="/admin/analytics"
+      title="Analytics"
+      subtitle="Platform-wide engagement and funnel metrics."
+      icon={<ChartArea className="w-5 h-5 text-[#0a61d7]" />}
+      contentClassName="border border-gray-200 rounded-lg overflow-hidden bg-white p-4"
+    >
+      {loading ? (
+        <div className="py-10 text-sm text-gray-600 text-center">Loading…</div>
+      ) : error ? (
+        <div className="py-6 text-sm text-red-700">{error}</div>
+      ) : !data ? (
+        <div className="py-6 text-sm text-gray-600">No analytics data.</div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-gradient-to-b from-gray-50/70 to-white border border-gray-200 rounded-lg p-3">
+              <p className="text-[11px] font-semibold text-gray-600">Buyers WAU</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">{fmt(data.kpis.retention.buyersWAU)}</p>
+              <p className="text-[11px] text-gray-500 mt-1">Weekly active users</p>
+            </div>
+            <div className="bg-gradient-to-b from-gray-50/70 to-white border border-gray-200 rounded-lg p-3">
+              <p className="text-[11px] font-semibold text-gray-600">Buyer DAU (latest)</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">{fmt(latest?.buyerDAU ?? 0)}</p>
+              <p className="text-[11px] text-gray-500 mt-1">Daily active users</p>
+            </div>
+            <div className="bg-gradient-to-b from-gray-50/70 to-white border border-gray-200 rounded-lg p-3">
+              <p className="text-[11px] font-semibold text-gray-600">Zero-result rate (7d avg)</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">{avgZeroRate7d == null ? '—' : fmtPct(avgZeroRate7d)}</p>
+              <p className="text-[11px] text-gray-500 mt-1">Lower is better</p>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Buyer DAU trend</p>
+                <p className="text-xs text-gray-600">Last 30 days (daily)</p>
+              </div>
+              <div className="text-xs text-gray-500">Sticky: {fmtPct(data.kpis.retention.buyersStickyRatio)}</div>
+            </div>
+            <div className="h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="day"
+                    tickFormatter={dayLabel}
+                    minTickGap={18}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                  />
+                  <Tooltip
+                    formatter={(value: unknown) => [fmt(typeof value === 'number' ? value : Number(value ?? 0)), 'Buyer DAU']}
+                    labelFormatter={(l) => dayLabel(String(l))}
+                    labelStyle={{ color: '#111827' }}
+                  />
+                  <Line type="monotone" dataKey="buyerDAU" stroke="#0a61d7" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+    </SectionShell>
   );
 }
 
@@ -355,28 +497,6 @@ function SearchLogsPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics 
           </tbody>
         </table>
       )}
-    </SectionShell>
-  );
-}
-
-function AnalyticsPreviewCard() {
-  return (
-    <SectionShell
-      href="/admin/analytics"
-      title="Analytics"
-      subtitle="Platform-wide engagement and funnel metrics (section under construction)."
-      icon={<ChartArea className="w-5 h-5 text-[#0a61d7]" />}
-    >
-      <div className="p-4 text-sm text-gray-700">
-        <p className="text-xs text-gray-600">
-          This section will summarize marketplace behavior and conversion funnels. For now, use other tabs to manage content and users.
-        </p>
-        <ul className="mt-3 text-xs text-gray-600 list-disc pl-5 space-y-1">
-          <li>Top searched terms and zero-result queries</li>
-          <li>Published offers impact</li>
-          <li>Announcement reach</li>
-        </ul>
-      </div>
     </SectionShell>
   );
 }

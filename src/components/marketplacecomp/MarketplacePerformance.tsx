@@ -157,7 +157,7 @@ export default function MarketplacePerformance({
     setProductReviews(null);
     fetch(`/api/mobile/reviews/product?productId=${encodeURIComponent(selectedProduct.productId)}&page=1&limit=50`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load reviews'))))
-      .then((json: { reviews?: any[] }) => {
+      .then((json: { reviews?: unknown[] }) => {
         if (cancelled) return;
         setProductReviews(Array.isArray(json.reviews) ? json.reviews : []);
       })

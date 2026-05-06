@@ -9,6 +9,11 @@ cloudinary.config({
 
 export default cloudinary;
 
+function toBase64DataUri(buffer: Buffer, mimeType: string): string {
+  const b64 = buffer.toString('base64');
+  return `data:${mimeType};base64,${b64}`;
+}
+
 export const uploadImage = async (file: string, folder: string = 'products') => {
   try {
     const result = await cloudinary.uploader.upload(file, {
@@ -37,6 +42,59 @@ export const uploadImage = async (file: string, folder: string = 'products') => 
   }
 };
 
+export const uploadDocument = async (file: string, folder: string = 'documents') => {
+  try {
+    const result = await cloudinary.uploader.upload(file, {
+      folder: `laku/${folder}`,
+      resource_type: 'raw',
+    });
+
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      bytes: result.bytes,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Upload failed',
+    };
+  }
+};
+
+export async function uploadDocumentBuffer(params: {
+  buffer: Buffer;
+  mimeType: string;
+  folder?: string;
+  publicId?: string;
+}): Promise<
+  | { success: true; url: string; publicId: string; format?: string; bytes?: number }
+  | { success: false; error: string }
+> {
+  try {
+    const file = toBase64DataUri(params.buffer, params.mimeType);
+    const result = await cloudinary.uploader.upload(file, {
+      folder: `laku/${params.folder ?? 'documents'}`,
+      resource_type: 'raw',
+      public_id: params.publicId,
+    });
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      bytes: result.bytes,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Upload failed',
+    };
+  }
+}
+
 export const deleteImage = async (publicId: string) => {
   try {
     const result = await cloudinary.uploader.destroy(publicId);
@@ -51,6 +109,39 @@ export const deleteImage = async (publicId: string) => {
     };
   }
 };
+
+export const deleteDocument = async (publicId: string) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    return {
+      success: result.result === 'ok',
+      result: result.result,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Delete failed',
+    };
+  }
+};
+
+export function sanitizeAttachmentFilenameBase(name: string): string {
+  // Cloudinary allowed: A-Z a-z 0-9 _ - ! space (and . only via special escaping)
+  const t = String(name ?? '').trim();
+  const cleaned = t.replace(/[^A-Za-z0-9_\-! ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return cleaned.slice(0, 120) || 'download';
+}
+
+export function buildRawAttachmentUrl(params: { publicId: string; filenameBase: string; format: 'pdf' | 'docx' }): string {
+  const filenameBase = sanitizeAttachmentFilenameBase(params.filenameBase);
+  // fl_attachment:<filename> forces browser download with the provided base name.
+  return cloudinary.url(params.publicId, {
+    secure: true,
+    resource_type: 'raw',
+    flags: `attachment:${filenameBase}`,
+    format: params.format,
+  });
+}
 
 export const getOptimizedImageUrl = (url: string, options?: {
   width?: number;
