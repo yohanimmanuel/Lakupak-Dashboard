@@ -46,7 +46,7 @@ export default function MarketplacePerformance({
 }: MarketplacePerformanceProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<'analytics' | 'reviews'>('analytics');
-  const [productReviews, setProductReviews] = useState<Array<{
+  type ProductReview = {
     id: number;
     rating: number;
     title?: string;
@@ -56,7 +56,22 @@ export default function MarketplacePerformance({
     reviewerDisplayName: string;
     purchasedVariantName?: string;
     purchasedPackage?: string;
-  }> | null>(null);
+  };
+
+  const [productReviews, setProductReviews] = useState<ProductReview[] | null>(null);
+
+  const isProductReview = (v: unknown): v is ProductReview => {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+    const r = v as Record<string, unknown>;
+    return (
+      typeof r.id === 'number' &&
+      typeof r.rating === 'number' &&
+      typeof r.createdAt === 'string' &&
+      typeof r.reviewerDisplayName === 'string' &&
+      Array.isArray(r.imageUrls) &&
+      r.imageUrls.every((x) => typeof x === 'string')
+    );
+  };
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'views' | 'sales' | 'revenue'>('views');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -159,7 +174,8 @@ export default function MarketplacePerformance({
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load reviews'))))
       .then((json: { reviews?: unknown[] }) => {
         if (cancelled) return;
-        setProductReviews(Array.isArray(json.reviews) ? json.reviews : []);
+        const reviews = Array.isArray(json.reviews) ? json.reviews.filter(isProductReview) : [];
+        setProductReviews(reviews);
       })
       .catch(() => {
         if (!cancelled) setProductReviews([]);
