@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       address,
       region,
       yearsInOperation,
+      businessPhone,
       businessRegistrationNumber,
       taxId,
       industryType,
@@ -85,6 +86,12 @@ export async function POST(req: NextRequest) {
     // Validate additional company credentials
     if (!yearsInOperation || typeof yearsInOperation !== 'string' || yearsInOperation.trim().length === 0) {
       return returnValidationError('Years in operation is required');
+    }
+    if (!businessPhone || typeof businessPhone !== 'string' || businessPhone.trim().length === 0) {
+      return returnValidationError('Business phone number is required');
+    }
+    if (businessPhone.trim().length > 30) {
+      return returnValidationError('Invalid business phone number');
     }
     if (!businessRegistrationNumber || typeof businessRegistrationNumber !== 'string' || businessRegistrationNumber.trim().length === 0) {
       return returnValidationError('Business registration number is required');
@@ -148,7 +155,7 @@ export async function POST(req: NextRequest) {
         name: company.trim(),
         businessAddress: address.trim(),
         businessEmail: normalizedEmail,
-        businessPhone: '', // Will be updated later
+        businessPhone: String(businessPhone).trim(),
         industryType: String(industryType).trim(),
         businessDescription: '',
         yearsInOperation: String(yearsInOperation).trim(),

@@ -45,7 +45,13 @@ export default function RegisterPage() {
   
   // Form data
   const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "", phone: "", bio: "" });
-  const [companyInfo, setCompanyInfo] = useState({ company: "", address: "", region: "ID", yearsInOperation: "" });
+  const [companyInfo, setCompanyInfo] = useState({
+    company: "",
+    address: "",
+    region: "ID",
+    yearsInOperation: "",
+    businessPhone: "",
+  });
   const [businessCreds, setBusinessCreds] = useState({
     businessRegistrationNumber: "",
     taxId: "",
@@ -72,6 +78,7 @@ export default function RegisterPage() {
     address: true,
     region: true,
     yearsInOperation: true,
+    businessPhone: true,
     businessRegistrationNumber: true,
     taxId: true,
     industryType: true,
@@ -117,7 +124,9 @@ export default function RegisterPage() {
           validationStates.company &&
           validationStates.region &&
           companyInfo.yearsInOperation.trim() &&
-          validationStates.yearsInOperation
+          validationStates.yearsInOperation &&
+          companyInfo.businessPhone.trim() &&
+          validationStates.businessPhone
         );
       case 2:
         return (
@@ -180,6 +189,7 @@ export default function RegisterPage() {
           address: companyInfo.address.trim(),
           region: companyInfo.region,
           yearsInOperation: companyInfo.yearsInOperation.trim(),
+          businessPhone: companyInfo.businessPhone.trim(),
           businessRegistrationNumber: businessCreds.businessRegistrationNumber.trim(),
           taxId: businessCreds.taxId.trim(),
           industryType: businessCreds.industryType.trim(),
@@ -472,6 +482,22 @@ export default function RegisterPage() {
                     return { valid: true };
                   }}
                   placeholder="e.g. 5 years"
+                  required
+                />
+                <ValidatedInput
+                  label="Business Phone Number"
+                  type="tel"
+                  value={companyInfo.businessPhone}
+                  onChange={(value) => setCompanyInfo({ ...companyInfo, businessPhone: value })}
+                  onValidation={(valid) => updateValidation('businessPhone', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Business phone number is required' };
+                    if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
+                    if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
+                    return { valid: true };
+                  }}
+                  placeholder="e.g. +62 812 3456 7890"
                   required
                 />
               </div>
