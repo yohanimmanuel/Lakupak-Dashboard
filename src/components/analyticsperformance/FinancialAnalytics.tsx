@@ -193,6 +193,19 @@ const FINANCIAL_ANALYTICS_QUERY = `
   }
 `;
 
+/** Empty state used by `AnalyticsRevenueTrendChart` and the full Financial Analytics revenue trend card. */
+export function AnalyticsRevenueTrendChartEmpty() {
+  return (
+    <div className="h-80 flex items-center justify-center">
+      <div className="text-center">
+        <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">No revenue data available</p>
+        <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
+      </div>
+    </div>
+  );
+}
+
 const FinancialAnalytics: React.FC = () => {
   const { user } = useUserStore();
   const [loading, setLoading] = useState(true);
@@ -1034,102 +1047,106 @@ const FinancialAnalytics: React.FC = () => {
                </div>
              </div>
            </div>
-           <ResponsiveContainer width="100%" height={320}>
-             <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
-               <defs>
-                 <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                   <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
-                   <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
-                   <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
-                 </linearGradient>
-                 <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-                   <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
-                   <stop offset="50%" stopColor="#10B981" stopOpacity={0.2}/>
-                   <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
-                 </linearGradient>
-               </defs>
-               <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
-               <XAxis 
-                 dataKey="month" 
-                 stroke="#64748B" 
-                 fontSize={12}
-                 fontWeight={500}
-                 tickLine={false}
-                 axisLine={false}
-               />
-               <YAxis 
-                 stroke="#64748B" 
-                 fontSize={12}
-                 fontWeight={500}
-                 tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
-                 tickLine={false}
-                 axisLine={false}
-               />
-               <Tooltip 
-                 formatter={(value: number, name: string) => [
-                   utilsFormatCurrency(value, userCurrency), 
-                   name === 'revenue' ? 'Revenue (paid)' : 'Profit (paid)'
-                 ]}
-                 labelStyle={{ 
-                   color: '#1E293B', 
-                   fontWeight: 600,
-                   fontSize: '14px'
-                 }}
-                 contentStyle={{ 
-                   backgroundColor: 'white', 
-                   border: 'none',
-                   borderRadius: '12px',
-                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                   padding: '16px'
-                 }}
-                 cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
-               />
-               <Area
-                 type="monotone"
-                 dataKey="revenue"
-                 stroke="#3B82F6"
-                 fillOpacity={1}
-                 fill="url(#revenueGradient)"
-                 strokeWidth={3}
-                 dot={{ 
-                   fill: '#3B82F6', 
-                   strokeWidth: 2, 
-                   r: 4,
-                   stroke: 'white',
-                   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-                 }}
-                 activeDot={{ 
-                   r: 6, 
-                   stroke: '#3B82F6', 
-                   strokeWidth: 3,
-                   fill: 'white',
-                   filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
-                 }}
-               />
-               <Area
-                 type="monotone"
-                 dataKey="profit"
-                 stroke="#10B981"
-                 fillOpacity={1}
-                 fill="url(#profitGradient)"
-                 strokeWidth={3}
-                 dot={{ 
-                   fill: '#10B981', 
-                   strokeWidth: 2, 
-                   r: 4,
-                   stroke: 'white',
-                   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-                 }}
-                 activeDot={{ 
-                   r: 6, 
-                   stroke: '#10B981', 
-                   strokeWidth: 3,
-                   fill: 'white',
-                   filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
-                 }}
-               />
-             </AreaChart>
-                      </ResponsiveContainer>
+           {revenueData.length > 0 ? (
+             <ResponsiveContainer width="100%" height={320}>
+               <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
+                 <defs>
+                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
+                     <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
+                     <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+                   </linearGradient>
+                   <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
+                     <stop offset="50%" stopColor="#10B981" stopOpacity={0.2}/>
+                     <stop offset="100%" stopColor="#10B981" stopOpacity={0.05}/>
+                   </linearGradient>
+                 </defs>
+                 <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                 <XAxis 
+                   dataKey="month" 
+                   stroke="#64748B" 
+                   fontSize={12}
+                   fontWeight={500}
+                   tickLine={false}
+                   axisLine={false}
+                 />
+                 <YAxis 
+                   stroke="#64748B" 
+                   fontSize={12}
+                   fontWeight={500}
+                   tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                   tickLine={false}
+                   axisLine={false}
+                 />
+                 <Tooltip 
+                   formatter={(value: number, name: string) => [
+                     utilsFormatCurrency(value, userCurrency), 
+                     name === 'revenue' ? 'Revenue (paid)' : 'Profit (paid)'
+                   ]}
+                   labelStyle={{ 
+                     color: '#1E293B', 
+                     fontWeight: 600,
+                     fontSize: '14px'
+                   }}
+                   contentStyle={{ 
+                     backgroundColor: 'white', 
+                     border: 'none',
+                     borderRadius: '12px',
+                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                     padding: '16px'
+                   }}
+                   cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+                 />
+                 <Area
+                   type="monotone"
+                   dataKey="revenue"
+                   stroke="#3B82F6"
+                   fillOpacity={1}
+                   fill="url(#revenueGradient)"
+                   strokeWidth={3}
+                   dot={{ 
+                     fill: '#3B82F6', 
+                     strokeWidth: 2, 
+                     r: 4,
+                     stroke: 'white',
+                     filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                   }}
+                   activeDot={{ 
+                     r: 6, 
+                     stroke: '#3B82F6', 
+                     strokeWidth: 3,
+                     fill: 'white',
+                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
+                   }}
+                 />
+                 <Area
+                   type="monotone"
+                   dataKey="profit"
+                   stroke="#10B981"
+                   fillOpacity={1}
+                   fill="url(#profitGradient)"
+                   strokeWidth={3}
+                   dot={{ 
+                     fill: '#10B981', 
+                     strokeWidth: 2, 
+                     r: 4,
+                     stroke: 'white',
+                     filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                   }}
+                   activeDot={{ 
+                     r: 6, 
+                     stroke: '#10B981', 
+                     strokeWidth: 3,
+                     fill: 'white',
+                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.15))'
+                   }}
+                 />
+               </AreaChart>
+             </ResponsiveContainer>
+           ) : (
+             <AnalyticsRevenueTrendChartEmpty />
+           )}
          </div>
            </div>
            <div className="lg:col-span-4">
@@ -1767,13 +1784,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
       </AreaChart>
     </ResponsiveContainer>
   ) : (
-    <div className="h-80 flex items-center justify-center">
-      <div className="text-center">
-        <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">No revenue data available</p>
-        <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
-      </div>
-    </div>
+    <AnalyticsRevenueTrendChartEmpty />
   )}
 </div>
 );
