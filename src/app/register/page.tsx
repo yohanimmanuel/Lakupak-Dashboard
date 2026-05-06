@@ -124,19 +124,19 @@ export default function RegisterPage() {
           validationStates.company &&
           validationStates.region &&
           companyInfo.yearsInOperation.trim() &&
-          validationStates.yearsInOperation &&
-          companyInfo.businessPhone.trim() &&
-          validationStates.businessPhone
+          validationStates.yearsInOperation
         );
       case 2:
         return (
           businessCreds.businessRegistrationNumber.trim() &&
           businessCreds.industryType.trim() &&
           businessCreds.companySize.trim() &&
+          companyInfo.businessPhone.trim() &&
           validationStates.businessRegistrationNumber &&
           validationStates.industryType &&
           validationStates.companySize &&
-          validationStates.taxId
+          validationStates.taxId &&
+          validationStates.businessPhone
         );
       case 3:
         return (
@@ -484,22 +484,6 @@ export default function RegisterPage() {
                   placeholder="e.g. 5 years"
                   required
                 />
-                <ValidatedInput
-                  label="Business Phone Number"
-                  type="tel"
-                  value={companyInfo.businessPhone}
-                  onChange={(value) => setCompanyInfo({ ...companyInfo, businessPhone: value })}
-                  onValidation={(valid) => updateValidation('businessPhone', valid)}
-                  validator={(value) => {
-                    const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Business phone number is required' };
-                    if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
-                    if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
-                    return { valid: true };
-                  }}
-                  placeholder="e.g. +62 812 3456 7890"
-                  required
-                />
               </div>
             )}
             
@@ -533,6 +517,22 @@ export default function RegisterPage() {
                     return { valid: true };
                   }}
                   placeholder="Optional"
+                />
+                <ValidatedInput
+                  label="Business Phone Number"
+                  type="tel"
+                  value={companyInfo.businessPhone}
+                  onChange={(value) => setCompanyInfo({ ...companyInfo, businessPhone: value })}
+                  onValidation={(valid) => updateValidation('businessPhone', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Business phone number is required' };
+                    if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
+                    if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
+                    return { valid: true };
+                  }}
+                  placeholder="e.g. +62 812 3456 7890"
+                  required
                 />
 
                 <div className="flex gap-4">
