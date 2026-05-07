@@ -347,6 +347,7 @@ model OrderCancellation {
 
   @@index([orderId])
   @@index([marketplaceUserId])
+  @@index([marketplaceUserId, cancelledAt])
 }
 
 model Address {
@@ -448,6 +449,13 @@ model Order {
   @@index([userId, orderStatus, isDeleted])
   @@index([userId, isDeleted, archivedAt])
   @@index([fleetId])
+  // Composite indexes for common filter + sort patterns
+  @@index([userId, isDeleted, createdAt])
+  @@index([userId, isDeleted, orderDate])
+  @@index([buyerId, createdAt])
+  @@index([buyerId, orderDate])
+  @@index([fleetId, createdAt])
+  @@index([orderStatus, createdAt])
 }
 
 /// Structured record for driver-reported delivery failures (separate from buyer cancellations/returns).
@@ -464,6 +472,8 @@ model OrderFailedReason {
 
   @@index([orderId])
   @@index([driverId])
+  @@index([orderId, createdAt])
+  @@index([driverId, createdAt])
 }
 
 /// Return/refund request from marketplace buyer (order must be Delivered or Received).
@@ -483,6 +493,9 @@ model OrderReturnRequest {
   @@index([orderId])
   @@index([marketplaceUserId])
   @@index([status])
+  @@index([orderId, createdAt])
+  @@index([marketplaceUserId, createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -525,6 +538,8 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@index([orderId, productId])
+  @@index([orderId, createdAt])
+  @@index([productId, createdAt])
 }
 
 /// Combination rows for a product (each row corresponds to a concrete variant combination)
@@ -551,6 +566,7 @@ model VariantOption {
 
   @@unique([productId, variantName])
   @@index([productId, isActive])
+  @@index([productId, createdAt])
 }
 
 model Account {
@@ -984,6 +1000,9 @@ model ProductReview {
   @@index([productId])
   @@index([orderId])
   @@index([userId])
+  @@index([productId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([userId, createdAt])
 }
 
 /// Delivery review: one per order. Buyer rates delivery for that order.
@@ -1000,6 +1019,7 @@ model OrderDeliveryReview {
 
   @@index([userId])
   @@index([orderId])
+  @@index([userId, createdAt])
 }
 
 /// Distributor (seller) review: one per (buyer, distributor). Buyer reviews a seller.
@@ -1023,6 +1043,8 @@ model DistributorReview {
   @@unique([userId, distributorId])
   @@index([distributorId])
   @@index([userId])
+  @@index([distributorId, createdAt])
+  @@index([userId, createdAt])
 }
 
 /// Buyer-reported issues against a dashboard distributor (seller) — surfaced in platform admin.
