@@ -6,6 +6,20 @@ import { usePathname } from 'next/navigation';
 import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 
+/** Stable anchors for dashboard product tours (`driver.js`). */
+const DATA_TOUR_BY_LABEL: Record<string, string> = {
+  Home: 'nav-home',
+  Clients: 'nav-clients',
+  Products: 'nav-products',
+  Orders: 'nav-orders',
+  Offers: 'nav-offers',
+  Marketing: 'nav-marketing',
+  Analytics: 'nav-analytics',
+  Marketplace: 'nav-marketplace',
+  Logistics: 'nav-logistics',
+  Settings: 'nav-settings',
+};
+
 const mainMenuItems = [
   { label: 'Home', href: '/home', color: 'text-[#0a61d7]', icon: <HomeIcon className="w-5 h-5" /> },
   {
@@ -162,6 +176,7 @@ const Menu = () => {
             {item.href ? (
               <Link
                 href={item.href}
+                data-tour={DATA_TOUR_BY_LABEL[item.label]}
                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium flex-1 text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
                 title={!shouldShowExpanded ? item.label : undefined}
               >
@@ -174,6 +189,7 @@ const Menu = () => {
               </Link>
             ) : (
               <button
+                data-tour={DATA_TOUR_BY_LABEL[item.label]}
                 onClick={() => shouldShowExpanded && handleToggle(item.label)}
                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
                 title={!shouldShowExpanded ? item.label : undefined}
@@ -260,6 +276,7 @@ const Menu = () => {
       <Link
         key={item.label}
         href={item.href || '#'}
+        data-tour={DATA_TOUR_BY_LABEL[item.label]}
         className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 relative group ${getTextColorClasses(isActive)} ${item.color || ''}`}
         title={!shouldShowExpanded ? item.label : undefined}
       >
@@ -275,7 +292,7 @@ const Menu = () => {
   };
 
   return (
-    <div className="text-sm h-full flex flex-col bg-white relative" data-menu>
+    <div className="text-sm h-full flex flex-col bg-white relative" data-menu data-tour="nav-sidebar">
       {/* Logo Section */}
       <div className="mb-2">
         {shouldShowExpanded ? (

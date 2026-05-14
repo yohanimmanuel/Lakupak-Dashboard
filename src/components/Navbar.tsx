@@ -464,7 +464,7 @@ const Navbar = () => {
         <MenuIcon size={20} className="text-gray-700 transition-colors duration-100" />
       </button>
       {/* SEARCH BAR - Hidden on Mobile */}
-      <div className="hidden sm:flex flex-1 items-left justify-left">
+      <div className="hidden sm:flex flex-1 items-left justify-left" data-tour="quick-search">
         <div className="relative w-[300px] max-w-full">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={15} />
@@ -784,7 +784,7 @@ const Navbar = () => {
           )}
         </div>
         {/* User Group */}
-        <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4">
+        <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4" data-tour="user-menu">
           <div className="hidden sm:flex flex-col text-black max-w-[80px] truncate text-xs text-right">
             <span className="text-xs leading-3 font-medium truncate">{user?.firstName || 'User'}</span>
             <span className="text-[10px] text-gray-500 text-right truncate">{user?.email || ''}</span>

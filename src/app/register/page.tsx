@@ -207,7 +207,14 @@ export default function RegisterPage() {
       // Success
       setSuccess("Registration successful! Redirecting to dashboard...");
       setUser({
-        id: data.id,
+        id: (() => {
+          if (typeof data.id === 'number' && Number.isFinite(data.id)) return data.id;
+          const parsed = Number.parseInt(String(data.id ?? ''), 10);
+          if (!Number.isFinite(parsed)) {
+            throw new Error('Invalid user ID received from registration API');
+          }
+          return parsed;
+        })(),
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,

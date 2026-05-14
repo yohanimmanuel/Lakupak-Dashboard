@@ -10,9 +10,13 @@ import { Order, OrderTableRow } from '@/types/order';
 import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
+import { OrdersTourBanner } from '@/components/tours/OrdersTourBanner';
+import { PENDING_ORDERS_TOUR_KEY } from '@/components/tours/tourIds';
+import { useDashboardTourOptional } from '@/components/tours/TourProvider';
 
 export default function OrdersPage() {
   const user = useUserStore(state => state.user);
+  const tour = useDashboardTourOptional();
   const [orders, setOrders] = useState<Order[]>([]);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
@@ -86,6 +90,17 @@ export default function OrdersPage() {
     };
   }, [fetchOrders]); // Now fetchOrders is properly memoized, so we can include it
 
+  // After redirect from Settings (or elsewhere), start the orders tour once the list UI is mounted.
+  useEffect(() => {
+    if (loading || error || typeof window === 'undefined' || !tour) return;
+    if (sessionStorage.getItem(PENDING_ORDERS_TOUR_KEY) !== '1') return;
+    sessionStorage.removeItem(PENDING_ORDERS_TOUR_KEY);
+    const t = window.setTimeout(() => {
+      tour.runTour('orders');
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [loading, error, tour]);
+
   const fetchArchived = async () => {
     try {
       const ts = Date.now();
@@ -145,30 +160,21 @@ export default function OrdersPage() {
     XLSX.writeFile(workbook, filename);
   };
 
-  if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading orders...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto">
         {/* Header Section */}
+        <OrdersTourBanner />
+
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            <div data-tour="orders-page-header">
               <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
               <p className="text-sm text-gray-600 mt-2">
                 Track and manage all your B2B marketplace orders
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3" data-tour="orders-actions">
               <button
                 onClick={fetchOrders}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
@@ -211,18 +217,18 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Orders Content */}
-        {!loading && !error && (
+        {/* Orders Content — keep mounted while loading so product-tour anchors exist */}
+        {!error && (
           <>
             {/* Orders GPS and Cards Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
               {/* GPS Map - Left Side */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2" data-tour="orders-map">
                 <OrdersGPS orders={orders} />
               </div>
               
               {/* Stat Cards - Right Side */}
-              <div>
+              <div data-tour="orders-cards">
                 <OrdersCards orders={orders} />
               </div>
             </div>

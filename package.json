@@ -29,6 +29,7 @@
     "dataloader": "^2.2.3",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
+    "driver.js": "^1.4.0",
     "graphql": "^16.12.0",
     "ioredis": "^5.4.1",
     "jose": "^6.1.0",

@@ -30,6 +30,8 @@ model User {
   phone         String?
   companyId     Int?
   language      String     @default("en")
+  /// Dashboard product-tour progress (merged with localStorage); optional cross-device sync.
+  dashboardTourState Json?
   accounts      Account[]
   buyers        Buyer[]
   orders        Order[]

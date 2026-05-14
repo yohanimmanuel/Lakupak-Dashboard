@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Globe, CreditCard, Users, Building2 } from 'lucide-react';
+import { User, Shield, Globe, CreditCard, Users, Building2, Sparkles } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useAuthHydration } from '@/hooks/useAuthHydration';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
@@ -10,10 +10,12 @@ import SecurityPass from '@/components/accountsettings/SecurityPass';
 import LanguageRegion from '@/components/accountsettings/LanguageRegion';
 import BillingPayment from '@/components/accountsettings/BillingPayment';
 import TeamManagement from '@/components/accountsettings/TeamManagement';
+import { DashboardToursPanel } from '@/components/tours/DashboardToursPanel';
 
-type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile';
+type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile' | 'tours';
 
 const settingsTabs = [
+  { id: 'tours' as const, label: 'Product tours', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'general' as const, label: 'General Info', icon: <User className="w-4 h-4" /> },
   { id: 'profile' as const, label: 'Distributor Operations', icon: <Building2 className="w-4 h-4" /> },
   { id: 'team' as const, label: 'Team & Sales', icon: <Users className="w-4 h-4" /> },
@@ -51,6 +53,8 @@ export default function SettingsPage() {
         return <BillingPayment />;
       case 'team':
         return <TeamManagement />;
+      case 'tours':
+        return <DashboardToursPanel />;
       case 'profile':
         return <DistributorOperations />;
       default:

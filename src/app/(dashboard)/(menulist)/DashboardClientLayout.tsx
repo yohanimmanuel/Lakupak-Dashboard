@@ -6,6 +6,7 @@ import Menu from '@/components/Menu';
 import Navbar from '@/components/Navbar';
 import { useUserStore } from '@/store/userStore';
 import { useAuthHydration } from '@/hooks/useAuthHydration';
+import { TourProvider } from '@/components/tours/TourProvider';
 
 const MenuContext = createContext({
   isCollapsed: false,
@@ -79,6 +80,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
 
   return (
     <MenuContext.Provider value={{ isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu }}>
+      <TourProvider>
       <div className="h-screen flex overflow-hidden relative" data-layout>
         {/* Desktop Sidebar */}
         <div className={`hidden md:block ${isCollapsed ? 'w-[70px]' : 'w-[15%]'} bg-white transition-all duration-300 border border-gray-200 min-w-[70px]`}>
@@ -110,6 +112,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
           </div>
         </div>
       </div>
+      </TourProvider>
     </MenuContext.Provider>
   );
 }
