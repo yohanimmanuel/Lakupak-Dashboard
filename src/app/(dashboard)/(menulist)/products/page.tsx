@@ -13,6 +13,7 @@ import { generateUniqueProductId } from "@/utils/product-security";
 import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
 import { fetchGraphQL } from "@/lib/graphqlClient";
 import { useProductUpdateSocket } from '@/hooks/useProductUpdateSocket';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -186,6 +187,8 @@ export default function ProductsPage() {
   useProductUpdateSocket(user?.id, () => {
     fetchProducts(true);
   });
+
+  usePendingDashboardTourStart('products', { ready: !loading && !!user?.id });
 
   // Convert product data to table row format
   const profileToTableRow = (product: Product): ProductTableRow => {
@@ -502,12 +505,12 @@ export default function ProductsPage() {
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
-        <div>
+        <div data-tour="products-page-header">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Products</h1>
           <p className="text-sm text-gray-500 mb-4">Manage your product catalog and inventory</p>
         </div>
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-tour="products-actions">
           {/* Refresh Button */}
           <button
             onClick={() => fetchProducts(true)}
@@ -546,7 +549,9 @@ export default function ProductsPage() {
       </div>
 
       {/* Stats Cards */}
-      <ProductCards products={products} />
+      <div data-tour="products-cards">
+        <ProductCards products={products} />
+      </div>
 
       {/* Data Status Overlay */}
       {(showOverlay || isSlidingIn || isSlidingOut) && (

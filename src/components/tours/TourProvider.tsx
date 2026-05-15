@@ -15,10 +15,41 @@ import 'driver.js/dist/driver.css';
 
 import { useUserStore } from '@/store/userStore';
 import { useTourProgress } from '@/hooks/useTourProgress';
-import { DASHBOARD_TOURS, PENDING_ORDERS_TOUR_KEY, type DashboardTourId } from '@/components/tours/tourIds';
+import {
+  DASHBOARD_TOURS,
+  MODULE_TOUR_HOME_PATH,
+  PENDING_DASHBOARD_TOUR_KEY,
+  type DashboardTourId,
+} from '@/components/tours/tourIds';
+import type { TourStepDef } from '@/components/tours/definitions/tourStepTypes';
 import { shellTourSteps } from '@/components/tours/definitions/shellTour';
 import { ordersTourSteps } from '@/components/tours/definitions/ordersTour';
+import { productsTourSteps } from '@/components/tours/definitions/productsTour';
+import { offersTourSteps } from '@/components/tours/definitions/offersTour';
+import { marketplaceTourSteps } from '@/components/tours/definitions/marketplaceTour';
+import { logisticsTourSteps } from '@/components/tours/definitions/logisticsTour';
 import { runDashboardTour } from '@/components/tours/runDashboardTour';
+
+function getTourSteps(id: DashboardTourId): TourStepDef[] {
+  switch (id) {
+    case 'shell':
+      return shellTourSteps;
+    case 'orders':
+      return ordersTourSteps;
+    case 'products':
+      return productsTourSteps;
+    case 'offers':
+      return offersTourSteps;
+    case 'marketplace':
+      return marketplaceTourSteps;
+    case 'logistics':
+      return logisticsTourSteps;
+    default: {
+      const _exhaustive: never = id;
+      return _exhaustive;
+    }
+  }
+}
 import { TourShellPrompt } from '@/components/tours/TourShellPrompt';
 
 function usePrefersReducedMotion(): boolean {
@@ -97,17 +128,17 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       destroyDriver();
       const meta = DASHBOARD_TOURS[id];
 
-      if (id === 'orders' && typeof window !== 'undefined') {
+      if (id !== 'shell' && typeof window !== 'undefined') {
+        const home = MODULE_TOUR_HOME_PATH[id];
         const path = pathname?.replace(/\/$/, '') ?? '';
-        const onOrdersList = path === '/orders';
-        if (!onOrdersList) {
-          sessionStorage.setItem(PENDING_ORDERS_TOUR_KEY, '1');
-          router.push('/orders');
+        if (path !== home) {
+          sessionStorage.setItem(PENDING_DASHBOARD_TOUR_KEY, id);
+          router.push(home);
           return;
         }
       }
 
-      const steps = id === 'shell' ? shellTourSteps : ordersTourSteps;
+      const steps = getTourSteps(id);
       setIsTourActive(true);
       const d = runDashboardTour({
         steps,

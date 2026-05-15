@@ -6,6 +6,7 @@ import ProductsList from '@/components/marketplacecomp/ProductsList';
 import MarketplacePerformance from '@/components/marketplacecomp/MarketplacePerformance';
 import DistributorInfo from '@/components/marketplacecomp/DistributorInfo';
 import { Calendar, RefreshCw, ChevronDown } from 'lucide-react';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 interface ProductVariantOption {
   sellingPrice: string;
@@ -139,6 +140,8 @@ export default function MarketplacePage() {
     fetchMarketplaceData();
   }, [fetchMarketplaceData]);
 
+  usePendingDashboardTourStart('marketplace', { ready: !loading && !!user?.id });
+
   // Handle dropdown click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -171,13 +174,13 @@ export default function MarketplacePage() {
       {/* Header */}
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
+          <div data-tour="marketplace-page-header">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Marketplace Dashboard</h1>
             <p className="text-sm text-gray-600">
               Monitor your marketplace performance and customer behavior
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-tour="marketplace-actions">
             {/* Time Range Selector */}
             <div className="relative" ref={dropdownRef}>
               <button
@@ -222,7 +225,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3" data-tour="marketplace-quick-stats">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">Published Products</p>
           <p className="text-3xl font-bold text-gray-900">{publishedCount}</p>
@@ -243,6 +246,7 @@ export default function MarketplacePage() {
       {/* Main Content */}
       <div className="space-y-3">
         {/* Distributor info (B2B marketplace) */}
+        <div data-tour="marketplace-distributor">
         <DistributorInfo
           company={company}
           userCurrency={userCurrency}
@@ -250,13 +254,16 @@ export default function MarketplacePage() {
           buyersCount={overallMetrics?.totalBuyers ?? 0}
           followersCount={followersCount}
         />
+        </div>
 
         {/* Performance Section (Main Focus) */}
+        <div data-tour="marketplace-performance">
         <MarketplacePerformance
           products={products}
           userCurrency={userCurrency}
           overallMetrics={overallMetrics}
         />
+        </div>
 
         {/* Products List Section */}
         <ProductsList products={products} />

@@ -413,7 +413,7 @@ export default function OrderfleetList({
   };
 
   return (
-    <div className="flex h-full max-h-[calc(100vh+100px)] flex-col rounded-lg bg-white border border-gray-200">
+    <div className="flex h-full max-h-[calc(100vh+100px)] flex-col rounded-lg bg-white border border-gray-200" data-tour="logistics-fleet-list">
       {/* Tab Switcher */}
       <div className="flex border-b border-gray-100">
         <button

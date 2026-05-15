@@ -15,9 +15,9 @@ import { DashboardToursPanel } from '@/components/tours/DashboardToursPanel';
 type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile' | 'tours';
 
 const settingsTabs = [
-  { id: 'tours' as const, label: 'Product tours', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'general' as const, label: 'General Info', icon: <User className="w-4 h-4" /> },
   { id: 'profile' as const, label: 'Distributor Operations', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'tours' as const, label: 'Features & Tours', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'team' as const, label: 'Team & Sales', icon: <Users className="w-4 h-4" /> },
   { id: 'language' as const, label: 'Language & Region', icon: <Globe className="w-4 h-4" /> },
   { id: 'billing' as const, label: 'Billing & Payment', icon: <CreditCard className="w-4 h-4" /> },

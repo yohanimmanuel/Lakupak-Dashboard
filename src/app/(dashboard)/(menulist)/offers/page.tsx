@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Offer } from '@/types/offer';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 export default function OffersPage() {
   const router = useRouter();
@@ -189,6 +190,8 @@ export default function OffersPage() {
     };
   }, [fetchOffers]);
 
+  usePendingDashboardTourStart('offers', { ready: !loading && !!user?.id });
+
   // Helper function to check if offer has discount types
   const hasDiscountType = (offer: Offer) => {
     const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
@@ -288,12 +291,12 @@ export default function OffersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div>
+          <div data-tour="offers-page-header">
             <h1 className="text-2xl font-bold text-black">Offers & Incentives</h1>
             <p className="text-gray-500 text-sm">Manage discounts and promotions for your products</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-tour="offers-actions">
           <button 
             onClick={handleExportData}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
@@ -312,10 +315,12 @@ export default function OffersPage() {
       </div>
 
       {/* Stat Cards */}
-      <OfferStatCards offers={offers} />
+      <div data-tour="offers-stats">
+        <OfferStatCards offers={offers} />
+      </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-1">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-1" data-tour="offers-tabs">
         <div className="flex flex-col sm:flex-row gap-1">
           {tabs.map((tab) => (
             <button

@@ -52,7 +52,7 @@ export default function ProductsList({ products }: ProductsListProps) {
 
   if (publishedProducts.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
+      <div className="bg-white rounded-lg border border-gray-200 p-8" data-tour="marketplace-products-list">
         <div className="text-center">
           <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -74,7 +74,7 @@ export default function ProductsList({ products }: ProductsListProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-lg border border-gray-200" data-tour="marketplace-products-list">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <div>

@@ -530,7 +530,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3" data-tour="products-table">
       {/* Status Tabs - Segmented Control */}
       <div className="mb-4">
         <div className="relative w-full md:w-auto flex items-center">

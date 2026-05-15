@@ -608,7 +608,7 @@ export default function OfferTable({
   }, [selectedTab]);
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
+    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3" data-tour="offers-table">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Status Tabs - Segmented Control */}
         <div className="relative w-full md:w-auto flex items-center">

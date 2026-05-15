@@ -11,9 +11,29 @@ const rows: { id: DashboardTourId; title: string; description: string }[] = [
     description: 'Sidebar modules (products, orders, offers, marketplace, logistics), search, account, and where to replay tours.',
   },
   {
+    id: 'products',
+    title: 'Products',
+    description: 'Catalog header, actions, KPI cards, and the products table.',
+  },
+  {
     id: 'orders',
     title: 'Orders',
     description: 'Map, summary cards, filters, and the orders table.',
+  },
+  {
+    id: 'offers',
+    title: 'Offers',
+    description: 'Discounts and promotions: actions, stats, tabs, and the offers table.',
+  },
+  {
+    id: 'marketplace',
+    title: 'Marketplace',
+    description: 'Performance metrics, storefront profile, and published listings.',
+  },
+  {
+    id: 'logistics',
+    title: 'Logistics',
+    description: 'Fleet list, drivers, and fleet detail with tracking.',
   },
 ];
 
@@ -21,24 +41,27 @@ export function DashboardToursPanel() {
   const { runTour, resetTour, getStatus } = useDashboardTour();
 
   return (
-    <div className="p-6 max-w-2xl">
-      <h2 className="text-xl font-bold text-gray-900">Product tours</h2>
+    <div className="p-4 max-w-6xl">
+      <h2 className="text-2xl font-bold text-black">Features & Tours</h2>
       <p className="mt-2 text-sm text-gray-600">
-        Replay a short walkthrough anytime. Progress is saved for this account (and synced when you use another
-        browser, once signed in).
+        Replay a short walkthrough anytime. Progress is saved for this account and synced when you use another
+        browser, once signed in.
       </p>
-      <ul className="mt-6 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
         {rows.map((row) => {
           const meta = DASHBOARD_TOURS[row.id];
           if (!meta) {
             return (
-              <li key={row.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={row.id}
+                className="flex h-full min-h-[140px] flex-col justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4"
+              >
                 <div>
                   <p className="font-semibold text-gray-900">{row.title}</p>
                   <p className="text-sm text-gray-600">{row.description}</p>
                   <p className="mt-1 text-xs text-amber-700">Tour metadata missing for this entry.</p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                   <button type="button" disabled className="cursor-not-allowed rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-400">
                     Reset
                   </button>
@@ -46,20 +69,23 @@ export function DashboardToursPanel() {
                     Start tour
                   </button>
                 </div>
-              </li>
+              </div>
             );
           }
           const st = getStatus(meta.id, meta.version);
           const statusLabel =
             st === 'completed' ? 'Completed' : st === 'dismissed' ? 'Skipped / closed' : 'Not started';
           return (
-            <li key={row.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              key={row.id}
+              className="flex h-full min-h-[160px] flex-col justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4"
+            >
               <div>
                 <p className="font-semibold text-gray-900">{row.title}</p>
-                <p className="text-sm text-gray-600">{row.description}</p>
-                <p className="mt-1 text-xs text-gray-500">Status: {statusLabel}</p>
+                <p className="mt-1 text-sm text-gray-600">{row.description}</p>
+                <p className="mt-2 text-xs text-gray-500">Status: {statusLabel}</p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <button
                   type="button"
                   className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
@@ -75,10 +101,10 @@ export function DashboardToursPanel() {
                   Start tour
                 </button>
               </div>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

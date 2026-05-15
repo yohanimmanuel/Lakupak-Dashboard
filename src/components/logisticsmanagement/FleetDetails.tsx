@@ -40,7 +40,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
 
   if (!fleet) {
     return (
-      <div className="flex h-full max-h-[calc(100vh+100px)] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white/60 p-4 text-center">
+      <div className="flex h-full max-h-[calc(100vh+100px)] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white/60 p-4 text-center" data-tour="logistics-fleet-details">
         <div>
           <Truck className="mx-auto mb-3 h-8 w-8 text-gray-300" />
           <p className="text-sm font-medium text-gray-700">Select a fleet to view details</p>
@@ -55,7 +55,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
   const showRouteMap = fleetHasAssignedOrders(fleet) && fleetHasDeliveryAddresses(fleet);
 
   return (
-    <div className="flex h-full max-h-[calc(100vh+100px)] flex-col gap-3 rounded-lg bg-white border border-gray-200 p-4">
+    <div className="flex h-full max-h-[calc(100vh+100px)] flex-col gap-3 rounded-lg bg-white border border-gray-200 p-4" data-tour="logistics-fleet-details">
       {/* Header */}
       <div className="flex flex-shrink-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">

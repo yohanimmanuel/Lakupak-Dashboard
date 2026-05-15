@@ -13,6 +13,7 @@ import OrderfleetList, {
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
 import { fetchFleets, fetchDrivers } from '@/data/logisticsFleetsApi';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -111,6 +112,8 @@ export default function LogisticsPage() {
     };
   }, [loadFleets]);
 
+  usePendingDashboardTourStart('logistics', { ready: !loading && !!user?.id });
+
   // Derive effective selection: user's choice if still in list, otherwise first fleet (no Effect)
   const effectiveSelectedFleetId = useMemo(() => {
     if (selectedFleetId != null && fleets.some((f) => f.id === selectedFleetId)) return selectedFleetId;
@@ -196,7 +199,7 @@ export default function LogisticsPage() {
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
-        <div>
+        <div data-tour="logistics-page-header">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Logistics Management</h1>
           <p className="text-sm text-gray-500 mb-4">
             Monitor and manage your fleet, deliveries, and logistics performance across your
@@ -205,7 +208,7 @@ export default function LogisticsPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-tour="logistics-actions">
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}

@@ -11,12 +11,10 @@ import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { OrdersTourBanner } from '@/components/tours/OrdersTourBanner';
-import { PENDING_ORDERS_TOUR_KEY } from '@/components/tours/tourIds';
-import { useDashboardTourOptional } from '@/components/tours/TourProvider';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 export default function OrdersPage() {
   const user = useUserStore(state => state.user);
-  const tour = useDashboardTourOptional();
   const [orders, setOrders] = useState<Order[]>([]);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<Order[]>([]);
@@ -90,16 +88,7 @@ export default function OrdersPage() {
     };
   }, [fetchOrders]); // Now fetchOrders is properly memoized, so we can include it
 
-  // After redirect from Settings (or elsewhere), start the orders tour once the list UI is mounted.
-  useEffect(() => {
-    if (loading || error || typeof window === 'undefined' || !tour) return;
-    if (sessionStorage.getItem(PENDING_ORDERS_TOUR_KEY) !== '1') return;
-    sessionStorage.removeItem(PENDING_ORDERS_TOUR_KEY);
-    const t = window.setTimeout(() => {
-      tour.runTour('orders');
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [loading, error, tour]);
+  usePendingDashboardTourStart('orders', { ready: !loading && !error });
 
   const fetchArchived = async () => {
     try {
