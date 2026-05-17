@@ -8,8 +8,8 @@ import {
   LayoutDashboard,
   Store,
   Truck,
-  Plug,
-  Settings,
+  Network,
+  Sparkles,
   ArrowRight,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -20,16 +20,16 @@ const iconMap = {
   dashboard: LayoutDashboard,
   marketplace: Store,
   driver: Truck,
-  services: Plug,
-  operations: Settings,
+  platform: Network,
+  about: Sparkles,
 } as const;
 
 export function DocsLandingHero({ locale }: { locale: DocLocale }) {
   const t = useTranslations('docs');
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#0a61d7] via-[#0851b8] to-[#063d8a] px-4 py-16 sm:py-20">
-      <div className="pointer-events-none absolute inset-0 opacity-20" aria-hidden>
+    <section className="relative z-20 overflow-visible bg-gradient-to-br from-[#0a61d7] via-[#0851b8] to-[#063d8a] px-4 py-16 sm:py-20">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-20" aria-hidden>
         <div className="absolute -right-20 -top-20 h-64 w-64 rotate-12 rounded-3xl bg-white/10" />
         <div className="absolute -bottom-16 -left-16 h-48 w-48 -rotate-6 rounded-3xl bg-white/10" />
         <div className="absolute left-1/2 top-[62%] w-[min(100%,36rem)] -translate-x-1/2 -translate-y-1/2">
@@ -47,7 +47,7 @@ export function DocsLandingHero({ locale }: { locale: DocLocale }) {
       <div className="relative z-10 mx-auto max-w-3xl text-center">
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{t('landing.title')}</h1>
         <p className="mt-3 text-base text-blue-100 sm:text-lg">{t('landing.subtitle')}</p>
-        <div className="mt-8">
+        <div className="relative z-30 mt-8">
           <DocsSearchBar locale={locale} large placeholder={t('landing.searchPlaceholder')} />
         </div>
       </div>
@@ -59,7 +59,7 @@ export function DocsCategoryGrid({ locale }: { locale: DocLocale }) {
   const categories = getDocsCategories(locale);
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <section className="relative z-10 mx-auto max-w-6xl px-4 py-12 sm:px-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((cat) => {
           const Icon = iconMap[cat.icon];

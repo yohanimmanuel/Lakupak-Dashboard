@@ -1,27 +1,126 @@
 ---
-title: Products
-description: Catalog, stock, and marketplace publish.
+title: Produk
+description: Katalog, varian, stok, publikasi marketplace, dan ekspor.
 section: Dashboard
 module: dashboard
 order: 13
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Area **Products** adalah katalog B2B Anda. Buat SKU dengan varian dan gambar, lacak stok per varian, dan publikasikan ke **Laku Marketplace** pembeli saat siap.
 
----
+Jalur: **Products** (`/products`).
 
-# Products
+## Kartu ringkasan
 
-## Catalog management
+Tiga KPI di bagian atas:
 
-- **Add Product** — create SKUs with variants, pricing, and images.
-- **Product table** — filter by status (Draft/Published), stock, and offers.
-- **Refresh** — reload catalog data; **Export** — download XLSX.
+| Kartu | Arti |
+|------|------|
+| **Total Products** | Semua produk di workspace |
+| **Published Products** | Produk berstatus Published |
+| **Products with Offers** | Produk terhubung diskon atau promosi aktif |
 
-## Publishing
+Peringatan bisa muncul untuk produk **low stock** dan **out of stock** menurut ambang varian.
 
-Products must be **Published** to appear on the buyer Marketplace. Draft items stay internal.
+## Daftar katalog
 
-## Stock
+### Tindakan daftar
 
-Stock is tracked per variant. Low-stock thresholds drive alerts on Home and product cards.
+| Tindakan | Fungsi |
+|----------|--------|
+| **Refresh** | Muat ulang katalog dari server |
+| **Export Data** | Unduh katalog terfilter ke XLSX |
+| **+ Add Product** | Form tambah (`/products/add`) |
+
+Impor didukung lewat modal impor (pemetaan kolom XLSX/CSV). Tombol impor di toolbar bisa disembunyikan; impor baru selalu membuat produk **Draft** dengan ID `LKP-` otomatis.
+
+### Status dan filter
+
+- **Tab status:** All, Draft, Published
+- **Pencarian:** nama produk
+- **Stok:** All Stock, High Stock, Low Stock, Out of Stock
+- Filter **Type** dan **Category** (dinamis)
+- **Offers:** All Products, With Offers, Without Offers
+
+Banner **Data completion** menandai baris yang belum lengkap (latar amber).
+
+### Grid, daftar, dan paginasi
+
+- **Grid View** (default desktop) dan **List View**
+- Mobile memakai kartu
+- **8** produk per halaman; kosong: **No products recorded**
+
+**Kolom daftar:** ID/SKU, Product Name, Type, Category, Brand, Stock, Selling Price, Status, Last Updated, Actions.
+
+**Aksi baris:** **View Product** (Published) atau **Edit Product** (Draft), **Delete Product**.
+
+**Pilihan:** checkbox dan **Select All** untuk filter aktif.
+
+### Aksi massal
+
+Saat produk dipilih:
+
+- **Publish** (Draft) membuka **Marketplace Preview** atau **Bulk Publish**
+- **Unpublish** (Published) mengembalikan ke Draft
+- **Remove** menghapus produk terpilih
+
+Campuran Draft dan Published hanya mengizinkan **Remove**.
+
+## Form produk
+
+Jalur: `/products/add`, `/products/edit/{id}`, `/products/catalog/{id}` (lihat).
+
+### Informasi umum
+
+Field: **Product ID** (otomatis `LKP-`), **SKU Number**, **Brand**, **Type**, **Product Name**, **Supplier**, **Product Description**, checkbox jaminan (**Halal Certified**, **BPOM Approved**, **Original Product**), **Return Policy (days)**.
+
+**Product Catalog Completion** menampilkan persen lengkap dan field yang kosong.
+
+### Varian, stok, dan gambar
+
+- **Upload Images:** drag and drop, hingga **10** gambar
+- **Product Settings:** Product Type, **Product Category (by Channel)**, **Catalog Name**
+- **Product Variants:** tipe dan opsi varian, tabel **SKU**, harga jual/beli, **MOQ**, **Stock Qty**, **Low Threshold**, status per baris
+- **Quick Action: Apply To All**
+- **Product Stock Summary:** total pieces, threshold, status keseluruhan
+
+Varian dan harga bisa **terkunci** jika produk punya penawaran aktif. Ubah/hapus varian yang dipakai pesanan lama diblokir dengan modal penjelasan.
+
+### Simpan, draf, dan unpublish
+
+| Mode | Tindakan |
+|------|----------|
+| Add / Edit (Draft) | **Cancel**, **Save Draft**, **Save and Publish** |
+| View (Published) | **Unpublish** |
+
+Produk **Published** hanya bisa dilihat. Untuk mengedit, unpublish dulu.
+
+## Publikasi marketplace
+
+Dari daftar (**Publish**) atau form (**Save and Publish**):
+
+1. Buka **Marketplace Preview** atau **Bulk Publish**
+2. Cek kelengkapan: SKU, nama, deskripsi, tipe, brand, supplier, harga varian, stok &gt; 0, minimal satu gambar
+3. Pratinjau tampilan di **Laku Marketplace App**
+4. Konfirmasi **Publish**
+
+Produk tidak lengkap tercantum di **Cannot Publish**.
+
+## Impor dan ekspor
+
+**Export** mencakup Product ID, SKU, nama, tipe, brand, supplier, stok, harga, status, last updated.
+
+**Import** memetakan kolom spreadsheet; status selalu **Draft**.
+
+## Produk terhapus
+
+Tautan produk yang dihapus menampilkan **Product has been deleted** dengan **Go Back** dan **Add Products**.
+
+## Tautan terkait
+
+| Tujuan | Ke |
+|--------|-----|
+| Diskon katalog | [Penawaran](/id/docs/dashboard/offers) |
+| Pesanan | [Pesanan](/id/docs/dashboard/orders) |
+| Performa storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+| Widget stok rendah | [Beranda](/id/docs/dashboard/home) |

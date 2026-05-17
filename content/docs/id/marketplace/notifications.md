@@ -1,25 +1,60 @@
 ---
-title: Notifications
-description: Push and in-app updates.
+title: Notifikasi
+description: Alert in-app, pembaruan pesanan, pengumuman, dan push.
 section: Marketplace
 module: marketplace
 order: 36
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Ikuti pesanan, promosi, dan berita platform dari tab **Notifications** dan pengaturan push perangkat.
 
----
+## Tab Notifications
 
-# Notifications
+Jalur: `/(tabs)/notifications`.
 
-## Push notifications
+Tab bisa dipakai tamu (latest updates) dan pembeli login (bagian pesanan).
 
-Register device push tokens for order updates and platform announcements.
+### Alert tersimpan
 
-## In-app
+Notifikasi non-pesanan: tipe **discount**, **promotion**, **update**.
 
-The **Notifications** tab lists recent events. Order status changes may also appear as banners during active sessions.
+### Blok pembaruan pesanan
 
-## Realtime
+**Order updates** menampilkan hingga lima event terbaru; **View all** → daftar lengkap `/order-notifications`.
 
-WebSocket and Supabase realtime channels can refresh orders without manual pull-to-refresh.
+Kosong: **No orders available yet**.
+
+Contoh judul: **Order Placed**, **Payment Required**, **Order Shipped**, **Return Request Submitted**, **Payment update**.
+
+Ketuk push `order` atau `payment` membuka **Order Details**.
+
+### Latest updates
+
+Pengumuman platform Laku.
+
+**Tab:** All, Updates, Promotion, Maintenance, Policy.
+
+**Read all**, geser **Remove from list**, ketuk untuk detail.
+
+Pembaruan realtime tanpa restart aplikasi.
+
+## Pengaturan push
+
+Jalur: **Settings → Notification Settings** (`/settings/notifications`).
+
+| Toggle | Mengatur |
+|--------|----------|
+| **Push notifications** | Saklar utama |
+| **Orders** | Status, pembayaran, pengiriman |
+| **Latest updates** | Pengumuman platform |
+| **Promotions** | Voucher dan kampanye |
+
+Catatan: notifikasi sistem perangkat tetap bisa masuk.
+
+Preferensi disimpan di perangkat dan layanan push.
+
+## Dokumentasi terkait
+
+- [Pesanan](/id/docs/marketplace/orders)
+- [Pengaturan akun](/id/docs/marketplace/account-settings)
+- [Keranjang dan checkout](/id/docs/marketplace/cart-checkout)

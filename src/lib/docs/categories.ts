@@ -14,6 +14,16 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       icon: 'overview',
     },
     {
+      id: 'about',
+      title: locale === 'id' ? 'Tentang Laku' : 'About Laku',
+      description:
+        locale === 'id'
+          ? 'Misi, siapa yang dilayani, marketplace terkendali, dan FAQ.'
+          : 'Mission, who we serve, controlled marketplace, and FAQ.',
+      href: `${base}/about/mission-and-story`,
+      icon: 'about',
+    },
+    {
       id: 'dashboard',
       title: 'Dashboard',
       description:
@@ -44,24 +54,14 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       icon: 'driver',
     },
     {
-      id: 'services',
-      title: locale === 'id' ? 'Layanan' : 'Services',
+      id: 'platform',
+      title: locale === 'id' ? 'Platform' : 'Platform',
       description:
         locale === 'id'
-          ? 'API, autentikasi, realtime, pencarian, dan integrasi.'
-          : 'APIs, authentication, realtime, search, and integrations.',
-      href: `${base}/services/apis-overview`,
-      icon: 'services',
-    },
-    {
-      id: 'operations',
-      title: locale === 'id' ? 'Operasi' : 'Operations',
-      description:
-        locale === 'id'
-          ? 'Deploy, variabel lingkungan, database, dan pemeliharaan.'
-          : 'Deployment, environment, database, and maintenance.',
-      href: `${base}/operations/deployment`,
-      icon: 'operations',
+          ? 'Ekosistem Laku, alur bisnis, kepercayaan, dan bantuan.'
+          : 'Laku ecosystem, business flows, trust, and support.',
+      href: `${base}/platform/ecosystem`,
+      icon: 'platform',
     },
   ];
 }

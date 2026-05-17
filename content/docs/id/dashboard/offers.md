@@ -1,24 +1,83 @@
 ---
-title: Offers
-description: Discounts and promotions.
+title: Penawaran
+description: Diskon, promosi, produk target, dan analitik penggunaan.
 section: Dashboard
 module: dashboard
 order: 15
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+**Offers & Incentives** untuk membuat diskon dan promosi beli-X-dapat-Y, menghubungkannya ke produk katalog, dan melacak penggunaan.
 
----
+Jalur: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 
-# Offers
+## Kartu ringkasan
 
-Create and manage **discounts** and **promotions** linked to your catalog.
+| Kartu | Arti |
+|------|------|
+| **Total Offers** | Semua penawaran |
+| **Active Offers** | Status active |
+| **Conversion Rate** | Persentase penawaran pernah dipakai |
+| **Total Redemptions** | Total penggunaan |
 
-## Workflow
+## Daftar penawaran
 
-1. Click **Create Offer**.
-2. Define discount types, date ranges, and eligible products.
-3. Monitor usage and performance on stat cards.
-4. Filter the table by **All**, **Discounts**, or **Promotions**.
+### Tindakan halaman
 
-Active offers surface in the buyer Marketplace when configured.
+| Tindakan | Fungsi |
+|----------|--------|
+| **Export Data** | Ekspor XLSX |
+| **Create Offer** | Wizard buat penawaran |
+
+### Tab dan filter
+
+**Tab halaman:** All Offers, Discounts, Promotions.
+
+**Tab status tabel:** All, Active, Inactive.
+
+**Pencarian:** **Search offers...**
+
+**Filter tanggal:** All Time, Last 7 Days, Last 30 Days, Last 3 Months, This Year.
+
+**Kolom:** Name, Type, Discount, Status, Duration, Usage Status, Actions.
+
+**Tipe:** **Discount** atau **Promotion**. Penggunaan: **Used** / **Not Used**.
+
+### Aksi massal
+
+- **Activate** / **Deactivate**
+- **Remove**
+
+## Buat dan ubah penawaran
+
+### Langkah wizard
+
+1. **Offer Type** — aturan diskon
+2. **Date Range** — jadwal berlaku
+3. **Products** — pilih SKU
+4. **Analytics** — pratinjau metrik
+
+**Tindakan:** **Preview**, **Create Offer**, **Save as Inactive**.
+
+Modal **Offer Preview** menampilkan tampilan untuk pembeli.
+
+### Halaman detail
+
+Empat tab sama saat edit. **Save Changes**, **Cancel**.
+
+Status: **Active**, **Inactive**, **Expired** (banner kedaluwarsa).
+
+## Hapus dan ekspor
+
+Konfirmasi **Delete Offer** / **Delete Offers**.
+
+**Export:** Offer ID, Name, Type, Status, Products Count, Total Usage, Total Discount Given, Discount Types, Created At.
+
+Penawaran aktif tampil di Marketplace saat produk dipublikasikan.
+
+## Tautan terkait
+
+| Tujuan | Ke |
+|--------|-----|
+| Produk | [Produk](/id/docs/dashboard/products) |
+| Pesanan | [Pesanan](/id/docs/dashboard/orders) |
+| Pemasaran | [Pemasaran](/id/docs/dashboard/marketing) |

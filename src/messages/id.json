@@ -556,6 +556,22 @@
       "title": "Dokumentasi",
       "subtitle": "Semua yang Anda butuhkan untuk menggunakan dan memelihara platform Laku.",
       "searchPlaceholder": "Cari dokumentasi..."
+    },
+    "search": {
+      "placeholder": "Cari dokumentasi...",
+      "ariaLabel": "Cari dokumentasi",
+      "searching": "Mencari…",
+      "noResults": "Tidak ada hasil.",
+      "viewAll": "Lihat semua hasil untuk \"{query}\"",
+      "resultsTitle": "Hasil pencarian",
+      "resultsHint": "Masukkan minimal 2 karakter untuk mencari.",
+      "resultsEmpty": "Tidak ada hasil untuk \"{query}\".",
+      "resultsCount": "{count} hasil untuk \"{query}\""
+    },
+    "toc": {
+      "onThisPage": "Di halaman ini",
+      "expand": "Buka bagian",
+      "collapse": "Tutup bagian"
     }
   }
 }

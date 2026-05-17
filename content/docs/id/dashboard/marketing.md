@@ -1,23 +1,110 @@
 ---
-title: Marketing
-description: Sales team and campaigns.
+title: Pemasaran
+description: Hub pemasaran, tim penjualan, agen, dan kampanye WhatsApp.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Hub **Marketing** menghubungkan alat outreach: tim penjualan, kampanye WhatsApp, dan pintasan ke klien serta penawaran.
 
----
+Jalur: **Marketing** (`/marketing`).
 
-# Marketing
+## Hub pemasaran
 
-## Team
+Kartu **Tips** (bisa ditutup):
 
-Manage sales representatives, territories, and performance (where enabled for your account).
+| Tip | Tindakan | Tujuan |
+|-----|----------|--------|
+| **Invite New Customers** | **Invite customers** | Clients |
+| **Create Promotions** | **Create promotion** | Offers |
+| **Cart Abandonment** | **View campaigns** | Campaigns |
 
-## Campaigns
+Pintasan **Tools:**
 
-Plan and track marketing campaigns. Share campaign links for attribution when supported.
+| Alat | Deskripsi |
+|------|-----------|
+| **Teams** | Kelola anggota tim pemasaran |
+| **Campaigns** | Buat dan kirim kampanye pesan |
+| **Automation** | Alur otomatis (placeholder hingga rilis) |
 
-> **Note:** Marketing automation may be disabled in the sidebar until released.
+Sidebar biasanya **Team** dan **Campaigns**; **Automations** bisa disembunyikan.
+
+## Tim (Teams)
+
+Jalur: `/marketing/team`.
+
+### Tindakan daftar tim
+
+| Tindakan | Fungsi |
+|----------|--------|
+| **Refresh** | Muat ulang agen dan tim |
+| **Export Data** | XLSX agen |
+| **Add Agent** | Buat agen penjualan |
+
+### Agen dan filter
+
+**Tab:** **Individuals**, **Teams**.
+
+**Pencarian:** **Search agents...**
+
+**Filter:** **All Roles**, **All Status**, **Active**, **Inactive**.
+
+**Peran:** Sales Manager, Sales Rep, Sales Support, Lead Gen, Account Manager.
+
+**Massal:** **Remove Agent** / **Remove Selected**.
+
+Modal: **Create New Team**, **Edit Team**.
+
+### Profil agen
+
+Jalur: `/marketing/team/create`, `details`, `edit`.
+
+Tab buat/ubah: **Basic Profile**, **Favourite Products**, **Sales Reporting**, **Sales Target**.
+
+Konfirmasi **Delete Agent** / **Delete Agents**.
+
+## Kampanye (Campaigns)
+
+Jalur: `/marketing/campaigns`.
+
+### Daftar kampanye
+
+| Tindakan | Fungsi |
+|----------|--------|
+| **Create campaign** | Wizard kampanye baru |
+
+**Tab status:** All, Draft, Scheduled, Completed.
+
+**Pencarian:** **Search campaigns...**
+
+**Filter:** **All Recipients** + label penerima per kampanye.
+
+Baris: nama, deskripsi, **Recipients**, **Opened**, **Clicked**, status, **Send Date** / **Not sent**.
+
+**Massal (satu terpilih):** **Send Campaign** / **Resend Campaign**, **Remove Campaign**.
+
+Kosong: **No campaigns found**.
+
+### Buat dan kirim
+
+Jalur: `/marketing/campaigns/create`, `details?id=…&mode=edit|view`.
+
+Field: Campaign ID otomatis, nama, deskripsi, **Campaign Completion**.
+
+Setelah kirim: **Campaign Performance** (Opens, Clicks, revenue, orders).
+
+**SendCampaignModal** untuk WhatsApp. Konfirmasi **Delete Campaign**.
+
+## Otomatisasi
+
+`/marketing/automation` bisa berupa placeholder hingga fitur dirilis.
+
+## Tautan terkait
+
+| Tujuan | Ke |
+|--------|-----|
+| Pembeli | [Klien](/id/docs/dashboard/clients) |
+| Promosi produk | [Penawaran](/id/docs/dashboard/offers) |
+| Pesanan | [Pesanan](/id/docs/dashboard/orders) |
+| Widget pemasaran | [Beranda](/id/docs/dashboard/home) |

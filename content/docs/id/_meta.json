@@ -6,15 +6,41 @@
       "items": [
         {
           "slug": "introduction",
-          "title": "Introduction"
+          "title": "Apa itu Laku?"
         },
         {
           "slug": "glossary",
-          "title": "Glossary"
+          "title": "Glosarium"
         },
         {
           "slug": "getting-started",
-          "title": "Getting started"
+          "title": "Memulai"
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "title": "Tentang Laku",
+      "items": [
+        {
+          "slug": "about/mission-and-story",
+          "title": "Misi dan cerita"
+        },
+        {
+          "slug": "about/who-we-serve",
+          "title": "Siapa yang kami layani"
+        },
+        {
+          "slug": "about/controlled-marketplace",
+          "title": "Marketplace terkendali"
+        },
+        {
+          "slug": "about/benefits-by-role",
+          "title": "Manfaat per peran"
+        },
+        {
+          "slug": "about/faq",
+          "title": "FAQ"
         }
       ]
     },
@@ -24,35 +50,35 @@
       "items": [
         {
           "slug": "dashboard/overview",
-          "title": "Dashboard overview"
+          "title": "Ringkasan Dashboard"
         },
         {
           "slug": "dashboard/home",
-          "title": "Home"
+          "title": "Beranda"
         },
         {
           "slug": "dashboard/clients",
-          "title": "Clients"
+          "title": "Klien"
         },
         {
           "slug": "dashboard/products",
-          "title": "Products"
+          "title": "Produk"
         },
         {
           "slug": "dashboard/orders",
-          "title": "Orders"
+          "title": "Pesanan"
         },
         {
           "slug": "dashboard/offers",
-          "title": "Offers"
+          "title": "Penawaran"
         },
         {
           "slug": "dashboard/marketing",
-          "title": "Marketing"
+          "title": "Pemasaran"
         },
         {
           "slug": "dashboard/analytics",
-          "title": "Analytics"
+          "title": "Analitik"
         },
         {
           "slug": "dashboard/marketplace-admin",
@@ -60,11 +86,11 @@
         },
         {
           "slug": "dashboard/logistics",
-          "title": "Logistics"
+          "title": "Logistik"
         },
         {
           "slug": "dashboard/settings",
-          "title": "Settings"
+          "title": "Pengaturan"
         }
       ]
     },
@@ -74,35 +100,35 @@
       "items": [
         {
           "slug": "marketplace/overview",
-          "title": "Marketplace overview"
+          "title": "Ringkasan Marketplace"
         },
         {
           "slug": "marketplace/account",
-          "title": "Account"
+          "title": "Akun"
         },
         {
           "slug": "marketplace/browse-search",
-          "title": "Browse and search"
+          "title": "Jelajah dan cari"
         },
         {
           "slug": "marketplace/cart-checkout",
-          "title": "Cart and checkout"
+          "title": "Keranjang dan checkout"
         },
         {
           "slug": "marketplace/orders",
-          "title": "Orders"
+          "title": "Pesanan"
         },
         {
           "slug": "marketplace/offers-following",
-          "title": "Offers and following"
+          "title": "Penawaran dan following"
         },
         {
           "slug": "marketplace/notifications",
-          "title": "Notifications"
+          "title": "Notifikasi"
         },
         {
           "slug": "marketplace/account-settings",
-          "title": "Account settings"
+          "title": "Pengaturan akun"
         }
       ]
     },
@@ -112,87 +138,49 @@
       "items": [
         {
           "slug": "driver/overview",
-          "title": "Driver overview"
+          "title": "Ringkasan Driver"
         },
         {
           "slug": "driver/login-access",
-          "title": "Login and access"
+          "title": "Login dan akses"
         },
         {
           "slug": "driver/tasks",
-          "title": "Tasks"
+          "title": "Tugas"
         },
         {
           "slug": "driver/deliveries",
-          "title": "Deliveries"
+          "title": "Pengiriman"
         },
         {
           "slug": "driver/location-realtime",
-          "title": "Location and realtime"
+          "title": "Lokasi dan realtime"
         },
         {
           "slug": "driver/troubleshooting",
-          "title": "Troubleshooting"
+          "title": "Pemecahan masalah"
         }
       ]
     },
     {
-      "id": "services",
-      "title": "Layanan",
+      "id": "platform",
+      "title": "Platform",
       "items": [
         {
-          "slug": "services/apis-overview",
-          "title": "APIs overview"
+          "slug": "platform/ecosystem",
+          "title": "Ekosistem Laku"
         },
         {
-          "slug": "services/authentication",
-          "title": "Authentication"
+          "slug": "platform/order-flow",
+          "title": "Alur pesanan"
         },
         {
-          "slug": "services/realtime",
-          "title": "Realtime"
+          "slug": "platform/trust-and-data",
+          "title": "Kepercayaan, privasi, dan data"
         },
         {
-          "slug": "services/search-service",
-          "title": "Search service"
-        },
-        {
-          "slug": "services/file-uploads",
-          "title": "File uploads"
-        },
-        {
-          "slug": "services/maps",
-          "title": "Maps"
-        }
-      ]
-    },
-    {
-      "id": "operations",
-      "title": "Operasi",
-      "items": [
-        {
-          "slug": "operations/deployment",
-          "title": "Deployment"
-        },
-        {
-          "slug": "operations/environment-variables",
-          "title": "Environment variables"
-        },
-        {
-          "slug": "operations/database",
-          "title": "Database"
-        },
-        {
-          "slug": "operations/search-indexing",
-          "title": "Search indexing"
-        },
-        {
-          "slug": "operations/platform-admin",
-          "title": "Platform admin"
-        },
-        {
-          "slug": "operations/health-troubleshooting",
-          "title": "Health and troubleshooting"
+          "slug": "platform/help-and-support",
+          "title": "Bantuan dan dukungan"
         }
       ]
     }

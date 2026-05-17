@@ -1,28 +1,56 @@
 ---
-title: Marketplace overview
-description: Buyer mobile app introduction.
+title: Ringkasan Marketplace
+description: Tab aplikasi pembeli, navigasi, dan memulai.
 section: Marketplace
 module: marketplace
 order: 30
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+**Laku Marketplace** adalah aplikasi mobile pembeli (Expo/React Native) untuk menemukan katalog distributor, memesan B2B, dan melacak pengiriman. Terhubung ke lingkungan API Laku yang sama dengan Dashboard distributor.
 
----
+## Navigasi utama
 
-# Marketplace overview
+Lima tab bawah:
 
-**Laku Marketplace** is the buyer-facing mobile app (Expo/React Native) for discovering distributor catalogs and placing B2B orders.
+| Tab | Fungsi |
+|-----|--------|
+| **Home** | Header toko, pencarian, penawaran khusus, kategori, produk unggulan |
+| **Categories** | Jelajah kategori dan produk baru |
+| **Orders** | Riwayat dan status pesanan |
+| **Notifications** | Alert, pembaruan pesanan, pengumuman platform |
+| **Account** | Profil, pembelian, jaringan, pintasan pengaturan |
 
-## Main tabs
+**Home** dan **Categories** memerlukan login. Tamu diarahkan ke layar welcome.
 
-- **Home** — banners, categories, and recommended products
-- **Categories** — browse by category
-- **Orders** — order history and status
-- **Notifications** — alerts and updates
-- **Account** — profile and settings
+### Pintasan header
 
-## Requirements
+Dari beberapa tab:
 
-- Verified buyer account (OTP signup)
-- Network access to your Laku API environment
+- **Messages** (`/messages`) untuk chat WhatsApp dari halaman produk
+- **Cart** (`/cart`) dengan badge jumlah item
+- **Settings** (ikon di Account)
+
+## Memulai
+
+1. Buka aplikasi → carousel **Welcome**
+2. **Login** atau **Register**
+3. Setelah masuk, tampil **Home** dengan nama toko dan alamat pengiriman
+
+Akun ditangguhkan menampilkan **Account suspended** dan **Go to login**.
+
+## Peran di ekosistem Laku
+
+| Peran | Aplikasi |
+|-------|----------|
+| Distributor | Laku Dashboard (web) |
+| Pembeli / retailer | Laku Marketplace (mobile) |
+| Driver | Laku Driver (mobile) |
+
+Pesanan di Marketplace muncul di modul **Orders** distributor. Produk berasal dari **Products** yang dipublikasikan.
+
+## Dokumentasi terkait
+
+- [Akun](/id/docs/marketplace/account)
+- [Jelajah dan cari](/id/docs/marketplace/browse-search)
+- [Keranjang dan checkout](/id/docs/marketplace/cart-checkout)
+- [Pesanan](/id/docs/marketplace/orders)

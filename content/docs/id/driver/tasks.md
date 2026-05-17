@@ -1,25 +1,64 @@
 ---
-title: Tasks
-description: Fleet list and filters.
+title: Tugas
+description: Kalender tugas, kartu armada, filter, navigasi ke rute.
 section: Driver
 module: driver
 order: 42
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Tab **Tasks** adalah jadwal harian penugasan armada dan stop pengiriman.
 
----
+Jalur: `/(tabs)/tasks`.
 
-# Tasks
+## Kalender tugas
 
-## Task list
+- Kalender horizontal: **7 hari sebelum hari ini** sampai **30 hari ke depan**
+- Subjudul: `{count} task(s) · {tanggal}`
+- Hari ini: **Today**
+- Titik di bawah tanggal jika ada tugas
 
-**Tasks** shows fleets assigned to you with status filters (e.g. in transit, completed).
+**Tanggal tugas** dari `assignedDate` armada, lalu `preferredDeliveryDate`, lalu `orderDate`.
 
-## Fleet detail
+## Kartu tugas
 
-Tap a fleet to open route summary, stops, and linked orders.
+Setiap kartu = satu armada pada hari terpilih:
 
-## Refresh
+| Label | Arti |
+|-------|------|
+| **{completed}/{total} stops completed** | Progres rute |
+| **No stops** | Armada kosong |
+| **Must be completed by: {date}** | Batas waktu |
+| Badge status | **In Transit**, **Available**, **Unavailable**, **Checking** |
 
-Pull to refresh or rely on WebSocket updates when the app is open.
+Menampilkan kendaraan, plat, ringkasan rute.
+
+Ketuk kartu → peta **Logistics details**.
+
+## Filter tugas
+
+Ikon **filter** di header; badge jumlah filter aktif.
+
+Jalur: `/logisticstasks/filtermodal`.
+
+| Bagian | Filter |
+|--------|--------|
+| **Order Status** | Pending, Confirmed, Packed, Shipped, Delivered, Received, Failed, Cancelled, Returned |
+| **Fleets** | Kode armada |
+| **Customers** | Nama toko |
+
+**Clear all**, **Apply**.
+
+Data dari `GET /api/driver/fleets`.
+
+## Status kosong dan error
+
+| Status | Pesan |
+|--------|--------|
+| Memuat | **Loading tasks…** |
+| Tidak ada tugas | **No tasks for this day** |
+| Error | **Could not load tasks. Pull down to retry.** + **Retry** |
+
+## Dokumentasi terkait
+
+- [Pengiriman](/id/docs/driver/deliveries)
+- [Ringkasan Driver](/id/docs/driver/overview)

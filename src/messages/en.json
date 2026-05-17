@@ -556,6 +556,22 @@
       "title": "Documentation",
       "subtitle": "Everything you need to use and maintain the Laku platform.",
       "searchPlaceholder": "Search the docs..."
+    },
+    "search": {
+      "placeholder": "Search the docs...",
+      "ariaLabel": "Search documentation",
+      "searching": "Searching…",
+      "noResults": "No results found.",
+      "viewAll": "View all results for \"{query}\"",
+      "resultsTitle": "Search results",
+      "resultsHint": "Enter at least 2 characters to search.",
+      "resultsEmpty": "No results for \"{query}\".",
+      "resultsCount": "{count} results for \"{query}\""
+    },
+    "toc": {
+      "onThisPage": "On this page",
+      "expand": "Expand section",
+      "collapse": "Collapse section"
     }
   }
 }

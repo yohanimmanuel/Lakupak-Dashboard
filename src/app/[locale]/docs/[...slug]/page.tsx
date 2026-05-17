@@ -66,7 +66,7 @@ export default async function DocArticlePage(props: {
               </header>
               <DocsMarkdown content={doc.content} />
             </div>
-            <DocsTableOfContents headings={doc.headings} />
+            <DocsTableOfContents headings={doc.headings} slugPath={doc.slugPath} />
           </div>
         </div>
       </div>

@@ -1,27 +1,82 @@
 ---
-title: Logistics
-description: Fleets, drivers, and delivery tracking.
+title: Logistik
+description: Armada, driver, rute, dan pelacakan pengiriman.
 section: Dashboard
 module: dashboard
 order: 19
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+**Logistics Management** mengelola armada, menugaskan driver, menghubungkan pesanan ke trip, dan melacak pengiriman di peta.
 
----
+Jalur: `/logistics`, `/logistics/create`, `/logistics/details?id={fleetId}`, `/logistics/details/edit?id={fleetId}`.
 
-# Logistics
+## Ringkasan logistik
 
-## Fleet management
+**Subtitle:** Pantau armada, pengiriman, dan kinerja logistik di jaringan distribusi.
 
-- **Add Fleet & Driver** — create delivery runs and assign drivers.
-- **Fleet list** — select a fleet to view details and route map.
-- **Export** — download fleet data for operations.
+| Tindakan | Fungsi |
+|----------|--------|
+| **Refresh** | Muat ulang data armada dan driver |
+| **Export Data** | XLSX armada |
+| **Add Fleet & Driver** | Buat armada baru |
 
-## Driver accounts
+Layout: **daftar armada** (kiri) dan panel **fleet details** (kanan).
 
-Drivers are provisioned by the distributor (not self-service signup). They use the **Laku Driver** mobile app with credentials you provide.
+## Daftar armada
 
-## Tracking
+### Filter tab armada
 
-Open fleet details for route map, vehicle info, and **Open Details** for full tracking view.
+**Tab:** **Active Fleets**, **Drivers**.
+
+**Pencarian:** **Search for shipments**
+
+**Status:** All statuses, Available, Unavailable, In Transit, Checking
+
+**Tipe:** All types + opsi pengiriman dari pengaturan distributor.
+
+**Massal:** pilih semua, **Remove**, **Delete fleet** per baris.
+
+### Tab driver
+
+**Pencarian:** **Search drivers by name, username or phone**
+
+**Massal:** **Remove** driver terpilih.
+
+## Panel detail armada
+
+Pilih armada untuk melihat:
+
+- **Open Details** → `/logistics/details?id=…`
+- Tab: **Order details**, **Vehicle**, **Driver information**, **Customer information**
+- Peta **Delivery route · {fleet code}**, **Full screen map**
+
+## Buat dan ubah armada
+
+Tab wizard:
+
+1. **Basic Info**
+2. **Vehicle**
+3. **Driver**
+4. **Order Selection**
+
+**Back to Fleet List**, **Create Fleet** / **Save Changes** lewat modal **Trip Summary**.
+
+Validasi: **Complete required fields**.
+
+## Halaman detail penuh
+
+**Trip Summary**, **Driver**, **Vehicle**, **Logistics Details**, peta rute, pelanggan.
+
+**Back to fleet list**, **Edit details**.
+
+## Aplikasi driver
+
+Driver dibuat oleh distributor. Mereka masuk ke aplikasi **Laku Driver** dengan kredensial yang Anda berikan.
+
+## Tautan terkait
+
+| Tujuan | Ke |
+|--------|-----|
+| Alamat dan status pesanan | [Pesanan](/id/docs/dashboard/orders) |
+| Opsi pengiriman | [Pengaturan](/id/docs/dashboard/settings) |
+| Widget logistik | [Beranda](/id/docs/dashboard/home) |

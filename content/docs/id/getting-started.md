@@ -1,34 +1,37 @@
 ---
-title: Getting started
-description: Choose your module and first steps.
-section: Overview
+title: Memulai
+description: Pilih modul yang sesuai peran Anda dan langkah pertama yang perlu dilakukan.
+section: Ringkasan
 module: overview
 order: 3
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+## Distributor
 
----
+1. Daftar di situs Laku, lalu masuk ke Dashboard.
+2. Lengkapi **Pengaturan → Operasi Distributor** (profil perusahaan, preferensi pengiriman).
+3. Tambahkan produk di menu **Produk**, lalu publikasikan ke marketplace.
+4. Undang pembeli atau bagikan storefront Anda; kelola pesanan masuk di menu **Pesanan**.
+5. Atur armada dan akun pengemudi di menu **Logistik** untuk eksekusi pengiriman.
 
-# Getting started
+## Pembeli
 
-## Distributors
+1. Instal **Laku Marketplace** dari app store (atau distribusi internal perusahaan).
+2. Daftar dan verifikasi akun dengan OTP.
+3. Telusuri atau cari produk, tambahkan ke keranjang, lalu checkout.
+4. Lacak status pesanan di tab **Pesanan**.
 
-1. Register at the Laku website and sign in to the Dashboard.
-2. Complete **Settings → Distributor Operations** (company profile, delivery preferences).
-3. Add products under **Products**, then publish items to the marketplace.
-4. Invite buyers or share your storefront; manage incoming orders under **Orders**.
-5. Configure **Logistics** fleets and driver accounts for delivery.
+## Pengemudi
 
-## Buyers
+1. Distributor Anda membuat akun pengemudi di Dashboard.
+2. Instal **Laku Driver** dan masuk dengan kredensial yang diberikan.
+3. Buka **Tugas**, pilih armada, lalu perbarui status pengiriman di setiap titik kirim.
 
-1. Install **Laku Marketplace** from your app store (or internal distribution).
-2. Sign up with OTP verification.
-3. Browse or search products, add to cart, and checkout.
-4. Track orders under the **Orders** tab.
+## Butuh bantuan lebih lanjut?
 
-## Drivers
-
-1. Your distributor creates your driver account in the Dashboard.
-2. Install **Laku Driver** and log in with issued credentials.
-3. Open **Tasks**, select a fleet, and update delivery status per stop.
+| Peran | Dokumentasi |
+|------|-------------|
+| Staf distributor | [Ringkasan Dashboard](/id/docs/dashboard/overview) |
+| Pembeli ritel | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+| Pengemudi | [Ringkasan Driver](/id/docs/driver/overview) |
+| Ringkasan bisnis | [Ekosistem Laku](/id/docs/platform/ecosystem) |

@@ -1,25 +1,89 @@
 ---
-title: Browse and search
-description: Categories and Meilisearch-powered search.
+title: Jelajah dan cari
+description: Home, kategori, Meilisearch, filter, dan detail produk.
 section: Marketplace
 module: marketplace
 order: 32
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Temukan katalog distributor dari **Home**, **Categories**, dan **Search**, lalu buka detail produk untuk menambah ke keranjang atau beli langsung.
 
----
+## Tab Home
 
-# Browse and search
+Jalur: `/(tabs)/home`.
 
-## Categories
+Header: nama toko (**My Store**) dan alamat (**Set your address** jika kosong).
 
-Browse the distributor catalog by product category from the **Categories** tab.
+Ketuk **Search for products…** untuk pencarian penuh.
+
+### Bagian Home
+
+| Bagian | Perilaku |
+|--------|----------|
+| **Special Offers** | Carousel; **See All**; ketuk banner → detail penawaran |
+| **Categories** | Chip kategori → search dengan filter |
+| **Featured Products** | Grid produk → `/product?productId=…` |
+
+Kosong: **No products available**. Akhir daftar: **Products displays reached the end.**
+
+## Tab Categories
+
+Jalur: `/(tabs)/categories`.
+
+- **Explore by Category**
+- **New This Week**, **See all**
+- Grid produk sama seperti Home
+
+Memerlukan login.
 
 ## Search
 
-Full-text search is powered by **Meilisearch** on the backend. Use filters on the search screen to narrow results.
+Jalur: `/search`.
 
-## Product detail
+### Urut dan filter
 
-Tap a product to see variants, pricing tiers, offers, and add-to-cart options.
+**Sort:** Relevance, Latest, Top Sales, Price.
+
+**Filter sheet:**
+
+- Shipped From
+- Shipping Option (**Self Collection**, **Doorstep Delivery**, **Buyer Courier**)
+- Sales Channel (**Retail**, **Wholesale**)
+- Shop Rating
+- Price Range
+- Category
+
+**Reset**, **Apply**.
+
+### Blok penemuan
+
+**Recent Searches**, **Suggestions**, **Popular Categories**, **Top Brands**, **Top Distributors**.
+
+**No results found**, **Try adjusting your search or filters**.
+
+Pencarian memakai indeks katalog cepat agar pembeli menemukan produk menurut nama, kategori, dan filter.
+
+## Detail produk
+
+Jalur: `/product?productId=…`.
+
+### Tindakan produk
+
+| Tindakan | Fungsi |
+|----------|--------|
+| **Chat Now** | Chat WhatsApp distributor |
+| **Add to Cart** | Tambah dengan kuantitas/varian |
+| **Buy Now** | Checkout cepat |
+
+Modal **Buy Now:** **Quantity**, **Minimum order: X pieces**, **Total**, **Buy Now**, **Add to Cart**.
+
+### Informasi produk
+
+**Description**, **Customer Reviews**, **Product Assurance**, **Seller Information**, badge **BEST SELLER**, **OFFICIAL STORE**, stok, **You may also like**, **Product Details**.
+
+Daftar **Reviews**.
+
+## Dokumentasi terkait
+
+- [Keranjang dan checkout](/id/docs/marketplace/cart-checkout)
+- [Penawaran dan following](/id/docs/marketplace/offers-following)

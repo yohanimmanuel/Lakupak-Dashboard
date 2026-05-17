@@ -1,25 +1,84 @@
 ---
-title: Login and access
-description: Credentials and profile.
+title: Login dan akses
+description: Welcome, login, request access, dan sesi.
 section: Driver
 module: driver
 order: 41
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Driver masuk dengan kredensial dari distributor. Layar welcome juga menawarkan **Request access** jika belum punya akun.
 
----
+## Layar welcome
 
-# Login and access
+Jalur: `/useraccounts/welcome`.
+
+Slide carousel:
+
+| Slide | Topik |
+|-------|--------|
+| 1 | **Deliver with your fleet** |
+| 2 | **Live tracking** |
+| 3 | **Proof of delivery** |
+
+Tombol:
+
+- **Login** → modal login
+- **Register** → modal request access (bukan buat akun instan)
 
 ## Login
 
-Use the username and password issued by your distributor.
+Jalur: `/useraccounts/loginsignup/loginmodal`.
+
+| Field / aksi | Label |
+|--------------|--------|
+| Judul | **Welcome back** |
+| Petunjuk | Username dan password dari distributor |
+| **Username** | |
+| **Password** | |
+| Kirim | **Login** / **Logging in…** |
+| Footer | **Don't have an account? Request access** |
+
+**API:** `POST /api/driver/auth/login`.
+
+### Error login
+
+| Situasi | Pesan |
+|---------|--------|
+| Field kosong | **Missing information** |
+| Salah kredensial | **Invalid Credentials** |
+| Terlalu banyak percobaan | **Too many attempts** (~15 menit) |
+| Lainnya | **Login Failed** |
+
+Sukses ke **Home**.
+
+Token disimpan aman dan divalidasi lewat `GET /api/driver/me`.
 
 ## Request access
 
-If your organization uses the request flow, submit **Request driver access** from the welcome screen; the distributor approves in Dashboard.
+Jalur: `/useraccounts/loginsignup/signupmodal`.
 
-## Profile
+Dua langkah (distributor meninjau manual):
 
-Update profile fields from **Account** when permitted.
+### Langkah 1 — Data Anda
+
+**Full name**, **Phone number** → **Continue**
+
+### Langkah 2 — Data distributor
+
+**Distributor email**, **Message (optional)** → **Send request**
+
+**API:** `POST /api/driver/request`.
+
+Selesai: **Request sent!** → **Go to Login**.
+
+## Sesi dan status akun
+
+- Token tidak valid: dibersihkan saat startup; aksi pesanan bisa **Session expired — Please log in again.**
+- Akun nonaktif: **Invalid Credentials** atau **Login Failed**
+- Tidak ada layar **suspended** terpisah
+- **Delete Account** di Settings: hubungi distributor
+
+## Dokumentasi terkait
+
+- [Ringkasan Driver](/id/docs/driver/overview)
+- [Logistik Dashboard](/id/docs/dashboard/logistics)

@@ -6,7 +6,7 @@
       "items": [
         {
           "slug": "introduction",
-          "title": "Introduction"
+          "title": "What is Laku?"
         },
         {
           "slug": "glossary",
@@ -15,6 +15,32 @@
         {
           "slug": "getting-started",
           "title": "Getting started"
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "title": "About Laku",
+      "items": [
+        {
+          "slug": "about/mission-and-story",
+          "title": "Mission and story"
+        },
+        {
+          "slug": "about/who-we-serve",
+          "title": "Who we serve"
+        },
+        {
+          "slug": "about/controlled-marketplace",
+          "title": "Controlled marketplace"
+        },
+        {
+          "slug": "about/benefits-by-role",
+          "title": "Benefits by role"
+        },
+        {
+          "slug": "about/faq",
+          "title": "FAQ"
         }
       ]
     },
@@ -137,62 +163,24 @@
       ]
     },
     {
-      "id": "services",
-      "title": "Services",
+      "id": "platform",
+      "title": "Platform",
       "items": [
         {
-          "slug": "services/apis-overview",
-          "title": "APIs overview"
+          "slug": "platform/ecosystem",
+          "title": "Laku ecosystem"
         },
         {
-          "slug": "services/authentication",
-          "title": "Authentication"
+          "slug": "platform/order-flow",
+          "title": "How orders flow"
         },
         {
-          "slug": "services/realtime",
-          "title": "Realtime"
+          "slug": "platform/trust-and-data",
+          "title": "Trust, privacy, and data"
         },
         {
-          "slug": "services/search-service",
-          "title": "Search service"
-        },
-        {
-          "slug": "services/file-uploads",
-          "title": "File uploads"
-        },
-        {
-          "slug": "services/maps",
-          "title": "Maps"
-        }
-      ]
-    },
-    {
-      "id": "operations",
-      "title": "Operations",
-      "items": [
-        {
-          "slug": "operations/deployment",
-          "title": "Deployment"
-        },
-        {
-          "slug": "operations/environment-variables",
-          "title": "Environment variables"
-        },
-        {
-          "slug": "operations/database",
-          "title": "Database"
-        },
-        {
-          "slug": "operations/search-indexing",
-          "title": "Search indexing"
-        },
-        {
-          "slug": "operations/platform-admin",
-          "title": "Platform admin"
-        },
-        {
-          "slug": "operations/health-troubleshooting",
-          "title": "Health and troubleshooting"
+          "slug": "platform/help-and-support",
+          "title": "Help and support"
         }
       ]
     }

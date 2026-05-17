@@ -1,21 +1,64 @@
 ---
 title: Tasks
-description: Fleet list and filters.
+description: Task calendar, fleet cards, filters, and navigation to routes.
 section: Driver
 module: driver
 order: 42
 ---
 
-# Tasks
+The **Tasks** tab is your daily schedule of fleet assignments and delivery stops.
 
-## Task list
+Path: `/(tabs)/tasks`.
 
-**Tasks** shows fleets assigned to you with status filters (e.g. in transit, completed).
+## Task calendar
 
-## Fleet detail
+- Horizontal calendar: **7 days before today** through **30 days ahead**
+- Subtitle: `{count} task(s) · {formatted date}`
+- Today is labeled **Today**
+- Dot under a date when tasks exist
 
-Tap a fleet to open route summary, stops, and linked orders.
+**Task date** uses `fleet.assignedDate`, else order `preferredDeliveryDate`, else `orderDate`.
 
-## Refresh
+## Task cards
 
-Pull to refresh or rely on WebSocket updates when the app is open.
+Each card represents a fleet group for the selected day:
+
+| Label | Meaning |
+|-------|---------|
+| **{completed}/{total} stops completed** | Progress on route |
+| **No stops** | Empty fleet for that day |
+| **Must be completed by: {date}** | Deadline hint |
+| Status badge | **In Transit**, **Available**, **Unavailable**, **Checking** |
+
+Shows vehicle, plate, and route summary from fleet data.
+
+Tap a card → **Logistics details** map (`/logisticstasks/logisticsdetails?fleetId=&orderId=` with first order in group).
+
+## Task filters
+
+Open from the header **filter** icon. Badge shows active filter count.
+
+Path: `/logisticstasks/filtermodal`.
+
+| Section | Filters |
+|---------|---------|
+| **Order Status** | Pending, Confirmed, Packed, Shipped, Delivered, Received, Failed, Cancelled, Returned |
+| **Fleets** | Fleet codes |
+| **Customers** | Store names |
+
+**Clear all**, **Apply**.
+
+Data loads from `GET /api/driver/fleets` and is cached in the task filter store.
+
+## Empty and error states
+
+| State | Message |
+|-------|---------|
+| Loading | **Loading tasks…** |
+| No tasks | **No tasks for this day** — try another date or clear filters |
+| Error | **Could not load tasks. Pull down to retry.** with **Retry** |
+
+## Related documentation
+
+- [Deliveries](/en/docs/driver/deliveries) for map and order actions
+- [Driver overview](/en/docs/driver/overview)

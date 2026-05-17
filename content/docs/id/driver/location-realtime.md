@@ -1,21 +1,66 @@
 ---
-title: Location and realtime
-description: GPS and WebSocket events.
+title: Lokasi dan realtime
+description: GPS, sinkron lokasi, WebSocket, dan push.
 section: Driver
 module: driver
 order: 44
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+Laku Driver membagikan posisi saat bertugas dan menerima pembaruan pesanan/armada secara live.
 
----
+## GPS di perangkat
 
-# Location and realtime
+Aplikasi meminta izin lokasi **foreground**.
 
-## GPS sync
+- Fix akurasi tinggi, lalu pembaruan ~**3 detik** atau **5 meter** pergerakan
+- Untuk marker di peta, heading, kecepatan
 
-While logged in, the app periodically sends location to `POST /api/driver/location` for live tracking in the Dashboard.
+Jika ditolak: **Location permission denied — enable it in Settings…** dan sinkron server berhenti.
 
-## WebSocket
+## Sinkron lokasi ke server
 
-Connects to the shared marketplace WebSocket for `order_updated`, `fleet_assigned`, and announcement events.
+Saat login:
+
+- `POST /api/driver/location` dengan `{ lat, lng }` ~setiap **10 detik**
+- Pembeli dan distributor melihat posisi live di peta logistik
+
+Error sinkron diabaikan agar mengemudi tidak terganggu.
+
+## Pembaruan WebSocket
+
+Koneksi live ke Laku agar pembaruan pesanan dan armada masuk tanpa refresh manual.
+
+| Pesan | Efek |
+|-------|------|
+| `order_updated` | Refresh armada; notifikasi OS opsional |
+| `fleet_assigned` | Refresh tugas; alert armada baru |
+| `app_update` | Pengumuman pembaruan aplikasi |
+
+Reconnect otomatis (hingga 5 kali).
+
+### Contoh judul push
+
+- **New Delivery Ready**
+- **Delivery In Progress**
+- **Delivery Confirmed**
+- **Order Cancelled**, **Delivery Failed**
+
+Toggle **Delivery alerts** di Settings mengatur banner.
+
+## Push notifications
+
+Token Expo push didaftarkan saat login; bahasa disimpan di profil driver.
+
+## Antrean status offline
+
+Jika jaringan gagal saat **Start Delivery** / **Complete Delivery**, pembaruan bisa masuk **outbox** lokal dan dikirim ulang saat online.
+
+## Telemetri sesi
+
+Sampel sesi foreground ~**60 detik** ke `POST /api/driver/telemetry/session`.
+
+## Dokumentasi terkait
+
+- [Pengiriman](/id/docs/driver/deliveries)
+- [Pemecahan masalah](/id/docs/driver/troubleshooting)
+- [Pesanan Marketplace](/id/docs/marketplace/orders)

@@ -1,36 +1,41 @@
 ---
-title: Introduction
-description: What Laku is and who it serves.
-section: Overview
+title: Apa itu Laku?
+description: Platform operasi perdagangan B2B yang memodernisasi grosir antara distributor dan ritel kecil di Indonesia.
+section: Ringkasan
 module: overview
 order: 1
 ---
 
-> **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.
+**Laku** adalah platform digital yang dirancang untuk memodernisasi perdagangan grosir di Indonesia dengan menghubungkan distributor dan ritel kecil dalam satu ekosistem tepercaya. Dalam bahasa Indonesia, *"laku"* berarti barang yang laris, cepat bergerak, dan sukses di pasar. Makna itu mencerminkan misi platform: membantu barang bergerak lebih cepat, transaksi berjalan lebih lancar, dan bisnis tumbuh berkelanjutan melalui teknologi.
 
----
+Intinya, Laku menggabungkan dua ide dalam satu sistem. Pertama, platform operasi digital privat bagi distributor untuk mengelola produk, inventaris, pesanan, pelanggan, dan pengiriman. Banyak distributor masih mengandalkan WhatsApp, spreadsheet, dan pemesanan informal. Laku menggantikan alur yang terpisah itu dengan dashboard terstruktur sebagai sistem operasi harian, sehingga tim dapat melacak kinerja, menangani pesanan secara efisien, dan membangun hubungan jangka panjang berbasis data.
 
-# Introduction
+Kedua, Laku berfungsi sebagai marketplace B2B bagi warung, kios, toko kecil, dan ritel mandiri. Pembeli dapat menemukan produk dan memesan grosir tanpa menghubungi banyak pemasok secara manual. Tujuannya bukan mengganggu hubungan distributor, melainkan memperkuatnya melalui pengadaan yang lebih sederhana, cepat, dan andal.
 
-Laku is a B2B vertical SaaS and marketplace platform for FMCG distributors in Indonesia and their retail buyers (warungs, kiosks, and neighborhood stores).
+Berbeda dari marketplace terbuka yang sering memicu perang harga, Laku adalah **marketplace terkendali**. Distributor tetap menguasai harga, hubungan pelanggan, dan kontrol operasional. Platform memfasilitasi transaksi dan alur digital tanpa mengekspos informasi kompetitif sensitif atau memaksa persaingan tidak sehat.
 
-## What Laku includes
+Laku juga menghubungkan lapisan eksekusi melalui koordinasi pengiriman. Distributor menugaskan pesanan ke pengemudi, memantau progres, dan memperbarui status dalam satu sistem, sehingga terlihat dari listing hingga pengiriman akhir. Data terstruktur ini menjadi fondasi analitik dan otomatisasi yang lebih cerdas seiring waktu.
 
-- **Laku Dashboard** — web app for distributors to manage catalog, orders, clients, logistics, and analytics.
-- **Laku Marketplace** — mobile app for buyers to browse, order in bulk, and track deliveries.
-- **Laku Driver** — mobile app for fleet drivers to execute deliveries and update status.
+Pada dasarnya, Laku bukan sekadar marketplace maupun sekadar perangkat lunak SaaS. Ini adalah **platform operasi perdagangan B2B** yang mendigitalkan pergerakan barang antara distributor dan ritel kecil di Indonesia, agar pembelian lebih sederhana, penjualan lebih cepat, dan hubungan yang bertumbuh.
 
-## Core principles
+## Produk Laku
 
-- Each distributor operates in an isolated workspace; competitor data is not shared.
-- Buyers can shop from verified distributors without destructive cross-distributor price comparison on the same SKU.
-- Orders, inventory, and fulfillment are digitized end-to-end.
+- **Laku Dashboard**: aplikasi web bagi distributor untuk mengelola katalog, pesanan, klien, logistik, dan analitik.
+- **Laku Marketplace**: aplikasi mobile bagi pembeli untuk menelusuri, memesan grosir, dan melacak pengiriman.
+- **Laku Driver**: aplikasi mobile bagi pengemudi armada untuk menjalankan pengiriman dan memperbarui status.
 
-## Who should read this documentation
+## Pelajari lebih lanjut tentang Laku
 
-| Role | Start here |
-|------|------------|
-| Distributor staff | [Dashboard overview](/en/docs/dashboard/overview) |
-| Retail buyer | [Marketplace overview](/en/docs/marketplace/overview) |
-| Driver | [Driver overview](/en/docs/driver/overview) |
-| DevOps / platform admin | [Deployment](/en/docs/operations/deployment) |
+- [Misi dan cerita](/id/docs/about/mission-and-story)
+- [Siapa yang kami layani](/id/docs/about/who-we-serve)
+- [Marketplace terkendali](/id/docs/about/controlled-marketplace)
+- [FAQ](/id/docs/about/faq)
+
+## Siapa yang harus membaca dokumentasi ini
+
+| Peran | Mulai di sini |
+|------|----------------|
+| Staf distributor | [Ringkasan Dashboard](/id/docs/dashboard/overview) |
+| Pembeli ritel | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+| Pengemudi | [Ringkasan Driver](/id/docs/driver/overview) |
+| Cara aplikasi terhubung | [Ekosistem Laku](/id/docs/platform/ecosystem) |

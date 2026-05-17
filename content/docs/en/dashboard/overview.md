@@ -12,7 +12,7 @@ The distributor Dashboard is the control center for catalog, orders, CRM, analyt
 
 ## Sign in
 
-Use **Login** with email and password (NextAuth). New distributors register via **Get Started**, then land on **Home**.
+Use **Login** with email and password. New distributors register via **Get Started**, then land on **Home**.
 
 ## Sidebar navigation
 

@@ -5,8 +5,8 @@ export type DocModule =
   | 'dashboard'
   | 'marketplace'
   | 'driver'
-  | 'services'
-  | 'operations';
+  | 'platform'
+  | 'about';
 
 export interface DocFrontmatter {
   title: string;
@@ -47,5 +47,5 @@ export interface DocsCategory {
   title: string;
   description: string;
   href: string;
-  icon: 'overview' | 'dashboard' | 'marketplace' | 'driver' | 'services' | 'operations';
+  icon: 'overview' | 'dashboard' | 'marketplace' | 'driver' | 'platform' | 'about';
 }
