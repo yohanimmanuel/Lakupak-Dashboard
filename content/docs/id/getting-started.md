@@ -3,7 +3,7 @@ title: Getting started
 description: Choose your module and first steps.
 section: Overview
 module: overview
-order: 4
+order: 3
 ---
 
 > **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.

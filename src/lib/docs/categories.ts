@@ -8,8 +8,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       title: locale === 'id' ? 'Ringkasan' : 'Overview',
       description:
         locale === 'id'
-          ? 'Pengenalan platform, arsitektur, dan panduan memulai.'
-          : 'Platform introduction, architecture, and getting started.',
+          ? 'Pengenalan platform dan panduan memulai.'
+          : 'Platform introduction and getting started.',
       href: `${base}/introduction`,
       icon: 'overview',
     },

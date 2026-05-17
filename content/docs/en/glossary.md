@@ -3,7 +3,7 @@ title: Glossary
 description: Key terms used across Laku.
 section: Overview
 module: overview
-order: 3
+order: 2
 ---
 
 # Glossary

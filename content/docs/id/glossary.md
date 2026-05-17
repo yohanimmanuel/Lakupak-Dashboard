@@ -3,7 +3,7 @@ title: Glossary
 description: Key terms used across Laku.
 section: Overview
 module: overview
-order: 3
+order: 2
 ---
 
 > **Bahasa Indonesia:** Halaman ini menyediakan panduan yang sama dengan versi Inggris. Konten lengkap dalam Bahasa Indonesia akan dilengkapi secara bertahap.

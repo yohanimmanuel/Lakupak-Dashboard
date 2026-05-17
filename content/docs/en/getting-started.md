@@ -3,7 +3,7 @@ title: Getting started
 description: Choose your module and first steps.
 section: Overview
 module: overview
-order: 4
+order: 3
 ---
 
 # Getting started
