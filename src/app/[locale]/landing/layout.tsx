@@ -60,7 +60,7 @@ export default function LandingLayout({
               <ul className="space-y-3">
                 <li><a href="#help" className="text-gray-400 hover:text-white transition-colors">{t("support.help")}</a></li>
                 <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">{t("support.contact")}</a></li>
-                <li><a href="#docs" className="text-gray-400 hover:text-white transition-colors">{t("support.docs")}</a></li>
+                <li><a href={`/${locale}/docs`} className="text-gray-400 hover:text-white transition-colors">{t("support.docs")}</a></li>
                 <li><a href="#status" className="text-gray-400 hover:text-white transition-colors">{t("support.status")}</a></li>
               </ul>
             </div>

@@ -550,5 +550,12 @@
       "status": "Status Sistem"
     },
     "copyright": "© 2024 Laku. Hak cipta dilindungi. Dibuat dengan ❤️ untuk distribusi & retail Indonesia."
+  },
+  "docs": {
+    "landing": {
+      "title": "Dokumentasi",
+      "subtitle": "Semua yang Anda butuhkan untuk menggunakan dan memelihara platform Laku.",
+      "searchPlaceholder": "Cari dokumentasi..."
+    }
   }
 }

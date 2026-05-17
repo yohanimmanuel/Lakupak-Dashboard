@@ -13,4 +13,5 @@ export function getMeiliClient(): Meilisearch | null {
 }
 
 export const MEILI_PRODUCTS_INDEX = 'marketplace_products';
+export const MEILI_DOCS_INDEX = 'laku_docs';
 

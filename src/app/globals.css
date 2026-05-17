@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "mapbox-gl/dist/mapbox-gl.css";
 
 :root {

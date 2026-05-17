@@ -59,7 +59,7 @@ export default function LandingNavbar() {
             <button onClick={() => router.push(`/${locale}/landing/pricing`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("pricing")}</button>
             <button onClick={() => router.push(`/${locale}/landing/solutions`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("solutions")}</button>
             <button onClick={() => router.push(`/${locale}/landing/about`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("about")}</button>
-            <button onClick={() => router.push("/")} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("documentation")}</button>
+            <button onClick={() => router.push(`/${locale}/docs`)} className="text-gray-700 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer">{t("documentation")}</button>
           </div>
           {/* CTA Buttons + Language Dropdown */}
           <div className="flex items-center space-x-6">

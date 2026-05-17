@@ -1,0 +1,204 @@
+{
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "items": [
+        {
+          "slug": "introduction",
+          "title": "Introduction"
+        },
+        {
+          "slug": "architecture",
+          "title": "Architecture"
+        },
+        {
+          "slug": "glossary",
+          "title": "Glossary"
+        },
+        {
+          "slug": "getting-started",
+          "title": "Getting started"
+        }
+      ]
+    },
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "items": [
+        {
+          "slug": "dashboard/overview",
+          "title": "Dashboard overview"
+        },
+        {
+          "slug": "dashboard/home",
+          "title": "Home"
+        },
+        {
+          "slug": "dashboard/clients",
+          "title": "Clients"
+        },
+        {
+          "slug": "dashboard/products",
+          "title": "Products"
+        },
+        {
+          "slug": "dashboard/orders",
+          "title": "Orders"
+        },
+        {
+          "slug": "dashboard/offers",
+          "title": "Offers"
+        },
+        {
+          "slug": "dashboard/marketing",
+          "title": "Marketing"
+        },
+        {
+          "slug": "dashboard/analytics",
+          "title": "Analytics"
+        },
+        {
+          "slug": "dashboard/marketplace-admin",
+          "title": "Marketplace (admin)"
+        },
+        {
+          "slug": "dashboard/logistics",
+          "title": "Logistics"
+        },
+        {
+          "slug": "dashboard/settings",
+          "title": "Settings"
+        }
+      ]
+    },
+    {
+      "id": "marketplace",
+      "title": "Marketplace",
+      "items": [
+        {
+          "slug": "marketplace/overview",
+          "title": "Marketplace overview"
+        },
+        {
+          "slug": "marketplace/account",
+          "title": "Account"
+        },
+        {
+          "slug": "marketplace/browse-search",
+          "title": "Browse and search"
+        },
+        {
+          "slug": "marketplace/cart-checkout",
+          "title": "Cart and checkout"
+        },
+        {
+          "slug": "marketplace/orders",
+          "title": "Orders"
+        },
+        {
+          "slug": "marketplace/offers-following",
+          "title": "Offers and following"
+        },
+        {
+          "slug": "marketplace/notifications",
+          "title": "Notifications"
+        },
+        {
+          "slug": "marketplace/account-settings",
+          "title": "Account settings"
+        }
+      ]
+    },
+    {
+      "id": "driver",
+      "title": "Driver",
+      "items": [
+        {
+          "slug": "driver/overview",
+          "title": "Driver overview"
+        },
+        {
+          "slug": "driver/login-access",
+          "title": "Login and access"
+        },
+        {
+          "slug": "driver/tasks",
+          "title": "Tasks"
+        },
+        {
+          "slug": "driver/deliveries",
+          "title": "Deliveries"
+        },
+        {
+          "slug": "driver/location-realtime",
+          "title": "Location and realtime"
+        },
+        {
+          "slug": "driver/troubleshooting",
+          "title": "Troubleshooting"
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "title": "Services",
+      "items": [
+        {
+          "slug": "services/apis-overview",
+          "title": "APIs overview"
+        },
+        {
+          "slug": "services/authentication",
+          "title": "Authentication"
+        },
+        {
+          "slug": "services/realtime",
+          "title": "Realtime"
+        },
+        {
+          "slug": "services/search-service",
+          "title": "Search service"
+        },
+        {
+          "slug": "services/file-uploads",
+          "title": "File uploads"
+        },
+        {
+          "slug": "services/maps",
+          "title": "Maps"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "items": [
+        {
+          "slug": "operations/deployment",
+          "title": "Deployment"
+        },
+        {
+          "slug": "operations/environment-variables",
+          "title": "Environment variables"
+        },
+        {
+          "slug": "operations/database",
+          "title": "Database"
+        },
+        {
+          "slug": "operations/search-indexing",
+          "title": "Search indexing"
+        },
+        {
+          "slug": "operations/platform-admin",
+          "title": "Platform admin"
+        },
+        {
+          "slug": "operations/health-troubleshooting",
+          "title": "Health and troubleshooting"
+        }
+      ]
+    }
+  ]
+}
