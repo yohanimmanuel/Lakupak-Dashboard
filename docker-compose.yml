@@ -2,9 +2,6 @@ services:
   app:
     build:
       context: .
-    depends_on:
-      meilisearch:
-        condition: service_healthy
     ports:
       - "3000:3000"
       - "3001:3001"
@@ -35,10 +32,11 @@ services:
     volumes:
       - meili_data:/meili_data
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:7700/health > /dev/null 2>&1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:7700/health > /dev/null"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   postgres:
