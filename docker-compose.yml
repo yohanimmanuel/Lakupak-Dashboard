@@ -2,6 +2,9 @@ services:
   app:
     build:
       context: .
+    depends_on:
+      meilisearch:
+        condition: service_healthy
     ports:
       - "3000:3000"
       - "3001:3001"

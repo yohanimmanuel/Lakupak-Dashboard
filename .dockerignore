@@ -10,7 +10,9 @@ yarn-error.log*
 .git
 .gitignore
 .idea
+# Exclude markdown except public documentation (loaded at build + runtime)
 *.md
+!content/docs/**
 .vscode
 .cursor
 

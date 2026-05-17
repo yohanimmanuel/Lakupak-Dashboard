@@ -51,6 +51,8 @@ COPY --from=builder /app/tsconfig.json  ./tsconfig.json
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/prisma.config.ts  ./prisma.config.ts
 COPY --from=builder /app/prisma        ./prisma
+# Documentation markdown (read at runtime by src/lib/docs/load.ts)
+COPY --from=builder /app/content/docs  ./content/docs
 # WebSocket server and its dependencies (standalone process on port 3001)
 COPY --from=builder /app/src           ./src
 
