@@ -1,6 +1,6 @@
 ---
 title: Jelajah dan cari
-description: Home, kategori, Meilisearch, filter, dan detail produk.
+description: Home, kategori, mencari, filter, dan detail produk.
 section: Marketplace
 module: marketplace
 order: 32

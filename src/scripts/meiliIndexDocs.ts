@@ -91,6 +91,20 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  const cause = err instanceof Error ? err.cause : undefined;
+  const refused =
+    cause &&
+    typeof cause === 'object' &&
+    'code' in cause &&
+    (cause as { code?: string }).code === 'ECONNREFUSED';
+  if (refused) {
+    console.error(
+      'Could not reach Meilisearch. Start it with: docker compose up -d meilisearch\n' +
+        'Then run: npm run docs:index\n' +
+        'Docs search still works via filesystem fallback when Meili is offline.'
+    );
+  } else {
+    console.error(err);
+  }
   process.exit(1);
 });

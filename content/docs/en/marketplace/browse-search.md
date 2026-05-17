@@ -1,6 +1,6 @@
 ---
 title: Browse and search
-description: Home, categories, Meilisearch, filters, and product detail.
+description: Home, categories, search, filters, and product detail.
 section: Marketplace
 module: marketplace
 order: 32
