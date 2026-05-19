@@ -159,6 +159,16 @@ export default function ForgotPasswordPage() {
                 Back to Login
               </a>
             </div>
+            <p className="mt-3 text-center text-sm text-gray-500">
+              <a
+                href="/en/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0a61d7] hover:underline"
+              >
+                Documentation
+              </a>
+            </p>
           </form>
         )}
         
@@ -219,6 +229,16 @@ export default function ForgotPasswordPage() {
                 Back to Email Step
               </button>
             </div>
+            <p className="mt-3 text-center text-sm text-gray-500">
+              <a
+                href="/en/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0a61d7] hover:underline"
+              >
+                Documentation
+              </a>
+            </p>
           </form>
         )}
       </div>

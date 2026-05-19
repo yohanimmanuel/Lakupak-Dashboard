@@ -1,8 +1,10 @@
 'use client';
 
 import React from 'react';
+import { BookOpen } from 'lucide-react';
 import { DASHBOARD_TOURS, type DashboardTourId } from '@/components/tours/tourIds';
 import { useDashboardTour } from '@/components/tours/TourProvider';
+import { useUserStore } from '@/store/userStore';
 
 const rows: { id: DashboardTourId; title: string; description: string }[] = [
   {
@@ -39,6 +41,8 @@ const rows: { id: DashboardTourId; title: string; description: string }[] = [
 
 export function DashboardToursPanel() {
   const { runTour, resetTour, getStatus } = useDashboardTour();
+  const user = useUserStore((s) => s.user);
+  const docLocale = user?.language === 'id' ? 'id' : 'en';
 
   return (
     <div className="p-4 max-w-6xl">
@@ -104,6 +108,44 @@ export function DashboardToursPanel() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-start gap-3">
+          <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-[#0a61d7]" aria-hidden />
+          <div>
+            <p className="font-semibold text-gray-900">Laku documentation</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Guides for the Dashboard, Marketplace, Driver app, and how the platform fits together.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <a
+                href={`/${docLocale}/docs`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-[#0a61d7] hover:underline"
+              >
+                Browse all documentation
+              </a>
+              <a
+                href={`/${docLocale}/docs/dashboard/overview`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-[#0a61d7] hover:underline"
+              >
+                Dashboard guide
+              </a>
+              <a
+                href={`/${docLocale}/docs/getting-started`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-[#0a61d7] hover:underline"
+              >
+                Getting started
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

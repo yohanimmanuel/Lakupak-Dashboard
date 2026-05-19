@@ -696,10 +696,20 @@ export default function RegisterPage() {
           </div>
         </form>
         {/* Login redirect prompt */}
-        <div className="flex items-center mt-4 text-sm">
+        <div className="mt-4 flex items-center text-sm">
           <span className="text-gray-500">Already have an account?</span>
           <a href="/login" className="ml-2 text-[#0a61d7] font-semibold hover:underline">Log in here</a>
         </div>
+        <p className="mt-3 text-sm text-gray-500">
+          <a
+            href="/en/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#0a61d7] hover:underline"
+          >
+            Documentation
+          </a>
+        </p>
       </div>
       {/* Right: Placeholder for Distribution/Retailing Image */}
       <div className="col-span-5 bg-blue-600 flex items-center justify-center animate-fade-in-right">

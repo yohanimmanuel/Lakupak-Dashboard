@@ -220,6 +220,16 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account? <a href="/register" className="l-2 text-[#0a61d7] font-semibold hover:underline">Register Now</a>
         </p>
+        <p className="mt-3 text-center text-sm text-gray-500">
+          <a
+            href="/en/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#0a61d7] hover:underline"
+          >
+            Documentation
+          </a>
+        </p>
       </div>
       {/* Right: Placeholder for Distribution/Retailing Image */}
       <div className="hidden lg:flex lg:col-span-5 bg-blue-600 items-center justify-center animate-fade-in-right">
