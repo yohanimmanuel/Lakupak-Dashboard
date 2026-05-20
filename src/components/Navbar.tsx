@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { Search, MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt } from 'lucide-react';
+import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -11,6 +11,7 @@ import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayo
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
 
 const DROPDOWN_WIDTH = 300;
 
@@ -465,16 +466,7 @@ const Navbar = () => {
       </button>
       {/* SEARCH BAR - Hidden on Mobile */}
       <div className="hidden sm:flex flex-1 items-left justify-left" data-tour="quick-search">
-        <div className="relative w-[300px] max-w-full">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <Search size={15} />
-          </span>
-          <input
-            type="text"
-            placeholder="Quick Search..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-xs text-black"
-          />
-        </div>
+        <DashboardSearchBar />
       </div>
       {/* NAVBAR GROUPS */}
       <div className="flex items-center gap-2 justify-end">
