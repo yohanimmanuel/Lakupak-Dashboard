@@ -103,13 +103,13 @@ export default function MarketingPage() {
       icon: Megaphone,
       link: '/marketing/campaigns',
     },
-    {
-      id: 'automation',
-      name: 'Automation',
-      description: 'Set up automated marketing workflows and reminders.',
-      icon: Zap,
-      link: '/marketing/automation',
-    },
+    //{
+    //  id: 'automation',
+    //  name: 'Automation',
+    //  description: 'Set up automated marketing workflows and reminders.',
+    //  icon: Zap,
+    //  link: '/marketing/automation',
+    //},
   ];
 
 

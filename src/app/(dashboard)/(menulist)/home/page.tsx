@@ -2890,7 +2890,7 @@ const supplierInsights = useMemo(() => {
         <div className="mx-auto flex flex-col gap-3">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-black">Dashboard Overview</h1>
+              <h1 className="text-2xl font-bold text-black">Dashboard Overview</h1>
               <p className="text-sm text-gray-600">
                 Customize the widgets you need most for faster decision making.
               </p>
