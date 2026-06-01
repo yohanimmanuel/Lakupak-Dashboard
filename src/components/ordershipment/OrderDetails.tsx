@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2, FileText } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2, FileText, Download } from 'lucide-react';
 import {
   isPaymentProofPdfUrl,
   paymentProofDisplayName,
@@ -1732,7 +1732,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto flex flex-wrap gap-3">
+            <div className="p-4 overflow-y-auto flex flex-col items-center gap-6">
               {paymentProofUrls.map((url, idx) => {
                 const storedName = order.paymentProofFileNames?.[idx] ?? null;
                 const displayName = paymentProofDisplayName(url, storedName, order.orderId);
@@ -1742,32 +1742,38 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   storedFileName: storedName,
                 });
                 const downloadHref = paymentProofDownloadHref(order.orderId, idx);
+                const isPdf = isPaymentProofPdfUrl(url);
 
-                return isPaymentProofPdfUrl(url) ? (
-                  <a
-                    key={`proof-pdf-${idx}`}
-                    href={downloadHref}
-                    download={downloadName}
-                    className="flex items-center gap-3 w-full min-w-[240px] max-w-full rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 py-3"
+                return (
+                  <div
+                    key={`proof-${idx}`}
+                    className="w-full flex flex-col items-center gap-4"
                   >
-                    <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-[#0a61d7] break-all line-clamp-3">
-                      {displayName}
-                    </span>
-                  </a>
-                ) : (
-                  <a
-                    key={`proof-img-${idx}`}
-                    href={downloadHref}
-                    download={downloadName}
-                    className="block w-28 h-28 rounded-lg overflow-hidden border border-gray-200"
-                  >
-                    <img
-                      src={url}
-                      alt={`Payment proof ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
+                    {isPdf ? (
+                      <div className="w-full max-w-lg flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-6 py-8">
+                        <FileText className="w-12 h-12 text-gray-500 flex-shrink-0" />
+                        <p className="text-sm font-medium text-gray-900 text-center break-all px-2">
+                          {displayName}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="w-full flex justify-center items-center rounded-lg border border-gray-200 bg-gray-50 p-4 min-h-[200px]">
+                        <img
+                          src={url}
+                          alt={`Payment proof ${idx + 1}`}
+                          className="max-h-[min(60vh,520px)] max-w-full w-auto object-contain rounded"
+                        />
+                      </div>
+                    )}
+                    <a
+                      href={downloadHref}
+                      download={downloadName}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6] transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download{isPdf ? ' PDF' : ''}
+                    </a>
+                  </div>
                 );
               })}
             </div>
