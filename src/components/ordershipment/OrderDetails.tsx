@@ -1,7 +1,14 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2, FileText } from 'lucide-react';
+import {
+  isPaymentProofPdfUrl,
+  paymentProofDisplayName,
+  paymentProofDownloadFilename,
+  paymentProofDownloadHref,
+} from '@/utils/paymentProof';
+import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderCalculations';
@@ -44,6 +51,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
   const [showDeliveryMethodDropdown, setShowDeliveryMethodDropdown] = useState(false);
   const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
@@ -236,6 +244,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     if (raw.toLowerCase().includes('transfer')) return 'Transfer';
     return raw;
   })();
+
+  const paymentProofUrls = (order.paymentProofUrls ?? []).filter(
+    (u): u is string => typeof u === 'string' && u.trim().length > 0,
+  );
+  const showPaymentProof =
+    isBankTransferPaymentTerms(order.paymentTerms) && paymentProofUrls.length > 0;
 
   const calculateSubtotal = () => calculateOrderSubtotal(order);
   const calculateTotalAmount = () => calculateOrderTotalAmount(order);
@@ -596,17 +610,32 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
             {/* Payment Authorization Card */}
             <div className="bg-gray-50 rounded-lg p-4 border border-[#e6e6e6] mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="text-sm font-semibold text-black">{paymentMethodLabel}</div>
                   <div className="text-sm text-gray-600">{paymentMethodSubtitle}</div>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
-                  {order.paymentStatus.toUpperCase()}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {showPaymentProof && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentProofModal(true)}
+                      className="px-2.5 py-1 rounded text-xs font-semibold text-[#0a61d7] border border-[#0a61d7] bg-white hover:bg-blue-50 whitespace-nowrap"
+                    >
+                      Payment proof
+                    </button>
+                  )}
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
+                    {order.paymentStatus.toUpperCase()}
+                  </span>
+                </div>
               </div>
               <div className="text-xs text-gray-500">
-                Payment processed successfully. This transaction has been authorized for future reference.
+                {showPaymentProof && order.paymentStatus === 'Unpaid'
+                  ? 'Buyer submitted payment proof. Verify the transfer and mark as Paid when received.'
+                  : order.paymentStatus === 'Paid'
+                    ? 'Payment processed successfully. This transaction has been authorized for future reference.'
+                    : 'Awaiting payment from the buyer.'}
               </div>
             </div>
 
@@ -1677,6 +1706,70 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment proof modal */}
+      {showPaymentProofModal && showPaymentProof && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b">
+              <div>
+                <div className="text-lg font-semibold text-black">Payment proof</div>
+                {order.paymentProofSubmittedAt && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Submitted {new Date(order.paymentProofSubmittedAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="p-2 text-gray-700 hover:bg-gray-100 rounded"
+                onClick={() => setShowPaymentProofModal(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex flex-wrap gap-3">
+              {paymentProofUrls.map((url, idx) => {
+                const storedName = order.paymentProofFileNames?.[idx] ?? null;
+                const displayName = paymentProofDisplayName(url, storedName, order.orderId);
+                const downloadName = paymentProofDownloadFilename({
+                  orderId: order.orderId,
+                  url,
+                  storedFileName: storedName,
+                });
+                const downloadHref = paymentProofDownloadHref(order.orderId, idx);
+
+                return isPaymentProofPdfUrl(url) ? (
+                  <a
+                    key={`proof-pdf-${idx}`}
+                    href={downloadHref}
+                    download={downloadName}
+                    className="flex items-center gap-3 w-full min-w-[240px] max-w-full rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 py-3"
+                  >
+                    <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-[#0a61d7] break-all line-clamp-3">
+                      {displayName}
+                    </span>
+                  </a>
+                ) : (
+                  <a
+                    key={`proof-img-${idx}`}
+                    href={downloadHref}
+                    download={downloadName}
+                    className="block w-28 h-28 rounded-lg overflow-hidden border border-gray-200"
+                  >
+                    <img
+                      src={url}
+                      alt={`Payment proof ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>

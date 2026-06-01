@@ -51,6 +51,9 @@ export interface Order {
   estimatedDeliveryMaxDays?: number | null;
   deliveredAt?: Date;
   paidAt?: Date | string | null;
+  paymentProofUrls?: string[];
+  paymentProofFileNames?: string[];
+  paymentProofSubmittedAt?: Date | string | null;
   cancelledAt?: Date | string | null;
   cancelledBy?: string | null;
   cancellationReason?: string | null;

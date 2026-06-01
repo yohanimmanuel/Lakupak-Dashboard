@@ -6,6 +6,8 @@ import { broadcastDashboardNotification, broadcastNotification, broadcastOrderUp
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import { translateMarketplacePaymentIntentSubmitted } from '@/utils/marketplacePushTranslations';
 import { marketplacePayIntentRateLimiter } from '@/utils/rateLimiter';
+import { sanitizePaymentProofFileNames, sanitizePaymentProofUrls } from '@/utils/paymentProof';
+import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
 
 /**
  * POST /api/mobile/orders/[id]/pay-intent
@@ -38,6 +40,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid order id' }, { status: 400, headers });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const proofUrls = sanitizePaymentProofUrls(body?.proofUrls ?? body?.imageUrls);
+    const proofFileNames = sanitizePaymentProofFileNames(body?.proofFileNames);
+
     const order = await prisma.order.findUnique({
       where: { id: orderIdNum },
       select: {
@@ -46,6 +52,7 @@ export async function POST(
         buyerId: true,
         userId: true,
         paymentStatus: true,
+        paymentTerms: true,
         orderStatus: true,
         storeName: true,
         totalAmount: true,
@@ -62,12 +69,36 @@ export async function POST(
     }
 
     // Prevent pay intent on orders that are not awaiting payment
-    if (order.paymentStatus === 'paid') {
+    if (order.paymentStatus === 'Paid') {
       return NextResponse.json({ error: 'Order is already paid' }, { status: 400, headers });
     }
     if (order.orderStatus === 'cancelled' || order.orderStatus === 'rejected') {
       return NextResponse.json({ error: 'Cannot pay for a cancelled order' }, { status: 400, headers });
     }
+
+    const isBankTransfer = isBankTransferPaymentTerms(order.paymentTerms);
+    if (isBankTransfer && proofUrls.length === 0) {
+      return NextResponse.json(
+        { error: 'Payment proof (photo or PDF) is required for bank transfer orders' },
+        { status: 400, headers },
+      );
+    }
+
+    if (proofUrls.length > 0) {
+      await prisma.order.update({
+        where: { id: orderIdNum },
+        data: {
+          paymentProofUrls: proofUrls,
+          paymentProofFileNames: proofUrls.map((_, i) => proofFileNames[i] ?? ''),
+          paymentProofSubmittedAt: new Date(),
+        },
+      });
+    }
+
+    const proofNote =
+      proofUrls.length > 0
+        ? ' Payment proof is attached; open the order to review receipts.'
+        : '';
 
     // Notify distributor dashboard (web) via Notification row + dashboard WS hint
     const distributorUserId = order.userId ?? null;
@@ -80,7 +111,7 @@ export async function POST(
             userId: distributorUserId,
             type: 'payment',
             title: 'Buyer initiated payment',
-            message: `Buyer initiated payment for order #${order.orderId}. Please verify and set Payment Status to Paid when received.`,
+            message: `Buyer initiated payment for order #${order.orderId}. Please verify and set Payment Status to Paid when received.${proofNote}`,
             metadata: { orderId: order.orderId, type: 'payment' },
             actionUrl: `/orders/details/${order.orderId}`,
           },
@@ -90,7 +121,7 @@ export async function POST(
         await broadcastNotification(
           'payment',
           'Buyer initiated payment',
-          `Order #${order.orderId}: buyer initiated payment. Verify incoming transfer and mark as Paid when received.`,
+          `Order #${order.orderId}: buyer initiated payment. Verify incoming transfer and mark as Paid when received.${proofNote}`,
           { orderId: order.orderId, type: 'payment' },
           distributorUserId
         );

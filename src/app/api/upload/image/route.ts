@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file');
-      const allowedFolders = ['products', 'avatars', 'banners', 'reviews', 'pod'];
+      const allowedFolders = ['products', 'avatars', 'banners', 'reviews', 'pod', 'returns', 'payment-proofs'];
       const requestedFolder = (formData.get('folder') as string) || 'products';
       const folder = allowedFolders.includes(requestedFolder) ? requestedFolder : 'products';
       const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
