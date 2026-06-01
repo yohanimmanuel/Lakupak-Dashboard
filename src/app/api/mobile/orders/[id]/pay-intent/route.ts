@@ -43,6 +43,7 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const proofUrls = sanitizePaymentProofUrls(body?.proofUrls ?? body?.imageUrls);
     const proofFileNames = sanitizePaymentProofFileNames(body?.proofFileNames);
+    const updatePaymentIntent = body?.updatePaymentIntent === true;
 
     const order = await prisma.order.findUnique({
       where: { id: orderIdNum },
@@ -56,6 +57,8 @@ export async function POST(
         orderStatus: true,
         storeName: true,
         totalAmount: true,
+        paymentProofSubmittedAt: true,
+        paymentProofUrls: true,
       },
     });
 
@@ -84,13 +87,21 @@ export async function POST(
       );
     }
 
+    const alreadySubmitted =
+      !!order.paymentProofSubmittedAt || (order.paymentProofUrls?.length ?? 0) > 0;
+    const isUpdate = updatePaymentIntent && alreadySubmitted;
+
+    if (updatePaymentIntent && !alreadySubmitted) {
+      return NextResponse.json({ error: 'No payment intent to update' }, { status: 400, headers });
+    }
+
     if (proofUrls.length > 0) {
       await prisma.order.update({
         where: { id: orderIdNum },
         data: {
           paymentProofUrls: proofUrls,
           paymentProofFileNames: proofUrls.map((_, i) => proofFileNames[i] ?? ''),
-          paymentProofSubmittedAt: new Date(),
+          paymentProofSubmittedAt: order.paymentProofSubmittedAt ?? new Date(),
         },
       });
     }
@@ -100,12 +111,9 @@ export async function POST(
         ? ' Payment proof is attached; open the order to review receipts.'
         : '';
 
-    // Notify distributor dashboard (web) via Notification row + dashboard WS hint
     const distributorUserId = order.userId ?? null;
-    if (typeof distributorUserId === 'number' && distributorUserId > 0) {
+    if (!isUpdate && typeof distributorUserId === 'number' && distributorUserId > 0) {
       try {
-        // IMPORTANT: NotificationService.createOrderNotification only supports known order statuses.
-        // For Pay Intent we always create a concrete Notification row.
         await prisma.notification.create({
           data: {
             userId: distributorUserId,
@@ -123,33 +131,60 @@ export async function POST(
           'Buyer initiated payment',
           `Order #${order.orderId}: buyer initiated payment. Verify incoming transfer and mark as Paid when received.${proofNote}`,
           { orderId: order.orderId, type: 'payment' },
-          distributorUserId
+          distributorUserId,
         );
       } catch {
         // best-effort
       }
     }
 
-    // Let marketplace buyer know we notified the distributor (push first; WS fallback)
-    try {
-      const payIntentTranslations = translateMarketplacePaymentIntentSubmitted({ orderId: order.orderId });
-      const payload = { orderId: order.orderId, type: 'payment' };
-      const { tokenCount } = await sendExpoPushToMarketplaceUser(
-        marketplaceUserId,
-        payIntentTranslations,
-        payload,
-      );
-      if (tokenCount === 0) {
+    if (isUpdate && typeof distributorUserId === 'number' && distributorUserId > 0) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: distributorUserId,
+            type: 'payment',
+            title: 'Payment proof updated',
+            message: `Buyer updated payment proof for order #${order.orderId}. Please review the new receipt.${proofNote}`,
+            metadata: { orderId: order.orderId, type: 'payment' },
+            actionUrl: `/orders/details/${order.orderId}`,
+          },
+        });
+
+        await broadcastDashboardNotification(distributorUserId);
         await broadcastNotification(
           'payment',
-          payIntentTranslations.en.title,
-          payIntentTranslations.en.body,
-          payload,
-          marketplaceUserId,
+          'Payment proof updated',
+          `Order #${order.orderId}: buyer updated payment proof. Review the new receipt.`,
+          { orderId: order.orderId, type: 'payment' },
+          distributorUserId,
         );
+      } catch {
+        // best-effort
       }
-    } catch {
-      // best-effort
+    }
+
+    if (!isUpdate) {
+      try {
+        const payIntentTranslations = translateMarketplacePaymentIntentSubmitted({ orderId: order.orderId });
+        const payload = { orderId: order.orderId, type: 'payment' };
+        const { tokenCount } = await sendExpoPushToMarketplaceUser(
+          marketplaceUserId,
+          payIntentTranslations,
+          payload,
+        );
+        if (tokenCount === 0) {
+          await broadcastNotification(
+            'payment',
+            payIntentTranslations.en.title,
+            payIntentTranslations.en.body,
+            payload,
+            marketplaceUserId,
+          );
+        }
+      } catch {
+        // best-effort
+      }
     }
 
     // Trigger order refresh in real-time UIs
@@ -159,7 +194,7 @@ export async function POST(
       // ignore
     }
 
-    return NextResponse.json({ ok: true }, { status: 200, headers });
+    return NextResponse.json({ ok: true, updated: isUpdate }, { status: 200, headers });
   } catch (error) {
     console.error('[mobile/orders/[id]/pay-intent] POST error', error);
     return NextResponse.json({ error: 'Failed to send payment notification' }, { status: 500, headers });
