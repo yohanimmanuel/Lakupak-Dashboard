@@ -143,6 +143,12 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     pagination: PaginationInfo!
     facets: MarketplaceSearchFacets!
     didYouMean: String
+    "Engine that actually served this response: meili | pg_trgm | js_score | prisma | cache."
+    engine: String
+    "Requested search mode contract: auto | meili."
+    engineRequested: String
+    "True when strict 'meili' mode was requested but a fallback engine served the query."
+    degraded: Boolean
     timestamp: String!
   }
 

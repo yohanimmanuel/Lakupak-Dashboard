@@ -9,7 +9,7 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
-import { getMeiliClient, MEILI_PRODUCTS_INDEX } from '@/lib/meili';
+import { getMeiliClient, MEILI_PRODUCTS_INDEX, getMarketplaceSearchEngineMode } from '@/lib/meili';
 import type { SearchParams } from 'meilisearch';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { verifyAccessToken } from '@/lib/jwt';
@@ -225,6 +225,9 @@ export const fetchMarketplaceProducts = async (args: {
   marketplaceUserId?: number;
 }) => {
   const { page = 1, limit = 20, category, search } = args;
+  // Deterministic search mode: 'auto' allows silent fallback; 'meili' (strict) flags any non-Meili
+  // result as degraded so relevance/latency drops are observable instead of silent.
+  const engineRequested = getMarketplaceSearchEngineMode();
   let engineUsed: 'meili' | 'pg_trgm' | 'js_score' | 'prisma' | 'cache' = 'prisma';
   const meiliTimeoutMs = (() => {
     const raw = process.env.MEILI_SEARCH_TIMEOUT_MS;
@@ -252,6 +255,10 @@ export const fetchMarketplaceProducts = async (args: {
     if (search && search.trim()) engineUsed = 'cache';
     return {
       ...cachedResult,
+      engine: engineUsed,
+      engineRequested,
+      // A cached payload originally came from a healthy engine; serving it is never "degraded".
+      degraded: false,
       timestamp: new Date().toISOString()
     };
     }
@@ -1295,6 +1302,14 @@ export const fetchMarketplaceProducts = async (args: {
       productCategories: facetProductTypes,
     },
     didYouMean,
+    engine: engineUsed,
+    engineRequested,
+    // Strict mode promises Meili; if a real search ended up on any other engine, surface the drop.
+    // (The cache short-circuit already returned earlier, so engineUsed can't be 'cache' here.)
+    degraded:
+      engineRequested === 'meili' &&
+      !!(search && search.trim()) &&
+      engineUsed !== 'meili',
     timestamp: new Date().toISOString()
   };
 

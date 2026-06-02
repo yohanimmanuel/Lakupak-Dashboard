@@ -35,6 +35,17 @@ type TermMapRow = {
 
 type TermMapListResponse = { totalCount: number; rows: TermMapRow[] };
 
+type EngineStatusResponse = {
+  mode: 'auto' | 'meili';
+  meili: { configured: boolean; reachable: boolean; status: string | null; error: string | null };
+  indexedProducts: number | null;
+  since: string;
+  days: number;
+  totalSearches: number;
+  engineBreakdown: Array<{ engine: string; count: number }>;
+  degradedRate: number;
+};
+
 const TABS = [
   { key: 'logs', label: 'Logs' },
   { key: 'synonyms', label: 'Synonyms' },
@@ -89,6 +100,26 @@ export default function AdminSearchLogsPage() {
   const [modalLogs, setModalLogs] = useState<SearchQueryRow[]>([]);
   const [modalLogsBusy, setModalLogsBusy] = useState(false);
   const [modalLogsErr, setModalLogsErr] = useState<string | null>(null);
+
+  const [engineStatus, setEngineStatus] = useState<EngineStatusResponse | null>(null);
+  const [engineStatusBusy, setEngineStatusBusy] = useState(false);
+
+  const loadEngineStatus = useCallback(async () => {
+    setEngineStatusBusy(true);
+    try {
+      const res = await fetch(`/api/platform-admin/search/engine-status?days=${days}`);
+      const data = (await res.json().catch(() => null)) as EngineStatusResponse | null;
+      if (res.ok && data) setEngineStatus(data);
+    } catch {
+      // Non-fatal: the status banner is best-effort.
+    } finally {
+      setEngineStatusBusy(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    loadEngineStatus().catch(() => {});
+  }, [loadEngineStatus]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 250);
@@ -361,6 +392,76 @@ export default function AdminSearchLogsPage() {
 
   return (
     <div className="space-y-3">
+      {engineStatus ? (
+        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block w-2.5 h-2.5 rounded-full ${
+                    !engineStatus.meili.configured
+                      ? 'bg-gray-400'
+                      : engineStatus.meili.reachable
+                        ? 'bg-emerald-500'
+                        : 'bg-red-500'
+                  }`}
+                />
+                <p className="text-sm font-semibold text-gray-900">Search engine status</p>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                    engineStatus.mode === 'meili'
+                      ? 'bg-[#0a61d7]/10 text-[#0a61d7]'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  Mode: {engineStatus.mode}
+                </span>
+                {engineStatus.degradedRate > 0 ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                    Degraded {formatPct(engineStatus.degradedRate)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {!engineStatus.meili.configured
+                  ? 'Meilisearch is not configured (MEILI_HOST unset) — search runs on Postgres fallback.'
+                  : engineStatus.meili.reachable
+                    ? `Meilisearch reachable${
+                        engineStatus.indexedProducts != null
+                          ? ` · ${engineStatus.indexedProducts.toLocaleString()} products indexed`
+                          : ''
+                      }`
+                    : `Meilisearch unreachable${engineStatus.meili.error ? ` — ${engineStatus.meili.error}` : ''}`}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {engineStatus.engineBreakdown.length === 0 ? (
+                  <span className="text-[11px] text-gray-500">No searches in last {engineStatus.days}d.</span>
+                ) : (
+                  engineStatus.engineBreakdown.map((e) => (
+                    <span
+                      key={e.engine}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700"
+                    >
+                      {e.engine}
+                      <span className="tabular-nums text-gray-500">{e.count}</span>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadEngineStatus()}
+              disabled={engineStatusBusy}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 self-start"
+            >
+              <RefreshCw className={`w-4 h-4 ${engineStatusBusy ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
         <p className="text-sm font-semibold text-gray-900">Search logs</p>
         <p className="text-xs text-gray-600 mt-1">
