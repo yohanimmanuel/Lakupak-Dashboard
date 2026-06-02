@@ -3,6 +3,7 @@ import { parsePrice } from '@/utils/currencyUtils';
 import { recalculateEntireOrder } from './orderCalculations';
 
 import { prisma } from '@/lib/db';
+import { selectVariantOption, getUnitPriceFromVariantOption } from '@/domain/marketplace/orderItemRules';
 
 // ===== CALCULATION FUNCTIONS =====
 
@@ -24,24 +25,18 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
       throw new Error(`Product not found: ${item.productId}`);
     }
     
-    // Get the first variant option (or specified variant)
-    // Use variantOptions for pricing/stock (new structure) - now Decimal type, not string
-    let variant: { sellingPrice: unknown } | null = null;
-    if (item.variantId) {
-      variant = product.variantOptions.find((v: { id: number; sellingPrice: unknown }) => v.id === item.variantId) || null;
-    }
-    
+    const variant = selectVariantOption(product, {
+      variantOptionId: item.variantOptionId ?? null,
+      variantId: item.variantId ?? null,
+    });
     if (!variant) {
-      variant = product.variantOptions[0] || null;
-    }
-    
-    const variantSellingPrice = variant ? (variant as { sellingPrice?: unknown }).sellingPrice : null;
-    if (!variant || variantSellingPrice === null || variantSellingPrice === undefined) {
       throw new Error(`No variants with pricing found for product: ${item.productId}`);
     }
     
-    // Handle Decimal type - use parsePrice which handles Decimal.js objects, numbers, and strings
-    const consistentUnitPrice = parsePrice(variantSellingPrice as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+    const consistentUnitPrice = getUnitPriceFromVariantOption(variant);
+    if (consistentUnitPrice <= 0) {
+      throw new Error(`No variants with pricing found for product: ${item.productId}`);
+    }
     
     // Get package info from item (piece-based system)
     const piecesPerPackage = item.piecesPerPackage || 1;
@@ -52,6 +47,7 @@ export const ensurePriceConsistency = async (item: OrderItem): Promise<OrderItem
     
     return {
       ...item,
+      variantOptionId: item.variantOptionId ?? variant.id,
       packageType: packageType,
       piecesPerPackage: piecesPerPackage,
       packageQuantity: packageQuantity,

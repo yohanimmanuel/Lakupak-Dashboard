@@ -838,6 +838,24 @@ const buildProductData = ({
   };
 };
 
+// Shared variant identity helpers (single source of truth).
+// A variant option's identity is its `attributes`; the display name is normalized so that
+// whitespace differences in UI payloads never spawn duplicate rows.
+const normalizeVariantName = (v: string): string => String(v ?? '').replace(/\s+/g, ' ').trim();
+
+const stableStringifyAttributes = (v: unknown): string => {
+  if (v === null || v === undefined) return '';
+  if (typeof v !== 'object') return String(v);
+  const obj = v as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return JSON.stringify(
+    keys.reduce<Record<string, unknown>>((acc, k) => {
+      acc[k] = obj[k];
+      return acc;
+    }, {}),
+  );
+};
+
 const createVariantOptionsPayload = (
   variantOptions: Array<{
     variantName: string;
@@ -864,7 +882,7 @@ const createVariantOptionsPayload = (
       : null;
     
     return {
-      variantName: option.variantName,
+      variantName: normalizeVariantName(option.variantName),
       attributes: option.attributes as Prisma.InputJsonValue,
       sku: option.sku || null,
       purchasePrice: Math.round(purchasePriceNum * 100) / 100, // Decimal type, not string
@@ -1247,24 +1265,95 @@ export const updateProduct = async (args: {
       where: updateWhere,
       data: {
         ...cleanUpdateData,
-        ...(variantDefinitions &&
-          Array.isArray(variantDefinitions) &&
-          variantDefinitions.length > 0 && {
-            variants: {
-              deleteMany: {},
-              create: variantDefinitions.map((def) => ({
-                variantType: def.variantType,
-                options: def.options,
-                position: def.position,
-              })),
-            },
-          }),
       },
       include: {
         variants: true,
         user: productSellerInclude.include.user,
       },
     });
+
+    // Single source of truth for "what is locked by past orders" — reused by every guardrail below
+    // (variant-type immutability, variant-option immutability, and delete-vs-deactivate).
+    // `hasAnyOrderHistory` is product-level (covers legacy orders without a variantOptionId);
+    // `orderedOptionIds` pinpoints exactly which VariantOptions are immutable.
+    const [orderItemCount, orderedOptions] = await Promise.all([
+      tx.orderItem.count({ where: { productId: productBeforeUpdate.productId } }),
+      tx.variantOption.findMany({
+        where: { productId: updated.id, orderItems: { some: {} } },
+        select: { id: true, attributes: true },
+      }),
+    ]);
+    const orderedOptionIds = new Set(orderedOptions.map((o) => o.id));
+    const hasAnyOrderHistory = orderItemCount > 0;
+
+    // Business rule (orders tied): variant TYPES cannot be deleted, but their option lists stay editable.
+    // - No order history  -> full replace (free editing).
+    // - Has order history -> never delete a type; option values follow the incoming payload, while any
+    //   value locked by a past order is force-kept. Distributors may rename/add/remove non-ordered options.
+    if (variantDefinitions && Array.isArray(variantDefinitions) && variantDefinitions.length > 0) {
+      if (!hasAnyOrderHistory) {
+        await tx.productVariant.deleteMany({ where: { productId: updated.id } });
+        await tx.productVariant.createMany({
+          data: variantDefinitions.map((def) => ({
+            productId: updated.id,
+            variantType: def.variantType,
+            options: def.options,
+            position: def.position,
+          })),
+        });
+      } else {
+        const existingDefs = await tx.productVariant.findMany({
+          where: { productId: updated.id },
+          select: { id: true, variantType: true, options: true, position: true },
+        });
+        const existingByType = new Map(existingDefs.map((d) => [d.variantType, d]));
+
+        // Compute the option values that are "locked" by order history per variant type.
+        // Only values tied to an ordered VariantOption must survive; everything else follows
+        // the incoming payload so removed options (e.g. a deleted color) disappear from the marketplace.
+        const lockedValuesByType = new Map<string, Set<string>>();
+        for (const vo of orderedOptions) {
+          const attrs =
+            vo.attributes && typeof vo.attributes === 'object'
+              ? (vo.attributes as Record<string, unknown>)
+              : {};
+          for (const [type, val] of Object.entries(attrs)) {
+            if (val === null || val === undefined) continue;
+            if (!lockedValuesByType.has(type)) lockedValuesByType.set(type, new Set());
+            lockedValuesByType.get(type)!.add(String(val));
+          }
+        }
+
+        // Only upsert by variantType; never delete existing variant types when order history exists.
+        for (const def of variantDefinitions) {
+          const existing = existingByType.get(def.variantType);
+          // Options follow the incoming payload, plus any value locked by an existing order.
+          const nextOpts = Array.isArray(def.options) ? def.options.map((o) => String(o)) : [];
+          const lockedForType = lockedValuesByType.get(def.variantType) ?? new Set<string>();
+          const merged = Array.from(new Set([...nextOpts, ...lockedForType]));
+
+          if (!existing) {
+            await tx.productVariant.create({
+              data: {
+                productId: updated.id,
+                variantType: def.variantType,
+                options: merged,
+                position: def.position,
+              },
+            });
+            continue;
+          }
+
+          await tx.productVariant.update({
+            where: { id: existing.id },
+            data: {
+              options: merged,
+              position: def.position,
+            },
+          });
+        }
+      }
+    }
 
     // IMPORTANT: preserve VariantOption ids so pending OrderItems keep their `variantOptionId`.
     // We upsert by the DB-unique key (productId, variantName) and delete only removed options.
@@ -1282,65 +1371,83 @@ export const updateProduct = async (args: {
           sku: true,
         },
       });
-      const existingByName = new Map(existingVariantOptions.map((vo) => [vo.variantName, vo]));
 
-      await Promise.all(
-        payload.map((p) =>
-          (async () => {
-            const existing = existingByName.get(p.variantName);
-
-            // If this VariantOption has ever been ordered, block any identity mutation to preserve integrity.
-            const hasOrderHistory = existing
-              ? (await tx.orderItem.count({ where: { variantOptionId: existing.id } })) > 0
-              : false;
-
-            if (hasOrderHistory && existing) {
-              const nextAttrs = p.attributes ?? null;
-              const prevAttrs = existing.attributes ?? null;
-              const attrsChanged = JSON.stringify(prevAttrs) !== JSON.stringify(nextAttrs);
-              const skuChanged = (existing.sku ?? null) !== (p.sku ?? null);
-              if (attrsChanged || skuChanged) {
-                throw new Error(
-                  `This variant is used in past orders. Create a new variant to continue selling.`,
-                );
-              }
-            }
-
-            return tx.variantOption.upsert({
-              where: {
-                productId_variantName: {
-                  productId: updated.id,
-                  variantName: p.variantName,
-                },
-              },
-              update: {
-                ...p,
-              },
-              create: {
-                ...p,
-                productId: updated.id,
-              },
-            });
-          })(),
-        ),
+      const existingByName = new Map(
+        existingVariantOptions.map((vo) => [normalizeVariantName(vo.variantName), vo]),
+      );
+      const existingByAttrs = new Map(
+        existingVariantOptions.map((vo) => [stableStringifyAttributes(vo.attributes), vo]),
       );
 
-      // Guardrail: block deletion of VariantOptions referenced by orders.
+      // Upsert sequentially so we can recover from rare DB sequence drift safely.
+      for (const raw of payload) {
+        const normalizedName = normalizeVariantName(raw.variantName);
+        const attrsKey = stableStringifyAttributes(raw.attributes);
+        const matchedByAttrs = attrsKey ? existingByAttrs.get(attrsKey) ?? null : null;
+        const existing = matchedByAttrs || existingByName.get(normalizedName) || null;
+
+        // If we matched an existing option by attributes, keep its original name to prevent duplicates.
+        const p = existing ? { ...raw, variantName: normalizeVariantName(existing.variantName) } : { ...raw, variantName: normalizedName };
+
+        // If this VariantOption has ever been ordered, block any identity mutation to preserve integrity.
+        const hasOrderHistory = existing ? orderedOptionIds.has(existing.id) : false;
+
+        if (hasOrderHistory && existing) {
+          const nextAttrs = p.attributes ?? null;
+          const prevAttrs = existing.attributes ?? null;
+          const attrsChanged = JSON.stringify(prevAttrs) !== JSON.stringify(nextAttrs);
+          if (attrsChanged) {
+            throw new Error(`This variant is used in past orders. Create a new variant to continue selling.`);
+          }
+        }
+
+        const doUpsert = async () =>
+          tx.variantOption.upsert({
+            where: {
+              productId_variantName: {
+                productId: updated.id,
+                variantName: p.variantName,
+              },
+            },
+            update: { ...p },
+            create: { ...p, productId: updated.id },
+          });
+
+        try {
+          await doUpsert();
+        } catch (err) {
+          // If the VariantOption id sequence drifts behind max(id), Postgres can throw a unique violation on (id).
+          // Repair the sequence and retry once.
+          const msg = err instanceof Error ? err.message : String(err);
+          const isIdUniqueViolation =
+            msg.includes('Unique constraint failed') && (msg.includes('(`id`)') || msg.includes('fields: (`id`)'));
+          if (!isIdUniqueViolation) throw err;
+
+          await tx.$executeRaw`
+            SELECT setval(
+              pg_get_serial_sequence('"VariantOption"', 'id'),
+              COALESCE((SELECT MAX(id) FROM "VariantOption"), 1)
+            )
+          `;
+          await doUpsert();
+        }
+      }
+
+      // Guardrail: do not delete VariantOptions referenced by orders. Deactivate instead.
       const removed = await tx.variantOption.findMany({
         where: { productId: updated.id, variantName: { notIn: keepNames } },
         select: { id: true, variantName: true },
       });
 
-      const removableIds: number[] = [];
-      for (const vo of removed) {
-        const usedCount = await tx.orderItem.count({ where: { variantOptionId: vo.id } });
-        if (usedCount > 0) {
-          throw new Error(
-            `This variant is used in past orders. Create a new variant to continue selling.`,
-          );
-        } else {
-          removableIds.push(vo.id);
-        }
+      const deactivateIds = removed.filter((vo) => orderedOptionIds.has(vo.id)).map((vo) => vo.id);
+      const removableIds = removed.filter((vo) => !orderedOptionIds.has(vo.id)).map((vo) => vo.id);
+
+      // Options tied to past orders are deactivated (kept for history); the rest are deleted.
+      if (deactivateIds.length > 0) {
+        await tx.variantOption.updateMany({
+          where: { id: { in: deactivateIds } },
+          data: { isActive: false },
+        });
       }
 
       if (removableIds.length > 0) {

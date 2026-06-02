@@ -32,7 +32,9 @@ type MarketplaceOfferDiscountType = OfferForMarketplace['offerDiscountTypes'][nu
 
 const marketplaceProductInclude = {
   variants: true,
-  variantOptions: true,
+  // Only surface sellable variant options. Options tied to past orders that the distributor
+  // "removed" are deactivated (isActive=false) rather than deleted, and must not appear in the marketplace.
+  variantOptions: { where: { isActive: true } },
   user: {
     select: {
       firstName: true,

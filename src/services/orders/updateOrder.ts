@@ -730,14 +730,24 @@ export async function updateOrderHandler(request: NextRequest) {
               data: {
                 orderId: sanitizedData.orderId as string,
                 productId: item.productId as string,
+                variantOptionId: selectedVariant.id,
+                // Keep legacy field for backward compatibility when callers still send variantId.
+                variantId: itemWithVariant.variantId ?? null,
                 subtotal: consistentSubtotal,
                 productNameSnapshot: product.name,
                 productSkuSnapshot: product.sku,
                 productTypeSnapshot: product.productType,
+                productImageSnapshot: Array.isArray((product as { images?: string[] }).images)
+                  ? ((product as { images?: string[] }).images ?? [])[0] ?? null
+                  : null,
+                variantNameSnapshot: (selectedVariant as { variantName?: string }).variantName ?? null,
+                variantAttributesSnapshot: (selectedVariant as { attributes?: unknown }).attributes ?? undefined,
                 packageQuantity: (item as { packageQuantity?: number }).packageQuantity || 1,
                 packageType: (item as { packageType?: string }).packageType,
                 piecesPerPackage: (item as { piecesPerPackage?: number }).piecesPerPackage || 1,
                 pricePerPackage: (item as { pricePerPackage?: number }).pricePerPackage || consistentUnitPrice,
+                unitPriceSnapshot: consistentUnitPrice,
+                moqSnapshot: (selectedVariant as { moq?: number | null }).moq ?? null,
               },
             });
           },
