@@ -5,6 +5,9 @@ export async function resetDb() {
   await prisma.userActivity.deleteMany();
   await prisma.searchHistory.deleteMany();
   await prisma.address.deleteMany();
+  await prisma.marketplaceSearchQueryLog.deleteMany();
+  await prisma.marketplaceSearchTermMap.deleteMany();
+  await prisma.platformAdmin.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.variantOption.deleteMany();

@@ -60,4 +60,9 @@ For best reliability with DDL/migrations, prefer `TEST_DATABASE_URL` (non-pgboun
 
 - `mobile-orders.atomic-stock.test.ts`: concurrent checkouts must not oversell (atomic stock decrement).
 - `marketplace-cart.auth.test.ts`: cart mutations must enforce auth/ownership.
+- `marketplace-cart.crud.test.ts`: add/merge/update cart lines; hide unpublished products in cart fetch.
+- `product-variant-sync.test.ts`: `updateProduct` definition/option sync + marketplace active-variant filtering.
+- `marketplace-search-engine.test.ts`: search `engine` / `degraded` metadata, query logs, engine-status API.
+- `variant-option-usage.test.ts`: order-linked variant usage reporting.
+- `update-order.*.test.ts`: order edits and stock integrity.
 
