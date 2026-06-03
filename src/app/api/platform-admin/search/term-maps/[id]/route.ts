@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function normTerm(s: unknown): string {
   if (typeof s !== 'string') return '';
@@ -69,6 +70,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       },
     });
 
+    auditAdmin(req, {
+      action: 'search_term_map.update',
+      resourceType: 'MarketplaceSearchTermMap',
+      resourceId: String(id),
+      actorId: adminId,
+      metadata: { fields: Object.keys(patch) },
+    });
+
     return NextResponse.json(
       {
         row: {
@@ -102,6 +111,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400, headers });
 
     await prisma.marketplaceSearchTermMap.delete({ where: { id } });
+
+    auditAdmin(req, {
+      action: 'search_term_map.delete',
+      resourceType: 'MarketplaceSearchTermMap',
+      resourceId: String(id),
+      actorId: adminId,
+    });
+
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {

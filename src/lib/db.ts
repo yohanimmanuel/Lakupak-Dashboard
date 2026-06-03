@@ -70,7 +70,7 @@ export async function setDbSecurityContextFromRequest(
 /**
  * Get database security context from current async execution
  */
-function getDbSecurityContext(): DbSecurityContext | undefined {
+export function getDbSecurityContext(): DbSecurityContext | undefined {
   return dbSecurityContext.getStore()
 }
 

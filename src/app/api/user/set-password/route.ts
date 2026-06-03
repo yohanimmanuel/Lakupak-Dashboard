@@ -7,6 +7,7 @@ import {
 } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -93,6 +94,13 @@ export async function POST(req: NextRequest) {
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword }
+    });
+
+    auditAuth(req, {
+      action: 'password.set',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      success: true,
     });
     
     return NextResponse.json(

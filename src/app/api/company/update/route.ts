@@ -4,6 +4,7 @@ import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { broadcastProductUpdate, broadcastOrderUpdate } from '../../../../utils/websocketBroadcast';
 import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
+import { auditAccount } from '@/lib/audit';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -317,6 +318,28 @@ export async function PUT(req: NextRequest) {
       }
     }
     
+    const billingFieldsChanged =
+      billingBankName !== undefined ||
+      billingBankAccountName !== undefined ||
+      billingBankAccountNumber !== undefined ||
+      billingCompanyName !== undefined ||
+      billingAddressLine1 !== undefined ||
+      billingCity !== undefined ||
+      billingState !== undefined ||
+      billingPostalCode !== undefined ||
+      billingCountry !== undefined ||
+      billingContactPhone !== undefined ||
+      billingContactEmail !== undefined;
+
+    auditAccount(req, {
+      action: 'company.update',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'Company',
+      resourceId: String(companyIdParsed),
+      metadata: { fields: Object.keys(updateData), billingChanged: billingFieldsChanged },
+    });
+
     // Return sanitized company data
     const companyData = sanitizeCompanyData(updatedCompany);
     

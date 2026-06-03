@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { notifyMarketplacePublishedAnnouncement } from '@/utils/platformAnnouncementNotify';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function parseLimit(req: NextRequest): number {
   const { searchParams } = new URL(req.url);
@@ -125,6 +126,14 @@ export async function POST(req: NextRequest) {
         createdAt: announcementJson.createdAt,
       });
     }
+
+    auditAdmin(req, {
+      action: 'announcement.create',
+      resourceType: 'PlatformAnnouncement',
+      resourceId: String(created.id),
+      actorId: adminId,
+      metadata: { isPublished: created.isPublished, category: created.category },
+    });
 
     return NextResponse.json(
       {

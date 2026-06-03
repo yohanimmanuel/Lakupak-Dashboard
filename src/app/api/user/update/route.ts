@@ -7,6 +7,7 @@ import {
 } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
+import { auditAccount } from '@/lib/audit';
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -138,6 +139,15 @@ export async function PUT(req: NextRequest) {
       }
     });
     
+    auditAccount(req, {
+      action: 'profile.update',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'User',
+      resourceId: String(userId),
+      metadata: { fields: Object.keys(updateData), emailChanged: email !== undefined && email !== existingUser.email },
+    });
+
     // Return sanitized user data
     const userData = sanitizeUserData(updatedUser);
     

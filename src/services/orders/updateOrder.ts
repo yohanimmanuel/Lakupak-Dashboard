@@ -21,6 +21,7 @@ import {
 } from '@/utils/marketplacePushTranslations';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
+import { auditOrder } from '@/lib/audit';
 import { decimalToNumber, broadcastSoldCountUpdates, calculateTotalQuantityWithPromotions } from './utils';
 import { getUnitPriceFromVariantOption, selectVariantOption } from '@/domain/marketplace/orderItemRules';
 
@@ -30,15 +31,39 @@ export async function updateOrderHandler(request: NextRequest) {
   
   try {
     const body = await request.json();
-    
-    // Apply rate limiting for order updates: per-user when possible, otherwise per-IP.
-    const userIdForRateLimit =
-      body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null;
+
+    // Authenticate the caller (dashboard NextAuth session or JWT). Platform admins
+    // are resolved separately so they may act across tenants.
+    const { getAuthenticatedUserId } = await import('@/utils/auth-helpers');
+    const authenticatedUserId = await getAuthenticatedUserId(request);
+    let isPlatformAdmin = false;
+    try {
+      const { requirePlatformAdminId } = await import('@/utils/platform-admin-auth');
+      requirePlatformAdminId(request);
+      isPlatformAdmin = true;
+    } catch {
+      // Not a platform admin; fall back to user-scoped authorization.
+    }
+
+    // Apply rate limiting for order updates on the authenticated identity.
+    const userIdForRateLimit = authenticatedUserId ?? null;
     const rateLimitResponse = await orderUpdateRateLimiter(request, userIdForRateLimit);
     if (rateLimitResponse) {
       return rateLimitResponse;
     }
-    
+
+    if (!authenticatedUserId && !isPlatformAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+    }
+
+    // Never trust a client-supplied userId for ownership scoping. Non-admins are
+    // always constrained to their own account; platform admins may act cross-tenant.
+    if (!isPlatformAdmin && authenticatedUserId) {
+      body.userId = authenticatedUserId;
+    }
+    // Owner id every operation must be scoped to (null = unrestricted platform admin).
+    const ownerScopeUserId: number | null = isPlatformAdmin ? null : (authenticatedUserId ?? null);
+
     // Bulk archive support
     if (Array.isArray(body.archiveOrderIds) && body.archiveOrderIds.length > 0) {
       const baseWhere: Record<string, unknown> = {};
@@ -52,6 +77,12 @@ export async function updateOrderHandler(request: NextRequest) {
       } catch (error) {
         // Ignore broadcast errors
       }
+      auditOrder(request, {
+        action: 'archive',
+        actorId: userIdForRateLimit,
+        actorType: 'dashboard',
+        metadata: { bulk: true, count: updated.count },
+      });
       return NextResponse.json({ success: true, count: updated.count }, { headers });
     }
 
@@ -88,6 +119,12 @@ export async function updateOrderHandler(request: NextRequest) {
           // Ignore broadcast errors
         }
       }
+      auditOrder(request, {
+        action: 'archive',
+        resourceId: archiveBroadcastIds[0],
+        actorId: userIdForRateLimit,
+        actorType: 'dashboard',
+      });
       return NextResponse.json({ success: true }, { headers });
     }
 
@@ -124,6 +161,12 @@ export async function updateOrderHandler(request: NextRequest) {
           // Ignore broadcast errors
         }
       }
+      auditOrder(request, {
+        action: 'unarchive',
+        resourceId: unarchiveBroadcastIds[0],
+        actorId: userIdForRateLimit,
+        actorType: 'dashboard',
+      });
       return NextResponse.json({ success: true }, { headers });
     }
 
@@ -161,6 +204,14 @@ export async function updateOrderHandler(request: NextRequest) {
         const rr = await prisma.orderReturnRequest.update({
           where: { id },
           data: { status },
+        });
+
+        auditOrder(request, {
+          action: 'return_decision',
+          resourceId: rr.orderId,
+          actorId: body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null,
+          actorType: 'dashboard',
+          metadata: { returnRequestId: id, decision: status },
         });
 
         // Delegate order state change to the unified orderStatus flow below
@@ -224,6 +275,10 @@ export async function updateOrderHandler(request: NextRequest) {
 
       if (!existingOrder) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+      }
+
+      if (ownerScopeUserId != null && existingOrder.userId !== ownerScopeUserId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers });
       }
 
       // Check if order can be cancelled (only Pending or Confirmed orders)
@@ -340,6 +395,14 @@ export async function updateOrderHandler(request: NextRequest) {
           // Don't fail the cancellation if notification fails
         }
 
+        auditOrder(request, {
+          action: 'cancel',
+          resourceId: updatedOrder.orderId,
+          actorId: body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null,
+          actorType: 'dashboard',
+          metadata: { reasonCode, cancelledBy: updateData.cancelledBy },
+        });
+
         return NextResponse.json({ 
           success: true, 
           message: 'Order cancelled successfully',
@@ -440,6 +503,20 @@ export async function updateOrderHandler(request: NextRequest) {
 
     let previousPaymentStatus: string | null = null;
     let previousOrderStatus: string | null = null;
+
+    // Enforce ownership before mutating: non-admins may only update their own orders.
+    if (ownerScopeUserId != null && typeof sanitizedData.orderId === 'string') {
+      const ownershipRow = await prisma.order.findUnique({
+        where: { orderId: String(sanitizedData.orderId) },
+        select: { userId: true },
+      });
+      if (!ownershipRow) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+      }
+      if (ownershipRow.userId !== ownerScopeUserId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers });
+      }
+    }
 
     // Make status changes, stock adjustments, item replacement, and final update atomic.
     const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -993,7 +1070,29 @@ export async function updateOrderHandler(request: NextRequest) {
         // Ignore cache invalidation errors
       }
     }
-    
+
+    const orderStatusChanged =
+      previousOrderStatus !== null && previousOrderStatus !== order.orderStatus;
+    const paymentStatusChanged =
+      previousPaymentStatus !== null && previousPaymentStatus !== order.paymentStatus;
+    auditOrder(request, {
+      action: orderStatusChanged || paymentStatusChanged ? 'status_change' : 'update',
+      resourceId: order.orderId,
+      actorId:
+        typeof (sanitizedData as { userId?: unknown }).userId === 'number'
+          ? ((sanitizedData as { userId: number }).userId)
+          : userIdForRateLimit,
+      actorType: 'dashboard',
+      metadata: {
+        ...(orderStatusChanged
+          ? { fromStatus: previousOrderStatus, toStatus: order.orderStatus }
+          : {}),
+        ...(paymentStatusChanged
+          ? { fromPayment: previousPaymentStatus, toPayment: order.paymentStatus }
+          : {}),
+      },
+    });
+
     return NextResponse.json(orderResponse, { headers });
   } catch (error: unknown) {
     return NextResponse.json(

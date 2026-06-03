@@ -4,6 +4,7 @@ import { getSecurityHeaders, validateAuthInput } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { hash } from 'bcryptjs';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
         isActive: true,
       },
       select: { id: true, email: true, name: true, isActive: true, createdAt: true, updatedAt: true },
+    });
+
+    auditAdmin(req, {
+      action: 'admin.create',
+      resourceType: 'PlatformAdmin',
+      resourceId: String(created.id),
+      actorId: creatorId,
+      metadata: { email: normalizedEmail },
     });
 
     return NextResponse.json({ ok: true, admin: created }, { status: 201, headers });

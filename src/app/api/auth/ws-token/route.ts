@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    const token = signAccessToken({ sub: userId }, '1h');
+    const token = signAccessToken({ sub: userId, type: 'dashboard' }, '1h');
     return NextResponse.json({ token });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to issue token' }, { status: 500 });

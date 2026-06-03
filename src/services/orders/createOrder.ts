@@ -15,6 +15,7 @@ import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { orderCreationRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
+import { auditOrder } from '@/lib/audit';
 import { decimalToNumber } from './utils';
 
 export async function createOrderHandler(request: NextRequest) {
@@ -23,11 +24,27 @@ export async function createOrderHandler(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (body.userId && !isNaN(Number(body.userId))) {
-      const rateLimitResponse = await orderCreationRateLimiter(request, Number(body.userId));
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
+    // Authenticate the caller (dashboard NextAuth session or JWT). Platform admins
+    // may create orders on behalf of any distributor.
+    const { getAuthenticatedUserId } = await import('@/utils/auth-helpers');
+    const authenticatedUserId = await getAuthenticatedUserId(request);
+    let isPlatformAdmin = false;
+    try {
+      const { requirePlatformAdminId } = await import('@/utils/platform-admin-auth');
+      requirePlatformAdminId(request);
+      isPlatformAdmin = true;
+    } catch {
+      // Not a platform admin; fall back to user-scoped authorization.
+    }
+
+    // Rate limit on the authenticated identity (falls back to IP inside the limiter).
+    const rateLimitResponse = await orderCreationRateLimiter(request, authenticatedUserId ?? null);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!authenticatedUserId && !isPlatformAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
     }
 
     const validation = validateOrderInput(body);
@@ -114,6 +131,14 @@ export async function createOrderHandler(request: NextRequest) {
 
     if (!distributorUserId) {
       throw new Error('Failed to determine distributor userId - this should not happen');
+    }
+
+    // A distributor may only create orders for their own catalog. Platform admins are exempt.
+    if (!isPlatformAdmin && authenticatedUserId && distributorUserId !== authenticatedUserId) {
+      return NextResponse.json(
+        { error: 'Forbidden: cannot create orders for another distributor' },
+        { status: 403, headers }
+      );
     }
 
     let isFirstOrder = false;
@@ -466,6 +491,19 @@ export async function createOrderHandler(request: NextRequest) {
         // ignore
       }
     }
+
+    auditOrder(request, {
+      action: 'create',
+      resourceId: order.orderId,
+      actorId: authenticatedUserId ?? distributorUserId,
+      actorType: 'dashboard',
+      metadata: {
+        totalAmount: decimalToNumber(order.totalAmount),
+        itemCount: enrichedOrderItems.length,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+      },
+    });
 
     return NextResponse.json(orderResponse, { status: 201, headers });
   } catch (err) {

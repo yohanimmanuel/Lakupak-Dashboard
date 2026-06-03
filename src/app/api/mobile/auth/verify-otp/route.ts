@@ -6,6 +6,7 @@ import {
   getSecurityHeaders
 } from '../../../../../utils/auth-security';
 import { otpVerifyRateLimiter } from '@/utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 
 export async function POST(req: NextRequest) {
@@ -177,11 +178,22 @@ export async function POST(req: NextRequest) {
         }
       });
       
+      auditAuth(req, {
+        action: 'register',
+        actorType: 'marketplace',
+        actorId: user.id,
+        resourceType: 'MarketplaceUser',
+        resourceId: String(user.id),
+        success: true,
+        metadata: { scope: 'marketplace', via: 'otp' },
+      });
+
       // Generate JWT token
       const { signAccessToken } = await import('../../../../../lib/jwt');
-      const token = signAccessToken({ 
-        sub: user.id, 
-        phone: user.phone || undefined // Handle null phone case
+      const token = signAccessToken({
+        sub: user.id,
+        phone: user.phone || undefined,
+        type: 'marketplace',
       }, '30d');
       
       return NextResponse.json({
@@ -226,11 +238,20 @@ export async function POST(req: NextRequest) {
           { status: 403, headers }
         );
       }
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'marketplace',
+        actorId: existingUser.id,
+        success: true,
+        metadata: { scope: 'marketplace', via: 'otp' },
+      });
+
       // Generate JWT token
       const { signAccessToken } = await import('../../../../../lib/jwt');
-      const token = signAccessToken({ 
-        sub: existingUser.id, 
-        phone: existingUser.phone 
+      const token = signAccessToken({
+        sub: existingUser.id,
+        phone: existingUser.phone,
+        type: 'marketplace',
       }, '30d');
       
       return NextResponse.json({

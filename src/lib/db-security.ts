@@ -244,6 +244,12 @@ interface SanitizedAuditEntry {
   error?: string;
   retentionDays: number; // TTL metadata
   accessLevel: 'restricted'; // Access control metadata
+  // Curated business/security audit event fields (optional; set by recordAuditEvent)
+  category?: string; // e.g. 'orders' | 'admin' | 'auth' | 'account'
+  resourceType?: string; // e.g. 'Order'
+  resourceId?: string; // business identifier, e.g. 'LKO-...'
+  actorType?: string; // 'dashboard' | 'marketplace' | 'driver' | 'platform-admin' | 'system'
+  metadata?: Record<string, unknown>; // sanitized, non-PII context
 }
 
 /**
@@ -595,6 +601,127 @@ export function logDatabaseAccess(entry: Omit<DatabaseLogEntry, 'timestamp'>): v
  */
 export function getDatabaseLogs(limit: number = 100): DatabaseLogEntry[] {
   return dbLogStore.slice(-limit);
+}
+
+/**
+ * Actor categories for curated audit events.
+ */
+export type AuditActorType =
+  | 'dashboard'
+  | 'marketplace'
+  | 'driver'
+  | 'platform-admin'
+  | 'system';
+
+/**
+ * Input for a curated business/security audit event.
+ */
+export interface AuditEventInput {
+  action: string; // dotted action name, e.g. 'order.create'
+  category?: string; // logical domain, e.g. 'orders'
+  resourceType?: string; // e.g. 'Order'
+  resourceId?: string; // business identifier (not PII), e.g. 'LKO-...'
+  actorId?: number | null; // user id; pseudonymized before storage
+  actorType?: AuditActorType;
+  ip?: string; // raw IP; redacted before storage
+  success?: boolean; // defaults to true
+  error?: string;
+  retentionDays?: number; // optional override
+  metadata?: Record<string, unknown>; // sanitized, non-PII context
+}
+
+const MAX_AUDIT_METADATA_KEYS = 20;
+const MAX_AUDIT_STRING_LEN = 256;
+// Drop any metadata key that could carry secrets or sensitive PII.
+const SENSITIVE_METADATA_KEY = /pass|secret|token|authorization|cookie|otp|cvv|card|ssn|pin/i;
+
+/**
+ * Shallow-sanitize audit metadata: keep only primitive values, cap size,
+ * and drop keys that may contain secrets/PII.
+ */
+function sanitizeAuditMetadata(
+  metadata?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+  const out: Record<string, unknown> = {};
+  let count = 0;
+  for (const [key, value] of Object.entries(metadata)) {
+    if (count >= MAX_AUDIT_METADATA_KEYS) break;
+    if (SENSITIVE_METADATA_KEY.test(key)) continue;
+    if (value === null || value === undefined) continue;
+    const valueType = typeof value;
+    if (valueType === 'string') {
+      out[key] = (value as string).slice(0, MAX_AUDIT_STRING_LEN);
+    } else if (valueType === 'number' || valueType === 'boolean') {
+      out[key] = value;
+    } else {
+      continue; // skip objects/arrays/functions to keep entries small and safe
+    }
+    count++;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Record a curated business/security audit event (e.g. an order, admin, or auth action).
+ *
+ * Unlike `logDatabaseAccess` (which captures low-level Prisma operations and only
+ * forwards create/update/delete), these are intentional, high-value events and are
+ * ALWAYS forwarded to the configured audit service. PII is pseudonymized and sensitive
+ * metadata keys are dropped. This function is non-blocking and never throws.
+ */
+export function recordAuditEvent(event: AuditEventInput): void {
+  try {
+    const success = event.success !== false;
+    // Curated events are kept at least 60 days; deletes inherit the 90-day rule.
+    const retentionDays =
+      event.retentionDays ?? Math.max(60, getRetentionDays(event.action));
+
+    const entry: SanitizedAuditEntry = {
+      timestamp: new Date().toISOString(),
+      userIdHash: pseudonymizeUserId(event.actorId),
+      ipHash: pseudonymizeIp(event.ip),
+      operation: event.action,
+      table: event.resourceType,
+      success,
+      error: event.error,
+      retentionDays,
+      accessLevel: 'restricted',
+      category: event.category,
+      resourceType: event.resourceType,
+      resourceId: event.resourceId,
+      actorType: event.actorType,
+      metadata: sanitizeAuditMetadata(event.metadata),
+    };
+
+    // Keep a copy in the in-memory dev store for local inspection.
+    if (process.env.NODE_ENV === 'development') {
+      dbLogStore.push({
+        timestamp: new Date(),
+        userId: event.actorId,
+        ip: event.ip,
+        operation: event.action,
+        table: event.resourceType,
+        success,
+        error: event.error,
+      });
+      if (dbLogStore.length > MAX_LOG_ENTRIES) {
+        dbLogStore.shift();
+      }
+    }
+
+    // Always forward curated events (async, non-blocking).
+    sendToAuditService(entry).catch((err) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[AUDIT] Failed to send audit event to service:', err);
+      }
+    });
+  } catch (err) {
+    // Auditing must never break the request path.
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[AUDIT] recordAuditEvent failed:', err);
+    }
+  }
 }
 
 /**

@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { broadcastPlatformAdminInboxRefresh } from '@/utils/websocketBroadcast';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
+import { audit, AuditCategory } from '@/lib/audit';
 
 const REASON_CODES = new Set(['fraud', 'poor_service', 'quality', 'policy', 'other']);
 
@@ -114,6 +115,16 @@ export async function POST(request: NextRequest) {
 
     void broadcastPlatformAdminInboxRefresh().catch(() => {
       /* best-effort real-time refresh for platform admin bell */
+    });
+
+    audit(request, {
+      action: 'report.create',
+      category: AuditCategory.REPORTS,
+      actorType: 'marketplace',
+      actorId: reporterMarketplaceUserId,
+      resourceType: 'DistributorReport',
+      resourceId: String(report.id),
+      metadata: { reportedDashboardUserId, reasonCode },
     });
 
     return NextResponse.json(

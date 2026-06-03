@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { Prisma } from '@prisma/client';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 type Kind = 'SYNONYM' | 'TRANSLATION';
 
@@ -240,6 +241,13 @@ export async function POST(req: NextRequest) {
         results.push(row);
       }
       return results;
+    });
+
+    auditAdmin(req, {
+      action: 'search_term_map.create',
+      resourceType: 'MarketplaceSearchTermMap',
+      actorId: adminId,
+      metadata: { kind, fromTerm, rowCount: created.length },
     });
 
     return NextResponse.json(

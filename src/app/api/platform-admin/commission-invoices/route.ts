@@ -7,6 +7,7 @@ import { broadcastDashboardNotification } from '@/utils/websocketBroadcast';
 import { Prisma } from '@prisma/client';
 import { buildRawAttachmentUrl, uploadDocumentBuffer } from '@/lib/cloudinary';
 import path from 'path';
+import { auditAdmin } from '@/lib/audit';
 
 function parsePositiveInt(v: string | null): number | null {
   if (!v) return null;
@@ -357,6 +358,19 @@ export async function POST(req: NextRequest) {
         billingMonth: created.billingMonth.toISOString(),
       },
       actionUrl: '/settings',
+    });
+
+    auditAdmin(req, {
+      action: 'commission_invoice.create',
+      resourceType: 'CommissionInvoice',
+      resourceId: String(created.id),
+      actorId: adminId,
+      metadata: {
+        invoiceNo: created.invoiceNo,
+        companyId,
+        amount: created.amount.toString(),
+        currency: created.currency,
+      },
     });
 
     return NextResponse.json(

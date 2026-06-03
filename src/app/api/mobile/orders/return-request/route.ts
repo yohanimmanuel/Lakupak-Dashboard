@@ -7,6 +7,7 @@ import { getMarketplaceUserPushLanguage, sendExpoPushToMarketplaceUser } from '@
 import { translateMarketplaceReturnRequestSubmitted } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { marketplaceReturnRequestRateLimiter } from '@/utils/rateLimiter';
+import { auditOrder } from '@/lib/audit';
 
 const decimalToNumber = (value: unknown): number => {
   if (value === null || value === undefined) return 0;
@@ -172,6 +173,14 @@ export async function POST(request: NextRequest) {
     } catch {
       // Don't fail the return request if notification fails
     }
+
+    auditOrder(request, {
+      action: 'return_request',
+      resourceId: order.orderId,
+      actorId: marketplaceUserId,
+      actorType: 'marketplace',
+      metadata: { returnRequestId: created.id, reason },
+    });
 
     return NextResponse.json(
       {

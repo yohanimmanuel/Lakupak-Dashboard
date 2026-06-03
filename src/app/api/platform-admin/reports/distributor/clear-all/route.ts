@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 /**
  * POST /api/platform-admin/reports/distributor/clear-all
@@ -21,6 +22,14 @@ export async function POST(req: NextRequest) {
       where: { adminInboxDismissedAt: null },
       data: { adminInboxDismissedAt: now },
     });
+
+    auditAdmin(req, {
+      action: 'report.dismiss_all',
+      resourceType: 'DistributorReport',
+      actorId: adminId,
+      metadata: { dismissed: result.count },
+    });
+
     return NextResponse.json({ ok: true, dismissed: result.count }, { status: 200, headers });
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {

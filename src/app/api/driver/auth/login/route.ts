@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../../utils/auth-security';
 import { loginRateLimiter } from '../../../../../utils/rateLimiter';
 import jwt from 'jsonwebtoken';
+import { auditAuth } from '@/lib/audit';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -49,8 +50,23 @@ export async function POST(req: NextRequest) {
 
     const valid = await compare(password, driver.passwordHash);
     if (!valid) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'driver',
+        actorId: driver.id,
+        success: false,
+        metadata: { scope: 'driver', reason: 'bad_password' },
+      });
       return NextResponse.json({ error: 'Invalid username or password' }, { status: 401, headers });
     }
+
+    auditAuth(req, {
+      action: 'login',
+      actorType: 'driver',
+      actorId: driver.id,
+      success: true,
+      metadata: { scope: 'driver', distributorId: driver.userId },
+    });
 
     const token = jwt.sign(
       { sub: driver.id, type: 'driver', userId: driver.userId },

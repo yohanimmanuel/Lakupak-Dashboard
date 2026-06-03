@@ -8,6 +8,7 @@ import {
   contentTypeForProofUrl,
   paymentProofDownloadFilename,
 } from '@/utils/paymentProof';
+import { auditOrder } from '@/lib/audit';
 
 /**
  * GET /api/orders/payment-proof/download?orderId=LKO-...&index=0
@@ -88,6 +89,14 @@ export async function GET(req: NextRequest) {
         headers: { ...headers, 'content-type': 'application/json' },
       });
     }
+
+    auditOrder(req, {
+      action: 'payment_proof_download',
+      resourceId: order.orderId,
+      actorId: userId,
+      actorType: 'dashboard',
+      metadata: { index },
+    });
 
     return new Response(upstream.body, {
       status: 200,

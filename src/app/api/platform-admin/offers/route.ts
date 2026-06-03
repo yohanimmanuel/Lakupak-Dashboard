@@ -6,6 +6,7 @@ import { broadcastMarketplaceHomeOffersRefresh } from '@/utils/websocketBroadcas
 import { notifyMarketplacePublishedHomeOffer } from '@/utils/homeOfferNotify';
 import { normalizeOfferIconKey } from '@/utils/marketplaceHomeOfferIcons';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function parseLimit(req: NextRequest): number {
   const { searchParams } = new URL(req.url);
@@ -173,6 +174,14 @@ export async function POST(req: NextRequest) {
     };
 
     void broadcastMarketplaceHomeOffersRefresh();
+
+    auditAdmin(req, {
+      action: 'offer.create',
+      resourceType: 'MarketplaceHomeOffer',
+      resourceId: String(created.id),
+      actorId: adminId,
+      metadata: { isPublished: created.isPublished },
+    });
 
     return NextResponse.json({ ok: true, offer: offerJson }, { status: 201, headers });
   } catch (err) {

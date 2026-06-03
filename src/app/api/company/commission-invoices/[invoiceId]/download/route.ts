@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
 import { getSecurityHeaders } from '@/utils/auth-security';
+import { auditAccount } from '@/lib/audit';
 
 function monthLabelUTC(d: Date): string {
   const monthNames = [
@@ -115,6 +116,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ invoiceId: 
         headers: { ...headers, 'content-type': 'application/json' },
       });
     }
+
+    auditAccount(req, {
+      action: 'commission_invoice.download',
+      actorType: 'dashboard',
+      actorId: userId,
+      resourceType: 'CommissionInvoice',
+      resourceId: invoice.id,
+      metadata: { companyId: invoice.companyId },
+    });
 
     return new Response(upstream.body, {
       status: 200,

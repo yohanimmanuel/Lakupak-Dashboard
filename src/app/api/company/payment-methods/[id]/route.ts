@@ -15,6 +15,7 @@ import {
 } from '../paymentMethodRouteTypes';
 import { broadcastProductUpdatesForCompanyId } from '@/utils/broadcastCompanyProductUpdates';
 import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
+import { auditAccount } from '@/lib/audit';
 
 function serializePaymentMethod(row: CompanyPaymentMethod): CompanyPaymentMethodResponseJson {
   return {
@@ -169,6 +170,15 @@ export async function PATCH(
 
     await broadcastProductUpdatesForCompanyId(owned.companyId);
 
+    auditAccount(request, {
+      action: 'payment_method.update',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'CompanyPaymentMethod',
+      resourceId: methodId,
+      metadata: { companyId: owned.companyId, fields: Object.keys(data) },
+    });
+
     return NextResponse.json(serializePaymentMethod(updated), { status: 200, headers });
   } catch (e) {
     console.error('PATCH /api/company/payment-methods/[id] error:', e);
@@ -216,6 +226,15 @@ export async function DELETE(
     await prisma.companyPaymentMethod.delete({ where: { id: methodId } });
 
     await broadcastProductUpdatesForCompanyId(companyId);
+
+    auditAccount(request, {
+      action: 'payment_method.delete',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'CompanyPaymentMethod',
+      resourceId: methodId,
+      metadata: { companyId },
+    });
 
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch (e) {

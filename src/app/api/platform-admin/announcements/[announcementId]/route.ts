@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { notifyMarketplacePublishedAnnouncement, notifyMarketplaceUnpublishedAnnouncement } from '@/utils/platformAnnouncementNotify';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function getId(params: { announcementId?: string }) {
   const id = Number(params.announcementId);
@@ -87,6 +88,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ announcem
       void notifyMarketplaceUnpublishedAnnouncement(updated.id);
     }
 
+    auditAdmin(req, {
+      action: 'announcement.update',
+      resourceType: 'PlatformAnnouncement',
+      resourceId: String(id),
+      actorId: adminId,
+      metadata: { fields: Object.keys(data), isPublished: updated.isPublished },
+    });
+
     return NextResponse.json(
       {
         ok: true,
@@ -115,6 +124,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ announce
     if (!id) return NextResponse.json({ error: 'Invalid announcement id' }, { status: 400, headers });
 
     await prisma.platformAnnouncement.delete({ where: { id } });
+
+    auditAdmin(req, {
+      action: 'announcement.delete',
+      resourceType: 'PlatformAnnouncement',
+      resourceId: String(id),
+      actorId: adminId,
+    });
+
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {

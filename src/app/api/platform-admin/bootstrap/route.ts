@@ -5,6 +5,7 @@ import { hash } from 'bcryptjs';
 import { signPlatformAdminToken } from '@/lib/platform-admin-jwt';
 import { PLATFORM_ADMIN_COOKIE } from '@/utils/platform-admin-auth';
 import { getClientIp, rateLimit } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 /**
  * One-time bootstrap endpoint to create the FIRST PlatformAdmin.
@@ -77,6 +78,14 @@ export async function POST(req: NextRequest) {
       isActive: true,
     },
     select: { id: true, email: true, name: true, isActive: true, createdAt: true },
+  });
+
+  auditAdmin(req, {
+    action: 'admin.bootstrap',
+    resourceType: 'PlatformAdmin',
+    resourceId: String(created.id),
+    actorId: created.id,
+    metadata: { email: normalizedEmail },
   });
 
   // Auto-login after bootstrap so the user lands in /admin immediately.

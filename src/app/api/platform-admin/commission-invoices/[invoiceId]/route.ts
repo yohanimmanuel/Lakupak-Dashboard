@@ -6,6 +6,7 @@ import { broadcastDashboardNotification } from '@/utils/websocketBroadcast';
 import crypto from 'crypto';
 import { CommissionInvoiceStatus, Prisma } from '@prisma/client';
 import { buildRawAttachmentUrl, deleteDocument, uploadDocumentBuffer } from '@/lib/cloudinary';
+import { auditAdmin } from '@/lib/audit';
 
 const ALLOWED_STATUSES = new Set(['PENDING', 'PAID', 'OVERDUE', 'VOID']);
 const ALLOWED_MIME_TYPES = new Set([
@@ -146,7 +147,7 @@ async function notifyCompanyUsers(params: {
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ invoiceId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
     const { invoiceId } = await ctx.params;
     if (!invoiceId) return NextResponse.json({ error: 'Invalid invoiceId' }, { status: 400, headers });
 
@@ -279,6 +280,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ invoiceId
       });
     }
 
+    auditAdmin(req, {
+      action: 'commission_invoice.update',
+      resourceType: 'CommissionInvoice',
+      resourceId: updated.id,
+      actorId: adminId,
+      metadata: {
+        invoiceNo: updated.invoiceNo,
+        companyId: updated.companyId,
+        ...(nextStatus ? { fromStatus: before.status, toStatus: updated.status } : {}),
+      },
+    });
+
     return NextResponse.json(
       {
         invoice: {
@@ -318,7 +331,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ invoiceId
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ invoiceId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
     const { invoiceId } = await ctx.params;
     if (!invoiceId) return NextResponse.json({ error: 'Invalid invoiceId' }, { status: 400, headers });
 
@@ -347,6 +360,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ invoiceI
       message: `Commission invoice ${inv.invoiceNo} has been removed by an admin.`,
       metadata: { invoiceId: inv.id, invoiceNo: inv.invoiceNo, removed: true },
       actionUrl: '/settings',
+    });
+
+    auditAdmin(req, {
+      action: 'commission_invoice.delete',
+      resourceType: 'CommissionInvoice',
+      resourceId: inv.id,
+      actorId: adminId,
+      metadata: { invoiceNo: inv.invoiceNo, companyId: inv.companyId },
     });
 
     return NextResponse.json({ ok: true }, { status: 200, headers });

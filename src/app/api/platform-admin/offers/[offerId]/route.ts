@@ -10,6 +10,7 @@ import {
 } from '@/utils/homeOfferNotify';
 import { normalizeOfferIconKey } from '@/utils/marketplaceHomeOfferIcons';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function getId(params: { offerId?: string }) {
   const id = Number(params.offerId);
@@ -155,6 +156,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ offerId: 
       void notifyMarketplaceUnpublishedHomeOffer(id);
     }
 
+    auditAdmin(req, {
+      action: 'offer.update',
+      resourceType: 'MarketplaceHomeOffer',
+      resourceId: String(id),
+      actorId: adminId,
+      metadata: { fields: Object.keys(data), isPublished: nowPublished },
+    });
+
     return NextResponse.json({ ok: true, offer: offerJson }, { status: 200, headers });
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {
@@ -188,6 +197,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ offerId:
     if (existing?.isPublished) {
       void notifyMarketplaceUnpublishedHomeOffer(id);
     }
+
+    auditAdmin(req, {
+      action: 'offer.delete',
+      resourceType: 'MarketplaceHomeOffer',
+      resourceId: String(id),
+      actorId: adminId,
+    });
 
     return NextResponse.json({ ok: true }, { status: 200, headers });
   } catch (err) {

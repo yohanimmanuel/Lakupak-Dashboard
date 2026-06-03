@@ -6,6 +6,7 @@ import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { reverseOfferUsage } from '@/utils/offerValidation';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
+import { auditOrder } from '@/lib/audit';
 
 export async function deleteOrderHandler(request: NextRequest) {
   const headers = getOrderSecurityHeaders();
@@ -172,6 +173,13 @@ export async function deleteOrderHandler(request: NextRequest) {
         await invalidateDashboardCache(Number(body.userId));
       } catch {}
     }
+
+    auditOrder(request, {
+      action: 'delete',
+      resourceId: String(body.orderId),
+      actorId: requestingUserId,
+      actorType: 'dashboard',
+    });
 
     return NextResponse.json({ message: 'Order deleted successfully' }, { headers });
   } catch {

@@ -7,6 +7,7 @@ import {
 } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -102,6 +103,13 @@ export async function PUT(req: NextRequest) {
     // Verify current password
     const isCurrentPasswordValid = await compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
+      auditAuth(req, {
+        action: 'password.change',
+        actorType: 'dashboard',
+        actorId: authenticatedUserId,
+        success: false,
+        metadata: { reason: 'wrong_current_password' },
+      });
       return NextResponse.json(
         { error: 'Current password is incorrect' }, 
         { status: 401, headers }
@@ -115,6 +123,13 @@ export async function PUT(req: NextRequest) {
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedNewPassword }
+    });
+
+    auditAuth(req, {
+      action: 'password.change',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      success: true,
     });
     
     return NextResponse.json(

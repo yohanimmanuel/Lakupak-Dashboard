@@ -4,6 +4,7 @@ import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { validateAuthInput, getSecurityHeaders } from '@/utils/auth-security';
 import { passwordResetRateLimiter } from '@/utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 /**
  * POST /api/mobile/auth/reset-password
@@ -100,6 +101,14 @@ export async function POST(req: NextRequest) {
     });
     await prisma.marketplacePasswordResetToken.delete({
       where: { id: resetRecord.id },
+    });
+
+    auditAuth(req, {
+      action: 'password.reset',
+      actorType: 'marketplace',
+      actorId: user.id,
+      success: true,
+      metadata: { scope: 'marketplace' },
     });
 
     const successHeaders = {

@@ -8,6 +8,7 @@ import {
 } from '../../../../utils/auth-security';
 import { getRegionByCode } from '@/config/regionConfig';
 import { registerRateLimiter } from '../../../../utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 3 registrations per hour
@@ -197,6 +198,16 @@ export async function POST(req: NextRequest) {
     
     // Return sanitized user data
     const userData = sanitizeUserData(result);
+
+    auditAuth(req, {
+      action: 'register',
+      actorType: 'dashboard',
+      actorId: result.id,
+      resourceType: 'User',
+      resourceId: String(result.id),
+      success: true,
+      metadata: { scope: 'dashboard', companyId: result.companyId, region },
+    });
     
     return NextResponse.json(userData, { 
       status: 201, 

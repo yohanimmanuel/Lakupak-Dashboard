@@ -8,6 +8,7 @@ import { translateMarketplacePaymentIntentSubmitted } from '@/utils/marketplaceP
 import { marketplacePayIntentRateLimiter } from '@/utils/rateLimiter';
 import { sanitizePaymentProofFileNames, sanitizePaymentProofUrls } from '@/utils/paymentProof';
 import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
+import { auditOrder } from '@/lib/audit';
 
 /**
  * POST /api/mobile/orders/[id]/pay-intent
@@ -193,6 +194,14 @@ export async function POST(
     } catch {
       // ignore
     }
+
+    auditOrder(request, {
+      action: isUpdate ? 'pay_intent_update' : 'pay_intent',
+      resourceId: order.orderId,
+      actorId: marketplaceUserId,
+      actorType: 'marketplace',
+      metadata: { proofCount: proofUrls.length, bankTransfer: isBankTransfer },
+    });
 
     return NextResponse.json({ ok: true, updated: isUpdate }, { status: 200, headers });
   } catch (error) {

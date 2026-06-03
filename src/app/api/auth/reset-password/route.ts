@@ -6,6 +6,7 @@ import {
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
 import { passwordResetRateLimiter } from '../../../../utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
     await prisma.user.update({ 
       where: { email: normalizedEmail }, 
       data: { password: hashedPassword } 
+    });
+
+    auditAuth(req, {
+      action: 'password.reset',
+      actorType: 'dashboard',
+      actorId: user.id,
+      success: true,
+      metadata: { scope: 'dashboard' },
     });
     
     return NextResponse.json(

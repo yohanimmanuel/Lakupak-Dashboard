@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
+import { auditAdmin } from '@/lib/audit';
 
 function monthLabelUTC(d: Date): string {
   const monthNames = [
@@ -61,7 +62,7 @@ function assertCloudinaryUrl(url: string): boolean {
 export async function GET(req: NextRequest, ctx: { params: Promise<{ invoiceId: string }> }) {
   const headers = getSecurityHeaders();
   try {
-    requirePlatformAdminId(req);
+    const adminId = requirePlatformAdminId(req);
 
     const { invoiceId } = await ctx.params;
     if (!invoiceId) {
@@ -101,6 +102,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ invoiceId: 
         headers: { ...headers, 'content-type': 'application/json' },
       });
     }
+
+    auditAdmin(req, {
+      action: 'commission_invoice.download',
+      resourceType: 'CommissionInvoice',
+      resourceId: invoice.id,
+      actorId: adminId,
+      metadata: { companyId: invoice.companyId },
+    });
 
     return new Response(upstream.body, {
       status: 200,

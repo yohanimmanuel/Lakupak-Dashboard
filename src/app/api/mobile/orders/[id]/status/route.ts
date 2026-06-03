@@ -8,6 +8,7 @@ import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import { translateMarketplaceBuyerOrderStatus } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditOrder } from '@/lib/audit';
 
 const decimalToNumber = (value: unknown): number => {
   if (value === null || value === undefined) return 0;
@@ -162,6 +163,14 @@ export async function PUT(
     } catch {
       // Don't fail the status update if notification fails
     }
+
+    auditOrder(request, {
+      action: 'status_change',
+      resourceId: order.orderId,
+      actorId: marketplaceUserId,
+      actorType: 'marketplace',
+      metadata: { fromStatus: order.orderStatus, toStatus: 'Received' },
+    });
 
     return NextResponse.json(
       { message: 'Order marked as received successfully!' },

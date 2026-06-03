@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { Prisma } from '@prisma/client';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 function parseId(params: { id?: string }) {
   const n = Number(params.id);
@@ -48,6 +49,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       }
       throw err;
     }
+
+    auditAdmin(req, {
+      action: isSuspended ? 'user.suspend' : 'user.unsuspend',
+      resourceType: 'User',
+      resourceId: String(id),
+      actorId: adminId,
+      metadata: { accountType: 'dashboard', ...(reason ? { reason } : {}) },
+    });
 
     return NextResponse.json({ user: updated }, { status: 200, headers });
   } catch (err) {

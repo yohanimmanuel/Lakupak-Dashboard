@@ -15,6 +15,7 @@ import {
 } from './paymentMethodRouteTypes';
 import { broadcastProductUpdatesForCompanyId } from '@/utils/broadcastCompanyProductUpdates';
 import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
+import { auditAccount } from '@/lib/audit';
 
 function serializePaymentMethod(row: CompanyPaymentMethod): CompanyPaymentMethodResponseJson {
   return {
@@ -209,6 +210,15 @@ export async function POST(request: NextRequest) {
       console.error('Failed to broadcast product updates:', broadcastErr);
       // Non-critical: payment method was created successfully
     }
+
+    auditAccount(request, {
+      action: 'payment_method.create',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'CompanyPaymentMethod',
+      resourceId: String(created.id),
+      metadata: { companyId, kind, isDefault },
+    });
 
     return NextResponse.json(serializePaymentMethod(created), { status: 201, headers });
   } catch (e) {

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ adminId: string }> }) {
   const headers = getSecurityHeaders();
@@ -35,6 +36,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ adminId: 
       where: { id },
       data: { isActive },
       select: { id: true, email: true, name: true, isActive: true, createdAt: true, updatedAt: true },
+    });
+
+    auditAdmin(req, {
+      action: isActive ? 'admin.activate' : 'admin.deactivate',
+      resourceType: 'PlatformAdmin',
+      resourceId: String(id),
+      actorId: actorId,
     });
 
     return NextResponse.json({ ok: true, admin: updated }, { status: 200, headers });

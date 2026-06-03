@@ -22,6 +22,17 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
+import { auditCatalog } from '@/lib/audit';
+
+/** Best-effort extraction of a product business identifier from a resolver result. */
+function extractProductId(result: unknown): string | undefined {
+  if (result && typeof result === 'object') {
+    const r = result as { productId?: unknown; id?: unknown };
+    if (typeof r.productId === 'string') return r.productId;
+    if (typeof r.id === 'number' || typeof r.id === 'string') return String(r.id);
+  }
+  return undefined;
+}
 
 // ============================================================================ //
 // TYPE DEFS
@@ -2072,18 +2083,68 @@ export const productsResolvers = {
       fetchMarketplaceProductsConnection(args),
   },
   Mutation: {
-    createProduct: (_: unknown, args: Parameters<typeof createProduct>[0]) => createProduct(args),
-    updateProduct: (_: unknown, args: Parameters<typeof updateProduct>[0]) => updateProduct(args),
-    deleteProduct: (_: unknown, args: Parameters<typeof deleteProduct>[0]) => deleteProduct(args),
+    createProduct: async (_: unknown, args: Parameters<typeof createProduct>[0]) => {
+      const result = await createProduct(args);
+      auditCatalog({
+        action: 'product.create',
+        actorId: args.userId,
+        resourceType: 'Product',
+        resourceId: extractProductId(result) ?? args.productId ?? undefined,
+        metadata: { name: args.name, status: args.status ?? undefined },
+      });
+      return result;
+    },
+    updateProduct: async (_: unknown, args: Parameters<typeof updateProduct>[0]) => {
+      const result = await updateProduct(args);
+      auditCatalog({
+        action: 'product.update',
+        actorId: args.userId,
+        resourceType: 'Product',
+        resourceId: extractProductId(result) ?? args.id ?? undefined,
+      });
+      return result;
+    },
+    deleteProduct: async (_: unknown, args: Parameters<typeof deleteProduct>[0]) => {
+      const result = await deleteProduct(args);
+      auditCatalog({
+        action: 'product.delete',
+        actorId: args.userId,
+        resourceType: 'Product',
+        resourceId: args.id,
+      });
+      return result;
+    },
     resetOriginalPrices: (_: unknown, args: { userId: number }) => resetOriginalPrices(args.userId),
     applyOffersToAllProducts: (_: unknown, args: { userId: number }) => applyOffersToAllProducts(args.userId),
     forceUpdatePrices: (_: unknown, args: { userId: number }) => forceUpdatePrices(args.userId),
     resetProductPrices: (_: unknown, args: { userId: number; productId: string }) =>
       resetProductPrices(args.userId, args.productId),
-    publishMarketplaceProduct: (_: unknown, args: Parameters<typeof publishMarketplaceProduct>[0]) =>
-      publishMarketplaceProduct(args),
-    bulkPublishMarketplaceProducts: (_: unknown, args: Parameters<typeof bulkPublishMarketplaceProducts>[0]) =>
-      bulkPublishMarketplaceProducts(args),
+    publishMarketplaceProduct: async (_: unknown, args: Parameters<typeof publishMarketplaceProduct>[0]) => {
+      const result = await publishMarketplaceProduct(args);
+      auditCatalog({
+        action: 'product.publish',
+        actorId: args.userId,
+        resourceType: 'Product',
+        resourceId: args.productId,
+        metadata: { marketplaceAction: args.action },
+      });
+      return result;
+    },
+    bulkPublishMarketplaceProducts: async (_: unknown, args: Parameters<typeof bulkPublishMarketplaceProducts>[0]) => {
+      const result = await bulkPublishMarketplaceProducts(args);
+      auditCatalog({
+        action: 'product.bulk_publish',
+        actorId: args.userId,
+        resourceType: 'Product',
+        metadata: {
+          marketplaceAction: args.action,
+          requested: Array.isArray(args.productIds) ? args.productIds.length : 0,
+          succeeded: result?.successful?.length ?? 0,
+          failed: result?.failed?.length ?? 0,
+        },
+      });
+      return result;
+    },
   },
 };
 

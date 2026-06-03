@@ -6,6 +6,7 @@ import {
   getSecurityHeaders
 } from '../../../../../utils/auth-security';
 import { loginRateLimiter } from '../../../../../utils/rateLimiter';
+import { auditAuth } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 5 attempts per 15 minutes
@@ -87,6 +88,13 @@ export async function POST(req: NextRequest) {
     
     const valid = await compare(password, user.password);
     if (!valid) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'marketplace',
+        actorId: user.id,
+        success: false,
+        metadata: { scope: 'marketplace', reason: 'bad_password' },
+      });
       return NextResponse.json(
         { error: 'Invalid username or password' }, 
         { status: 401, headers }
@@ -95,17 +103,33 @@ export async function POST(req: NextRequest) {
 
     // Only reveal suspension status after successful authentication (avoid user enumeration).
     if (user.isSuspended) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'marketplace',
+        actorId: user.id,
+        success: false,
+        metadata: { scope: 'marketplace', reason: 'suspended' },
+      });
       return NextResponse.json(
         { error: 'ACCOUNT_SUSPENDED', message: 'Your account has been suspended.' },
         { status: 403, headers }
       );
     }
+
+    auditAuth(req, {
+      action: 'login',
+      actorType: 'marketplace',
+      actorId: user.id,
+      success: true,
+      metadata: { scope: 'marketplace' },
+    });
     
     // Generate JWT token
     const { signAccessToken } = await import('../../../../../lib/jwt');
-    const token = signAccessToken({ 
-      sub: user.id, 
-      phone: user.phone 
+    const token = signAccessToken({
+      sub: user.id,
+      phone: user.phone,
+      type: 'marketplace',
     }, '30d');
     
     return NextResponse.json({

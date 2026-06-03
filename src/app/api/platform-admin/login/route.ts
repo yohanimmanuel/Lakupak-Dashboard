@@ -5,6 +5,7 @@ import { getSecurityHeaders, validateAuthInput } from '@/utils/auth-security';
 import { loginRateLimiter } from '@/utils/rateLimiter';
 import { signPlatformAdminToken } from '@/lib/platform-admin-jwt';
 import { PLATFORM_ADMIN_COOKIE } from '@/utils/platform-admin-auth';
+import { auditAuth } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   const rateLimitResponse = await loginRateLimiter(req);
@@ -30,13 +31,34 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = String(email).trim().toLowerCase();
     const admin = await prisma.platformAdmin.findUnique({ where: { email: normalizedEmail } });
     if (!admin || !admin.isActive) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'platform-admin',
+        success: false,
+        metadata: { scope: 'platform-admin', email: normalizedEmail, reason: 'invalid_or_inactive' },
+      });
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401, headers });
     }
 
     const valid = await compare(password, admin.passwordHash);
     if (!valid) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'platform-admin',
+        actorId: admin.id,
+        success: false,
+        metadata: { scope: 'platform-admin', email: normalizedEmail, reason: 'bad_password' },
+      });
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401, headers });
     }
+
+    auditAuth(req, {
+      action: 'login',
+      actorType: 'platform-admin',
+      actorId: admin.id,
+      success: true,
+      metadata: { scope: 'platform-admin' },
+    });
 
     const token = signPlatformAdminToken({ sub: admin.id }, '30d');
     const res = NextResponse.json(

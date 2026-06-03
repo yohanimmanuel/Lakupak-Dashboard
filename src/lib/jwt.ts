@@ -10,9 +10,14 @@ function getJwtSecret(): Secret {
   return secret;
 }
 
+/** Identifies which account namespace `sub` refers to. */
+export type JwtPrincipalType = 'dashboard' | 'marketplace' | 'driver'
+
 export type AppJwtPayload = {
   sub: number
   phone?: string
+  /** Omitted on legacy tokens; callers must fall back to a DB existence check. */
+  type?: JwtPrincipalType
 }
 
 export function signAccessToken(payload: AppJwtPayload, expiresIn: string = '30d'): string {
@@ -29,10 +34,17 @@ export function verifyAccessToken(token: string): AppJwtPayload {
     throw new Error('Invalid token payload')
   }
   const subValue = typeof decoded.sub === 'string' ? Number(decoded.sub) : (decoded.sub as number | undefined)
-  if (typeof subValue !== 'number' || Number.isNaN(subValue)) {
+  if (typeof subValue !== 'number' || Number.isNaN(subValue) || !Number.isInteger(subValue) || subValue <= 0) {
     throw new Error('Invalid token subject')
   }
-  return { sub: subValue, phone: (decoded as { phone?: string }).phone }
+
+  const rawType = (decoded as { type?: unknown }).type
+  let type: JwtPrincipalType | undefined
+  if (rawType === 'dashboard' || rawType === 'marketplace' || rawType === 'driver') {
+    type = rawType
+  }
+
+  return { sub: subValue, phone: (decoded as { phone?: string }).phone, type }
 }
 
 

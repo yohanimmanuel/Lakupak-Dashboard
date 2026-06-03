@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditAdmin } from '@/lib/audit';
 
 /**
  * DELETE /api/platform-admin/reports/distributor/[reportId]
@@ -26,6 +27,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ reportId
     await prisma.distributorReport.update({
       where: { id },
       data: { adminInboxDismissedAt: now },
+    });
+
+    auditAdmin(req, {
+      action: 'report.dismiss',
+      resourceType: 'DistributorReport',
+      resourceId: String(id),
+      actorId: adminId,
     });
 
     return NextResponse.json({ ok: true, id }, { status: 200, headers });

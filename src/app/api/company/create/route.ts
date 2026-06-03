@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders, sanitizeCompanyData } from '../../../../utils/auth-security';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
 import { settingsOperationRateLimiter } from '@/utils/rateLimiter';
+import { auditAccount } from '@/lib/audit';
 
 class ConflictError extends Error {
   readonly status = 409;
@@ -119,6 +120,14 @@ export async function POST(req: NextRequest) {
       
       return company;
     });    
+    auditAccount(req, {
+      action: 'company.create',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      resourceType: 'Company',
+      resourceId: String(newCompany.id),
+    });
+
     // Return sanitized company data
     const companyData = sanitizeCompanyData(newCompany);
     

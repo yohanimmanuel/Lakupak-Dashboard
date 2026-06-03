@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { driverMutationRateLimiter } from '@/utils/rateLimiter';
+import { auditOrder } from '@/lib/audit';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -261,6 +262,18 @@ export async function PATCH(
     } catch {
       // ignore marketplace notification failures
     }
+
+    auditOrder(req, {
+      action: 'status_change',
+      resourceId: updated.orderId,
+      actorId: payload.sub,
+      actorType: 'driver',
+      metadata: {
+        fromStatus: currentStatus,
+        toStatus: orderStatus,
+        ...(failureReason ? { failureReason } : {}),
+      },
+    });
 
     return NextResponse.json({ success: true, orderStatus: updated.orderStatus }, { status: 200, headers });
   } catch (error) {

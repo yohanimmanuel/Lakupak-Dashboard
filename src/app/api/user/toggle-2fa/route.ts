@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import { settingsOperationRateLimiter } from '../../../../utils/rateLimiter';
 import { getAuthenticatedUserId } from '../../../../utils/auth-helpers';
+import { auditAuth } from '@/lib/audit';
 
 export async function PUT(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -75,6 +76,13 @@ export async function PUT(req: NextRequest) {
     // In a real implementation, you would update the user's 2FA settings here
     // using authenticatedUserId: await prisma.user.update({ where: { id: authenticatedUserId }, ... })
     
+    auditAuth(req, {
+      action: enabled ? '2fa.enable' : '2fa.disable',
+      actorType: 'dashboard',
+      actorId: authenticatedUserId,
+      success: true,
+    });
+
     return NextResponse.json(
       { 
         message: `2FA ${enabled ? 'enabled' : 'disabled'} successfully`,
