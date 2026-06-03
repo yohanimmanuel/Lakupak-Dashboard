@@ -1812,9 +1812,9 @@ export default function ProductCatalog({
           {currentMode === 'view' && currentProductStatus === 'Published' && (
             <div className="flex items-center justify-end gap-3">
               <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
-                <Info className="w-4 h-4 text-orange-600" />
+                <Info className="w-4 h-4 text-orange-600 mt-0.5" />
                 <span className="text-sm text-orange-700 font-medium">
-                  To edit, you need to unpublish this product in the marketplace.
+                  To edit, you need to unpublish this product first.
                 </span>
               </div>
             </div>
