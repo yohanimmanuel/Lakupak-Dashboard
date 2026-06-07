@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     const { signAccessToken } = await import('../../../../../lib/jwt');
     const token = signAccessToken({
       sub: user.id,
-      phone: user.phone,
+      phone: user.phone || undefined,
       type: 'marketplace',
     }, '30d');
     
