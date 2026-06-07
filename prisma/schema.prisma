@@ -276,7 +276,7 @@ model MarketplaceUser {
   email          String?        @unique
   password       String?
   bio            String?
-  phone          String         @unique
+  phone          String?        @unique
   country        String?
   isSuspended    Boolean        @default(false)
   suspendedAt    DateTime?

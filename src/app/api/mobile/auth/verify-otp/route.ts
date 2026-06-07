@@ -138,26 +138,25 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Check if phone already exists (skip check for dummy phone numbers used to skip verification)
+      // Check if phone already exists (skip dummy placeholders used to skip verification)
       const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
       const isDummyPhone = phoneWithPlus === '+0000000000' || phoneWithPlus === '+1234567890';
-      
-      let finalPhone = phoneWithPlus;
-      
-      if (isDummyPhone) {
-        // Generate a unique dummy phone number for users who skip verification
-        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
-        finalPhone = `+1000000${timestamp}`; // Use +1000000XXXXXX format for dummy phones
-      } else {
-        // Check if real phone number already exists
-        const existingUserByPhone = await prisma.marketplaceUser.findUnique({ 
-          where: { phone: phoneWithPlus } 
+
+      let finalPhone: string | null = null;
+      let finalCountry: string | null = null;
+
+      if (!isDummyPhone) {
+        finalPhone = phoneWithPlus;
+        finalCountry = countryCode || null;
+
+        const existingUserByPhone = await prisma.marketplaceUser.findUnique({
+          where: { phone: phoneWithPlus },
         });
-        
+
         if (existingUserByPhone) {
           return NextResponse.json(
-            { error: 'Phone number is already registered. Please log in or use a different phone number.' }, 
-            { status: 409, headers }
+            { error: 'Phone number is already registered. Please log in or use a different phone number.' },
+            { status: 409, headers },
           );
         }
       }
@@ -173,8 +172,8 @@ export async function POST(req: NextRequest) {
           password: hashedPassword,
           storeName: storeName?.trim() || null,
           bio: bio?.trim() || null,
-          phone: finalPhone, // Use the final phone (real or generated dummy)
-          country: isDummyPhone ? null : countryCode // Set country to null for dummy phones
+          phone: finalPhone,
+          country: finalCountry
         }
       });
       

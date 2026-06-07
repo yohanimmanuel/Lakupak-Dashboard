@@ -6,7 +6,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     storeName: String
     email: String
     bio: String
-    phone: String!
+    phone: String
     image: String
     bannerImage: String
     chosenAddress: String
