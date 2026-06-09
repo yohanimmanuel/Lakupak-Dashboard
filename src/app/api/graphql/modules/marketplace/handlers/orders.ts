@@ -96,6 +96,8 @@ export const fetchMobileOrders = async (args: {
       } : null
     }));
     
+    const distributorUser = order.user;
+
     return {
       ...order,
       orderDate: order.orderDate?.toISOString() ?? '',
@@ -104,6 +106,22 @@ export const fetchMobileOrders = async (args: {
       preferredDeliveryDate: order.preferredDeliveryDate?.toISOString() ?? null,
       preferredPickupDate: order.preferredPickupDate?.toISOString() ?? null,
       acceptedAt: order.acceptedAt?.toISOString() ?? null,
+      seller: distributorUser
+        ? {
+            name:
+              [distributorUser.firstName, distributorUser.lastName]
+                .filter(Boolean)
+                .join(' ')
+                .trim() || null,
+            companyName: distributorUser.company?.name ?? null,
+            companyAddress: distributorUser.company?.businessAddress ?? null,
+            companyPhone: distributorUser.company?.businessPhone ?? null,
+            companyEmail: distributorUser.company?.businessEmail ?? null,
+            shippingPreferences: distributorUser.company?.shippingPreferences ?? null,
+            logo: distributorUser.company?.logo ?? null,
+            bannerImage: distributorUser.company?.bannerImage ?? null,
+          }
+        : null,
       orderItems: orderItems,
       returnRequests: (order.returnRequests ?? []).map((rr: { id: number; orderId: string; marketplaceUserId: number; reason: string; reasonDetail: string | null; imageUrls: string[]; status: string; createdAt: Date; updatedAt: Date }) => ({
         id: rr.id,
