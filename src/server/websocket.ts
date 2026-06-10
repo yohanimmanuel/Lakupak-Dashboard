@@ -15,6 +15,7 @@ if (require.main === module) {
 }
 
 // Import jwt AFTER loading environment variables
+import { validateDashboardEnv } from '../lib/validateEnv';
 import { verifyAccessToken } from '../lib/jwt';
 import { verifyPlatformAdminToken } from '../lib/platform-admin-jwt';
 import { 
@@ -459,6 +460,7 @@ export const wsServer = new MarketplaceWebSocketServer();
 
 // Start server if running directly
 if (require.main === module) {
+  validateDashboardEnv();
   const port = parseInt(process.env.WS_PORT || '3001', 10);
   wsServer.start(port);
   
