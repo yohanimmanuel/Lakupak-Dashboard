@@ -38,6 +38,10 @@ jobs:
   integration:
     name: Integration tests + health smoke
     runs-on: ubuntu-latest
+    # Tests use in-memory fallbacks when Redis is unset; workflow-level REDIS_URL is only
+    # required as a string for validate:env in the check job (no TCP connectivity check).
+    env:
+      REDIS_URL: ''
     services:
       postgres:
         image: postgres:16-alpine
