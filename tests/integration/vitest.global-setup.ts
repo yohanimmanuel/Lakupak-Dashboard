@@ -7,6 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default async function globalSetup() {
+  if (!process.env.JWT_SECRET) {
+    process.env.JWT_SECRET = 'vitest-integration-jwt-secret-min-16-chars';
+  }
+  if (!process.env.AUTH_SECRET) {
+    process.env.AUTH_SECRET = 'vitest-integration-auth-secret-min-16-chars';
+  }
+
   const { dbName, baseUrl, databaseUrl } = await createTestDb();
 
   // Make schema information available to teardown and tests (via env).

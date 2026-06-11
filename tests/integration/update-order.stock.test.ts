@@ -1,17 +1,7 @@
 import { describe, beforeEach, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
-import { NextRequest } from 'next/server';
-import { resetDb } from './helpers';
+import { makeAuthenticatedDashboardPutRequest, resetDb } from './helpers';
 import { updateOrderHandler } from '@/services/orders/updateOrder';
-
-function makeNextRequest(url: string, body: unknown) {
-  const req = new Request(url, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': '127.0.0.1' },
-    body: JSON.stringify(body),
-  });
-  return new NextRequest(req);
-}
 
 describe('orders update - stock deduct/restore', () => {
   beforeEach(async () => {
@@ -120,11 +110,11 @@ describe('orders update - stock deduct/restore', () => {
     });
 
     const res = await updateOrderHandler(
-      makeNextRequest('http://localhost/api/orders', {
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
         orderId,
         userId: distributor.id,
         orderStatus: 'Confirmed',
-      }),
+      }, distributor.id),
     );
 
     expect(res.status).toBe(200);
@@ -237,11 +227,11 @@ describe('orders update - stock deduct/restore', () => {
     expect(before?.stockQuantity).toBe(10);
 
     const res = await updateOrderHandler(
-      makeNextRequest('http://localhost/api/orders', {
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
         orderId,
         userId: distributor.id,
         orderStatus: 'Delivered',
-      }),
+      }, distributor.id),
     );
 
     expect(res.status).toBe(200);
@@ -351,11 +341,11 @@ describe('orders update - stock deduct/restore', () => {
     });
 
     const res = await updateOrderHandler(
-      makeNextRequest('http://localhost/api/orders', {
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
         orderId,
         userId: distributor.id,
         orderStatus: 'Cancelled',
-      }),
+      }, distributor.id),
     );
 
     expect(res.status).toBe(200);
