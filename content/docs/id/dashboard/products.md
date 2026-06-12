@@ -80,11 +80,23 @@ Field: **Product ID** (otomatis `LKP-`), **SKU Number**, **Brand**, **Type**, **
 
 - **Upload Images:** drag and drop, hingga **10** gambar
 - **Product Settings:** Product Type, **Product Category (by Channel)**, **Catalog Name**
-- **Product Variants:** tipe dan opsi varian, tabel **SKU**, harga jual/beli, **MOQ**, **Stock Qty**, **Low Threshold**, status per baris
-- **Quick Action: Apply To All**
+- **Product Variants:** tentukan tipe dan opsi varian (mis. Ukuran: S, M, L)
+- **Variation Lists:** tabel setiap kombinasi dengan **SKU**, harga jual/beli, **MOQ**, **Stock Qty**, **Low Threshold**, dan status per baris
+- **Quick Action: Apply To All** menyalin SKU, harga, MOQ, dan stok ke semua baris
 - **Product Stock Summary:** total pieces, threshold, status keseluruhan
 
-Varian dan harga bisa **terkunci** jika produk punya penawaran aktif. Ubah/hapus varian yang dipakai pesanan lama diblokir dengan modal penjelasan.
+#### Menyiapkan varian dengan benar
+
+Ikuti urutan ini saat membuat atau mengedit produk:
+
+1. Tentukan semua **tipe dan opsi varian** di **Product Variants** terlebih dahulu.
+2. Klik **Refresh** di **Variation Lists** agar baris tabel dibuat ulang dari varian tersebut.
+3. Isi **SKU**, harga, **MOQ**, dan stok untuk setiap baris.
+4. Klik **Save Draft** atau **Save and Publish** hanya setelah tabel lengkap dan sesuai varian Anda.
+
+> **Penting:** Setelah menambah, menghapus, atau mengganti nama tipe/opsi varian, klik **Refresh** lagi sebelum menyimpan atau mempublikasikan. Jika langkah ini dilewati, tabel varian bisa tidak sinkron dan **Save** atau **Publish** bisa gagal meskipun form terlihat sudah lengkap.
+
+Varian dan harga bisa **terkunci** jika produk punya penawaran aktif. Ubah/hapus varian yang dipakai pesanan lama diblokir dengan modal penjelasan; buat opsi baru untuk melindungi riwayat pesanan.
 
 ### Simpan, draf, dan unpublish
 

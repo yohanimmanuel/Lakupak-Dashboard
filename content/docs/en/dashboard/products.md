@@ -80,11 +80,23 @@ Fields include **Product ID** (auto `LKP-`), **SKU Number**, **Brand**, **Type**
 
 - **Upload Images:** drag and drop, up to **10** images (JPG, PNG, GIF, max 5MB each)
 - **Product Settings:** Product Type, **Product Category (by Channel)**, **Catalog Name**
-- **Product Variants:** variant types and options, variation table with **SKU**, **Selling Price**, **Purchase Price**, **MOQ**, **Stock Qty**, **Low Threshold**, per-row status (**In Stock**, **Low Stock**, **Out of Stock**)
-- **Quick Action: Apply To All** copies values across rows
+- **Product Variants:** define variant types and options (e.g. Size: S, M, L)
+- **Variation Lists:** table of every combination with **SKU**, **Selling Price**, **Purchase Price**, **MOQ**, **Stock Qty**, **Low Threshold**, and per-row status (**In Stock**, **Low Stock**, **Out of Stock**)
+- **Quick Action: Apply To All** copies SKU, prices, MOQ, and stock values across all rows
 - **Product Stock Summary:** total pieces, threshold, overall status
 
-Variants and prices may be **locked** when the product has an active offer. Renaming or deleting variants used in past orders is blocked with an explanatory modal.
+#### Setting up variants correctly
+
+Follow this order when creating or editing a product:
+
+1. Define all **variant types and options** in **Product Variants** first.
+2. Click **Refresh** in **Variation Lists** to rebuild the table rows from those variants.
+3. Fill **SKU**, prices, **MOQ**, and stock for each row.
+4. Click **Save Draft** or **Save and Publish** only when the table is complete and matches your variants.
+
+> **Important:** After you add, remove, or rename any variant type or option, click **Refresh** again before saving or publishing. If you skip this step, the variation table can be out of sync and **Save** or **Publish** may fail with an error even when the form looks complete.
+
+Variants and prices may be **locked** when the product has an active offer. Renaming or deleting variants used in past orders is blocked with an explanatory modal; create new options instead to protect order history.
 
 ### Save, draft, and unpublish
 

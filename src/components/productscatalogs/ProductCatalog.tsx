@@ -2636,11 +2636,28 @@ export default function ProductCatalog({
                     <span
                       id="product-variants-info-tooltip"
                       role="tooltip"
-                      className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[380px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-5 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                     >
-                      <span className="block text-xs font-medium">
-                        Define a <span className="font-semibold">clear and complete</span> variant structure first. Avoid frequent changes unless required, because editing variants can impact existing variant lists and order integrity. <span className="font-semibold"> Refresh </span> the variation table after adding/removing variants to apply changes.
+                      <span className="block text-xs font-semibold text-gray-900 mb-1.5">
+                        Set up variants in this order
                       </span>
+                      <ol className="list-decimal list-inside space-y-1 text-xs text-gray-700">
+                        <li>
+                          Define all <span className="font-semibold">variant types and options</span> first (e.g. Size: S, M, L).
+                        </li>
+                        <li>
+                          Click <span className="font-semibold">Refresh</span> in Variation Lists to rebuild the table rows.
+                        </li>
+                        <li>
+                          Fill SKU, prices, MOQ, and stock for each row, then <span className="font-semibold">Save or Publish</span>.
+                        </li>
+                      </ol>
+                      <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                        After you add, remove, or rename any variant or option, click <span className="font-semibold">Refresh</span> again before saving or publishing. Skipping this step often causes save/publish errors because the table is out of sync.
+                      </p>
+                      <p className="mt-2 text-[11px] text-gray-500">
+                        Avoid renaming or deleting variants used in past orders. Please create new options instead to protect order history.
+                      </p>
                     </span>
                   </span>
                 </h2>
@@ -2825,11 +2842,20 @@ export default function ProductCatalog({
                       <span
                         id="variation-lists-info-tooltip"
                         role="tooltip"
-                        className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[320px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                        className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[380px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-5 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                       >
-                        <span className="block text-xs font-medium">
-                          Fill this table carefully. If you need to change variants later, create new variants instead of renaming/deleting ones that were used in past orders.
+                        <span className="block text-xs font-semibold text-gray-900 mb-1.5">
+                          Before you save or publish
                         </span>
+                        <p className="text-xs text-gray-700">
+                          This table must match your Product Variants above. Whenever you change variant types or options, click <span className="font-semibold">Refresh</span> first so every combination is recorded correctly.
+                        </p>
+                        <p className="mt-2 text-xs text-gray-700">
+                          Then complete <span className="font-semibold">SKU, selling price, purchase price, MOQ, and stock</span> for each row. Do not save or publish while rows are missing or outdated as that can block product creation.
+                        </p>
+                        <p className="mt-2 text-[11px] text-gray-500">
+                          For variants already used in orders, add new options instead of renaming or deleting existing ones.
+                        </p>
                       </span>
                     </span>
                   </h2>
