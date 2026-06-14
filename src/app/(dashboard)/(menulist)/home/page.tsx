@@ -364,6 +364,7 @@ const ORDER_STATUS_VALUES: Order['orderStatus'][] = [
   'Packed',
   'Shipped',
   'Delivered',
+  'Received',
   'Failed',
   'Cancelled',
   'Returned',

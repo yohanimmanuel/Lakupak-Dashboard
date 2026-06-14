@@ -4,7 +4,7 @@ export interface Order {
   orderId: string;
   buyerId: string;
   orderDate: Date;
-  orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Received' | 'Cancelled' | 'Returned';
+  orderStatus: 'Pending' | 'Confirmed' | 'Packed' | 'Shipped' | 'Delivered' | 'Received' | 'Failed' | 'Cancelled' | 'Returned';
   paymentStatus: 'Unpaid' | 'Paid';
   deliveryMethod: 'Self Pickup' | 'Seller/Distributor Delivery' | 'Buyer-arranged Courier';
   deliveryOption?: string | null;
