@@ -59,6 +59,7 @@ interface OperationalMetrics {
   trackingCoverageRate: number;
   lowStockPieces: number;
   stockoutRate: number;
+  stockHealthScore: number;
   activeProducts: number;
   dataCompletenessScore: number;
 }
@@ -96,6 +97,72 @@ interface QualityMetric {
   value: number;
   target: number;
   status: 'good' | 'warning' | 'critical';
+}
+
+/** Accepted = any status beyond Pending (Confirmed, Packed, Shipped, Delivered, Cancelled, Failed, etc.). */
+function isOrderAcceptedForQuality(status: string): boolean {
+  return status !== 'Pending';
+}
+
+function getProductStockTotals(product: Product, useVariantOptions: boolean) {
+  const variants = useVariantOptions ? product.variantOptions : product.variants;
+  const totalStock = variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+  const totalLowStockThreshold =
+    variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
+  return { totalStock, totalLowStockThreshold };
+}
+
+function isProductStockout(totals: { totalStock: number }): boolean {
+  return totals.totalStock === 0;
+}
+
+function isProductLowStock(totals: { totalStock: number; totalLowStockThreshold: number }): boolean {
+  return totals.totalLowStockThreshold > 0 && totals.totalStock > 0 && totals.totalStock <= totals.totalLowStockThreshold;
+}
+
+/** Healthy products = neither out of stock nor at/below low-stock threshold. */
+function computeStockHealthScore(products: Product[], useVariantOptions: boolean): number {
+  const totalProducts = products.length;
+  if (totalProducts === 0) return 0;
+  const healthyCount = products.filter((product) => {
+    const totals = getProductStockTotals(product, useVariantOptions);
+    return !isProductStockout(totals) && !isProductLowStock(totals);
+  }).length;
+  return (healthyCount / totalProducts) * 100;
+}
+
+function countLowStockProducts(products: Product[], useVariantOptions: boolean): number {
+  return products.filter((product) => isProductLowStock(getProductStockTotals(product, useVariantOptions))).length;
+}
+
+function countOrdersWithTracking(orders: Order[]): number {
+  return orders.filter((order) => Boolean(order.trackingNumber?.trim())).length;
+}
+
+/** Share of orders that have tracking #, assigned logistics, and POD/confirmation filled. */
+function computeDataCompletenessScore(orders: Order[]): number {
+  const totalOrders = orders.length;
+  if (totalOrders === 0) return 0;
+  const ordersWithTracking = countOrdersWithTracking(orders);
+  const ordersWithLogistics = orders.filter((order) => Boolean(order.assignedLogistics?.trim())).length;
+  const ordersWithPOD = orders.filter(
+    (order) => Boolean(order.pod?.trim()) || Boolean(order.deliveryConfirmation?.trim()),
+  ).length;
+  const actualDataPoints = ordersWithTracking + ordersWithLogistics + ordersWithPOD;
+  const maxDataPoints = totalOrders * 3;
+  return maxDataPoints > 0 ? (actualDataPoints / maxDataPoints) * 100 : 0;
+}
+
+function computeStockoutRate(products: Product[], useVariantOptions: boolean): number {
+  const totalProducts = products.length;
+  if (totalProducts === 0) return 0;
+  const stockoutPieces = products.filter((product) => {
+    const variants = useVariantOptions ? product.variantOptions : product.variants;
+    const totalStock =
+      variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
+    return totalStock === 0;
+  }).length;
+  return (stockoutPieces / totalProducts) * 100;
 }
 
 const OPERATIONAL_ANALYTICS_QUERY = `
@@ -234,6 +301,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         trackingCoverageRate: 0,
         lowStockPieces: 0,
         stockoutRate: 0,
+        stockHealthScore: 0,
         activeProducts: 0,
         dataCompletenessScore: 0
       };
@@ -247,12 +315,12 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       order.orderStatus === 'Pending' || order.orderStatus === 'Confirmed'
     ).length;
     
-    // Order acceptance rate (orders with acceptedBy field)
-    const acceptedOrders = orders.filter(order => order.acceptedBy).length;
+    // Order acceptance rate: any status beyond Pending (Confirmed, Packed, Shipped, Delivered, etc.)
+    const acceptedOrders = orders.filter((order) => isOrderAcceptedForQuality(order.orderStatus)).length;
     const orderAcceptanceRate = totalOrders > 0 ? (acceptedOrders / totalOrders) * 100 : 0;
-    
-    // Tracking coverage rate (orders with tracking number)
-    const ordersWithTracking = orders.filter(order => order.trackingNumber).length;
+
+    // Tracking coverage: orders with a tracking number
+    const ordersWithTracking = countOrdersWithTracking(orders);
     const trackingCoverageRate = totalOrders > 0 ? (ordersWithTracking / totalOrders) * 100 : 0;
     
     // Processing time calculation (acceptedAt - orderDate)
@@ -271,31 +339,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
 
     // Inventory metrics
     const totalProducts = products.length;
-    const lowStockPieces = products.filter(product => {
-      const variantOptionsStock = product.variantOptions?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const totalStock = variantOptionsStock;
-      
-      const variantOptionsThreshold = product.variantOptions?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-      const totalLowStockThreshold = variantOptionsThreshold;
-      
-      return totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
-    }).length;
-    const stockoutPieces = products.filter(product => {
-      const variantOptionsStock = product.variantOptions?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-      const totalStock = variantOptionsStock;
-      return totalStock === 0;
-    }).length;
-    const stockoutRate = totalProducts > 0 ? (stockoutPieces / totalProducts) * 100 : 0;
-    
-    // Data completeness score
-    const ordersWithLogistics = orders.filter(order => order.assignedLogistics).length;
-    const ordersWithPOD = orders.filter(order => 
-      order.pod || order.deliveryConfirmation
-    ).length;
-    const dataPoints = [ordersWithTracking, ordersWithLogistics, ordersWithPOD];
-    const maxDataPoints = totalOrders * 3; // 3 data points per order
-    const actualDataPoints = dataPoints.reduce((sum, count) => sum + count, 0);
-    const dataCompletenessScore = maxDataPoints > 0 ? (actualDataPoints / maxDataPoints) * 100 : 0;
+    const lowStockPieces = countLowStockProducts(products, true);
+    const stockoutRate = computeStockoutRate(products, true);
+    const stockHealthScore = computeStockHealthScore(products, true);
+
+    const dataCompletenessScore = computeDataCompletenessScore(orders);
 
     return {
       totalOrders,
@@ -308,6 +356,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       trackingCoverageRate,
       lowStockPieces,
       stockoutRate,
+      stockHealthScore,
       activeProducts: totalProducts,
       dataCompletenessScore
     };
@@ -469,9 +518,9 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       },
       {
         metric: 'Stock Health',
-        value: 100 - calculateMetrics.stockoutRate,
+        value: calculateMetrics.stockHealthScore,
         target: 95,
-        status: getStatus(100 - calculateMetrics.stockoutRate, 95)
+        status: getStatus(calculateMetrics.stockHealthScore, 95)
       }
     ];
   }, [calculateMetrics]);
@@ -529,7 +578,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
         />
         <MetricCard
           title="Stock Health"
-          value={`${(100 - calculateMetrics.stockoutRate).toFixed(1)}%`}
+          value={`${calculateMetrics.stockHealthScore.toFixed(1)}%`}
           icon={<Package className="w-6 h-6 text-orange-500" />}
           color="bg-[#fff7ed]"
         />
@@ -1207,6 +1256,7 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
       trackingCoverageRate: 0,
       lowStockPieces: 0,
       stockoutRate: 0,
+      stockHealthScore: 0,
       activeProducts: products?.length || 0,
       dataCompletenessScore: 0
     };
@@ -1215,9 +1265,9 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
   const totalOrders = orders.length;
   const completedOrders = orders.filter(o => o.orderStatus === 'Delivered' || o.orderStatus === 'Shipped').length;
   const pendingOrders = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Confirmed').length;
-  const acceptedOrders = orders.filter(o => o.acceptedBy).length;
+  const acceptedOrders = orders.filter((o) => isOrderAcceptedForQuality(o.orderStatus)).length;
   const orderAcceptanceRate = totalOrders > 0 ? (acceptedOrders / totalOrders) * 100 : 0;
-  const ordersWithTracking = orders.filter(o => o.trackingNumber).length;
+  const ordersWithTracking = countOrdersWithTracking(orders);
   const trackingCoverageRate = totalOrders > 0 ? (ordersWithTracking / totalOrders) * 100 : 0;
   const withProc = orders.filter(o => o.acceptedAt && o.orderDate);
   const totalProc = withProc.reduce((sum, o) => {
@@ -1227,21 +1277,10 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
   }, 0);
   const averageProcessingTime = withProc.length > 0 ? totalProc / withProc.length : 0;
   const totalProducts = products?.length || 0;
-    const lowStockPieces = (products || []).filter(p => {
-    const totalStock = p.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    const totalLowStockThreshold = p.variants?.reduce((sum, variant) => sum + (variant.lowStockThreshold || 0), 0) || 0;
-    return totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold;
-  }).length;
-  const stockoutPieces = (products || []).filter(p => {
-    const totalStock = p.variants?.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0) || 0;
-    return totalStock === 0;
-  }).length;
-  const stockoutRate = totalProducts > 0 ? (stockoutPieces / totalProducts) * 100 : 0;
-  const ordersWithLogistics = orders.filter(o => o.assignedLogistics).length;
-  const ordersWithPOD = orders.filter(o => o.pod || o.deliveryConfirmation).length;
-  const dataPoints = [ordersWithTracking, ordersWithLogistics, ordersWithPOD];
-  const maxData = totalOrders * 3;
-  const dataCompletenessScore = maxData > 0 ? (dataPoints.reduce((a, b) => a + b, 0) / maxData) * 100 : 0;
+  const lowStockPieces = countLowStockProducts(products || [], false);
+  const stockoutRate = computeStockoutRate(products || [], false);
+  const stockHealthScore = computeStockHealthScore(products || [], false);
+  const dataCompletenessScore = computeDataCompletenessScore(orders);
 
   return {
     totalOrders,
@@ -1254,6 +1293,7 @@ export const computeOperationalMetrics = (orders: Order[], products: Product[]):
     trackingCoverageRate,
     lowStockPieces,
     stockoutRate,
+    stockHealthScore,
     activeProducts: totalProducts,
     dataCompletenessScore
   };
