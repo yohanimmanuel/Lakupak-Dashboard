@@ -326,12 +326,9 @@ export default function FinancialAnalyticsPage() {
       }
     });
 
-    const isPaid = (o: ExportOrder) => o.paymentStatus === 'Paid';
-
-    // Revenue: all orders (matches dashboard Total Sales). Profit & margin: paid orders only.
+    // Order volume and profit: all orders (recorded when buyer places order)
     let totalRevenue = 0;
     let totalProfit = 0;
-    let totalPaidRevenue = 0;
     const uniqueBuyers = new Set<string>();
 
     orders.forEach(order => {
@@ -354,20 +351,16 @@ export default function FinancialAnalyticsPage() {
       }
 
       const orderProfit = orderRevenue - orderCogs;
-      if (isPaid(order)) {
-        totalProfit += orderProfit;
-        totalPaidRevenue += orderRevenue;
-      }
+      totalProfit += orderProfit;
     });
 
     const totalBuyers = uniqueBuyers.size;
     const totalSuppliers = 0;
 
-    const profitMargin = totalPaidRevenue > 0 ? (totalProfit / totalPaidRevenue) * 100 : 0;
+    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     const monthlyAll: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
-    const monthlyPaid: { [key: string]: { revenue: number; profit: number; orders: number } } = {};
     orders.forEach(order => {
       const orderDate = new Date(order.orderDate);
       const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
@@ -393,46 +386,29 @@ export default function FinancialAnalyticsPage() {
       const orderProfit = orderRevenue - orderCogs;
       monthlyAll[monthKey].revenue += orderRevenue;
       monthlyAll[monthKey].profit += orderProfit;
-
-      if (isPaid(order)) {
-        const paidAtRaw = order.paidAt;
-        const paidAtString = typeof paidAtRaw === 'string' ? paidAtRaw.trim() : null;
-        const parsedPaidAt = paidAtString ? new Date(paidAtString) : paidAtRaw ? new Date(paidAtRaw) : null;
-        const paidDate = parsedPaidAt && !Number.isNaN(parsedPaidAt.getTime()) ? parsedPaidAt : orderDate;
-        const paidMonthKey = `${paidDate.getFullYear()}-${String(paidDate.getMonth() + 1).padStart(2, '0')}`;
-        if (!monthlyPaid[paidMonthKey]) monthlyPaid[paidMonthKey] = { revenue: 0, profit: 0, orders: 0 };
-        monthlyPaid[paidMonthKey].orders += 1;
-        monthlyPaid[paidMonthKey].revenue += orderRevenue;
-        monthlyPaid[paidMonthKey].profit += orderProfit;
-      }
     });
 
     const monthlyEntriesAll = Object.entries(monthlyAll)
       .map(([key, data]) => ({ key, ...data }))
       .sort((a, b) => a.key.localeCompare(b.key));
-    const monthlyEntriesPaid = Object.entries(monthlyPaid)
-      .map(([key, data]) => ({ key, ...data }))
-      .sort((a, b) => a.key.localeCompare(b.key));
 
     const lastAll = monthlyEntriesAll[monthlyEntriesAll.length - 1];
     const prevAll = monthlyEntriesAll[monthlyEntriesAll.length - 2];
-    const lastPaid = monthlyEntriesPaid[monthlyEntriesPaid.length - 1];
-    const prevPaid = monthlyEntriesPaid[monthlyEntriesPaid.length - 2];
 
     const revenueGrowth =
       lastAll && prevAll && prevAll.revenue > 0
         ? ((lastAll.revenue - prevAll.revenue) / prevAll.revenue) * 100
         : null;
     const profitGrowth =
-      lastPaid && prevPaid && prevPaid.profit > 0
-        ? ((lastPaid.profit - prevPaid.profit) / prevPaid.profit) * 100
+      lastAll && prevAll && prevAll.profit > 0
+        ? ((lastAll.profit - prevAll.profit) / prevAll.profit) * 100
         : null;
 
-    const lastMarginExport = lastPaid && lastPaid.revenue > 0 ? (lastPaid.profit / lastPaid.revenue) * 100 : 0;
-    const prevMarginExport = prevPaid && prevPaid.revenue > 0 ? (prevPaid.profit / prevPaid.revenue) * 100 : 0;
+    const lastMarginExport = lastAll && lastAll.revenue > 0 ? (lastAll.profit / lastAll.revenue) * 100 : 0;
+    const prevMarginExport = prevAll && prevAll.revenue > 0 ? (prevAll.profit / prevAll.revenue) * 100 : 0;
     const marginGrowth =
-      lastPaid &&
-      prevPaid &&
+      lastAll &&
+      prevAll &&
       prevMarginExport !== 0
         ? ((lastMarginExport - prevMarginExport) / Math.abs(prevMarginExport)) * 100
         : null;
@@ -446,7 +422,7 @@ export default function FinancialAnalyticsPage() {
         ? ((lastAovExport - prevAovExport) / Math.abs(prevAovExport)) * 100
         : null;
 
-    const monthlyData = monthlyPaid;
+    const monthlyData = monthlyAll;
 
     // Calculate category data
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
@@ -485,7 +461,7 @@ export default function FinancialAnalyticsPage() {
       }
     });
 
-    const productStats: { [key: string]: { revenue: number; sales: number; unitsSold: number; category: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { orderVolume: number; unitsSold: number; category: string; name: string; profit: number } } = {};
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
@@ -496,8 +472,7 @@ export default function FinancialAnalyticsPage() {
             
             if (!productStats[item.productId]) {
               productStats[item.productId] = {
-                revenue: 0,
-                sales: 0,
+                orderVolume: 0,
                 unitsSold: 0,
                 category: product.productType || 'Uncategorized',
                 name: product.name,
@@ -511,22 +486,16 @@ export default function FinancialAnalyticsPage() {
               const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
               const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
-              productStats[item.productId].sales += itemRevenue;
-              if (isPaid(order)) {
-                productStats[item.productId].revenue += itemRevenue;
-                productStats[item.productId].profit += itemProfit;
-              }
+              productStats[item.productId].orderVolume += itemRevenue;
+              productStats[item.productId].profit += itemProfit;
             } else {
               const piecesPerPackage = item.piecesPerPackage || 1;
               const packageQuantity = item.packageQuantity || 1;
               const revenue = (item.pricePerPackage || 0) * packageQuantity;
               const fallbackMargin = 30;
               const profit = revenue * (fallbackMargin / 100);
-              productStats[item.productId].sales += revenue;
-              if (isPaid(order)) {
-                productStats[item.productId].revenue += revenue;
-                productStats[item.productId].profit += profit;
-              }
+              productStats[item.productId].orderVolume += revenue;
+              productStats[item.productId].profit += profit;
             }
             
             const piecesPerPackage = item.piecesPerPackage || 1;
@@ -539,19 +508,18 @@ export default function FinancialAnalyticsPage() {
 
     const topProducts = Object.entries(productStats)
       .map(([productId, stats]) => {
-        const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+        const margin = stats.orderVolume > 0 ? (stats.profit / stats.orderVolume) * 100 : 0;
         return {
           name: stats.name,
           productType: stats.category,
-          revenue: stats.revenue,
-          sales: stats.sales,
+          orderVolume: stats.orderVolume,
           profit: stats.profit,
           margin,
           unitsSold: stats.unitsSold,
           productId
         };
       })
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.orderVolume - a.orderVolume)
       .slice(0, 10);
 
     // Create HTML content that can be opened in Word
@@ -595,7 +563,7 @@ export default function FinancialAnalyticsPage() {
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-value">$${totalRevenue.toLocaleString()}</div>
-                <div class="metric-label">Total Revenue</div>
+                <div class="metric-label">Order Volume</div>
                 <div class="metric-change">${
                   revenueGrowth == null
                     ? 'N/A vs last month'
@@ -636,14 +604,14 @@ export default function FinancialAnalyticsPage() {
     <div class="section">
         <h2>Revenue Trend & Category Analysis</h2>
         
-        <h3>Revenue Trend — paid orders (Last 6 Months)</h3>
+        <h3>Revenue Trend — Last 6 Months</h3>
         <table>
             <thead>
                 <tr>
                     <th>Month</th>
-                    <th>Revenue (paid)</th>
-                    <th>Profit/Loss (paid)</th>
-                    <th>Orders (paid)</th>
+                    <th>Order Volume</th>
+                    <th>Profit</th>
+                    <th>Orders</th>
                     <th>Growth Rate</th>
                 </tr>
             </thead>
@@ -724,14 +692,14 @@ export default function FinancialAnalyticsPage() {
             <thead>
                 <tr>
                     <th>Units Sold</th>
-                    <th>Total Revenue</th>
+                    <th>Order Volume</th>
                     <th>Total Profit</th>
                     <th>Order Conversion Rate</th>
                 </tr>
             </thead>
             <tbody>
                 ${(() => {
-                  const totalProductRevenue = topProducts.reduce((sum, product) => sum + product.revenue, 0);
+                  const totalProductOrderVolume = topProducts.reduce((sum, product) => sum + product.orderVolume, 0);
                   const totalUnitsSold = topProducts.reduce((sum, product) => sum + product.unitsSold, 0);
                   const totalProfit = topProducts.reduce((sum, product) => sum + product.profit, 0);
                   
@@ -743,7 +711,7 @@ export default function FinancialAnalyticsPage() {
                   return `
                     <tr>
                       <td>${totalUnitsSold}</td>
-                      <td>$${totalProductRevenue.toLocaleString()}</td>
+                      <td>$${totalProductOrderVolume.toLocaleString()}</td>
                       <td>$${totalProfit.toLocaleString()}</td>
                       <td>${conversionRate.toFixed(1)}%</td>
                     </tr>
@@ -752,15 +720,14 @@ export default function FinancialAnalyticsPage() {
             </tbody>
         </table>
 
-        <h3>Top 5 Performing Products by Revenue</h3>
+        <h3>Top 5 Performing Products by Order Volume</h3>
         <table>
             <thead>
                 <tr>
                     <th>Rank</th>
                     <th>Product Name</th>
                     <th>Category</th>
-                    <th>Sales</th>
-                    <th>Revenue</th>
+                    <th>Order Volume</th>
                     <th>Units Sold</th>
                     <th>Profit Margin</th>
                     <th>Conversion Rate</th>
@@ -787,8 +754,7 @@ export default function FinancialAnalyticsPage() {
                       <td>${index + 1}</td>
                       <td>${product.name}</td>
                       <td>${product.productType}</td>
-                      <td>$${product.sales.toLocaleString()}</td>
-                      <td>$${product.revenue.toLocaleString()}</td>
+                      <td>$${product.orderVolume.toLocaleString()}</td>
                       <td>${product.unitsSold}</td>
                       <td>${product.margin.toFixed(1)}%</td>
                       <td>${conversionRate.toFixed(1)}%</td>

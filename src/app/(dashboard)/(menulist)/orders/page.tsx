@@ -209,17 +209,13 @@ export default function OrdersPage() {
         {/* Orders Content — keep mounted while loading so product-tour anchors exist */}
         {!error && (
           <>
-            {/* Orders GPS and Cards Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-              {/* GPS Map - Left Side */}
-              <div className="lg:col-span-2" data-tour="orders-map">
-                <OrdersGPS orders={orders} />
-              </div>
-              
-              {/* Stat Cards - Right Side */}
-              <div data-tour="orders-cards">
-                <OrdersCards orders={orders} />
-              </div>
+            {/* Stat cards above full-width map */}
+            <div className="mb-3" data-tour="orders-cards">
+              <OrdersCards orders={orders} />
+            </div>
+
+            <div className="mb-3 w-full" data-tour="orders-map">
+              <OrdersGPS orders={orders} />
             </div>
 
             {/* Orders Table Section */}

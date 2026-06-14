@@ -43,17 +43,10 @@ import { Product, ProductVariant } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { forecastRevenue } from '@/utils/forecasting';
 import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils';
+import Image from 'next/image';
+import Link from 'next/link';
 
-/** True when order payment is recorded as received (profit / paid revenue metrics use this). */
-export function isOrderPaid(order: Pick<Order, 'paymentStatus'>): boolean {
-  return order.paymentStatus === 'Paid';
-}
-
-function getPaidAtDate(order: Pick<Order, 'paidAt' | 'orderDate'>): Date {
-  const paidAt = order.paidAt ? new Date(order.paidAt) : null;
-  if (paidAt && !Number.isNaN(paidAt.getTime())) {
-    return paidAt;
-  }
+function getOrderBucketDate(order: Pick<Order, 'orderDate'>): Date {
   return new Date(order.orderDate);
 }
 
@@ -87,15 +80,13 @@ interface TopProduct {
   name: string;
   productType: string;
   productCategory: string;
-  /** Line revenue from paid orders only */
-  revenue: number;
-  /** Total line revenue (paid + unpaid) */
-  sales: number;
+  orderVolume: number;
   profit: number;
   margin: number;
   unitsSold: number;
   piecesSold: number;
   productId: string;
+  image?: string | null;
 }
 
 interface CashFlowData {
@@ -397,9 +388,8 @@ const FinancialAnalytics: React.FC = () => {
       }
     });
 
-    // Profit and margin: paid orders only (denominator = paid revenue)
+    // Profit and margin: all orders (recorded when buyer places order)
     let totalProfit = 0;
-    let totalPaidRevenue = 0;
     const uniqueProducts = new Set();
     const uniqueBuyers = new Set();
 
@@ -429,15 +419,11 @@ const FinancialAnalytics: React.FC = () => {
       }
 
       const orderRevenue = safeOrderAmount(order.totalAmount);
-      // Profit = Revenue - COGS (shippingFee is part of revenue, often marked up, so not subtracted)
       const orderProfit = orderRevenue - orderCogs;
-      if (isOrderPaid(order)) {
-        totalProfit += orderProfit;
-        totalPaidRevenue += orderRevenue;
-      }
+      totalProfit += orderProfit;
     });
 
-    const profitMargin = totalPaidRevenue > 0 ? (totalProfit / totalPaidRevenue) * 100 : 0;
+    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const totalOrders = orders.length;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -471,19 +457,17 @@ const FinancialAnalytics: React.FC = () => {
       }
     });
 
-    const monthlyPaid: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
+    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
     
     orders.forEach(order => {
-      if (!isOrderPaid(order)) return;
-
-      const date = getPaidAtDate(order);
+      const date = getOrderBucketDate(order);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
       const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
 
-      if (!monthlyPaid[key]) {
-        monthlyPaid[key] = { revenue: 0, profit: 0, orders: 0, label };
+      if (!monthlyData[key]) {
+        monthlyData[key] = { revenue: 0, profit: 0, orders: 0, label };
       }
-      monthlyPaid[key].orders += 1;
+      monthlyData[key].orders += 1;
 
       const orderAmount = safeOrderAmount(order.totalAmount);
 
@@ -502,12 +486,11 @@ const FinancialAnalytics: React.FC = () => {
         });
       }
       const orderProfit = orderAmount - orderCogs;
-      monthlyPaid[key].revenue += orderAmount;
-      monthlyPaid[key].profit += orderProfit;
+      monthlyData[key].revenue += orderAmount;
+      monthlyData[key].profit += orderProfit;
     });
 
-    // Revenue trend chart: paid orders only
-    const sorted = Object.entries(monthlyPaid)
+    const sorted = Object.entries(monthlyData)
       .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
       .sort((a, b) => a.key.localeCompare(b.key))
       .slice(-6)
@@ -515,60 +498,8 @@ const FinancialAnalytics: React.FC = () => {
     return sorted;
   }, [orders, products, hasData, userCurrency]);
 
-  /** All-order monthly series for Total Sales % growth and AOV growth (not shown on chart). */
-  const revenueDataAllOrders: RevenueData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) return [];
-
-    const productCostById: Record<string, number> = {};
-    products.forEach(p => {
-      const firstVariantOption = p.variantOptions?.[0];
-      const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || '0'
-      );
-      if (!isNaN(cost) && cost > 0) {
-        productCostById[p.productId] = cost;
-      }
-    });
-
-    const monthlyAll: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
-    orders.forEach(order => {
-      const date = new Date(order.orderDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
-      if (!monthlyAll[key]) {
-        monthlyAll[key] = { revenue: 0, profit: 0, orders: 0, label };
-      }
-      monthlyAll[key].orders += 1;
-      const orderAmount = safeOrderAmount(order.totalAmount);
-      let orderCogs = 0;
-      if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach(item => {
-          const pid = item.productId;
-          if (!pid) return;
-          const cost = productCostById[pid];
-          if (typeof cost === 'number' && cost > 0) {
-            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
-            const freePieces = calculateFreeItems(item);
-            const totalPieces = paidPieces + freePieces;
-            orderCogs += cost * totalPieces;
-          }
-        });
-      }
-      const orderProfit = orderAmount - orderCogs;
-      monthlyAll[key].revenue += orderAmount;
-      monthlyAll[key].profit += orderProfit;
-    });
-
-    return Object.entries(monthlyAll)
-      .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(-6)
-      .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
-  }, [orders, products, hasData, userCurrency]);
-
-  // Growth: Total Sales & AOV use all-order months; profit & margin use paid-only months (matches KPIs + chart)
   const growthMetrics = useMemo(() => {
-    if (!hasData) {
+    if (!hasData || revenueData.length < 2) {
       return {
         revenueGrowth: null as number | null,
         profitGrowth: null as number | null,
@@ -577,47 +508,20 @@ const FinancialAnalytics: React.FC = () => {
       };
     }
 
-    const paidOk = revenueData.length >= 2;
-    const allOk = revenueDataAllOrders.length >= 2;
+    const last = revenueData[revenueData.length - 1];
+    const prev = revenueData[revenueData.length - 2];
 
-    const revenueGrowth = allOk
-      ? (() => {
-          const last = revenueDataAllOrders[revenueDataAllOrders.length - 1];
-          const prev = revenueDataAllOrders[revenueDataAllOrders.length - 2];
-          return prev.revenue > 0 ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
-        })()
-      : null;
-
-    const profitGrowth = paidOk
-      ? (() => {
-          const last = revenueData[revenueData.length - 1];
-          const prev = revenueData[revenueData.length - 2];
-          return prev.profit > 0 ? ((last.profit - prev.profit) / prev.profit) * 100 : null;
-        })()
-      : null;
-
-    const marginGrowth = paidOk
-      ? (() => {
-          const last = revenueData[revenueData.length - 1];
-          const prev = revenueData[revenueData.length - 2];
-          const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
-          const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
-          return prevMargin !== 0 ? ((lastMargin - prevMargin) / Math.abs(prevMargin)) * 100 : null;
-        })()
-      : null;
-
-    const aovGrowth = allOk
-      ? (() => {
-          const last = revenueDataAllOrders[revenueDataAllOrders.length - 1];
-          const prev = revenueDataAllOrders[revenueDataAllOrders.length - 2];
-          const lastAov = last.orders > 0 ? last.revenue / last.orders : 0;
-          const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0;
-          return prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
-        })()
-      : null;
+    const revenueGrowth = prev.revenue > 0 ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
+    const profitGrowth = prev.profit > 0 ? ((last.profit - prev.profit) / prev.profit) * 100 : null;
+    const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
+    const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
+    const marginGrowth = prevMargin !== 0 ? ((lastMargin - prevMargin) / Math.abs(prevMargin)) * 100 : null;
+    const lastAov = last.orders > 0 ? last.revenue / last.orders : 0;
+    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0;
+    const aovGrowth = prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
 
     return { revenueGrowth, profitGrowth, marginGrowth, aovGrowth };
-  }, [hasData, revenueData, revenueDataAllOrders]);
+  }, [hasData, revenueData]);
 
   // Calculate revenue forecast
   const revenueForecast = useMemo(() => {
@@ -738,7 +642,7 @@ const FinancialAnalytics: React.FC = () => {
       return [];
     }
 
-    const productStats: { [key: string]: { revenue: number; sales: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
+    const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number; image?: string | null } } = {};
     
     // Calculate product margins first
     const productMargins: { [key: string]: number } = {};
@@ -768,14 +672,14 @@ const FinancialAnalytics: React.FC = () => {
             const category = product?.productCategory || 'Uncategorized';
             
             productStats[productId] = {
-              revenue: 0,
-              sales: 0,
+              orderVolume: 0,
               unitsSold: 0,
               piecesSold: 0,
               category: category,
               productCategory: product?.productCategory || 'Uncategorized',
               name: product?.name || `Product ${productId}`,
-              profit: 0
+              profit: 0,
+              image: product?.images?.[0] ?? null,
             };
           }
           
@@ -798,11 +702,8 @@ const FinancialAnalytics: React.FC = () => {
               const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
               const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
               const itemProfit = itemRevenue - itemCost;
-              productStats[productId].sales += itemRevenue;
-              if (isOrderPaid(order)) {
-                productStats[productId].revenue += itemRevenue;
-                productStats[productId].profit += itemProfit;
-              }
+              productStats[productId].orderVolume += itemRevenue;
+              productStats[productId].profit += itemProfit;
             } else {
               // Fallback to item pricing if product prices are invalid
               // Calculate revenue using piece-based pricing
@@ -814,11 +715,8 @@ const FinancialAnalytics: React.FC = () => {
                 ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
                 : 0;
               const itemProfit = itemRevenue * (avgMargin / 100);
-              productStats[productId].sales += itemRevenue;
-              if (isOrderPaid(order)) {
-                productStats[productId].revenue += itemRevenue;
-                productStats[productId].profit += itemProfit;
-              }
+              productStats[productId].orderVolume += itemRevenue;
+              productStats[productId].profit += itemProfit;
             }
           } else {
             // Fallback to item pricing if product not found
@@ -831,11 +729,8 @@ const FinancialAnalytics: React.FC = () => {
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 0;
             const itemProfit = itemRevenue * (avgMargin / 100);
-            productStats[productId].sales += itemRevenue;
-            if (isOrderPaid(order)) {
-              productStats[productId].revenue += itemRevenue;
-              productStats[productId].profit += itemProfit;
-            }
+            productStats[productId].orderVolume += itemRevenue;
+            productStats[productId].profit += itemProfit;
           }
           
           // Calculate units sold using piece-based pricing
@@ -848,21 +743,21 @@ const FinancialAnalytics: React.FC = () => {
     });
 
     return Object.entries(productStats).map(([productId, stats]) => {
-      const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+      const margin = stats.orderVolume > 0 ? (stats.profit / stats.orderVolume) * 100 : 0;
       
       return {
         name: stats.name,
-        revenue: stats.revenue,
-        sales: stats.sales,
+        orderVolume: stats.orderVolume,
         unitsSold: stats.unitsSold,
         piecesSold: stats.piecesSold,
         margin,
         productType: stats.category,
         productCategory: stats.productCategory,
         profit: stats.profit,
-        productId: productId
+        productId: productId,
+        image: stats.image ?? null,
       };
-    }).sort((a, b) => b.revenue - a.revenue).slice(0, 50);
+    }).sort((a, b) => b.orderVolume - a.orderVolume).slice(0, 50);
   }, [orders, products, hasData, userCurrency]);
 
   // Calculate cash flow data: inflows from totalAmount; outflows from COGS only (shippingFee is part of revenue and often marked up, so actual cost unknown)
@@ -998,7 +893,7 @@ const FinancialAnalytics: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          title="Total Sales"
+          title="Order Volume"
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
           change={growthMetrics.revenueGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
@@ -1039,11 +934,11 @@ const FinancialAnalytics: React.FC = () => {
                <div className="flex items-center space-x-4">
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                 <span className="text-sm text-gray-600 font-medium">Revenue (paid)</span>
+                 <span className="text-sm text-gray-600 font-medium">Order Volume</span>
                </div>
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-                 <span className="text-sm text-gray-600 font-medium">Profit (paid)</span>
+                 <span className="text-sm text-gray-600 font-medium">Profit</span>
                </div>
              </div>
            </div>
@@ -1082,7 +977,7 @@ const FinancialAnalytics: React.FC = () => {
                  <Tooltip 
                    formatter={(value: number, name: string) => [
                      utilsFormatCurrency(value, userCurrency), 
-                     name === 'revenue' ? 'Revenue (paid)' : 'Profit (paid)'
+                     name === 'revenue' ? 'Order Volume' : 'Profit'
                    ]}
                    labelStyle={{ 
                      color: '#1E293B', 
@@ -1479,7 +1374,7 @@ const FinancialAnalytics: React.FC = () => {
                         }}
                         formatter={(value: number) => [
                           utilsFormatCurrency(value, userCurrency), 
-                          'Revenue (paid)'
+                          'Order Volume'
                         ]}
                         labelStyle={{ color: '#374151', fontWeight: '600' }}
                       />
@@ -1554,8 +1449,7 @@ const FinancialAnalytics: React.FC = () => {
                     <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Sales</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">Order Volume</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
                   </tr>
                 </thead>
@@ -1565,14 +1459,17 @@ const FinancialAnalytics: React.FC = () => {
                      <td className="py-3 px-4 text-left text-black">
                        {(currentPage - 1) * productsPerPage + index + 1}
                      </td>
-                      <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
-                         <span 
-                           className="cursor-pointer transition-all duration-200 hover:text-blue-800"
-                           onClick={() => window.location.href = `/products/catalog/${product.productId}`}
-                           title="Click to view product details"
-                         >
-                            {product.name}
-                          </span>
+                      <td className="py-3 px-4 text-left min-w-0">
+                         <div className="flex items-center gap-2 min-w-0">
+                           <ProductImageThumb src={product.image} alt={product.name} size="sm" />
+                           <Link
+                             href={`/products/catalog/${product.productId}`}
+                             className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
+                             title={`View ${product.name}`}
+                           >
+                             {product.name}
+                           </Link>
+                         </div>
                       </td>
                       <td className="py-3 px-4 text-center text-gray-600">
                         {product.productCategory}
@@ -1580,11 +1477,8 @@ const FinancialAnalytics: React.FC = () => {
                       <td className="py-3 px-4 text-center text-black">
                         {product.piecesSold.toLocaleString()}
                       </td>
-                     <td className="py-3 px-4 text-center text-black">
-                       {utilsFormatCurrency(product.sales, userCurrency)}
-                     </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
-                       {utilsFormatCurrency(product.revenue, userCurrency)}
+                       {utilsFormatCurrency(product.orderVolume, userCurrency)}
                      </td>
                      <td className="py-3 px-4 text-center text-black">
                        {product.margin.toFixed(2)}%
@@ -1688,11 +1582,11 @@ export const AnalyticsRevenueTrendChart: React.FC<{
       <div className="flex items-center space-x-4">
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Revenue (paid)</span>
+          <span className="text-sm text-gray-600 font-medium">Order Volume</span>
         </div>
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Profit (paid)</span>
+          <span className="text-sm text-gray-600 font-medium">Profit</span>
         </div>
         <button 
           onClick={() => window.location.href = '/analytics/financial'}
@@ -1742,7 +1636,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
           }}
           formatter={(value: number, name: string) => [
             utilsFormatCurrency(value, userCurrency), 
-            name === 'revenue' ? 'Revenue (paid)' : 'Profit (paid)'
+            name === 'revenue' ? 'Order Volume' : 'Profit'
           ]}
           labelStyle={{ color: '#374151', fontWeight: '600' }}
         />
@@ -1898,9 +1792,7 @@ export const calculateRevenueData = (
   const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
   
   orders.forEach(order => {
-    if (!isOrderPaid(order)) return;
-
-    const date = getPaidAtDate(order);
+    const date = getOrderBucketDate(order);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
     const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
     
@@ -1944,28 +1836,49 @@ export const calculateRevenueData = (
 
 // Shared function to calculate total revenue from orders and products
 export const calculateTotalRevenue = (orders: Order[], _products: Product[]): number => {
-  // Match Orders module: sum full order totals (includes shipping, discounts)
-  // Uses shared utility for consistent parsing across the codebase
   return orders.reduce((sum, order) => sum + parseAmountSafely(order.totalAmount), 0);
 };
+
+/** Order volume — sum of order totals when buyers place orders. */
+export const calculateOrderVolume = calculateTotalRevenue;
 
 export default FinancialAnalytics;
 
 // ===== Shared Top Products utilities and component =====
 
+function ProductImageThumb({ src, alt, size = 'md' }: { src?: string | null; alt: string; size?: 'sm' | 'md' }) {
+  const dim = size === 'sm' ? 'h-8 w-8' : 'h-10 w-10';
+  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+  const px = size === 'sm' ? 32 : 40;
+  if (src) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        width={px}
+        height={px}
+        className={`${dim} shrink-0 rounded-lg border border-[#e6e6e6] object-cover`}
+      />
+    );
+  }
+  return (
+    <div className={`flex ${dim} shrink-0 items-center justify-center rounded-lg border border-[#e6e6e6] bg-[#f7faff]`}>
+      <Package className={`${iconSize} text-[#0a61d7]`} />
+    </div>
+  );
+}
+
 export type TopProductRow = {
   name: string;
   productType: string;
   productCategory: string;
-  /** Paid line revenue only */
-  revenue: number;
-  /** Total line revenue (paid + unpaid) */
-  sales: number;
+  orderVolume: number;
   profit: number;
   margin: number;
   unitsSold: number;
   piecesSold: number;
   productId: string;
+  image?: string | null;
 };
 
 export const calculateTopProducts = (
@@ -1978,7 +1891,7 @@ export const calculateTopProducts = (
     return [];
   }
 
-  const productStats: { [key: string]: { revenue: number; sales: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number } } = {};
+  const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number; image?: string | null } } = {};
 
   const productMargins: { [key: string]: number } = {};
   products.forEach(product => {
@@ -2000,16 +1913,16 @@ export const calculateTopProducts = (
         if (!productStats[productId]) {
           const product = products.find(p => p.productId === productId) as Product | undefined;
           const category = product?.productCategory || 'Uncategorized';
-          productStats[productId] = {
-            revenue: 0,
-            sales: 0,
-            unitsSold: 0,
-            piecesSold: 0,
-            category,
-            productCategory: product?.productCategory || 'Uncategorized',
-            name: product?.name || `Product ${productId}`,
-            profit: 0
-          };
+            productStats[productId] = {
+              orderVolume: 0,
+              unitsSold: 0,
+              piecesSold: 0,
+              category,
+              productCategory: product?.productCategory || 'Uncategorized',
+              name: product?.name || `Product ${productId}`,
+              profit: 0,
+              image: product?.images?.[0] ?? null,
+            };
         }
 
         const product = products.find(p => p.productId === productId) as Product | undefined;
@@ -2028,11 +1941,8 @@ export const calculateTopProducts = (
             const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
             const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
             const itemProfit = itemRevenue - itemCost;
-            productStats[productId].sales += itemRevenue;
-            if (isOrderPaid(order)) {
-              productStats[productId].revenue += itemRevenue;
-              productStats[productId].profit += itemProfit;
-            }
+            productStats[productId].orderVolume += itemRevenue;
+            productStats[productId].profit += itemProfit;
           } else {
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageQuantity = item.packageQuantity || 1;
@@ -2041,11 +1951,8 @@ export const calculateTopProducts = (
               ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
               : 0;
             const itemProfit = itemRevenue * (avgMargin / 100);
-            productStats[productId].sales += itemRevenue;
-            if (isOrderPaid(order)) {
-              productStats[productId].revenue += itemRevenue;
-              productStats[productId].profit += itemProfit;
-            }
+            productStats[productId].orderVolume += itemRevenue;
+            productStats[productId].profit += itemProfit;
           }
         } else {
           const piecesPerPackage = item.piecesPerPackage || 1;
@@ -2055,11 +1962,8 @@ export const calculateTopProducts = (
             ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
             : 0;
           const itemProfit = itemRevenue * (avgMargin / 100);
-          productStats[productId].sales += itemRevenue;
-          if (isOrderPaid(order)) {
-            productStats[productId].revenue += itemRevenue;
-            productStats[productId].profit += itemProfit;
-          }
+          productStats[productId].orderVolume += itemRevenue;
+          productStats[productId].profit += itemProfit;
         }
 
         const piecesPerPackage = item.piecesPerPackage || 1;
@@ -2071,20 +1975,20 @@ export const calculateTopProducts = (
   });
 
   return Object.entries(productStats).map(([productId, stats]) => {
-    const margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+    const margin = stats.orderVolume > 0 ? (stats.profit / stats.orderVolume) * 100 : 0;
     return {
       name: stats.name,
-      revenue: stats.revenue,
-      sales: stats.sales,
+      orderVolume: stats.orderVolume,
       unitsSold: stats.unitsSold,
       piecesSold: stats.piecesSold,
       margin,
       productType: stats.category,
       productCategory: stats.productCategory,
       profit: stats.profit,
-      productId
+      productId,
+      image: stats.image ?? null,
     };
-  }).sort((a, b) => b.revenue - a.revenue).slice(0, limit);
+  }).sort((a, b) => b.orderVolume - a.orderVolume).slice(0, limit);
 };
 
 export const AnalyticsTopProductsTable: React.FC<{
@@ -2113,8 +2017,7 @@ export const AnalyticsTopProductsTable: React.FC<{
             <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Sales</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Revenue</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">Order Volume</th>
             <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
           </tr>
         </thead>
@@ -2122,19 +2025,21 @@ export const AnalyticsTopProductsTable: React.FC<{
           {products.slice(0, maxRows).map((product, index) => (
             <tr key={product.productId} className="border-b transition-colors">
               <td className="py-3 px-4 text-left text-black">{index + 1}</td>
-              <td className="py-3 px-4 font-semibold text-[#0a61d7] max-w-40 truncate text-left">
-                <span 
-                  className="cursor-pointer transition-all duration-200 hover:text-blue-800"
-                  onClick={() => window.location.href = `/products/catalog/${product.productId}`}
-                  title="Click to view product details"
-                >
-                  {product.name}
-                </span>
+              <td className="py-3 px-4 text-left min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ProductImageThumb src={product.image} alt={product.name} size="sm" />
+                  <Link
+                    href={`/products/catalog/${product.productId}`}
+                    className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
+                    title={`View ${product.name}`}
+                  >
+                    {product.name}
+                  </Link>
+                </div>
               </td>
               <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
               <td className="py-3 px-4 text-center text-black">{product.piecesSold.toLocaleString()}</td>
-              <td className="py-3 px-4 text-center text-black">{utilsFormatCurrency(product.sales, userCurrency)}</td>
-              <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.revenue, userCurrency)}</td>
+              <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.orderVolume, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>
           ))}

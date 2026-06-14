@@ -7,6 +7,57 @@ import {
 } from '../../../../../utils/auth-security';
 import { registerRateLimiter } from '@/utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
+import { syncMarketplaceUserToBuyerProfiles } from '@/utils/buyerSync';
+import { normalizeMarketplacePhone } from '@/utils/marketplacePhone';
+import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addressSequence';
+import { Prisma } from '@/lib/prisma-generated';
+
+type RegisterUserWithAddressParams = {
+  username: string;
+  name: string;
+  normalizedEmail: string;
+  hashedPassword: string;
+  storeName?: string | null;
+  bio?: string | null;
+  finalPhone: string;
+  finalCountry: string | null;
+  resolvedIsDefault: boolean;
+  trimmedAddress: string;
+  trimmedAddressFullName: string;
+  resolvedLabel: string;
+};
+
+async function createMarketplaceUserWithAddress(
+  tx: Prisma.TransactionClient,
+  params: RegisterUserWithAddressParams,
+) {
+  const createdUser = await tx.marketplaceUser.create({
+    data: {
+      username: params.username,
+      name: params.name,
+      email: params.normalizedEmail,
+      password: params.hashedPassword,
+      storeName: params.storeName?.trim() || null,
+      bio: params.bio?.trim() || null,
+      phone: params.finalPhone,
+      country: params.finalCountry,
+      chosenAddress: params.resolvedIsDefault ? params.trimmedAddress : null,
+    },
+  });
+
+  await tx.address.create({
+    data: {
+      userId: createdUser.id,
+      fullName: params.trimmedAddressFullName,
+      phone: params.finalPhone,
+      address: params.trimmedAddress,
+      isDefault: params.resolvedIsDefault,
+      label: params.resolvedLabel,
+    },
+  });
+
+  return createdUser;
+}
 
 export async function POST(req: NextRequest) {
   const rateLimitResponse = await registerRateLimiter(req);
@@ -27,14 +78,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, storeName, bio, username, password, phone, countryCode } = body;
+    const { name, email, storeName, bio, username, password, phone, countryCode, countryDialCode, address, addressFullName, addressLabel, addressIsDefault } = body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400, headers });
+      return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400, headers });
     }
 
     if (!email || typeof email !== 'string' || !email.trim()) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400, headers });
+      return NextResponse.json({ error: 'Email is required', code: 'EMAIL_REQUIRED' }, { status: 400, headers });
+    }
+
+    if (!address || typeof address !== 'string' || !address.trim()) {
+      return NextResponse.json({ error: 'Delivery address is required', code: 'ADDRESS_REQUIRED' }, { status: 400, headers });
+    }
+
+    const trimmedAddressFullName = typeof addressFullName === 'string' ? addressFullName.trim() : '';
+    if (!trimmedAddressFullName) {
+      return NextResponse.json({ error: 'Recipient full name is required', code: 'ADDRESS_FULL_NAME_REQUIRED' }, { status: 400, headers });
+    }
+
+    if (!phone || typeof phone !== 'string' || !phone.trim()) {
+      return NextResponse.json({ error: 'Phone number is required', code: 'PHONE_REQUIRED' }, { status: 400, headers });
+    }
+
+    const normalizedPhone = normalizeMarketplacePhone(phone, { countryCode, countryDialCode });
+    if (!normalizedPhone) {
+      return NextResponse.json({ error: 'Phone number is invalid', code: 'PHONE_INVALID' }, { status: 400, headers });
     }
 
     if (!password || typeof password !== 'string' || password.length < 6) {
@@ -61,7 +130,7 @@ export async function POST(req: NextRequest) {
 
     if (existingUserByEmail) {
       return NextResponse.json(
-        { error: 'User with this email is already registered. Please log in.' },
+        { error: 'User with this email is already registered. Please log in.', code: 'EMAIL_ALREADY_REGISTERED' },
         { status: 409, headers },
       );
     }
@@ -72,45 +141,64 @@ export async function POST(req: NextRequest) {
 
     if (existingUserByUsername) {
       return NextResponse.json(
-        { error: 'Username is already taken. Please choose a different username.' },
+        { error: 'Username is already taken. Please choose a different username.', code: 'USERNAME_ALREADY_TAKEN' },
         { status: 409, headers },
       );
     }
 
-    let finalPhone: string | null = null;
-    let finalCountry: string | null = null;
+    const existingUserByPhone = await prisma.marketplaceUser.findUnique({
+      where: { phone: normalizedPhone },
+    });
 
-    if (phone && typeof phone === 'string' && phone.trim()) {
-      const phoneWithPlus = phone.startsWith('+') ? phone.trim() : `+${phone.trim()}`;
-      const existingUserByPhone = await prisma.marketplaceUser.findUnique({
-        where: { phone: phoneWithPlus },
-      });
-
-      if (existingUserByPhone) {
-        return NextResponse.json(
-          { error: 'Phone number is already registered. Please log in or use a different phone number.' },
-          { status: 409, headers },
-        );
-      }
-
-      finalPhone = phoneWithPlus;
-      finalCountry = typeof countryCode === 'string' && countryCode.trim() ? countryCode.trim() : null;
+    if (existingUserByPhone) {
+      return NextResponse.json(
+        { error: 'Phone number is already registered. Please log in or use a different phone number.', code: 'PHONE_ALREADY_REGISTERED' },
+        { status: 409, headers },
+      );
     }
 
-    const hashedPassword = await hash(password, 12);
+    const finalPhone = normalizedPhone;
+    const finalCountry = typeof countryCode === 'string' && countryCode.trim() ? countryCode.trim() : null;
 
-    const user = await prisma.marketplaceUser.create({
-      data: {
-        username: username.trim(),
-        name: name.trim(),
-        email: normalizedEmail,
-        password: hashedPassword,
-        storeName: storeName?.trim() || null,
-        bio: bio?.trim() || null,
-        phone: finalPhone,
-        country: finalCountry,
-      },
+    const hashedPassword = await hash(password, 12);
+    const trimmedAddress = address.trim();
+    const resolvedLabel = addressLabel === 'work' || addressLabel === 'store' || addressLabel === 'home'
+      ? addressLabel
+      : 'home';
+    const resolvedIsDefault = addressIsDefault !== false;
+
+    const registerParams: RegisterUserWithAddressParams = {
+      username: username.trim(),
+      name: name.trim(),
+      normalizedEmail,
+      hashedPassword,
+      storeName,
+      bio,
+      finalPhone,
+      finalCountry,
+      resolvedIsDefault,
+      trimmedAddress,
+      trimmedAddressFullName,
+      resolvedLabel,
+    };
+
+    const user = await prisma.$transaction((tx) =>
+      createMarketplaceUserWithAddress(tx, registerParams),
+    ).catch(async (error) => {
+      if (isDuplicateAddressIdError(error)) {
+        await resetAddressIdSequence();
+        return prisma.$transaction((tx) =>
+          createMarketplaceUserWithAddress(tx, registerParams),
+        );
+      }
+      throw error;
     });
+
+    try {
+      await syncMarketplaceUserToBuyerProfiles(user.id);
+    } catch (syncError) {
+      console.error('Buyer profile sync after registration failed:', syncError);
+    }
 
     auditAuth(req, {
       action: 'register',
@@ -135,6 +223,7 @@ export async function POST(req: NextRequest) {
         id: user.id,
         name: user.name || 'User',
         email: user.email || '',
+        chosenAddress: user.chosenAddress || '',
         address: user.chosenAddress || '',
       },
     }, {

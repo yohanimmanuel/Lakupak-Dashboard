@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { MapPin, Maximize2, Loader2 } from "lucide-react";
+import { MapPin, Maximize2, Loader2, Filter, ChevronDown } from "lucide-react";
 import { Order } from '@/types/order';
 import MapComponent from './MapComponent';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
@@ -18,36 +18,62 @@ interface MapMarker {
   color: string;
 }
 
+type OrderStatus = Order['orderStatus'];
+type StatusFilter = 'all' | OrderStatus;
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'Confirmed', label: 'Confirmed' },
+  { value: 'Packed', label: 'Packed' },
+  { value: 'Shipped', label: 'Shipped' },
+  { value: 'Delivered', label: 'Delivered' },
+  { value: 'Received', label: 'Received' },
+  { value: 'Failed', label: 'Failed' },
+  { value: 'Cancelled', label: 'Cancelled' },
+  { value: 'Returned', label: 'Returned' },
+];
 
 export default function OrdersGPS({ orders }: OrdersGPSProps) {
   const { token: mapboxToken } = useMapboxToken();
   const [showFullScreenModal, setShowFullScreenModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [geocodeResults, setGeocodeResults] = useState<Map<string, GeocodeResult>>(new Map());
   const [isGeocoding, setIsGeocoding] = useState(false);
   const geocodedAddressesRef = useRef<Set<string>>(new Set());
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
   
   const validOrders = Array.isArray(orders) ? orders : [];
-  
-  const activeDeliveries = validOrders.filter(o => 
-    ['Shipped', 'Packed'].includes(o.orderStatus)
-  ).length;
-  
-  const shippedOrders = validOrders.filter(o => o.orderStatus === 'Shipped').length;
-  const deliveredOrders = validOrders.filter(o => o.orderStatus === 'Delivered').length;
-  const pendingOrders = validOrders.filter(o => o.orderStatus === 'Pending').length;
 
-  const activeOrders = useMemo(() => {
-    return validOrders.filter(o => 
-      ['Shipped', 'Packed', 'Pending', 'Confirmed'].includes(o.orderStatus) && 
-      o.deliveryAddress
-    );
-  }, [validOrders]);
+  const filteredOrders = useMemo(() => {
+    return validOrders.filter(o => {
+      if (!o.deliveryAddress) return false;
+      if (statusFilter === 'all') return true;
+      return o.orderStatus === statusFilter;
+    });
+  }, [validOrders, statusFilter]);
+
+  const currentStatusOption = STATUS_FILTER_OPTIONS.find(o => o.value === statusFilter);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    if (isStatusDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isStatusDropdownOpen]);
 
   useEffect(() => {
     const geocodeAddresses = async () => {
-      if (activeOrders.length === 0) return;
+      if (filteredOrders.length === 0) return;
 
-      const addresses = activeOrders
+      const addresses = filteredOrders
         .map(o => o.deliveryAddress)
         .filter((addr, index, self) => self.indexOf(addr) === index && addr);
 
@@ -75,10 +101,10 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
     };
 
     geocodeAddresses();
-  }, [activeOrders, mapboxToken]);
+  }, [filteredOrders, mapboxToken]);
 
   const mapMarkers: MapMarker[] = useMemo(() => {
-    return activeOrders
+    return filteredOrders
       .map((order) => {
         const geocodeResult = geocodeResults.get(order.deliveryAddress);
         if (!geocodeResult?.coordinates) return null;
@@ -91,7 +117,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
         };
       })
       .filter((marker): marker is MapMarker => marker !== null);
-  }, [activeOrders, geocodeResults]);
+  }, [filteredOrders, geocodeResults]);
 
   const mapCenter: MapCoordinates | undefined = useMemo(() => {
     if (mapMarkers.length === 0) return undefined;
@@ -115,9 +141,35 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Live Delivery Tracking</h3>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span>{activeDeliveries} Active Deliveries</span>
+            <div className="relative" ref={statusDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                <Filter className="w-4 h-4" />
+                {currentStatusOption?.label ?? 'All Statuses'}
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              {isStatusDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+                  {STATUS_FILTER_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(option.value);
+                        setIsStatusDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                        statusFilter === option.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={() => setShowFullScreenModal(true)}
@@ -152,27 +204,13 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           <div className="bg-gray-100 rounded-lg h-[471px] flex items-center justify-center">
             <div className="text-center w-full">
               <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No active deliveries</p>
+              <p className="text-gray-500 font-medium">
+                {statusFilter === 'all' ? 'No orders on map' : `No ${statusFilter.toLowerCase()} orders`}
+              </p>
               <p className="text-sm text-gray-400">Orders with delivery addresses will appear here</p>
             </div>
           </div>
           )}
-        
-        {/* Quick Stats Below Map */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{shippedOrders}</div>
-            <div className="text-sm text-gray-600">In Transit</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{deliveredOrders}</div>
-            <div className="text-sm text-gray-600">Delivered</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">{pendingOrders}</div>
-            <div className="text-sm text-gray-600">Pending</div>
-          </div>
-        </div>
       </div>
 
       <MapFullscreenModal open={showFullScreenModal} onClose={() => setShowFullScreenModal(false)} title="Live delivery tracking">
@@ -199,7 +237,9 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
           <div className="flex h-full w-full items-center justify-center bg-gray-100">
             <div className="w-full text-center">
               <MapPin className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-              <p className="text-xl font-medium text-gray-500">No active deliveries</p>
+              <p className="text-xl font-medium text-gray-500">
+                {statusFilter === 'all' ? 'No orders on map' : `No ${statusFilter.toLowerCase()} orders`}
+              </p>
               <p className="mt-1 text-sm text-gray-400">Orders with delivery addresses will appear here</p>
             </div>
           </div>

@@ -58,6 +58,7 @@ interface BuyerLite {
 	storeName?: string;
 	owner?: string;
 	businessType?: string;
+	avatar?: string | null;
 }
 
 // ===== Reusable types & utilities (exported) =====
@@ -335,6 +336,7 @@ const CUSTOMER_ANALYTICS_QUERY = `
         storeName
         owner
         businessType
+        avatar
       }
     }
   }
@@ -541,7 +543,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 	}, [orders, products, hasData, categoryFilter]);
 
 	// Top customers (exclude deleted/missing buyers)
-	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; totalValue: number };
+	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; totalValue: number; avatar?: string | null };
 	const topCustomers: TopCustomer[] = useMemo(() => {
 		if (!hasData || orders.length === 0) return [] as TopCustomer[];
 		const map = new Map<string | number, { orders: number; totalValue: number }>();
@@ -569,10 +571,9 @@ const CustomerSalesAnalytics: React.FC = () => {
 		const buyerIndex = new Map<string, BuyerLite>();
 		buyers.forEach(b => buyerIndex.set(b.buyerId, b));
 		return Array.from(map.entries())
-			.map(([buyerId, v]) => {
+			.flatMap(([buyerId, v]) => {
 				const buyer = buyerIndex.get(String(buyerId));
-				if (!buyer) { return null; }
-				// Fallback: derive from any order with same buyerId
+				if (!buyer) return [];
 				const orderForBuyer = orders.find(o => String(o.buyerId) === String(buyerId));
 				const orderDerivedName = orderForBuyer?.storeName || orderForBuyer?.contactPerson;
 				const displayName = (buyer?.storeName && String(buyer.storeName).trim().length > 0)
@@ -580,16 +581,15 @@ const CustomerSalesAnalytics: React.FC = () => {
 					: ((buyer?.owner && String(buyer.owner).trim().length > 0) ? (buyer.owner as string)
 					: (orderDerivedName && String(orderDerivedName).trim().length > 0 ? String(orderDerivedName) : String(buyerId)));
 				const displayBusinessType = (buyer?.businessType as string) || '—';
-				return {
+				return [{
 					buyerId,
 					name: displayName,
 					businessType: displayBusinessType,
 					orders: v.orders,
-					totalValue: v.totalValue
-				};
+					totalValue: v.totalValue,
+					avatar: buyer.avatar ?? null,
+				} satisfies TopCustomer];
 			})
-			.filter((x): x is TopCustomer => x !== null)
-			// Rank by purchase volume (totalValue), not just number of orders
 			.sort((a, b) => b.totalValue - a.totalValue);
 	}, [orders, products, buyers, hasData]);
 
@@ -853,16 +853,30 @@ const CustomerSalesAnalytics: React.FC = () => {
 					<table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
 						<thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
 							<tr>
+								<th className="py-3 px-4 font-medium uppercase text-left">Customer</th>
 								<th className="py-3 px-4 font-medium uppercase text-left">Buyer</th>
 								<th className="py-3 px-4 font-medium uppercase text-left">Name</th>
 								<th className="py-3 px-4 font-medium uppercase text-left">Business Type</th>
 								<th className="py-3 px-4 font-medium uppercase text-center">Orders</th>
-								<th className="py-3 px-4 font-medium uppercase text-right">Total Value</th>
+								<th className="py-3 px-4 font-medium uppercase text-right">Order Volume</th>
 							</tr>
 						</thead>
 						<tbody className="bg-white">
 							{pagedCustomers.map((c, idx) => (
 								<tr key={idx} className="border-b transition-colors">
+									<td className="py-3 px-4 text-left">
+										{c.avatar ? (
+											<img
+												src={c.avatar}
+												alt={c.name}
+												className="h-10 w-10 rounded-full border border-[#e6e6e6] object-cover"
+											/>
+										) : (
+											<div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e6e6e6] bg-[#f7faff]">
+												<Users className="h-4 w-4 text-[#0a61d7]" />
+											</div>
+										)}
+									</td>
 									<td className="py-3 px-4 text-left text-black"><span className="cursor-pointer text-[#0a61d7] font-semibold hover:text-blue-800" onClick={() => (window.location.href = `/clients/buyers/details/${String(c.buyerId)}`)} title="View buyer profile">{String(c.buyerId)}</span></td>
 									<td className="py-3 px-4 text-left text-black">{c.name}</td>
 									<td className="py-3 px-4 text-left text-black">{c.businessType}</td>

@@ -882,6 +882,7 @@ const statusStyles: Record<Order['orderStatus'], string> = {
   Packed: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   Shipped: 'bg-sky-50 text-sky-700 border-sky-200',
   Delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Failed: 'bg-rose-50 text-rose-700 border-rose-200',
   Cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
   Returned: 'bg-gray-100 text-gray-600 border-gray-200',
@@ -1632,9 +1633,9 @@ const supplierInsights = useMemo(() => {
     });
   }, [topProducts, products]);
 
-  const maxTopProductRevenue = useMemo(() => {
+  const maxTopProductOrderVolume = useMemo(() => {
     return topProductsWithDetails.reduce(
-      (max, product) => (product.revenue > max ? product.revenue : max),
+      (max, product) => (product.orderVolume > max ? product.orderVolume : max),
       0,
     );
   }, [topProductsWithDetails]);
@@ -1698,29 +1699,25 @@ const supplierInsights = useMemo(() => {
     if (loading) {
       return [];
     }
+    const totalOrderCount = aggregates?.totalOrders ?? orders.length;
+    const averageOrderVolume =
+      aggregates?.avgOrderValue ??
+      (totalOrderCount > 0 ? totalRevenue / totalOrderCount : 0);
     // Growth metrics currently default to 0.0% to avoid misleading hardcoded values.
     // When historical data is wired here, replace these zeros with real month-over-month changes.
     return [
       {
-        id: 'totalRevenue',
-        title: 'Total Sales',
+        id: 'orderVolume',
+        title: 'Order Volume',
         value: formatCurrency(totalRevenue, userCurrency),
         change: 0,
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
       {
-        id: 'revenueCollected',
-        title: 'Revenue Collected',
-        value: formatCurrency(totalRevenue - pendingRevenue, userCurrency),
-        change: 0,
-        icon: <CheckCircle className="w-6 h-6 text-green-500" />,
-        color: 'bg-[#e6f7ec]',
-      },
-      {
         id: 'totalOrders',
         title: 'Total Orders',
-        value: (aggregates?.totalOrders ?? orders.length).toLocaleString(),
+        value: totalOrderCount.toLocaleString(),
         change: 0,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
         color: 'bg-white',
@@ -1733,8 +1730,16 @@ const supplierInsights = useMemo(() => {
         icon: <Package className="w-6 h-6 text-purple-600" />,
         color: 'bg-white',
       },
+      {
+        id: 'averageOrderVolume',
+        title: 'Average Order Volume',
+        value: formatCurrency(averageOrderVolume, userCurrency),
+        change: 0,
+        icon: <DollarSign className="w-6 h-6 text-emerald-600" />,
+        color: 'bg-[#e6f7ec]',
+      },
     ];
-  }, [loading, aggregates?.totalOrders, orders.length, pendingRevenue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
+  }, [loading, aggregates?.totalOrders, aggregates?.avgOrderValue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
@@ -1908,7 +1913,7 @@ const supplierInsights = useMemo(() => {
                   This year
                 </span>
                 <span>
-                  Total revenue:{' '}
+                  Total order volume:{' '}
                   <span className="font-semibold text-black">
                     {formatCurrency(totalRevenue, userCurrency)}
                   </span>
@@ -1993,7 +1998,7 @@ const supplierInsights = useMemo(() => {
         };
       case 'products':
         return {
-          subtitle: 'Products ranked by revenue contribution',
+          subtitle: 'Products ranked by order volume',
           action: (
             <Link
               href="/products"
@@ -2019,8 +2024,8 @@ const supplierInsights = useMemo(() => {
                 <ul className="space-y-3">
                   {topProductsWithDetails.map((product) => {
                     const progress =
-                      maxTopProductRevenue > 0
-                        ? Math.round((product.revenue / maxTopProductRevenue) * 100)
+                      maxTopProductOrderVolume > 0
+                        ? Math.round((product.orderVolume / maxTopProductOrderVolume) * 100)
                         : 0;
                     return (
                       <li
@@ -2056,9 +2061,9 @@ const supplierInsights = useMemo(() => {
                           </div>
                           <div className="ml-auto flex items-center gap-6 text-sm">
                             <div className="text-right">
-                              <p className="text-xs text-gray-500">Revenue</p>
+                              <p className="text-xs text-gray-500">Order Volume</p>
                               <p className="text-sm font-semibold text-black">
-                                {formatCurrency(product.revenue, userCurrency)}
+                                {formatCurrency(product.orderVolume, userCurrency)}
                               </p>
                             </div>
                             <div className="text-right">

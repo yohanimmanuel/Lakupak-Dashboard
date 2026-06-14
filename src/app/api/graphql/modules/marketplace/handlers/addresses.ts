@@ -1,5 +1,6 @@
 import { prisma } from '../../common/prisma';
 import { syncMarketplaceUserToBuyerProfiles } from '@/utils/buyerSync';
+import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addressSequence';
 
 export type CreateMarketplaceAddressInput = {
   fullName: string;
@@ -37,30 +38,6 @@ const normalizeLabel = (label?: string | null) => {
   }
   const trimmed = label.trim();
   return trimmed.length > 0 ? trimmed : 'home';
-};
-
-const isDuplicateAddressIdError = (error: unknown): boolean => {
-  if (!error || typeof error !== 'object') return false;
-  const prismaError = error as { code?: string; meta?: { target?: unknown } };
-  return (
-    prismaError.code === 'P2002' &&
-    Array.isArray(prismaError.meta?.target) &&
-    (prismaError.meta?.target as string[]).includes('Address_pkey')
-  );
-};
-
-const resetAddressIdSequence = async () => {
-  if (!process.env.DATABASE_URL?.startsWith('postgres')) {
-    return;
-  }
-
-  await prisma.$executeRawUnsafe(`
-    SELECT setval(
-      pg_get_serial_sequence('"Address"', 'id'),
-      COALESCE((SELECT MAX("id") FROM "Address"), 0),
-      true
-    );
-  `);
 };
 
 export const fetchMarketplaceAddresses = async (userId: number) => {

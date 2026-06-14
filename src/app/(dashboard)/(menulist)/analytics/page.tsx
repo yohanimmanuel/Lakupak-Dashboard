@@ -1,5 +1,5 @@
 'use client';
-import { DollarSign, ShoppingCart, Calendar, ChevronDown, CheckCircle } from 'lucide-react';
+import { DollarSign, ShoppingCart, Calendar, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
@@ -148,25 +148,13 @@ export default function AnalyticsPage() {
     return products;
   }, [products, hasData]);
 
-  const totalRevenue = calculateTotalRevenue(filteredOrders, filteredProducts);
+  const orderVolume = calculateTotalRevenue(filteredOrders, filteredProducts);
+  const averageOrderVolume =
+    filteredOrders.length > 0 ? orderVolume / filteredOrders.length : 0;
 
   const revenueData = useMemo(() => {
     return calculateRevenueData(filteredOrders, filteredProducts, hasData);
   }, [filteredOrders, filteredProducts, hasData]);
-
-  const revenueCollected = useMemo(() => {
-    // Calculate revenue from paid orders only (Paid or Partially Paid)
-    return filteredOrders
-      .filter(order => 
-        order.paymentStatus === 'Paid'
-      )
-      .reduce((sum, order) => {
-        const amount = typeof order.totalAmount === 'number'
-          ? order.totalAmount
-          : parseFloat(String(order.totalAmount || 0));
-        return sum + amount;
-      }, 0);
-  }, [filteredOrders]);
 
   // Operational metrics reused from OperationalPerformanceAnalytics
   const opMetrics = useMemo(() => computeOperationalMetrics(filteredOrders, filteredProducts), [filteredOrders, filteredProducts]);
@@ -323,18 +311,11 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <>
             <AnalyticsMetricCard
-              title="Total Sales"
-              value={formatCurrency(totalRevenue, userCurrency)}
+              title="Order Volume"
+              value={formatCurrency(orderVolume, userCurrency)}
               change={12.5}
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
-            />
-            <AnalyticsMetricCard
-              title="Revenue Collected"
-              value={formatCurrency(revenueCollected, userCurrency)}
-              change={0}
-              icon={<CheckCircle className="w-6 h-6 text-green-500" />}
-              color="bg-[#e6f7ec]"
             />
             <CustomerPiecesSoldCard 
               piecesSold={customerMetrics.totalPiecesSold || 0} 
@@ -348,6 +329,13 @@ export default function AnalyticsPage() {
               change={5.2}
               icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
               color="bg-white"
+            />
+            <AnalyticsMetricCard
+              title="Average Order Volume"
+              value={formatCurrency(averageOrderVolume, userCurrency)}
+              change={0}
+              icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
+              color="bg-[#e6f7ec]"
             />
           </>
       </div>
