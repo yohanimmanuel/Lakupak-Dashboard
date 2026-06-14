@@ -92,6 +92,8 @@ export interface FleetOrderSummary {
   completedOrderIds?: string[];
   /** Actual delivery addresses from assigned orders (for real route mapping) */
   deliveryAddresses?: string[];
+  /** Per-stop completion aligned with deliveryAddresses (Delivered or Received) */
+  deliveryStopsCompleted?: boolean[];
   /** Driver's last known GPS latitude (synced from Laku-Driver app) */
   driverLat?: number | null;
   /** Driver's last known GPS longitude */

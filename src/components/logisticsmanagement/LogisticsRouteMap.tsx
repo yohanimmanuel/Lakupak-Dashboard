@@ -5,7 +5,7 @@
  *
  * Routing uses only:
  * - Driver live GPS (optional): first waypoint + blue dot
- * - Buyer delivery addresses from assigned orders: geocoded stops + line
+ * - Buyer delivery addresses from assigned orders: geocoded stops + line (pending stops only)
  *
  * Fleet `route` text (e.g. "Jakarta → Semarang") is display-only elsewhere — never used here.
  */
@@ -26,6 +26,37 @@ function createDriverDotElement(): HTMLDivElement {
     boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
     pointerEvents: 'auto',
   });
+  return el;
+}
+
+function createStopPinElement(index: number, isCompleted: boolean): HTMLDivElement {
+  const el = document.createElement('div');
+  el.setAttribute(
+    'aria-label',
+    isCompleted ? `Stop ${index + 1} completed` : `Stop ${index + 1}`
+  );
+  if (isCompleted) {
+    Object.assign(el.style, {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '28px',
+      height: '28px',
+      borderRadius: '50%',
+      backgroundColor: '#10b981',
+      color: '#ffffff',
+      fontSize: '14px',
+      fontWeight: '700',
+      border: '2px solid #ffffff',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+      pointerEvents: 'auto',
+    });
+    el.textContent = '✓';
+  } else {
+    el.className =
+      'flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500 text-white text-xs font-bold border-2 border-white shadow';
+    el.textContent = String(index + 1);
+  }
   return el;
 }
 
@@ -79,6 +110,8 @@ async function fetchDrivingRoute(
 export interface LogisticsRouteMapProps {
   /** Buyer delivery addresses from assigned orders (only source for stop coordinates). */
   deliveryAddresses: string[];
+  /** Per-stop completion aligned with deliveryAddresses (Delivered or Received). */
+  stopsCompleted?: boolean[];
   driverLat?: number | null;
   driverLng?: number | null;
   height?: string;
@@ -87,6 +120,7 @@ export interface LogisticsRouteMapProps {
 
 export default function LogisticsRouteMap({
   deliveryAddresses,
+  stopsCompleted,
   driverLat,
   driverLng,
   height = '415px',
@@ -100,6 +134,7 @@ export default function LogisticsRouteMap({
   const { token, isLoading: tokenLoading } = useMapboxToken();
 
   const addressKey = deliveryAddresses.join('|');
+  const completionKey = (stopsCompleted ?? []).map((c) => (c ? '1' : '0')).join('');
   const driverCoord =
     typeof driverLat === 'number' && typeof driverLng === 'number'
       ? ([driverLng, driverLat] as [number, number])
@@ -129,8 +164,14 @@ export default function LogisticsRouteMap({
       const stopCoords = await Promise.all(deliveryAddresses.map((addr) => geocodePlace(token, addr)));
 
       const stopPairs = deliveryAddresses
-        .map((addr, i) => ({ addr, coord: stopCoords[i] }))
-        .filter((p): p is { addr: string; coord: [number, number] } => p.coord !== null);
+        .map((addr, i) => ({
+          addr,
+          coord: stopCoords[i],
+          isCompleted: stopsCompleted?.[i] === true,
+        }))
+        .filter(
+          (p): p is { addr: string; coord: [number, number]; isCompleted: boolean } => p.coord !== null
+        );
 
       if (cancelled) return;
 
@@ -141,7 +182,13 @@ export default function LogisticsRouteMap({
       }
 
       const validStops = stopPairs.map((p) => p.coord);
+      const pendingStops = stopPairs.filter((p) => !p.isCompleted).map((p) => p.coord);
       const allWaypoints: [number, number][] = driverCoord ? [driverCoord, ...validStops] : [...validStops];
+      const routeWaypoints: [number, number][] = driverCoord
+        ? pendingStops.length
+          ? [driverCoord, ...pendingStops]
+          : []
+        : [...pendingStops];
 
       const center = allWaypoints[0];
 
@@ -179,11 +226,7 @@ export default function LogisticsRouteMap({
         }
 
         stopPairs.forEach((p, i) => {
-          const el = document.createElement('div');
-          el.className =
-            'flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500 text-white text-xs font-bold border-2 border-white shadow';
-          el.textContent = String(i + 1);
-          new mapboxgl.Marker({ element: el })
+          new mapboxgl.Marker({ element: createStopPinElement(i, p.isCompleted) })
             .setLngLat(p.coord)
             .setPopup(
               new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(
@@ -208,8 +251,8 @@ export default function LogisticsRouteMap({
         setIsLoading(false);
         requestAnimationFrame(() => map?.resize());
 
-        if (allWaypoints.length >= 2) {
-          const capped = allWaypoints.slice(0, 25);
+        if (routeWaypoints.length >= 2) {
+          const capped = routeWaypoints.slice(0, 25);
           const geometry = await fetchDrivingRoute(token, capped);
           if (cancelled || !geometry || !map) return;
           map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry, properties: {} } });
@@ -238,7 +281,7 @@ export default function LogisticsRouteMap({
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressKey, driverLat, driverLng, token, tokenLoading]);
+  }, [addressKey, completionKey, driverLat, driverLng, token, tokenLoading]);
 
   if (hasError) {
     return (

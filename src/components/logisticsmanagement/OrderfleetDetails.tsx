@@ -271,6 +271,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               {showRouteMap ? (
                 <LogisticsRouteMap
                   deliveryAddresses={fleet.deliveryAddresses!}
+                  stopsCompleted={fleet.deliveryStopsCompleted}
                   driverLat={fleet.driverLat}
                   driverLng={fleet.driverLng}
                   height="415px"
@@ -347,6 +348,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
           <LogisticsRouteMap
             key={`orderfleet-route-fs-${fleet.orderCode}`}
             deliveryAddresses={fleet.deliveryAddresses!}
+            stopsCompleted={fleet.deliveryStopsCompleted}
             driverLat={fleet.driverLat}
             driverLng={fleet.driverLng}
             height="100%"

@@ -5,6 +5,7 @@ import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToDriver } from '@/utils/expoPush';
 import { translateDriverFleetAssigned, translateDriverOrdersAdded } from '@/utils/driverPushTranslations';
+import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -160,6 +161,7 @@ export const logisticsTypeDefs = /* GraphQL */ `
     assignedOrderIds: [String!]
     completedOrderIds: [String!]
     deliveryAddresses: [String!]
+    deliveryStopsCompleted: [Boolean!]
     createdAt: String
     updatedAt: String
   }
@@ -383,7 +385,7 @@ type FleetRow = {
   createdAt: Date;
   updatedAt: Date;
   driver: DriverRow | null;
-  orders: { orderId: string; deliveryAddress: string | null }[];
+  orders: { orderId: string; deliveryAddress: string | null; orderStatus: string }[];
 };
 
 function mapFleet(row: FleetRow) {
@@ -410,6 +412,11 @@ function mapFleet(row: FleetRow) {
   const deliveryAddresses = assignedOrderIds
     .map((id) => deliveryAddressMap.get(id))
     .filter((a): a is string => Boolean(a));
+
+  const orderStatusMap = new Map(row.orders.map((o) => [o.orderId, o.orderStatus]));
+  const deliveryStopsCompleted = assignedOrderIds
+    .filter((id) => Boolean(deliveryAddressMap.get(id)))
+    .map((id) => isDeliveryStopComplete(orderStatusMap.get(id)));
 
   const d = row.driver;
   return {
@@ -448,6 +455,7 @@ function mapFleet(row: FleetRow) {
     assignedOrderIds,
     completedOrderIds,
     deliveryAddresses,
+    deliveryStopsCompleted,
     createdAt: row.createdAt?.toISOString?.() ?? null,
     updatedAt: row.updatedAt?.toISOString?.() ?? null,
   };
@@ -455,7 +463,7 @@ function mapFleet(row: FleetRow) {
 
 const FLEET_INCLUDE = {
   driver: true,
-  orders: { select: { orderId: true, deliveryAddress: true } },
+  orders: { select: { orderId: true, deliveryAddress: true, orderStatus: true } },
 } as const;
 
 // ============================================================================ //

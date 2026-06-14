@@ -90,6 +90,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
         {showRouteMap ? (
           <LogisticsRouteMap
             deliveryAddresses={fleet.deliveryAddresses!}
+            stopsCompleted={fleet.deliveryStopsCompleted}
             driverLat={fleet.driverLat}
             driverLng={fleet.driverLng}
             height="450px"
@@ -196,6 +197,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
           <LogisticsRouteMap
             key={`fleet-route-fs-${fleet.orderCode}`}
             deliveryAddresses={fleet.deliveryAddresses!}
+            stopsCompleted={fleet.deliveryStopsCompleted}
             driverLat={fleet.driverLat}
             driverLng={fleet.driverLng}
             height="100%"

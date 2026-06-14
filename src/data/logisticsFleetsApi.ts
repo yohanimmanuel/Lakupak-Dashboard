@@ -28,7 +28,7 @@ const FLEET_FIELDS = `
   totalOrders deliveriesCompleted
   customers { storeName contactName }
   vehicleType loadPct paymentTerms vehicleBrand vehicleModel plateNumber vehicleMaxWeight vehicleMaxVolume
-  assignedLogistics assignedOrderIds completedOrderIds deliveryAddresses
+  assignedLogistics assignedOrderIds completedOrderIds deliveryAddresses deliveryStopsCompleted
   driverLat driverLng driverLocationAt
 `;
 
@@ -184,6 +184,7 @@ function mapNodeToSummary(node: {
   assignedOrderIds?: string[] | null;
   completedOrderIds?: string[] | null;
   deliveryAddresses?: string[] | null;
+  deliveryStopsCompleted?: boolean[] | null;
   driverLat?: number | null;
   driverLng?: number | null;
   driverLocationAt?: string | null;
@@ -224,6 +225,7 @@ function mapNodeToSummary(node: {
     assignedOrderIds: node.assignedOrderIds ?? undefined,
     completedOrderIds: node.completedOrderIds ?? undefined,
     deliveryAddresses: node.deliveryAddresses ?? undefined,
+    deliveryStopsCompleted: node.deliveryStopsCompleted ?? undefined,
     driverLat: node.driverLat ?? undefined,
     driverLng: node.driverLng ?? undefined,
     driverLocationAt: node.driverLocationAt ?? undefined,
