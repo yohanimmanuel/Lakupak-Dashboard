@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { AnalyticsMetricCard } from '@/components/analyticsperformance/FinancialAnalytics';
 import { OperationalMetricCard } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
+import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
 
 interface OrdersCardsProps {
   orders: Order[];
@@ -29,70 +30,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const orderVolume = validOrders.reduce((sum, order) => sum + calculateOrderTotalAmount(order), 0);
   const averageOrderVolume = totalOrders > 0 ? orderVolume / totalOrders : 0;
 
-  const growth = useMemo(() => {
-    const safeOrders = Array.isArray(orders) ? orders : [];
-    if (!safeOrders.length) {
-      return {
-        ordersGrowth: 0,
-        orderVolumeGrowth: 0,
-        completionGrowth: 0,
-        averageOrderVolumeGrowth: 0,
-      };
-    }
-
-    const byMonth: Record<string, { orders: number; orderVolume: number; completed: number }> = {};
-
-    safeOrders.forEach((order) => {
-      const d = new Date(order.orderDate);
-      if (Number.isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!byMonth[key]) {
-        byMonth[key] = { orders: 0, orderVolume: 0, completed: 0 };
-      }
-      const bucket = byMonth[key];
-      bucket.orders += 1;
-      bucket.orderVolume += calculateOrderTotalAmount(order);
-      if (isCompletedOrder(order.orderStatus)) {
-        bucket.completed += 1;
-      }
-    });
-
-    const keys = Object.keys(byMonth).sort();
-    if (keys.length < 2) {
-      return {
-        ordersGrowth: 0,
-        orderVolumeGrowth: 0,
-        completionGrowth: 0,
-        averageOrderVolumeGrowth: 0,
-      };
-    }
-
-    const last = byMonth[keys[keys.length - 1]];
-    const prev = byMonth[keys[keys.length - 2]];
-
-    const ordersGrowth = prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : 0;
-    const orderVolumeGrowth =
-      prev.orderVolume > 0 ? ((last.orderVolume - prev.orderVolume) / prev.orderVolume) * 100 : 0;
-
-    const completionLast = last.orders > 0 ? (last.completed / last.orders) * 100 : 0;
-    const completionPrev = prev.orders > 0 ? (prev.completed / prev.orders) * 100 : 0;
-    const completionGrowth =
-      completionPrev !== 0
-        ? ((completionLast - completionPrev) / Math.abs(completionPrev)) * 100
-        : 0;
-
-    const avgLast = last.orders > 0 ? last.orderVolume / last.orders : 0;
-    const avgPrev = prev.orders > 0 ? prev.orderVolume / prev.orders : 0;
-    const averageOrderVolumeGrowth =
-      avgPrev !== 0 ? ((avgLast - avgPrev) / Math.abs(avgPrev)) * 100 : 0;
-
-    return {
-      ordersGrowth,
-      orderVolumeGrowth,
-      completionGrowth,
-      averageOrderVolumeGrowth,
-    };
-  }, [orders]);
+  const growth = useMemo(() => computeOrderMonthOverMonthGrowth(validOrders), [validOrders]);
 
   const displayCurrency = user?.currency || getDefaultCurrency();
 

@@ -1,41 +1,31 @@
 'use client';
 
 import React from 'react';
-import { Gift, Percent, TrendingUp, TrendingDown, Users, DollarSign } from 'lucide-react';
-import { useUserStore } from '@/store/userStore';
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { Gift, Percent, TrendingUp, Users } from 'lucide-react';
 import { Offer } from '@/types/offer';
-
-// This function is no longer needed since we use offer.totalDiscountGiven directly
-// which is updated by the order creation process via trackOfferUsage
+import { cumulativeCountGrowth, formatLegacyTrend } from '@/utils/monthOverMonthGrowth';
+import { StatCardTrendRow } from '@/components/stats/StatCardTrendRow';
 
 interface OfferStatCardsProps {
   offers: Offer[];
 }
 
 export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
-  const user = useUserStore(state => state.user);
-  
-  const userCurrency = user?.currency || getDefaultCurrency();
-
   const stats = React.useMemo(() => {
     const totalOffers = offers.length;
     const activeOffers = offers.filter(offer => offer.status === 'active').length;
-    const expiredOffers = offers.filter(offer => offer.status === 'expired').length;
     
-    // Calculate total discount given (actual amount given to customers)
     const totalDiscountGiven = offers.reduce((sum, offer) => {
-      // Use the actual totalDiscountGiven field from the database
-      // This represents the real cumulative discount amount given to customers
       return sum + (offer.totalDiscountGiven || 0);
     }, 0);
     
-    // Calculate total usage
     const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
     
-    // Calculate conversion rate (offers that have been used vs total offers)
     const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;
     const conversionRate = totalOffers > 0 ? (usedOffers / totalOffers) * 100 : 0;
+
+    const totalOffersGrowth = cumulativeCountGrowth(offers, (offer) => offer.createdAt);
+    const unavailableTrend = formatLegacyTrend(null);
 
     return [
       {
@@ -43,14 +33,14 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
         value: totalOffers,
         icon: <Gift className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
-        trend: { percent: '0%', label: 'from last month', up: true }
+        trend: formatLegacyTrend(totalOffersGrowth),
       },
       {
         label: 'Active Offers',
         value: activeOffers,
         icon: <TrendingUp className="w-6 h-6 text-green-500" />,
         color: 'bg-[#e6f7ec]',
-        trend: { percent: '0%', label: 'from last month', up: true }
+        trend: unavailableTrend,
       },
       {
         label: 'Conversion Rate',
@@ -67,11 +57,11 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
         trend: { percent: totalUsage > 0 ? 'Active' : 'No usage', label: 'redemption status', up: totalUsage > 0 }
       }
     ];
-  }, [offers, userCurrency]);
+  }, [offers]);
 
   return (
     <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map((stat, idx) => (
+      {stats.map((stat) => (
         <div
           key={stat.label}
           className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${stat.color}`}
@@ -85,17 +75,7 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
               <div className="text-xl font-bold text-black">{stat.value}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            {stat.trend.up ? (
-              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            ) : (
-              <TrendingDown className="w-5 h-5 text-[#f65911]" />
-            )}
-            <span className={stat.trend.up ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-              {stat.trend.percent}
-            </span>
-            <span className="text-gray-400 text-xs">{stat.trend.label}</span>
-          </div>
+          <StatCardTrendRow trend={stat.trend} />
         </div>
       ))}
     </div>

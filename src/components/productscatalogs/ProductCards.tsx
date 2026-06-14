@@ -1,6 +1,8 @@
 import React from "react";
-import { Package, CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown, X, Gift } from "lucide-react";
+import { Package, CheckCircle, AlertTriangle, XCircle, X, Gift } from "lucide-react";
 import { Product } from "@/types/product";
+import { cumulativeCountGrowth, formatLegacyTrend } from "@/utils/monthOverMonthGrowth";
+import { StatCardTrendRow } from "@/components/stats/StatCardTrendRow";
 
 interface ProductCardsProps {
   products: Product[];
@@ -10,7 +12,6 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   const [dismissedLowStock, setDismissedLowStock] = React.useState(false);
   const [dismissedOutOfStock, setDismissedOutOfStock] = React.useState(false);
 
-  // Calculate stats from products data
   const totalProducts = products.length;
   const activeProducts = products.filter(product => product.status === 'Published').length;
   const lowStockAlerts = products.filter(product => {
@@ -41,37 +42,38 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
     product.discountType ||
     product.promotionDetails
   ).length;
+
+  const totalProductsGrowth = cumulativeCountGrowth(products, (product) => product.createdAt);
+  const unavailableTrend = formatLegacyTrend(null);
+
   const stats = [
     {
       label: 'Total Products',
       value: totalProducts,
       icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
       color: 'bg-[#f7faff]',
-      trend: { percent: '0.0%', label: 'from last month', up: true }
+      trend: formatLegacyTrend(totalProductsGrowth),
     },
     {
       label: 'Published Products',
       value: activeProducts,
       icon: <CheckCircle className="w-6 h-6 text-green-500" />,
       color: 'bg-[#e6f7ec]',
-      trend: { percent: '0.0%', label: 'from last month', up: true }
+      trend: unavailableTrend,
     },
     {
       label: 'Products with Offers',
       value: productsWithOffers,
       icon: <Gift className="w-6 h-6 text-purple-500" />,
       color: 'bg-[#f3e8ff]',
-      trend: { percent: '0.0%', label: 'from last month', up: true }
+      trend: unavailableTrend,
     }
   ];
 
-
-
   return (
     <div className="w-full mx-auto space-y-4">
-      {/* Main Stats - Three Column */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"> 
-        {stats.map((stat, idx) => (
+        {stats.map((stat) => (
           <div
             key={stat.label}
             className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${stat.color}`}
@@ -85,23 +87,12 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
                 <div className="text-xl font-bold text-black">{stat.value}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 mt-4 ml-1">
-              {stat.trend.up ? (
-                <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-              ) : (
-                <TrendingDown className="w-5 h-5 text-[#f65911]" />
-              )}
-              <span className={stat.trend.up ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-                {stat.trend.percent}
-              </span>
-              <span className="text-gray-400 text-xs">{stat.trend.label}</span>
-            </div>
+            <StatCardTrendRow trend={stat.trend} />
           </div>
         ))}
       </div>
 
-             {/* Stock Alert Notifications - Full Width */}
-       {lowStockAlerts > 0 && !dismissedLowStock && (
+             {lowStockAlerts > 0 && !dismissedLowStock && (
          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
            <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">

@@ -1062,6 +1062,16 @@ export const OperationalMetricCard: React.FC<{
           );
         }
 
+        if (change === 0) {
+          return (
+            <>
+              <ArrowRight className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-400 text-xs font-semibold">0.0%</span>
+              <span className="text-gray-400 text-xs">vs last month</span>
+            </>
+          );
+        }
+
         const changeValue = change;
         return (
           <>

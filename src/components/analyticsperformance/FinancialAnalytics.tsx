@@ -856,28 +856,7 @@ const FinancialAnalytics: React.FC = () => {
         </div>
       </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      {(() => {
-        const value = change ?? 0;
-        return (
-          <>
-            {value >= 0 ? (
-              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            ) : (
-              <TrendingDown className="w-5 h-5 text-[#f65911]" />
-            )}
-            <span
-              className={
-                value >= 0
-                  ? 'text-[#3ea73b] text-xs font-semibold'
-                  : 'text-[#f65911] text-xs font-semibold'
-              }
-            >
-              {Math.abs(value).toFixed(1)}%
-            </span>
-            <span className="text-gray-400 text-xs">vs last month</span>
-          </>
-        );
-      })()}
+      <MetricChangeFooter change={change} />
     </div>
     </div>
   );
@@ -1531,6 +1510,46 @@ const FinancialAnalytics: React.FC = () => {
 
 // ===== REUSABLE COMPONENTS FOR ANALYTICS PAGES =====
 
+function MetricChangeFooter({ change }: { change: number | null }) {
+  if (change === null || change === undefined) {
+    return (
+      <>
+        <ArrowRight className="w-5 h-5 text-gray-400" />
+        <span className="text-gray-400 text-xs font-semibold">N/A</span>
+        <span className="text-gray-400 text-xs">vs last month</span>
+      </>
+    );
+  }
+
+  if (change === 0) {
+    return (
+      <>
+        <ArrowRight className="w-5 h-5 text-gray-400" />
+        <span className="text-gray-400 text-xs font-semibold">0.0%</span>
+        <span className="text-gray-400 text-xs">vs last month</span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {change >= 0 ? (
+        <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
+      ) : (
+        <TrendingDown className="w-5 h-5 text-[#f65911]" />
+      )}
+      <span
+        className={
+          change >= 0 ? 'text-[#3ea73b] text-xs font-semibold' : 'text-[#f65911] text-xs font-semibold'
+        }
+      >
+        {Math.abs(change).toFixed(1)}%
+      </span>
+      <span className="text-gray-400 text-xs">vs last month</span>
+    </>
+  );
+}
+
 // Shared MetricCard component
 export const AnalyticsMetricCard: React.FC<{
   title: string;
@@ -1550,22 +1569,7 @@ export const AnalyticsMetricCard: React.FC<{
       </div>
     </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      {(() => {
-        const valueChange = change ?? 0;
-        return (
-          <>
-            {valueChange >= 0 ? (
-              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            ) : (
-              <TrendingDown className="w-5 h-5 text-[#f65911]" />
-            )}
-            <span className={valueChange >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-              {Math.abs(valueChange).toFixed(1)}%
-            </span>
-            <span className="text-gray-400 text-xs">vs last month</span>
-          </>
-        );
-      })()}
+      <MetricChangeFooter change={change} />
     </div>
   </div>
 );

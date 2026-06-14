@@ -37,6 +37,7 @@ import {
 import { calculateSalesMetrics } from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { getProductTotalStock } from '@/utils/stockUtils';
 import { getDefaultCurrency } from '@/utils/currencyUtils';
+import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
 import type { Order, OrderItem } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
@@ -1694,6 +1695,8 @@ const supplierInsights = useMemo(() => {
     }
   };
 
+  const orderGrowth = useMemo(() => computeOrderMonthOverMonthGrowth(orders), [orders]);
+
   const statCards = useMemo(() => {
     // Don't calculate if still loading to avoid showing 0 values
     if (loading) {
@@ -1703,14 +1706,12 @@ const supplierInsights = useMemo(() => {
     const averageOrderVolume =
       aggregates?.avgOrderValue ??
       (totalOrderCount > 0 ? totalRevenue / totalOrderCount : 0);
-    // Growth metrics currently default to 0.0% to avoid misleading hardcoded values.
-    // When historical data is wired here, replace these zeros with real month-over-month changes.
     return [
       {
         id: 'orderVolume',
         title: 'Order Volume',
         value: formatCurrency(totalRevenue, userCurrency),
-        change: 0,
+        change: orderGrowth.orderVolumeGrowth,
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1718,7 +1719,7 @@ const supplierInsights = useMemo(() => {
         id: 'totalOrders',
         title: 'Total Orders',
         value: totalOrderCount.toLocaleString(),
-        change: 0,
+        change: orderGrowth.ordersGrowth,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
         color: 'bg-white',
       },
@@ -1726,7 +1727,7 @@ const supplierInsights = useMemo(() => {
         id: 'piecesSold',
         title: 'Pieces Sold',
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
-        change: 0,
+        change: orderGrowth.piecesGrowth,
         icon: <Package className="w-6 h-6 text-purple-600" />,
         color: 'bg-white',
       },
@@ -1734,12 +1735,21 @@ const supplierInsights = useMemo(() => {
         id: 'averageOrderVolume',
         title: 'Average Order Volume',
         value: formatCurrency(averageOrderVolume, userCurrency),
-        change: 0,
+        change: orderGrowth.averageOrderVolumeGrowth,
         icon: <DollarSign className="w-6 h-6 text-emerald-600" />,
         color: 'bg-[#e6f7ec]',
       },
     ];
-  }, [loading, aggregates?.totalOrders, aggregates?.avgOrderValue, safeSalesMetrics.totalUnitsSold, totalRevenue, userCurrency]);
+  }, [
+    loading,
+    aggregates?.totalOrders,
+    aggregates?.avgOrderValue,
+    safeSalesMetrics.totalUnitsSold,
+    totalRevenue,
+    userCurrency,
+    orders.length,
+    orderGrowth,
+  ]);
 
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,

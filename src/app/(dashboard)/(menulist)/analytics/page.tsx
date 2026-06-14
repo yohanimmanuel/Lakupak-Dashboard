@@ -24,6 +24,7 @@ import {
   computeProcessingTimeData
 } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
 
 const ANALYTICS_PAGE_QUERY = `
   query AnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
@@ -167,6 +168,8 @@ export default function AnalyticsPage() {
   // Customer Sales metrics reused
   const customerMetrics = useMemo(() => calculateSalesMetrics(filteredOrders, filteredProducts, hasData), [filteredOrders, filteredProducts, hasData]);
   const salesTrend = useMemo(() => calculateSalesTrend(filteredOrders, hasData), [filteredOrders, hasData]);
+
+  const orderGrowth = useMemo(() => computeOrderMonthOverMonthGrowth(orders), [orders]);
 
   // Handle dropdown click outside
   useEffect(() => {
@@ -313,27 +316,27 @@ export default function AnalyticsPage() {
             <AnalyticsMetricCard
               title="Order Volume"
               value={formatCurrency(orderVolume, userCurrency)}
-              change={12.5}
+              change={orderGrowth.orderVolumeGrowth}
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
             />
             <CustomerPiecesSoldCard 
               piecesSold={customerMetrics.totalPiecesSold || 0} 
               unitsSold={customerMetrics.totalUnitsSold} 
-              change={null}
+              change={orderGrowth.piecesGrowth}
             />
             {/* Operational metric card reused */}
             <OperationalMetricCard
               title="Order Completion Rate"
               value={`${opMetrics.completionRate.toFixed(1)}%`}
-              change={5.2}
+              change={orderGrowth.completionGrowth}
               icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
               color="bg-white"
             />
             <AnalyticsMetricCard
               title="Average Order Volume"
               value={formatCurrency(averageOrderVolume, userCurrency)}
-              change={0}
+              change={orderGrowth.averageOrderVolumeGrowth}
               icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
               color="bg-[#e6f7ec]"
             />
