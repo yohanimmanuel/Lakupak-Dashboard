@@ -21,11 +21,18 @@ const productionSchema = coreSchema.extend({
 
 const OPTIONAL_FEATURE_VARS = [
   'MEILI_HOST',
-  'CLOUDINARY_CLOUD_NAME',
   'TWILIO_ACCOUNT_SID',
   'SMTP_HOST',
   'AUDIT_SERVICE_URL',
 ] as const;
+
+/** Warn only when none of the listed aliases are set. */
+const OPTIONAL_FEATURE_ALIASES: { label: string; keys: readonly string[] }[] = [
+  {
+    label: 'Cloudinary (CLOUDINARY_CLOUD_NAME or NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME)',
+    keys: ['CLOUDINARY_CLOUD_NAME', 'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME'],
+  },
+];
 
 export type ValidateDashboardEnvOptions = {
   /** When true, missing required vars throw. Defaults to NODE_ENV === 'production'. */
@@ -61,6 +68,12 @@ export function validateDashboardEnv(options: ValidateDashboardEnvOptions = {}):
   for (const key of OPTIONAL_FEATURE_VARS) {
     if (!isNonEmpty(process.env[key])) {
       console.warn(`[env] Optional ${key} is not set — related features may be degraded.`);
+    }
+  }
+
+  for (const group of OPTIONAL_FEATURE_ALIASES) {
+    if (!group.keys.some((key) => isNonEmpty(process.env[key]))) {
+      console.warn(`[env] Optional ${group.label} is not set — related features may be degraded.`);
     }
   }
 }
