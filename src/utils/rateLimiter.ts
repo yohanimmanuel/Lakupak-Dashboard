@@ -1388,6 +1388,27 @@ export async function mapboxGeocodeRateLimiter(
 }
 
 /**
+ * Marketplace address geocode (Google proxy). Works without auth during signup.
+ */
+export async function mobileGeocodeRateLimiter(
+  req: NextRequest,
+  userId?: number | null,
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId ? `mobile-geocode:user:${userId}:${ip}` : `mobile-geocode:ip:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 1000,
+    maxRequests: userId ? 90 : 45,
+    message: 'Too many geocoding requests. Please slow down.',
+    keyGenerator: () => key,
+    progressivePenalty: true,
+    burstLimit: 4,
+    burstWindowMs: 1000,
+  });
+}
+
+/**
  * Telemetry: Session samples - high frequency mutation endpoint.
  * Separate from dashboardQueryRateLimiter; this is write-heavy and should be capped.
  */

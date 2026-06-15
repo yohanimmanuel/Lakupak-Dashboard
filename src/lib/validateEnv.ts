@@ -32,6 +32,10 @@ const OPTIONAL_FEATURE_ALIASES: { label: string; keys: readonly string[] }[] = [
     label: 'Cloudinary (CLOUDINARY_CLOUD_NAME or NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME)',
     keys: ['CLOUDINARY_CLOUD_NAME', 'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME'],
   },
+  {
+    label: 'Google Maps geocoding (GOOGLE_MAPS_API_KEY or GOOGLE_GEOCODING_API_KEY)',
+    keys: ['GOOGLE_MAPS_API_KEY', 'GOOGLE_GEOCODING_API_KEY'],
+  },
 ];
 
 export type ValidateDashboardEnvOptions = {
