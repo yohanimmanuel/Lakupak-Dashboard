@@ -52,7 +52,7 @@ function normalizeCompanyForStore(company: Record<string, unknown> | null | unde
     return undefined;
   }
   const decimalKeys = [
-    "defaultDeliveryLeadTimeMinDays", "defaultDeliveryLeadTimeMaxDays",
+    "defaultDeliveryLeadTimeMinDays", "defaultDeliveryLeadTimeMaxDays", "buyerPaymentTermDays",
   ];
   const out: Record<string, unknown> = { ...company };
   for (const key of decimalKeys) {

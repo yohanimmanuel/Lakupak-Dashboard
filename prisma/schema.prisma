@@ -28,6 +28,7 @@ model User {
   bio           String?
   location      String?
   phone         String?
+  /// Distributor company this dashboard user belongs to.
   companyId     Int?
   language      String     @default("en")
   /// Dashboard product-tour progress (merged with localStorage); optional cross-device sync.
@@ -39,7 +40,7 @@ model User {
   sessions      Session[]
   suppliers     Supplier[]
   offers        Offer[]
-  company       Company?   @relation(fields: [companyId], references: [id])
+  company       Company?   @relation("CompanyToUsers", fields: [companyId], references: [id], onDelete: SetNull)
   salesAgents   SalesAgent[]
   salesTeams    SalesTeam[]
   campaigns     Campaign[]
@@ -49,6 +50,8 @@ model User {
   distributorFollowers       DistributorFollowing[]
   fleets        Fleet[]
   drivers       Driver[]
+
+  @@index([companyId])
 }
 
 model Company {
@@ -90,7 +93,10 @@ model Company {
   pickupAddress               String?
   defaultDeliveryLeadTimeMinDays Int?
   defaultDeliveryLeadTimeMaxDays Int?
-  users                       User[]
+  /// Days after purchase by which buyers must complete bank transfer (shown on Pay Order).
+  buyerPaymentTermDays         Int?
+  /// Dashboard users linked via User.companyId (FK on User).
+  users                       User[]                 @relation("CompanyToUsers")
   paymentMethods              CompanyPaymentMethod[]
   commissionInvoices          CommissionInvoice[]
 }

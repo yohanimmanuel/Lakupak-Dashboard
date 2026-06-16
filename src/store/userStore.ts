@@ -24,6 +24,7 @@ interface Company {
   pickupAddress?: string | null;
   defaultDeliveryLeadTimeMinDays?: number | null;
   defaultDeliveryLeadTimeMaxDays?: number | null;
+  buyerPaymentTermDays?: number | null;
   /**
    * Non-sensitive reference to the billing profile.
    * Full billing details should be fetched server-side with authenticated calls.

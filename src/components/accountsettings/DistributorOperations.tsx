@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown } from 'lucide-react';
+import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Phone, Mail, Shield, Clock, Truck, ChevronDown, CreditCard } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { generateSlug } from '@/utils/slugUtils';
@@ -38,6 +38,7 @@ interface CompanyProfileData {
   pickupAddress: string;
   defaultDeliveryLeadTimeMinDays: number | '';
   defaultDeliveryLeadTimeMaxDays: number | '';
+  buyerPaymentTermDays: number | '';
 }
 
 const industryTypes = [
@@ -116,6 +117,7 @@ export default function DistributorOperations() {
     pickupAddress: '',
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
+    buyerPaymentTermDays: '',
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -141,6 +143,7 @@ export default function DistributorOperations() {
     pickupAddress: '',
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
+    buyerPaymentTermDays: '',
   });
   
   // Dropdown states
@@ -177,6 +180,7 @@ export default function DistributorOperations() {
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
+        buyerPaymentTermDays: (company as { buyerPaymentTermDays?: number | null })?.buyerPaymentTermDays ?? '',
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -201,6 +205,7 @@ export default function DistributorOperations() {
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
+        buyerPaymentTermDays: (company as { buyerPaymentTermDays?: number | null })?.buyerPaymentTermDays ?? '',
       });
     }
   }, [user]);
@@ -407,6 +412,13 @@ export default function DistributorOperations() {
       };
       validateDaysPair('Default delivery lead time', formData.defaultDeliveryLeadTimeMinDays, formData.defaultDeliveryLeadTimeMaxDays);
 
+      if (formData.buyerPaymentTermDays !== '') {
+        const termDays = Number(formData.buyerPaymentTermDays);
+        if (!Number.isInteger(termDays) || termDays < 1) {
+          validationErrors.push('Payment term must be a whole number of days (1 or more), or left empty');
+        }
+      }
+
       if (validationErrors.length > 0) {
         setError(validationErrors.join('. '));
         setIsLoading(false);
@@ -470,6 +482,7 @@ export default function DistributorOperations() {
         pickupAddress: formData.shippingPreferences.includes('Self Pickup') ? (formData.pickupAddress?.trim() || null) : null,
         defaultDeliveryLeadTimeMinDays: formData.defaultDeliveryLeadTimeMinDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMinDays),
         defaultDeliveryLeadTimeMaxDays: formData.defaultDeliveryLeadTimeMaxDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMaxDays),
+        buyerPaymentTermDays: formData.buyerPaymentTermDays === '' ? null : Number(formData.buyerPaymentTermDays),
       };
 
 
@@ -1122,6 +1135,42 @@ export default function DistributorOperations() {
             </div>
             <p className="mt-1 text-[11px] text-gray-500">Used to suggest estimated delivery date when you confirm an order (e.g. 3 to 5 business days from confirmation).</p>
           </div>
+        </div>
+      </div>
+
+      {/* Buyer payment terms */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
+        <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-gray-500" />
+          Payment Terms
+        </h2>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Term of payment (days after purchase)
+          </label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={formData.buyerPaymentTermDays}
+              onChange={(e) =>
+                handleInputChange(
+                  'buyerPaymentTermDays',
+                  e.target.value === '' ? '' : Number(e.target.value),
+                )
+              }
+              disabled={!isEditing}
+              className="w-full max-w-[120px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+              placeholder="e.g. 14"
+            />
+            <span className="text-xs text-gray-500">days after purchase</span>
+          </div>
+          <p className="mt-1 text-[11px] text-gray-500">
+            Shown to buyers on the Pay Order screen for bank transfer orders (e.g. full payment due 14 days after purchase).
+            Leave empty if payment is due immediately.
+          </p>
         </div>
       </div>
     </div>

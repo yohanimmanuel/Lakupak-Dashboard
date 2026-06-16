@@ -80,6 +80,7 @@ export async function PUT(req: NextRequest) {
       pickupAddress,
       defaultDeliveryLeadTimeMinDays,
       defaultDeliveryLeadTimeMaxDays,
+      buyerPaymentTermDays,
       billingBankName,
       billingBankAccountName,
       billingBankAccountNumber,
@@ -218,6 +219,21 @@ export async function PUT(req: NextRequest) {
       }
       if (defaultDeliveryLeadTimeMinDays !== undefined) updateData.defaultDeliveryLeadTimeMinDays = minVal;
       if (defaultDeliveryLeadTimeMaxDays !== undefined) updateData.defaultDeliveryLeadTimeMaxDays = maxVal;
+    }
+
+    if (buyerPaymentTermDays !== undefined) {
+      if (buyerPaymentTermDays === null || buyerPaymentTermDays === '') {
+        updateData.buyerPaymentTermDays = null;
+      } else {
+        const days = Number(buyerPaymentTermDays);
+        if (!Number.isInteger(days) || days < 1) {
+          return NextResponse.json(
+            { error: 'Payment term must be a whole number of days (1 or more), or left empty.' },
+            { status: 400, headers },
+          );
+        }
+        updateData.buyerPaymentTermDays = days;
+      }
     }
 
     const updatedCompany = await prisma.company.update({

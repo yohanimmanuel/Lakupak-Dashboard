@@ -75,6 +75,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             billingBankName: true,
             billingBankAccountName: true,
             billingBankAccountNumber: true,
+            buyerPaymentTermDays: true,
           },
         },
       },
@@ -113,6 +114,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         billingBankAccountNumber: full
           ? (seller.company.billingBankAccountNumber ?? null)
           : maskBankAccountNumber(seller.company.billingBankAccountNumber),
+        buyerPaymentTermDays: seller.company.buyerPaymentTermDays ?? null,
       },
       { status: 200, headers }
     );

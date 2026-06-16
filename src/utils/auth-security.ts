@@ -243,6 +243,7 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
   pickupAddress: typeof company.pickupAddress === 'string' ? company.pickupAddress : (company.pickupAddress || null),
   defaultDeliveryLeadTimeMinDays: company.defaultDeliveryLeadTimeMinDays != null ? Number(company.defaultDeliveryLeadTimeMinDays) : null,
   defaultDeliveryLeadTimeMaxDays: company.defaultDeliveryLeadTimeMaxDays != null ? Number(company.defaultDeliveryLeadTimeMaxDays) : null,
+  buyerPaymentTermDays: company.buyerPaymentTermDays != null ? Number(company.buyerPaymentTermDays) : null,
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,
 });
