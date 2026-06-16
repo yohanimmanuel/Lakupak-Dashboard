@@ -10,6 +10,7 @@ import { auditAuth } from '@/lib/audit';
 import { syncMarketplaceUserToBuyerProfiles } from '@/utils/buyerSync';
 import { normalizeMarketplacePhone } from '@/utils/marketplacePhone';
 import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addressSequence';
+import { attachGeocodeToAddress, normalizeAddressKey } from '@/utils/addressGeocodeCache';
 import { Prisma } from '@/lib/prisma-generated';
 
 type RegisterUserWithAddressParams = {
@@ -51,6 +52,7 @@ async function createMarketplaceUserWithAddress(
       fullName: params.trimmedAddressFullName,
       phone: params.finalPhone,
       address: params.trimmedAddress,
+      addressNormalized: normalizeAddressKey(params.trimmedAddress),
       isDefault: params.resolvedIsDefault,
       label: params.resolvedLabel,
     },
@@ -198,6 +200,17 @@ export async function POST(req: NextRequest) {
       await syncMarketplaceUserToBuyerProfiles(user.id);
     } catch (syncError) {
       console.error('Buyer profile sync after registration failed:', syncError);
+    }
+
+    const registeredAddress = await prisma.address.findFirst({
+      where: { userId: user.id, address: trimmedAddress },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+    if (registeredAddress) {
+      void attachGeocodeToAddress(registeredAddress.id, trimmedAddress).catch((err) => {
+        console.error('Geocode attach after registration failed:', err);
+      });
     }
 
     auditAuth(req, {

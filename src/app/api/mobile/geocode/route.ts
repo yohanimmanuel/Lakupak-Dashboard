@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import { lookupCachedGeocode, persistGeocodeResult } from '@/utils/addressGeocodeCache';
 import { geocodeWithGoogle, getGoogleMapsApiKey } from '@/utils/googleGeocode';
 import { mobileGeocodeRateLimiter } from '@/utils/rateLimiter';
 
@@ -10,6 +11,8 @@ const MAX_ADDRESS_LENGTH = 500;
  * Google Geocoding proxy for Marketplace address preview.
  * No auth required (signup address step) — rate-limited by IP.
  * Optional Bearer token for per-user limits when logged in.
+ *
+ * Checks saved buyer addresses first to avoid repeat Google API calls.
  */
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -41,6 +44,12 @@ export async function POST(req: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
+    const cached = await lookupCachedGeocode(address);
+    if (cached?.coordinates) {
+      const { cached: _cached, ...payload } = cached;
+      return NextResponse.json(payload, { status: 200, headers });
+    }
+
     const result = await geocodeWithGoogle(address, apiKey);
     if (!result.coordinates) {
       return NextResponse.json(
@@ -48,6 +57,8 @@ export async function POST(req: NextRequest) {
         { status: 200, headers },
       );
     }
+
+    await persistGeocodeResult(address, result);
 
     return NextResponse.json(result, { status: 200, headers });
   } catch {

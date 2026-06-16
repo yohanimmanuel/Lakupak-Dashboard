@@ -353,20 +353,25 @@ model OrderCancellation {
 }
 
 model Address {
-  id        Int             @id @default(autoincrement())
-  userId    Int
-  fullName  String
-  phone     String
-  address   String
-  isDefault Boolean         @default(false)
-  label     String
-  createdAt DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
-  user      MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                Int             @id @default(autoincrement())
+  userId            Int
+  fullName          String
+  phone             String
+  address           String
+  addressNormalized String?
+  latitude          Float?
+  longitude         Float?
+  geocodePrecision  String?
+  isDefault         Boolean         @default(false)
+  label             String
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  user              MarketplaceUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isDefault])
   @@index([userId, isDefault])
+  @@index([addressNormalized])
 }
 
 model Order {

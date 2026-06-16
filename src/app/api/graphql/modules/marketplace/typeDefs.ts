@@ -21,6 +21,9 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     fullName: String
     phone: String
     address: String
+    latitude: Float
+    longitude: Float
+    geocodePrecision: String
     label: String
     isDefault: Boolean!
     createdAt: String!

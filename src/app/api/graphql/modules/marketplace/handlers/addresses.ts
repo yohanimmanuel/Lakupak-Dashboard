@@ -1,6 +1,12 @@
 import { prisma } from '../../common/prisma';
 import { syncMarketplaceUserToBuyerProfiles } from '@/utils/buyerSync';
 import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addressSequence';
+import {
+  attachGeocodeToAddress,
+  clearGeocodeFieldsForAddressUpdate,
+  normalizeAddressKey,
+} from '@/utils/addressGeocodeCache';
+import type { Prisma } from '@/lib/prisma-generated';
 
 export type CreateMarketplaceAddressInput = {
   fullName: string;
@@ -26,6 +32,9 @@ const mapMarketplaceAddress = (address: AddressRecord) => ({
   fullName: address.fullName,
   phone: address.phone,
   address: address.address,
+  latitude: address.latitude,
+  longitude: address.longitude,
+  geocodePrecision: address.geocodePrecision,
   label: address.label,
   isDefault: Boolean(address.isDefault),
   createdAt: address.createdAt.toISOString(),
@@ -67,6 +76,7 @@ export const createMarketplaceAddress = async (args: { userId: number; input: Cr
           fullName,
           phone,
           address,
+          addressNormalized: normalizeAddressKey(address),
           isDefault: Boolean(input.isDefault),
           label: normalizeLabel(input.label),
         },
@@ -89,12 +99,18 @@ export const createMarketplaceAddress = async (args: { userId: number; input: Cr
   try {
     const created = mapMarketplaceAddress(await executeCreate());
     await syncMarketplaceUserToBuyerProfiles(userId);
+    void attachGeocodeToAddress(created.id, address).catch((err) => {
+      console.error('Geocode attach after address create failed:', err);
+    });
     return created;
   } catch (error) {
     if (isDuplicateAddressIdError(error)) {
       await resetAddressIdSequence();
       const created = mapMarketplaceAddress(await executeCreate());
       await syncMarketplaceUserToBuyerProfiles(userId);
+      void attachGeocodeToAddress(created.id, address).catch((err) => {
+        console.error('Geocode attach after address create failed:', err);
+      });
       return created;
     }
     throw error;
@@ -114,15 +130,29 @@ export const updateMarketplaceAddress = async (args: {
       throw new Error('Address not found');
     }
 
+    const addressChanged =
+      typeof input.address === 'string' && input.address.trim() !== existing.address.trim();
+
+    const updateData: Prisma.AddressUpdateInput = {
+      ...(typeof input.fullName === 'string' ? { fullName: input.fullName.trim() } : {}),
+      ...(typeof input.phone === 'string' ? { phone: input.phone.trim() } : {}),
+      ...(typeof input.label === 'string' ? { label: normalizeLabel(input.label) } : {}),
+      ...(typeof input.isDefault === 'boolean' ? { isDefault: input.isDefault } : {}),
+    };
+
+    if (typeof input.address === 'string') {
+      const trimmedAddress = input.address.trim();
+      updateData.address = trimmedAddress;
+      if (addressChanged) {
+        Object.assign(updateData, clearGeocodeFieldsForAddressUpdate(trimmedAddress));
+      } else {
+        updateData.addressNormalized = normalizeAddressKey(trimmedAddress);
+      }
+    }
+
     const updatedAddress = await tx.address.update({
       where: { id: addressId },
-      data: {
-        ...(typeof input.fullName === 'string' ? { fullName: input.fullName.trim() } : {}),
-        ...(typeof input.phone === 'string' ? { phone: input.phone.trim() } : {}),
-        ...(typeof input.address === 'string' ? { address: input.address.trim() } : {}),
-        ...(typeof input.label === 'string' ? { label: normalizeLabel(input.label) } : {}),
-        ...(typeof input.isDefault === 'boolean' ? { isDefault: input.isDefault } : {}),
-      },
+      data: updateData,
     });
 
     if (input.isDefault === true) {
@@ -146,6 +176,11 @@ export const updateMarketplaceAddress = async (args: {
 
   const result = mapMarketplaceAddress(updated);
   await syncMarketplaceUserToBuyerProfiles(userId);
+  if (typeof input.address === 'string') {
+    void attachGeocodeToAddress(result.id, input.address.trim()).catch((err) => {
+      console.error('Geocode attach after address update failed:', err);
+    });
+  }
   return result;
 };
 

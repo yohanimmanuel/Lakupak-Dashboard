@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/mobile/geocode/route';
 import { geocodeWithGoogle } from '@/utils/googleGeocode';
+import { normalizeAddressKey } from '@/utils/addressGeocodeCache';
+import { prisma } from '@/lib/db';
 
 const TEST_API_KEY = 'vitest-google-maps-key';
 
@@ -172,6 +174,49 @@ describe('POST /api/mobile/geocode', () => {
 
     expect(response.status).toBe(500);
     expect(body.error).toBe('Geocoding failed');
+  });
+
+  it('returns DB-cached coordinates without calling Google', async () => {
+    const addressText = 'Jl. Cached Buyer 42, Jakarta Selatan, Indonesia';
+    const user = await prisma.marketplaceUser.create({
+      data: {
+        username: `geocode_cache_${Date.now()}`,
+        email: `geocode-cache-${Date.now()}@example.com`,
+        password: 'hashed',
+        name: 'Geocode Cache',
+        phone: `+62811${Date.now().toString().slice(-7)}`,
+      },
+    });
+
+    await prisma.address.create({
+      data: {
+        userId: user.id,
+        fullName: 'Buyer',
+        phone: user.phone!,
+        address: addressText,
+        addressNormalized: normalizeAddressKey(addressText),
+        latitude: -6.2615,
+        longitude: 106.8106,
+        geocodePrecision: 'exact',
+        label: 'home',
+      },
+    });
+
+    const response = await POST(
+      makeGeocodeRequest({ address: addressText }, '127.0.0.1.70'),
+    );
+    const body = (await response.json()) as {
+      coordinates?: { longitude: number; latitude: number };
+      precision?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.coordinates).toEqual({
+      longitude: 106.8106,
+      latitude: -6.2615,
+    });
+    expect(body.precision).toBe('exact');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
