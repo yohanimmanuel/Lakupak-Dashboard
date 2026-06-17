@@ -1389,7 +1389,6 @@ export default function PlatformUserDetailPage() {
       avatar: string | null;
       image: string | null;
       bio: string | null;
-      location: string | null;
       region: string | null;
       language: string;
       currency: string;
@@ -1684,9 +1683,6 @@ export default function PlatformUserDetailPage() {
                 <span className="text-sm text-gray-900">
                   {formatDt(u.createdAt)} → {formatDt(u.updatedAt)}
                 </span>
-              </DistributorField>
-              <DistributorField label="Location">
-                <TextOrEmpty value={u.location} />
               </DistributorField>
               <DistributorField label="Bio">
                 <TextOrEmpty value={u.bio} multiline />

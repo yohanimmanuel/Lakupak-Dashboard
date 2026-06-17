@@ -82,7 +82,6 @@ export function AuthSync() {
         email?: string;
         phone?: string;
         bio?: string;
-        location?: string;
         avatar?: string;
         companyId?: number | null;
         company?: Record<string, unknown> | null;
@@ -104,7 +103,6 @@ export function AuthSync() {
           email: sessionUser.email || '',
           phone: sessionUser.phone || '',
           bio: sessionUser.bio || '',
-          location: sessionUser.location || '',
           avatar: sessionUser.avatar || sessionUser.image || '',
           companyId: sessionUser.companyId ?? undefined,
           company: normalizeCompanyForStore(sessionUser.company ?? undefined),

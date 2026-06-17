@@ -5,7 +5,7 @@ import { signIn, signOut } from "next-auth/react";
 import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
 import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Truck } from 'lucide-react';
 import { 
   useAuthErrorHandler, 
   useAuthLoading, 
@@ -14,10 +14,84 @@ import {
   ErrorMessage,
   SuccessMessage,
   LoadingButton,
-  FormStepIndicator
+  RegistrationProgressBar,
 } from '@/utils/auth-enhancements';
 
-const steps = ["User Info", "Company Info", "Business Credentials", "Set Password"];
+const steps = ["User Info", "Company Info", "Business Credentials", "Payment", "Shipping & Delivery", "Set Password"];
+
+const SHIPPING_OPTIONS = [
+  'Self Pickup',
+  'Seller/Distributor Delivery',
+  'Buyer-arranged Courier',
+] as const;
+
+const DELIVERY_TIME_SLOTS = [
+  'Morning (8:00 AM - 12:00 PM)',
+  'Afternoon (12:00 PM - 5:00 PM)',
+  'Evening (5:00 PM - 8:00 PM)',
+  'Flexible',
+] as const;
+
+const DELIVERY_DAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const;
+
+function isLeadTimeValid(min: number | '', max: number | ''): boolean {
+  const parseDays = (val: number | ''): number | null => {
+    if (val === '') return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  };
+  const minVal = parseDays(min);
+  const maxVal = parseDays(max);
+  if (minVal != null && (!Number.isInteger(minVal) || minVal < 0 || minVal > 90)) return false;
+  if (maxVal != null && (!Number.isInteger(maxVal) || maxVal < 0 || maxVal > 90)) return false;
+  if (minVal != null && maxVal != null && minVal > maxVal) return false;
+  return true;
+}
+
+function RegisterCheckbox({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center space-x-2 cursor-pointer">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
+          checked
+            ? 'bg-green-500 border-green-500'
+            : 'bg-white border-gray-300 hover:border-green-400'
+        }`}
+        aria-pressed={checked}
+        aria-label={label}
+      >
+        {checked && (
+          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+        )}
+      </button>
+      <span className="text-sm text-gray-700">{label}</span>
+    </label>
+  );
+}
 
 const INDUSTRY_OPTIONS = [
   'Wholesale & Distribution',
@@ -55,8 +129,24 @@ export default function RegisterPage() {
   const [businessCreds, setBusinessCreds] = useState({
     businessRegistrationNumber: "",
     taxId: "",
+    businessEmail: "",
     industryType: "Wholesale & Distribution",
     companySize: "11-50 employees",
+  });
+  const [paymentInfo, setPaymentInfo] = useState({
+    billingBankName: "",
+    billingBankAccountName: "",
+    billingBankAccountNumber: "",
+    buyerPaymentTermDays: "" as number | "",
+  });
+  const [shippingConfig, setShippingConfig] = useState({
+    shippingPreferences: [] as string[],
+    pickupAddress: "",
+    deliveryTimeSlots: [] as string[],
+    preferredDeliveryDays: [] as string[],
+    specialInstructions: "",
+    defaultDeliveryLeadTimeMinDays: "" as number | "",
+    defaultDeliveryLeadTimeMaxDays: "" as number | "",
   });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -81,8 +171,15 @@ export default function RegisterPage() {
     businessPhone: true,
     businessRegistrationNumber: true,
     taxId: true,
+    businessEmail: true,
     industryType: true,
     companySize: true,
+    billingBankName: true,
+    billingBankAccountName: true,
+    billingBankAccountNumber: true,
+    buyerPaymentTermDays: true,
+    pickupAddress: true,
+    deliveryLeadTime: true,
     password: true,
     confirmPassword: true
   });
@@ -129,16 +226,35 @@ export default function RegisterPage() {
       case 2:
         return (
           businessCreds.businessRegistrationNumber.trim() &&
+          businessCreds.businessEmail.trim() &&
           businessCreds.industryType.trim() &&
           businessCreds.companySize.trim() &&
           companyInfo.businessPhone.trim() &&
           validationStates.businessRegistrationNumber &&
+          validationStates.businessEmail &&
           validationStates.industryType &&
           validationStates.companySize &&
           validationStates.taxId &&
           validationStates.businessPhone
         );
       case 3:
+        return (
+          paymentInfo.billingBankName.trim() &&
+          paymentInfo.billingBankAccountName.trim() &&
+          paymentInfo.billingBankAccountNumber.trim() &&
+          validationStates.billingBankName &&
+          validationStates.billingBankAccountName &&
+          validationStates.billingBankAccountNumber &&
+          validationStates.buyerPaymentTermDays
+        );
+      case 4:
+        return (
+          shippingConfig.shippingPreferences.length > 0 &&
+          validationStates.deliveryLeadTime &&
+          (!shippingConfig.shippingPreferences.includes('Self Pickup') ||
+            (shippingConfig.pickupAddress.trim() && validationStates.pickupAddress))
+        );
+      case 5:
         return (
           password && 
           confirmPassword && 
@@ -148,7 +264,7 @@ export default function RegisterPage() {
       default:
         return false;
     }
-  }, [step, userInfo, companyInfo, businessCreds, password, confirmPassword, validationStates]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, confirmPassword, validationStates]);
 
   const handleNext = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +277,7 @@ export default function RegisterPage() {
       return;
     }
     
-    if (step < 3) {
+    if (step < 5) {
       // Move to next step
       setStep(step + 1);
       setStepKey(prev => prev + 1);
@@ -191,9 +307,30 @@ export default function RegisterPage() {
           yearsInOperation: companyInfo.yearsInOperation.trim(),
           businessPhone: companyInfo.businessPhone.trim(),
           businessRegistrationNumber: businessCreds.businessRegistrationNumber.trim(),
+          businessEmail: businessCreds.businessEmail.trim(),
           taxId: businessCreds.taxId.trim(),
           industryType: businessCreds.industryType.trim(),
           companySize: businessCreds.companySize.trim(),
+          billingBankName: paymentInfo.billingBankName.trim(),
+          billingBankAccountName: paymentInfo.billingBankAccountName.trim(),
+          billingBankAccountNumber: paymentInfo.billingBankAccountNumber.trim(),
+          buyerPaymentTermDays:
+            paymentInfo.buyerPaymentTermDays === '' ? null : paymentInfo.buyerPaymentTermDays,
+          shippingPreferences: shippingConfig.shippingPreferences,
+          pickupAddress: shippingConfig.shippingPreferences.includes('Self Pickup')
+            ? shippingConfig.pickupAddress.trim()
+            : null,
+          deliveryTimeSlots: shippingConfig.deliveryTimeSlots,
+          preferredDeliveryDays: shippingConfig.preferredDeliveryDays,
+          specialInstructions: shippingConfig.specialInstructions.trim(),
+          defaultDeliveryLeadTimeMinDays:
+            shippingConfig.defaultDeliveryLeadTimeMinDays === ''
+              ? null
+              : shippingConfig.defaultDeliveryLeadTimeMinDays,
+          defaultDeliveryLeadTimeMaxDays:
+            shippingConfig.defaultDeliveryLeadTimeMaxDays === ''
+              ? null
+              : shippingConfig.defaultDeliveryLeadTimeMaxDays,
         }),
       });
       
@@ -259,7 +396,7 @@ export default function RegisterPage() {
     } finally {
       stopLoading();
     }
-  }, [step, userInfo, companyInfo, businessCreds, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
 
   const handleBack = useCallback(() => {
     if (step > 0) {
@@ -274,6 +411,42 @@ export default function RegisterPage() {
     if (confirmPw !== password) return { valid: false, error: 'Passwords do not match' };
     return { valid: true };
   }, [password]);
+
+  const toggleShippingConfigArray = useCallback((
+    field: 'shippingPreferences' | 'deliveryTimeSlots' | 'preferredDeliveryDays',
+    option: string,
+  ) => {
+    setShippingConfig((prev) => {
+      const current = prev[field];
+      const next = current.includes(option)
+        ? current.filter((o) => o !== option)
+        : [...current, option];
+      if (field === 'shippingPreferences') {
+        return {
+          ...prev,
+          shippingPreferences: next,
+          pickupAddress: next.includes('Self Pickup') ? prev.pickupAddress : '',
+        };
+      }
+      return { ...prev, [field]: next };
+    });
+  }, []);
+
+  const updateLeadTime = useCallback((
+    field: 'defaultDeliveryLeadTimeMinDays' | 'defaultDeliveryLeadTimeMaxDays',
+    raw: string,
+  ) => {
+    const next = raw === '' ? '' : Number(raw);
+    setShippingConfig((prev) => {
+      const updated = { ...prev, [field]: next };
+      const valid = isLeadTimeValid(
+        updated.defaultDeliveryLeadTimeMinDays,
+        updated.defaultDeliveryLeadTimeMaxDays,
+      );
+      updateValidation('deliveryLeadTime', valid);
+      return updated;
+    });
+  }, [updateValidation]);
 
   const handleRegionChange = useCallback((regionCode: string) => {
     setCompanyInfo({ ...companyInfo, region: regionCode });
@@ -309,35 +482,28 @@ export default function RegisterPage() {
   }, [showRegionDropdown, showIndustryDropdown, showCompanySizeDropdown]);
 
   return (
-    <div className="grid grid-cols-9 min-h-screen w-full bg-white">
-      {/* Left: Registration Form */}
-      <div className="col-span-4 flex flex-col justify-center p-16 bg-white animate-fade-in-left">
-        <div>
-          <a href="/" aria-label="Go to homepage">
-            <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-13 mb-4" />
+    <div className="min-h-screen w-full bg-white">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 py-8 sm:px-8 sm:py-12">
+        <div className="mb-8 text-center sm:text-left">
+          <a href="/" aria-label="Go to homepage" className="inline-block mb-4">
+            <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
           </a>
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Create Distributor Account</h1>
+          <p className="mt-2 text-gray-500">Complete all six steps to start selling on Laku Marketplace.</p>
         </div>
-        <h2 className="text-3xl text-black font-bold mb-2">Create Distributor Account</h2>
-        <p className="mb-8 text-gray-500">Register your distributor account in four easy steps.</p>
-        
-        <FormStepIndicator steps={steps} currentStep={step} />
-        
-        {/* Enhanced Error/Success Messages */}
-        {error && (
-          <ErrorMessage 
-            message={error} 
-            onClose={clearError}
-          />
-        )}
-        {success && (
-          <SuccessMessage 
-            message={success}
-            onClose={() => setSuccess('')}
-          />
-        )}
-        
-        <form onSubmit={handleNext}>
-          <div key={stepKey} className="animate-fade-in-up">
+
+        <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-xs sm:p-6 animate-fade-in-up">
+          <RegistrationProgressBar steps={steps} currentStep={step} />
+
+          {error && (
+            <ErrorMessage message={error} onClose={clearError} />
+          )}
+          {success && (
+            <SuccessMessage message={success} onClose={() => setSuccess('')} />
+          )}
+
+          <form onSubmit={handleNext}>
+            <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
               <div className="space-y-4">
                 <div className="flex gap-4">
@@ -469,7 +635,7 @@ export default function RegisterPage() {
                   required
                 />
                 <ValidatedInput
-                  label="Company Address"
+                  label="Business Address"
                   type="text"
                   value={companyInfo.address}
                   onChange={(value) => setCompanyInfo({ ...companyInfo, address: value })}
@@ -524,6 +690,16 @@ export default function RegisterPage() {
                     return { valid: true };
                   }}
                   placeholder="Optional"
+                />
+                <ValidatedInput
+                  label="Business Email"
+                  type="email"
+                  value={businessCreds.businessEmail}
+                  onChange={(value) => setBusinessCreds({ ...businessCreds, businessEmail: value })}
+                  onValidation={(valid) => updateValidation('businessEmail', valid)}
+                  validator={validateAuthInput.email}
+                  placeholder="contact@yourcompany.com"
+                  required
                 />
                 <ValidatedInput
                   label="Business Phone Number"
@@ -623,6 +799,219 @@ export default function RegisterPage() {
 
             {step === 3 && (
               <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Bank details are shown to buyers when they pay for orders.
+                </p>
+                <ValidatedInput
+                  label="Bank Name"
+                  type="text"
+                  value={paymentInfo.billingBankName}
+                  onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankName: value })}
+                  onValidation={(valid) => updateValidation('billingBankName', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Bank name is required' };
+                    if (t.length > 120) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="e.g. Bank Central Asia (BCA)"
+                  required
+                />
+                <ValidatedInput
+                  label="Account Holder Name"
+                  type="text"
+                  value={paymentInfo.billingBankAccountName}
+                  onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankAccountName: value })}
+                  onValidation={(valid) => updateValidation('billingBankAccountName', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Account holder name is required' };
+                    if (t.length > 120) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="Name on the bank account"
+                  required
+                />
+                <ValidatedInput
+                  label="Account Number"
+                  type="text"
+                  value={paymentInfo.billingBankAccountNumber}
+                  onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankAccountNumber: value })}
+                  onValidation={(valid) => updateValidation('billingBankAccountNumber', valid)}
+                  validator={(value) => {
+                    const t = String(value ?? '').trim();
+                    if (!t) return { valid: false, error: 'Account number is required' };
+                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    return { valid: true };
+                  }}
+                  placeholder="Bank account number for buyer transfers"
+                  required
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Term of payment (days)
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={paymentInfo.buyerPaymentTermDays}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const next = raw === '' ? '' : Number(raw);
+                        setPaymentInfo({ ...paymentInfo, buyerPaymentTermDays: next });
+                        if (raw === '') {
+                          updateValidation('buyerPaymentTermDays', true);
+                          return;
+                        }
+                        const days = Number(raw);
+                        updateValidation(
+                          'buyerPaymentTermDays',
+                          Number.isInteger(days) && days >= 1,
+                        );
+                      }}
+                      placeholder="e.g. 14"
+                      className="w-full max-w-[120px] px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm"
+                    />
+                    <span className="text-sm text-gray-500">days</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Shown to buyers on Pay Order for bank transfer. Leave empty if payment is due immediately.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-4">
+                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-gray-500" />
+                  Shipping & Delivery Configurations
+                </h2>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Shipping Options <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Select the shipping methods you offer. Shipping costs are agreed directly between you and the buyer — no fees are set here.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {SHIPPING_OPTIONS.map((option) => (
+                      <RegisterCheckbox
+                        key={option}
+                        label={option}
+                        checked={shippingConfig.shippingPreferences.includes(option)}
+                        onToggle={() => toggleShippingConfigArray('shippingPreferences', option)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {shippingConfig.shippingPreferences.includes('Self Pickup') && (
+                  <ValidatedInput
+                    label="Pickup Address"
+                    type="text"
+                    value={shippingConfig.pickupAddress}
+                    onChange={(value) => setShippingConfig({ ...shippingConfig, pickupAddress: value })}
+                    onValidation={(valid) => updateValidation('pickupAddress', valid)}
+                    validator={(value) => {
+                      const t = String(value ?? '').trim();
+                      if (!t) return { valid: false, error: 'Pickup address is required for Self Pickup' };
+                      if (t.length > 500) return { valid: false, error: 'Too long' };
+                      return { valid: true };
+                    }}
+                    placeholder="Where buyers can collect orders"
+                    required
+                  />
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Delivery Time Slots
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {DELIVERY_TIME_SLOTS.map((slot) => (
+                      <RegisterCheckbox
+                        key={slot}
+                        label={slot}
+                        checked={shippingConfig.deliveryTimeSlots.includes(slot)}
+                        onToggle={() => toggleShippingConfigArray('deliveryTimeSlots', slot)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Delivery Days
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {DELIVERY_DAYS.map((day) => (
+                      <RegisterCheckbox
+                        key={day}
+                        label={day}
+                        checked={shippingConfig.preferredDeliveryDays.includes(day)}
+                        onToggle={() => toggleShippingConfigArray('preferredDeliveryDays', day)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Special Delivery Instructions
+                  </label>
+                  <textarea
+                    value={shippingConfig.specialInstructions}
+                    onChange={(e) => setShippingConfig({ ...shippingConfig, specialInstructions: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black resize-none"
+                    placeholder="Any special instructions for delivery"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default delivery lead time (days)
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      min={0}
+                      max={90}
+                      value={shippingConfig.defaultDeliveryLeadTimeMinDays}
+                      onChange={(e) => updateLeadTime('defaultDeliveryLeadTimeMinDays', e.target.value)}
+                      placeholder="Min"
+                      className="w-full max-w-[80px] px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
+                    />
+                    <span className="text-sm text-gray-500">to</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={90}
+                      value={shippingConfig.defaultDeliveryLeadTimeMaxDays}
+                      onChange={(e) => updateLeadTime('defaultDeliveryLeadTimeMaxDays', e.target.value)}
+                      placeholder="Max"
+                      className="w-full max-w-[80px] px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
+                    />
+                    <span className="text-sm text-gray-500">days</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Used to suggest estimated delivery date when you confirm an order (e.g. 3 to 5 business days from confirmation). Leave empty to use defaults (3–7 days).
+                  </p>
+                  {!validationStates.deliveryLeadTime && (
+                    <p className="mt-1 text-xs text-red-500">
+                      Lead time must be whole days between 0 and 90, with min not greater than max.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {step === 5 && (
+              <div className="space-y-4">
                 <ValidatedInput
                   label="Password"
                   type="password"
@@ -661,11 +1050,11 @@ export default function RegisterPage() {
               <LoadingButton
                 type="submit"
                 loading={loading}
-                loadingText={step < 3 ? "Processing..." : "Creating Account..."}
+                loadingText={step < 5 ? "Processing..." : "Creating Account..."}
                 disabled={!validateCurrentStep()}
                 className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
-                {step < 3 ? "Next" : "Create Account"}
+                {step < 5 ? "Next" : "Create Account"}
               </LoadingButton>
             </div>
             
@@ -693,28 +1082,27 @@ export default function RegisterPage() {
                 Sign up with Google
               </button>
             </div>
+            </div>
+          </form>
+
+          <div className="mt-6 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-sm sm:flex-row sm:justify-between">
+            <span className="text-gray-500">
+              Already have an account?{' '}
+              <a href="/login" className="font-semibold text-[#0a61d7] hover:underline">
+                Log in here
+              </a>
+            </span>
+            <a
+              href="/en/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0a61d7] hover:underline"
+            >
+              Documentation
+            </a>
           </div>
-        </form>
-        {/* Login redirect prompt */}
-        <div className="mt-4 flex items-center text-sm">
-          <span className="text-gray-500">Already have an account?</span>
-          <a href="/login" className="ml-2 text-[#0a61d7] font-semibold hover:underline">Log in here</a>
         </div>
-        <p className="mt-3 text-sm text-gray-500">
-          <a
-            href="/en/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#0a61d7] hover:underline"
-          >
-            Documentation
-          </a>
-        </p>
-      </div>
-      {/* Right: Placeholder for Distribution/Retailing Image */}
-      <div className="col-span-5 bg-blue-600 flex items-center justify-center animate-fade-in-right">
-        <span className="text-white text-2xl font-bold">[Distribution/Retailing Image Placeholder]</span>
-      </div>
+      </main>
     </div>
   );
 }

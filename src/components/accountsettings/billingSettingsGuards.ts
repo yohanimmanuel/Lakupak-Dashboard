@@ -31,6 +31,7 @@ export interface CompanyBillingApiResponse {
   billingCountry: string | null;
   billingContactPhone: string | null;
   billingContactEmail: string | null;
+  buyerPaymentTermDays: number | null;
 }
 
 function isNullableString(value: unknown): value is string | null {
@@ -62,6 +63,9 @@ export function isCompanyBillingApiResponse(value: unknown): value is CompanyBil
   if (!('billingCountry' in value) || !isNullableString(value.billingCountry)) return false;
   if (!('billingContactPhone' in value) || !isNullableString(value.billingContactPhone)) return false;
   if (!('billingContactEmail' in value) || !isNullableString(value.billingContactEmail)) return false;
+
+  if (!('buyerPaymentTermDays' in value)) return false;
+  if (value.buyerPaymentTermDays !== null && typeof value.buyerPaymentTermDays !== 'number') return false;
 
   return true;
 }

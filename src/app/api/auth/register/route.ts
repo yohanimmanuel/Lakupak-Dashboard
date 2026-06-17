@@ -43,10 +43,22 @@ export async function POST(req: NextRequest) {
       region,
       yearsInOperation,
       businessPhone,
+      businessEmail,
       businessRegistrationNumber,
       taxId,
       industryType,
       companySize,
+      billingBankName,
+      billingBankAccountName,
+      billingBankAccountNumber,
+      buyerPaymentTermDays,
+      shippingPreferences,
+      pickupAddress,
+      deliveryTimeSlots,
+      preferredDeliveryDays,
+      specialInstructions,
+      defaultDeliveryLeadTimeMinDays,
+      defaultDeliveryLeadTimeMaxDays,
     } = body;
     
     // Helper function to return validation errors
@@ -70,7 +82,7 @@ export async function POST(req: NextRequest) {
     
     // Validate address
     if (!address || typeof address !== 'string' || address.trim().length === 0) {
-      return returnValidationError('Company address is required');
+      return returnValidationError('Business address is required');
     }
 
     // Required phone number validation
@@ -94,6 +106,11 @@ export async function POST(req: NextRequest) {
     if (businessPhone.trim().length > 30) {
       return returnValidationError('Invalid business phone number');
     }
+    const businessEmailValidation = validateAuthInput.email(businessEmail);
+    if (!businessEmailValidation.valid && businessEmailValidation.error) {
+      return returnValidationError(businessEmailValidation.error);
+    }
+    const normalizedBusinessEmail = String(businessEmail).trim().toLowerCase();
     if (!businessRegistrationNumber || typeof businessRegistrationNumber !== 'string' || businessRegistrationNumber.trim().length === 0) {
       return returnValidationError('Business registration number is required');
     }
@@ -105,6 +122,123 @@ export async function POST(req: NextRequest) {
     }
     if (!companySize || typeof companySize !== 'string' || companySize.trim().length === 0) {
       return returnValidationError('Company size is required');
+    }
+
+    if (!billingBankName || typeof billingBankName !== 'string' || billingBankName.trim().length === 0) {
+      return returnValidationError('Bank name is required');
+    }
+    if (!billingBankAccountName || typeof billingBankAccountName !== 'string' || billingBankAccountName.trim().length === 0) {
+      return returnValidationError('Bank account holder name is required');
+    }
+    if (!billingBankAccountNumber || typeof billingBankAccountNumber !== 'string' || billingBankAccountNumber.trim().length === 0) {
+      return returnValidationError('Bank account number is required');
+    }
+    if (billingBankName.trim().length > 120) {
+      return returnValidationError('Bank name is too long');
+    }
+    if (billingBankAccountName.trim().length > 120) {
+      return returnValidationError('Bank account holder name is too long');
+    }
+    if (billingBankAccountNumber.trim().length > 80) {
+      return returnValidationError('Bank account number is too long');
+    }
+
+    const allowedShippingOptions = new Set([
+      'Self Pickup',
+      'Seller/Distributor Delivery',
+      'Buyer-arranged Courier',
+    ]);
+    if (!Array.isArray(shippingPreferences) || shippingPreferences.length === 0) {
+      return returnValidationError('Select at least one shipping option');
+    }
+    const normalizedShippingPreferences = shippingPreferences
+      .filter((opt): opt is string => typeof opt === 'string')
+      .map((opt) => opt.trim())
+      .filter((opt) => allowedShippingOptions.has(opt));
+    if (normalizedShippingPreferences.length === 0) {
+      return returnValidationError('Select at least one valid shipping option');
+    }
+
+    const includesSelfPickup = normalizedShippingPreferences.includes('Self Pickup');
+    const trimmedPickupAddress =
+      typeof pickupAddress === 'string' ? pickupAddress.trim() : '';
+    if (includesSelfPickup && !trimmedPickupAddress) {
+      return returnValidationError('Pickup address is required when Self Pickup is selected');
+    }
+    if (trimmedPickupAddress.length > 500) {
+      return returnValidationError('Pickup address is too long');
+    }
+
+    const allowedDeliveryTimeSlots = new Set([
+      'Morning (8:00 AM - 12:00 PM)',
+      'Afternoon (12:00 PM - 5:00 PM)',
+      'Evening (5:00 PM - 8:00 PM)',
+      'Flexible',
+    ]);
+    const normalizedDeliveryTimeSlots = Array.isArray(deliveryTimeSlots)
+      ? deliveryTimeSlots
+          .filter((slot): slot is string => typeof slot === 'string')
+          .map((slot) => slot.trim())
+          .filter((slot) => allowedDeliveryTimeSlots.has(slot))
+      : [];
+
+    const allowedDeliveryDays = new Set([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]);
+    const normalizedPreferredDeliveryDays = Array.isArray(preferredDeliveryDays)
+      ? preferredDeliveryDays
+          .filter((day): day is string => typeof day === 'string')
+          .map((day) => day.trim())
+          .filter((day) => allowedDeliveryDays.has(day))
+      : [];
+
+    const trimmedSpecialInstructions =
+      typeof specialInstructions === 'string' ? specialInstructions.trim() : '';
+    if (trimmedSpecialInstructions.length > 2000) {
+      return returnValidationError('Special delivery instructions are too long');
+    }
+
+    const parseLeadTimeDays = (val: unknown): number | null => {
+      if (val === null || val === undefined || val === '') return null;
+      const n = Number(val);
+      if (!Number.isInteger(n) || n < 0 || n > 90) return null;
+      return n;
+    };
+    const leadTimeMin = parseLeadTimeDays(defaultDeliveryLeadTimeMinDays);
+    const leadTimeMax = parseLeadTimeDays(defaultDeliveryLeadTimeMaxDays);
+    if (
+      defaultDeliveryLeadTimeMinDays !== undefined &&
+      defaultDeliveryLeadTimeMinDays !== null &&
+      defaultDeliveryLeadTimeMinDays !== '' &&
+      leadTimeMin === null
+    ) {
+      return returnValidationError('Default delivery lead time min must be a whole number between 0 and 90');
+    }
+    if (
+      defaultDeliveryLeadTimeMaxDays !== undefined &&
+      defaultDeliveryLeadTimeMaxDays !== null &&
+      defaultDeliveryLeadTimeMaxDays !== '' &&
+      leadTimeMax === null
+    ) {
+      return returnValidationError('Default delivery lead time max must be a whole number between 0 and 90');
+    }
+    if (leadTimeMin != null && leadTimeMax != null && leadTimeMin > leadTimeMax) {
+      return returnValidationError('Default delivery lead time: min cannot be greater than max');
+    }
+
+    let parsedPaymentTermDays: number | null = null;
+    if (buyerPaymentTermDays !== undefined && buyerPaymentTermDays !== null && buyerPaymentTermDays !== '') {
+      const days = Number(buyerPaymentTermDays);
+      if (!Number.isInteger(days) || days < 1) {
+        return returnValidationError('Payment term must be a whole number of days (1 or more), or left empty');
+      }
+      parsedPaymentTermDays = days;
     }
     
     // Validate region and get currency
@@ -133,15 +267,18 @@ export async function POST(req: NextRequest) {
       if (existingUser) {
         throw new Error('USER_EXISTS');
       }
+
+      const existingCompanyWithEmail = await tx.company.findFirst({
+        where: { businessEmail: normalizedBusinessEmail },
+        include: { users: { select: { id: true }, take: 1 } },
+      });
+      if (existingCompanyWithEmail && existingCompanyWithEmail.users.length > 0) {
+        throw new Error('COMPANY_EMAIL_EXISTS');
+      }
       
       // Check for orphaned companies (companies with this businessEmail but no users)
       // This handles cases where a previous registration created a company but failed to create the user
-      const orphanedCompany = await tx.company.findFirst({
-        where: { 
-          businessEmail: normalizedEmail,
-          users: { none: {} }
-        }
-      });
+      const orphanedCompany = existingCompanyWithEmail;
       
       // Clean up orphaned company if it exists
       if (orphanedCompany) {
@@ -155,7 +292,7 @@ export async function POST(req: NextRequest) {
       data: {
         name: company.trim(),
         businessAddress: address.trim(),
-        businessEmail: normalizedEmail,
+        businessEmail: normalizedBusinessEmail,
         businessPhone: String(businessPhone).trim(),
         industryType: String(industryType).trim(),
         businessDescription: '',
@@ -163,15 +300,20 @@ export async function POST(req: NextRequest) {
         companySize: String(companySize).trim(),
         businessRegistrationNumber: String(businessRegistrationNumber).trim(),
         taxId: String(taxId ?? '').trim(),
+        billingBankName: billingBankName.trim(),
+        billingBankAccountName: billingBankAccountName.trim(),
+        billingBankAccountNumber: billingBankAccountNumber.trim(),
+        buyerPaymentTermDays: parsedPaymentTermDays,
         documentVerification: false,
         businessLicenseVerification: false,
         complianceStatus: 'Pending',
-        shippingPreferences: JSON.stringify([]),
-        deliveryTimeSlots: JSON.stringify([]),
-        preferredDeliveryDays: JSON.stringify([]),
-        specialInstructions: '',
-        defaultDeliveryLeadTimeMinDays: 3,
-        defaultDeliveryLeadTimeMaxDays: 7
+        shippingPreferences: JSON.stringify(normalizedShippingPreferences),
+        deliveryTimeSlots: JSON.stringify(normalizedDeliveryTimeSlots),
+        preferredDeliveryDays: JSON.stringify(normalizedPreferredDeliveryDays),
+        specialInstructions: trimmedSpecialInstructions || null,
+        pickupAddress: includesSelfPickup ? trimmedPickupAddress : null,
+        defaultDeliveryLeadTimeMinDays: leadTimeMin ?? 3,
+        defaultDeliveryLeadTimeMaxDays: leadTimeMax ?? 7
       }
     });
 
@@ -218,6 +360,13 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error) {
+    if (error instanceof Error && error.message === 'COMPANY_EMAIL_EXISTS') {
+      return NextResponse.json(
+        { error: 'A company with this business email already exists' }, 
+        { status: 409, headers }
+      );
+    }
+    
     // Handle email conflict errors (user exists or unique constraint violation)
     if (error instanceof Error && (
       error.message === 'USER_EXISTS' ||

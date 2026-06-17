@@ -41,7 +41,6 @@ interface User {
   email: string;
   phone?: string;
   bio?: string;
-  location?: string;
   avatar?: string;
   companyId?: number;
   company?: Company;

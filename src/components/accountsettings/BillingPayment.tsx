@@ -50,6 +50,7 @@ interface BillingBankAccountForm {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  buyerPaymentTermDays: number | '';
 }
 
 interface Invoice {
@@ -128,6 +129,7 @@ function mapCompanyToBillingBank(company: CompanyBillingApiResponse): BillingBan
     bankName: company.billingBankName ?? '',
     accountName: company.billingBankAccountName ?? '',
     accountNumber: company.billingBankAccountNumber ?? '',
+    buyerPaymentTermDays: company.buyerPaymentTermDays ?? '',
   };
 }
 
@@ -152,6 +154,7 @@ type SessionCompanyForBilling = {
   billingCountry?: string | null;
   billingContactPhone?: string | null;
   billingContactEmail?: string | null;
+  buyerPaymentTermDays?: number | null;
 };
 
 function companyBillingFromSessionCompany(company: SessionCompanyForBilling): CompanyBillingApiResponse | null {
@@ -178,6 +181,7 @@ function companyBillingFromSessionCompany(company: SessionCompanyForBilling): Co
     billingCountry: company.billingCountry ?? null,
     billingContactPhone: company.billingContactPhone ?? null,
     billingContactEmail: company.billingContactEmail ?? null,
+    buyerPaymentTermDays: company.buyerPaymentTermDays ?? null,
   };
 }
 
@@ -250,6 +254,7 @@ export default function BillingPayment() {
     bankName: '',
     accountName: '',
     accountNumber: '',
+    buyerPaymentTermDays: '',
   });
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -587,7 +592,7 @@ export default function BillingPayment() {
     setShowEditBankModal(true);
   };
 
-  const persistCompanyFields = async (partial: Record<string, string | null>) => {
+  const persistCompanyFields = async (partial: Record<string, string | number | null>) => {
     const companyId = companySnapshot?.id ?? companyFromSession?.id;
     if (!user?.id || !companyId) {
       setError('Company profile is not loaded yet');
@@ -657,10 +662,19 @@ export default function BillingPayment() {
     setIsLoading(true);
     setError(null);
     try {
+      if (billingBank.buyerPaymentTermDays !== '') {
+        const termDays = Number(billingBank.buyerPaymentTermDays);
+        if (!Number.isInteger(termDays) || termDays < 1) {
+          throw new Error('Payment term must be a whole number of days (1 or more), or left empty');
+        }
+      }
+
       await persistCompanyFields({
         billingBankName: billingBank.bankName.trim() || null,
         billingBankAccountName: billingBank.accountName.trim() || null,
         billingBankAccountNumber: billingBank.accountNumber.trim() || null,
+        buyerPaymentTermDays:
+          billingBank.buyerPaymentTermDays === '' ? null : Number(billingBank.buyerPaymentTermDays),
       });
       setShowEditBankModal(false);
       setSuccess('Billing account updated successfully');
@@ -1194,6 +1208,19 @@ export default function BillingPayment() {
                 <span className="text-xs text-gray-900">{billingBankDisplay.accountNumber || '-'}</span>
               </div>
             </div>
+            <div className="md:col-span-2 pt-2 border-t border-gray-100">
+              <label className="text-xs font-medium text-gray-700 mb-2">Term of payment (days)</label>
+              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <span className="text-xs text-gray-900">
+                  {companyForDisplay?.buyerPaymentTermDays != null && companyForDisplay.buyerPaymentTermDays > 0
+                    ? `${companyForDisplay.buyerPaymentTermDays} days`
+                    : '-'}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Shown to buyers on the Pay Order screen for bank transfer orders. Leave empty if payment is due immediately.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1558,6 +1585,29 @@ export default function BillingPayment() {
                   onChange={(e) => setBillingBank((p) => ({ ...p, accountNumber: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-black"
                 />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">Term of payment (days)</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={billingBank.buyerPaymentTermDays}
+                    onChange={(e) =>
+                      setBillingBank((p) => ({
+                        ...p,
+                        buyerPaymentTermDays: e.target.value === '' ? '' : Number(e.target.value),
+                      }))
+                    }
+                    placeholder="e.g. 14"
+                    className="w-full max-w-[120px] px-3 py-2 border border-gray-200 rounded-lg text-xs text-black"
+                  />
+                  <span className="text-xs text-gray-500">days</span>
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Shown to buyers on the Pay Order screen for bank transfer orders. Leave empty if payment is due immediately.
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

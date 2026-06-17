@@ -11,7 +11,6 @@ interface GeneralInfoData {
   email: string;
   phone: string;
   bio: string;
-  location: string;
   avatar: string | null;
 }
 
@@ -32,7 +31,6 @@ export default function GeneralInfo() {
         email: '',
         phone: '',
         bio: '',
-        location: '',
         avatar: null,
       };
     }
@@ -45,7 +43,6 @@ export default function GeneralInfo() {
       email: user?.email || '',
       phone: user?.phone || '',
       bio: user?.bio || '',
-      location: user?.location || '',
       avatar: avatar,
     };
   });
@@ -67,7 +64,6 @@ export default function GeneralInfo() {
         email: user?.email || '',
         phone: user?.phone || '',
         bio: user?.bio || '',
-        location: user?.location || '',
         avatar: avatar,
       };
       
@@ -163,12 +159,10 @@ export default function GeneralInfo() {
         validationErrors.push('Bio must be less than 500 characters');
       }
 
-      // Location validation removed - no character limit
-
       // XSS prevention
       const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
       if (xssPattern.test(formData.firstName) || xssPattern.test(formData.lastName) || 
-          xssPattern.test(formData.bio) || xssPattern.test(formData.location)) {
+          xssPattern.test(formData.bio)) {
         validationErrors.push('Invalid characters detected in input fields');
       }
 
@@ -190,7 +184,6 @@ export default function GeneralInfo() {
           email: formData.email.trim(),
           phone: formData.phone.trim(),
           bio: formData.bio.trim(),
-          location: formData.location.trim(),
           avatar: formData.avatar
         }),
       });
@@ -425,20 +418,6 @@ export default function GeneralInfo() {
                 rows={3}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
                 placeholder="Tell us about yourself"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                Location
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                disabled={!isEditing}
-                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter your location"
               />
             </div>
           </div>

@@ -198,7 +198,6 @@ export const sanitizeUserData = (user: Record<string, unknown>) => ({
   email: typeof user.email === 'string' ? user.email.toLowerCase().trim() : user.email,
   phone: typeof user.phone === 'string' ? user.phone.trim() : (user.phone || undefined),
   bio: typeof user.bio === 'string' ? user.bio.trim() : (user.bio || undefined),
-  location: typeof user.location === 'string' ? user.location.trim() : (user.location || undefined),
   avatar: typeof user.avatar === 'string' ? user.avatar : (user.avatar || null),
   companyId: user.companyId,
   company: user.company, // This will be the full company object now

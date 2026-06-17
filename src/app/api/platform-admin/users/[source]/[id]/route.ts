@@ -47,7 +47,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
           name: true,
           avatar: true,
           bio: true,
-          location: true,
           phone: true,
           companyId: true,
           language: true,

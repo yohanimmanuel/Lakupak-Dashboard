@@ -263,7 +263,68 @@ export const useAuthPerformanceTracking = (pageName: string) => {
   }, [pageName]);
 };
 
-// Form step indicator for registration
+// Smooth line progress bar for multi-step registration
+export const RegistrationProgressBar: React.FC<{
+  steps: string[];
+  currentStep: number;
+  className?: string;
+}> = ({ steps, currentStep, className = '' }) => {
+  const totalSteps = steps.length;
+  const progressPercent =
+    totalSteps <= 1 ? 100 : Math.min(100, (currentStep / (totalSteps - 1)) * 100);
+
+  return (
+    <div className={`mb-8 ${className}`} aria-label="Registration progress">
+      <div className="flex items-center justify-between gap-4 mb-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#0a61d7]">
+          Step {currentStep + 1} of {totalSteps}
+        </p>
+        <p className="text-sm font-medium text-gray-900 truncate">{steps[currentStep]}</p>
+      </div>
+
+      <div
+        className="relative h-2 w-full rounded-full bg-gray-100 overflow-hidden"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progressPercent)}
+        aria-label={`${steps[currentStep]} — step ${currentStep + 1} of ${totalSteps}`}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#0a61d7] via-[#1d74ea] to-[#3b8ef6] transition-[width] duration-700 ease-in-out shadow-[0_0_12px_rgba(10,97,215,0.35)]"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-1" style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}>
+        {steps.map((label, idx) => {
+          const isComplete = idx < currentStep;
+          const isCurrent = idx === currentStep;
+          return (
+            <div key={label} className="flex flex-col items-center gap-1 min-w-0 px-0.5">
+              <div
+                className={`h-1 w-full rounded-full transition-colors duration-500 ease-in-out ${
+                  isComplete ? 'bg-[#0a61d7]' : isCurrent ? 'bg-[#93c5fd]' : 'bg-gray-200'
+                }`}
+              />
+              <span
+                className={`hidden sm:block text-[10px] leading-tight text-center truncate w-full transition-colors duration-300 ${
+                  isCurrent ? 'text-[#0a61d7] font-semibold' : isComplete ? 'text-gray-600' : 'text-gray-400'
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+RegistrationProgressBar.displayName = 'RegistrationProgressBar';
+
+// Form step indicator for registration (numbered circles — legacy)
 export const FormStepIndicator: React.FC<{
   steps: string[];
   currentStep: number;

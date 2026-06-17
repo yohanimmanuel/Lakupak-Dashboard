@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
         billingCountry: true,
         billingContactPhone: true,
         billingContactEmail: true,
+        buyerPaymentTermDays: true,
       },
     });
 

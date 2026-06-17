@@ -71,7 +71,6 @@ export const authOptions: NextAuthOptions = {
           lastName: user.lastName,
           phone: user.phone,
           bio: user.bio,
-          location: user.location,
           avatar: user.avatar,
           image: user.image,
           name: user.name,
@@ -193,7 +192,6 @@ export const authOptions: NextAuthOptions = {
               token.lastName = dbUser.lastName;
               token.phone = dbUser.phone;
               token.bio = dbUser.bio;
-              token.location = dbUser.location;
               token.avatar = dbUser.avatar || dbUser.image;
               token.companyId = dbUser.companyId;
               token.company = dbUser.company;
@@ -277,7 +275,6 @@ export const authOptions: NextAuthOptions = {
           lastName: string | null;
           phone: string | null;
           bio: string | null;
-          location: string | null;
           avatar: string | null;
           companyId: number | null;
           company: unknown;
@@ -309,7 +306,6 @@ export const authOptions: NextAuthOptions = {
         extendedUser.lastName = (token as { lastName?: string }).lastName || null;
         extendedUser.phone = (token as { phone?: string }).phone || null;
         extendedUser.bio = (token as { bio?: string }).bio || null;
-        extendedUser.location = (token as { location?: string }).location || null;
         extendedUser.avatar = (token as { avatar?: string }).avatar || session.user?.image || null;
         extendedUser.companyId = (token as { companyId?: number }).companyId || null;
         extendedUser.company = (token as { company?: unknown }).company || null;

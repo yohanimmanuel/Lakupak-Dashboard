@@ -26,7 +26,6 @@ model User {
   name          String?
   avatar        String?
   bio           String?
-  location      String?
   phone         String?
   /// Distributor company this dashboard user belongs to.
   companyId     Int?

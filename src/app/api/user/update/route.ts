@@ -33,7 +33,7 @@ export async function PUT(req: NextRequest) {
       );
     }
     
-    const { userId, firstName, lastName, email, phone, bio, location, avatar, region, currency, language } = body;
+    const { userId, firstName, lastName, email, phone, bio, avatar, region, currency, language } = body;
     
     // Validate userId from request body
     if (!userId || typeof userId !== 'number') {
@@ -125,7 +125,6 @@ export async function PUT(req: NextRequest) {
     if (email !== undefined) updateData.email = email.trim().toLowerCase();
     if (phone !== undefined) updateData.phone = phone?.trim() || null;
     if (bio !== undefined) updateData.bio = bio?.trim() || null;
-    if (location !== undefined) updateData.location = location?.trim() || null;
     if (avatar !== undefined) updateData.avatar = avatar?.trim() || null;
     if (region !== undefined) updateData.region = region?.trim() || null;
     if (currency !== undefined) updateData.currency = currency?.trim() || null;
