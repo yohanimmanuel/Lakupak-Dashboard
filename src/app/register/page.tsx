@@ -589,7 +589,7 @@ export default function RegisterPage() {
                 
                 {/* Region Selection */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm text-gray-500">
                     Business Region <span className="text-red-500">*</span>
                   </label>
                   <div className="relative" ref={regionDropdownRef}>
@@ -720,7 +720,7 @@ export default function RegisterPage() {
 
                 <div className="flex gap-4">
                   <div className="w-1/2 space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm text-gray-500">
                       Industry Type <span className="text-red-500">*</span>
                     </label>
                     <div className="relative" ref={industryDropdownRef}>
@@ -757,7 +757,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   <div className="w-1/2 space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm text-gray-500">
                       Company Size <span className="text-red-500">*</span>
                     </label>
                     <div className="relative" ref={companySizeDropdownRef}>
@@ -799,7 +799,7 @@ export default function RegisterPage() {
 
             {step === 3 && (
               <div className="space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm font-medium text-gray-700">
                   Bank details are shown to buyers when they pay for orders.
                 </p>
                 <ValidatedInput
@@ -848,7 +848,7 @@ export default function RegisterPage() {
                   required
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Term of payment (days)
                   </label>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -876,22 +876,14 @@ export default function RegisterPage() {
                     />
                     <span className="text-sm text-gray-500">days</span>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Shown to buyers on Pay Order for bank transfer. Leave empty if payment is due immediately.
-                  </p>
                 </div>
               </div>
             )}
 
             {step === 4 && (
               <div className="space-y-4">
-                <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-gray-500" />
-                  Shipping & Delivery Configurations
-                </h2>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Shipping Options <span className="text-red-500">*</span>
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
@@ -928,7 +920,7 @@ export default function RegisterPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Preferred Delivery Time Slots
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -944,7 +936,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Preferred Delivery Days
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -960,7 +952,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Special Delivery Instructions
                   </label>
                   <textarea
@@ -973,7 +965,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Default delivery lead time (days)
                   </label>
                   <div className="flex items-center gap-2 flex-wrap">
