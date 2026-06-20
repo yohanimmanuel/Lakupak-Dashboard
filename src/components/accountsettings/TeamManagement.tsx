@@ -22,6 +22,10 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
+
+const ALL_ROLES_FILTER = '__all__';
+const UNASSIGNED_TERRITORY = 'Unassigned';
 
 interface SalesMember {
   id: string;
@@ -128,7 +132,10 @@ type AgentData = {
 };
 
 // Helper function to transform agent data to SalesMember
-const transformAgentToMember = (agent: AgentData): SalesMember => {
+const transformAgentToMember = (
+  agent: AgentData,
+  formatLastActive: (lastActiveDate: Date | null) => string,
+): SalesMember => {
   // Calculate sales metrics from targets
   const latestTarget = agent.salesTargets
     .sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime())[0];
@@ -140,20 +147,6 @@ const transformAgentToMember = (agent: AgentData): SalesMember => {
   const lastReport = agent.fieldReports
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
   const lastActiveDate = lastReport ? new Date(lastReport.date) : null;
-  const now = new Date();
-  let lastActive = 'Never';
-  if (lastActiveDate) {
-    const diffMs = now.getTime() - lastActiveDate.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays > 0) {
-      lastActive = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    } else if (diffHours > 0) {
-      lastActive = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    } else {
-      lastActive = 'Just now';
-    }
-  }
 
   // Map role to permissions (simplified - can be enhanced with actual permission system)
   const getPermissions = (role: string): string[] => {
@@ -173,11 +166,11 @@ const transformAgentToMember = (agent: AgentData): SalesMember => {
     name: agent.name,
     email: agent.email,
     role: agent.role as SalesMember['role'],
-    territory: agent.territory || 'Unassigned',
+    territory: agent.territory || UNASSIGNED_TERRITORY,
     status: agent.status as SalesMember['status'],
     avatar: agent.avatar || undefined,
     phone: agent.phone || undefined,
-    lastActive,
+    lastActive: formatLastActive(lastActiveDate),
     salesTarget,
     currentSales,
     conversionRate: Math.round(conversionRate * 10) / 10,
@@ -187,6 +180,33 @@ const transformAgentToMember = (agent: AgentData): SalesMember => {
 
 export default function TeamManagement() {
   const { user } = useUserStore();
+  const { tTeam, translateTeamRole, translateTeamStatus } = useSettingsTranslations();
+
+  const formatLastActive = (lastActiveDate: Date | null): string => {
+    if (!lastActiveDate) return tTeam('lastActiveNever');
+    const now = new Date();
+    const diffMs = now.getTime() - lastActiveDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays > 0) {
+      return diffDays === 1
+        ? tTeam('lastActiveDaysAgo', { count: diffDays })
+        : tTeam('lastActiveDaysAgoPlural', { count: diffDays });
+    }
+    if (diffHours > 0) {
+      return diffHours === 1
+        ? tTeam('lastActiveHoursAgo', { count: diffHours })
+        : tTeam('lastActiveHoursAgoPlural', { count: diffHours });
+    }
+    return tTeam('lastActiveJustNow');
+  };
+
+  const translateTerritory = (territory: string) =>
+    territory === UNASSIGNED_TERRITORY ? tTeam('unassigned') : territory;
+
+  const getRoleFilterLabel = (role: string) =>
+    role === ALL_ROLES_FILTER ? tTeam('allRoles') : translateTeamRole(role);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -199,7 +219,7 @@ export default function TeamManagement() {
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState('All Roles');
+  const [selectedTeam, setSelectedTeam] = useState(ALL_ROLES_FILTER);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<SalesMember | null>(null);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -213,7 +233,7 @@ export default function TeamManagement() {
   const territoryList = useMemo(() => {
     const map = new Map<string, SalesMember[]>();
     for (const member of salesMembers) {
-      const t = member.territory || 'Unassigned';
+      const t = member.territory || UNASSIGNED_TERRITORY;
       if (!map.has(t)) map.set(t, []);
       map.get(t)!.push(member);
     }
@@ -288,12 +308,14 @@ export default function TeamManagement() {
         ]);
 
         // Transform sales agents to SalesMember format
-        const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map(transformAgentToMember);
+        const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map((agent) =>
+          transformAgentToMember(agent, formatLastActive),
+        );
 
         // Transform sales teams to SalesTeam format
         const transformedTeams: SalesTeam[] = teamsData.salesTeams.nodes.map((team) => {
           const members = team.members;
-          const manager = members.find((m) => m.role === 'Sales Manager')?.name || members[0]?.name || 'Unassigned';
+          const manager = members.find((m) => m.role === 'Sales Manager')?.name || members[0]?.name || UNASSIGNED_TERRITORY;
           
           // Calculate team metrics from member targets
           const teamMetrics = members.reduce(
@@ -327,7 +349,7 @@ export default function TeamManagement() {
         setSalesMembers(transformedMembers);
         setSalesTeams(transformedTeams);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load team data');
+        setError(err instanceof Error ? err.message : tTeam('errors.loadTeamDataFailed'));
         // Set empty arrays on error to show empty state
         setSalesMembers([]);
         setSalesTeams([]);
@@ -374,7 +396,7 @@ export default function TeamManagement() {
 
   const handleDeleteMember = async (id: string) => {
     if (!user?.id) {
-      setError('User not authenticated');
+      setError(tTeam('errors.userNotAuthenticated'));
       return;
     }
 
@@ -432,12 +454,14 @@ export default function TeamManagement() {
       });
 
       // Transform and update members (reuse transformation logic)
-      const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map(transformAgentToMember);
+      const transformedMembers: SalesMember[] = agentsData.salesAgents.nodes.map((agent) =>
+        transformAgentToMember(agent, formatLastActive),
+      );
 
       setSalesMembers(transformedMembers);
-    setSuccess('Sales team member removed successfully');
+    setSuccess(tTeam('success.memberRemoved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete team member');
+      setError(err instanceof Error ? err.message : tTeam('errors.deleteMemberFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -451,7 +475,7 @@ export default function TeamManagement() {
           : member
       )
     );
-    setSuccess('Sales invitation sent successfully');
+    setSuccess(tTeam('success.invitationSent'));
   };
 
   const getStatusColor = (status: string) => {
@@ -481,14 +505,14 @@ export default function TeamManagement() {
   };
 
   // Get unique roles from members for filter options
-  const roleOptions = ['All Roles', ...Array.from(new Set(salesMembers.map(m => m.role)))];
+  const roleOptions = [ALL_ROLES_FILTER, ...Array.from(new Set(salesMembers.map(m => m.role)))];
 
   const filteredMembers = salesMembers.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.territory.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTeam = selectedTeam === 'All Roles' || member.role === selectedTeam;
+    const matchesTeam = selectedTeam === ALL_ROLES_FILTER || member.role === selectedTeam;
     return matchesSearch && matchesTeam;
   });
 
@@ -523,7 +547,7 @@ export default function TeamManagement() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading team data...</p>
+            <p className="text-gray-600">{tTeam('loadingTeamData')}</p>
           </div>
         </div>
       </div>
@@ -534,8 +558,8 @@ export default function TeamManagement() {
     <div className="p-4">
       {/* Header */}
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-black mb-2">Team & Sales</h2>
-        <p className="text-sm text-gray-600">Manage your sales team, territories, targets, and performance tracking</p>
+        <h2 className="text-2xl font-bold text-black mb-2">{tTeam('title')}</h2>
+        <p className="text-sm text-gray-600">{tTeam('subtitle')}</p>
       </div>
 
       {/* Success/Error Messages */}
@@ -565,7 +589,7 @@ export default function TeamManagement() {
         {/* Sales Performance Overview */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-black">Sales Team Overview</h3>
+            <h3 className="text-md font-semibold text-black">{tTeam('salesTeamOverview')}</h3>
           </div>
 
           {/* Paginated Teams Grid */}
@@ -585,10 +609,10 @@ export default function TeamManagement() {
                         <Users className="h-4 w-4 text-gray-400" />
                       </div>
                       <p className="text-xl font-bold text-black mb-1">{team.memberCount}</p>
-                      <p className="text-xs text-gray-600">sales reps</p>
+                      <p className="text-xs text-gray-600">{tTeam('salesReps')}</p>
                       <div className="mt-2">
                         <div className="flex justify-between text-xs text-gray-600 mb-1">
-                          <span>Target: {formatCurrency(team.monthlyTarget)}</span>
+                          <span>{tTeam('target')} {formatCurrency(team.monthlyTarget)}</span>
                           <span>{getSalesProgress(team.currentSales, team.monthlyTarget).toFixed(1)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -597,7 +621,7 @@ export default function TeamManagement() {
                             style={{ width: `${getSalesProgress(team.currentSales, team.monthlyTarget)}%` }}
                           ></div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Manager: {team.manager}</p>
+                        <p className="text-xs text-gray-500 mt-1">{tTeam('manager')} {team.manager === UNASSIGNED_TERRITORY ? tTeam('unassigned') : team.manager}</p>
                       </div>
                     </div>
                   ))}
@@ -608,7 +632,7 @@ export default function TeamManagement() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
                     {/* Left: Showing X to Y of Z */}
                     <div className="text-sm text-gray-500">
-                      Showing {fromTeam} to {toTeam} of {salesTeams.length}
+                      {tTeam('showingRange', { from: fromTeam, to: toTeam, total: salesTeams.length })}
                     </div>
                     {/* Right: Pagination Controls */}
                     <div className="flex items-center gap-3">
@@ -616,7 +640,7 @@ export default function TeamManagement() {
                         className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => setTeamsPage(p => Math.max(1, p - 1))}
                         disabled={teamsPage === 1 || totalTeamsPages === 0}
-                        aria-label="Previous page"
+                        aria-label={tTeam('previousPageAriaLabel')}
                       >
                         <ChevronLeft className="w-4 h-4 text-gray-500" />
                       </button>
@@ -664,7 +688,7 @@ export default function TeamManagement() {
                         className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => setTeamsPage(p => Math.min(totalTeamsPages, p + 1))}
                         disabled={teamsPage === totalTeamsPages || totalTeamsPages === 0}
-                        aria-label="Next page"
+                        aria-label={tTeam('nextPageAriaLabel')}
                       >
                         <ChevronRight className="w-4 h-4 text-gray-500" />
                       </button>
@@ -680,8 +704,8 @@ export default function TeamManagement() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-md font-semibold text-black mb-1">Sales Team Directory</h3>
-              <p className="text-xs text-gray-600">Search and manage your sales team members and their performance</p>
+              <h3 className="text-md font-semibold text-black mb-1">{tTeam('salesTeamDirectory')}</h3>
+              <p className="text-xs text-gray-600">{tTeam('salesTeamDirectorySubtitle')}</p>
             </div>
           </div>
 
@@ -691,7 +715,7 @@ export default function TeamManagement() {
               <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search sales team members, territories, or roles..."
+                placeholder={tTeam('searchMembersPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border text-sm text-black border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
@@ -704,10 +728,10 @@ export default function TeamManagement() {
                 onClick={() => setShowRoleDropdown(!showRoleDropdown)}
                 aria-haspopup="true"
                 aria-expanded={showRoleDropdown}
-                aria-label="Filter by role"
+                aria-label={tTeam('filterByRoleAriaLabel')}
               >
                 <Filter className="w-4 h-4" />
-                {selectedTeam}
+                {getRoleFilterLabel(selectedTeam)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showRoleDropdown && (
@@ -725,7 +749,7 @@ export default function TeamManagement() {
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {role}
+                      {getRoleFilterLabel(role)}
                     </button>
                   ))}
                 </div>
@@ -756,22 +780,22 @@ export default function TeamManagement() {
                         <span className="font-medium text-sm text-black">{member.name}</span>
                         <span className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 ${getStatusColor(member.status)}`}>
                           {getStatusIcon(member.status)}
-                          {member.status}
+                          {translateTeamStatus(member.status)}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-600">{member.role} • {member.territory}</p>
+                      <p className="text-xs text-gray-600">{translateTeamRole(member.role)} • {translateTerritory(member.territory)}</p>
                       <p className="text-xs text-gray-500">{member.email}</p>
                       <div className="flex items-center space-x-4 mt-2">
                         <div className="text-xs">
-                          <span className="text-gray-500">Target: </span>
+                          <span className="text-gray-500">{tTeam('target')} </span>
                           <span className="font-medium text-black">{formatCurrency(member.salesTarget)}</span>
                         </div>
                         <div className="text-xs">
-                          <span className="text-gray-500">Sales: </span>
+                          <span className="text-gray-500">{tTeam('sales')} </span>
                           <span className="font-medium text-black">{formatCurrency(member.currentSales)}</span>
                         </div>
                         <div className="text-xs">
-                          <span className="text-gray-500">Conversion: </span>
+                          <span className="text-gray-500">{tTeam('conversion')} </span>
                           <span className="font-medium text-black">{member.conversionRate}%</span>
                         </div>
                       </div>
@@ -788,7 +812,7 @@ export default function TeamManagement() {
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-sm">No sales team members found</p>
+                <p className="text-sm">{tTeam('noMembersFound')}</p>
               </div>
             )}
           </div>
@@ -798,7 +822,7 @@ export default function TeamManagement() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
               {/* Left: Showing X to Y of Z */}
               <div className="text-sm text-gray-500">
-                Showing {fromRow} to {toRow} of {filteredMembers.length}
+                {tTeam('showingRange', { from: fromRow, to: toRow, total: filteredMembers.length })}
               </div>
               {/* Right: Pagination Controls */}
               <div className="flex items-center gap-3">
@@ -806,7 +830,7 @@ export default function TeamManagement() {
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1 || totalPages === 0}
-                  aria-label="Previous page"
+                  aria-label={tTeam('previousPageAriaLabel')}
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-500" />
                 </button>
@@ -854,7 +878,7 @@ export default function TeamManagement() {
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  aria-label="Next page"
+                  aria-label={tTeam('nextPageAriaLabel')}
                 >
                   <ChevronRight className="w-4 h-4 text-gray-500" />
                 </button>
@@ -866,24 +890,24 @@ export default function TeamManagement() {
         {/* Territory Management */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="mb-4">
-            <h3 className="text-md font-semibold text-black mb-1">Territory Management</h3>
-            <p className="text-xs text-gray-600">Territories from your sales team</p>
+            <h3 className="text-md font-semibold text-black mb-1">{tTeam('territoryManagement')}</h3>
+            <p className="text-xs text-gray-600">{tTeam('territoryManagementSubtitle')}</p>
           </div>
 
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="space-y-2">
               {territoryList.length === 0 ? (
-                <p className="text-sm text-gray-500 py-4 text-center">No territories yet. Add sales team members with territories to see them here.</p>
+                <p className="text-sm text-gray-500 py-4 text-center">{tTeam('noTerritoriesYet')}</p>
               ) : (
                 territoryList.map(([territoryName, members]) => (
                   <div key={territoryName} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                    <span className="text-sm font-medium text-black">{territoryName}</span>
+                    <span className="text-sm font-medium text-black">{translateTerritory(territoryName)}</span>
                     <span className={`text-xs px-2 py-1 rounded font-medium ${
                       members.length > 0
                         ? 'text-green-600 bg-green-50'
                         : 'text-gray-600 bg-gray-50'
                     }`}>
-                      {members.length} {members.length === 1 ? 'agent' : 'agents'}
+                      {tTeam('agentCount', { count: members.length })}
                     </span>
                   </div>
                 ))
@@ -899,7 +923,7 @@ export default function TeamManagement() {
           <div className="bg-white rounded-lg p-4 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-black">
-                {selectedMember ? 'Edit Sales Team Member' : 'Add Sales Team Member'}
+                {selectedMember ? tTeam('modal.editMemberTitle') : tTeam('modal.addMemberTitle')}
               </h3>
               <button
                 onClick={() => {
@@ -912,8 +936,8 @@ export default function TeamManagement() {
               </button>
             </div>
             <div className="text-center py-4">
-              <div className="text-gray-500 mb-2">Sales team member form will be implemented</div>
-              <div className="text-sm text-gray-400">This is a design preview</div>
+              <div className="text-gray-500 mb-2">{tTeam('modal.formNotImplemented')}</div>
+              <div className="text-sm text-gray-400">{tTeam('modal.designPreview')}</div>
             </div>
           </div>
         </div>

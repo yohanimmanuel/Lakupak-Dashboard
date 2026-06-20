@@ -13,23 +13,24 @@ export function useOrdersTranslations() {
   const tDetails = useTranslations('dashboard.orders.details');
   const tCommon = useTranslations('dashboard.common');
 
+  /** Order status values are standard English across apps — do not translate. */
   const translateStatusTab = (tab: string) =>
-    tShared.has(`statusTabs.${tab}`) ? tShared(`statusTabs.${tab}`) : tab;
+    tab === 'All' && tShared.has('statusTabs.All') ? tShared('statusTabs.All') : tab;
 
+  /** Paid / Unpaid are standard English across apps — do not translate. */
   const translatePaymentTab = (tab: string) =>
-    tShared.has(`paymentTabs.${tab}`) ? tShared(`paymentTabs.${tab}`) : tab;
+    tab === 'All' && tShared.has('paymentTabs.All') ? tShared('paymentTabs.All') : tab;
 
-  const translateOrderStatus = (status: string) =>
-    tShared.has(`orderStatus.${status}`) ? tShared(`orderStatus.${status}`) : status;
+  const translateOrderStatus = (status: string) => status;
 
-  const translatePaymentStatus = (status: string) =>
-    tShared.has(`paymentStatus.${status}`) ? tShared(`paymentStatus.${status}`) : status;
+  const translatePaymentStatus = (status: string) => status;
 
   const translateDeliveryMethod = (method: string) =>
     tShared.has(`deliveryMethods.${method}`) ? tShared(`deliveryMethods.${method}`) : method;
 
+  /** GPS status filter: only translate the "all" option label. */
   const translateGpsStatusFilter = (value: string) =>
-    tGps.has(`statusFilters.${value}`) ? tGps(`statusFilters.${value}`) : value;
+    value === 'all' && tGps.has('statusFilters.all') ? tGps('statusFilters.all') : value;
 
   const translateReturnReason = (code: string) =>
     tShared.has(`returnReasons.${code}`) ? tShared(`returnReasons.${code}`) : code;

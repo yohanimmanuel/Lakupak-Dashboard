@@ -1795,16 +1795,6 @@ export default function ProductCatalog({
               <span className="text-sm text-orange-600 font-medium">• {tCatalog('header.unsavedChanges')}</span>
             )}
           </div>
-          {currentMode === 'view' && currentProductStatus === 'Published' && (
-            <div className="flex items-center justify-end gap-3">
-              <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
-                <Info className="w-4 h-4 text-orange-600 mt-0.5" />
-                <span className="text-sm text-orange-700 font-medium">
-                  {tCatalog('header.unpublishHint')}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-3">
           {currentMode === 'view' && currentProductStatus === 'Published' && (
@@ -1940,9 +1930,19 @@ export default function ProductCatalog({
           </p>
         )}
         {currentMode === 'view' && (
-          <p className="text-sm text-gray-600">
-            {tCatalog('modeDescriptions.view')}
-          </p>
+          <>
+            <p className="text-sm text-gray-600">
+              {tCatalog('modeDescriptions.view')}
+            </p>
+            {currentProductStatus === 'Published' && (
+              <div className="mt-2 flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                <Info className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                <span className="text-sm text-orange-700 font-medium">
+                  {tCatalog('header.unpublishHint')}
+                </span>
+              </div>
+            )}
+          </>
         )}
         {currentMode === 'edit' && (
           <p className="text-sm text-gray-600">

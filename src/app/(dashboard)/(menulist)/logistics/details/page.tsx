@@ -6,8 +6,10 @@ import OrderfleetDetails from '@/components/logisticsmanagement/OrderfleetDetail
 import { fetchFleet } from '@/data/logisticsFleetsApi';
 import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
 import { useUserStore } from '@/store/userStore';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 export default function LogisticsDetailsPage() {
+  const { tDetailsPage } = useLogisticsTranslations();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useUserStore();
@@ -34,7 +36,7 @@ export default function LogisticsDetailsPage() {
   if (user?.id == null) {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Please sign in to view fleet details.</p>
+        <p className="text-gray-600">{tDetailsPage('signInRequired')}</p>
       </div>
     );
   }
@@ -44,7 +46,7 @@ export default function LogisticsDetailsPage() {
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading fleet details...</p>
+          <p className="text-gray-600">{tDetailsPage('loading')}</p>
         </div>
       </div>
     );
@@ -54,12 +56,12 @@ export default function LogisticsDetailsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">No fleet selected.</p>
+          <p className="text-gray-600 mb-4">{tDetailsPage('noFleetSelected')}</p>
           <button
             onClick={() => router.push('/logistics')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Back to Logistics
+            {tDetailsPage('backToLogistics')}
           </button>
         </div>
       </div>
@@ -70,12 +72,12 @@ export default function LogisticsDetailsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Fleet or order not found.</p>
+          <p className="text-gray-600 mb-4">{tDetailsPage('notFound')}</p>
           <button
             onClick={() => router.push('/logistics')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Back to Logistics
+            {tDetailsPage('backToLogistics')}
           </button>
         </div>
       </div>

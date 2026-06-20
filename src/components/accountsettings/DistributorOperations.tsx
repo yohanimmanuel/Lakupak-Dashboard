@@ -5,6 +5,7 @@ import { Building2, Upload, X, Edit3, Save, AlertCircle, CheckCircle, MapPin, Ph
 import { useUserStore } from '@/store/userStore';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { generateSlug } from '@/utils/slugUtils';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 
 interface CompanyProfileData {
   // Company Information
@@ -85,6 +86,14 @@ const ALL_SHIPPING_OPTIONS = [
 ];
 
 export default function DistributorOperations() {
+  const {
+    tDistributor,
+    translateIndustryType,
+    translateCompanySize,
+    translateShippingOption,
+    translateDeliveryTimeSlot,
+    translateDeliveryDay,
+  } = useSettingsTranslations();
   const { user, updateUser } = useUserStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -241,13 +250,13 @@ export default function DistributorOperations() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be under 2MB');
+      setError(tDistributor('errors.fileSizeLimit'));
       return;
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Please upload a valid image file (PNG, JPEG, GIF, or WebP)');
+      setError(tDistributor('errors.invalidImageType'));
       return;
     }
 
@@ -261,12 +270,12 @@ export default function DistributorOperations() {
       if (result.success && result.url) {
         setFormData(prev => ({ ...prev, companyLogo: result.url || null }));
       } else {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || tDistributor('errors.uploadFailed'));
       }
 
       setIsLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
+      setError(err instanceof Error ? err.message : tDistributor('errors.imageProcessFailed'));
       setIsLoading(false);
     }
   };
@@ -275,13 +284,13 @@ export default function DistributorOperations() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be under 2MB');
+      setError(tDistributor('errors.fileSizeLimit'));
       return;
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Please upload a valid image file (PNG, JPEG, GIF, or WebP)');
+      setError(tDistributor('errors.invalidImageType'));
       return;
     }
 
@@ -295,12 +304,12 @@ export default function DistributorOperations() {
       if (result.success && result.url) {
         setFormData(prev => ({ ...prev, companyBanner: result.url || null }));
       } else {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || tDistributor('errors.uploadFailed'));
       }
 
       setIsLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
+      setError(err instanceof Error ? err.message : tDistributor('errors.imageProcessFailed'));
       setIsLoading(false);
     }
   };
@@ -315,27 +324,27 @@ export default function DistributorOperations() {
 
       // Company name validation
       if (!formData.companyName.trim()) {
-        validationErrors.push('Company name is required');
+        validationErrors.push(tDistributor('errors.companyNameRequired'));
       } else if (formData.companyName.trim().length < 2) {
-        validationErrors.push('Company name must be at least 2 characters');
+        validationErrors.push(tDistributor('errors.companyNameMinLength'));
       } else if (formData.companyName.trim().length > 100) {
-        validationErrors.push('Company name must be less than 100 characters');
+        validationErrors.push(tDistributor('errors.companyNameMaxLength'));
       }
 
       // Business address validation
       if (!formData.businessAddress.trim()) {
-        validationErrors.push('Business address is required');
+        validationErrors.push(tDistributor('errors.businessAddressRequired'));
       } else if (formData.businessAddress.trim().length < 10) {
-        validationErrors.push('Business address must be at least 10 characters');
+        validationErrors.push(tDistributor('errors.businessAddressMinLength'));
       } else if (formData.businessAddress.trim().length > 500) {
-        validationErrors.push('Business address must be less than 500 characters');
+        validationErrors.push(tDistributor('errors.businessAddressMaxLength'));
       }
 
       // Business phone validation
       if (formData.businessPhone.trim()) {
         const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,20}$/;
         if (!phoneRegex.test(formData.businessPhone.trim())) {
-          validationErrors.push('Please enter a valid business phone number');
+          validationErrors.push(tDistributor('errors.invalidBusinessPhone'));
         }
       }
 
@@ -343,28 +352,28 @@ export default function DistributorOperations() {
       if (formData.businessEmail.trim()) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.businessEmail.trim())) {
-          validationErrors.push('Please enter a valid business email address');
+          validationErrors.push(tDistributor('errors.invalidBusinessEmail'));
         } else if (formData.businessEmail.trim().length > 254) {
-          validationErrors.push('Business email must be less than 254 characters');
+          validationErrors.push(tDistributor('errors.businessEmailMaxLength'));
         }
       }
 
       // Business description validation
       if (formData.businessDescription.trim() && formData.businessDescription.trim().length > 1000) {
-        validationErrors.push('Business description must be less than 1000 characters');
+        validationErrors.push(tDistributor('errors.businessDescriptionMaxLength'));
       }
 
       // Special instructions validation
       if (formData.specialInstructions.trim() && formData.specialInstructions.trim().length > 500) {
-        validationErrors.push('Special instructions must be less than 500 characters');
+        validationErrors.push(tDistributor('errors.specialInstructionsMaxLength'));
       }
 
       // Pickup address validation
       if (formData.shippingPreferences.includes('Self Pickup') && formData.pickupAddress.trim()) {
         if (formData.pickupAddress.trim().length < 10) {
-          validationErrors.push('Pickup address must be at least 10 characters');
+          validationErrors.push(tDistributor('errors.pickupAddressMinLength'));
         } else if (formData.pickupAddress.trim().length > 500) {
-          validationErrors.push('Pickup address must be less than 500 characters');
+          validationErrors.push(tDistributor('errors.pickupAddressMaxLength'));
         }
       }
 
@@ -372,40 +381,43 @@ export default function DistributorOperations() {
       const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
       if (xssPattern.test(formData.companyName) || xssPattern.test(formData.businessDescription) || 
           xssPattern.test(formData.specialInstructions) || xssPattern.test(formData.pickupAddress)) {
-        validationErrors.push('Invalid characters detected in input fields');
+        validationErrors.push(tDistributor('errors.invalidCharacters'));
       }
 
       // Delivery lead time validation
       const MIN_DAYS = 0;
       const MAX_DAYS = 90;
+      const leadTimeLabel = tDistributor('errors.leadTimeLabel');
       const parseDaysField = (val: number | ''): number | null => {
         if (val === '') return null;
         const n = Number(val);
         if (!Number.isFinite(n)) return null;
         return n;
       };
-      const validateDaysPair = (
-        label: string,
-        minRaw: number | '',
-        maxRaw: number | ''
-      ): void => {
+      const validateDaysPair = (minRaw: number | '', maxRaw: number | ''): void => {
         const minVal = parseDaysField(minRaw);
         const maxVal = parseDaysField(maxRaw);
         if (minVal != null) {
           if (!Number.isInteger(minVal) || minVal < MIN_DAYS || minVal > MAX_DAYS) {
-            validationErrors.push(`${label}: min days must be an integer between ${MIN_DAYS} and ${MAX_DAYS}`);
+            validationErrors.push(
+              tDistributor('errors.leadTimeMinInvalid', { label: leadTimeLabel, min: MIN_DAYS, max: MAX_DAYS })
+            );
           }
         }
         if (maxVal != null) {
           if (!Number.isInteger(maxVal) || maxVal < MIN_DAYS || maxVal > MAX_DAYS) {
-            validationErrors.push(`${label}: max days must be an integer between ${MIN_DAYS} and ${MAX_DAYS}`);
+            validationErrors.push(
+              tDistributor('errors.leadTimeMaxInvalid', { label: leadTimeLabel, min: MIN_DAYS, max: MAX_DAYS })
+            );
           }
         }
         if (minVal != null && maxVal != null && minVal > maxVal) {
-          validationErrors.push(`${label}: min days cannot be greater than max days`);
+          validationErrors.push(
+            tDistributor('errors.leadTimeMinGreaterThanMax', { label: leadTimeLabel })
+          );
         }
       };
-      validateDaysPair('Default delivery lead time', formData.defaultDeliveryLeadTimeMinDays, formData.defaultDeliveryLeadTimeMaxDays);
+      validateDaysPair(formData.defaultDeliveryLeadTimeMinDays, formData.defaultDeliveryLeadTimeMaxDays);
 
       if (validationErrors.length > 0) {
         setError(validationErrors.join('. '));
@@ -432,7 +444,7 @@ export default function DistributorOperations() {
 
         if (!createCompanyResponse.ok) {
           const errorData = await createCompanyResponse.json();
-          setError('Failed to create company. Please try again.');
+          setError(tDistributor('errors.createCompanyFailed'));
           return;
         }
 
@@ -483,7 +495,7 @@ export default function DistributorOperations() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save company profile');
+        throw new Error(errorData.error || tDistributor('errors.saveCompanyProfileFailed'));
       }
 
       const updatedCompany = await response.json();
@@ -497,14 +509,14 @@ export default function DistributorOperations() {
       updateUser(updatedUser);
       setOriginalData(formData);
       setIsEditing(false);
-      setSuccess('Your company profile has been saved');
+      setSuccess(tDistributor('success.profileSaved'));
       
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
     } catch (err) {
-      setError('Failed to update company profile. Please try again.');
+      setError(tDistributor('errors.updateCompanyProfileFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -524,8 +536,8 @@ export default function DistributorOperations() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black mb-2">Distributor Operations</h1>
-          <p className="text-sm text-gray-600">Manage your distributor operations and business details</p>
+          <h1 className="text-2xl font-bold text-black mb-2">{tDistributor('title')}</h1>
+          <p className="text-sm text-gray-600">{tDistributor('subtitle')}</p>
         </div>
         
         {!isEditing ? (
@@ -534,7 +546,7 @@ export default function DistributorOperations() {
             className="px-4 py-2 bg-[#0a61d7] text-white text-sm font-semibold rounded-lg hover:bg-[#084ba6] flex items-center gap-2 transition-colors"
           >
             <Edit3 className="w-4 h-4" />
-            Edit
+            {tDistributor('edit')}
           </button>
         ) : (
           <div className="flex gap-2">
@@ -544,13 +556,13 @@ export default function DistributorOperations() {
               className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? tDistributor('saving') : tDistributor('save')}
             </button>
             <button
               onClick={handleCancel}
               className="px-4 py-2 bg-white border border-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              {tDistributor('cancel')}
             </button>
           </div>
         )}
@@ -581,7 +593,7 @@ export default function DistributorOperations() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Building2 className="w-5 h-5 text-gray-500" />
-          Company Information
+          {tDistributor('companyInformation')}
         </h2>
 
         <div className="space-y-4">
@@ -591,7 +603,7 @@ export default function DistributorOperations() {
               {formData.companyLogo ? (
                 <img 
                   src={formData.companyLogo} 
-                  alt="Company Logo" 
+                  alt={tDistributor('companyLogoAlt')} 
                   className="w-full h-full object-cover" 
                 />
               ) : (
@@ -611,7 +623,7 @@ export default function DistributorOperations() {
                 }`}
               >
                 <Upload className="w-4 h-4" />
-                {isLoading ? 'Uploading...' : 'Upload Logo'}
+                {isLoading ? tDistributor('uploading') : tDistributor('uploadLogo')}
               </button>
               
               {formData.companyLogo && isEditing && (
@@ -621,13 +633,13 @@ export default function DistributorOperations() {
                   className="px-4 py-2 bg-gray-500 text-white text-xs font-semibold rounded-lg hover:bg-gray-600 flex items-center gap-2 transition-colors"
                 >
                   <X className="w-4 h-4" />
-                  Remove
+                  {tDistributor('remove')}
                 </button>
               )}
             </div>
             
             <p className="text-xs text-gray-500 mt-2 text-center">
-              We support PNGs, JPEGs and GIFs under 2MB
+              {tDistributor('imageUploadHint')}
             </p>
             
             <input
@@ -649,13 +661,13 @@ export default function DistributorOperations() {
               {formData.companyBanner ? (
                 <img 
                   src={formData.companyBanner} 
-                  alt="Company Banner" 
+                  alt={tDistributor('companyBannerAlt')} 
                   className="w-full h-full object-cover" 
                 />
               ) : (
                 <div className="text-center">
                   <Building2 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">Company Banner</p>
+                  <p className="text-xs text-gray-500">{tDistributor('companyBannerEmpty')}</p>
                 </div>
               )}
             </div>
@@ -672,7 +684,7 @@ export default function DistributorOperations() {
                 }`}
               >
                 <Upload className="w-4 h-4" />
-                {isLoading ? 'Uploading...' : 'Upload Banner'}
+                {isLoading ? tDistributor('uploading') : tDistributor('uploadBanner')}
               </button>
               
               {formData.companyBanner && isEditing && (
@@ -682,13 +694,13 @@ export default function DistributorOperations() {
                   className="px-4 py-2 bg-gray-500 text-white text-xs font-semibold rounded-lg hover:bg-gray-600 flex items-center gap-2 transition-colors"
                 >
                   <X className="w-4 h-4" />
-                  Remove
+                  {tDistributor('remove')}
                 </button>
               )}
             </div>
             
             <p className="text-xs text-gray-500 mt-2 text-center">
-              We support PNGs, JPEGs and GIFs under 2MB
+              {tDistributor('imageUploadHint')}
             </p>
             
             <input
@@ -709,7 +721,7 @@ export default function DistributorOperations() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Company Name *
+                  {tDistributor('companyName')}
                 </label>
                 <input
                   type="text"
@@ -717,13 +729,13 @@ export default function DistributorOperations() {
                   onChange={(e) => handleInputChange('companyName', e.target.value)}
                   disabled={!isEditing}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter your company name"
+                  placeholder={tDistributor('companyNamePlaceholder')}
                 />
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Business Registration Number
+                  {tDistributor('businessRegistrationNumber')}
                 </label>
                 <input
                   type="text"
@@ -731,26 +743,26 @@ export default function DistributorOperations() {
                   onChange={(e) => handleInputChange('businessRegistrationNumber', e.target.value)}
                   disabled={!isEditing}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter registration number"
+                  placeholder={tDistributor('businessRegistrationNumberPlaceholder')}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Generated Store URL
+                {tDistributor('generatedStoreUrl')}
               </label>
               <p className="text-[11px] text-gray-500 mb-2">
-                This is the public URL of your marketplace store, generated from your company name.
+                {tDistributor('generatedStoreUrlDescription')}
               </p>
               <div className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50 text-[#0a61d7] font-semibold break-all">
-                laku.marketplace/{generateSlug(formData.companyName || 'Your Store Name') || 'your-store'}
+                {tDistributor('storeUrlPrefix')}{generateSlug(formData.companyName || tDistributor('storeUrlFallbackName')) || tDistributor('storeUrlFallbackSlug')}
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Tax ID
+                {tDistributor('taxId')}
               </label>
               <input
                 type="text"
@@ -758,14 +770,14 @@ export default function DistributorOperations() {
                 onChange={(e) => handleInputChange('taxId', e.target.value)}
                 disabled={!isEditing}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter tax ID"
+                placeholder={tDistributor('taxIdPlaceholder')}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Industry Type
+                  {tDistributor('industryType')}
                 </label>
                 <div className="relative dropdown-container">
                   <button
@@ -775,7 +787,7 @@ export default function DistributorOperations() {
                     disabled={!isEditing}
                   >
                     <span className={formData.industryType ? 'text-black' : 'text-gray-500'}>
-                      {formData.industryType || 'Select industry type'}
+                      {formData.industryType ? translateIndustryType(formData.industryType) : tDistributor('industryTypePlaceholder')}
                     </span>
                     <ChevronDown className="w-4 h-4 text-gray-500" />
                   </button>
@@ -793,7 +805,7 @@ export default function DistributorOperations() {
                             formData.industryType === type ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
                           }`}
                         >
-                          {type}
+                          {translateIndustryType(type)}
                         </button>
                       ))}
                     </div>
@@ -803,7 +815,7 @@ export default function DistributorOperations() {
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Company Size
+                  {tDistributor('companySize')}
                 </label>
                 <div className="relative dropdown-container">
                   <button
@@ -813,7 +825,7 @@ export default function DistributorOperations() {
                     disabled={!isEditing}
                   >
                     <span className={formData.companySize ? 'text-black' : 'text-gray-500'}>
-                      {formData.companySize || 'Select company size'}
+                      {formData.companySize ? translateCompanySize(formData.companySize) : tDistributor('companySizePlaceholder')}
                     </span>
                     <ChevronDown className="w-4 h-4 text-gray-500" />
                   </button>
@@ -831,7 +843,7 @@ export default function DistributorOperations() {
                             formData.companySize === size ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
                           }`}
                         >
-                          {size}
+                          {translateCompanySize(size)}
                         </button>
                       ))}
                     </div>
@@ -842,7 +854,7 @@ export default function DistributorOperations() {
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Business Description
+                {tDistributor('businessDescription')}
               </label>
               <textarea
                 value={formData.businessDescription}
@@ -850,13 +862,13 @@ export default function DistributorOperations() {
                 disabled={!isEditing}
                 rows={3}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
-                placeholder="Describe your business"
+                placeholder={tDistributor('businessDescriptionPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Years in Operation
+                {tDistributor('yearsInOperation')}
               </label>
               <input
                 type="text"
@@ -864,7 +876,7 @@ export default function DistributorOperations() {
                 onChange={(e) => handleInputChange('yearsInOperation', e.target.value)}
                 disabled={!isEditing}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="e.g., 5 years"
+                placeholder={tDistributor('yearsInOperationPlaceholder')}
               />
             </div>
 
@@ -872,13 +884,13 @@ export default function DistributorOperations() {
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Phone className="w-4 h-4 text-gray-500" />
-                Contact Information
+                {tDistributor('contactInformation')}
               </h3>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Business Address
+                    {tDistributor('businessAddress')}
                   </label>
                   <div className="flex gap-2">
                     <MapPin className="w-4 h-4 text-gray-400 mt-3" />
@@ -888,7 +900,7 @@ export default function DistributorOperations() {
                       disabled={!isEditing}
                       rows={2}
                       className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
-                      placeholder="Enter business address"
+                      placeholder={tDistributor('businessAddressPlaceholder')}
                     />
                   </div>
                 </div>
@@ -896,7 +908,7 @@ export default function DistributorOperations() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Business Phone
+                      {tDistributor('businessPhone')}
                     </label>
                     <div className="flex gap-2">
                       <Phone className="w-4 h-4 text-gray-400 mt-3" />
@@ -906,14 +918,14 @@ export default function DistributorOperations() {
                         onChange={(e) => handleInputChange('businessPhone', e.target.value)}
                         disabled={!isEditing}
                         className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="Enter business phone"
+                        placeholder={tDistributor('businessPhonePlaceholder')}
                       />
                     </div>
                   </div>
                   
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Business Email
+                      {tDistributor('businessEmail')}
                     </label>
                     <div className="flex gap-2">
                       <Mail className="w-4 h-4 text-gray-400 mt-3" />
@@ -923,7 +935,7 @@ export default function DistributorOperations() {
                         onChange={(e) => handleInputChange('businessEmail', e.target.value)}
                         disabled={!isEditing}
                         className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                        placeholder="Enter business email"
+                        placeholder={tDistributor('businessEmailPlaceholder')}
                       />
                     </div>
                   </div>
@@ -938,16 +950,16 @@ export default function DistributorOperations() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
         <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Truck className="w-5 h-5 text-gray-500" />
-          Shipping & Delivery Configurations
+          {tDistributor('shippingDeliveryConfigurations')}
         </h2>
         
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Shipping Options
+              {tDistributor('shippingOptions')}
             </label>
             <p className="text-[11px] text-gray-500 mb-2">
-              Select the shipping methods you offer. Shipping costs are agreed directly between you and the buyer — no fees are set here.
+              {tDistributor('shippingOptionsDescription')}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {ALL_SHIPPING_OPTIONS.map(option => {
@@ -978,7 +990,7 @@ export default function DistributorOperations() {
                         </svg>
                       )}
                     </button>
-                    <span className="text-xs text-gray-700">{option}</span>
+                    <span className="text-xs text-gray-700">{translateShippingOption(option)}</span>
                   </label>
                 );
               })}
@@ -989,7 +1001,7 @@ export default function DistributorOperations() {
           {formData.shippingPreferences.includes('Self Pickup') && (
           <div className="mt-6">
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Pickup Address
+              {tDistributor('pickupAddress')}
             </label>
             <input
               type="text"
@@ -997,14 +1009,14 @@ export default function DistributorOperations() {
               onChange={(e) => handleInputChange('pickupAddress', e.target.value)}
               disabled={!isEditing}
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-              placeholder="Enter pickup location address"
+              placeholder={tDistributor('pickupAddressPlaceholder')}
             />
           </div>
           )}
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Preferred Delivery Time Slots
+                    {tDistributor('preferredDeliveryTimeSlots')}
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {deliveryTimeSlots.map(slot => (
@@ -1033,7 +1045,7 @@ export default function DistributorOperations() {
                             </svg>
                           )}
                         </button>
-                        <span className="text-xs text-gray-700">{slot}</span>
+                        <span className="text-xs text-gray-700">{translateDeliveryTimeSlot(slot)}</span>
                       </label>
                     ))}
                   </div>
@@ -1041,7 +1053,7 @@ export default function DistributorOperations() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Preferred Delivery Days
+                    {tDistributor('preferredDeliveryDays')}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {deliveryDays.map(day => (
@@ -1070,7 +1082,7 @@ export default function DistributorOperations() {
                             </svg>
                           )}
                         </button>
-                        <span className="text-xs text-gray-700">{day}</span>
+                        <span className="text-xs text-gray-700">{translateDeliveryDay(day)}</span>
                       </label>
                     ))}
                   </div>
@@ -1080,7 +1092,7 @@ export default function DistributorOperations() {
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Special Delivery Instructions
+              {tDistributor('specialDeliveryInstructions')}
             </label>
             <textarea
               value={formData.specialInstructions}
@@ -1088,13 +1100,13 @@ export default function DistributorOperations() {
               disabled={!isEditing}
               rows={3}
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
-              placeholder="Any special instructions for delivery"
+              placeholder={tDistributor('specialInstructionsPlaceholder')}
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Default delivery lead time (days)
+              {tDistributor('defaultDeliveryLeadTimeDays')}
             </label>
             <div className="flex items-center gap-2 flex-wrap">
               <input
@@ -1105,9 +1117,9 @@ export default function DistributorOperations() {
                 onChange={(e) => handleInputChange('defaultDeliveryLeadTimeMinDays', e.target.value === '' ? '' : Number(e.target.value))}
                 disabled={!isEditing}
                 className="w-full max-w-[80px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Min"
+                placeholder={tDistributor('leadTimeMin')}
               />
-              <span className="text-xs text-gray-500">to</span>
+              <span className="text-xs text-gray-500">{tDistributor('leadTimeTo')}</span>
               <input
                 type="number"
                 min={0}
@@ -1116,11 +1128,11 @@ export default function DistributorOperations() {
                 onChange={(e) => handleInputChange('defaultDeliveryLeadTimeMaxDays', e.target.value === '' ? '' : Number(e.target.value))}
                 disabled={!isEditing}
                 className="w-full max-w-[80px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Max"
+                placeholder={tDistributor('leadTimeMax')}
               />
-              <span className="text-xs text-gray-500">days</span>
+              <span className="text-xs text-gray-500">{tDistributor('leadTimeDaysSuffix')}</span>
             </div>
-            <p className="mt-1 text-[11px] text-gray-500">Used to suggest estimated delivery date when you confirm an order (e.g. 3 to 5 business days from confirmation).</p>
+            <p className="mt-1 text-[11px] text-gray-500">{tDistributor('defaultDeliveryLeadTimeHint')}</p>
           </div>
         </div>
       </div>

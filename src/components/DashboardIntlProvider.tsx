@@ -18,6 +18,12 @@ import marketingEn from '@/messages/dashboard/marketing-en.json';
 import marketingId from '@/messages/dashboard/marketing-id.json';
 import analyticsEn from '@/messages/dashboard/analytics-en.json';
 import analyticsId from '@/messages/dashboard/analytics-id.json';
+import marketplaceEn from '@/messages/dashboard/marketplace-en.json';
+import marketplaceId from '@/messages/dashboard/marketplace-id.json';
+import logisticsEn from '@/messages/dashboard/logistics-en.json';
+import logisticsId from '@/messages/dashboard/logistics-id.json';
+import settingsEn from '@/messages/dashboard/settings-en.json';
+import settingsId from '@/messages/dashboard/settings-id.json';
 
 type SupportedLocale = 'en' | 'id';
 
@@ -26,8 +32,8 @@ function normalizeLocale(language?: string | null): SupportedLocale {
 }
 
 const MESSAGES: Record<SupportedLocale, Record<string, unknown>> = {
-  en: { ...enMessages, dashboard: { ...dashboardEn, clients: clientsEn, products: productsEn, orders: ordersEn, offers: offersEn, marketing: marketingEn, analytics: analyticsEn } },
-  id: { ...idMessages, dashboard: { ...dashboardId, clients: clientsId, products: productsId, orders: ordersId, offers: offersId, marketing: marketingId, analytics: analyticsId } },
+  en: { ...enMessages, dashboard: { ...dashboardEn, clients: clientsEn, products: productsEn, orders: ordersEn, offers: offersEn, marketing: marketingEn, analytics: analyticsEn, marketplace: marketplaceEn, logistics: logisticsEn, settings: settingsEn } },
+  id: { ...idMessages, dashboard: { ...dashboardId, clients: clientsId, products: productsId, orders: ordersId, offers: offersId, marketing: marketingId, analytics: analyticsId, marketplace: marketplaceId, logistics: logisticsId, settings: settingsId } },
 };
 
 export function DashboardIntlProvider({ children }: { children: React.ReactNode }) {

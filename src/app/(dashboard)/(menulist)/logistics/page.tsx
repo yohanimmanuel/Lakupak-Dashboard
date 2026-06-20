@@ -14,6 +14,7 @@ import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
 import { fetchFleets, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
   'Standard Shipping',
@@ -25,6 +26,7 @@ const VALID_DELIVERY_TYPES: DeliveryType[] = [
 ];
 
 export default function LogisticsPage() {
+  const { tPage, tShared } = useLogisticsTranslations();
   const router = useRouter();
   const { user } = useUserStore();
   const [fleets, setFleets] = useState<FleetOrderSummary[]>([]);
@@ -59,21 +61,21 @@ export default function LogisticsPage() {
     if (fleets.length > 0) {
       setIsSlidingOut(false);
       setIsSlidingIn(true);
-      setOverlayMessage('Refreshing fleet data');
+      setOverlayMessage(tPage('overlayRefreshing'));
     } else {
       setIsSlidingIn(true);
-      setOverlayMessage('Loading fleet data...');
+      setOverlayMessage(tPage('overlayLoading'));
     }
     
     try {
       const [result, driverList] = await Promise.all([fetchFleets(uid), fetchDrivers(uid)]);
       setFleets(result?.nodes ?? []);
       setDrivers(driverList ?? []);
-      setOverlayMessage(`Showing fleet data (${result?.nodes?.length ?? 0} fleets loaded)`);
+      setOverlayMessage(tPage('overlayShowing', { count: result?.nodes?.length ?? 0 }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load fleets');
+      setError(e instanceof Error ? e.message : tPage('loadFailed'));
       setFleets([]);
-      setOverlayMessage('Error loading fleets');
+      setOverlayMessage(tPage('overlayError'));
     } finally {
       setLoading(false);
       
@@ -95,12 +97,12 @@ export default function LogisticsPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, fleets.length]);
+  }, [user?.id, fleets.length, tPage]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
     setIsSlidingIn(true);
-    setOverlayMessage('Loading fleet data...');
+    setOverlayMessage(tPage('overlayLoading'));
     
     loadFleets();
     
@@ -152,7 +154,7 @@ export default function LogisticsPage() {
   const handleExport = () => {
     try {
       if (fleets.length === 0) {
-        alert('No fleet data to export.');
+        alert(tPage('exportNoData'));
         return;
       }
       const rows = fleets.map((f) => ({
@@ -183,7 +185,7 @@ export default function LogisticsPage() {
       const filename = `logistics_fleets_export_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, filename);
     } catch {
-      alert('Failed to export data. Please try again.');
+      alert(tPage('exportFailed'));
     }
   };
 
@@ -200,10 +202,9 @@ export default function LogisticsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div data-tour="logistics-page-header">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Logistics Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tPage('title')}</h1>
           <p className="text-sm text-gray-500 mb-4">
-            Monitor and manage your fleet, deliveries, and logistics performance across your
-            distribution network.
+            {tPage('subtitle')}
           </p>
         </div>
 
@@ -215,7 +216,7 @@ export default function LogisticsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <RefreshCcw className="w-4 h-4" />
-            Refresh
+            {tShared('refresh')}
           </button>
 
           {/* Export Button */}
@@ -224,7 +225,7 @@ export default function LogisticsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
-            Export Data
+            {tShared('exportData')}
           </button>
 
           {/* Add Fleet & Driver Button */}
@@ -233,7 +234,7 @@ export default function LogisticsPage() {
             className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-semibold"
           >
             <Plus className="w-4 h-4" />
-            Add Fleet & Driver
+            {tShared('addFleetDriver')}
           </button>
         </div>
       </div>
@@ -250,7 +251,7 @@ export default function LogisticsPage() {
           <div className="flex items-center justify-center py-12 text-gray-500">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading fleets...</p>
+              <p className="text-gray-600">{tPage('loadingFleets')}</p>
             </div>
           </div>
         ) : (
@@ -268,7 +269,7 @@ export default function LogisticsPage() {
           <div className="flex items-center justify-center py-12 text-gray-500">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading fleet details...</p>
+              <p className="text-gray-600">{tPage('loadingFleetDetails')}</p>
             </div>
           </div>
         ) : (
@@ -294,7 +295,11 @@ export default function LogisticsPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               <p className="text-xs text-gray-500">
-                {loading ? 'Please wait...' : `${fleets.length} fleet${fleets.length !== 1 ? 's' : ''} loaded`}
+                {loading
+                  ? tShared('pleaseWait')
+                  : fleets.length === 1
+                    ? tPage('overlayLoaded', { count: fleets.length })
+                    : tPage('overlayLoadedPlural', { count: fleets.length })}
               </p>
             </div>
           </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, Heart, ShoppingCart, ExternalLink, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, parsePrice } from '@/utils/currencyUtils';
+import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
 
 interface Product {
   id: number;
@@ -13,7 +14,6 @@ interface Product {
   images: string[];
   marketplaceStatus: string;
   publishedAt?: string;
-  // Real marketplace metrics from UserActivity
   views: number;
   favorites: number;
   addedToCart: number;
@@ -28,15 +28,14 @@ interface ProductsListProps {
 }
 
 export default function ProductsList({ products }: ProductsListProps) {
+  const { tProductsList, tShared } = useMarketplaceTranslations();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Filter only published products
   const publishedProducts = products.filter(
     (p) => p.marketplaceStatus === 'Published'
   );
 
-  // Calculate pagination
   const totalPages = Math.ceil(publishedProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -56,16 +55,16 @@ export default function ProductsList({ products }: ProductsListProps) {
         <div className="text-center">
           <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Published Products
+            {tProductsList('emptyTitle')}
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            You haven't published any products to the marketplace yet.
+            {tProductsList('emptyBody')}
           </p>
           <Link
             href="/products"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium"
           >
-            Go to Products
+            {tProductsList('goToProducts')}
             <ExternalLink className="w-4 h-4" />
           </Link>
         </div>
@@ -75,30 +74,29 @@ export default function ProductsList({ products }: ProductsListProps) {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200" data-tour="marketplace-products-list">
-      {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
-            Published Products
+            {tProductsList('title')}
           </h2>
           <p className="text-sm text-gray-600">
-            {publishedProducts.length} product{publishedProducts.length !== 1 ? 's' : ''} live on marketplace
+            {publishedProducts.length === 1
+              ? tProductsList('countLiveSingle')
+              : tProductsList('countLive', { count: publishedProducts.length })}
           </p>
         </div>
         <Link
           href="/products"
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
         >
-          Manage Products
+          {tProductsList('manageProducts')}
           <ExternalLink className="w-4 h-4" />
         </Link>
       </div>
 
-      {/* Products Grid */}
       <div className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {currentProducts.map((product) => {
-            // Price range: match Products module – use all variantOptions selling prices
             let priceDisplay = 'Rp 0';
             if (product.variantOptions && product.variantOptions.length > 0) {
               const prices = product.variantOptions
@@ -120,7 +118,6 @@ export default function ProductsList({ products }: ProductsListProps) {
                 key={product.id}
                 className="group border border-[#e6e6e6] rounded-lg p-3 transition-all hover:border-[#0a61d7]"
               >
-                {/* Product Image */}
                 <div className="relative w-full aspect-square mb-3 bg-gray-50 rounded-lg overflow-hidden">
                   {product.images && product.images.length > 0 ? (
                     <Image
@@ -136,12 +133,11 @@ export default function ProductsList({ products }: ProductsListProps) {
                   )}
                   <div className="absolute top-2 right-2">
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                      Live
+                      {tShared('live')}
                     </span>
                   </div>
                 </div>
 
-                {/* Product Info */}
                 <div className="mb-3">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-[#0a61d7] transition-colors">
                     {product.name}
@@ -151,37 +147,35 @@ export default function ProductsList({ products }: ProductsListProps) {
                   </p>
                 </div>
 
-                {/* Quick Stats */}
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
                     <Eye className="w-4 h-4 text-gray-400 mb-1" />
                     <span className="text-xs font-semibold text-gray-900">
                       {product.views}
                     </span>
-                    <span className="text-xs text-gray-500">views</span>
+                    <span className="text-xs text-gray-500">{tShared('views')}</span>
                   </div>
                   <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
                     <Heart className="w-4 h-4 text-gray-400 mb-1" />
                     <span className="text-xs font-semibold text-gray-900">
                       {product.favorites}
                     </span>
-                    <span className="text-xs text-gray-500">likes</span>
+                    <span className="text-xs text-gray-500">{tShared('likes')}</span>
                   </div>
                   <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
                     <ShoppingCart className="w-4 h-4 text-gray-400 mb-1" />
                     <span className="text-xs font-semibold text-gray-900">
                       {product.sales}
                     </span>
-                    <span className="text-xs text-gray-500">sales</span>
+                    <span className="text-xs text-gray-500">{tShared('salesLabel')}</span>
                   </div>
                 </div>
 
-                {/* View Details Link */}
                 <Link
                   href={`/products/catalog/${product.productId}`}
                   className="block text-center text-xs font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
                 >
-                  View Details →
+                  {tProductsList('viewDetails')}
                 </Link>
               </div>
             );
@@ -189,34 +183,32 @@ export default function ProductsList({ products }: ProductsListProps) {
         </div>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4 px-4 py-3 border-t border-gray-200">
         <div className="text-sm text-gray-500">
-          Showing {startIndex + 1} to {Math.min(endIndex, publishedProducts.length)} of {publishedProducts.length} results
+          {tShared('pagination.showing', {
+            from: startIndex + 1,
+            to: Math.min(endIndex, publishedProducts.length),
+            total: publishedProducts.length,
+          })}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrevPage}
             disabled={currentPage === 1}
-            aria-label="Previous page"
+            aria-label={tShared('pagination.previousPage')}
             className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           
           <div className="flex items-center gap-1">
-            {/* Sliding window pagination */}
             {(() => {
               const windowSize = 5;
               const startPage = Math.max(1, currentPage - 2);
               const endPage = Math.min(totalPages, startPage + windowSize - 1);
-              
-              // Adjust startPage if we're near the end
               const adjustedStartPage = Math.max(1, Math.min(startPage, totalPages - windowSize + 1));
-              
               const pages = [];
               
-              // Show first page + ellipsis if not in window
               if (adjustedStartPage > 1) {
                 pages.push(
                   <button
@@ -236,7 +228,6 @@ export default function ProductsList({ products }: ProductsListProps) {
                 }
               }
               
-              // Show window of pages
               for (let i = adjustedStartPage; i <= endPage; i++) {
                 pages.push(
                   <button
@@ -253,7 +244,6 @@ export default function ProductsList({ products }: ProductsListProps) {
                 );
               }
               
-              // Show ellipsis + last page if not in window
               if (endPage < totalPages) {
                 if (endPage < totalPages - 1) {
                   pages.push(
@@ -284,7 +274,7 @@ export default function ProductsList({ products }: ProductsListProps) {
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
-            aria-label="Next page"
+            aria-label={tShared('pagination.nextPage')}
             className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-4 h-4" aria-hidden="true" />

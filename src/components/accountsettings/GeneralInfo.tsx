@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, Upload, X, Edit3, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 
 interface GeneralInfoData {
   firstName: string;
@@ -16,6 +17,7 @@ interface GeneralInfoData {
 
 export default function GeneralInfo() {
   const { user, updateUser } = useUserStore();
+  const { tGeneral } = useSettingsTranslations();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +84,14 @@ export default function GeneralInfo() {
 
     // Validate file size (2MB limit)
     if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be under 2MB');
+      setError(tGeneral('errors.fileSizeTooLarge'));
       return;
     }
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Please upload a valid image file (PNG, JPEG, GIF, or WebP)');
+      setError(tGeneral('errors.invalidImageType'));
       return;
     }
 
@@ -103,12 +105,12 @@ export default function GeneralInfo() {
       if (result.success && result.url) {
         setFormData(prev => ({ ...prev, avatar: result.url || null }));
       } else {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || tGeneral('errors.uploadFailed'));
       }
 
       setIsLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process image. Please try again.');
+      setError(err instanceof Error && err.message !== tGeneral('errors.uploadFailed') ? err.message : tGeneral('errors.processImageFailed'));
       setIsLoading(false);
     }
   };
@@ -123,47 +125,43 @@ export default function GeneralInfo() {
 
       // Required fields validation
       if (!formData.firstName.trim()) {
-        validationErrors.push('First name is required');
+        validationErrors.push(tGeneral('errors.firstNameRequired'));
       } else if (formData.firstName.trim().length < 2) {
-        validationErrors.push('First name must be at least 2 characters');
+        validationErrors.push(tGeneral('errors.firstNameMinLength'));
       }
 
       if (!formData.lastName.trim()) {
-        validationErrors.push('Last name is required');
+        validationErrors.push(tGeneral('errors.lastNameRequired'));
       } else if (formData.lastName.trim().length < 2) {
-        validationErrors.push('Last name must be at least 2 characters');
+        validationErrors.push(tGeneral('errors.lastNameMinLength'));
       }
 
       if (!formData.email.trim()) {
-        validationErrors.push('Email is required');
+        validationErrors.push(tGeneral('errors.emailRequired'));
       } else {
-        // Enhanced email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email.trim())) {
-          validationErrors.push('Please enter a valid email address');
+          validationErrors.push(tGeneral('errors.emailInvalid'));
         } else if (formData.email.trim().length > 500) {
-          validationErrors.push('Email must be less than 500 characters');
+          validationErrors.push(tGeneral('errors.emailMaxLength'));
         }
       }
 
-      // Phone validation (optional but if provided, must be valid)
       if (formData.phone.trim() && formData.phone.trim().length > 0) {
         const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,20}$/;
         if (!phoneRegex.test(formData.phone.trim())) {
-          validationErrors.push('Please enter a valid phone number');
+          validationErrors.push(tGeneral('errors.phoneInvalid'));
         }
       }
 
-      // Bio validation (optional but if provided, must be reasonable length)
       if (formData.bio.trim() && formData.bio.trim().length > 500) {
-        validationErrors.push('Bio must be less than 500 characters');
+        validationErrors.push(tGeneral('errors.bioMaxLength'));
       }
 
-      // XSS prevention
       const xssPattern = /<[^>]*>|javascript:|on\w+\s*=/i;
       if (xssPattern.test(formData.firstName) || xssPattern.test(formData.lastName) || 
           xssPattern.test(formData.bio)) {
-        validationErrors.push('Invalid characters detected in input fields');
+        validationErrors.push(tGeneral('errors.invalidCharacters'));
       }
 
       if (validationErrors.length > 0) {
@@ -190,23 +188,22 @@ export default function GeneralInfo() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save profile');
+        throw new Error(errorData.error || tGeneral('errors.saveProfileFailed'));
       }
 
       const updatedUser = await response.json();
       
-      // Update user data in store
       updateUser(updatedUser);
       setOriginalData(formData);
       setIsEditing(false);
-      setSuccess('Your profile has been saved');
+      setSuccess(tGeneral('success.profileSaved'));
       
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
     } catch (err) {
-      setError('Failed to update profile. Please try again.');
+      setError(tGeneral('errors.updateProfileFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -226,8 +223,8 @@ export default function GeneralInfo() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-black mb-2">General Information</h1>
-          <p className="text-sm text-gray-600">Manage your personal information and profile details</p>
+          <h1 className="text-2xl font-bold text-black mb-2">{tGeneral('title')}</h1>
+          <p className="text-sm text-gray-600">{tGeneral('subtitle')}</p>
         </div>
         
         {!isEditing ? (
@@ -236,7 +233,7 @@ export default function GeneralInfo() {
             className="px-4 py-2 bg-[#0a61d7] text-white text-sm font-semibold rounded-lg hover:bg-[#084ba6] flex items-center gap-2 transition-colors"
           >
             <Edit3 className="w-4 h-4" />
-            Edit
+            {tGeneral('edit')}
           </button>
         ) : (
           <div className="flex gap-2">
@@ -246,13 +243,13 @@ export default function GeneralInfo() {
               className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? tGeneral('saving') : tGeneral('save')}
             </button>
             <button
               onClick={handleCancel}
               className="px-4 py-2 bg-white border border-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              {tGeneral('cancel')}
             </button>
           </div>
         )}
@@ -283,7 +280,7 @@ export default function GeneralInfo() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-gray-500" />
-          Personal Information
+          {tGeneral('personalInformation')}
         </h2>
 
         <div className="space-y-6">
@@ -293,7 +290,7 @@ export default function GeneralInfo() {
               {formData.avatar ? (
                 <img 
                   src={formData.avatar} 
-                  alt="Profile" 
+                  alt={tGeneral('profileImageAlt')} 
                   className="w-full h-full object-cover" 
                 />
               ) : (
@@ -313,7 +310,7 @@ export default function GeneralInfo() {
                 }`}
               >
                 <Upload className="w-4 h-4" />
-                {isLoading ? 'Uploading...' : 'Change Image'}
+                {isLoading ? tGeneral('uploading') : tGeneral('changeImage')}
               </button>
               
               {formData.avatar && isEditing && (
@@ -323,13 +320,13 @@ export default function GeneralInfo() {
                   className="px-4 py-2 bg-gray-500 text-white text-xs font-semibold rounded-lg hover:bg-gray-600 flex items-center gap-2 transition-colors"
                 >
                   <X className="w-4 h-4" />
-                  Remove
+                  {tGeneral('remove')}
                 </button>
               )}
             </div>
             
             <p className="text-xs text-gray-500 mt-2 text-center">
-              We support PNGs, JPEGs and GIFs under 2MB
+              {tGeneral('imageFormatsHint')}
             </p>
             
             <input
@@ -350,7 +347,7 @@ export default function GeneralInfo() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  First Name *
+                  {tGeneral('firstName')}
                 </label>
                 <input
                   type="text"
@@ -358,13 +355,13 @@ export default function GeneralInfo() {
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
                   disabled={!isEditing}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter your first name"
+                  placeholder={tGeneral('firstNamePlaceholder')}
                 />
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Last Name *
+                  {tGeneral('lastName')}
                 </label>
                 <input
                   type="text"
@@ -372,30 +369,30 @@ export default function GeneralInfo() {
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
                   disabled={!isEditing}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter your last name"
+                  placeholder={tGeneral('lastNamePlaceholder')}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Email Address *
+                {tGeneral('emailAddress')}
               </label>
               <input
                 type="email"
                 value={formData.email}
                 disabled
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                placeholder="Email address"
+                placeholder={tGeneral('emailPlaceholder')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Email cannot be changed for security reasons. Contact support if you need to update your email address.
+                {tGeneral('emailReadonlyHint')}
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Phone Number
+                {tGeneral('phoneNumber')}
               </label>
               <input
                 type="tel"
@@ -403,13 +400,13 @@ export default function GeneralInfo() {
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 disabled={!isEditing}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter your phone number"
+                placeholder={tGeneral('phonePlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">
-                Bio
+                {tGeneral('bio')}
               </label>
               <textarea
                 value={formData.bio}
@@ -417,7 +414,7 @@ export default function GeneralInfo() {
                 disabled={!isEditing}
                 rows={3}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
-                placeholder="Tell us about yourself"
+                placeholder={tGeneral('bioPlaceholder')}
               />
             </div>
           </div>

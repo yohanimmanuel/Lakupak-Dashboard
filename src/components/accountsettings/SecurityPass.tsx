@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Key, Mail, Smartphone, Eye, EyeOff, AlertCircle, CheckCircle, X, ArrowRight } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { getPasswordStrength } from '@/utils/auth-security';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 
 interface SecurityData {
   currentPassword: string;
@@ -15,6 +16,7 @@ interface SecurityData {
 
 export default function SecurityPass() {
   const { user, updateUser } = useUserStore();
+  const { tSecurity, translatePasswordStrength } = useSettingsTranslations();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -93,9 +95,9 @@ export default function SecurityPass() {
     return (
       <div className="mt-2">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-gray-600">Password strength</span>
+          <span className="text-xs text-gray-600">{tSecurity('passwordStrength')}</span>
           <span className={`text-xs font-medium text-${strength.color}-600`}>
-            {strength.feedback}
+            {translatePasswordStrength(strength.feedback)}
           </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -115,7 +117,7 @@ export default function SecurityPass() {
       setModalError(null);
 
       if (!formData.currentPassword.trim()) {
-        setModalError('Current password is required');
+        setModalError(tSecurity('errors.currentPasswordRequired'));
         return;
       }
 
@@ -133,14 +135,14 @@ export default function SecurityPass() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Current password is incorrect');
+        throw new Error(errorData.error || tSecurity('errors.currentPasswordIncorrect'));
       }
 
       // Move to step 2
       setPasswordStep(2);
       setModalError(null);
     } catch (err) {
-      setModalError('Current password is incorrect. Please try again.');
+      setModalError(tSecurity('errors.currentPasswordIncorrectRetry'));
     } finally {
       setIsLoading(false);
     }
@@ -152,17 +154,17 @@ export default function SecurityPass() {
       setModalError(null);
 
       if (!formData.newPassword.trim()) {
-        setModalError('New password is required');
+        setModalError(tSecurity('errors.newPasswordRequired'));
         return;
       }
 
       if (formData.newPassword.length < 8) {
-        setModalError('New password must be at least 8 characters long');
+        setModalError(tSecurity('errors.newPasswordMinLength'));
         return;
       }
 
       if (formData.newPassword !== formData.confirmPassword) {
-        setModalError('New passwords do not match');
+        setModalError(tSecurity('errors.passwordsDoNotMatch'));
         return;
       }
 
@@ -190,7 +192,7 @@ export default function SecurityPass() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to set password');
+        throw new Error(errorData.error || tSecurity('errors.setPasswordFailed'));
       }
 
       // Close modal and reset
@@ -206,14 +208,14 @@ export default function SecurityPass() {
       // Update hasPassword state
       setHasPassword(true);
 
-      setSuccess(hasPassword ? 'Password changed successfully' : 'Password created successfully');
+      setSuccess(hasPassword ? tSecurity('success.passwordChanged') : tSecurity('success.passwordCreated'));
       
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
         setSuccess('');
       }, 3000);
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Failed to set password. Please try again.');
+      setModalError(err instanceof Error ? err.message : tSecurity('errors.setPasswordFailedRetry'));
     } finally {
       setIsLoading(false);
     }
@@ -296,8 +298,8 @@ export default function SecurityPass() {
     <div className="space-y-4 p-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Security & Password</h1>
-        <p className="text-gray-600 mt-1">Manage your account security settings</p>
+        <h1 className="text-2xl font-bold text-gray-900">{tSecurity('title')}</h1>
+        <p className="text-gray-600 mt-1">{tSecurity('subtitle')}</p>
       </div>
 
       {/* Error/Success Messages */}
@@ -331,31 +333,31 @@ export default function SecurityPass() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <Key className="w-5 h-5 text-gray-500" />
-          Account Security
+          {tSecurity('accountSecurity')}
         </h2>
 
         <div className="space-y-4">
           {/* Email Section */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Email Address
+              {tSecurity('emailAddress')}
             </label>
             <input
               type="email"
               value={formData.email}
               disabled
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-              placeholder="Email address"
+              placeholder={tSecurity('emailPlaceholder')}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Email cannot be changed for security reasons. Contact support if you need to update your email address.
+              {tSecurity('emailReadonlyHint')}
             </p>
           </div>
 
           {/* Password Section */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Password
+              {tSecurity('password')}
             </label>
             <div className="flex gap-3">
               <input
@@ -363,14 +365,14 @@ export default function SecurityPass() {
                 value="••••••••"
                 disabled
                 className="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                placeholder="Your current password"
+                placeholder={tSecurity('currentPasswordMasked')}
               />
               <button
                 onClick={handleOpenPasswordModal}
                 className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] transition-colors flex items-center gap-2"
               >
                 <Key className="w-4 h-4" />
-                {hasPassword === false ? 'Create Password' : 'Change Password'}
+                {hasPassword === false ? tSecurity('createPassword') : tSecurity('changePassword')}
               </button>
             </div>
           </div>
@@ -422,7 +424,7 @@ export default function SecurityPass() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Key className="w-5 h-5 text-gray-500" />
-                {hasPassword === false ? 'Create Password' : 'Change Password'}
+                {hasPassword === false ? tSecurity('createPassword') : tSecurity('changePassword')}
               </h3>
               <button
                 onClick={handleClosePasswordModal}
@@ -455,8 +457,8 @@ export default function SecurityPass() {
             {passwordStep === 1 && hasPassword && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Step 1: Verify Current Password</h4>
-                  <p className="text-xs text-gray-500 mb-4">Enter your current password to continue</p>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">{tSecurity('step1Title')}</h4>
+                  <p className="text-xs text-gray-500 mb-4">{tSecurity('step1Description')}</p>
                   
                   <div className="relative">
                     <input
@@ -464,7 +466,7 @@ export default function SecurityPass() {
                       value={formData.currentPassword}
                       onChange={(e) => handleInputChange('currentPassword', e.target.value)}
                       className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
-                      placeholder="Enter current password"
+                      placeholder={tSecurity('enterCurrentPassword')}
                       autoFocus
                     />
                     <button
@@ -483,7 +485,7 @@ export default function SecurityPass() {
                     disabled={isLoading || !formData.currentPassword.trim()}
                     className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 transition-colors flex items-center gap-2"
                   >
-                    {isLoading ? 'Verifying...' : 'Continue'}
+                    {isLoading ? tSecurity('verifying') : tSecurity('continue')}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -495,12 +497,12 @@ export default function SecurityPass() {
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    {hasPassword ? 'Step 2: Set New Password' : 'Create Password'}
+                    {hasPassword ? tSecurity('step2SetNewPassword') : tSecurity('step2CreatePassword')}
                   </h4>
                   <p className="text-xs text-gray-500 mb-4">
                     {hasPassword 
-                      ? 'Enter your new password and confirm it'
-                      : 'Create a password for your account. You can use this to login with your email and password.'
+                      ? tSecurity('step2ChangeDescription')
+                      : tSecurity('step2CreateDescription')
                     }
                   </p>
                   
@@ -512,7 +514,7 @@ export default function SecurityPass() {
                           value={formData.newPassword}
                           onChange={(e) => handleInputChange('newPassword', e.target.value)}
                           className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
-                          placeholder="Enter new password"
+                          placeholder={tSecurity('enterNewPassword')}
                           autoFocus
                         />
                         <button
@@ -534,7 +536,7 @@ export default function SecurityPass() {
                         value={formData.confirmPassword}
                         onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                         className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
-                        placeholder="Confirm new password"
+                        placeholder={tSecurity('confirmNewPassword')}
                       />
                       <button
                         type="button"
@@ -553,7 +555,7 @@ export default function SecurityPass() {
                       onClick={() => setPasswordStep(1)}
                       className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium"
                     >
-                      Back
+                      {tSecurity('back')}
                     </button>
                   )}
                   <button
@@ -562,8 +564,8 @@ export default function SecurityPass() {
                     className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {isLoading 
-                      ? (hasPassword ? 'Saving...' : 'Creating...') 
-                      : (hasPassword ? 'Save Password' : 'Create Password')
+                      ? (hasPassword ? tSecurity('saving') : tSecurity('creating')) 
+                      : (hasPassword ? tSecurity('savePassword') : tSecurity('createPassword'))
                     }
                   </button>
                 </div>

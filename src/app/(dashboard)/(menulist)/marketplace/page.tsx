@@ -7,6 +7,9 @@ import MarketplacePerformance from '@/components/marketplacecomp/MarketplacePerf
 import DistributorInfo from '@/components/marketplacecomp/DistributorInfo';
 import { Calendar, RefreshCw, ChevronDown } from 'lucide-react';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
+
+const TIME_RANGE_VALUES = ['7d', '30d', '90d', '1y'] as const;
 
 interface ProductVariantOption {
   sellingPrice: string;
@@ -67,6 +70,7 @@ interface PaginationMetadata {
 
 export default function MarketplacePage() {
   const { user } = useUserStore();
+  const { tPage, tShared, translateTimeRange } = useMarketplaceTranslations();
   const userCurrency = user?.currency || 'IDR';
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
@@ -78,12 +82,10 @@ export default function MarketplacePage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const timeRanges = [
-    { value: '7d', label: 'Last 7 days' },
-    { value: '30d', label: 'Last 30 days' },
-    { value: '90d', label: 'Last 90 days' },
-    { value: '1y', label: 'Last year' }
-  ];
+  const timeRanges = TIME_RANGE_VALUES.map((value) => ({
+    value,
+    label: translateTimeRange(value),
+  }));
 
   const currentRange = timeRanges.find(range => range.value === timeRange);
 
@@ -161,7 +163,7 @@ export default function MarketplacePage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading marketplace data...</p>
+          <p className="text-gray-600">{tPage('loading')}</p>
         </div>
       </div>
     );
@@ -175,9 +177,9 @@ export default function MarketplacePage() {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div data-tour="marketplace-page-header">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Marketplace Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{tPage('title')}</h1>
             <p className="text-sm text-gray-600">
-              Monitor your marketplace performance and customer behavior
+              {tPage('subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-3" data-tour="marketplace-actions">
@@ -218,7 +220,7 @@ export default function MarketplacePage() {
               className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               <RefreshCw className="w-4 h-4" />
-              Refresh
+              {tShared('refresh')}
             </button>
           </div>
         </div>
@@ -227,19 +229,19 @@ export default function MarketplacePage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3" data-tour="marketplace-quick-stats">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-          <p className="text-sm text-gray-600 mb-1">Published Products</p>
+          <p className="text-sm text-gray-600 mb-1">{tPage('publishedProducts')}</p>
           <p className="text-3xl font-bold text-gray-900">{publishedCount}</p>
-          <p className="text-xs text-gray-500 mt-1">Live on marketplace</p>
+          <p className="text-xs text-gray-500 mt-1">{tPage('publishedHint')}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-          <p className="text-sm text-gray-600 mb-1">Total Products</p>
+          <p className="text-sm text-gray-600 mb-1">{tPage('totalProducts')}</p>
           <p className="text-3xl font-bold text-gray-900">{products.length}</p>
-          <p className="text-xs text-gray-500 mt-1">In your catalog</p>
+          <p className="text-xs text-gray-500 mt-1">{tPage('totalHint')}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-          <p className="text-sm text-gray-600 mb-1">Unpublished</p>
+          <p className="text-sm text-gray-600 mb-1">{tPage('unpublished')}</p>
           <p className="text-3xl font-bold text-gray-900">{products.length - publishedCount}</p>
-          <p className="text-xs text-gray-500 mt-1">Ready to publish</p>
+          <p className="text-xs text-gray-500 mt-1">{tPage('unpublishedHint')}</p>
         </div>
       </div>
 

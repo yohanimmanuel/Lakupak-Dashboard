@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, Shield, Globe, CreditCard, Users, Building2, Sparkles } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useAuthHydration } from '@/hooks/useAuthHydration';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 import GeneralInfo from '@/components/accountsettings/GeneralInfo';
 import DistributorOperations from '@/components/accountsettings/DistributorOperations';
 import SecurityPass from '@/components/accountsettings/SecurityPass';
@@ -14,28 +15,28 @@ import { DashboardToursPanel } from '@/components/tours/DashboardToursPanel';
 
 type SettingsTab = 'general' | 'security' | 'language' | 'billing' | 'team' | 'profile' | 'tours';
 
-const settingsTabs = [
-  { id: 'general' as const, label: 'General Info', icon: <User className="w-4 h-4" /> },
-  { id: 'profile' as const, label: 'Distributor Operations', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'tours' as const, label: 'Features & Tours', icon: <Sparkles className="w-4 h-4" /> },
-  { id: 'team' as const, label: 'Team & Sales', icon: <Users className="w-4 h-4" /> },
-  { id: 'language' as const, label: 'Language & Region', icon: <Globe className="w-4 h-4" /> },
-  { id: 'billing' as const, label: 'Billing & Payment', icon: <CreditCard className="w-4 h-4" /> },
-  { id: 'security' as const, label: 'Security & Password', icon: <Shield className="w-4 h-4" /> },
-];
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const { user, isAuthenticated } = useUserStore();
+  const { user } = useUserStore();
   const { isHydrated } = useAuthHydration();
+  const { tPage } = useSettingsTranslations();
 
-  // Show loading state while user data is being loaded
+  const settingsTabs: { id: SettingsTab; tabKey: SettingsTab | 'profile'; icon: React.ReactNode }[] = [
+    { id: 'general', tabKey: 'general', icon: <User className="w-4 h-4" /> },
+    { id: 'profile', tabKey: 'profile', icon: <Building2 className="w-4 h-4" /> },
+    { id: 'tours', tabKey: 'tours', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'team', tabKey: 'team', icon: <Users className="w-4 h-4" /> },
+    { id: 'language', tabKey: 'language', icon: <Globe className="w-4 h-4" /> },
+    { id: 'billing', tabKey: 'billing', icon: <CreditCard className="w-4 h-4" /> },
+    { id: 'security', tabKey: 'security', icon: <Shield className="w-4 h-4" /> },
+  ];
+
   if (!isHydrated || !user) {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading settings...</p>
+          <p className="text-gray-600">{tPage('loading')}</p>
         </div>
       </div>
     );
@@ -64,14 +65,12 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full mx-auto bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-white">
-        <h1 className="text-2xl font-bold text-black mb-2">Account Settings</h1>
-        <p className="text-sm text-gray-600">Manage your account preferences and settings</p>
+        <h1 className="text-2xl font-bold text-black mb-2">{tPage('title')}</h1>
+        <p className="text-sm text-gray-600">{tPage('subtitle')}</p>
       </div>
 
       <div className="flex">
-        {/* Settings Navigation Sidebar */}
         <div className="w-60 bg-white border-r border-gray-200 min-h-screen">
           <nav className="p-4">
             <div className="space-y-1">
@@ -86,14 +85,13 @@ export default function SettingsPage() {
                   }`}
                 >
                   {tab.icon}
-                  {tab.label}
+                  {tPage(`tabs.${tab.tabKey}`)}
                 </button>
               ))}
             </div>
           </nav>
         </div>
 
-        {/* Main Content Area */}
         <div className="flex-1">
           {renderContent()}
         </div>

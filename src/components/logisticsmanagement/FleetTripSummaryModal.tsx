@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, CheckCircle, Package, Truck, User, MapPin, CreditCard, Calendar, Layers, PackageCheck, ShieldCheck } from 'lucide-react';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import Image from 'next/image';
 
 export interface FleetTripSummaryData {
@@ -74,6 +75,14 @@ export default function FleetTripSummaryModal({
   onSubmit,
   onCompletedOrderIdsChange,
 }: FleetTripSummaryModalProps) {
+  const {
+    tTripSummaryModal,
+    tShared,
+    translateFleetStatus,
+    translateDeliveryType,
+    translateVehicleType,
+  } = useLogisticsTranslations();
+
   if (!isOpen) return null;
 
   const route = data.route ?? (data.routeFrom && data.routeTo ? `${data.routeFrom} → ${data.routeTo}` : '');
@@ -95,6 +104,7 @@ export default function FleetTripSummaryModal({
         : formatEtaDate(data.etaCompletionDate))
     : (data.etaDate && data.etaTime ? `${data.etaDate} ${data.etaTime}` : data.etaDate || data.etaTime || '');
   const vehicleInfo = getVehicleTypeInfo(data.vehicleType ?? '20ft_container');
+  const vehicleTypeLabel = translateVehicleType(data.vehicleType ?? '20ft_container');
   const orders = data.assignedOrders ?? [];
   const totalOrders = orders.length;
   const completedSet = new Set(data.completedOrderIds ?? []);
@@ -112,11 +122,11 @@ export default function FleetTripSummaryModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
       <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Trip Summary</h2>
+          <h2 className="text-lg font-bold text-gray-900">{tTripSummaryModal('title')}</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-            aria-label="Close"
+            aria-label={tShared('close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -126,67 +136,67 @@ export default function FleetTripSummaryModal({
           <section>
             <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
               <Package className="w-4 h-4" />
-              Basic Info
+              {tTripSummaryModal('basicInfo')}
             </h3>
             <div className="border border-gray-200 rounded-lg p-4">
-              <SummaryRow label="Fleet Code" value={data.orderCode ?? ''} />
-              <SummaryRow label="Route" value={route} />
-              <SummaryRow label="Status" value={data.status ?? ''} />
-              <SummaryRow label="Delivery Type" value={data.deliveryType ?? ''} />
-              <SummaryRow label="Assigned Date" value={assignedDateDisplay} />
-              <SummaryRow label="ETA" value={eta} />
-              <SummaryRow label="Payment Terms" value={data.paymentTerms ?? ''} />
-              <SummaryRow label="Assigned Logistics" value={data.assignedLogistics ?? ''} />
+              <SummaryRow label={tTripSummaryModal('fleetCode')} value={data.orderCode ?? ''} />
+              <SummaryRow label={tTripSummaryModal('route')} value={route} />
+              <SummaryRow label={tTripSummaryModal('status')} value={data.status ? translateFleetStatus(data.status) : ''} />
+              <SummaryRow label={tTripSummaryModal('deliveryType')} value={data.deliveryType ? translateDeliveryType(data.deliveryType) : ''} />
+              <SummaryRow label={tTripSummaryModal('assignedDate')} value={assignedDateDisplay} />
+              <SummaryRow label={tTripSummaryModal('eta')} value={eta} />
+              <SummaryRow label={tTripSummaryModal('paymentTerms')} value={data.paymentTerms ?? ''} />
+              <SummaryRow label={tTripSummaryModal('assignedLogistics')} value={data.assignedLogistics ?? ''} />
             </div>
           </section>
 
           <section>
             <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
               <Truck className="w-4 h-4" />
-              Vehicle
+              {tTripSummaryModal('vehicle')}
             </h3>
             <div className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center gap-4 mb-3">
                 <div className="relative w-24 h-12">
-                  <Image src={vehicleInfo.imagePath} alt={vehicleInfo.label} fill className="object-contain" unoptimized sizes="96px" />
+                  <Image src={vehicleInfo.imagePath} alt={vehicleTypeLabel} fill className="object-contain" unoptimized sizes="96px" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Vehicle Type</p>
-                  <p className="text-xs font-medium text-gray-900">{vehicleInfo.label}</p>
+                  <p className="text-xs text-gray-500">{tTripSummaryModal('vehicleType')}</p>
+                  <p className="text-xs font-medium text-gray-900">{vehicleTypeLabel}</p>
                 </div>
               </div>
-              <SummaryRow label="Brand" value={data.vehicleBrand ?? ''} />
-              <SummaryRow label="Model" value={data.vehicleModel ?? ''} />
-              <SummaryRow label="Plate number" value={data.plateNumber ?? ''} />
-              <SummaryRow label="Max Weight" value={data.vehicleMaxWeight != null ? `${data.vehicleMaxWeight.toLocaleString()} kg` : ''} />
-              <SummaryRow label="Max Volume" value={data.vehicleMaxVolume != null ? `${data.vehicleMaxVolume.toLocaleString()} m³` : ''} />
-              <SummaryRow label="Load %" value={data.loadPct != null ? `${data.loadPct}%` : ''} />
+              <SummaryRow label={tTripSummaryModal('brand')} value={data.vehicleBrand ?? ''} />
+              <SummaryRow label={tTripSummaryModal('model')} value={data.vehicleModel ?? ''} />
+              <SummaryRow label={tTripSummaryModal('plateNumber')} value={data.plateNumber ?? ''} />
+              <SummaryRow label={tTripSummaryModal('maxWeight')} value={data.vehicleMaxWeight != null ? `${data.vehicleMaxWeight.toLocaleString()} ${tShared('units.kg')}` : ''} />
+              <SummaryRow label={tTripSummaryModal('maxVolume')} value={data.vehicleMaxVolume != null ? `${data.vehicleMaxVolume.toLocaleString()} ${tShared('units.cubicMeters')}` : ''} />
+              <SummaryRow label={tTripSummaryModal('loadPct')} value={data.loadPct != null ? `${data.loadPct}${tShared('units.percent')}` : ''} />
             </div>
           </section>
 
           <section>
             <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
               <User className="w-4 h-4" />
-              Driver
+              {tTripSummaryModal('driver')}
             </h3>
             <div className="border border-gray-200 rounded-lg p-4">
               {data.driverAvatar && (
                 <div className="flex justify-center mb-3">
-                  <Image src={data.driverAvatar} alt="Driver" width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-gray-200" unoptimized />
+                  <Image src={data.driverAvatar} alt={tTripSummaryModal('driverAlt')} width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-gray-200" unoptimized />
                 </div>
               )}
-              <SummaryRow label="Name" value={data.driverName ?? ''} />
-              <SummaryRow label="Phone" value={data.driverPhone ?? ''} />
-              <SummaryRow label="Experience" value={data.driverExperience ?? ''} />
-              <SummaryRow label="Status" value={data.driverStatus ?? ''} />
-              <SummaryRow label="Username" value={data.driverUsername ?? ''} />
+              <SummaryRow label={tTripSummaryModal('name')} value={data.driverName ?? ''} />
+              <SummaryRow label={tTripSummaryModal('phone')} value={data.driverPhone ?? ''} />
+              <SummaryRow label={tTripSummaryModal('experience')} value={data.driverExperience ?? ''} />
+              <SummaryRow label={tTripSummaryModal('status')} value={data.driverStatus ?? ''} />
+              <SummaryRow label={tTripSummaryModal('username')} value={data.driverUsername ?? ''} />
               {(data.driverPasswordSet || data.driverUsername) && (
                 <div className="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500">Password</p>
+                    <p className="text-xs text-gray-500">{tTripSummaryModal('password')}</p>
                     <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      Credentials configured — stored securely
+                      {tTripSummaryModal('credentialsConfigured')}
                     </span>
                   </div>
                 </div>
@@ -198,15 +208,17 @@ export default function FleetTripSummaryModal({
             <section>
               <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Layers className="w-4 h-4" />
-                Assigned Orders ({(data.assignedOrders ?? []).length})
+                {tTripSummaryModal('assignedOrders', { count: (data.assignedOrders ?? []).length })}
               </h3>
               <div className="border border-gray-200 rounded-lg p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-700 flex items-center gap-2">
                     <PackageCheck className="w-3.5 h-3.5" />
-                    Deliveries completed
+                    {tTripSummaryModal('deliveriesCompleted')}
                   </span>
-                  <span className="text-xs font-semibold text-[#0a61d7]">{completedCount} of {totalOrders}</span>
+                  <span className="text-xs font-semibold text-[#0a61d7]">
+                    {tTripSummaryModal('completedOfTotal', { completed: completedCount, total: totalOrders })}
+                  </span>
                 </div>
                 <ul className="space-y-2">
                   {orders.map((o) => (
@@ -227,7 +239,7 @@ export default function FleetTripSummaryModal({
                         )}
                       </button>
                       <span className="font-medium text-xs text-gray-900 truncate">{o.orderId}</span>
-                      <span className="text-gray-600 text-xs truncate">{o.storeName || '—'}</span>
+                      <span className="text-gray-600 text-xs truncate">{o.storeName || tShared('notApplicable')}</span>
                     </li>
                   ))}
                 </ul>
@@ -237,10 +249,10 @@ export default function FleetTripSummaryModal({
             <section>
               <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Layers className="w-4 h-4" />
-                Deliveries
+                {tTripSummaryModal('deliveries')}
               </h3>
               <div className="border border-gray-200 rounded-lg p-4">
-                <p className="text-xs text-gray-500">No orders assigned. Add orders in the Order Selection tab.</p>
+                <p className="text-xs text-gray-500">{tTripSummaryModal('noOrdersHint')}</p>
               </div>
             </section>
           )}
@@ -251,7 +263,7 @@ export default function FleetTripSummaryModal({
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-sm"
           >
-            Back
+            {tTripSummaryModal('back')}
           </button>
           <button
             onClick={onSubmit}
@@ -261,12 +273,12 @@ export default function FleetTripSummaryModal({
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {mode === 'create' ? 'Creating...' : 'Saving...'}
+                {mode === 'create' ? tTripSummaryModal('creating') : tTripSummaryModal('saving')}
               </>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                {mode === 'create' ? 'Create Fleet' : 'Save Changes'}
+                {mode === 'create' ? tTripSummaryModal('createFleet') : tTripSummaryModal('saveChanges')}
               </>
             )}
           </button>

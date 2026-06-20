@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useLayoutEffect, useRef, useEffect } from 'react';
 import { User, Phone, Briefcase, Activity, Upload, X, AtSign, Lock, Eye, EyeOff, Key, AlertCircle, ArrowRight, ChevronDown, Search, Check, Pencil, Save } from 'lucide-react';
 import { getPasswordStrength } from '@/utils/auth-security';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import Image from 'next/image';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import type { FleetOrderSummary, DriverSummary } from './OrderfleetList';
@@ -47,6 +48,7 @@ export default function FleetDriverInfo({
   fleetId,
   drivers = [],
 }: FleetDriverInfoProps) {
+  const { tDriverInfo, tShared } = useLogisticsTranslations();
   const [showDriverPicker, setShowDriverPicker] = useState(false);
   const [driverSearch, setDriverSearch] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -176,11 +178,11 @@ export default function FleetDriverInfo({
 
   const handleVerifyCurrentPassword = async () => {
     if (!currentPassword.trim()) {
-      setChangePasswordError('Current password is required.');
+      setChangePasswordError(tDriverInfo('currentPasswordRequired'));
       return;
     }
     if (!fleetId) {
-      setChangePasswordError('Fleet ID is missing. Please save the fleet first.');
+      setChangePasswordError(tDriverInfo('fleetIdMissing'));
       return;
     }
     setIsVerifying(true);
@@ -193,11 +195,11 @@ export default function FleetDriverInfo({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || 'Current password is incorrect');
+        throw new Error((data as { error?: string }).error || tDriverInfo('currentPasswordIncorrect'));
       }
       setChangePasswordStep(2);
     } catch (err) {
-      setChangePasswordError(err instanceof Error ? err.message : 'Current password is incorrect. Please try again.');
+      setChangePasswordError(err instanceof Error ? err.message : tDriverInfo('currentPasswordIncorrectRetry'));
     } finally {
       setIsVerifying(false);
     }
@@ -205,7 +207,7 @@ export default function FleetDriverInfo({
 
   const handleSaveNewPassword = () => {
     if (!newPassword.trim()) {
-      setChangePasswordError('New password is required.');
+      setChangePasswordError(tDriverInfo('newPasswordRequired'));
       return;
     }
     const rules = {
@@ -216,11 +218,11 @@ export default function FleetDriverInfo({
       special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword),
     };
     if (!Object.values(rules).every(Boolean)) {
-      setChangePasswordError('Password must be at least 8 characters and include uppercase, lowercase, a digit, and a special character.');
+      setChangePasswordError(tDriverInfo('passwordRequirements'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setChangePasswordError('Passwords do not match.');
+      setChangePasswordError(tDriverInfo('passwordsDoNotMatch'));
       return;
     }
     onFormChange({ driverPassword: newPassword });
@@ -248,6 +250,12 @@ export default function FleetDriverInfo({
     return 1; // Weak
   }, [formData.driverPassword, passwordRules]);
 
+  const passwordStrengthLabel = useMemo(() => {
+    const keys = ['', 'weak', 'fair', 'good', 'strong'] as const;
+    const key = keys[passwordStrength];
+    return key ? tDriverInfo(`passwordStrengthLevels.${key}`) : '';
+  }, [passwordStrength, tDriverInfo]);
+
   const isValidPassword = useMemo(
     () => Boolean(formData.driverPassword && Object.values(passwordRules).every(Boolean)),
     [formData.driverPassword, passwordRules]
@@ -274,10 +282,10 @@ export default function FleetDriverInfo({
       if (result.success && result.url) {
         onFormChange({ driverAvatar: result.url });
       } else {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || tDriverInfo('uploadFailed'));
       }
     } catch (error) {
-      alert(`Failed to upload avatar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(tDriverInfo('uploadAvatarFailed', { message: error instanceof Error ? error.message : tDriverInfo('uploadFailed') }));
     } finally {
       setIsUploading(false);
     }
@@ -297,14 +305,14 @@ export default function FleetDriverInfo({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Driver Information</h3>
-        <p className="text-sm text-gray-500">Assign an existing driver or create a new one for this fleet.</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{tDriverInfo('title')}</h3>
+        <p className="text-sm text-gray-500">{tDriverInfo('subtitle')}</p>
       </div>
 
       {/* DriverPicker — only shown when there are registered drivers */}
       {drivers.length > 0 && (
         <div className="rounded-lg border border-[#e6e6e6] bg-gray-50/60 p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Select Existing Driver</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{tDriverInfo('selectExisting')}</p>
           <div className="relative" ref={pickerRef}>
             <button
               type="button"
@@ -318,7 +326,7 @@ export default function FleetDriverInfo({
                   <span className="text-gray-400 text-xs">@{selectedDriver.username}</span>
                 </span>
               ) : (
-                <span className="text-xs text-gray-400">— Create a new driver —</span>
+                <span className="text-xs text-gray-400">{tDriverInfo('createNewDriver')}</span>
               )}
               <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showDriverPicker ? 'rotate-180' : ''}`} />
             </button>
@@ -331,7 +339,7 @@ export default function FleetDriverInfo({
                       type="text"
                       value={driverSearch}
                       onChange={(e) => setDriverSearch(e.target.value)}
-                      placeholder="Search drivers..."
+                      placeholder={tDriverInfo('searchDrivers')}
                       className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0a61d7]"
                       autoFocus
                     />
@@ -345,10 +353,10 @@ export default function FleetDriverInfo({
                     className={`w-full text-left px-3 py-2.5 text-xs hover:bg-gray-50 flex items-center gap-2 ${!formData.driverId ? 'text-[#0a61d7] font-semibold' : 'text-gray-600'}`}
                   >
                     <User className="h-4 w-4 text-gray-400 shrink-0" />
-                    — Create a new driver —
+                    {tDriverInfo('createNewDriver')}
                   </button>
                   {filteredDrivers.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-gray-400">No drivers found</p>
+                    <p className="px-3 py-2 text-xs text-gray-400">{tDriverInfo('noDriversFound')}</p>
                   ) : (
                     filteredDrivers.map((driver) => (
                       <button
@@ -382,21 +390,21 @@ export default function FleetDriverInfo({
           </div>
           {selectedDriver && !isEditingDriver && (
             <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-[10px] text-gray-500">Fields are pre-filled and locked.</p>
+              <p className="text-[10px] text-gray-500">{tDriverInfo('fieldsLocked')}</p>
               <button
                 type="button"
                 onClick={handleStartEditDriver}
                 className="flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors shrink-0"
               >
                 <Pencil className="w-3 h-3" />
-                Edit driver info
+                {tDriverInfo('editDriverInfo')}
               </button>
             </div>
           )}
           {selectedDriver && isEditingDriver && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5">
               <p className="text-[10px] text-amber-700 font-medium">
-                Editing driver — changes apply to the driver record and save when you save the fleet.
+                {tDriverInfo('editingDriverBanner')}
               </p>
               <div className="flex gap-2 shrink-0">
                 <button
@@ -404,14 +412,14 @@ export default function FleetDriverInfo({
                   onClick={handleCancelEditDriver}
                   className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
                 >
-                  Cancel
+                  {tShared('cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveDriverEdits}
                   className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
                 >
-                  Done
+                  {tShared('save')}
                 </button>
               </div>
             </div>
@@ -424,7 +432,7 @@ export default function FleetDriverInfo({
         <div className="relative mb-4">
           <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-md">
             {formData.driverAvatar ? (
-              <Image src={formData.driverAvatar} alt="Driver avatar" width={96} height={96} className="w-full h-full object-cover" unoptimized />
+              <Image src={formData.driverAvatar} alt={tDriverInfo('driverAvatarAlt')} width={96} height={96} className="w-full h-full object-cover" unoptimized />
             ) : (
               <span className="text-2xl font-medium text-gray-600">
                 {formData.driverName?.split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'DR'}
@@ -458,7 +466,7 @@ export default function FleetDriverInfo({
             />
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
               <Upload className="w-4 h-4" />
-              {isUploading ? 'Uploading...' : formData.driverAvatar ? 'Change Avatar' : 'Upload Avatar'}
+              {isUploading ? tDriverInfo('uploading') : formData.driverAvatar ? tDriverInfo('changeAvatar') : tDriverInfo('uploadAvatar')}
             </div>
           </label>
         )}
@@ -467,7 +475,7 @@ export default function FleetDriverInfo({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Driver Name {!isFieldsLocked && <span className="text-red-500">*</span>}
+            {tDriverInfo('name')} {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -475,7 +483,7 @@ export default function FleetDriverInfo({
               type="text"
               value={formData.driverName || ''}
               onChange={(e) => !isFieldsLocked && onFormChange({ driverName: e.target.value })}
-              placeholder="Andi Pratama"
+              placeholder={tDriverInfo('placeholderName')}
               disabled={isFieldsLocked}
               className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
@@ -484,7 +492,7 @@ export default function FleetDriverInfo({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Driver Phone {!isFieldsLocked && <span className="text-red-500">*</span>}
+            {tDriverInfo('phone')} {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -492,7 +500,7 @@ export default function FleetDriverInfo({
               type="tel"
               value={formData.driverPhone || ''}
               onChange={(e) => !isFieldsLocked && onFormChange({ driverPhone: e.target.value })}
-              placeholder="+62 812-3456-7890"
+              placeholder={tDriverInfo('placeholderPhone')}
               disabled={isFieldsLocked}
               className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
@@ -501,7 +509,7 @@ export default function FleetDriverInfo({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Experience {!isFieldsLocked && <span className="text-red-500">*</span>}
+            {tDriverInfo('experience')} {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -509,7 +517,7 @@ export default function FleetDriverInfo({
               type="text"
               value={formData.driverExperience || ''}
               onChange={(e) => !isFieldsLocked && onFormChange({ driverExperience: e.target.value })}
-              placeholder="e.g. 5+ years"
+              placeholder={tDriverInfo('placeholderExperience')}
               disabled={isFieldsLocked}
               className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
@@ -518,7 +526,7 @@ export default function FleetDriverInfo({
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Status {!isFieldsLocked && <span className="text-red-500">*</span>}
+            {tDriverInfo('status')} {!isFieldsLocked && <span className="text-red-500">*</span>}
           </label>
           <div className="relative">
             <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -526,7 +534,7 @@ export default function FleetDriverInfo({
               type="text"
               value={formData.driverStatus || ''}
               onChange={(e) => !isFieldsLocked && onFormChange({ driverStatus: e.target.value })}
-              placeholder="e.g. On route, Available"
+              placeholder={tDriverInfo('placeholderStatus')}
               disabled={isFieldsLocked}
               className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
             />
@@ -536,12 +544,12 @@ export default function FleetDriverInfo({
 
       {/* App credentials */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Laku Driver App Credentials</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{tDriverInfo('appCredentials')}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Username */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Username {!isFieldsLocked && <span className="text-red-500">*</span>}
+              {tDriverInfo('username')} {!isFieldsLocked && <span className="text-red-500">*</span>}
             </label>
             <div className="relative">
               <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -549,7 +557,7 @@ export default function FleetDriverInfo({
                 type="text"
                 value={formData.driverUsername || ''}
                 onChange={(e) => !isFieldsLocked && onFormChange({ driverUsername: e.target.value })}
-                placeholder="e.g. andi.pratama"
+                placeholder={tDriverInfo('placeholderUsername')}
                 autoComplete="off"
                 disabled={isFieldsLocked}
                 className={`w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${isFieldsLocked ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
@@ -562,12 +570,12 @@ export default function FleetDriverInfo({
             <div>
               <div className="flex items-center justify-between gap-3 mb-2">
                 <label className="text-xs font-medium text-gray-700">
-                  Password <span className="text-red-500">*</span>
+                  {tDriverInfo('password')} <span className="text-red-500">*</span>
                   <span className="text-[10px] text-gray-500 ml-1">
                     (min 8 chars: uppercase, lowercase, digit, special character (!@#$%^&*...))
                   </span>
                 </label>
-                <div className="flex items-center gap-0.5 shrink-0 ml-2" title={['', 'Weak', 'Fair', 'Good', 'Strong'][passwordStrength]}>
+                <div className="flex items-center gap-0.5 shrink-0 ml-2" title={passwordStrengthLabel}>
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
@@ -589,7 +597,7 @@ export default function FleetDriverInfo({
                   type={showPassword ? 'text' : 'password'}
                   value={formData.driverPassword || ''}
                   onChange={(e) => onFormChange({ driverPassword: e.target.value })}
-                  placeholder="Set a password"
+                  placeholder={tDriverInfo('placeholderSetPassword')}
                   autoComplete="new-password"
                   className={`w-full pl-10 pr-10 py-2 text-black text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent ${
                     formData.driverPassword
@@ -608,14 +616,14 @@ export default function FleetDriverInfo({
           {isExistingDriver && isFieldsLocked && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-700">Password</label>
+                <label className="text-xs font-medium text-gray-700">{tDriverInfo('password')}</label>
                 <button
                   type="button"
                   onClick={handleOpenChangePassword}
                   className="flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
                 >
                   <Key className="w-3 h-3" />
-                  Change password
+                  {tDriverInfo('changePassword')}
                 </button>
               </div>
               <div className="relative">
@@ -628,7 +636,7 @@ export default function FleetDriverInfo({
                 />
               </div>
               {formData.driverPassword && (
-                <p className="mt-1 text-[10px] text-emerald-600">✓ New password staged — will be saved on submit</p>
+                <p className="mt-1 text-[10px] text-emerald-600">✓ {tDriverInfo('passwordSet')}</p>
               )}
             </div>
           )}
@@ -637,14 +645,14 @@ export default function FleetDriverInfo({
           {isExistingDriver && !isFieldsLocked && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-700">Password</label>
+                <label className="text-xs font-medium text-gray-700">{tDriverInfo('password')}</label>
                 <button
                   type="button"
                   onClick={handleOpenChangePassword}
                   className="flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
                 >
                   <Key className="w-3 h-3" />
-                  Change password
+                  {tDriverInfo('changePassword')}
                 </button>
               </div>
               <div className="relative">
@@ -657,7 +665,7 @@ export default function FleetDriverInfo({
                 />
               </div>
               {formData.driverPassword && (
-                <p className="mt-1 text-[10px] text-emerald-600">✓ New password staged — will be saved on submit</p>
+                <p className="mt-1 text-[10px] text-emerald-600">✓ {tDriverInfo('passwordSet')}</p>
               )}
             </div>
           )}
@@ -671,7 +679,7 @@ export default function FleetDriverInfo({
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
                 <Key className="w-5 h-5 text-gray-500" />
-                Change Driver Password
+                {tDriverInfo('changePassword')}
               </h3>
               <button onClick={handleCloseChangePassword} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="w-5 h-5" />
@@ -694,14 +702,14 @@ export default function FleetDriverInfo({
             {changePasswordStep === 1 && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Step 1: Verify Current Password</h4>
-                  <p className="text-xs text-gray-500 mb-4">Enter the driver&apos;s current password to continue</p>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">{tDriverInfo('step1Title')}</h4>
+                  <p className="text-xs text-gray-500 mb-4">{tDriverInfo('step1Hint')}</p>
                   <div className="relative">
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
                       value={currentPassword}
                       onChange={(e) => { setCurrentPassword(e.target.value); setChangePasswordError(null); }}
-                      placeholder="Enter current password"
+                      placeholder={tDriverInfo('currentPassword')}
                       autoFocus
                       className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
                     />
@@ -721,7 +729,7 @@ export default function FleetDriverInfo({
                     disabled={isVerifying || !currentPassword.trim()}
                     className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 transition-colors"
                   >
-                    {isVerifying ? 'Verifying...' : 'Continue'}
+                    {isVerifying ? tDriverInfo('verifying') : tDriverInfo('continue')}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -732,8 +740,8 @@ export default function FleetDriverInfo({
             {changePasswordStep === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Step 2: Set New Password</h4>
-                  <p className="text-xs text-gray-500 mb-4">Enter a new password and confirm it</p>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">{tDriverInfo('step2Title')}</h4>
+                  <p className="text-xs text-gray-500 mb-4">{tDriverInfo('step2Hint')}</p>
                   <div className="space-y-3">
                     <div>
                       <div className="relative">
@@ -741,7 +749,7 @@ export default function FleetDriverInfo({
                           type={showNewPassword ? 'text' : 'password'}
                           value={newPassword}
                           onChange={(e) => { setNewPassword(e.target.value); setChangePasswordError(null); }}
-                          placeholder="Enter new password"
+                          placeholder={tDriverInfo('newPassword')}
                           autoFocus
                           className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
                         />
@@ -759,7 +767,7 @@ export default function FleetDriverInfo({
                         return (
                           <div className="mt-2">
                             <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs text-gray-600">Password strength</span>
+                              <span className="text-xs text-gray-600">{tDriverInfo('passwordStrength')}</span>
                               <span className={`text-xs font-medium ${c.text}`}>{s.feedback}</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -774,7 +782,7 @@ export default function FleetDriverInfo({
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => { setConfirmPassword(e.target.value); setChangePasswordError(null); }}
-                        placeholder="Confirm new password"
+                        placeholder={tDriverInfo('confirmPassword')}
                         className="w-full px-3 py-2 pr-10 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
                       />
                       <button
@@ -793,7 +801,7 @@ export default function FleetDriverInfo({
                     onClick={() => setChangePasswordStep(1)}
                     className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium"
                   >
-                    Back
+                    {tShared('back')}
                   </button>
                   <button
                     type="button"
@@ -801,7 +809,7 @@ export default function FleetDriverInfo({
                     disabled={!newPassword.trim() || !confirmPassword.trim() || newPassword !== confirmPassword}
                     className="px-4 py-2 bg-[#0a61d7] text-white text-xs font-semibold rounded-lg hover:bg-[#084ba6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Save Password
+                    {tDriverInfo('setPassword')}
                   </button>
                 </div>
               </div>

@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
-import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
-import { ChevronDownIcon, GlobeIcon, CheckIcon } from 'lucide-react';
+import { REGIONS, getRegionByCode, getCurrencyDisplayName } from '@/config/regionConfig';
+import { ChevronDownIcon, GlobeIcon, CheckIcon, Loader2 } from 'lucide-react';
 import ReactCountryFlag from 'react-country-flag';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 
 interface LanguageRegionData {
   language: string;
@@ -12,14 +13,12 @@ interface LanguageRegionData {
   currency: string;
 }
 
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'id', name: 'Bahasa Indonesia' },
-];
+const LANGUAGE_CODES = ['en', 'id'] as const;
 
 export default function LanguageRegion() {
   const { user, updateUser } = useUserStore();
-  const [isSaving, setIsSaving] = useState(false);
+  const { tLanguage, translateLanguageOption, translateRegion } = useSettingsTranslations();
+  const [savingField, setSavingField] = useState<'language' | 'region' | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
@@ -92,7 +91,7 @@ export default function LanguageRegion() {
     setShowLanguageDropdown(false);
     
     // Auto-save when language changes with new data
-    await handleSave(newFormData);
+    await handleSave(newFormData, 'language');
   };
 
   const handleRegionChange = async (regionCode: string) => {
@@ -107,15 +106,15 @@ export default function LanguageRegion() {
       setShowRegionDropdown(false);
       
       // Auto-save when region changes with new data
-      await handleSave(newFormData);
+      await handleSave(newFormData, 'region');
     }
   };
 
-  const handleSave = async (dataToSave?: LanguageRegionData) => {
+  const handleSave = async (dataToSave?: LanguageRegionData, field?: 'language' | 'region') => {
     if (!user) return;
 
     const data = dataToSave || formData;
-    setIsSaving(true);
+    setSavingField(field ?? null);
     setError('');
 
     // Enhanced validation
@@ -123,28 +122,26 @@ export default function LanguageRegion() {
 
     // Language validation
     if (!data.language || data.language.trim().length === 0) {
-      validationErrors.push('Language is required');
+      validationErrors.push(tLanguage('errors.languageRequired'));
     } else if (!['en', 'id'].includes(data.language)) {
-      validationErrors.push('Invalid language selection');
+      validationErrors.push(tLanguage('errors.languageInvalid'));
     }
 
-    // Region validation
     if (!data.region || data.region.trim().length === 0) {
-      validationErrors.push('Region is required');
+      validationErrors.push(tLanguage('errors.regionRequired'));
     } else if (!['ID', 'US', 'SG', 'MY', 'TH', 'VN', 'PH'].includes(data.region)) {
-      validationErrors.push('Invalid region selection');
+      validationErrors.push(tLanguage('errors.regionInvalid'));
     }
 
-    // Currency validation
     if (!data.currency || data.currency.trim().length === 0) {
-      validationErrors.push('Currency is required');
+      validationErrors.push(tLanguage('errors.currencyRequired'));
     } else if (!['IDR', 'USD', 'SGD', 'MYR', 'THB', 'VND', 'PHP'].includes(data.currency)) {
-      validationErrors.push('Invalid currency selection');
+      validationErrors.push(tLanguage('errors.currencyInvalid'));
     }
 
     if (validationErrors.length > 0) {
       setError(validationErrors.join('. '));
-      setIsSaving(false);
+      setSavingField(null);
       return;
     }
 
@@ -164,12 +161,11 @@ export default function LanguageRegion() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update language and region settings');
+        throw new Error(errorData.error || tLanguage('errors.updateFailed'));
       }
 
       const updatedUser = await response.json();
       
-      // Update the user store
       updateUser({
         language: data.language,
         region: data.region,
@@ -177,7 +173,7 @@ export default function LanguageRegion() {
       });
 
       setOriginalData(data);
-      setSuccessMessage('Language and region settings updated successfully!');
+      setSuccessMessage(tLanguage('success.settingsUpdated'));
       
       // Auto-dismiss success message after 3 seconds
       setTimeout(() => {
@@ -185,9 +181,9 @@ export default function LanguageRegion() {
       }, 3000);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while updating settings');
+      setError(err instanceof Error ? err.message : tLanguage('errors.genericUpdateError'));
     } finally {
-      setIsSaving(false);
+      setSavingField(null);
     }
   };
 
@@ -214,16 +210,15 @@ export default function LanguageRegion() {
     );
   }
 
-  const currentLanguage = LANGUAGES.find(lang => lang.code === formData.language) || LANGUAGES[0];
+  const currentLanguageCode = formData.language || 'en';
   const currentRegion = getRegionByCode(formData.region) || REGIONS[0];
-  
 
   return (
     <div className="space-y-4 p-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Language & Region</h1>
-        <p className="text-gray-600 mt-1">Manage your language and regional preferences</p>
+        <h1 className="text-2xl font-bold text-gray-900">{tLanguage('title')}</h1>
+        <p className="text-gray-600 mt-1">{tLanguage('subtitle')}</p>
       </div>
 
       {/* Error/Success Messages */}
@@ -259,41 +254,50 @@ export default function LanguageRegion() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h2 className="text-md font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <GlobeIcon className="w-5 h-5 text-gray-500" />
-          Language & Regional Settings
+          {tLanguage('sectionTitle')}
         </h2>
 
         <div className="space-y-4">
           {/* Language Selection */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Language
+              {tLanguage('language')}
             </label>
             <div className="relative dropdown-container">
               <button
                 type="button"
-                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                className="w-full px-3 py-2 text-xs text-left bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
+                onClick={() => {
+                  if (savingField !== 'language') {
+                    setShowLanguageDropdown(!showLanguageDropdown);
+                  }
+                }}
+                disabled={savingField === 'language'}
+                className="w-full px-3 py-2 text-xs text-left bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between disabled:cursor-wait"
               >
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-medium text-gray-500 uppercase">{currentLanguage.code}</span>
-                  <span className="text-xs text-gray-900">{currentLanguage.name}</span>
+                  <span className="text-xs font-medium text-gray-500 uppercase">{currentLanguageCode}</span>
+                  <span className="text-xs text-gray-900">{translateLanguageOption(currentLanguageCode)}</span>
                 </div>
-                <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                {savingField === 'language' ? (
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin shrink-0" />
+                ) : (
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                )}
               </button>
 
               {showLanguageDropdown && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                  {LANGUAGES.map((language) => (
+                  {LANGUAGE_CODES.map((code) => (
                     <button
-                      key={language.code}
-                      onClick={() => handleLanguageChange(language.code)}
+                      key={code}
+                      onClick={() => handleLanguageChange(code)}
                       className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
                     >
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs font-medium text-gray-500 uppercase">{language.code}</span>
-                        <span className="text-xs text-gray-900">{language.name}</span>
+                        <span className="text-xs font-medium text-gray-500 uppercase">{code}</span>
+                        <span className="text-xs text-gray-900">{translateLanguageOption(code)}</span>
                       </div>
-                      {formData.language === language.code && (
+                      {formData.language === code && (
                         <CheckIcon className="h-4 w-4 text-blue-600" />
                       )}
                     </button>
@@ -306,7 +310,7 @@ export default function LanguageRegion() {
           {/* Region Selection */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Region
+              {tLanguage('region')}
             </label>
             <div className="relative dropdown-container">
               <button
@@ -324,7 +328,7 @@ export default function LanguageRegion() {
                       borderRadius: '2px'
                     }}
                   />
-                  <span className="text-xs text-gray-900">{currentRegion.name}</span>
+                  <span className="text-xs text-gray-900">{translateRegion(currentRegion.code)}</span>
                 </div>
                 <ChevronDownIcon className="h-4 w-4 text-gray-400" />
               </button>
@@ -347,7 +351,7 @@ export default function LanguageRegion() {
                             borderRadius: '2px'
                           }}
                         />
-                        <span className="text-xs text-gray-900">{region.name}</span>
+                        <span className="text-xs text-gray-900">{translateRegion(region.code)}</span>
                       </div>
                       {formData.region === region.code && (
                         <CheckIcon className="h-4 w-4 text-blue-600" />
@@ -362,7 +366,7 @@ export default function LanguageRegion() {
           {/* Currency Display (Read-only) */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">
-              Currency
+              {tLanguage('currency')}
             </label>
             <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
@@ -380,7 +384,7 @@ export default function LanguageRegion() {
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Currency is automatically set based on the selected region
+                {tLanguage('currencyAutoHint')}
               </p>
             </div>
           </div>

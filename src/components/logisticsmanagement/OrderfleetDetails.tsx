@@ -25,9 +25,9 @@ import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
 import Image from 'next/image';
-import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 const BUYERS_QUERY = /* GraphQL */ `
   query GetBuyersForFleet($userId: Int!, $page: Int, $limit: Int, $storeNames: [String]) {
@@ -59,18 +59,26 @@ function fleetHasDeliveryAddresses(f: FleetOrderSummary): boolean {
 }
 
 function DetailRow({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }) {
+  const { tShared } = useLogisticsTranslations();
   return (
     <div className="flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
       <dt className="flex items-center gap-2 text-sm text-gray-500">
         {Icon && <Icon className="h-4 w-4 text-gray-400" />}
         {label}
       </dt>
-      <dd className="text-sm font-medium text-gray-900 text-right break-words max-w-[60%]">{value || '—'}</dd>
+      <dd className="text-sm font-medium text-gray-900 text-right break-words max-w-[60%]">{value || tShared('notApplicable')}</dd>
     </div>
   );
 }
 
 export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetDetailsProps) {
+  const {
+    tShared,
+    tOrderfleetDetails,
+    translateFleetStatus,
+    translateDeliveryType,
+    translateVehicleType,
+  } = useLogisticsTranslations();
   const router = useRouter();
   const { user } = useUserStore();
   const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
@@ -109,9 +117,9 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
   }, [user?.id, fleet.customers]);
 
   const contactNameFor = (storeName: string, fallback?: string) => {
-    if (!storeName?.trim()) return fallback ?? '—';
+    if (!storeName?.trim()) return fallback ?? tShared('notApplicable');
     const info = buyerInfoByStore.get(storeName.trim());
-    return info?.owner ?? fallback ?? '—';
+    return info?.owner ?? fallback ?? tShared('notApplicable');
   };
 
   const buyerIdFor = (storeName: string) => buyerInfoByStore.get(storeName?.trim() ?? '')?.buyerId ?? null;
@@ -123,8 +131,12 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
 
   const vehicleType = fleet.vehicleType ?? '20ft_container';
   const loadPct = fleet.loadPct ?? 0;
-  const weightStr = fleet.vehicleMaxWeight != null ? `${fleet.vehicleMaxWeight.toLocaleString()} kg` : '—';
-  const volumeStr = fleet.vehicleMaxVolume != null ? `${fleet.vehicleMaxVolume.toLocaleString()} m³` : '—';
+  const weightStr = fleet.vehicleMaxWeight != null
+    ? `${fleet.vehicleMaxWeight.toLocaleString()} ${tShared('units.kg')}`
+    : tShared('notApplicable');
+  const volumeStr = fleet.vehicleMaxVolume != null
+    ? `${fleet.vehicleMaxVolume.toLocaleString()} ${tShared('units.cubicMeters')}`
+    : tShared('notApplicable');
   const showRouteMap = fleetHasAssignedOrders(fleet) && fleetHasDeliveryAddresses(fleet);
 
   return (
@@ -137,13 +149,13 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             className="flex items-center gap-2 text-lg font-bold text-gray-500 hover:text-black transition-colors mb-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to fleet list
+            {tOrderfleetDetails('backToFleetList')}
           </button>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">{fleet.orderCode}</h1>
               <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${deliveryStatusStyles[fleet.status]}`}>
-                {fleet.status}
+                {translateFleetStatus(fleet.status)}
               </span>
             </div>
             {onEdit && (
@@ -152,7 +164,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
               >
                 <Edit className="w-4 h-4" />
-                Edit details
+                {tOrderfleetDetails('editDetails')}
               </button>
             )}
           </div>
@@ -169,17 +181,17 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-4">
                 <Route className="w-4 h-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-900">Trip Summary</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{tOrderfleetDetails('tripSummary')}</h3>
               </div>
               <div className="space-y-1">
                 {fleet.assignedDate != null && fleet.assignedDate !== '' && (
-                  <DetailRow label="Assigned date" value={formatAssignedDate(fleet.assignedDate)} icon={Clock} />
+                  <DetailRow label={tOrderfleetDetails('assignedDate')} value={formatAssignedDate(fleet.assignedDate)} icon={Clock} />
                 )}
-                <DetailRow label="Estimated delivery completion" value={formatEtaCompletion(fleet)} icon={Clock} />
-                <DetailRow label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} icon={Layers} />
-                <DetailRow label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} icon={Layers} />
-                <DetailRow label="Delivery type" value={fleet.deliveryType ?? '—'} icon={Package} />
-                <DetailRow label="Last updated" value={fleet.lastUpdate} icon={Clock} />
+                <DetailRow label={tOrderfleetDetails('etaCompletion')} value={formatEtaCompletion(fleet)} icon={Clock} />
+                <DetailRow label={tOrderfleetDetails('deliveriesCompleted')} value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : tShared('notApplicable')} icon={Layers} />
+                <DetailRow label={tOrderfleetDetails('totalOrders')} value={fleet.totalOrders != null ? String(fleet.totalOrders) : tShared('notApplicable')} icon={Layers} />
+                <DetailRow label={tOrderfleetDetails('deliveryType')} value={fleet.deliveryType ? translateDeliveryType(fleet.deliveryType) : tShared('notApplicable')} icon={Package} />
+                <DetailRow label={tOrderfleetDetails('lastUpdated')} value={fleet.lastUpdate} icon={Clock} />
               </div>
             </div>
 
@@ -187,7 +199,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-4">
                 <User className="w-4 h-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-900">Driver</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{tOrderfleetDetails('driver')}</h3>
               </div>
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
                 <div className="w-12 h-12 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center bg-[#0a61d7]/10 text-[#0a61d7] shrink-0">
@@ -199,13 +211,13 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{fleet.driverName}</p>
-                  <p className="text-xs text-gray-500">{fleet.driverStatus ?? '—'}</p>
+                  <p className="text-xs text-gray-500">{fleet.driverStatus ?? tShared('notApplicable')}</p>
                 </div>
               </div>
               <div className="space-y-1 pt-2">
-                <DetailRow label="Phone" value={fleet.driverPhone ?? '—'} icon={Phone} />
-                <DetailRow label="Experience" value={fleet.driverExperience ?? '—'} />
-                <DetailRow label="App username" value={fleet.driverUsername ?? '—'} />
+                <DetailRow label={tOrderfleetDetails('phone')} value={fleet.driverPhone ?? tShared('notApplicable')} icon={Phone} />
+                <DetailRow label={tOrderfleetDetails('experience')} value={fleet.driverExperience ?? tShared('notApplicable')} />
+                <DetailRow label={tOrderfleetDetails('appUsername')} value={fleet.driverUsername ?? tShared('notApplicable')} />
               </div>
             </div>
 
@@ -213,18 +225,18 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-1 min-h-0 flex flex-col">
               <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                 <Truck className="w-4 h-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-900">Vehicle</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{tOrderfleetDetails('vehicle')}</h3>
               </div>
               <div className="flex-shrink-0 mb-4 flex justify-center">
                 <TruckImageWithLoadBar vehicleType={vehicleType} loadPct={loadPct} />
               </div>
               <div className="space-y-1 flex-shrink-0">
-                <DetailRow label="Brand" value={fleet.vehicleBrand ?? '—'} />
-                <DetailRow label="Model" value={fleet.vehicleModel ?? '—'} />
-                <DetailRow label="Plate number" value={fleet.plateNumber ?? '—'} />
-                <DetailRow label="Weight" value={weightStr} />
-                <DetailRow label="Volume" value={volumeStr} />
-                <DetailRow label="Vehicle Type" value={getVehicleTypeInfo(vehicleType)?.label ?? '—'} />
+                <DetailRow label={tOrderfleetDetails('brand')} value={fleet.vehicleBrand ?? tShared('notApplicable')} />
+                <DetailRow label={tOrderfleetDetails('model')} value={fleet.vehicleModel ?? tShared('notApplicable')} />
+                <DetailRow label={tOrderfleetDetails('plateNumber')} value={fleet.plateNumber ?? tShared('notApplicable')} />
+                <DetailRow label={tOrderfleetDetails('weight')} value={weightStr} />
+                <DetailRow label={tOrderfleetDetails('volume')} value={volumeStr} />
+                <DetailRow label={tOrderfleetDetails('vehicleType')} value={translateVehicleType(vehicleType)} />
               </div>
             </div>
           </div>
@@ -233,12 +245,12 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
           <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
             {/* Order & logistics details */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Logistics Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{tOrderfleetDetails('logisticsDetails')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                <DetailRow label="Fleet ID" value={fleet.orderCode} icon={Package} />
-                <DetailRow label="Delivery status" value={fleet.status} icon={Navigation2} />
-                <DetailRow label="Assigned logistics" value={fleet.assignedLogistics ?? '—'} icon={Truck} />
-                <DetailRow label="Payment terms" value={fleet.paymentTerms ?? '—'} icon={CreditCard} />
+                <DetailRow label={tOrderfleetDetails('fleetId')} value={fleet.orderCode} icon={Package} />
+                <DetailRow label={tOrderfleetDetails('deliveryStatus')} value={translateFleetStatus(fleet.status)} icon={Navigation2} />
+                <DetailRow label={tOrderfleetDetails('assignedLogistics')} value={fleet.assignedLogistics ?? tShared('notApplicable')} icon={Truck} />
+                <DetailRow label={tOrderfleetDetails('paymentTerms')} value={fleet.paymentTerms ?? tShared('notApplicable')} icon={CreditCard} />
               </div>
             </div>
 
@@ -247,24 +259,24 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#e6e6e6]">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#0a61d7]" />
-                  Delivery Route
+                  {tOrderfleetDetails('deliveryRoute')}
                 </h3>
                 <div className="flex items-center gap-2">
                   {showRouteMap ? (
                     <>
-                      <span className="text-xs text-gray-500">Live route preview</span>
+                      <span className="text-xs text-gray-500">{tOrderfleetDetails('liveRoutePreview')}</span>
                       <button
                         type="button"
                         onClick={() => setRouteMapFullscreen(true)}
                         className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
-                        aria-label="Open map full screen"
-                        title="Full screen map"
+                        aria-label={tOrderfleetDetails('openMapAria')}
+                        title={tOrderfleetDetails('fullScreenMap')}
                       >
                         <Maximize2 className="h-4 w-4" />
                       </button>
                     </>
                   ) : (
-                    <span className="text-xs text-gray-400">No active route</span>
+                    <span className="text-xs text-gray-400">{tOrderfleetDetails('noActiveRoute')}</span>
                   )}
                 </div>
               </div>
@@ -284,17 +296,16 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                   <Package className="h-10 w-10 text-gray-300" />
                   {!fleetHasAssignedOrders(fleet) ? (
                     <>
-                      <p className="text-sm font-semibold text-gray-800">No orders assigned</p>
+                      <p className="text-sm font-semibold text-gray-800">{tOrderfleetDetails('noOrdersAssigned')}</p>
                       <p className="max-w-md text-xs text-gray-500">
-                        Assign orders to this fleet to see the map. The route text under the fleet code is only a label —
-                        directions use driver GPS and real delivery addresses.
+                        {tOrderfleetDetails('noOrdersAssignedHint')}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-semibold text-gray-800">Delivery addresses not available</p>
+                      <p className="text-sm font-semibold text-gray-800">{tOrderfleetDetails('addressesUnavailable')}</p>
                       <p className="max-w-md text-xs text-gray-500">
-                        Assigned orders need saved delivery addresses before the map can show stops.
+                        {tOrderfleetDetails('addressesUnavailableHint')}
                       </p>
                     </>
                   )}
@@ -306,7 +317,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-gray-400" />
-                Orders in this fleet
+                {tOrderfleetDetails('ordersInFleet')}
               </h3>
               {fleet.customers && fleet.customers.length > 0 ? (
                 <ul className="space-y-2">
@@ -322,9 +333,9 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                           className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg bg-[#0a61d7] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => buyerId && router.push(`/clients/buyers/details/${buyerId}`)}
                           disabled={!buyerId}
-                          title={buyerId ? `View buyer ${c.storeName}` : 'Buyer not found'}
+                          title={buyerId ? tOrderfleetDetails('viewBuyerTitle', { storeName: c.storeName ?? '' }) : tOrderfleetDetails('buyerNotFound')}
                         >
-                          More
+                          {tOrderfleetDetails('more')}
                           <ChevronRight className="h-3.5 w-3.5" />
                         </button>
                       </li>
@@ -332,7 +343,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
                   })}
                 </ul>
               ) : (
-                <p className="text-sm text-gray-500">No orders assigned to this fleet.</p>
+                <p className="text-sm text-gray-500">{tOrderfleetDetails('noOrdersInFleet')}</p>
               )}
             </div>
           </div>
@@ -342,7 +353,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
       <MapFullscreenModal
         open={routeMapFullscreen}
         onClose={() => setRouteMapFullscreen(false)}
-        title={`Delivery route · ${fleet.orderCode}`}
+        title={tOrderfleetDetails('deliveryRouteTitle', { code: fleet.orderCode })}
       >
         {showRouteMap ? (
           <LogisticsRouteMap

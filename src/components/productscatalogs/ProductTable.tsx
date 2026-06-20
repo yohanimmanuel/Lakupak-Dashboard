@@ -61,6 +61,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     translateOfferFilter,
     translateFilter,
     translateStockStatus,
+    translateCategory,
   } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -84,8 +85,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     return isDesktop ? tTable('selection.removeHintDesktop') : tTable('selection.removeHint');
   };
 
-  const getCategoryFilterLabel = (category: string) =>
-    category === 'All Types' || category === 'All Categories' ? translateFilter(category) : category;
+  const getTypeFilterLabel = (type: string) =>
+    type === 'All Types' ? translateFilter(type) : translateCategory(type);
+
+  const getProdCategoryFilterLabel = (value: string) =>
+    value === 'All Categories' ? translateFilter(value) : value;
 
   // Helper function to calculate original price range from variantOptions
   const getOriginalPriceRange = (originalProduct: Product | undefined): string | null => {
@@ -697,7 +701,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Filter className="w-4 h-4" />
-              {getCategoryFilterLabel(selectedCategory)}
+              {getTypeFilterLabel(selectedCategory)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
@@ -715,7 +719,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {getCategoryFilterLabel(category)}
+                    {getTypeFilterLabel(category)}
                   </button>
                 ))}
               </div>
@@ -735,7 +739,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Filter className="w-4 h-4" />
-              {getCategoryFilterLabel(selectedProdCategory)}
+              {getProdCategoryFilterLabel(selectedProdCategory)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showProdCategoryDropdown && (
@@ -753,7 +757,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {getCategoryFilterLabel(cat)}
+                    {getProdCategoryFilterLabel(cat)}
                   </button>
                 ))}
               </div>
@@ -1210,7 +1214,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  </td>
                  <td className="truncate py-3 px-4 text-xs text-gray-700">
                   {String(product.productType).trim() ? (
-                     product.productType
+                     translateCategory(product.productType)
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
@@ -1554,7 +1558,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  </h3>
                  <p className="text-xs text-gray-500">
                    {String(product.productType).trim() ? (
-                    product.productType
+                    translateCategory(product.productType)
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
@@ -1879,7 +1883,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  </h3>
                  <p className="text-xs text-gray-500">
                   {String(product.productType).trim() ? (
-                    product.productType
+                    translateCategory(product.productType)
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}

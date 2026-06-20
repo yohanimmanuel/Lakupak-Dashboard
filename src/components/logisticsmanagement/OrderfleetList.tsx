@@ -6,6 +6,7 @@ import { Search, Truck, MapPin, Filter, ChevronDown, User, Trash, Trash2, Phone,
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
 import { deleteFleet, deleteDriver, type DriverSummary } from '@/data/logisticsFleetsApi';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 export type { DriverSummary };
 
@@ -143,6 +144,13 @@ export default function OrderfleetList({
   drivers = [],
   onDriverDeleted,
 }: OrderfleetListProps) {
+  const {
+    tShared,
+    tList,
+    translateFleetStatus,
+    translateDeliveryType,
+    translateVehicleType,
+  } = useLogisticsTranslations();
   const user = useUserStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<'fleets' | 'drivers'>('fleets');
   const [driverSearchQuery, setDriverSearchQuery] = useState('');
@@ -296,8 +304,11 @@ export default function OrderfleetList({
         if (failedDeletes.length > 0) {
           const message =
             successfulDeletes.length > 0
-              ? `Successfully deleted ${successfulDeletes.length} fleet(s). Failed to delete ${failedDeletes.length} fleet(s). Please try again.`
-              : `Failed to delete ${failedDeletes.length} fleet(s). Please try again.`;
+              ? tList('deleteFleetPartialSuccess', {
+                  success: successfulDeletes.length,
+                  failed: failedDeletes.length,
+                })
+              : tList('deleteFleetAllFailed', { count: failedDeletes.length });
           alert(message);
         }
 
@@ -313,7 +324,7 @@ export default function OrderfleetList({
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete fleet. Please try again.');
+      alert(tList('deleteFleetFailed'));
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -394,8 +405,11 @@ export default function OrderfleetList({
         if (failed.length > 0) {
           alert(
             succeeded.length > 0
-              ? `Deleted ${succeeded.length} driver(s). Failed to delete ${failed.length}. Please try again.`
-              : `Failed to delete ${failed.length} driver(s). Please try again.`,
+              ? tList('deleteDriverPartialSuccess', {
+                  success: succeeded.length,
+                  failed: failed.length,
+                })
+              : tList('deleteDriverAllFailed', { count: failed.length }),
           );
         }
         setSelectedDriverIds((prev) => prev.filter((id) => !succeeded.includes(id)));
@@ -405,7 +419,7 @@ export default function OrderfleetList({
         if (onDriverDeleted) onDriverDeleted();
       }
     } catch {
-      alert('Failed to delete driver. Please try again.');
+      alert(tList('deleteDriverFailed'));
     } finally {
       setIsDeletingDriver(false);
       setShowDriverDeleteModal(false);
@@ -427,7 +441,7 @@ export default function OrderfleetList({
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Active Fleets
+          {tList('tabFleets')}
         </button>
         <button
           type="button"
@@ -438,7 +452,7 @@ export default function OrderfleetList({
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Drivers
+          {tList('tabDrivers')}
           {drivers.length > 0 && (
             <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
               {drivers.length}
@@ -457,8 +471,8 @@ export default function OrderfleetList({
               <input
                 value={driverSearchQuery}
                 onChange={(e) => setDriverSearchQuery(e.target.value)}
-                placeholder="Search drivers by name, username or phone"
-                aria-label="Search drivers"
+                placeholder={tList('searchDrivers')}
+                aria-label={tList('searchDriversAria')}
                 className="w-full rounded-lg border border-gray-200 px-9 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a61d7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
               />
             </div>
@@ -471,7 +485,7 @@ export default function OrderfleetList({
                   className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                     allFilteredDriversSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
-                  title={allFilteredDriversSelected ? 'Deselect all' : 'Select all'}
+                  title={allFilteredDriversSelected ? tShared('deselectAll') : tShared('selectAll')}
                 >
                   {allFilteredDriversSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -479,7 +493,7 @@ export default function OrderfleetList({
                     </svg>
                   )}
                 </button>
-                <span className="text-sm text-gray-700">{allFilteredDriversSelected ? 'Deselect all' : 'Select all'}</span>
+                <span className="text-sm text-gray-700">{allFilteredDriversSelected ? tShared('deselectAll') : tShared('selectAll')}</span>
               </div>
             )}
           </div>
@@ -491,17 +505,19 @@ export default function OrderfleetList({
                 <div className="flex items-center gap-1">
                   <span className="text-sm font-semibold text-white">{selectedDriverIds.length}</span>
                   <span className="text-sm font-semibold text-white ml-1">
-                    {selectedDriverIds.length === 1 ? 'driver' : 'drivers'} selected
+                    {selectedDriverIds.length === 1
+                      ? tList('driverSelected', { count: selectedDriverIds.length })
+                      : tList('driversSelected', { count: selectedDriverIds.length })}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="hidden md:block text-white text-xs font-semibold">Select drivers to remove from the system.</span>
+                  <span className="hidden md:block text-white text-xs font-semibold">{tList('selectDriversToRemove')}</span>
                   <button
                     onClick={handleBulkDriverRemove}
                     className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <Trash className="w-4 h-4" />
-                    Remove
+                    {tShared('remove')}
                   </button>
                 </div>
               </div>
@@ -513,14 +529,14 @@ export default function OrderfleetList({
             {drivers.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
                 <User className="h-8 w-8 text-gray-300" />
-                <p className="text-sm font-medium text-gray-700">No drivers registered yet</p>
-                <p className="text-xs text-gray-500">Add a driver when creating or editing a fleet.</p>
+                <p className="text-sm font-medium text-gray-700">{tList('noDriversYet')}</p>
+                <p className="text-xs text-gray-500">{tList('noDriversYetHint')}</p>
               </div>
             ) : filteredDrivers.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
                 <User className="h-8 w-8 text-gray-300" />
-                <p className="text-sm font-medium text-gray-700">No drivers match your search</p>
-                <p className="text-xs text-gray-500">Try a different name, username, or phone number.</p>
+                <p className="text-sm font-medium text-gray-700">{tList('noDriversMatch')}</p>
+                <p className="text-xs text-gray-500">{tList('noDriversMatchHint')}</p>
               </div>
             ) : (
               <ul className="flex flex-col gap-2 p-4">
@@ -551,14 +567,14 @@ export default function OrderfleetList({
                           <div className="flex items-center gap-2 shrink-0">
                             {(driver.fleetCount ?? 0) > 0 && (
                               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                                {driver.fleetCount} fleet{driver.fleetCount !== 1 ? 's' : ''}
+                                {tList('driverFleetCount', { count: driver.fleetCount ?? 0 })}
                               </span>
                             )}
                             <button
                               type="button"
                               onClick={() => handleDriverDeleteClick(driver)}
                               className="inline-flex items-center justify-center rounded-lg p-1.5 hover:bg-red-100 transition-colors"
-                              title="Delete driver"
+                              title={tList('deleteDriver')}
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </button>
@@ -595,7 +611,7 @@ export default function OrderfleetList({
                               className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                                 isSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
                               }`}
-                              title={isSelected ? 'Deselect' : 'Select'}
+                              title={isSelected ? tShared('deselect') : tShared('select')}
                             >
                               {isSelected && (
                                 <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -603,13 +619,13 @@ export default function OrderfleetList({
                                 </svg>
                               )}
                             </button>
-                            <span className="text-xs text-gray-600 font-medium">{isSelected ? 'Selected' : 'Select'}</span>
+                            <span className="text-xs text-gray-600 font-medium">{isSelected ? tShared('selected') : tShared('select')}</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleDriverDeleteClick(driver)}
                             className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
-                            title="Delete driver"
+                            title={tList('deleteDriver')}
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
@@ -627,12 +643,12 @@ export default function OrderfleetList({
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
               <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
                 <h2 className="text-lg font-bold mb-2 text-red-500">
-                  {isBulkDriverDelete ? 'Delete Drivers' : 'Delete Driver'}
+                  {isBulkDriverDelete ? tList('deleteDriversTitle') : tList('deleteDriverTitle')}
                 </h2>
                 <p className="mb-4 text-gray-500">
                   {isBulkDriverDelete
-                    ? `Are you sure you want to delete ${selectedDriverIds.length} driver${selectedDriverIds.length === 1 ? '' : 's'}? They will be unlinked from all fleets. This action cannot be undone.`
-                    : <>Are you sure you want to delete <span className="font-semibold text-gray-800">{driverToDelete?.name}</span>? The driver will be unlinked from all fleets. This action cannot be undone.</>}
+                    ? tList('deleteDriversConfirm', { count: selectedDriverIds.length })
+                    : tList('deleteDriverConfirm', { name: driverToDelete?.name ?? '' })}
                 </p>
                 <div className="flex justify-end gap-2">
                   <button
@@ -640,14 +656,14 @@ export default function OrderfleetList({
                     onClick={handleDriverDeleteCancel}
                     disabled={isDeletingDriver}
                   >
-                    Cancel
+                    {tShared('cancel')}
                   </button>
                   <button
                     className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                     onClick={handleDriverDeleteConfirm}
                     disabled={isDeletingDriver}
                   >
-                    {isDeletingDriver ? 'Deleting...' : 'Delete'}
+                    {isDeletingDriver ? tShared('deleting') : tShared('delete')}
                   </button>
                 </div>
               </div>
@@ -668,8 +684,8 @@ export default function OrderfleetList({
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search for shipments"
-              aria-label="Search for shipments"
+              placeholder={tList('searchShipments')}
+              aria-label={tList('searchShipmentsAria')}
               className="w-full rounded-lg border border-gray-200 px-9 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a61d7] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
             />
           </div>
@@ -688,7 +704,7 @@ export default function OrderfleetList({
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedDeliveryStatus ?? 'All statuses'}
+              {selectedDeliveryStatus ? translateFleetStatus(selectedDeliveryStatus) : tList('allStatuses')}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showDeliveryStatusDropdown && (
@@ -703,7 +719,7 @@ export default function OrderfleetList({
                     selectedDeliveryStatus === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                   }`}
                 >
-                  All statuses
+                  {tList('allStatuses')}
                 </button>
                 {DELIVERY_STATUSES.map((status) => (
                   <button
@@ -717,7 +733,7 @@ export default function OrderfleetList({
                       selectedDeliveryStatus === status ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                     }`}
                   >
-                    {status}
+                    {translateFleetStatus(status)}
                   </button>
                 ))}
               </div>
@@ -736,7 +752,7 @@ export default function OrderfleetList({
                 }}
               >
                 <Filter className="w-4 h-4" />
-                {selectedDeliveryType ?? 'All types'}
+                {selectedDeliveryType ? translateDeliveryType(selectedDeliveryType) : tList('allTypes')}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showDeliveryTypeDropdown && (
@@ -751,7 +767,7 @@ export default function OrderfleetList({
                       selectedDeliveryType === null ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                     }`}
                   >
-                    All types
+                    {tList('allTypes')}
                   </button>
                   {deliveryTypesToShow.map((type) => (
                     <button
@@ -765,7 +781,7 @@ export default function OrderfleetList({
                         selectedDeliveryType === type ? 'text-[#0a61d7] font-semibold' : 'text-gray-700'
                       }`}
                     >
-                      {type}
+                      {translateDeliveryType(type)}
                     </button>
                   ))}
                 </div>
@@ -781,7 +797,7 @@ export default function OrderfleetList({
             className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
               allFilteredSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
             }`}
-            title={allFilteredSelected ? 'Deselect all' : 'Select all'}
+            title={allFilteredSelected ? tShared('deselectAll') : tShared('selectAll')}
           >
             {allFilteredSelected && (
               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -794,7 +810,7 @@ export default function OrderfleetList({
             )}
           </button>
           <span className="text-sm text-gray-700">
-            {allFilteredSelected ? 'Deselect all' : 'Select all'}
+            {allFilteredSelected ? tShared('deselectAll') : tShared('selectAll')}
           </span>
         </div>
       </div>
@@ -808,18 +824,20 @@ export default function OrderfleetList({
               <div className="flex items-center gap-1">
                 <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedFleets.length === 1 ? 'fleet' : 'fleets'} selected
+                  {selectedFleets.length === 1
+                    ? tList('fleetSelected', { count: selectedFleets.length })
+                    : tList('fleetsSelected', { count: selectedFleets.length })}
                 </span>
               </div>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">Select fleets to be removed from the system.</div>
+            <div className="text-white text-xs font-semibold leading-relaxed">{tList('selectFleetsToRemove')}</div>
             <div className="flex gap-2">
               <button
                 onClick={handleBulkRemove}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
               >
                 <Trash className="w-4 h-4 text-white" />
-                Remove
+                {tShared('remove')}
               </button>
             </div>
           </div>
@@ -830,19 +848,21 @@ export default function OrderfleetList({
               <div className="flex items-center gap-1">
                 <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedFleets.length === 1 ? 'fleet' : 'fleets'} selected
+                  {selectedFleets.length === 1
+                    ? tList('fleetSelected', { count: selectedFleets.length })
+                    : tList('fleetsSelected', { count: selectedFleets.length })}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-white text-xs md:text-sm font-semibold">Select fleets to remove from the system.</span>
+              <span className="text-white text-xs md:text-sm font-semibold">{tList('selectFleetsToRemoveShort')}</span>
               <div className="flex gap-2">
                 <button
                   onClick={handleBulkRemove}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
                 >
                   <Trash className="w-4 h-4 text-white" />
-                  Remove
+                  {tShared('remove')}
                 </button>
               </div>
             </div>
@@ -855,9 +875,9 @@ export default function OrderfleetList({
         {filteredFleets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-10 text-center">
             <Truck className="h-8 w-8 text-gray-300" />
-            <p className="text-sm font-medium text-gray-700">No fleets match your filters</p>
+            <p className="text-sm font-medium text-gray-700">{tList('noFleetsMatch')}</p>
             <p className="text-xs text-gray-500">
-              Adjust your search or filters to see active deliveries.
+              {tList('noFleetsMatchHint')}
             </p>
           </div>
         ) : (
@@ -867,6 +887,7 @@ export default function OrderfleetList({
                 const isActive = fleet.id === selectedFleetId;
                 const loadPct = fleet.loadPct ?? 0;
                 const vehicleInfo = getVehicleTypeInfo(fleet.vehicleType ?? '20ft_container');
+                const vehicleType = fleet.vehicleType ?? '20ft_container';
                 const isSelected = selectedFleets.includes(fleet.id);
                 return (
                   <li key={fleet.id}>
@@ -888,7 +909,9 @@ export default function OrderfleetList({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-gray-900">{fleet.orderCode}</p>
-                          <p className="mt-0.5 truncate text-xs text-gray-500">{fleet.deliveryType ?? 'Delivery'}</p>
+                          <p className="mt-0.5 truncate text-xs text-gray-500">
+                            {fleet.deliveryType ? translateDeliveryType(fleet.deliveryType) : tList('defaultDelivery')}
+                          </p>
                         </div>
                         <p className="hidden shrink-0 text-xs text-gray-500 sm:block">{fleet.route}</p>
                         {/* Circular progress */}
@@ -915,7 +938,7 @@ export default function OrderfleetList({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[10px] font-medium text-gray-400">Driver</p>
+                            <p className="text-[10px] font-medium text-gray-400">{tList('driverLabel')}</p>
                             <p className="flex items-center gap-1.5 truncate text-xs font-semibold text-gray-900">
                               {fleet.driverName}
                               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
@@ -923,9 +946,11 @@ export default function OrderfleetList({
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-right text-[10px] font-medium text-gray-600 truncate max-w-[72px]">{vehicleInfo.label}</span>
+                          <span className="text-right text-[10px] font-medium text-gray-600 truncate max-w-[72px]">
+                            {translateVehicleType(vehicleType)}
+                          </span>
                           <div className="relative h-10 w-[84px] shrink-0 overflow-hidden">
-                            <Image src={vehicleInfo.imagePath} alt={vehicleInfo.label} fill className="object-contain object-center" sizes="60px" unoptimized />
+                            <Image src={vehicleInfo.imagePath} alt={translateVehicleType(vehicleType)} fill className="object-contain object-center" sizes="60px" unoptimized />
                           </div>
                         </div>
                       </div>
@@ -942,7 +967,7 @@ export default function OrderfleetList({
                             className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                               isSelected ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
                             }`}
-                            title={isSelected ? 'Deselect fleet' : 'Select fleet'}
+                            title={isSelected ? tList('deselectFleet') : tList('selectFleet')}
                           >
                             {isSelected && (
                               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -955,7 +980,7 @@ export default function OrderfleetList({
                             )}
                           </button>
                           <span className="text-xs text-gray-600 font-medium">
-                            {isSelected ? 'Selected' : 'Select'}
+                            {isSelected ? tShared('selected') : tShared('select')}
                           </span>
                         </div>
                         <button
@@ -965,7 +990,7 @@ export default function OrderfleetList({
                             handleDelete(fleet);
                           }}
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
-                          title="Delete fleet"
+                          title={tList('deleteFleet')}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
@@ -981,7 +1006,7 @@ export default function OrderfleetList({
                 <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/70 px-3 py-2">
                   <Truck className="h-4 w-4 text-gray-300" />
                   <span className="text-[11px] font-medium text-gray-500">
-                    No more fleets assigned for this view.
+                    {tList('noMoreFleets')}
                   </span>
                 </div>
               </div>
@@ -995,12 +1020,16 @@ export default function OrderfleetList({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Fleets' : 'Delete Fleet'}
+              {isBulkDelete ? tList('deleteFleetsTitle') : tList('deleteFleetTitle')}
             </h2>
             <p className="mb-4 text-gray-500">
               {isBulkDelete
-                ? `Are you sure you want to delete ${selectedFleets.length} fleet${selectedFleets.length === 1 ? '' : 's'}? This action cannot be undone.`
-                : `Are you sure you want to delete ${fleetToDelete?.orderCode || 'this fleet'}? This action cannot be undone.`}
+                ? selectedFleets.length === 1
+                  ? tList('deleteFleetsConfirm', { count: selectedFleets.length })
+                  : tList('deleteFleetsConfirmPlural', { count: selectedFleets.length })
+                : fleetToDelete?.orderCode
+                  ? tList('deleteFleetConfirm', { code: fleetToDelete.orderCode })
+                  : tList('deleteFleetConfirmThis')}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -1008,14 +1037,14 @@ export default function OrderfleetList({
                 onClick={handleDeleteCancel}
                 disabled={isDeleting}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={handleDeleteConfirm}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? tShared('deleting') : tShared('delete')}
               </button>
             </div>
           </div>

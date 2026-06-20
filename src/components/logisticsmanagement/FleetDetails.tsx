@@ -7,9 +7,9 @@ import LogisticsRouteMap from './LogisticsRouteMap';
 import type { FleetOrderSummary, FleetStatus } from './OrderfleetList';
 import { formatEtaCompletion, formatAssignedDate } from './OrderfleetList';
 import TruckImageWithLoadBar from './TruckImageWithLoadBar';
-import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 const BUYERS_QUERY = /* GraphQL */ `
   query GetBuyersForFleet($userId: Int!, $page: Int, $limit: Int, $storeNames: [String]) {
@@ -35,6 +35,7 @@ function fleetHasDeliveryAddresses(f: FleetOrderSummary): boolean {
 }
 
 export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProps) {
+  const { tFleetDetails } = useLogisticsTranslations();
   const [activeTab, setActiveTab] = useState<TabType>('order');
   const [routeMapFullscreen, setRouteMapFullscreen] = useState(false);
 
@@ -43,9 +44,9 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       <div className="flex h-full max-h-[calc(100vh+100px)] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white/60 p-4 text-center" data-tour="logistics-fleet-details">
         <div>
           <Truck className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-          <p className="text-sm font-medium text-gray-700">Select a fleet to view details</p>
+          <p className="text-sm font-medium text-gray-700">{tFleetDetails('selectFleetTitle')}</p>
           <p className="mt-1 text-xs text-gray-500">
-            You&apos;ll see live route, delivery progress, and vehicle details here.
+            {tFleetDetails('selectFleetHint')}
           </p>
         </div>
       </div>
@@ -60,7 +61,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       <div className="flex flex-shrink-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-            Fleet ID
+            {tFleetDetails('fleetId')}
           </p>
           <h2 className="text-lg font-semibold text-gray-900">{fleet.orderCode}</h2>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
@@ -75,12 +76,12 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
             disabled={!onOpenTracking}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0851b8] transition-colors"
           >
-            Open Details
+            {tFleetDetails('openDetails')}
             <ExternalLink className="h-3.5 w-3.5" />
           </button>
           <p className="flex items-center gap-1.5 text-xs text-gray-500">
             <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-            Updated {fleet.lastUpdate}
+            {tFleetDetails('updated', { time: fleet.lastUpdate })}
           </p>
         </div>
       </div>
@@ -103,18 +104,16 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
             <Package className="h-10 w-10 text-gray-400" />
             {!fleetHasAssignedOrders(fleet) ? (
               <>
-                <p className="text-sm font-semibold text-gray-500">No orders assigned</p>
+                <p className="text-sm font-semibold text-gray-500">{tFleetDetails('noOrdersAssigned')}</p>
                 <p className="max-w-sm text-xs text-gray-500">
-                  Assign orders to this fleet to see the live delivery route. The route shown next to the fleet code is
-                  only a label for your team.
+                  {tFleetDetails('noOrdersAssignedHint')}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-sm font-semibold text-gray-800">Delivery addresses not available</p>
+                <p className="text-sm font-semibold text-gray-800">{tFleetDetails('addressesUnavailable')}</p>
                 <p className="max-w-sm text-xs text-gray-500">
-                  Orders are assigned, but saved delivery addresses are missing. The map needs real buyer addresses to
-                  plot stops — it does not use the route label for directions.
+                  {tFleetDetails('addressesUnavailableHint')}
                 </p>
               </>
             )}
@@ -125,14 +124,14 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
             <div className="flex items-center justify-end gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-gray-700 shadow-sm">
                 <Route className="h-3 w-3 text-[#0a61d7]" />
-                Live route preview
+                {tFleetDetails('liveRoutePreview')}
               </span>
               <button
                 type="button"
                 onClick={() => setRouteMapFullscreen(true)}
                 className="pointer-events-auto rounded-lg bg-white/95 p-2 text-gray-600 shadow-sm transition-colors hover:bg-white hover:text-gray-900"
-                aria-label="Open map full screen"
-                title="Full screen map"
+                aria-label={tFleetDetails('openMapAria')}
+                title={tFleetDetails('fullScreenMap')}
               >
                 <Maximize2 className="h-4 w-4" />
               </button>
@@ -143,11 +142,11 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
             <div className="space-y-1 text-left rounded-lg bg-white/85 backdrop-blur-sm px-3 py-2 shadow-sm">
               {fleet.assignedDate != null && fleet.assignedDate !== '' && (
                 <>
-                  <p className="text-xs font-medium text-gray-500">Assigned date</p>
+                  <p className="text-xs font-medium text-gray-500">{tFleetDetails('assignedDate')}</p>
                   <p className="text-xs font-medium text-gray-600 mb-2">{formatAssignedDate(fleet.assignedDate)}</p>
                 </>
               )}
-              <p className="text-sm font-medium text-gray-700">Estimated delivery completion</p>
+              <p className="text-sm font-medium text-gray-700">{tFleetDetails('etaCompletion')}</p>
               <p className="text-lg font-semibold text-gray-900">{formatEtaCompletion(fleet)}</p>
             </div>
           </div>
@@ -158,10 +157,10 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       <div className="flex-shrink-0 border-b border-gray-200">
         <nav className="flex justify-center gap-1 -mb-px">
           {[
-            { id: 'order' as TabType, label: 'Order details', icon: Package },
-            { id: 'vehicle' as TabType, label: 'Vehicle', icon: Truck },
-            { id: 'driver' as TabType, label: 'Driver information', icon: User },
-            { id: 'customer' as TabType, label: 'Customer information', icon: User },
+            { id: 'order' as TabType, label: tFleetDetails('tabOrder'), icon: Package },
+            { id: 'vehicle' as TabType, label: tFleetDetails('tabVehicle'), icon: Truck },
+            { id: 'driver' as TabType, label: tFleetDetails('tabDriver'), icon: User },
+            { id: 'customer' as TabType, label: tFleetDetails('tabCustomer'), icon: User },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -191,7 +190,7 @@ export default function FleetDetails({ fleet, onOpenTracking }: FleetDetailsProp
       <MapFullscreenModal
         open={routeMapFullscreen}
         onClose={() => setRouteMapFullscreen(false)}
-        title={`Delivery route · ${fleet.orderCode}`}
+        title={tFleetDetails('deliveryRouteTitle', { code: fleet.orderCode })}
       >
         {showRouteMap ? (
           <LogisticsRouteMap
@@ -218,13 +217,16 @@ const deliveryStatusStyles: Record<FleetStatus, string> = {
 
 // Order Details Tab - restructured with status highlight and grouped sections
 function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
+  const { tShared, tFleetDetails, translateFleetStatus } = useLogisticsTranslations();
+  const notApplicable = tShared('notApplicable');
+
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Status highlight only (no ETA inside) */}
       <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-3">
         <div className="flex items-center justify-between gap-2">
           <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${deliveryStatusStyles[fleet.status]}`}>
-            {fleet.status}
+            {translateFleetStatus(fleet.status)}
           </span>
         </div>
       </div>
@@ -232,12 +234,12 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
       {/* Same-level details: Assigned date, ETA, Total Orders, Delivery Type, Assigned Logistics, Payment Terms */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
         {fleet.assignedDate != null && fleet.assignedDate !== '' && (
-          <InfoRowWithIcon icon={Clock} label="Assigned date" value={formatAssignedDate(fleet.assignedDate)} />
+          <InfoRowWithIcon icon={Clock} label={tFleetDetails('assignedDate')} value={formatAssignedDate(fleet.assignedDate)} />
         )}
-        <InfoRowWithIcon icon={Clock} label="Estimated delivery completion" value={formatEtaCompletion(fleet)} />
-        <InfoRowWithIcon icon={Layers} label="Deliveries completed" value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : '—'} />
-        <InfoRowWithIcon icon={Layers} label="Total Orders" value={fleet.totalOrders != null ? String(fleet.totalOrders) : '—'} />
-        <InfoRowWithIcon icon={Truck} label="Assigned Logistics" value={fleet.assignedLogistics ?? 'Distributor Fleet'} />
+        <InfoRowWithIcon icon={Clock} label={tFleetDetails('etaCompletion')} value={formatEtaCompletion(fleet)} />
+        <InfoRowWithIcon icon={Layers} label={tFleetDetails('deliveriesCompleted')} value={fleet.deliveriesCompleted != null ? String(fleet.deliveriesCompleted) : notApplicable} />
+        <InfoRowWithIcon icon={Layers} label={tFleetDetails('totalOrders')} value={fleet.totalOrders != null ? String(fleet.totalOrders) : notApplicable} />
+        <InfoRowWithIcon icon={Truck} label={tFleetDetails('assignedLogistics')} value={fleet.assignedLogistics ?? tShared('defaultAssignedLogistics')} />
       </div>
     </div>
   );
@@ -245,6 +247,7 @@ function OrderDetailsTab({ fleet }: { fleet: FleetOrderSummary }) {
 
 // Vehicle Tab - compact, no scroll
 function VehicleTab({ fleet }: { fleet: FleetOrderSummary }) {
+  const { tFleetDetails, translateVehicleType } = useLogisticsTranslations();
   const vehicleType = fleet.vehicleType ?? '20ft_container';
   const loadPct = fleet.loadPct ?? 71;
   return (
@@ -258,9 +261,9 @@ function VehicleTab({ fleet }: { fleet: FleetOrderSummary }) {
           />
         </div>
         <div className="flex flex-1 flex-col gap-1">
-          <InfoRow label="Brand" value="Hyundai" />
-          <InfoRow label="Model" value="Cargo Track HD320" />
-          <InfoRow label="Vehicle Type" value={getVehicleTypeInfo(vehicleType).label} />
+          <InfoRow label={tFleetDetails('brand')} value="Hyundai" />
+          <InfoRow label={tFleetDetails('model')} value="Cargo Track HD320" />
+          <InfoRow label={tFleetDetails('vehicleType')} value={translateVehicleType(vehicleType)} />
         </div>
       </div>
     </div>
@@ -269,14 +272,17 @@ function VehicleTab({ fleet }: { fleet: FleetOrderSummary }) {
 
 // Driver Information Tab - simple grid (no avatar), matches Customer tab layout
 function DriverTab({ fleet }: { fleet: FleetOrderSummary }) {
+  const { tShared, tFleetDetails, tDriverInfo, tList } = useLogisticsTranslations();
+  const notApplicable = tShared('notApplicable');
+
   return (
     <div className="grid h-full grid-cols-2 gap-x-4 gap-y-1">
-      <InfoRow label="Driver" value={fleet.driverName || '—'} />
-      <InfoRow label="Phone" value={fleet.driverPhone || '—'} />
-      <InfoRow label="Experience" value={fleet.driverExperience || '—'} />
-      <InfoRow label="Status" value={fleet.driverStatus || '—'} />
+      <InfoRow label={tList('driverLabel')} value={fleet.driverName || notApplicable} />
+      <InfoRow label={tDriverInfo('phone')} value={fleet.driverPhone || notApplicable} />
+      <InfoRow label={tFleetDetails('experience')} value={fleet.driverExperience || notApplicable} />
+      <InfoRow label={tDriverInfo('status')} value={fleet.driverStatus || notApplicable} />
       {fleet.driverUsername && (
-        <InfoRow label="App Username" value={fleet.driverUsername} className="col-span-2" />
+        <InfoRow label={tFleetDetails('appUsername')} value={fleet.driverUsername} className="col-span-2" />
       )}
     </div>
   );
@@ -284,6 +290,7 @@ function DriverTab({ fleet }: { fleet: FleetOrderSummary }) {
 
 // Customer Information Tab - list of customers with orders in this fleet
 function CustomerTab({ fleet, onOpenDetails: _onOpenDetails }: { fleet: FleetOrderSummary; onOpenDetails?: () => void }) {
+  const { tShared, tFleetDetails } = useLogisticsTranslations();
   const { user } = useUserStore();
   const [buyerInfoByStore, setBuyerInfoByStore] = useState<Map<string, { owner: string; buyerId: string }>>(new Map());
   const customers = useMemo(() => fleet.customers ?? [], [fleet.customers]);
@@ -328,23 +335,23 @@ function CustomerTab({ fleet, onOpenDetails: _onOpenDetails }: { fleet: FleetOrd
   }, [user?.id, customers]);
 
   const contactNameFor = (storeName: string, fallback?: string) => {
-    if (!storeName?.trim()) return fallback ?? '—';
+    if (!storeName?.trim()) return fallback ?? tShared('notApplicable');
     const info = buyerInfoByStore.get(storeName.trim());
-    return info?.owner ?? fallback ?? '—';
+    return info?.owner ?? fallback ?? tShared('notApplicable');
   };
 
   if (displayCustomers.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center py-6 text-center">
         <User className="h-10 w-10 text-gray-300 mb-2" />
-        <p className="text-sm text-gray-500">No customers in this fleet</p>
+        <p className="text-sm text-gray-500">{tFleetDetails('noCustomers')}</p>
       </div>
     );
   }
 
   return (
     <div className="flex h-full flex-col gap-1 py-1">
-      <p className="text-xs font-medium text-gray-500 mb-1">Customers with orders in this fleet (max 3)</p>
+      <p className="text-xs font-medium text-gray-500 mb-1">{tFleetDetails('customersHint')}</p>
       <ul className="space-y-1">
         {displayCustomers.map((c, i) => (
           <li key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2">

@@ -3,6 +3,7 @@
 import React, { useMemo, useLayoutEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Truck, ChevronDown } from 'lucide-react';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import type { FleetOrderSummary } from './OrderfleetList';
 import { VEHICLE_TYPE_LIST, getVehicleTypeInfo } from '@/config/vehicleTypes';
 
@@ -32,6 +33,7 @@ export default function FleetVehicleInfo({
   onFormChange,
   onTabCompletion,
 }: FleetVehicleInfoProps) {
+  const { tVehicleInfo, tShared, translateVehicleType } = useLogisticsTranslations();
   const [showVehicleDropdown, setShowVehicleDropdown] = React.useState(false);
   const vehicleRef = useRef<HTMLDivElement>(null);
 
@@ -75,26 +77,27 @@ export default function FleetVehicleInfo({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedLabel = VEHICLE_TYPE_LIST.find((v) => v.key === formData.vehicleType)?.label ?? '';
+  const selectedLabel = formData.vehicleType ? translateVehicleType(formData.vehicleType) : '';
   const vehicleInfo = getVehicleTypeInfo(formData.vehicleType ?? '20ft_container');
+  const vehicleTypeLabel = translateVehicleType(formData.vehicleType ?? '20ft_container');
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Vehicle Information</h3>
-        <p className="text-sm text-gray-500">Select truck type, brand, model, and load</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{tVehicleInfo('title')}</h3>
+        <p className="text-sm text-gray-500">{tVehicleInfo('subtitle')}</p>
       </div>
 
       {/* Vehicle type with picture on top */}
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-2">
-          Vehicle Type <span className="text-red-500">*</span>
+          {tVehicleInfo('vehicleType')} <span className="text-red-500">*</span>
         </label>
         <div className="mb-4 flex flex-col items-center p-4 rounded-lg border border-gray-200 bg-gray-50 relative">
           <div className="relative w-full max-w-[180px] aspect-[2/1] mb-3">
             <Image
               src={vehicleInfo.imagePath}
-              alt={vehicleInfo.label}
+              alt={vehicleTypeLabel}
               fill
               className="object-contain object-center"
               sizes="180px"
@@ -108,7 +111,7 @@ export default function FleetVehicleInfo({
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg text-left flex items-center justify-between bg-white focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             >
               <span className={formData.vehicleType ? 'text-black' : 'text-gray-500'}>
-                {selectedLabel || 'Select vehicle type'}
+                {selectedLabel || tShared('selectVehicleType')}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
@@ -131,7 +134,7 @@ export default function FleetVehicleInfo({
                       <div className="relative w-8 h-6 shrink-0">
                         <Image src={info.imagePath} alt="" fill className="object-contain" sizes="32px" unoptimized />
                       </div>
-                      {info.label}
+                      {translateVehicleType(v.key)}
                     </button>
                   );
                 })}
@@ -144,46 +147,46 @@ export default function FleetVehicleInfo({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Plate number
+            {tVehicleInfo('plateNumber')}
           </label>
           <input
             type="text"
             value={formData.plateNumber || ''}
             onChange={(e) => onFormChange({ plateNumber: e.target.value })}
-            placeholder="e.g. B 1234 XYZ"
+            placeholder={tVehicleInfo('placeholderPlate')}
             className="w-full px-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Brand <span className="text-red-500">*</span>
+            {tVehicleInfo('brand')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.vehicleBrand || ''}
             onChange={(e) => onFormChange({ vehicleBrand: e.target.value })}
-            placeholder="e.g. Hyundai"
+            placeholder={tVehicleInfo('placeholderBrand')}
             className="w-full px-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Model <span className="text-red-500">*</span>
+            {tVehicleInfo('model')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.vehicleModel || ''}
             onChange={(e) => onFormChange({ vehicleModel: e.target.value })}
-            placeholder="e.g. Cargo Track HD320"
+            placeholder={tVehicleInfo('placeholderModel')}
             className="w-full px-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Max Weight (kg) <span className="text-red-500">*</span>
+            {tVehicleInfo('maxWeight')} ({tShared('units.kg')}) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -195,16 +198,16 @@ export default function FleetVehicleInfo({
                 const v = e.target.value === '' ? undefined : Number(e.target.value);
                 onFormChange({ vehicleMaxWeight: v });
               }}
-              placeholder="e.g. 7260"
+              placeholder={tVehicleInfo('placeholderMaxWeight')}
               className="w-full px-4 py-2 pr-12 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">kg</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">{tShared('units.kg')}</span>
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Max Volume (m³) <span className="text-red-500">*</span>
+            {tVehicleInfo('maxVolume')} ({tShared('units.cubicMeters')}) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -216,16 +219,16 @@ export default function FleetVehicleInfo({
                 const v = e.target.value === '' ? undefined : Number(e.target.value);
                 onFormChange({ vehicleMaxVolume: v });
               }}
-              placeholder="e.g. 372.45"
+              placeholder={tVehicleInfo('placeholderMaxVolume')}
               className="w-full px-4 py-2 pr-12 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">m³</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">{tShared('units.cubicMeters')}</span>
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Load Percentage (0–100) <span className="text-red-500">*</span>
+            {tVehicleInfo('loadPct')} (0–100) <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -236,7 +239,7 @@ export default function FleetVehicleInfo({
               const v = e.target.value === '' ? undefined : Number(e.target.value);
               onFormChange({ loadPct: v });
             }}
-            placeholder="71"
+            placeholder={tVehicleInfo('placeholderLoadPct')}
             className="w-full px-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
           />
         </div>

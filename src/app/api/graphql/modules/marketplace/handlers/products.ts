@@ -1002,9 +1002,7 @@ export const fetchMarketplaceProducts = async (args: {
       })),
       images: product.images || [],
       category: product.productType || 'Uncategorized',
-      // Keep "category" pills stable by using productType; don't inject merchandising labels here.
-      productCategory: product.productType || 'Uncategorized',
-      // Sales channel lives in the DB `productCategory` field (Retail / Wholesale / Both).
+      productCategory: product.productCategory || '',
       salesChannel: product.productCategory || 'Retail',
       brand: product.brand,
       unit: 'Piece',

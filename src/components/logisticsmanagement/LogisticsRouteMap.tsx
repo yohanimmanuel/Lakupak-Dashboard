@@ -13,10 +13,11 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
-function createDriverDotElement(): HTMLDivElement {
+function createDriverDotElement(ariaLabel: string): HTMLDivElement {
   const el = document.createElement('div');
-  el.setAttribute('aria-label', 'Driver location');
+  el.setAttribute('aria-label', ariaLabel);
   Object.assign(el.style, {
     width: '14px',
     height: '14px',
@@ -29,12 +30,14 @@ function createDriverDotElement(): HTMLDivElement {
   return el;
 }
 
-function createStopPinElement(index: number, isCompleted: boolean): HTMLDivElement {
+function createStopPinElement(
+  index: number,
+  isCompleted: boolean,
+  stopLabel: string,
+  stopCompletedLabel: string,
+): HTMLDivElement {
   const el = document.createElement('div');
-  el.setAttribute(
-    'aria-label',
-    isCompleted ? `Stop ${index + 1} completed` : `Stop ${index + 1}`
-  );
+  el.setAttribute('aria-label', isCompleted ? stopCompletedLabel : stopLabel);
   if (isCompleted) {
     Object.assign(el.style, {
       display: 'flex',
@@ -126,6 +129,7 @@ export default function LogisticsRouteMap({
   height = '415px',
   className,
 }: LogisticsRouteMapProps) {
+  const { tRouteMap } = useLogisticsTranslations();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,18 +219,25 @@ export default function LogisticsRouteMap({
         if (cancelled || !map) return;
 
         if (driverCoord) {
-          new mapboxgl.Marker({ element: createDriverDotElement(), anchor: 'center' })
+          new mapboxgl.Marker({ element: createDriverDotElement(tRouteMap('driverLocation')), anchor: 'center' })
             .setLngLat(driverCoord)
             .setPopup(
               new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(
-                `<div style="color:#111827;font-weight:600;">Driver location</div>`
+                `<div style="color:#111827;font-weight:600;">${escapeHtml(tRouteMap('driverLocation'))}</div>`
               )
             )
             .addTo(map);
         }
 
         stopPairs.forEach((p, i) => {
-          new mapboxgl.Marker({ element: createStopPinElement(i, p.isCompleted) })
+          new mapboxgl.Marker({
+            element: createStopPinElement(
+              i,
+              p.isCompleted,
+              tRouteMap('stop', { index: i + 1 }),
+              tRouteMap('stopCompleted', { index: i + 1 }),
+            ),
+          })
             .setLngLat(p.coord)
             .setPopup(
               new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(
@@ -289,7 +300,7 @@ export default function LogisticsRouteMap({
         className={`flex items-center justify-center bg-blue-50 text-gray-400 text-sm ${className ?? ''}`}
         style={{ height }}
       >
-        Map unavailable
+        {tRouteMap('mapUnavailable')}
       </div>
     );
   }

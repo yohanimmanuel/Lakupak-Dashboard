@@ -27,6 +27,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 import {
   isCompanyBillingApiResponse,
   isCompanyPaymentMethodApiRowArray,
@@ -94,16 +95,6 @@ const emptyPaymentMethodForm = (): PaymentMethodFormState => ({
   ewalletProvider: '',
   isDefault: false,
 });
-
-const PAYMENT_KIND_OPTIONS: ReadonlyArray<{ value: PaymentMethodFormKind; label: string }> = [
-  { value: 'CARD', label: 'Card' },
-  { value: 'BANK_TRANSFER', label: 'Bank transfer' },
-  { value: 'EWALLET', label: 'E-wallet' },
-];
-
-function paymentKindLabel(kind: PaymentMethodFormKind): string {
-  return PAYMENT_KIND_OPTIONS.find((o) => o.value === kind)?.label ?? 'Card';
-}
 
 function last4FromCardNumberInput(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
@@ -230,8 +221,24 @@ async function fetchCompanyBillingData(userId: number): Promise<{
 }
 
 export default function BillingPayment() {
+  const { tBilling, translateInvoiceStatus } = useSettingsTranslations();
   const user = useUserStore((s) => s.user);
   const updateUser = useUserStore((s) => s.updateUser);
+
+  const paymentKindOptions = useMemo(
+    (): ReadonlyArray<{ value: PaymentMethodFormKind; label: string }> => [
+      { value: 'CARD', label: tBilling('paymentKinds.card') },
+      { value: 'BANK_TRANSFER', label: tBilling('paymentKinds.bankTransfer') },
+      { value: 'EWALLET', label: tBilling('paymentKinds.ewallet') },
+    ],
+    [tBilling]
+  );
+
+  const paymentKindLabel = useCallback(
+    (kind: PaymentMethodFormKind): string =>
+      paymentKindOptions.find((o) => o.value === kind)?.label ?? tBilling('paymentKinds.card'),
+    [paymentKindOptions, tBilling]
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -314,7 +321,7 @@ export default function BillingPayment() {
         setLoading(true);
         setIsSlidingOut(false);
         setIsSlidingIn(true);
-        setOverlayMessage('Refreshing billing data');
+        setOverlayMessage(tBilling('refreshing'));
       }
 
       if (withMainLoader) {
@@ -348,13 +355,22 @@ export default function BillingPayment() {
         if (!skipPageLoad) {
           const methodCount = methods.length;
           setOverlayMessage(
-            `Showing billing data (${methodCount} payment method${methodCount !== 1 ? 's' : ''} loaded)`
+            methodCount === 1
+              ? tBilling('showingBillingDataSingular', { count: methodCount })
+              : tBilling('showingBillingDataPlural', { count: methodCount })
           );
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load billing settings');
+        const rawMessage = e instanceof Error ? e.message : '';
+        const msg =
+          rawMessage === 'Failed to load company billing data'
+            ? tBilling('errors.loadCompanyBilling')
+            : rawMessage === 'Failed to load payment methods'
+              ? tBilling('errors.loadPaymentMethods')
+              : rawMessage || tBilling('errors.loadBillingSettings');
+        setError(msg);
         if (!skipPageLoad) {
-          setOverlayMessage('Error loading billing');
+          setOverlayMessage(tBilling('errorLoading'));
         }
       } finally {
         if (withMainLoader) setIsLoading(false);
@@ -377,7 +393,7 @@ export default function BillingPayment() {
         }
       }
     },
-    [updateUser]
+    [updateUser, tBilling]
   );
 
   useEffect(() => {
@@ -394,7 +410,7 @@ export default function BillingPayment() {
       return;
     }
     setIsSlidingIn(true);
-    setOverlayMessage('Loading billing data...');
+    setOverlayMessage(tBilling('loading'));
     void reloadBillingSettings({ withMainLoader: false });
     return () => {
       if (overlayTimeoutRef.current) {
@@ -406,7 +422,7 @@ export default function BillingPayment() {
         innerOverlayTimeoutRef.current = null;
       }
     };
-  }, [user?.id, reloadBillingSettings]);
+  }, [user?.id, reloadBillingSettings, tBilling]);
 
   const reloadInvoices = useCallback(async () => {
     const uid = useUserStore.getState().user?.id;
@@ -456,8 +472,8 @@ export default function BillingPayment() {
               ((
                 (r as { description?: unknown }).description
                   ? String((r as { description?: unknown }).description)
-                  : 'Commission fee invoice'
-              ).trim() || 'Commission fee invoice'),
+                  : tBilling('invoices.defaultDescription')
+              ).trim() || tBilling('invoices.defaultDescription')),
             documentUrl: String((r as { documentUrl?: unknown }).documentUrl ?? ''),
             downloadName: (r as { downloadName?: unknown }).downloadName ? String((r as { downloadName?: unknown }).downloadName) : undefined,
             downloadUrl: (r as { downloadUrl?: unknown }).downloadUrl ? String((r as { downloadUrl?: unknown }).downloadUrl) : undefined,
@@ -472,7 +488,7 @@ export default function BillingPayment() {
       setInvoices([]);
       setInvoicePage(1);
     }
-  }, []);
+  }, [tBilling]);
 
   useEffect(() => {
     void reloadInvoices();
@@ -552,12 +568,12 @@ export default function BillingPayment() {
       });
       const json: unknown = await res.json();
       if (!res.ok) {
-        throw new Error(readApiErrorMessage(json) ?? 'Delete failed');
+        throw new Error(readApiErrorMessage(json) ?? tBilling('errors.deleteFailed'));
       }
-      setSuccess('Payment method deleted successfully');
+      setSuccess(tBilling('success.paymentMethodDeleted'));
       await reloadBillingSettings({ withMainLoader: false, skipPageLoad: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed');
+      setError(e instanceof Error ? e.message : tBilling('errors.deleteFailed'));
     }
   };
 
@@ -573,12 +589,12 @@ export default function BillingPayment() {
       });
       const json: unknown = await res.json();
       if (!res.ok) {
-        throw new Error(readApiErrorMessage(json) ?? 'Update failed');
+        throw new Error(readApiErrorMessage(json) ?? tBilling('errors.updateFailed'));
       }
-      setSuccess('Default payment method updated');
+      setSuccess(tBilling('success.defaultPaymentUpdated'));
       await reloadBillingSettings({ withMainLoader: false, skipPageLoad: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Update failed');
+      setError(e instanceof Error ? e.message : tBilling('errors.updateFailed'));
     }
   };
 
@@ -595,7 +611,7 @@ export default function BillingPayment() {
   const persistCompanyFields = async (partial: Record<string, string | number | null>) => {
     const companyId = companySnapshot?.id ?? companyFromSession?.id;
     if (!user?.id || !companyId) {
-      setError('Company profile is not loaded yet');
+      setError(tBilling('errors.companyNotLoaded'));
       return;
     }
 
@@ -612,7 +628,7 @@ export default function BillingPayment() {
 
     const json: unknown = await res.json();
     if (!res.ok) {
-      throw new Error(readApiErrorMessage(json) ?? 'Save failed');
+      throw new Error(readApiErrorMessage(json) ?? tBilling('errors.saveFailed'));
     }
 
     if (isCompanyBillingApiResponse(json)) {
@@ -649,9 +665,9 @@ export default function BillingPayment() {
         billingContactEmail: billingAddress.email.trim() || null,
       });
       setShowEditAddressModal(false);
-      setSuccess('Billing address updated successfully');
+      setSuccess(tBilling('success.billingAddressUpdated'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -665,7 +681,7 @@ export default function BillingPayment() {
       if (billingBank.buyerPaymentTermDays !== '') {
         const termDays = Number(billingBank.buyerPaymentTermDays);
         if (!Number.isInteger(termDays) || termDays < 1) {
-          throw new Error('Payment term must be a whole number of days (1 or more), or left empty');
+          throw new Error(tBilling('errors.paymentTermInvalid'));
         }
       }
 
@@ -677,9 +693,9 @@ export default function BillingPayment() {
           billingBank.buyerPaymentTermDays === '' ? null : Number(billingBank.buyerPaymentTermDays),
       });
       setShowEditBankModal(false);
-      setSuccess('Billing account updated successfully');
+      setSuccess(tBilling('success.billingAccountUpdated'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -705,7 +721,7 @@ export default function BillingPayment() {
         const m = parseInt(paymentForm.expiryMonth, 10);
         const y = parseInt(paymentForm.expiryYear, 10);
         if (!Number.isFinite(m) || !Number.isFinite(y) || m < 1 || m > 12) {
-          throw new Error('Please enter valid expiry month (01-12) and year');
+          throw new Error(tBilling('errors.expiryInvalid'));
         }
         payload.expiryMonth = m;
         payload.expiryYear = y;
@@ -713,9 +729,7 @@ export default function BillingPayment() {
         const trimmedCard = paymentForm.cardNumber.trim();
         if (!editingPaymentId) {
           if (!last4FromCardNumberInput(trimmedCard)) {
-            throw new Error(
-              'Enter the full card number (at least 4 digits). Only the last 4 digits are stored.'
-            );
+            throw new Error(tBilling('errors.cardNumberRequired'));
           }
           payload.cardNumber = trimmedCard;
         } else if (trimmedCard) {
@@ -747,15 +761,15 @@ export default function BillingPayment() {
 
       const json: unknown = await res.json();
       if (!res.ok) {
-        throw new Error(readApiErrorMessage(json) ?? 'Save failed');
+        throw new Error(readApiErrorMessage(json) ?? tBilling('errors.saveFailed'));
       }
 
       setShowAddPaymentModal(false);
       setEditingPaymentId(null);
-      setSuccess(wasEditing ? 'Payment method updated' : 'Payment method added');
+      setSuccess(wasEditing ? tBilling('success.paymentMethodUpdated') : tBilling('success.paymentMethodAdded'));
       await reloadBillingSettings({ withMainLoader: false, skipPageLoad: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -771,7 +785,7 @@ export default function BillingPayment() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setSuccess(`Invoice ${inv.invoiceNo || invoiceId} downloaded successfully`);
+    setSuccess(tBilling('success.invoiceDownloaded', { invoiceNo: inv.invoiceNo || invoiceId }));
   };
 
   const getStatusColor = (status: string) => {
@@ -808,7 +822,7 @@ export default function BillingPayment() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading billing data...</p>
+            <p className="text-gray-600">{tBilling('loading')}</p>
           </div>
         </div>
       </div>
@@ -818,8 +832,8 @@ export default function BillingPayment() {
   return (
     <div className="p-4">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-black mb-2">Billing & Payment</h2>
-        <p className="text-sm text-gray-600">Manage your payment methods, billing information, and invoices</p>
+        <h2 className="text-2xl font-bold text-black mb-2">{tBilling('title')}</h2>
+        <p className="text-sm text-gray-600">{tBilling('subtitle')}</p>
       </div>
 
       {success && (
@@ -859,8 +873,9 @@ export default function BillingPayment() {
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               {!loading && (
                 <p className="text-xs text-gray-500">
-                  <span className="text-gray-400">{paymentMethods.length}</span> payment method
-                  {paymentMethods.length !== 1 ? 's' : ''} loaded
+                  {paymentMethods.length === 1
+                    ? tBilling('paymentMethodsLoadedSingular', { count: paymentMethods.length })
+                    : tBilling('paymentMethodsLoadedPlural', { count: paymentMethods.length })}
                 </p>
               )}
             </div>
@@ -1004,12 +1019,12 @@ export default function BillingPayment() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-md font-semibold text-black">Invoices & Billing History</h3>
+                <h3 className="text-md font-semibold text-black">{tBilling('invoices.sectionTitle')}</h3>
                 <span className="relative group inline-flex items-center">
                   <Info
                     tabIndex={0}
                     aria-describedby="commission-invoices-info-tooltip"
-                    aria-label="Invoices information"
+                    aria-label={tBilling('invoices.infoAriaLabel')}
                     className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
                   />
                   <span
@@ -1018,23 +1033,29 @@ export default function BillingPayment() {
                     className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                   >
                     <span className="block font-medium">
-                      Payment policy
+                      {tBilling('invoices.policyTitle')}
                     </span>
                     <span className="mt-1 block">
-                      Please pay commission invoices by the <span className="font-semibold">due date</span> shown on the invoice.
-                      If an invoice has no due date, treat the <span className="font-semibold">end of the billing month</span> as the deadline.
+                      {tBilling('invoices.policyBody', {
+                        dueDateLabel: tBilling('invoices.dueDateLabel'),
+                        billingMonthEndLabel: tBilling('invoices.billingMonthEndLabel'),
+                      })}
                     </span>
                     <span className="mt-2 block">
-                      A <span className="font-semibold">14-day grace period</span> applies after the deadline.
+                      {tBilling('invoices.gracePeriod', {
+                        gracePeriodLabel: tBilling('invoices.gracePeriodLabel'),
+                      })}
                     </span>
                     <span className="mt-2 block text-red-700">
-                      <span className="font-semibold">Warning:</span> invoices that remain unpaid after the grace period may result in a
-                      <span className="font-semibold"> temporary account suspension</span> until payment is confirmed.
+                      {tBilling('invoices.warning', {
+                        warningLabel: tBilling('invoices.warningLabel'),
+                        suspensionLabel: tBilling('invoices.suspensionLabel'),
+                      })}
                     </span>
                   </span>
                 </span>
               </div>
-              <p className="text-xs text-gray-600">View and download our invoices to track your commission fees</p>
+              <p className="text-xs text-gray-600">{tBilling('invoices.sectionSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -1042,16 +1063,16 @@ export default function BillingPayment() {
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Download className="h-4 w-4" />
-              Download All
+              {tBilling('invoices.downloadAll')}
             </button>
           </div>
 
           <div className="space-y-3">
             {invoices.length === 0 ? (
               <div className="p-6 border border-dashed border-gray-200 rounded-lg bg-gray-50">
-                <p className="text-sm font-medium text-gray-900">No invoices yet</p>
+                <p className="text-sm font-medium text-gray-900">{tBilling('invoices.emptyTitle')}</p>
                 <p className="text-xs text-gray-600 mt-1">
-                  When the admin submits your monthly commission invoice, it will appear here.
+                  {tBilling('invoices.emptyDescription')}
                 </p>
               </div>
             ) : null}
@@ -1068,7 +1089,7 @@ export default function BillingPayment() {
                     <div className="flex items-center space-x-2">
                       <span className="text-sm font-medium text-black">{invoice.invoiceNo}</span>
                       <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(invoice.status)}`}>
-                        {invoice.status}
+                        {translateInvoiceStatus(invoice.status)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-600 mb-1">{invoice.description}</p>
@@ -1079,7 +1100,11 @@ export default function BillingPayment() {
                       </span>
                       <span className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
-                        {invoice.dueDate ? `Due: ${new Date(invoice.dueDate).toLocaleDateString()}` : 'No due date'}
+                        {invoice.dueDate
+                          ? tBilling('invoices.dueDate', {
+                              date: new Date(invoice.dueDate).toLocaleDateString(),
+                            })
+                          : tBilling('invoices.noDueDate')}
                       </span>
                     </div>
                   </div>
@@ -1094,7 +1119,7 @@ export default function BillingPayment() {
                     className="flex items-center gap-1 px-3 py-1 text-[#0a61d7] text-sm font-medium rounded hover:bg-blue-50 transition-colors"
                   >
                     <Download className="h-3 w-3" />
-                    Download
+                    {tBilling('invoices.download')}
                   </button>
                 </div>
               </div>
@@ -1104,7 +1129,11 @@ export default function BillingPayment() {
           {invoiceTotalRows > 0 ? (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-500">
-                Showing {invoiceFromRow} to {invoiceToRow} of {invoiceTotalRows} invoices
+                {tBilling('invoices.showing', {
+                  from: invoiceFromRow,
+                  to: invoiceToRow,
+                  total: invoiceTotalRows,
+                })}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1112,7 +1141,7 @@ export default function BillingPayment() {
                   onClick={() => setInvoicePage(Math.max(1, invoicePage - 1))}
                   disabled={invoicePage === 1}
                   className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Previous page"
+                  aria-label={tBilling('invoices.previousPage')}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1130,7 +1159,7 @@ export default function BillingPayment() {
                             ? 'bg-[#0a61d7] text-white'
                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                         }`}
-                        aria-label={`Go to page ${pageNum}`}
+                        aria-label={tBilling('invoices.goToPage', { page: pageNum })}
                       >
                         {pageNum}
                       </button>
@@ -1147,7 +1176,7 @@ export default function BillingPayment() {
                             ? 'bg-[#0a61d7] text-white'
                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                         }`}
-                        aria-label={`Go to page ${invoiceTotalPages}`}
+                        aria-label={tBilling('invoices.goToPage', { page: invoiceTotalPages })}
                       >
                         {invoiceTotalPages}
                       </button>
@@ -1160,7 +1189,7 @@ export default function BillingPayment() {
                   onClick={() => setInvoicePage(Math.min(invoiceTotalPages, invoicePage + 1))}
                   disabled={invoicePage === invoiceTotalPages}
                   className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Next page"
+                  aria-label={tBilling('invoices.nextPage')}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1173,8 +1202,8 @@ export default function BillingPayment() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-md font-semibold text-black mb-1">Billing Account</h3>
-              <p className="text-xs text-gray-600">Bank account shown to buyers for bank transfer after ordering products on the marketplace</p>
+              <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAccount.sectionTitle')}</h3>
+              <p className="text-xs text-gray-600">{tBilling('billingAccount.sectionSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -1183,42 +1212,42 @@ export default function BillingPayment() {
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Edit className="h-4 w-4" />
-              Edit Account
+              {tBilling('billingAccount.editAccount')}
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                 <Building2 className="h-4 w-4 text-gray-400" />
-                Bank name
+                {tBilling('billingAccount.bankName')}
               </label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.bankName || '-'}</span>
+                <span className="text-xs text-gray-900">{billingBankDisplay.bankName || tBilling('billingAccount.emptyValue')}</span>
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-700 mb-2">Account holder</label>
+              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountHolder')}</label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.accountName || '-'}</span>
+                <span className="text-xs text-gray-900">{billingBankDisplay.accountName || tBilling('billingAccount.emptyValue')}</span>
               </div>
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs font-medium text-gray-700 mb-2">Account number</label>
+              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountNumber')}</label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.accountNumber || '-'}</span>
+                <span className="text-xs text-gray-900">{billingBankDisplay.accountNumber || tBilling('billingAccount.emptyValue')}</span>
               </div>
             </div>
             <div className="md:col-span-2 pt-2 border-t border-gray-100">
-              <label className="text-xs font-medium text-gray-700 mb-2">Term of payment (days)</label>
+              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.termOfPaymentDays')}</label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                 <span className="text-xs text-gray-900">
                   {companyForDisplay?.buyerPaymentTermDays != null && companyForDisplay.buyerPaymentTermDays > 0
-                    ? `${companyForDisplay.buyerPaymentTermDays} days`
-                    : '-'}
+                    ? tBilling('billingAccount.termDaysValue', { days: companyForDisplay.buyerPaymentTermDays })
+                    : tBilling('billingAccount.emptyValue')}
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-gray-500">
-                Shown to buyers on the Pay Order screen for bank transfer orders. Leave empty if payment is due immediately.
+                {tBilling('billingAccount.termHint')}
               </p>
             </div>
           </div>
@@ -1227,8 +1256,8 @@ export default function BillingPayment() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-md font-semibold text-black mb-1">Billing Address</h3>
-              <p className="text-xs text-gray-600">Your billing information for invoices and receipts</p>
+              <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAddress.sectionTitle')}</h3>
+              <p className="text-xs text-gray-600">{tBilling('billingAddress.sectionSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -1237,7 +1266,7 @@ export default function BillingPayment() {
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Edit className="h-4 w-4" />
-              Edit Address
+              {tBilling('billingAddress.editAddress')}
             </button>
           </div>
 
@@ -1246,32 +1275,32 @@ export default function BillingPayment() {
               <div>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                   <Building2 className="h-4 w-4 text-gray-400" />
-                  Company Name
+                  {tBilling('billingAddress.companyName')}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.companyName || '-'}</span>
+                  <span className="text-xs text-gray-900">{billingAddressDisplay.companyName || tBilling('billingAccount.emptyValue')}</span>
                 </div>
               </div>
               <div>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                   <MapPin className="h-4 w-4 text-gray-400" />
-                  Address
+                  {tBilling('billingAddress.address')}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.address || '-'}</span>
+                  <span className="text-xs text-gray-900">{billingAddressDisplay.address || tBilling('billingAccount.emptyValue')}</span>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-2">City</label>
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.city')}</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                    <span className="text-xs text-gray-900">{billingAddressDisplay.city || '-'}</span>
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.city || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-2">State</label>
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.state')}</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                    <span className="text-xs text-gray-900">{billingAddressDisplay.state || '-'}</span>
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.state || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
               </div>
@@ -1279,34 +1308,34 @@ export default function BillingPayment() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-2">Postal Code</label>
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.postalCode')}</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                    <span className="text-xs text-gray-900">{billingAddressDisplay.postalCode || '-'}</span>
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.postalCode || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-2">Country</label>
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.country')}</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                    <span className="text-xs text-gray-900">{billingAddressDisplay.country || '-'}</span>
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.country || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
               </div>
               <div>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                   <Phone className="h-4 w-4 text-gray-400" />
-                  Phone
+                  {tBilling('billingAddress.phone')}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.phone || '-'}</span>
+                  <span className="text-xs text-gray-900">{billingAddressDisplay.phone || tBilling('billingAccount.emptyValue')}</span>
                 </div>
               </div>
               <div>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                   <Mail className="h-4 w-4 text-gray-400" />
-                  Email
+                  {tBilling('billingAddress.email')}
                 </label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.email || '-'}</span>
+                  <span className="text-xs text-gray-900">{billingAddressDisplay.email || tBilling('billingAccount.emptyValue')}</span>
                 </div>
               </div>
             </div>
@@ -1319,7 +1348,7 @@ export default function BillingPayment() {
           <div className="bg-white rounded-lg p-4 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-black">
-                {editingPaymentId ? 'Edit Payment Method' : 'Add Payment Method'}
+                {editingPaymentId ? tBilling('paymentMethodModal.editTitle') : tBilling('paymentMethodModal.addTitle')}
               </h3>
               <button
                 type="button"
@@ -1336,7 +1365,7 @@ export default function BillingPayment() {
 
             <form onSubmit={(e) => void handleSavePaymentMethod(e)} className="space-y-4">
               <div ref={paymentKindDropdownRef} className="relative">
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Type</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.type')}</label>
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-100"
@@ -1349,7 +1378,7 @@ export default function BillingPayment() {
                 </button>
                 {showPaymentKindDropdown && (
                   <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow">
-                    {PAYMENT_KIND_OPTIONS.map((opt) => (
+                    {paymentKindOptions.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
@@ -1371,13 +1400,13 @@ export default function BillingPayment() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Display label</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.displayLabel')}</label>
                 <input
                   type="text"
                   value={paymentForm.label}
                   onChange={(e) => setPaymentForm((p) => ({ ...p, label: e.target.value }))}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                  placeholder="e.g. Corporate Visa"
+                  placeholder={tBilling('paymentMethodModal.displayLabelPlaceholder')}
                   required
                 />
               </div>
@@ -1385,7 +1414,7 @@ export default function BillingPayment() {
               {paymentForm.kind === 'CARD' && (
                 <>
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-2 block">Card number</label>
+                    <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.cardNumber')}</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -1398,18 +1427,22 @@ export default function BillingPayment() {
                         }))
                       }
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                      placeholder={editingPaymentId ? 'Leave blank to keep current card on file' : 'Full card number'}
+                      placeholder={
+                        editingPaymentId
+                          ? tBilling('paymentMethodModal.cardNumberPlaceholderEdit')
+                          : tBilling('paymentMethodModal.cardNumberPlaceholderNew')
+                      }
                       required={!editingPaymentId}
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       {editingPaymentId
-                        ? 'Optional when editing: enter a new full number to replace the stored last 4.'
-                        : 'Only the last 4 digits are stored on our servers.'}
+                        ? tBilling('paymentMethodModal.cardNumberHintEdit')
+                        : tBilling('paymentMethodModal.cardNumberHintNew')}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2 block">Expiry month</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.expiryMonth')}</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1422,12 +1455,12 @@ export default function BillingPayment() {
                           }))
                         }
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                        placeholder="MM"
+                        placeholder={tBilling('paymentMethodModal.expiryMonthPlaceholder')}
                         required
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2 block">Expiry year</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.expiryYear')}</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1440,7 +1473,7 @@ export default function BillingPayment() {
                           }))
                         }
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                        placeholder="YYYY"
+                        placeholder={tBilling('paymentMethodModal.expiryYearPlaceholder')}
                         required
                       />
                     </div>
@@ -1451,7 +1484,7 @@ export default function BillingPayment() {
               {paymentForm.kind === 'BANK_TRANSFER' && (
                 <>
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-2 block">Bank name</label>
+                    <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.bankName')}</label>
                     <input
                       type="text"
                       value={paymentForm.bankName}
@@ -1461,7 +1494,7 @@ export default function BillingPayment() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-2 block">Account holder</label>
+                    <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.accountHolder')}</label>
                     <input
                       type="text"
                       value={paymentForm.accountHolderName}
@@ -1471,14 +1504,14 @@ export default function BillingPayment() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-700 mb-2 block">Account number</label>
+                    <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.accountNumber')}</label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={paymentForm.accountNumber}
                       onChange={(e) => setPaymentForm((p) => ({ ...p, accountNumber: e.target.value }))}
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                      placeholder="Digits only; last 4 are stored for display"
+                      placeholder={tBilling('paymentMethodModal.accountNumberPlaceholder')}
                       required
                     />
                   </div>
@@ -1487,13 +1520,13 @@ export default function BillingPayment() {
 
               {paymentForm.kind === 'EWALLET' && (
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-2 block">E-wallet provider</label>
+                  <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.ewalletProvider')}</label>
                   <input
                     type="text"
                     value={paymentForm.ewalletProvider}
                     onChange={(e) => setPaymentForm((p) => ({ ...p, ewalletProvider: e.target.value }))}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                    placeholder="e.g. OVO, GoPay, DANA"
+                    placeholder={tBilling('paymentMethodModal.ewalletProviderPlaceholder')}
                     required
                   />
                 </div>
@@ -1521,7 +1554,7 @@ export default function BillingPayment() {
                     </svg>
                   )}
                 </button>
-                <span className="text-xs text-gray-800">Set as default payment method</span>
+                <span className="text-xs text-gray-800">{tBilling('paymentMethodModal.setAsDefault')}</span>
               </div>
 
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -1534,14 +1567,14 @@ export default function BillingPayment() {
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {tBilling('paymentMethodModal.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0a52c0] transition-colors disabled:opacity-50"
                 >
-                  {isLoading ? 'Saving…' : 'Save'}
+                  {isLoading ? tBilling('paymentMethodModal.saving') : tBilling('paymentMethodModal.save')}
                 </button>
               </div>
             </form>
@@ -1553,14 +1586,14 @@ export default function BillingPayment() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 w-full max-w-lg mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-black">Edit Billing Account</h3>
+              <h3 className="text-lg font-semibold text-black">{tBilling('editBillingAccountModal.title')}</h3>
               <button type="button" onClick={() => setShowEditBankModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={(e) => void handleSaveBillingBank(e)} className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Bank name</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('editBillingAccountModal.bankName')}</label>
                 <input
                   type="text"
                   value={billingBank.bankName}
@@ -1569,7 +1602,7 @@ export default function BillingPayment() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Account holder</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('editBillingAccountModal.accountHolder')}</label>
                 <input
                   type="text"
                   value={billingBank.accountName}
@@ -1578,7 +1611,7 @@ export default function BillingPayment() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Account number</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('editBillingAccountModal.accountNumber')}</label>
                 <input
                   type="text"
                   value={billingBank.accountNumber}
@@ -1587,7 +1620,7 @@ export default function BillingPayment() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">Term of payment (days)</label>
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('editBillingAccountModal.termOfPaymentDays')}</label>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1600,13 +1633,13 @@ export default function BillingPayment() {
                         buyerPaymentTermDays: e.target.value === '' ? '' : Number(e.target.value),
                       }))
                     }
-                    placeholder="e.g. 14"
+                    placeholder={tBilling('editBillingAccountModal.termPlaceholder')}
                     className="w-full max-w-[120px] px-3 py-2 border border-gray-200 rounded-lg text-xs text-black"
                   />
-                  <span className="text-xs text-gray-500">days</span>
+                  <span className="text-xs text-gray-500">{tBilling('editBillingAccountModal.daysSuffix')}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">
-                  Shown to buyers on the Pay Order screen for bank transfer orders. Leave empty if payment is due immediately.
+                  {tBilling('editBillingAccountModal.termHint')}
                 </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -1615,10 +1648,10 @@ export default function BillingPayment() {
                   onClick={() => setShowEditBankModal(false)}
                   className="px-4 py-2 text-sm text-black border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {tBilling('editBillingAccountModal.cancel')}
                 </button>
                 <button type="submit" disabled={isLoading} className="px-4 py-2 text-sm bg-[#0a61d7] hover:bg-[#0a52c0] transition-colors text-white rounded-lg disabled:opacity-50">
-                  Save
+                  {tBilling('editBillingAccountModal.save')}
                 </button>
               </div>
             </form>
@@ -1630,7 +1663,7 @@ export default function BillingPayment() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-black">Edit Billing Address</h3>
+              <h3 className="text-lg font-semibold text-black">{tBilling('editBillingAddressModal.title')}</h3>
               <button type="button" onClick={() => setShowEditAddressModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
@@ -1642,7 +1675,7 @@ export default function BillingPayment() {
                   <div>
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                       <Building2 className="h-4 w-4 text-gray-400" />
-                      Company Name
+                      {tBilling('editBillingAddressModal.companyName')}
                     </label>
                     <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                       <input
@@ -1650,14 +1683,14 @@ export default function BillingPayment() {
                         value={billingAddress.companyName}
                         onChange={(e) => setBillingAddress((prev) => ({ ...prev, companyName: e.target.value }))}
                         className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                        placeholder="Enter company name"
+                        placeholder={tBilling('editBillingAddressModal.companyNamePlaceholder')}
                       />
                     </div>
                   </div>
                   <div>
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                       <MapPin className="h-4 w-4 text-gray-400" />
-                      Address
+                      {tBilling('editBillingAddressModal.address')}
                     </label>
                     <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                       <input
@@ -1665,32 +1698,32 @@ export default function BillingPayment() {
                         value={billingAddress.address}
                         onChange={(e) => setBillingAddress((prev) => ({ ...prev, address: e.target.value }))}
                         className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                        placeholder="Enter address"
+                        placeholder={tBilling('editBillingAddressModal.addressPlaceholder')}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2">City</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('editBillingAddressModal.city')}</label>
                       <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                         <input
                           type="text"
                           value={billingAddress.city}
                           onChange={(e) => setBillingAddress((prev) => ({ ...prev, city: e.target.value }))}
                           className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                          placeholder="Enter city"
+                          placeholder={tBilling('editBillingAddressModal.cityPlaceholder')}
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2">State</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('editBillingAddressModal.state')}</label>
                       <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                         <input
                           type="text"
                           value={billingAddress.state}
                           onChange={(e) => setBillingAddress((prev) => ({ ...prev, state: e.target.value }))}
                           className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                          placeholder="Enter state"
+                          placeholder={tBilling('editBillingAddressModal.statePlaceholder')}
                         />
                       </div>
                     </div>
@@ -1699,26 +1732,26 @@ export default function BillingPayment() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2">Postal Code</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('editBillingAddressModal.postalCode')}</label>
                       <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                         <input
                           type="text"
                           value={billingAddress.postalCode}
                           onChange={(e) => setBillingAddress((prev) => ({ ...prev, postalCode: e.target.value }))}
                           className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                          placeholder="Enter postal code"
+                          placeholder={tBilling('editBillingAddressModal.postalCodePlaceholder')}
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-700 mb-2">Country</label>
+                      <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('editBillingAddressModal.country')}</label>
                       <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                         <input
                           type="text"
                           value={billingAddress.country}
                           onChange={(e) => setBillingAddress((prev) => ({ ...prev, country: e.target.value }))}
                           className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                          placeholder="Enter country"
+                          placeholder={tBilling('editBillingAddressModal.countryPlaceholder')}
                         />
                       </div>
                     </div>
@@ -1726,7 +1759,7 @@ export default function BillingPayment() {
                   <div>
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                       <Phone className="h-4 w-4 text-gray-400" />
-                      Phone
+                      {tBilling('editBillingAddressModal.phone')}
                     </label>
                     <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                       <input
@@ -1734,14 +1767,14 @@ export default function BillingPayment() {
                         value={billingAddress.phone}
                         onChange={(e) => setBillingAddress((prev) => ({ ...prev, phone: e.target.value }))}
                         className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                        placeholder="Enter phone number"
+                        placeholder={tBilling('editBillingAddressModal.phonePlaceholder')}
                       />
                     </div>
                   </div>
                   <div>
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
                       <Mail className="h-4 w-4 text-gray-400" />
-                      Email
+                      {tBilling('editBillingAddressModal.email')}
                     </label>
                     <div className="px-3 py-2 border border-gray-200 rounded-lg flex items-center">
                       <input
@@ -1749,7 +1782,7 @@ export default function BillingPayment() {
                         value={billingAddress.email}
                         onChange={(e) => setBillingAddress((prev) => ({ ...prev, email: e.target.value }))}
                         className="w-full bg-transparent text-xs text-gray-900 outline-none"
-                        placeholder="Enter email address"
+                        placeholder={tBilling('editBillingAddressModal.emailPlaceholder')}
                       />
                     </div>
                   </div>
@@ -1762,14 +1795,14 @@ export default function BillingPayment() {
                   onClick={() => setShowEditAddressModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {tBilling('editBillingAddressModal.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0a52c0] transition-colors disabled:opacity-50"
                 >
-                  Save Changes
+                  {tBilling('editBillingAddressModal.saveChanges')}
                 </button>
               </div>
             </form>

@@ -11,8 +11,18 @@ import FleetTripSummaryModal, { type FleetTripSummaryData } from '@/components/l
 import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsmanagement/OrderfleetList';
 import { createFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
+
+const TAB_IDS: TabId[] = ['basic', 'vehicle', 'driver', 'orders'];
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  basic: <Package className="w-5 h-5" />,
+  vehicle: <Truck className="w-5 h-5" />,
+  driver: <User className="w-5 h-5" />,
+  orders: <ShoppingCart className="w-5 h-5" />,
+};
 
 interface Tab {
   id: TabId;
@@ -65,6 +75,7 @@ export interface FleetFormData {
 }
 
 export default function CreateFleetPage() {
+  const { tCreatePage, translateWizardTab, translateWizardTabDesc } = useLogisticsTranslations();
   const router = useRouter();
   const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabId>('basic');
@@ -94,12 +105,12 @@ export default function CreateFleetPage() {
     orders: true,
   });
 
-  const tabs: Tab[] = [
-    { id: 'basic', label: 'Basic Info', icon: <Package className="w-5 h-5" />, description: 'Route, status, ETA' },
-    { id: 'vehicle', label: 'Vehicle', icon: <Truck className="w-5 h-5" />, description: 'Truck type and load' },
-    { id: 'driver', label: 'Driver', icon: <User className="w-5 h-5" />, description: 'Assigned driver' },
-    { id: 'orders', label: 'Order Selection', icon: <ShoppingCart className="w-5 h-5" />, description: 'Assign orders' },
-  ];
+  const tabs: Tab[] = TAB_IDS.map((id) => ({
+    id,
+    label: translateWizardTab(id),
+    icon: TAB_ICONS[id],
+    description: translateWizardTabDesc(id),
+  }));
 
   const handleFormChange = useCallback((updates: Partial<FleetFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -147,7 +158,7 @@ export default function CreateFleetPage() {
   const performCreate = async () => {
     if (user?.id == null) {
       setShowSummaryModal(false);
-      alert('Please sign in to create a fleet.');
+      alert(tCreatePage('signInRequired'));
       return;
     }
     const route = `${formData.routeFrom} → ${formData.routeTo}`;
@@ -215,7 +226,7 @@ export default function CreateFleetPage() {
     const created = await createFleet(user.id, input);
     if (created == null || created.id == null || created.id === '') {
       console.error('createFleet did not return a valid fleet with id', { created, createFleet: createFleet.name });
-      alert('Failed to create fleet: no fleet ID returned. Please try again.');
+      alert(tCreatePage('createFailedNoId'));
       return;
     }
     // Clear the staged password only after the fleet is successfully created
@@ -227,11 +238,11 @@ export default function CreateFleetPage() {
 
   const handleOpenSummary = () => {
     if (user?.id == null) {
-      alert('Please sign in to create a fleet.');
+      alert(tCreatePage('signInRequired'));
       return;
     }
     if (!isReadyToCreate) {
-      alert('Please complete all required fields before creating.');
+      alert(tCreatePage('completeBeforeCreate'));
       return;
     }
     setShowSummaryModal(true);
@@ -242,11 +253,11 @@ export default function CreateFleetPage() {
     try {
       await performCreate();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create fleet.';
+      const message = error instanceof Error ? error.message : tCreatePage('createFailed');
       if (message.includes('already assigned to another fleet')) {
-        alert(message + ' Remove them from the selection or assign them in the other fleet first.');
+        alert(message + tCreatePage('conflictSuffix'));
       } else {
-        alert(message || 'Failed to create fleet. Please try again.');
+        alert(message || tCreatePage('createFailedRetry'));
       }
     } finally {
       setIsCreating(false);
@@ -326,11 +337,11 @@ export default function CreateFleetPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Fleet List
+            {tCreatePage('backToList')}
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Add Fleet / Truck</h1>
-            <p className="text-gray-500 text-sm">Create a new fleet or truck entry</p>
+            <h1 className="text-2xl font-bold text-black">{tCreatePage('title')}</h1>
+            <p className="text-gray-500 text-sm">{tCreatePage('subtitle')}</p>
             <div className="flex items-center gap-4 mt-2">
               {tabs.map((t) => (
                 <div key={t.id} className="flex items-center gap-2">
@@ -341,7 +352,7 @@ export default function CreateFleetPage() {
               {!isReadyToCreate && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs">Complete required fields</span>
+                  <span className="text-xs">{tCreatePage('completeRequired')}</span>
                 </div>
               )}
             </div>
@@ -355,7 +366,7 @@ export default function CreateFleetPage() {
           }`}
         >
           <CheckCircle className="w-4 h-4" />
-          Create Fleet
+          {tCreatePage('createFleet')}
         </button>
       </div>
 

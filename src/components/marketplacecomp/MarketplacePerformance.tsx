@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TrendingUp, Eye, ShoppingCart, Heart, X, ChevronDown, DollarSign, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
 
 interface Product {
   id: number;
@@ -44,6 +45,7 @@ export default function MarketplacePerformance({
   userCurrency = 'IDR',
   overallMetrics: apiOverallMetrics
 }: MarketplacePerformanceProps) {
+  const { tShared, tPerformance, translateSortOption } = useMarketplaceTranslations();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<'analytics' | 'reviews'>('analytics');
   type ProductReview = {
@@ -80,9 +82,9 @@ export default function MarketplacePerformance({
   const itemsPerPage = 5;
 
   const sortOptions = [
-    { value: 'views' as const, label: 'Views' },
-    { value: 'sales' as const, label: 'Sales' },
-    { value: 'revenue' as const, label: 'Revenue' }
+    { value: 'views' as const, label: translateSortOption('views') },
+    { value: 'sales' as const, label: translateSortOption('sales') },
+    { value: 'revenue' as const, label: translateSortOption('revenue') }
   ];
 
   const currentSort = sortOptions.find(option => option.value === sortBy);
@@ -212,52 +214,55 @@ export default function MarketplacePerformance({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Total Sales</span>
+            <span className="text-sm text-gray-600">{tPerformance('totalSales')}</span>
             <DollarSign className="w-4 h-4 text-green-500" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
             {formatCurrency(overallMetrics.totalSalesAmount, userCurrency)}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {overallMetrics.totalOrdersCount} orders
+            {tShared('ordersCount', { count: overallMetrics.totalOrdersCount })}
           </p>
         </div>
 
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Total Views</span>
+            <span className="text-sm text-gray-600">{tPerformance('totalViews')}</span>
             <Eye className="w-4 h-4 text-blue-500" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
             {overallMetrics.totalViews.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            Product page views
+            {tPerformance('productPageViews')}
           </p>
         </div>
 
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Conversion Rate</span>
+            <span className="text-sm text-gray-600">{tPerformance('conversionRate')}</span>
             <TrendingUp className="w-4 h-4 text-purple-500" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
             {overallMetrics.conversionRate.toFixed(1)}%
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {overallMetrics.totalOrdersCount} orders from {overallMetrics.totalViews.toLocaleString()} views
+            {tShared('conversionFromViews', {
+              orders: overallMetrics.totalOrdersCount,
+              views: overallMetrics.totalViews.toLocaleString(),
+            })}
           </p>
         </div>
       </div>
 
       {/* Funnel Visualization - bar width capped at 100% to prevent overflow */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 min-w-0 overflow-hidden">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Journey</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{tPerformance('customerJourney')}</h3>
         <div className="space-y-3">
           <div className="flex items-center gap-4 min-w-0">
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">Views</span>
+                <span className="text-sm font-medium text-gray-900">{tPerformance('journeyViews')}</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalViews.toLocaleString()}</span>
               </div>
               <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -269,7 +274,7 @@ export default function MarketplacePerformance({
           <div className="flex items-center gap-4 min-w-0">
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">Added to Cart</span>
+                <span className="text-sm font-medium text-gray-900">{tPerformance('journeyAddedToCart')}</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalAddedToCart.toLocaleString()}</span>
               </div>
               <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -284,7 +289,7 @@ export default function MarketplacePerformance({
           <div className="flex items-center gap-4 min-w-0">
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">Purchases</span>
+                <span className="text-sm font-medium text-gray-900">{tPerformance('journeyPurchases')}</span>
                 <span className="text-sm font-semibold text-gray-900">{overallMetrics.totalOrdersCount.toLocaleString()}</span>
               </div>
               <div className="w-full min-w-0 bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -303,11 +308,11 @@ export default function MarketplacePerformance({
         <div className="p-4 border-b border-[#e6e6e6]">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>
-              <p className="text-sm text-gray-600">Click on a product to see detailed analytics</p>
+              <h3 className="text-lg font-semibold text-gray-900">{tPerformance('productPerformance')}</h3>
+              <p className="text-sm text-gray-600">{tPerformance('productPerformanceHint')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Sort by:</span>
+              <span className="text-sm text-gray-600">{tShared('sortBy')}</span>
               <div className="relative" ref={sortDropdownRef}>
                 <button
                   onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
@@ -344,14 +349,14 @@ export default function MarketplacePerformance({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Views</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cart</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Favorites</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Sold</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Reviews</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Sales</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Conv %</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{tPerformance('tableProduct')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableViews')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableCart')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableFavorites')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableSold')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableReviews')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableSales')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableConv')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -397,12 +402,17 @@ export default function MarketplacePerformance({
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            Showing {startIndex + 1} to {Math.min(endIndex, sortedProducts.length)} of {sortedProducts.length} results
+            {tShared('pagination.showing', {
+              from: startIndex + 1,
+              to: Math.min(endIndex, sortedProducts.length),
+              total: sortedProducts.length,
+            })}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevPage}
               disabled={currentPage === 1}
+              aria-label={tShared('pagination.previousPage')}
               className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -445,6 +455,7 @@ export default function MarketplacePerformance({
             <button
               onClick={handleNextPage}
               disabled={currentPage === totalPages}
+              aria-label={tShared('pagination.nextPage')}
               className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
@@ -474,7 +485,7 @@ export default function MarketplacePerformance({
                 )}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{selectedProduct.name}</h3>
-                  <p className="text-sm text-gray-600">Detailed Performance Analytics</p>
+                  <p className="text-sm text-gray-600">{tPerformance('modalSubtitle')}</p>
                 </div>
               </div>
               <button
@@ -498,18 +509,18 @@ export default function MarketplacePerformance({
                       onClick={() => setModalTab('analytics')}
                       className="text-sm font-semibold text-[#0a61d7] hover:underline"
                     >
-                      ← Back
+                      {tPerformance('back')}
                     </button>
                     <div className="text-sm text-gray-600">
-                      {(selectedProduct.reviews ?? 0).toLocaleString()} reviews
+                      {tShared('reviewsCount', { count: selectedProduct.reviews ?? 0 })}
                     </div>
                   </div>
 
                   <div className="bg-white rounded-lg border border-gray-200">
                     {reviewsLoading ? (
-                      <div className="p-4 text-sm text-gray-600">Loading reviews…</div>
+                      <div className="p-4 text-sm text-gray-600">{tPerformance('loadingReviews')}</div>
                     ) : (productReviews?.length ?? 0) === 0 ? (
-                      <div className="p-4 text-sm text-gray-600">No reviews yet.</div>
+                      <div className="p-4 text-sm text-gray-600">{tPerformance('noReviews')}</div>
                     ) : (
                       <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-200">
                         {productReviews!.map((r) => (
@@ -517,7 +528,7 @@ export default function MarketplacePerformance({
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold text-gray-900 truncate">
-                                  {r.reviewerDisplayName || 'Customer'}
+                                  {r.reviewerDisplayName || tShared('customerFallback')}
                                 </p>
                                 <div className="flex items-center gap-1 text-yellow-500">
                                   {Array.from({ length: 5 }, (_, i) => (
@@ -572,41 +583,41 @@ export default function MarketplacePerformance({
                 <div className="bg-blue-50 rounded-lg p-4">
                   <Eye className="w-5 h-5 text-blue-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.views.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">Total Views</p>
+                  <p className="text-sm text-gray-600">{tPerformance('totalViews')}</p>
                 </div>
                 <div className="bg-pink-50 rounded-lg p-4">
                   <Heart className="w-5 h-5 text-pink-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.favorites.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">Favorites</p>
+                  <p className="text-sm text-gray-600">{tPerformance('favorites')}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <ShoppingCart className="w-5 h-5 text-green-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.sales.toLocaleString()}</p>
-                  <p className="text-sm text-gray-600">Sales</p>
+                  <p className="text-sm text-gray-600">{tPerformance('sales')}</p>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4 flex flex-col justify-between">
                   <div>
                     <Star className="w-5 h-5 text-yellow-600 mb-2" />
                     <p className="text-2xl font-bold text-gray-900">{(selectedProduct.reviews ?? 0).toLocaleString()}</p>
-                    <p className="text-sm text-gray-600">Reviews</p>
+                    <p className="text-sm text-gray-600">{tPerformance('reviews')}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModalTab('reviews')}
                     className="mt-3 inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-xs font-semibold text-gray-900 border border-gray-200 hover:bg-gray-50"
                   >
-                    View reviews
+                    {tPerformance('viewReviews')}
                   </button>
                 </div>
               </div>
 
               {/* Conversion Funnel - bar width capped at 100% so bars never overflow */}
               <div className="min-w-0 overflow-hidden">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Conversion Counts</h4>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">{tPerformance('conversionCounts')}</h4>
                 <div className="space-y-2">
                   <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-600">Views</span>
+                      <span className="text-sm text-gray-600">{tPerformance('journeyViews')}</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.views.toLocaleString()}</span>
                     </div>
                     <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -615,7 +626,7 @@ export default function MarketplacePerformance({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-600">Added to Cart</span>
+                      <span className="text-sm text-gray-600">{tPerformance('journeyAddedToCart')}</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.addedToCart.toLocaleString()}</span>
                     </div>
                     <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -627,7 +638,7 @@ export default function MarketplacePerformance({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-600">Purchases</span>
+                      <span className="text-sm text-gray-600">{tPerformance('journeyPurchases')}</span>
                       <span className="text-sm font-semibold text-gray-900">{selectedProduct.sales.toLocaleString()}</span>
                     </div>
                     <div className="w-full min-w-0 bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -643,35 +654,39 @@ export default function MarketplacePerformance({
               {/* Additional Insights - show counts as primary; % only when it's a meaningful rate */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Favorites</h5>
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">{tPerformance('favoritesInsight')}</h5>
                   <p className="text-2xl font-bold text-gray-900">
                     {selectedProduct.favorites.toLocaleString()}{' '}
                     <span className="text-base font-normal text-gray-600">
-                      of {selectedProduct.views.toLocaleString()} views
+                      {tShared('ofViews', { count: selectedProduct.views.toLocaleString() })}
                     </span>
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
                     {selectedProduct.views > 0 && selectedProduct.views <= 1
-                      ? (selectedProduct.favorites === 0 ? 'No favorites yet' : 'Single view — rate becomes meaningful with more views')
+                      ? (selectedProduct.favorites === 0 ? tPerformance('noFavoritesYet') : tPerformance('singleViewRateHint'))
                       : selectedProduct.views > 0
-                        ? `${((selectedProduct.favorites / selectedProduct.views) * 100).toFixed(1)}% favorited`
-                        : 'Favorites per view'}
+                        ? tPerformance('favoritedPercent', {
+                            percent: ((selectedProduct.favorites / selectedProduct.views) * 100).toFixed(1),
+                          })
+                        : tPerformance('favoritesPerView')}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Cart Abandonment</h5>
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">{tPerformance('cartAbandonment')}</h5>
                   <p className="text-2xl font-bold text-gray-900">
                     {selectedProduct.cartAbandoned.toLocaleString()}{' '}
                     <span className="text-base font-normal text-gray-600">
-                      abandoned
+                      {tShared('abandoned')}
                     </span>
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
                     {selectedProduct.cartAbandoned === 0
-                      ? 'Only counts when a customer removes the item from cart (not items still in cart)'
+                      ? tPerformance('cartAbandonmentZeroHint')
                       : selectedProduct.addedToCart > 0
-                        ? `Removed from cart without purchasing — ${((selectedProduct.cartAbandoned / (selectedProduct.addedToCart + selectedProduct.cartAbandoned)) * 100).toFixed(0)}% of add-to-cart events`
-                        : 'Removed from cart without purchasing (added count decreases when item is removed)'}
+                        ? tPerformance('cartAbandonmentRateHint', {
+                            percent: ((selectedProduct.cartAbandoned / (selectedProduct.addedToCart + selectedProduct.cartAbandoned)) * 100).toFixed(0),
+                          })
+                        : tPerformance('cartAbandonmentFallbackHint')}
                   </p>
                 </div>
               </div>

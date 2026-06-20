@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Package, Search, Check, ChevronDown, ChevronLeft, ChevronRight, Grid, List } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 export interface AssignedOrder {
   orderId: string;
@@ -53,6 +55,8 @@ export default function FleetOrderSelection({
   mode,
   currentFleetId,
 }: FleetOrderSelectionProps) {
+  const { tOrderSelection, tShared } = useLogisticsTranslations();
+  const { translateOrderStatus, translateDeliveryMethod } = useOrdersTranslations();
   const user = useUserStore((s) => s.user);
   const [orders, setOrders] = useState<OrderNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +135,7 @@ export default function FleetOrderSelection({
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading orders...</p>
+            <p className="text-gray-600">{tOrderSelection('loading')}</p>
           </div>
         </div>
       </div>
@@ -141,8 +145,8 @@ export default function FleetOrderSelection({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Order Selection</h3>
-        <p className="text-sm text-gray-500">Select and assign orders to this fleet</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{tOrderSelection('title')}</h3>
+        <p className="text-sm text-gray-500">{tOrderSelection('subtitle')}</p>
       </div>
 
       <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
@@ -156,7 +160,7 @@ export default function FleetOrderSelection({
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search orders by ID or store..."
+              placeholder={tOrderSelection('search')}
               className="w-full pl-10 pr-4 py-2 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-sm"
             />
           </div>
@@ -186,7 +190,7 @@ export default function FleetOrderSelection({
                 onClick={() => onFormChange({ assignedOrders: [] })}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium"
               >
-                Clear All
+                {tShared('deselectAll')}
               </button>
             </div>
           </div>
@@ -196,7 +200,7 @@ export default function FleetOrderSelection({
       {pagedOrders.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
           <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-sm text-gray-500">No orders found</p>
+          <p className="text-sm text-gray-500">{tOrderSelection('noOrders')}</p>
         </div>
       ) : (
         <>
@@ -221,25 +225,28 @@ export default function FleetOrderSelection({
                             : 'border-[#e6e6e6] hover:border-gray-300 bg-white cursor-pointer'
                     }`}
                     title={
-                      buyerOwned  ? `${order.deliveryMethod} — handled by buyer, not assignable to fleet`
-                      : otherFleet ? 'Assigned to another fleet'
+                      buyerOwned  ? `${translateDeliveryMethod(order.deliveryMethod ?? '')} — handled by buyer, not assignable to fleet`
+                      : otherFleet ? tOrderSelection('assignedElsewhere')
                       : undefined
                     }
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900">{order.orderId}</h4>
-                        <p className="text-xs text-gray-500 mt-1">{order.storeName || '—'}</p>
+                        <p className="text-xs text-gray-500 mt-1">{order.storeName || tShared('notApplicable')}</p>
                         <p className="text-sm font-bold text-[#0a61d7] mt-2">
                           IDR {Number(order.totalAmount ?? 0).toLocaleString()}
                         </p>
+                        {order.orderStatus && (
+                          <p className="text-xs mt-1 text-gray-500">{translateOrderStatus(order.orderStatus)}</p>
+                        )}
                         {order.deliveryMethod && (
                           <p className={`text-xs mt-2 font-medium ${buyerOwned ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {order.deliveryMethod}
+                            {translateDeliveryMethod(order.deliveryMethod)}
                           </p>
                         )}
                         {otherFleet && !buyerOwned && (
-                          <p className="text-xs text-amber-700 mt-2 font-medium">Assigned to another fleet</p>
+                          <p className="text-xs text-amber-700 mt-2 font-medium">{tOrderSelection('assignedElsewhere')}</p>
                         )}
                       </div>
                       {selected && !blocked && (
@@ -273,24 +280,27 @@ export default function FleetOrderSelection({
                             : 'border-[#e6e6e6] hover:border-gray-300 bg-white cursor-pointer'
                     }`}
                     title={
-                      buyerOwned  ? `${order.deliveryMethod} — handled by buyer, not assignable to fleet`
-                      : otherFleet ? 'Assigned to another fleet'
+                      buyerOwned  ? `${translateDeliveryMethod(order.deliveryMethod ?? '')} — handled by buyer, not assignable to fleet`
+                      : otherFleet ? tOrderSelection('assignedElsewhere')
                       : undefined
                     }
                   >
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-semibold text-gray-900">{order.orderId}</h4>
-                      <p className="text-xs text-gray-500">{order.storeName || '—'}</p>
+                      <p className="text-xs text-gray-500">{order.storeName || tShared('notApplicable')}</p>
                       <p className="text-sm font-bold text-[#0a61d7] mt-1">
                         IDR {Number(order.totalAmount ?? 0).toLocaleString()}
                       </p>
+                      {order.orderStatus && (
+                        <p className="text-xs mt-1 text-gray-500">{translateOrderStatus(order.orderStatus)}</p>
+                      )}
                       {order.deliveryMethod && (
                         <p className={`text-xs mt-1 font-medium ${buyerOwned ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {order.deliveryMethod}
+                          {translateDeliveryMethod(order.deliveryMethod)}
                         </p>
                       )}
                       {otherFleet && !buyerOwned && (
-                        <p className="text-xs text-amber-700 mt-1 font-medium">Assigned to another fleet</p>
+                        <p className="text-xs text-amber-700 mt-1 font-medium">{tOrderSelection('assignedElsewhere')}</p>
                       )}
                     </div>
                     {selected && !blocked && (
@@ -332,7 +342,7 @@ export default function FleetOrderSelection({
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Tip:</strong> Select orders from your system to assign them to this fleet. Assigned orders will appear in the trip summary.
+          <strong>{tOrderSelection('tip')}</strong> {tOrderSelection('tipBody')}
         </p>
       </div>
     </div>

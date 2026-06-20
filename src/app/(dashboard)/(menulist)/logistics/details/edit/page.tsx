@@ -11,8 +11,18 @@ import FleetTripSummaryModal, { type FleetTripSummaryData } from '@/components/l
 import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsmanagement/OrderfleetList';
 import { fetchFleet, updateFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
+import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
+
+const TAB_IDS: TabId[] = ['basic', 'vehicle', 'driver', 'orders'];
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  basic: <Package className="w-5 h-5" />,
+  vehicle: <Truck className="w-5 h-5" />,
+  driver: <User className="w-5 h-5" />,
+  orders: <ShoppingCart className="w-5 h-5" />,
+};
 
 interface Tab {
   id: TabId;
@@ -74,6 +84,7 @@ function toDateInputValue(d: string | null | undefined): string {
 }
 
 export default function EditFleetPage() {
+  const { tEditPage, tDetailsPage, tPage, translateWizardTab, translateWizardTabDesc } = useLogisticsTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUserStore();
@@ -101,12 +112,12 @@ export default function EditFleetPage() {
     assignedOrders: [],
   });
 
-  const tabs: Tab[] = [
-    { id: 'basic', label: 'Basic Info', icon: <Package className="w-5 h-5" />, description: 'Route, status, ETA' },
-    { id: 'vehicle', label: 'Vehicle', icon: <Truck className="w-5 h-5" />, description: 'Truck type and load' },
-    { id: 'driver', label: 'Driver', icon: <User className="w-5 h-5" />, description: 'Assigned driver' },
-    { id: 'orders', label: 'Order Selection', icon: <ShoppingCart className="w-5 h-5" />, description: 'Assign orders' },
-  ];
+  const tabs: Tab[] = TAB_IDS.map((id) => ({
+    id,
+    label: translateWizardTab(id),
+    icon: TAB_ICONS[id],
+    description: translateWizardTabDesc(id),
+  }));
 
   useEffect(() => {
     if (!fleetId || user?.id == null) {
@@ -119,7 +130,7 @@ export default function EditFleetPage() {
       .then((fleet) => {
         if (cancelled) return;
         if (!fleet) {
-          alert('Fleet not found');
+          alert(tDetailsPage('notFound'));
           router.push('/logistics');
           return;
         }
@@ -168,7 +179,7 @@ export default function EditFleetPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          alert('Failed to load fleet');
+          alert(tPage('loadFailed'));
           router.push('/logistics');
         }
       })
@@ -252,11 +263,11 @@ export default function EditFleetPage() {
     try {
       await performSave();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update fleet.';
+      const message = error instanceof Error ? error.message : tEditPage('updateFailed');
       if (message.includes('already assigned to another fleet')) {
-        alert(message + ' Remove them from the selection or assign them in the other fleet first.');
+        alert(message + tEditPage('conflictSuffix'));
       } else {
-        alert(message || 'Failed to update fleet. Please try again.');
+        alert(message || tEditPage('updateFailedRetry'));
       }
     } finally {
       setIsSaving(false);
@@ -339,7 +350,7 @@ export default function EditFleetPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading fleet data...</p>
+          <p className="text-gray-600">{tEditPage('loading')}</p>
         </div>
       </div>
     );
@@ -354,11 +365,11 @@ export default function EditFleetPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Details
+            {tEditPage('backToDetails')}
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Edit Fleet / Truck</h1>
-            <p className="text-gray-500 text-sm">Update fleet information</p>
+            <h1 className="text-2xl font-bold text-black">{tEditPage('title')}</h1>
+            <p className="text-gray-500 text-sm">{tEditPage('subtitle')}</p>
           </div>
         </div>
         <button
@@ -366,7 +377,7 @@ export default function EditFleetPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-[#0a61d7] text-white hover:bg-[#084ba6] transition-colors"
         >
           <CheckCircle className="w-4 h-4" />
-          Save Changes
+          {tEditPage('saveChanges')}
         </button>
       </div>
 
