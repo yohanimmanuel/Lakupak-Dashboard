@@ -1,7 +1,10 @@
+'use client';
+
 import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { SupplyDetail } from '@/types/client';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 const supplyFields = [
   { key: 'sku', label: 'SKU Number (Optional)' },
@@ -49,7 +52,8 @@ function removeCurrencyIdentifier(value: string | undefined): string {
 }
 
 export default function ImportSuppliesModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (supplies: SupplyDetail[]) => void }) {
-  
+  const { tImport } = useClientsTranslations();
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -70,14 +74,14 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
     
     // File size validation (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB.');
+      setError(tImport('fileTooLarge'));
       return;
     }
     
     // File type validation
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['xlsx', 'xls', 'csv'].includes(ext || '')) {
-      setError('Please upload a valid Excel (.xlsx, .xls) or CSV file.');
+      setError(tImport('invalidFileType'));
       return;
     }
     
@@ -88,7 +92,7 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
     reader.onload = (evt: ProgressEvent<FileReader>) => {
       try {
         if (!evt.target || !evt.target.result) {
-          setError('File read error.');
+          setError(tImport('fileReadError'));
           return;
         }
         
@@ -105,19 +109,19 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
         const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
         
         if (!json.length) {
-          setError('File is empty or invalid.');
+          setError(tImport('fileEmpty'));
           return;
         }
         
         // Validate minimum required rows (header + at least 1 data row)
         if (json.length < 2) {
-          setError('File must contain at least one data row.');
+          setError(tImport('fileMinRows'));
           return;
         }
         
         const fileHeadersRow = (json[0] as string[]).map(h => h.trim()).filter(h => h);
         if (fileHeadersRow.length === 0) {
-          setError('File must contain valid column headers.');
+          setError(tImport('fileHeadersRequired'));
           return;
         }
         
@@ -132,14 +136,14 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
         setMapping(getAutomap(fileHeadersRow));
         setStep(1); // mapping step
       } catch {
-        setError('Failed to process file. Please ensure it\'s a valid Excel or CSV file.');
+        setError(tImport('fileProcessFailed'));
       } finally {
         setIsProcessing(false);
       }
     };
     
     reader.onerror = () => {
-      setError('Failed to read file.');
+      setError(tImport('fileReadFailed'));
       setIsProcessing(false);
     };
     
@@ -173,14 +177,14 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
     
     // Only validate that we have at least some data to import
     if (mappedRows.length === 0) {
-      errors.push('No data found to import');
+      errors.push(tImport('noDataToImport'));
       return errors;
     }
     
     // Check if at least one field is mapped
     const hasAnyMapping = Object.keys(mapping).some(key => mapping[key]);
     if (!hasAnyMapping) {
-      errors.push('Please map at least one column to a field');
+      errors.push(tImport('mapAtLeastOne'));
       return errors;
     }
     
@@ -212,7 +216,7 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
       <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
         <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}><X className="w-5 h-5 text-black" /></button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#0a61d7]" /> Import Supplies Data
+          <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('titleSupplies')}
         </h2>
         {step === 0 && (
           <div className="flex flex-col items-center justify-center gap-4 py-8">
@@ -229,7 +233,7 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
                 <Upload className="w-8 h-8 text-[#0a61d7]" />
               )}
               <span className="text-[#0a61d7] font-semibold">
-                {isProcessing ? 'Processing file...' : 'Click to upload .xlsx or .csv file'}
+                {isProcessing ? tImport('uploadProcessing') : tImport('upload')}
               </span>
               {filename && <span className="text-xs text-gray-500">{filename}</span>}
             </button>
@@ -238,15 +242,14 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
         )}
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
-            <div className="mb-2 font-semibold text-black">Map your columns to the required fields:</div>
+            <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             
             {/* Info Message */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <div className="flex items-center gap-2 text-blue-800 text-sm">
                 <Info className="w-4 h-4" />
                 <span>
-                  <strong>Flexible Import:</strong> All fields are optional. Map only the columns you have data for. 
-                  Unmapped fields will remain blank.
+                  <strong>{tImport('flexibleImport')}</strong> {tImport('flexibleImportHint')}
                 </span>
               </div>
             </div>
@@ -254,21 +257,21 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">Field</th>
-                    <th className="py-2 px-3 font-medium uppercase">Map to Column</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('field')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('mapToColumn')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {supplyFields.map(f => (
                     <tr key={f.key} className="whitespace-nowrap">
-                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
+                      <td className="py-1 px-3 font-semibold text-black">{tImport(`supplyFields.${f.key}`)}</td>
                       <td className="py-1 px-3">
                         <select
                           className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
                           value={mapping[f.key] || ''}
                           onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
                         >
-                          <option value="">-- Not Mapped --</option>
+                          <option value="">{tImport('notMapped')}</option>
                           {fileHeaders.map(h => (
                             <option key={h} value={h}>{h}</option>
                           ))}
@@ -280,21 +283,21 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
               </table>
             </div>
             <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); setValidationErrors([]); }}>Back</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>Preview</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); setValidationErrors([]); }}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
             </div>
           </div>
         )}
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 mb-2 text-black">
-              <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {getMappedRows().length} supplies to import
+              <Eye className="w-4 h-4 text-[#0a61d7]" /> {tImport('previewSupplies', { count: getMappedRows().length })}
             </div>
             
             {/* Validation Errors */}
             {validationErrors.length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="text-red-700 text-sm font-medium mb-2">Please fix the following errors:</div>
+                <div className="text-red-700 text-sm font-medium mb-2">{tImport('fixErrors')}</div>
                 <ul className="text-red-600 text-xs space-y-1">
                   {validationErrors.map((error, index) => (
                     <li key={index}>• {error}</li>
@@ -307,7 +310,7 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    {supplyFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{f.label}</th>)}
+                    {supplyFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{tImport(`supplyFields.${f.key}`)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -320,8 +323,8 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
               </table>
             </div>
             <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setValidationErrors([]); }}>Back</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleImport}><CheckCircle2 className="w-4 h-4" /> Import</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setValidationErrors([]); }}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleImport}><CheckCircle2 className="w-4 h-4" /> {tImport('importButton')}</button>
             </div>
           </div>
         )}

@@ -13,11 +13,13 @@ import { OfferProduct } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { computeOfferDates } from '@/utils/offerUtils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 export default function OffersDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUserStore();
+  const { tDetailsPage, translateWizardTab, translateWizardTabDesc, translateOfferStatus } = useOffersTranslations();
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(null);
   const [originalOffer, setOriginalOffer] = useState<Offer | null>(null);
@@ -241,12 +243,12 @@ export default function OffersDetailsPage() {
           }
         } else {
           if (!ignore) {
-            setError('Offer not found');
+            setError(tDetailsPage('notFound'));
           }
         }
       } catch (error) {
         if (!ignore) {
-          setError('Failed to load offer');
+          setError(tDetailsPage('loadFailed'));
         }
       } finally {
         if (!ignore) {
@@ -654,7 +656,7 @@ export default function OffersDetailsPage() {
         window.location.reload();
       }, 2000);
     } catch (error) {
-      alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(tDetailsPage('saveFailed', { error: error instanceof Error ? error.message : 'Unknown error' }));
     } finally {
       setIsSaving(false);
     }
@@ -682,30 +684,10 @@ export default function OffersDetailsPage() {
   }, [hasUnsavedChanges]);
 
   const tabs = [
-    { 
-      id: 'type', 
-      label: 'Offer Type', 
-      icon: <Target className="w-5 h-5" />,
-      description: 'Discount types and rules'
-    },
-    { 
-      id: 'range', 
-      label: 'Date Range', 
-      icon: <Calendar className="w-5 h-5" />,
-      description: 'Time periods and scheduling'
-    },
-    { 
-      id: 'products', 
-      label: 'Products', 
-      icon: <Package className="w-5 h-5" />,
-      description: 'Product selection and targeting'
-    },
-    { 
-      id: 'analytics', 
-      label: 'Analytics', 
-      icon: <BarChart3 className="w-5 h-5" />,
-      description: 'Performance metrics analysis'
-    },
+    { id: 'type', icon: <Target className="w-5 h-5" /> },
+    { id: 'range', icon: <Calendar className="w-5 h-5" /> },
+    { id: 'products', icon: <Package className="w-5 h-5" /> },
+    { id: 'analytics', icon: <BarChart3 className="w-5 h-5" /> },
   ];
 
   // Show loading state (following products module pattern)
@@ -714,7 +696,7 @@ export default function OffersDetailsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading offer...</p>
+          <p className="text-gray-600">{tDetailsPage('loading')}</p>
         </div>
       </div>
     );
@@ -725,12 +707,12 @@ export default function OffersDetailsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Offer not found'}</p>
+          <p className="text-red-600 mb-4">{error || tDetailsPage('notFound')}</p>
           <button 
             onClick={() => router.push('/offers')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
           >
-            Back to Offers
+            {tDetailsPage('backToOffers')}
           </button>
         </div>
       </div>
@@ -774,7 +756,7 @@ export default function OffersDetailsPage() {
           <button
             onClick={() => {
               if (hasUnsavedChanges) {
-                if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                if (confirm(tDetailsPage('unsavedLeaveConfirm'))) {
                   router.back();
                 }
               } else {
@@ -784,15 +766,15 @@ export default function OffersDetailsPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {tDetailsPage('back')}
           </button>
           <div>
             <h1 className="text-2xl font-bold text-black">
-              {currentOffer?.name || 'Offers & Incentives'}
+              {currentOffer?.name || tDetailsPage('defaultTitle')}
             </h1>
             <p className="text-gray-500 text-sm">
-              Advanced offer management and analytics
-              {hasUnsavedChanges && <span className="ml-2 text-orange-600 font-medium">• Unsaved changes</span>}
+              {tDetailsPage('subtitle')}
+              {hasUnsavedChanges && <span className="ml-2 text-orange-600 font-medium">• {tDetailsPage('unsavedChanges')}</span>}
             </p>
           </div>
         </div>
@@ -807,12 +789,12 @@ export default function OffersDetailsPage() {
                   hasExpiredDateRanges(currentOffer) ? 'border-orange-300 bg-orange-50' : ''
                 }`}
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                title="Change offer status"
+                title={tDetailsPage('changeStatusTitle')}
               >
-                {(currentOffer.status || 'active').charAt(0).toUpperCase() + (currentOffer.status || 'active').slice(1)}
+                {translateOfferStatus(currentOffer.status || 'active')}
                 {hasExpiredDateRanges(currentOffer) && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs font-medium bg-orange-500 text-white rounded">
-                    Expired
+                    {translateOfferStatus('expired')}
                   </span>
                 )}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
@@ -829,9 +811,9 @@ export default function OffersDetailsPage() {
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
-                    title="Set to Active"
+                    title={tDetailsPage('setActiveTitle')}
                   >
-                    Active
+                    {translateOfferStatus('active')}
                   </button>
                   <button
                     onClick={() => {
@@ -843,9 +825,9 @@ export default function OffersDetailsPage() {
                         ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
-                    title="Set to Inactive"
+                    title={tDetailsPage('setInactiveTitle')}
                   >
-                    Inactive
+                    {translateOfferStatus('inactive')}
                   </button>
                 </div>
               )}
@@ -857,7 +839,7 @@ export default function OffersDetailsPage() {
             className="flex items-center gap-2 text-sm px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
           >
             <X className="w-4 h-4" />
-            Cancel
+            {tDetailsPage('cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -865,7 +847,7 @@ export default function OffersDetailsPage() {
             className="flex items-center gap-2 text-sm px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? tDetailsPage('saving') : tDetailsPage('saveChanges')}
           </button>
         </div>
       </div>
@@ -885,11 +867,11 @@ export default function OffersDetailsPage() {
             >
               {tab.icon}
               <div className="text-left">
-                <div>{tab.label}</div>
+                <div>{translateWizardTab(tab.id)}</div>
                 <div className={`text-xs ${
                   activeTab === tab.id ? 'text-white/80' : 'text-gray-400'
                 }`}>
-                  {tab.description}
+                  {translateWizardTabDesc(tab.id)}
                 </div>
               </div>
             </button>
@@ -907,12 +889,10 @@ export default function OffersDetailsPage() {
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-orange-900 mb-1">
-              This offer has expired from the date range
+              {tDetailsPage('expiredBannerTitle')}
             </h3>
             <p className="text-sm text-orange-700">
-              All active date ranges have passed. The offer status has been automatically set to &quot;Inactive&quot;. 
-              To reactivate this offer, update the date ranges in the &quot;Date Range&quot; tab to include future dates, and the status will automatically change back to &quot;Active&quot;.
-              You can also delete this offer and create a new one if you need to run a similar promotion.
+              {tDetailsPage('expiredBannerBody')}
             </p>
           </div>
         </div>
@@ -931,8 +911,8 @@ export default function OffersDetailsPage() {
               <CheckCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
-              <p className="text-xs text-white/90">All your changes have been saved to the database.</p>
+              <h3 className="text-md font-semibold">{tDetailsPage('successTitle')}</h3>
+              <p className="text-xs text-white/90">{tDetailsPage('successBody')}</p>
             </div>
           </div>
         </div>

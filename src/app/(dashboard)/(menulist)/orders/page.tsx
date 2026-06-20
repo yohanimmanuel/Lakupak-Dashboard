@@ -12,8 +12,10 @@ import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { OrdersTourBanner } from '@/components/tours/OrdersTourBanner';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 export default function OrdersPage() {
+  const { tList } = useOrdersTranslations();
   const user = useUserStore(state => state.user);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
@@ -39,10 +41,10 @@ export default function OrdersPage() {
       if (orders.length > 0) {
         setIsSlidingOut(false);
         setIsSlidingIn(true);
-        setOverlayMessage('Refreshing order data');
+        setOverlayMessage(tList('refreshingOverlay'));
       } else {
         setIsSlidingIn(true);
-        setOverlayMessage('Loading order data...');
+        setOverlayMessage(tList('loadingOverlay'));
       }
 
       // For backward compatibility, fetch orders without userId if user not authenticated
@@ -54,12 +56,12 @@ export default function OrdersPage() {
       const data = await response.json();
       const list: Order[] = data.orders || [];
       setOrders(list);
-      setOverlayMessage(`Showing order data (${list.length})`);
+      setOverlayMessage(tList('loadedOverlay', { count: list.length }));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch orders');
+      setError(err instanceof Error ? err.message : tList('errorOverlay'));
       setOrders([]);
-      setOverlayMessage('Error loading orders');
+      setOverlayMessage(tList('errorOverlay'));
     } finally {
       setLoading(false);
       // Complete slide-in animation and show overlay
@@ -158,9 +160,9 @@ export default function OrdersPage() {
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div data-tour="orders-page-header">
-              <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{tList('title')}</h1>
               <p className="text-sm text-gray-600 mt-2">
-                Track and manage all your B2B marketplace orders
+                {tList('subtitle')}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3" data-tour="orders-actions">
@@ -170,21 +172,21 @@ export default function OrdersPage() {
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                {tList('refresh')}
               </button>
               <button
                 onClick={async () => { await fetchArchived(); setShowArchivedModal(true); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
               >
                 <Archive className="w-4 h-4" />
-                Archived Orders
+                {tList('archivedOrders')}
               </button>
               <button
                 onClick={exportOrdersXLSX}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
               >
                 <Download className="w-4 h-4" />
-                Export Data
+                {tList('exportData')}
               </button>
             </div>
           </div>
@@ -194,14 +196,14 @@ export default function OrdersPage() {
         {error && !loading && (
           <div className="text-center py-12">
             <div className="text-red-600 mb-4">
-              <p className="text-lg font-semibold">Error loading orders</p>
+              <p className="text-lg font-semibold">{tList('errorTitle')}</p>
               <p className="text-sm">{error}</p>
             </div>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
-              Retry
+              {tList('retry')}
             </button>
           </div>
         )}
@@ -246,7 +248,7 @@ export default function OrdersPage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
                 <p className="text-xs text-gray-500">
-                  {loading ? 'Please wait...' : `${orders.length} order${orders.length !== 1 ? 's' : ''} loaded`}
+                  {loading ? tList('pleaseWait') : orders.length === 1 ? tList('ordersLoaded', { count: orders.length }) : tList('ordersLoadedPlural', { count: orders.length })}
                 </p>
               </div>
             </div>
@@ -258,12 +260,12 @@ export default function OrdersPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg border border-[#e6e6e6] w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden">
               <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Archived Orders</h3>
-                <button onClick={() => setShowArchivedModal(false)} className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm text-gray-700 hover:bg-gray-100">Close</button>
+                <h3 className="text-lg font-semibold text-gray-900">{tList('archivedTitle')}</h3>
+                <button onClick={() => setShowArchivedModal(false)} className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm text-gray-700 hover:bg-gray-100">{tList('close')}</button>
               </div>
               <div className="p-4 overflow-auto" style={{maxHeight:'70vh'}}>
                 {archivedOrders.length === 0 ? (
-                  <div className="text-center text-gray-500 text-sm py-8">No archived orders</div>
+                  <div className="text-center text-gray-500 text-sm py-8">{tList('noArchived')}</div>
                 ) : (
                   <ul className="divide-y divide-gray-200">
                     {archivedOrders.map((o) => (
@@ -271,7 +273,7 @@ export default function OrdersPage() {
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-gray-900">{o.orderId}</div>
                           <div className="text-xs text-gray-500">
-                            {o.contactPerson} • {new Date(o.orderDate).toLocaleDateString()} • {o.orderItems.length} items
+                            {o.contactPerson} • {new Date(o.orderDate).toLocaleDateString()} • {tList('itemsCount', { count: o.orderItems.length })}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -282,7 +284,7 @@ export default function OrdersPage() {
                             onClick={() => window.location.href = `/orders/details/${o.orderId}`}
                             className="px-3 py-1 text-sm text-[#0a61d7] border border-[#e6e6e6] rounded-lg hover:bg-gray-50 inline-flex items-center gap-1"
                           >
-                            <Eye className="w-4 h-4" /> View
+                            <Eye className="w-4 h-4" /> {tList('view')}
                           </button>
                           <button
                             onClick={async () => {
@@ -297,7 +299,7 @@ export default function OrdersPage() {
                             }}
                             className="px-3 py-1 text-sm text-gray-700 border border-[#e6e6e6] rounded-lg hover:bg-gray-50"
                           >
-                            Unarchive
+                            {tList('unarchive')}
                           </button>
                         </div>
                       </li>

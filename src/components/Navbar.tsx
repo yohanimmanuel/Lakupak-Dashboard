@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
+import { useTranslations } from 'next-intl';
 
 const DROPDOWN_WIDTH = 300;
 
@@ -124,6 +125,7 @@ interface DriverRequestMetadata {
 
 const Navbar = () => {
   const user = useUserStore(state => state.user);
+  const tCommon = useTranslations('dashboard.common');
   const clearUser = useUserStore(state => state.clearUser);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -466,7 +468,7 @@ const Navbar = () => {
       </button>
       {/* SEARCH BAR - Hidden on Mobile */}
       <div className="hidden sm:flex flex-1 items-left justify-left" data-tour="quick-search">
-        <DashboardSearchBar />
+        <DashboardSearchBar placeholder={tCommon('searchPlaceholder')} />
       </div>
       {/* NAVBAR GROUPS */}
       <div className="flex items-center gap-2 justify-end">

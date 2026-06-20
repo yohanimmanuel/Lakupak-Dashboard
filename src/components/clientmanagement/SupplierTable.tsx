@@ -9,6 +9,7 @@ import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -30,6 +31,7 @@ interface SupplierTableProps {
 
 export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: SupplierTableProps) {
   const user = useUserStore(state => state.user);
+  const { tShared, tSuppliers, translateStatus, translateStatusTab, translateFilter, translatePeriod } = useClientsTranslations();
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -278,7 +280,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
@@ -288,10 +290,11 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           <div className="relative w-full md:w-64">
             <input
               type="text"
-              placeholder="Search suppliers..."
+              placeholder={tShared('selection.searchSuppliers')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+              aria-label={tShared('selection.searchSuppliers')}
             />
             <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
           </div>
@@ -305,7 +308,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               }}
             >
               <Filter className="w-4 h-4" />
-              {filter}
+              {translateFilter(filter)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showFilterDropdown && (
@@ -316,7 +319,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     onClick={() => { setFilter(opt); setShowFilterDropdown(false); }}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${filter === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
                   >
-                    {opt}
+                    {translateFilter(opt)}
                   </button>
                 ))}
               </div>
@@ -332,7 +335,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               }}
             >
               <Calendar className="w-4 h-4" />
-              {period}
+              {translatePeriod(period)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showPeriodDropdown && (
@@ -343,7 +346,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     onClick={() => { setPeriod(opt); setShowPeriodDropdown(false); }}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${period === opt ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
                   >
-                    {opt}
+                    {translatePeriod(opt)}
                   </button>
                 ))}
               </div>
@@ -363,22 +366,23 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   {selectedSuppliers.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedSuppliers.length === 1 ? 'supplier' : 'suppliers'} selected
+                  {selectedSuppliers.length === 1
+                    ? tShared('selection.supplierSelected', { count: selectedSuppliers.length })
+                    : tShared('selection.suppliersSelected', { count: selectedSuppliers.length })}
                 </span>
               </div>
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
-              {selectedSuppliers.length === 1 
-                ? 'Select supplier to be removed.'
-                : 'Select suppliers to be removed.'
-              }
+              {selectedSuppliers.length === 1
+                ? tShared('selection.selectSupplierRemove')
+                : tShared('selection.selectSuppliersRemove')}
             </div>
             <button
               onClick={handleBulkRemove}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
             >
               <Trash className="w-4 h-4" />
-              {selectedSuppliers.length === 1 ? 'Remove Supplier' : 'Remove Selected'}
+              {selectedSuppliers.length === 1 ? tShared('selection.removeSupplier') : tShared('selection.removeSuppliers')}
             </button>
           </div>
           
@@ -390,23 +394,24 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   {selectedSuppliers.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedSuppliers.length === 1 ? 'supplier' : 'suppliers'} selected
+                  {selectedSuppliers.length === 1
+                    ? tShared('selection.supplierSelected', { count: selectedSuppliers.length })
+                    : tShared('selection.suppliersSelected', { count: selectedSuppliers.length })}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
-                {selectedSuppliers.length === 1 
-                  ? 'Select supplier to be removed.'
-                  : 'Select suppliers to be removed.'
-                }
+                {selectedSuppliers.length === 1
+                  ? tShared('selection.selectSupplierRemove')
+                  : tShared('selection.selectSuppliersRemove')}
               </span>
               <button
                 onClick={handleBulkRemove}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
               >
                 <Trash className="w-4 h-4" />
-                {selectedSuppliers.length === 1 ? 'Remove Supplier' : 'Remove Selected'}
+                {selectedSuppliers.length === 1 ? tShared('selection.removeSupplier') : tShared('selection.removeSuppliers')}
               </button>
             </div>
           </div>
@@ -479,7 +484,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-amber-700 text-sm">
-              ⚠️ <strong>Data Completion:</strong> {missingDataCount} supplier{missingDataCount !== 1 ? 's' : ''} in this view have missing data that could be completed.
+              ⚠️ <strong>{tShared('missing.dataCompletion')}</strong>{' '}
+              {tShared('missing.suppliersIncomplete', { count: missingDataCount })}
             </p>
           </div>
         ) : null;
@@ -489,7 +495,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         {filteredSuppliers.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No suppliers recorded</p>
+            <p className="text-sm">{tSuppliers('empty')}</p>
           </div>
         ) : (
           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
@@ -511,15 +517,15 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                     )}
                   </button>
                 </th>
-                <th className="py-3 px-4 font-medium uppercase">ID</th>
-                <th className="py-3 px-4 font-medium uppercase">Name</th>
-                <th className="py-3 px-4 font-medium uppercase">Business Type</th>
-                <th className="py-3 px-4 font-medium uppercase">Location</th>
-                <th className="py-3 px-4 font-medium uppercase">Total Supplies</th>
-                <th className="py-3 px-4 font-medium uppercase">Total Purchases</th>
-                <th className="py-3 px-4 font-medium uppercase">Created At</th>
-                <th className="py-3 px-4 font-medium uppercase">Status</th>
-                <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.id')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.name')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.businessType')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.location')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalSupplies')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalPurchases')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.createdAt')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.status')}</th>
+                <th className="py-3 px-4 font-medium uppercase text-center">{tShared('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -619,28 +625,28 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                       {String(supplier.name).trim() ? (
                         String(supplier.name)
                       ) : (
-                        <span className="text-red-600 font-bold">Missing Name</span>
+                        <span className="text-red-600 font-bold">{tShared('missing.name')}</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-black">
                       {String(supplier.businessType).trim() ? (
                         String(supplier.businessType)
                       ) : (
-                        <span className="text-red-600 font-bold">Missing Business Type</span>
+                        <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-black max-w-40 truncate">
                       {String(supplier.address).trim() ? (
                         String(supplier.address)
                       ) : (
-                        <span className="text-red-600 font-bold">Missing Address</span>
+                        <span className="text-red-600 font-bold">{tShared('missing.address')}</span>
                       )}
                     </td>
                 <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
-                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{String(supplier.status)}</span>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(supplier.status)}`}>{translateStatus(String(supplier.status))}</span>
                 </td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-2">
@@ -673,7 +679,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         {filteredSuppliers.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No suppliers recorded</p>
+            <p className="text-sm">{tSuppliers('empty')}</p>
           </div>
         ) : (
           <>
@@ -694,7 +700,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 )}
               </button>
               <span className="text-sm font-medium text-gray-700">
-                Select All ({filteredSuppliers.length} suppliers)
+                {tShared('selection.selectAllCountSuppliers', { count: filteredSuppliers.length })}
               </span>
             </div>
             
@@ -791,13 +797,13 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   )}
                 </button>
               </div>
-            <div className="text-xs text-gray-500">ID: <span className="text-black font-medium">{supplier.supplierId}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.id')} <span className="text-black font-medium">{supplier.supplierId}</span></div>
             <div className="flex items-center justify-between">
                               <span className="font-bold text-[#0a61d7]">
                   {String(supplier.name).trim() ? (
                     supplier.name
                   ) : (
-                    <span className="text-red-600 font-bold">Missing Name</span>
+                    <span className="text-red-600 font-bold">{tShared('missing.name')}</span>
                   )}
                 </span>
               <div className="flex items-center gap-2">
@@ -818,25 +824,25 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 </button>
               </div>
             </div>
-                            <div className="text-xs text-gray-500">Business Type: <span className="text-black font-medium">
+                            <div className="text-xs text-gray-500">{tShared('mobileLabels.businessType')} <span className="text-black font-medium">
                   {String(supplier.businessType).trim() ? (
                     supplier.businessType
                   ) : (
-                    <span className="text-red-600 font-bold">Missing Business Type</span>
+                    <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>
                   )}
                 </span></div>
-                          <div className="text-xs text-gray-500">Location: <span className="text-black font-medium">
+                          <div className="text-xs text-gray-500">{tShared('columns.location')}: <span className="text-black font-medium">
                 {String(supplier.address).trim() ? (
                   supplier.address
                 ) : (
-                  <span className="text-red-600 font-bold">Missing Address</span>
+                  <span className="text-red-600 font-bold">{tShared('missing.address')}</span>
                 )}
               </span></div>
-            <div className="text-xs text-gray-500">Total Supplies: <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
-            <div className="text-xs text-gray-500">Total Purchases: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</span></div>
-            <div className="text-xs text-gray-500">Created At: <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.totalSupplies')} <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.totalPurchases')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.createdAt')} <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">
-              Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{supplier.status}</span>
+              {tShared('mobileLabels.status')} <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(supplier.status)}`}>{translateStatus(String(supplier.status))}</span>
             </div>
             </div>
             );
@@ -849,7 +855,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
         {/* Left: Showing X to Y of Z */}
         <div className="text-sm text-gray-500">
-          Showing {fromRow} to {toRow} of {totalRows}
+          {tShared('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
         </div>
         {/* Right: Pagination Controls */}
         <div className="flex items-center gap-3">
@@ -857,7 +863,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            aria-label="Previous page"
+            aria-label={tShared('previousPage')}
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
@@ -876,7 +882,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            aria-label="Next page"
+            aria-label={tShared('nextPage')}
           >
             <ChevronRight className="w-4 h-4 text-gray-500" />
           </button>
@@ -888,26 +894,25 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Suppliers' : 'Delete Supplier'}
+              {isBulkDelete ? tShared('deleteModal.titleBulkSuppliers') : tShared('deleteModal.titleSingleSupplier')}
             </h2>
             <p className="mb-4 text-gray-500">
-              {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedSuppliers.length} supplier${selectedSuppliers.length === 1 ? '' : 's'}? This action cannot be undone.`
-                : 'Are you sure you want to delete this supplier? This action cannot be undone.'
-              }
+              {isBulkDelete
+                ? tShared('deleteModal.confirmBulkSuppliersCount', { count: selectedSuppliers.length })
+                : tShared('deleteModal.confirmSingleSupplier')}
             </p>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
                 onClick={handleDeleteCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
                 onClick={handleDeleteConfirm}
               >
-                Delete
+                {tShared('deleteModal.deleteButton')}
               </button>
             </div>
           </div>

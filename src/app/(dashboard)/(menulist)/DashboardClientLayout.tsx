@@ -7,6 +7,8 @@ import Navbar from '@/components/Navbar';
 import { useUserStore } from '@/store/userStore';
 import { useAuthHydration } from '@/hooks/useAuthHydration';
 import { TourProvider } from '@/components/tours/TourProvider';
+import { DashboardIntlProvider } from '@/components/DashboardIntlProvider';
+import { useTranslations } from 'next-intl';
 
 const MenuContext = createContext({
   isCollapsed: false,
@@ -69,16 +71,14 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   // Show loading state while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading dashboard...</div>
-        </div>
-      </div>
+      <DashboardIntlProvider>
+        <DashboardAuthLoading />
+      </DashboardIntlProvider>
     );
   }
 
   return (
+    <DashboardIntlProvider>
     <MenuContext.Provider value={{ isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu }}>
       <TourProvider>
       <div className="h-screen flex overflow-hidden relative" data-layout>
@@ -114,5 +114,18 @@ export default function DashboardClientLayout({ children }: { children: React.Re
       </div>
       </TourProvider>
     </MenuContext.Provider>
+    </DashboardIntlProvider>
+  );
+}
+
+function DashboardAuthLoading() {
+  const tCommon = useTranslations('dashboard.common');
+  return (
+    <div className="h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="text-gray-600">{tCommon('loadingDashboard')}</div>
+      </div>
+    </div>
   );
 }

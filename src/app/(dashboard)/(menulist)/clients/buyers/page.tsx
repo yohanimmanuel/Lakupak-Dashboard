@@ -10,6 +10,7 @@ import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerTableRow, BuyerFormData, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -69,6 +70,7 @@ function generateBuyerId() {
 }
 
 export default function BuyersPage() {
+  const { tBuyers, tShared } = useClientsTranslations();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -161,7 +163,7 @@ export default function BuyersPage() {
     if (buyers.length > 0) {
       setIsSlidingOut(false);
       setIsSlidingIn(true);
-      setOverlayMessage('Refreshing buyer data');
+      setOverlayMessage(tBuyers('refreshing'));
     }
     
     try {
@@ -199,13 +201,13 @@ export default function BuyersPage() {
       
       // Buyers data processed with analytics
       setBuyers(buyersWithAnalytics);
-      setOverlayMessage(`Showing buyer data (${buyersWithAnalytics.length})`);
+      setOverlayMessage(tBuyers('showingData', { count: buyersWithAnalytics.length }));
     } catch (error) {
       // Error fetching buyers
       console.error('Error loading buyers:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setBuyers([]);
-      setOverlayMessage(`Error loading buyers: ${errorMessage}`);
+      setOverlayMessage(tBuyers('errorLoading', { error: errorMessage }));
     } finally {
       setLoading(false);
       
@@ -227,12 +229,12 @@ export default function BuyersPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, buyers.length]); // Removed BUYERS_QUERY - it's a constant and shouldn't cause re-renders
+  }, [user?.id, buyers.length, tBuyers]); // Removed BUYERS_QUERY - it's a constant and shouldn't cause re-renders
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
     setIsSlidingIn(true);
-    setOverlayMessage('Loading buyer data...');
+    setOverlayMessage(tBuyers('loadingData'));
     
     fetchBuyers();
     
@@ -264,7 +266,7 @@ export default function BuyersPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading buyers...</p>
+          <p className="text-gray-600">{tBuyers('loading')}</p>
         </div>
       </div>
     );
@@ -274,8 +276,8 @@ export default function BuyersPage() {
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
-          <h2 className="text-2xl font-bold text-black mb-2">Buyers List</h2>
-          <p className="text-sm text-gray-500 mb-4">Manage your buyers and their information.</p>
+          <h2 className="text-2xl font-bold text-black mb-2">{tBuyers('title')}</h2>
+          <p className="text-sm text-gray-500 mb-4">{tBuyers('subtitle')}</p>
 
         </div>
         <div className="flex gap-2 items-center">
@@ -284,25 +286,25 @@ export default function BuyersPage() {
             onClick={fetchBuyers}
             disabled={loading}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {tShared('refresh')}
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={() => setShowImportModal(true)}
           >
-            <Upload className="w-4 h-4" /> Import Data
+            <Upload className="w-4 h-4" /> {tShared('importData')}
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={() => document.getElementById('buyer-table-export-xlsx-trigger')?.click()}
           >
-            <Download className="w-4 h-4" /> Export Data
+            <Download className="w-4 h-4" /> {tShared('exportData')}
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
             onClick={() => setShowAddModal(true)}
           >
-            <Plus className="w-4 h-4" /> Add Buyer
+            <Plus className="w-4 h-4" /> {tBuyers('addBuyer')}
           </button>
         </div>
       </div>
@@ -339,7 +341,7 @@ export default function BuyersPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               <p className="text-xs text-gray-500">
-                {loading ? 'Please wait...' : `${buyers.length} buyer${buyers.length !== 1 ? 's' : ''} loaded`}
+                {loading ? tShared('pleaseWait') : tBuyers('loaded', { count: buyers.length })}
               </p>
             </div>
           </div>
@@ -527,17 +529,17 @@ export default function BuyersPage() {
             
             // Show success/error feedback
             if (successCount > 0) {
-              setUpdateSuccess(`Successfully imported ${successCount} buyer${successCount !== 1 ? 's' : ''}`);
+              setUpdateSuccess(tBuyers('importSuccess', { count: successCount }));
             }
             if (errorCount > 0) {
-              setUpdateError(`Failed to import ${errorCount} buyer${errorCount !== 1 ? 's' : ''}.`);
+              setUpdateError(tBuyers('importFailedCount', { count: errorCount }));
             }
             
             // Refresh data
             await fetchBuyers();
             
           } catch (error) {
-            setUpdateError('Failed to process import data');
+            setUpdateError(tBuyers('importFailed'));
           } finally {
             setLoading(false);
           }

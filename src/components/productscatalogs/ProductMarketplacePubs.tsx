@@ -5,8 +5,9 @@ import { Product, ProductTableRow } from "@/types/product";
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 const PUBLISH_MARKETPLACE_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -52,11 +53,17 @@ export default function ProductMarketplacePubs({
   isProductComplete 
 }: ProductMarketplacePubsProps) {
   const user = useUserStore(state => state.user);
+  const { tMarketplace } = useProductsTranslations();
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  const translateMissingField = (field: string) =>
+    tMarketplace.has(`missingFields.${field}` as 'missingFields.SKU')
+      ? tMarketplace(`missingFields.${field}` as 'missingFields.SKU')
+      : field;
   
   // Handle publish to marketplace
   const handlePublish = async () => {
@@ -65,7 +72,7 @@ export default function ProductMarketplacePubs({
       setError('');
       
       if (!user?.id) {
-        throw new Error('User not authenticated');
+        throw new Error(tMarketplace('userNotAuthenticated'));
       }
       
       if (isBulkPublish) {
@@ -87,13 +94,13 @@ export default function ProductMarketplacePubs({
           
         if (!result.bulkPublishMarketplaceProducts?.success && result.bulkPublishMarketplaceProducts?.failed.length > 0) {
             throw new Error(
-            result.bulkPublishMarketplaceProducts.message || `Failed to publish ${result.bulkPublishMarketplaceProducts.failed.length} product(s)`
+            result.bulkPublishMarketplaceProducts.message || tMarketplace('bulkPublishFailed', { count: result.bulkPublishMarketplaceProducts.failed.length })
             );
           }
       } else {
         // Single product publish - check if product is complete
         if (isProductComplete && !isProductComplete(product.productId)) {
-          throw new Error('Cannot publish product with incomplete data. Please complete all required fields and add product images.');
+          throw new Error(tMarketplace('incompleteData'));
         }
         
         const result = await fetchGraphQL<{
@@ -106,7 +113,7 @@ export default function ProductMarketplacePubs({
         
         if (!result.publishMarketplaceProduct?.success) {
           throw new Error(
-            result.publishMarketplaceProduct?.message || 'Failed to publish product',
+            result.publishMarketplaceProduct?.message || tMarketplace('publishFailed'),
           );
         }
       }
@@ -121,7 +128,7 @@ export default function ProductMarketplacePubs({
         onClose();
       }, 2000);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to publish product. Please try again.');
+      setError(error instanceof Error ? error.message : tMarketplace('publishError'));
     } finally {
       setPublishing(false);
     }
@@ -154,7 +161,7 @@ export default function ProductMarketplacePubs({
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <h2 className="text-lg font-semibold text-gray-900">
-              {isBulkPublish ? `Bulk Publish (${selectedCount} products)` : 'Marketplace Preview'}
+              {isBulkPublish ? tMarketplace('bulkPublishTitle', { count: selectedCount }) : tMarketplace('title')}
             </h2>
           </div>
           <button
@@ -172,10 +179,10 @@ export default function ProductMarketplacePubs({
             <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-center gap-2">
                 <span className="text-amber-500">⚠️</span>
-                <p className="text-sm text-amber-800 font-medium">Selected product is incomplete</p>
+                <p className="text-sm text-amber-800 font-medium">{tMarketplace('incompleteWarningTitle')}</p>
               </div>
               <p className="text-xs text-amber-700 mt-1">
-                This product is missing required fields or images. Complete the missing data to publish.
+                {tMarketplace('incompleteWarningBody')}
               </p>
             </div>
           )}
@@ -192,16 +199,18 @@ export default function ProductMarketplacePubs({
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-green-800 font-medium">
-                        Ready to Publish ({canPublishCount} product{canPublishCount !== 1 ? 's' : ''})
+                        {canPublishCount === 1
+                          ? tMarketplace('readyToPublish', { count: canPublishCount })
+                          : tMarketplace('readyToPublishPlural', { count: canPublishCount })}
                       </p>
                       <p className="text-xs text-green-700 mt-1">
-                        These products have complete data and will be published to the marketplace.
+                        {tMarketplace('readyToPublishBody')}
                       </p>
                       {canPublishCount <= 3 && (
                         <div className="mt-2 space-y-1">
                           {completeProducts.map(product => (
                             <div key={product.productId} className="text-xs text-green-600 font-medium">
-                              • {product.name || 'Unnamed Product'}
+                              • {product.name || tMarketplace('unnamedProduct')}
                             </div>
                           ))}
                         </div>
@@ -220,10 +229,12 @@ export default function ProductMarketplacePubs({
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-amber-800 font-medium">
-                        Cannot Publish ({blockedCount} product{blockedCount !== 1 ? 's' : ''})
+                        {blockedCount === 1
+                          ? tMarketplace('cannotPublish', { count: blockedCount })
+                          : tMarketplace('cannotPublishPlural', { count: blockedCount })}
                       </p>
                       <p className="text-xs text-amber-700 mt-1">
-                        These products have incomplete data and will be skipped. Complete the missing fields to publish them later.
+                        {tMarketplace('cannotPublishBody')}
                       </p>
                       {blockedCount <= 3 && (
                         <div className="mt-2 space-y-1">
@@ -261,9 +272,11 @@ export default function ProductMarketplacePubs({
                             
                             return (
                               <div key={product.productId} className="text-xs text-amber-600">
-                                <div className="font-medium">• {product.name || 'Unnamed Product'}</div>
+                                <div className="font-medium">• {product.name || tMarketplace('unnamedProduct')}</div>
                                 {missingFields.length > 0 && (
-                                  <div className="text-amber-500 ml-2">Missing: {missingFields.join(', ')}</div>
+                                  <div className="text-amber-500 ml-2">
+                                    {tMarketplace('missing', { fields: missingFields.map(translateMissingField).join(', ') })}
+                                  </div>
                                 )}
                               </div>
                             );
@@ -272,7 +285,7 @@ export default function ProductMarketplacePubs({
                       )}
                       {blockedCount > 3 && (
                         <div className="mt-2 text-xs text-amber-600">
-                          And {blockedCount - 3} more products with incomplete data...
+                          {tMarketplace('andMoreIncomplete', { count: blockedCount - 3 })}
                         </div>
                       )}
                     </div>
@@ -288,9 +301,9 @@ export default function ProductMarketplacePubs({
                       <span className="text-red-600 text-xs">❌</span>
                     </div>
                     <div>
-                      <p className="text-sm text-red-800 font-medium">No Products Ready for Publishing</p>
+                      <p className="text-sm text-red-800 font-medium">{tMarketplace('noProductsReady')}</p>
                       <p className="text-xs text-red-700 mt-1">
-                        All selected products have incomplete data. Please complete the required fields before publishing.
+                        {tMarketplace('noProductsReadyBody')}
                       </p>
                     </div>
                   </div>
@@ -300,9 +313,9 @@ export default function ProductMarketplacePubs({
           )}
           
           <div className="text-center mb-4 p-4">
-             <p className="text-sm text-gray-600 mb-2">This is how your products will appear to customers:</p>
+             <p className="text-sm text-gray-600 mb-2">{tMarketplace('previewIntro')}</p>
              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-               📱 Laku Marketplace App
+               📱 {tMarketplace('marketplaceApp')}
              </div>
            </div>
 
@@ -317,7 +330,7 @@ export default function ProductMarketplacePubs({
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-gray-400 text-center">
                   <div className="w-20 h-20 bg-gray-200 rounded-lg mb-2 mx-auto"></div>
-                  <p className="text-sm">Product Image</p>
+                  <p className="text-sm">{tMarketplace('productImage')}</p>
                 </div>
               </div>
               
@@ -347,17 +360,17 @@ export default function ProductMarketplacePubs({
                          {/* Product Name & Rating */}
              <div className="mb-3">
                <div className="flex items-center gap-2 mb-2">
-                 <h3 className="text-lg font-semibold text-gray-900">Sample Premium Product Name</h3>
-                 <div className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-lg">BEST SELLER</div>
+                 <h3 className="text-lg font-semibold text-gray-900">{tMarketplace('sampleProductName')}</h3>
+                 <div className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-lg">{tMarketplace('bestSeller')}</div>
                </div>
                <div className="flex items-center gap-2 mb-2">
                  <div className="flex items-center gap-1">
                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
                    <span className="text-sm font-medium text-gray-700">4.8</span>
                  </div>
-                 <span className="text-sm text-gray-500">(127 reviews)</span>
+                 <span className="text-sm text-gray-500">{tMarketplace('reviews', { count: 127 })}</span>
                  <span className="text-xs text-gray-400">•</span>
-                 <span className="text-sm text-gray-500">Terjual 2.5rb+</span>
+                 <span className="text-sm text-gray-500">{tMarketplace('soldCount')}</span>
                </div>
              </div>
 
@@ -371,69 +384,71 @@ export default function ProductMarketplacePubs({
                   {formatCurrency(20000, userCurrency)}
                 </span>
                 <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded">
-                  25% OFF
+                  {tMarketplace('percentOff', { percent: 25 })}
                 </span>
               </div>
               
               
               <div className="text-xs text-gray-500 mt-1">
-                Shipping cost agreed between buyer and seller
+                {tMarketplace('shippingNote')}
               </div>
             </div>
 
             {/* Stock Status */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Stock:</span>
-              <span className="text-sm font-medium text-green-600">In Stock (150 units)</span>
+              <span className="text-sm text-gray-600">{tMarketplace('stock')}</span>
+              <span className="text-sm font-medium text-green-600">
+                {tMarketplace('inStockUnits', { count: 150 })}
+              </span>
             </div>
           </div>
 
           {/* 3. PRODUCT DETAILS */}
           <div className="p-4 border-b border-[#e6e6e6]">
-            <h4 className="font-semibold text-gray-900 mb-3">Product Details</h4>
+            <h4 className="font-semibold text-gray-900 mb-3">{tMarketplace('productDetails')}</h4>
             <div className="space-y-2 mb-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Brand:</span>
-                <span className="text-sm font-medium text-gray-900">Sample Brand</span>
+                <span className="text-sm text-gray-600">{tMarketplace('brand')}</span>
+                <span className="text-sm font-medium text-gray-900">{tMarketplace('sampleBrand')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Type:</span>
-                <span className="text-sm font-medium text-gray-900">Sample Type</span>
+                <span className="text-sm text-gray-600">{tMarketplace('type')}</span>
+                <span className="text-sm font-medium text-gray-900">{tMarketplace('sampleType')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Category:</span>
-                <span className="text-sm font-medium text-gray-900">Sample Category</span>
+                <span className="text-sm text-gray-600">{tMarketplace('category')}</span>
+                <span className="text-sm font-medium text-gray-900">{tMarketplace('sampleCategory')}</span>
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <h5 className="text-sm font-medium text-gray-900 mb-2">Description</h5>
+              <h5 className="text-sm font-medium text-gray-900 mb-2">{tMarketplace('description')}</h5>
               <p className="text-sm text-gray-600 leading-relaxed">
-                This is a sample product description that shows how your product information will be displayed to customers in the Laku marketplace app. The description will include all the details you&apos;ve provided about your product, features, specifications, and benefits.
+                {tMarketplace('sampleDescription')}
               </p>
             </div>
           </div>
 
           {/* 4. PRODUCT ASSURANCE */}
           <div className="p-4 border-b border-[#e6e6e6]">
-            <h4 className="font-semibold text-gray-900 mb-3">Product Assurance</h4>
+            <h4 className="font-semibold text-gray-900 mb-3">{tMarketplace('productAssurance')}</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
                 <span className="text-green-600">✅</span>
-                <span className="text-sm font-medium text-green-700">Halal Certified</span>
+                <span className="text-sm font-medium text-green-700">{tMarketplace('halalCertified')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
                 <span className="text-blue-600">🏛️</span>
-                <span className="text-sm font-medium text-blue-700">BPOM Approved</span>
+                <span className="text-sm font-medium text-blue-700">{tMarketplace('bpomApproved')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
                 <span className="text-purple-600">🔒</span>
-                <span className="text-sm font-medium text-purple-700">Original Product</span>
+                <span className="text-sm font-medium text-purple-700">{tMarketplace('originalProduct')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg">
                 <span className="text-orange-600">↩️</span>
-                <span className="text-sm font-medium text-orange-700">7 Days Return</span>
+                <span className="text-sm font-medium text-orange-700">{tMarketplace('daysReturn', { days: 7 })}</span>
               </div>
             </div>
           </div>
@@ -441,8 +456,8 @@ export default function ProductMarketplacePubs({
           {/* 5. CUSTOMER REVIEWS */}
           <div className="p-4 border-b border-[#e6e6e6]">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-gray-900">Customer Reviews</h4>
-              <button className="text-sm text-[#0a61d7]">View All (127)</button>
+              <h4 className="font-semibold text-gray-900">{tMarketplace('customerReviews')}</h4>
+              <button className="text-sm text-[#0a61d7]">{tMarketplace('viewAllReviews', { count: 127 })}</button>
             </div>
             
             {/* Rating Breakdown */}
@@ -454,7 +469,7 @@ export default function ProductMarketplacePubs({
                     <Star key={star} className="w-4 h-4 text-yellow-400 fill-current" />
                   ))}
                 </div>
-                <div className="text-xs text-gray-500">127 reviews</div>
+                <div className="text-xs text-gray-500">{tMarketplace('reviewsCount', { count: 127 })}</div>
               </div>
               <div className="flex-1 space-y-1">
                 {[5,4,3,2,1].map((rating) => (
@@ -491,7 +506,7 @@ export default function ProductMarketplacePubs({
                     <span className="text-xs text-gray-400">2 days ago</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    &quot;Excellent product quality! Fast delivery and great customer service. Highly recommended!&quot;
+                    {tMarketplace('sampleReview')}
                   </p>
                 </div>
               </div>
@@ -500,19 +515,19 @@ export default function ProductMarketplacePubs({
 
           {/* 6. SELLER INFORMATION */}
           <div className="p-4 border-b border-[#e6e6e6] bg-gray-50">
-            <h4 className="font-semibold text-gray-900 mb-3">Seller Information</h4>
+            <h4 className="font-semibold text-gray-900 mb-3">{tMarketplace('sellerInformation')}</h4>
               <div className="flex items-center gap-3 mb-3">
                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                  <span className="text-blue-600 font-bold text-sm">L</span>
                </div>
                <div>
                  <div className="flex items-center gap-2 mb-1">
-                   <p className="font-medium text-gray-900">Laku Official Store</p>
-                   <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">OFFICIAL STORE</div>
+                   <p className="font-medium text-gray-900">{tMarketplace('officialStore')}</p>
+                   <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">{tMarketplace('officialStoreBadge')}</div>
                  </div>
                  <div className="flex items-center gap-2">
                    <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                   <span className="text-xs text-gray-600">4.9 (2.1k+ ratings)</span>
+                   <span className="text-xs text-gray-600">{tMarketplace('storeRatings')}</span>
                  </div>
                </div>
              </div>
@@ -523,14 +538,14 @@ export default function ProductMarketplacePubs({
             <div className="flex gap-2">
               <button className="flex-1 bg-gray-100 text-gray-800 py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
                 <span className="text-sm">💬</span>
-                <span className="text-xs">Chat Now</span>
+                <span className="text-xs">{tMarketplace('chatNow')}</span>
               </button>
               <button className="flex-1 bg-[#0a61d7] text-white py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
                 <ShoppingCart className="w-4 h-4" />
-                <span className="text-xs">Add to Cart</span>
+                <span className="text-xs">{tMarketplace('addToCart')}</span>
               </button>
               <button className="flex-[2] bg-green-600 text-white py-1 px-4 rounded-lg font-semibold transition-colors">
-                Buy Now
+                {tMarketplace('buyNow')}
               </button>
             </div>
           </div>
@@ -543,9 +558,9 @@ export default function ProductMarketplacePubs({
                  <span className="text-blue-600 text-xs">ℹ</span>
                </div>
                <div>
-                 <p className="text-sm text-blue-800 font-medium">Complete Marketplace Template</p>
+                 <p className="text-sm text-blue-800 font-medium">{tMarketplace('templateTitle')}</p>
                  <p className="text-xs text-blue-700 mt-1">
-                   This shows the comprehensive design template that will be applied to all your published products in the Laku marketplace app. Your actual product details, images, pricing, and seller information will replace these sample placeholders.
+                   {tMarketplace('templateBody')}
                  </p>
                </div>
              </div>
@@ -564,7 +579,7 @@ export default function ProductMarketplacePubs({
       {success && (
         <div className="mx-4 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
           <span className="text-green-500">✅</span>
-          <span className="text-green-700 text-sm">Product published to marketplace successfully!</span>
+          <span className="text-green-700 text-sm">{tMarketplace('publishSuccess')}</span>
         </div>
       )}
 
@@ -574,7 +589,7 @@ export default function ProductMarketplacePubs({
           <button 
             onClick={onClose} 
             className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors">
-            Cancel
+            {tMarketplace('cancel')}
           </button>
           <button 
             onClick={handlePublish}
@@ -593,12 +608,14 @@ export default function ProductMarketplacePubs({
           >
             <Zap className="w-4 h-4" />
             {publishing 
-              ? 'Publishing...'
+              ? tMarketplace('publishing')
               : isBulkPublish 
                 ? canPublishCount === 0
-                  ? 'No Products to Publish'
-                  : `Publish ${canPublishCount} Product${canPublishCount !== 1 ? 's' : ''}`
-                : 'Publish'
+                  ? tMarketplace('noProductsToPublish')
+                  : canPublishCount === 1
+                    ? tMarketplace('publishCount', { count: canPublishCount })
+                    : tMarketplace('publishCountPlural', { count: canPublishCount })
+                : tMarketplace('publish')
             }
           </button>
         </div>

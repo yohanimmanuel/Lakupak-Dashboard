@@ -14,8 +14,21 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
-function getBuyerAnalytics(orderDetailsStr: string) {
+type ProfileFieldKey =
+  | 'storeName'
+  | 'owner'
+  | 'address'
+  | 'businessType'
+  | 'email'
+  | 'phone'
+  | 'preferredDays'
+  | 'lastOrderDate'
+  | 'shipmentSuccess'
+  | 'orderDetails';
+
+function getBuyerAnalytics(orderDetailsStr: string, locale: string) {
   if (!orderDetailsStr) return [];
   
   try {
@@ -48,7 +61,7 @@ function getBuyerAnalytics(orderDetailsStr: string) {
     });
     
     return sortedEntries.map(([monthKey, data]) => ({
-      month: data.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      month: data.date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
       orders: data.orders,
       spending: data.spending,
     }));
@@ -65,9 +78,13 @@ interface BuyerProfileProps {
 
 export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
-  
+  const { tBuyersProfile, tBuyersModal, tShared, translateStatus } = useClientsTranslations();
+  const dateLocale = user?.language === 'id' ? 'id-ID' : 'en-US';
+
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
+  const getFieldLabel = (key: ProfileFieldKey) =>
+    tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -128,7 +145,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     navigator.clipboard.writeText(text);
   };
   
-  const analyticsData = getBuyerAnalytics(buyer?.orderDetails || '');
+  const analyticsData = getBuyerAnalytics(buyer?.orderDetails || '', dateLocale);
   const totalOrders = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
   let totalSpend = 0;
   let currency = '';
@@ -168,16 +185,16 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             <ArrowLeft className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-black mb-1">Buyer Details</h2>
-            <p className="text-sm text-gray-500">View and manage buyer information.</p>
+            <h2 className="text-2xl font-bold text-black mb-1">{tBuyersProfile('title')}</h2>
+            <p className="text-sm text-gray-500">{tBuyersProfile('subtitle')}</p>
           </div>
         </div>
         <div className="flex gap-2 items-center mt-2 md:mt-0">
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleCopy}>
-            <Copy className="w-4 h-4" /> Copy Data
+            <Copy className="w-4 h-4" /> {tBuyersProfile('copyData')}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm" onClick={() => setShowEditModal(true)}>
-            <Edit className="w-4 h-4" /> Edit Details
+            <Edit className="w-4 h-4" /> {tBuyersProfile('editDetails')}
           </button>
         </div>
       </div>
@@ -185,17 +202,17 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       {/* Data Completion Progress */}
       {(() => {
         // Check all profile fields for missing data (excluding notes and pictures)
-        const basicFields = [
-          { name: 'Store Name', value: buyer.storeName && buyer.storeName.trim() },
-          { name: 'Owner', value: buyer.owner && buyer.owner.trim() },
-          { name: 'Address', value: buyer.address && buyer.address.trim() },
-          { name: 'Business Type', value: buyer.businessType && buyer.businessType.trim() },
-          { name: 'Email', value: buyer.email && buyer.email.trim() },
-          { name: 'Phone', value: buyer.phone && buyer.phone.trim() }
+        const basicFields: { key: ProfileFieldKey; value: boolean }[] = [
+          { key: 'storeName', value: !!(buyer.storeName && buyer.storeName.trim()) },
+          { key: 'owner', value: !!(buyer.owner && buyer.owner.trim()) },
+          { key: 'address', value: !!(buyer.address && buyer.address.trim()) },
+          { key: 'businessType', value: !!(buyer.businessType && buyer.businessType.trim()) },
+          { key: 'email', value: !!(buyer.email && buyer.email.trim()) },
+          { key: 'phone', value: !!(buyer.phone && buyer.phone.trim()) }
         ];
         
         // Check logistics fields
-        const logisticsFields = [];
+        const logisticsFields: { key: ProfileFieldKey; value: boolean }[] = [];
         try {
           if (buyer.logistics) {
             const logistics = JSON.parse(buyer.logistics);
@@ -210,9 +227,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             }
             
             logisticsFields.push(
-              { name: 'Preferred Days', value: logistics?.preferredDays?.trim() },
-              { name: 'Last Order Date', value: hasValidLastOrderDate },
-              { name: 'Shipment Success', value: logistics?.shipmentSuccess?.trim() }
+              { key: 'preferredDays', value: !!logistics?.preferredDays?.trim() },
+              { key: 'lastOrderDate', value: hasValidLastOrderDate },
+              { key: 'shipmentSuccess', value: !!logistics?.shipmentSuccess?.trim() }
             );
           } else {
             // Calculate if there's a valid last order date from order details
@@ -225,9 +242,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             }
             
             logisticsFields.push(
-              { name: 'Preferred Days', value: false },
-              { name: 'Last Order Date', value: hasValidLastOrderDate },
-              { name: 'Shipment Success', value: false }
+              { key: 'preferredDays', value: false },
+              { key: 'lastOrderDate', value: hasValidLastOrderDate },
+              { key: 'shipmentSuccess', value: false }
             );
           }
         } catch {
@@ -241,19 +258,19 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           }
           
           logisticsFields.push(
-            { name: 'Preferred Days', value: false },
-            { name: 'Last Order Date', value: hasValidLastOrderDate },
-            { name: 'Shipment Success', value: false }
+            { key: 'preferredDays', value: false },
+            { key: 'lastOrderDate', value: hasValidLastOrderDate },
+            { key: 'shipmentSuccess', value: false }
           );
         }
         
         // Check order details - must have actual order items with content
-        const orderFields = [];
+        const orderFields: { key: ProfileFieldKey; value: boolean }[] = [];
         try {
           if (buyer.orderDetails) {
             const orderDetails = JSON.parse(buyer.orderDetails);
             if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
-              orderFields.push({ name: 'Order Details', value: false });
+              orderFields.push({ key: 'orderDetails', value: false });
             } else {
               // Check if orders have meaningful content
               const hasValidOrders = orderDetails.some((order: OrderDetail) => 
@@ -261,13 +278,13 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 order.totalOrders && String(order.totalOrders).trim() &&
                 order.totalSpend && String(order.totalSpend).trim()
               );
-              orderFields.push({ name: 'Order Details', value: hasValidOrders });
+              orderFields.push({ key: 'orderDetails', value: hasValidOrders });
             }
           } else {
-            orderFields.push({ name: 'Order Details', value: false });
+            orderFields.push({ key: 'orderDetails', value: false });
           }
         } catch {
-          orderFields.push({ name: 'Order Details', value: false });
+          orderFields.push({ key: 'orderDetails', value: false });
         }
         
         const allFields = [...basicFields, ...logisticsFields, ...orderFields];
@@ -279,7 +296,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         return (
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+              <h3 className="text-sm font-semibold text-gray-800">{tBuyersProfile('profileCompletion')}</h3>
               <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
                 {completionPercentage}%
               </span>
@@ -293,10 +310,12 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               ></div>
             </div>
             <div className="text-xs text-gray-600">
-              {completedFields} of {totalFields} fields completed
+              {tBuyersProfile('fieldsCompleted', { completed: completedFields, total: totalFields })}
               {missingFields.length > 0 && (
                 <span className="ml-2 text-amber-700">
-                  • Missing: {missingFields.map(field => field.name).join(', ')}
+                  • {tBuyersProfile('missingFields', {
+                    fields: missingFields.map(field => getFieldLabel(field.key)).join(', '),
+                  })}
                 </span>
               )}
             </div>
@@ -316,40 +335,40 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             )}
           </div>
           <div className="text-lg font-bold text-black mt-2">
-            {buyer.owner && buyer.owner.trim() ? buyer.owner : <span className="text-red-600 font-bold">Missing Owner Name</span>}
+            {buyer.owner && buyer.owner.trim() ? buyer.owner : <span className="text-red-600 font-bold">{tShared('missing.ownerName')}</span>}
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <Mail className="w-4 h-4" />
-            <span>{buyer.email && buyer.email.trim() ? buyer.email : <span className="text-red-600 font-bold">Missing Email</span>}</span>
+            <span>{buyer.email && buyer.email.trim() ? buyer.email : <span className="text-red-600 font-bold">{tShared('missing.email')}</span>}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
             <Phone className="w-3 h-3" />
-            <span>{buyer.phone && buyer.phone.trim() ? buyer.phone : <span className="text-red-600 font-bold">Missing Phone</span>}</span>
+            <span>{buyer.phone && buyer.phone.trim() ? buyer.phone : <span className="text-red-600 font-bold">{tShared('missing.phone')}</span>}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-500 text-xs">
-            <span className="font-medium text-gray-500">ID: {buyer.buyerId}</span>
+            <span className="font-medium text-gray-500">{tShared('mobileLabels.id')} {buyer.buyerId}</span>
           </div>
         </div>
         {/* General Info */}
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">General Information</div>
+          <div className="absolute left-4 top-4 text-md font-bold text-black">{tBuyersProfile('generalInfo')}</div>
             <div className="flex flex-col gap-4 mt-4">
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Store className="w-4 h-5" />
                 <span className="font-semibold text-black text-sm">
-                  {buyer.storeName && buyer.storeName.trim() ? buyer.storeName : <span className="text-red-600 font-bold">Missing Store Name</span>}
+                  {buyer.storeName && buyer.storeName.trim() ? buyer.storeName : <span className="text-red-600 font-bold">{tShared('missing.storeName')}</span>}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Tag className="w-4 h-4" />
                 <span className="font-medium text-black">
-                  {buyer.businessType && buyer.businessType.trim() ? buyer.businessType : <span className="text-red-600 font-bold">Missing Business Type</span>}
+                  {buyer.businessType && buyer.businessType.trim() ? buyer.businessType : <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <MapPin className="w-4 h-4" />
                 <span className="font-medium text-black">
-                  {buyer.address && buyer.address.trim() ? buyer.address : <span className="text-red-600 font-bold">Missing Address</span>}
+                  {buyer.address && buyer.address.trim() ? buyer.address : <span className="text-red-600 font-bold">{tShared('missing.address')}</span>}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-xs">
@@ -360,18 +379,18 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
         {/* Logistics & Notes */}
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">Logistics & Notes</div>
+          <div className="absolute left-4 top-4 text-md font-bold text-black">{tBuyersProfile('logisticsNotes')}</div>
           <div className="flex flex-col gap-2 pt-10">
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Preferred Days:</span>
+              <span className="text-gray-500">{tBuyersProfile('preferredDays')}</span>
               <span className="font-semibold text-black">
-                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">Missing Preferred Days</span>}
+                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">{tShared('missing.preferredDays')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Last Order Date:</span>
+              <span className="text-gray-500">{tBuyersProfile('lastOrderDate')}</span>
               <span className="font-semibold text-black">
                 {(() => {
                   // Calculate the most recent order date from order details
@@ -387,31 +406,31 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                       return mostRecentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
                     }
                   }
-                  return <span className="text-red-600 font-bold">Missing Last Order Date</span>;
+                  return <span className="text-red-600 font-bold">{tShared('missing.lastOrderDate')}</span>;
                 })()}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Shipment Success:</span>
+              <span className="text-gray-500">{tBuyersProfile('shipmentSuccess')}</span>
               <span className="font-semibold text-black">
-                {logistics?.shipmentSuccess && logistics.shipmentSuccess.trim() ? logistics.shipmentSuccess : <span className="text-red-600 font-bold">Missing Shipment Success</span>}
+                {logistics?.shipmentSuccess && logistics.shipmentSuccess.trim() ? logistics.shipmentSuccess : <span className="text-red-600 font-bold">{tShared('missing.shipmentSuccess')}</span>}
               </span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
-              <span className="text-gray-500">Status:</span>
+              <span className="text-gray-500">{tShared('columns.status')}:</span>
               {buyer.status === 'Active' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">Active</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">{translateStatus('Active')}</span>
               )}
               {buyer.status === 'Inactive' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">Inactive</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">{translateStatus('Inactive')}</span>
               )}
               {buyer.status === 'Blocked' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">Blocked</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">{translateStatus('Blocked')}</span>
               )}
             </div>
             <div className="text-xs gap-2 mt-2">
-              <span className="text-gray-500 mr-2.5">Notes:</span>
+              <span className="text-gray-500 mr-2.5">{tBuyersProfile('notes')}</span>
               {notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
@@ -422,7 +441,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       {/* Second Row: Order/Product Details */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
-          <div className="font-semibold text-md text-black">Order & Product Details</div>
+          <div className="font-semibold text-md text-black">{tBuyersProfile('orderSection')}</div>
           <div className="flex gap-2">
             <button 
               className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50" 
@@ -434,10 +453,10 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               ) : (
                 <Upload className="w-4 h-4" />
               )}
-              {isUpdating ? 'Importing...' : 'Import Orders'}
+              {isUpdating ? tBuyersProfile('importing') : tBuyersProfile('importOrders')}
             </button>
             <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
-              <Download className="w-4 h-4" /> Export Orders
+              <Download className="w-4 h-4" /> {tBuyersProfile('exportOrders')}
             </button>
           </div>
         </div>
@@ -498,14 +517,14 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 
                 // Close modal and show success message
                 setShowImportOrders(false);
-                setUpdateSuccess(`Successfully imported ${newOrderDetails.length} orders`);
+                setUpdateSuccess(tBuyersProfile('importSuccess', { count: newOrderDetails.length }));
                 
                 // Refresh the page to show updated data
                 setTimeout(() => {
                   window.location.reload();
                 }, 1500);
               } catch (error) {
-                setUpdateError(error instanceof Error ? error.message : 'Failed to import orders');
+                setUpdateError(error instanceof Error ? error.message : tBuyersProfile('importFailed'));
               } finally {
                 setIsUpdating(false);
               }
@@ -513,21 +532,21 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           />
         )}
         <div className="flex flex-wrap gap-4 mb-2">
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Orders: <span className="font-bold text-black">{totalOrders}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Total Spend: <span className="font-bold text-[#0a61d7]">{formatCurrency(totalSpend, userCurrency)}</span></div>
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">Outstanding: <span className="font-bold text-[#f65911]">{formatCurrency(totalOutstanding, userCurrency)}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalOrdersLabel')} <span className="font-bold text-black">{totalOrders}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalSpendLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalSpend, userCurrency)}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('outstandingLabel')} <span className="font-bold text-[#f65911]">{formatCurrency(totalOutstanding, userCurrency)}</span></div>
         </div>
         {/* Above Order & Product Details table */}
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                <th className="py-2 px-4 font-medium uppercase">No.</th>
-                <th className="py-2 px-4 font-medium uppercase">Product Name</th>
-                <th className="py-2 px-4 font-medium uppercase">Total Orders (Boxes)</th>
-                <th className="py-2 px-4 font-medium uppercase">Total Spend</th>
-                <th className="py-2 px-4 font-medium uppercase">Last Order Date</th>
-                <th className="py-2 px-4 font-medium uppercase">Outstanding</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colNo')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('productName')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tShared('columns.totalSpend')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tShared('columns.outstanding')}</th>
               </tr>
             </thead>
             <tbody>
@@ -556,14 +575,18 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           {/* Pagination Info and Controls */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
             <div className="text-xs text-gray-500">
-              {`Showing ${(orderPage - 1) * orderRowsPerPage + (totalOrderRows === 0 ? 0 : 1)} to ${Math.min(orderPage * orderRowsPerPage, totalOrderRows)} of ${totalOrderRows}`}
+              {tShared('pagination.showing', {
+                from: (orderPage - 1) * orderRowsPerPage + (totalOrderRows === 0 ? 0 : 1),
+                to: Math.min(orderPage * orderRowsPerPage, totalOrderRows),
+                total: totalOrderRows,
+              })}
             </div>
             <div className="flex items-center justify-end gap-3">
               <button
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => setOrderPage(p => Math.max(1, p - 1))}
                 disabled={orderPage === 1}
-                aria-label="Previous page"
+                aria-label={tShared('previousPage')}
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
@@ -582,7 +605,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => setOrderPage(p => Math.min(totalOrderPages, p + 1))}
                 disabled={orderPage === totalOrderPages}
-                aria-label="Next page"
+                aria-label={tShared('nextPage')}
               >
                 <ChevronRight className="w-4 h-4 text-gray-500" />
               </button>
@@ -592,17 +615,17 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       </div>
       {/* Third Row: Analytics */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-        <div className="font-semibold text-black mb-2">Analytics</div>
+        <div className="font-semibold text-black mb-2">{tBuyersProfile('analytics')}</div>
         
         {/* Analytics Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           
           {/* Monthly Orders Analytics */}
           <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Orders Analytics</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">{tBuyersProfile('monthlyOrdersAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Orders: <span className="font-medium">{totalOrders}</span></div>
-              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+              <div>{tBuyersProfile('totalMonthlyOrders')} <span className="font-medium">{totalOrders}</span></div>
+              <div className="border-b border-gray-300 pb-2">{tBuyersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
                 orderDetails.forEach((order: OrderDetail) => {
@@ -613,7 +636,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 });
                 return uniqueMonths.size;
               })()}</span></div>
-              <div className="pt-2">Average Monthly Orders: <span className="font-semibold text-blue-500">{(() => {
+              <div className="pt-2">{tBuyersProfile('avgMonthlyOrders')} <span className="font-semibold text-blue-500">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
                 orderDetails.forEach((order: OrderDetail) => {
@@ -631,10 +654,10 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           
           {/* Monthly Spending Analytics */}
           <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Spending Analytics</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">{tBuyersProfile('monthlySpendingAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Spending: <span className="font-medium">{formatCurrency(totalSpend, userCurrency)}</span></div>
-              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+              <div>{tBuyersProfile('totalMonthlySpending')} <span className="font-medium">{formatCurrency(totalSpend, userCurrency)}</span></div>
+              <div className="border-b border-gray-300 pb-2">{tBuyersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
                 orderDetails.forEach((order: OrderDetail) => {
@@ -645,7 +668,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 });
                 return uniqueMonths.size;
               })()}</span></div>
-              <div className="pt-2">Average Monthly Spending: <span className="font-semibold text-green-500">{currency}{(() => {
+              <div className="pt-2">{tBuyersProfile('avgMonthlySpending')} <span className="font-semibold text-green-500">{currency}{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();
                 orderDetails.forEach((order: OrderDetail) => {
@@ -661,10 +684,10 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </div>
         </div>
         
-        <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all orders details are added/completed.</p>
+        <p className="text-xs text-gray-500 italic mb-2">{tBuyersProfile('analyticsNote')}</p>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <div className="text-lg font-semibold text-gray-900 mb-6">Total Orders Per Month</div>
+            <div className="text-lg font-semibold text-gray-900 mb-6">{tBuyersProfile('chartOrdersPerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <defs>
@@ -690,7 +713,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                   axisLine={false}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [`${value} orders`, 'Orders']}
+                  formatter={(value: number) => [tBuyersProfile('tooltipOrdersCount', { count: value }), tBuyersProfile('tooltipOrders')]}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,
@@ -716,7 +739,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             </ResponsiveContainer>
           </div>
           <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <div className="text-lg font-semibold text-gray-900 mb-6">Total Spending Per Month</div>
+            <div className="text-lg font-semibold text-gray-900 mb-6">{tBuyersProfile('chartSpendingPerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                 <defs>
@@ -744,7 +767,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                   tickFormatter={(value) => formatCurrency(value, userCurrency)}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), 'Spending']}
+                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), tBuyersProfile('tooltipSpending')]}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,

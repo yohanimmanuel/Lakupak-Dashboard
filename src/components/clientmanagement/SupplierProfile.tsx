@@ -13,8 +13,10 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
-function getSupplierAnalytics(suppliesStr: string) {
+function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
+  const monthLocale = language === 'id' ? 'id-ID' : 'en-US';
   if (!suppliesStr) return [];
   
   try {
@@ -47,7 +49,7 @@ function getSupplierAnalytics(suppliesStr: string) {
     });
     
     return sortedEntries.map(([monthKey, data]) => ({
-      month: data.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      month: data.date.toLocaleDateString(monthLocale, { month: 'long', year: 'numeric' }),
       supplied: data.supplied,
       value: data.value,
     }));
@@ -64,6 +66,7 @@ interface SupplierProfileProps {
 
 export default function SupplierProfile({ supplier, onClose, onUpdate }: SupplierProfileProps) {
   const user = useUserStore(state => state.user);
+  const { tSuppliersProfile, tSuppliersModal, tShared, translateStatus, tCommon } = useClientsTranslations();
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -124,7 +127,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     navigator.clipboard.writeText(text);
   };
   
-  const analyticsData = getSupplierAnalytics(supplier.supplies || '');
+  const analyticsData = getSupplierAnalytics(supplier.supplies || '', user?.language);
   const totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
   let totalValue = 0;
   let currency = '';
@@ -164,16 +167,16 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             <ArrowLeft className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </Link>
           <div>
-            <h2 className="text-2xl font-bold text-black mb-1">Supplier Details</h2>
-            <p className="text-sm text-gray-500">View and manage supplier information.</p>
+            <h2 className="text-2xl font-bold text-black mb-1">{tSuppliersProfile('title')}</h2>
+            <p className="text-sm text-gray-500">{tSuppliersProfile('subtitle')}</p>
           </div>
         </div>
         <div className="flex gap-2 items-center mt-2 md:mt-0">
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleCopy}>
-            <Copy className="w-4 h-4" /> Copy Data
+            <Copy className="w-4 h-4" /> {tSuppliersProfile('copyData')}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm" onClick={() => setShowEditModal(true)}>
-            <Edit className="w-4 h-4" /> Edit Details
+            <Edit className="w-4 h-4" /> {tSuppliersProfile('editDetails')}
           </button>
         </div>
       </div>
@@ -182,12 +185,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       {(() => {
         // Check all profile fields for missing data (excluding notes and pictures)
         const basicFields = [
-          { name: 'Name', value: supplier.name && supplier.name.trim() },
-          { name: 'Address', value: supplier.address && supplier.address.trim() },
-          { name: 'Business Type', value: supplier.businessType && supplier.businessType.trim() },
-          { name: 'Contact', value: supplier.contact && supplier.contact.trim() },
-          { name: 'Email', value: supplier.email && supplier.email.trim() },
-          { name: 'Phone', value: supplier.phone && supplier.phone.trim() }
+          { key: 'name', value: supplier.name && supplier.name.trim() },
+          { key: 'address', value: supplier.address && supplier.address.trim() },
+          { key: 'businessType', value: supplier.businessType && supplier.businessType.trim() },
+          { key: 'contact', value: supplier.contact && supplier.contact.trim() },
+          { key: 'email', value: supplier.email && supplier.email.trim() },
+          { key: 'phone', value: supplier.phone && supplier.phone.trim() }
         ];
         
         // Check logistics fields
@@ -196,22 +199,22 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           if (supplier.logistics) {
             const logistics = JSON.parse(supplier.logistics);
             logisticsFields.push(
-              { name: 'Preferred Days', value: logistics?.preferredDays?.trim() },
-              { name: 'Last Delivery', value: logistics?.lastDelivery?.trim() },
-              { name: 'Delivery Success', value: logistics?.deliverySuccess?.trim() }
+              { key: 'preferredDays', value: logistics?.preferredDays?.trim() },
+              { key: 'lastDelivery', value: logistics?.lastDelivery?.trim() },
+              { key: 'deliverySuccess', value: logistics?.deliverySuccess?.trim() }
             );
           } else {
             logisticsFields.push(
-              { name: 'Preferred Days', value: false },
-              { name: 'Last Delivery', value: false },
-              { name: 'Delivery Success', value: false }
+              { key: 'preferredDays', value: false },
+              { key: 'lastDelivery', value: false },
+              { key: 'deliverySuccess', value: false }
             );
           }
         } catch {
           logisticsFields.push(
-            { name: 'Preferred Days', value: false },
-            { name: 'Last Delivery', value: false },
-            { name: 'Delivery Success', value: false }
+            { key: 'preferredDays', value: false },
+            { key: 'lastDelivery', value: false },
+            { key: 'deliverySuccess', value: false }
           );
         }
         
@@ -221,7 +224,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           if (supplier.supplies) {
             const supplies = JSON.parse(supplier.supplies);
             if (!Array.isArray(supplies) || supplies.length === 0) {
-              suppliesFields.push({ name: 'Supplies Data', value: false });
+              suppliesFields.push({ key: 'suppliesData', value: false });
             } else {
               // Check if supplies have meaningful content
               const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
@@ -230,13 +233,13 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 supply.totalSupplied && String(supply.totalSupplied).trim() &&
                 supply.totalValue && String(supply.totalValue).trim()
               );
-              suppliesFields.push({ name: 'Supplies Data', value: hasValidSupplies });
+              suppliesFields.push({ key: 'suppliesData', value: hasValidSupplies });
             }
           } else {
-            suppliesFields.push({ name: 'Supplies Data', value: false });
+            suppliesFields.push({ key: 'suppliesData', value: false });
           }
         } catch {
-          suppliesFields.push({ name: 'Supplies Data', value: false });
+          suppliesFields.push({ key: 'suppliesData', value: false });
         }
         
         const allFields = [...basicFields, ...logisticsFields, ...suppliesFields];
@@ -248,7 +251,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         return (
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-800">Profile Completion</h3>
+              <h3 className="text-sm font-semibold text-gray-800">{tSuppliersProfile('profileCompletion')}</h3>
               <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
                 {completionPercentage}%
               </span>
@@ -262,10 +265,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               ></div>
             </div>
             <div className="text-xs text-gray-600">
-              {completedFields} of {totalFields} fields completed
+              {tSuppliersProfile('fieldsCompleted', { completed: completedFields, total: totalFields })}
               {missingFields.length > 0 && (
                 <span className="ml-2 text-amber-700">
-                  • Missing: {missingFields.map(field => field.name).join(', ')}
+                  • {tSuppliersProfile('missingFields', {
+                    fields: missingFields.map(field => tSuppliersProfile(`fields.${field.key}`)).join(', ')
+                  })}
                 </span>
               )}
             </div>
@@ -277,36 +282,36 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* General Info */}
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">General Information</div>
+          <div className="absolute left-4 top-4 text-md font-bold text-black">{tSuppliersProfile('generalInfo')}</div>
           <div className="flex flex-col gap-3 mt-8">
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Store className="w-4 h-5" />
               <span className="font-semibold text-black text-xs">
-                {supplier.name && supplier.name.trim() ? supplier.name : <span className="text-red-600 font-bold">Missing Name</span>} | {supplier.supplierId}
+                {supplier.name && supplier.name.trim() ? supplier.name : <span className="text-red-600 font-bold">{tShared('missing.name')}</span>} | {supplier.supplierId}
               </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Tag className="w-4 h-4" />
               <span className="font-medium text-black">
-                {supplier.businessType && supplier.businessType.trim() ? supplier.businessType : <span className="text-red-600 font-bold">Missing Business Type</span>}
+                {supplier.businessType && supplier.businessType.trim() ? supplier.businessType : <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <MapPin className="w-4 h-4" />
               <span className="font-medium text-black">
-                {supplier.address && supplier.address.trim() ? supplier.address : <span className="text-red-600 font-bold">Missing Address</span>}
+                {supplier.address && supplier.address.trim() ? supplier.address : <span className="text-red-600 font-bold">{tShared('missing.address')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Mail className="w-4 h-4" />
               <span className="font-medium text-black">
-                {supplier.contact && supplier.contact.trim() ? supplier.contact : <span className="text-red-600 font-bold">Missing Contact</span>} | {supplier.email && supplier.email.trim() ? supplier.email : <span className="text-red-600 font-bold">Missing Email</span>}
+                {supplier.contact && supplier.contact.trim() ? supplier.contact : <span className="text-red-600 font-bold">{tShared('missing.contact')}</span>} | {supplier.email && supplier.email.trim() ? supplier.email : <span className="text-red-600 font-bold">{tShared('missing.email')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
               <Phone className="w-4 h-4" />
               <span className="font-medium text-black">
-                {supplier.phone && supplier.phone.trim() ? supplier.phone : <span className="text-red-600 font-bold">Missing Phone</span>}
+                {supplier.phone && supplier.phone.trim() ? supplier.phone : <span className="text-red-600 font-bold">{tShared('missing.phone')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-gray-500 text-xs">
@@ -317,43 +322,43 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         </div>
         {/* Logistics & Notes */}
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">Logistics & Notes</div>
+          <div className="absolute left-4 top-4 text-md font-bold text-black">{tSuppliersProfile('logisticsNotes')}</div>
           <div className="flex flex-col gap-2 pt-10">
             <div className="flex items-center gap-2 text-xs">
               <Truck className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Preferred Days:</span>
+              <span className="text-gray-500">{tSuppliersProfile('preferredDays')}</span>
               <span className="font-semibold text-black">
-                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">Missing Preferred Days</span>}
+                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">{tShared('missing.preferredDays')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Last Delivery:</span>
+              <span className="text-gray-500">{tSuppliersProfile('lastDelivery')}</span>
               <span className="font-semibold text-black">
-                {logistics?.lastDelivery && logistics.lastDelivery.trim() ? logistics.lastDelivery : <span className="text-red-600 font-bold">Missing Last Delivery</span>}
+                {logistics?.lastDelivery && logistics.lastDelivery.trim() ? logistics.lastDelivery : <span className="text-red-600 font-bold">{tShared('missing.lastDelivery')}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <BarChart2 className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">Delivery Success:</span>
+              <span className="text-gray-500">{tSuppliersProfile('deliverySuccess')}</span>
               <span className="font-semibold text-black">
-                {logistics?.deliverySuccess && logistics.deliverySuccess.trim() ? logistics.deliverySuccess : <span className="text-red-600 font-bold">Missing Delivery Success</span>}
+                {logistics?.deliverySuccess && logistics.deliverySuccess.trim() ? logistics.deliverySuccess : <span className="text-red-600 font-bold">{tShared('missing.deliverySuccess')}</span>}
               </span>
             </div>
             <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
-              <span className="text-gray-500">Status:</span>
+              <span className="text-gray-500">{tShared('columns.status')}:</span>
               {supplier.status === 'Active' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">Active</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">{translateStatus('Active')}</span>
               )}
               {supplier.status === 'Inactive' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">Inactive</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">{translateStatus('Inactive')}</span>
               )}
               {supplier.status === 'Blocked' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">Blocked</span>
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">{translateStatus('Blocked')}</span>
               )}
             </div>
             <div className="text-xs gap-2 mt-2">
-              <span className="text-gray-500 mr-2.5">Notes:</span>
+              <span className="text-gray-500 mr-2.5">{tSuppliersProfile('notes')}</span>
               {notes.map((note: string, i: number) => (
                 <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
               ))}
@@ -364,13 +369,13 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       {/* Second Row: Supplies/Product Data */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
-          <div className="font-semibold text-md text-black">Supplies & Product Data</div>
+          <div className="font-semibold text-md text-black">{tSuppliersProfile('suppliesSection')}</div>
           <div className="flex gap-2">
             <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={() => setShowImportSupplies(true)}>
-              <Upload className="w-4 h-4" /> Import Supplies
+              <Upload className="w-4 h-4" /> {tSuppliersProfile('importSupplies')}
             </button>
             <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportSupplies}>
-              <Download className="w-4 h-4" /> Export Supplies
+              <Download className="w-4 h-4" /> {tSuppliersProfile('exportSupplies')}
             </button>
           </div>
         </div>
@@ -418,22 +423,22 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
-            Total Supplied: <span className="font-bold text-black">{totalSupplied}</span>
+            {tSuppliersProfile('totalSuppliedLabel')} <span className="font-bold text-black">{totalSupplied}</span>
           </div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
-                            Total Purchase Value: <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
+                            {tSuppliersProfile('totalPurchaseValueLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
           </div>
         </div>
         <div className="overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                <th className="py-2 px-4 font-medium uppercase">No.</th>
-                <th className="py-2 px-4 font-medium uppercase">SKU Number</th>
-                <th className="py-2 px-4 font-medium uppercase">Product Name</th>
-                <th className="py-2 px-4 font-medium uppercase">Total Supplied</th>
-                <th className="py-2 px-4 font-medium uppercase">Total Value</th>
-                <th className="py-2 px-4 font-medium uppercase">Last Delivery</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersModal('colNo')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('productName')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalValueCol')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastDeliveryCol')}</th>
               </tr>
             </thead>
             <tbody>
@@ -452,14 +457,18 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           {/* Pagination Info and Controls */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
             <div className="text-xs text-gray-500">
-              {`Showing ${(supplyPage - 1) * supplyRowsPerPage + (totalSupplyRows === 0 ? 0 : 1)} to ${Math.min(supplyPage * supplyRowsPerPage, totalSupplyRows)} of ${totalSupplyRows}`}
+              {tShared('pagination.showing', {
+                from: (supplyPage - 1) * supplyRowsPerPage + (totalSupplyRows === 0 ? 0 : 1),
+                to: Math.min(supplyPage * supplyRowsPerPage, totalSupplyRows),
+                total: totalSupplyRows,
+              })}
             </div>
             <div className="flex items-center justify-end gap-3">
               <button
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => setSupplyPage(p => Math.max(1, p - 1))}
                 disabled={supplyPage === 1}
-                aria-label="Previous page"
+                aria-label={tShared('previousPage')}
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
@@ -478,7 +487,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => setSupplyPage(p => Math.min(totalSupplyPages, p + 1))}
                 disabled={supplyPage === totalSupplyPages}
-                aria-label="Next page"
+                aria-label={tShared('nextPage')}
               >
                 <ChevronRight className="w-4 h-4 text-gray-500" />
               </button>
@@ -488,16 +497,16 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       </div>
       {/* Third Row: Analytics */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-        <div className="font-semibold text-black mb-2">Analytics</div>
+        <div className="font-semibold text-black mb-2">{tSuppliersProfile('analytics')}</div>
         
         {/* Analytics Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Monthly Purchase Analytics */}
           <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Purchase Analytics</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">{tSuppliersProfile('monthlyPurchaseAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Purchase Value: <span className="font-medium">{formatCurrency(totalValue, userCurrency)}</span></div>
-              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+              <div>{tSuppliersProfile('totalMonthlyPurchaseValue')} <span className="font-medium">{formatCurrency(totalValue, userCurrency)}</span></div>
+              <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 supplies.forEach((supply: SupplyDetail) => {
@@ -508,7 +517,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 });
                 return uniqueMonths.size;
               })()}</span></div>
-              <div className="pt-2">Average Monthly Purchase: <span className="font-semibold text-green-500">{currency}{(() => {
+              <div className="pt-2">{tSuppliersProfile('avgMonthlyPurchase')} <span className="font-semibold text-green-500">{currency}{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 supplies.forEach((supply: SupplyDetail) => {
@@ -525,10 +534,10 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           
           {/* Monthly Supplied Analytics */}
           <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 mb-2">Monthly Supplied Analytics</div>
+            <div className="text-sm font-semibold text-gray-700 mb-2">{tSuppliersProfile('monthlySuppliedAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>Total Monthly Supplied: <span className="font-medium">{totalSupplied}</span></div>
-              <div className="border-b border-gray-300 pb-2">Total Monthly Records: <span className="font-medium">{(() => {
+              <div>{tSuppliersProfile('totalMonthlySupplied')} <span className="font-medium">{totalSupplied}</span></div>
+              <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 supplies.forEach((supply: SupplyDetail) => {
@@ -539,7 +548,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 });
                 return uniqueMonths.size;
               })()}</span></div>
-              <div className="pt-2">Average Monthly Supplied: <span className="font-semibold text-blue-500">{(() => {
+              <div className="pt-2">{tSuppliersProfile('avgMonthlySupplied')} <span className="font-semibold text-blue-500">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 supplies.forEach((supply: SupplyDetail) => {
@@ -554,10 +563,10 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-500 italic mb-2">Note: Data analysis will appear after all supplies details are added/completed.</p>
+        <p className="text-xs text-gray-500 italic mb-2">{tSuppliersProfile('analyticsNote')}</p>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <div className="text-lg font-semibold text-gray-900 mb-6">Total Supplied Per Month</div>
+            <div className="text-lg font-semibold text-gray-900 mb-6">{tSuppliersProfile('chartSuppliedPerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <defs>
@@ -583,7 +592,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   axisLine={false}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [`${value} units`, 'Supplied']}
+                  formatter={(value: number) => [tSuppliersProfile('tooltipSuppliedCount', { count: value }), tSuppliersProfile('tooltipSupplied')]}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,
@@ -609,7 +618,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             </ResponsiveContainer>
           </div>
           <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <div className="text-lg font-semibold text-gray-900 mb-6">Total Value Per Month</div>
+            <div className="text-lg font-semibold text-gray-900 mb-6">{tSuppliersProfile('chartValuePerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                 <defs>
@@ -637,7 +646,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   tickFormatter={(value) => formatCurrency(value, userCurrency)}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), 'Value']}
+                  formatter={(value: number) => [formatCurrency(Number(value), userCurrency), tSuppliersProfile('tooltipValue')]}
                   labelStyle={{ 
                     color: '#1E293B', 
                     fontWeight: 600,

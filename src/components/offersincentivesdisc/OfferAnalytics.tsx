@@ -4,6 +4,7 @@ import React from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, PieChart, Percent } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import { Offer } from '@/types/offer';
 import { Order } from '@/types/order';
 
@@ -33,6 +34,7 @@ interface AnalyticsData {
 }
 
 export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = false }: OfferAnalyticsProps) {
+  const { tAnalytics } = useOffersTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
 
@@ -111,8 +113,8 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-black">Offer Analytics</h2>
-            <p className="text-gray-500 text-sm">Analytics will be available after the offer is created and active</p>
+            <h2 className="text-xl font-bold text-black">{tAnalytics('title')}</h2>
+            <p className="text-gray-500 text-sm">{tAnalytics('subtitleNew')}</p>
           </div>
         </div>
 
@@ -121,12 +123,12 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <BarChart3 className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Analytics Yet</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{tAnalytics('emptyTitle')}</h3>
           <p className="text-gray-500 text-sm mb-4">
-            Analytics data will appear here once your offer is created and starts receiving redemptions.
+            {tAnalytics('emptyDescription')}
           </p>
           <div className="text-xs text-gray-400">
-            You&apos;ll be able to track performance metrics, redemption trends, and offer effectiveness.
+            {tAnalytics('emptyHint')}
           </div>
         </div>
       </div>
@@ -138,8 +140,8 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">Offer Analytics</h2>
-          <p className="text-gray-500 text-sm">Track performance and optimize your offers</p>
+          <h2 className="text-xl font-bold text-black">{tAnalytics('title')}</h2>
+          <p className="text-gray-500 text-sm">{tAnalytics('subtitle')}</p>
         </div>
       </div>
 
@@ -151,16 +153,16 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               <Target className="w-6 h-6 text-[#0a61d7]" />
             </div>
             <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Offers</div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('totalOffers')}</div>
               <div className="text-xl font-bold text-black">{analyticsData.totalOffers}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.totalOffers > 0 ? 'Active' : '0'}
+              {analyticsData.totalOffers > 0 ? tAnalytics('active') : '0'}
             </span>
-            <span className="text-gray-400 text-xs">offers created</span>
+            <span className="text-gray-400 text-xs">{tAnalytics('offersCreated')}</span>
           </div>
         </div>
 
@@ -170,7 +172,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               <Percent className="w-6 h-6 text-orange-500" />
             </div>
             <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Conversion Rate</div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('conversionRate')}</div>
               <div className="text-xl font-bold text-black">
                 {analyticsData.conversionRate.toFixed(1)}%
               </div>
@@ -179,9 +181,9 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.conversionRate > 0 ? 'Active' : 'No usage'}
+              {analyticsData.conversionRate > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
             </span>
-            <span className="text-gray-400 text-xs">offers converted</span>
+            <span className="text-gray-400 text-xs">{tAnalytics('offersConverted')}</span>
           </div>
         </div>
 
@@ -191,16 +193,16 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               <Users className="w-6 h-6 text-purple-500" />
             </div>
             <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Redemptions</div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('totalRedemptions')}</div>
               <div className="text-xl font-bold text-black">{analyticsData.totalRedemptions}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.totalRedemptions > 0 ? 'Active' : 'No usage'}
+              {analyticsData.totalRedemptions > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
             </span>
-            <span className="text-gray-400 text-xs">redemption status</span>
+            <span className="text-gray-400 text-xs">{tAnalytics('redemptionStatus')}</span>
           </div>
         </div>
 
@@ -210,16 +212,16 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               <TrendingUp className="w-6 h-6 text-green-500" />
             </div>
             <div>
-              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Redemption Rate</div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('redemptionRate')}</div>
               <div className="text-xl font-bold text-black">{analyticsData.redemptionRate.toFixed(1)}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-4 ml-1">
             <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
             <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.redemptionRate > 0 ? 'Active' : '0.0'}
+              {analyticsData.redemptionRate > 0 ? tAnalytics('active') : '0.0'}
             </span>
-            <span className="text-gray-400 text-xs">avg per offer</span>
+            <span className="text-gray-400 text-xs">{tAnalytics('avgPerOffer')}</span>
           </div>
         </div>
       </div>
@@ -229,7 +231,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         {/* Monthly Redemption Trends Chart */}
         <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-black">Monthly Redemption Trends</h3>
+            <h3 className="text-lg font-semibold text-black">{tAnalytics('monthlyTrends')}</h3>
             <BarChart3 className="w-5 h-5 text-gray-400" />
           </div>
           <div className="space-y-3">
@@ -238,7 +240,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-700">{trend.period}</span>
-                    <span className="text-sm text-gray-500">{trend.redemptions} redemptions</span>
+                    <span className="text-sm text-gray-500">{tAnalytics('redemptionsCount', { count: trend.redemptions })}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -255,14 +257,14 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         {/* Offer Type Breakdown */}
         <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-black">Offer Type Breakdown</h3>
+            <h3 className="text-lg font-semibold text-black">{tAnalytics('typeBreakdown')}</h3>
             <PieChart className="w-5 h-5 text-gray-400" />
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                <span className="text-sm font-medium text-gray-700">Discounts</span>
+                <span className="text-sm font-medium text-gray-700">{tAnalytics('discounts')}</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">{analyticsData.offerTypeBreakdown.discounts}%</span>
             </div>
@@ -276,7 +278,7 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                <span className="text-sm font-medium text-gray-700">Promotions</span>
+                <span className="text-sm font-medium text-gray-700">{tAnalytics('promotions')}</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">{analyticsData.offerTypeBreakdown.promotions}%</span>
             </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Target, Percent, DollarSign, Gift, Save } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 interface OfferTypeData {
   name: string;
@@ -48,6 +49,7 @@ export default function CreateOfferTypeModal({
   editingType,
   onSave,
 }: CreateOfferTypeModalProps) {
+  const { tTypeModal, tShared } = useOffersTranslations();
   const user = useUserStore((state) => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
@@ -95,25 +97,25 @@ export default function CreateOfferTypeModal({
 
   const discountTypeOptions = [
     {
-      value: 'percentage',
-      label: 'Percentage Discount',
-      description: 'Apply a percentage discount',
+      value: 'percentage' as const,
+      label: tTypeModal('percentageLabel'),
+      description: tTypeModal('percentageDesc'),
       icon: <Percent className="w-5 h-5" />,
       color: 'border-blue-200 bg-blue-50',
       textColor: 'text-blue-700'
     },
     {
-      value: 'fixed',
-      label: 'Fixed Amount',
-      description: 'Apply a fixed monetary discount',
+      value: 'fixed' as const,
+      label: tTypeModal('fixedLabel'),
+      description: tTypeModal('fixedDesc'),
       icon: <DollarSign className="w-5 h-5" />,
       color: 'border-green-200 bg-green-50',
       textColor: 'text-green-700'
     },
     {
-      value: 'buy_x_get_y',
-      label: 'Buy X Get Y',
-      description: 'Buy certain quantity, get packages free',
+      value: 'buy_x_get_y' as const,
+      label: tTypeModal('buyXGetYLabel'),
+      description: tTypeModal('buyXGetYDesc'),
       icon: <Gift className="w-5 h-5" />,
       color: 'border-purple-200 bg-purple-50',
       textColor: 'text-purple-700'
@@ -133,10 +135,10 @@ export default function CreateOfferTypeModal({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-black">
-                {editingType ? 'Edit Offer Type' : 'Create Offer Type'}
+                {editingType ? tTypeModal('editTitle') : tTypeModal('createTitle')}
               </h3>
               <p className="text-gray-500 text-sm">
-                {editingType ? 'Update your discount configuration' : 'Define the discount rules for your offer'}
+                {editingType ? tTypeModal('editSubtitle') : tTypeModal('createSubtitle')}
               </p>
             </div>
           </div>
@@ -152,29 +154,29 @@ export default function CreateOfferTypeModal({
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Basic Information */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Basic Information</h4>
+            <h4 className="text-md font-semibold text-black">{tTypeModal('basicInfo')}</h4>
             
             <div>
               <label className="block text-xs font-medium text-black mb-1">
-                Offer Name *
+                {tTypeModal('offerName')}
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="e.g., Summer Sale Discount"
+                placeholder={tTypeModal('offerNamePlaceholder')}
                 className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-black mb-1">
-                Description
+                {tTypeModal('description')}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Brief description of this offer type..."
+                placeholder={tTypeModal('descriptionPlaceholder')}
                 rows={3}
                 className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black resize-none"
               />
@@ -183,7 +185,7 @@ export default function CreateOfferTypeModal({
 
           {/* Discount Type Selection */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Discount Type</h4>
+            <h4 className="text-md font-semibold text-black">{tTypeModal('discountTypeSection')}</h4>
             <div className="grid grid-cols-1 gap-3">
               {discountTypeOptions.map((option) => (
                 <button
@@ -215,13 +217,13 @@ export default function CreateOfferTypeModal({
 
           {/* Discount Value */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Discount Value *</h4>
+            <h4 className="text-md font-semibold text-black">{tTypeModal('discountValueSection')}</h4>
             
             <div>
               <label className="block text-xs font-medium text-black mb-1">
-                {formData.discountType === 'percentage' ? 'Discount Percentage' :
-                 formData.discountType === 'fixed' ? 'Discount Amount' :
-                 'Free Packages to Give'}
+                {formData.discountType === 'percentage' ? tTypeModal('discountPercentage') :
+                 formData.discountType === 'fixed' ? tTypeModal('discountAmount') :
+                 tTypeModal('freePackages')}
               </label>
               <div className="relative">
                 <input
@@ -234,12 +236,12 @@ export default function CreateOfferTypeModal({
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
                   {formData.discountType === 'percentage' ? '%' :
-                   formData.discountType === 'fixed' ? currencySymbol : 'packages'}
+                   formData.discountType === 'fixed' ? currencySymbol : tTypeModal('packagesUnit')}
                 </div>
               </div>
               {formData.discountType === 'fixed' && formData.discountValue > 0 && (
                 <div className="mt-2 text-xs text-gray-600">
-                  Preview: {formatCurrency(formData.discountValue, userCurrency)} discount
+                  {tTypeModal('previewDiscount', { value: formatCurrency(formData.discountValue, userCurrency) })}
                 </div>
               )}
             </div>
@@ -248,7 +250,7 @@ export default function CreateOfferTypeModal({
             {formData.discountType === 'buy_x_get_y' && (
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  Minimum Packages to Buy
+                  {tTypeModal('minPackagesToBuy')}
                 </label>
                 <input
                   type="number"
@@ -258,7 +260,7 @@ export default function CreateOfferTypeModal({
                   className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
                 />
                 <div className="mt-2 text-xs text-gray-600">
-                  Customer must buy at least this many packages to get free packages
+                  {tTypeModal('minPackagesHint')}
                 </div>
               </div>
             )}
@@ -266,12 +268,12 @@ export default function CreateOfferTypeModal({
 
           {/* Limit Settings */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Limit Settings</h4>
+            <h4 className="text-md font-semibold text-black">{tTypeModal('limitSettings')}</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  Minimum Order Value
+                  {tTypeModal('minOrderValue')}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
@@ -283,7 +285,7 @@ export default function CreateOfferTypeModal({
                     onChange={(e) => {
                       handleInputChange('minOrderValue', e.target.value);
                     }}
-                    placeholder="100,000 or 100.000"
+                    placeholder={tTypeModal('minOrderPlaceholder')}
                     className="w-full text-xs pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-black"
                   />
                 </div>
@@ -300,7 +302,7 @@ export default function CreateOfferTypeModal({
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
           >
-            Cancel
+            {tShared('cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -310,11 +312,11 @@ export default function CreateOfferTypeModal({
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {editingType ? 'Updating...' : 'Creating...'}
+                {editingType ? tTypeModal('updating') : tTypeModal('creating')}
               </>
             ) : (
               <>
-                {editingType ? 'Update Type' : 'Create Type'}
+                {editingType ? tTypeModal('updateType') : tTypeModal('createType')}
               </>
             )}
           </button>

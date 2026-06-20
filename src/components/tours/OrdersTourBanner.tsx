@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { DASHBOARD_TOURS } from '@/components/tours/tourIds';
 import { useDashboardTourOptional } from '@/components/tours/TourProvider';
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 const SESSION_ORDERS_BANNER = 'laku.dashboard.tours.ordersBannerSession';
 
 export function OrdersTourBanner() {
+  const { tTour } = useOrdersTranslations();
   const tour = useDashboardTourOptional();
   const [show, setShow] = useState(false);
 
@@ -24,11 +26,11 @@ export function OrdersTourBanner() {
     <div
       className="mb-4 flex flex-col gap-3 rounded-lg border border-blue-100 bg-blue-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
       role="region"
-      aria-label="Orders tour"
+      aria-label={tTour('ariaLabel')}
     >
       <div>
-        <p className="text-sm font-semibold text-gray-900">New here?</p>
-        <p className="text-sm text-gray-600">Take a short tour of this Orders page — filters, map, and table.</p>
+        <p className="text-sm font-semibold text-gray-900">{tTour('title')}</p>
+        <p className="text-sm text-gray-600">{tTour('description')}</p>
       </div>
       <div className="flex shrink-0 gap-2">
         <button
@@ -39,7 +41,7 @@ export function OrdersTourBanner() {
             setShow(false);
           }}
         >
-          Dismiss
+          {tTour('dismiss')}
         </button>
         <button
           type="button"
@@ -50,7 +52,7 @@ export function OrdersTourBanner() {
             tour.runTour('orders');
           }}
         >
-          Tour this section
+          {tTour('startTour')}
         </button>
       </div>
     </div>

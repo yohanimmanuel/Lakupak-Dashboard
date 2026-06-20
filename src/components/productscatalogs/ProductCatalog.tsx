@@ -26,6 +26,7 @@ import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } fr
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -87,6 +88,7 @@ export default function ProductCatalog({
 }: ProductCatalogProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tCatalog, tShared, translateStockStatus, translateCategory, translateStatus, translateFieldName } = useProductsTranslations();
   const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
   const [formData, setFormData] = useState<ProductFormData>({
@@ -559,21 +561,17 @@ export default function ProductCatalog({
               const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
               if (tied.length > 0) {
                 setVariantGuardModal({
-                  title: 'Cannot delete: used in orders',
-                  intro: 'Some affected variant options are referenced by existing order items:',
+                  title: tCatalog('variantGuard.cannotDeleteTitle'),
+                  intro: tCatalog('variantGuard.cannotDeleteIntro'),
                   items: tied.slice(0, 8).map((u) => ({
                     variantName: u.variantName,
                     orderItemCount: u.orderItemCount,
                     orderIds: u.orderIds ?? [],
                   })),
-                  policy:
-                    'Policy (order integrity):\n' +
-                    'Variants used in past orders cannot be renamed or deleted.\n' +
-                    'To continue selling, create a new option/variant and keep the old one for history.\n' +
-                    'To stop selling an option, leave it for past orders and stop using it for new sales.',
+                  policy: tCatalog('variantGuard.policy'),
                   footer:
-                    (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
-                    'To keep data integrity, delete/rename is blocked for those variants.',
+                    (tied.length > 8 ? tCatalog('variantGuard.footerMore', { count: tied.length - 8 }) : '') +
+                    tCatalog('variantGuard.footerBlocked'),
                   action: null,
                 });
                 return;
@@ -581,8 +579,8 @@ export default function ProductCatalog({
               setVariants((prev) => prev.filter((variant) => variant.id !== variantId));
             })
             .catch((err) => {
-              const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
-              setVariantGuardModal({ title: 'Cannot validate deletion', message: msg });
+              const msg = err instanceof Error ? err.message : tCatalog('variantGuard.validateUsageFailed');
+              setVariantGuardModal({ title: tCatalog('variantGuard.cannotValidateDeletion'), message: msg });
             });
           return;
         }
@@ -613,22 +611,18 @@ export default function ProductCatalog({
     action?: { kind: 'create_option'; variantId: string; initialName: string } | null,
   ) => {
     setVariantGuardModal({
-      title: 'Cannot rename: used in orders',
-      intro: 'This rename would affect variant options referenced by existing order items:',
+      title: tCatalog('variantGuard.cannotRenameTitle'),
+      intro: tCatalog('variantGuard.cannotRenameIntro'),
       items: tied.slice(0, 8).map((u) => ({
         variantName: u.variantName,
         orderItemCount: u.orderItemCount,
         orderIds: u.orderIds ?? [],
       })),
-      policy:
-        'Policy (order integrity):\n' +
-        'Variants used in past orders cannot be renamed or deleted.\n' +
-        'To continue selling, create a new option/variant and keep the old one for history.\n' +
-        'To stop selling an option, leave it for past orders and stop using it for new sales.',
+      policy: tCatalog('variantGuard.policy'),
       footer:
         tied.length > 8
-          ? `...and ${tied.length - 8} more.\n\nThis variant is used in past orders. Create a new variant to continue selling.`
-          : 'This variant is used in past orders. Create a new variant to continue selling.',
+          ? tCatalog('variantGuard.footerMoreCreateNew', { count: tied.length - 8 })
+          : tCatalog('variantGuard.footerCreateNew'),
       action: action ?? null,
     });
   };
@@ -662,11 +656,11 @@ export default function ProductCatalog({
                 .map((u) => `- ${u.variantName} (${u.orderItemCount})`)
                 .join('\n');
               setVariantGuardModal({
-                title: 'Cannot rename: used in orders',
+                title: tCatalog('variantGuard.cannotRenameTitle'),
                 message:
-                  `This rename would affect variant options referenced by existing order items:\n\n${lines}` +
-                  (tied.length > 8 ? `\n- ...and ${tied.length - 8} more` : '') +
-                  `\n\nThis variant is used in past orders. Create a new variant to continue selling.`,
+                  `${tCatalog('variantGuard.cannotRenameIntro')}\n\n${lines}` +
+                  (tied.length > 8 ? `\n${tCatalog('variantGuard.renameMessageMore', { count: tied.length - 8 })}` : '') +
+                  `\n\n${tCatalog('variantGuard.renameMessageSuffix')}`,
               });
               // revert draft back to committed
               setVariantDrafts((prevDrafts) =>
@@ -680,8 +674,8 @@ export default function ProductCatalog({
             );
           })
           .catch((err) => {
-            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
-            setVariantGuardModal({ title: 'Cannot validate rename', message: msg });
+            const msg = err instanceof Error ? err.message : tCatalog('variantGuard.validateUsageFailed');
+            setVariantGuardModal({ title: tCatalog('variantGuard.cannotValidateRename'), message: msg });
             setVariantDrafts((prevDrafts) =>
               prevDrafts.map((v) => (v.id === variantId ? { ...v, variantType: prev } : v)),
             );
@@ -739,21 +733,17 @@ export default function ProductCatalog({
             const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
             if (tied.length > 0) {
               setVariantGuardModal({
-                title: 'Cannot delete: used in orders',
-                intro: 'Removing this option impacts variant options referenced by existing order items:',
+                title: tCatalog('variantGuard.cannotDeleteTitle'),
+                intro: tCatalog('variantGuard.cannotDeleteOptionIntro'),
                 items: tied.slice(0, 8).map((u) => ({
                   variantName: u.variantName,
                   orderItemCount: u.orderItemCount,
                   orderIds: u.orderIds ?? [],
                 })),
-                policy:
-                  'Policy (order integrity):\n' +
-                  'Variants used in past orders cannot be renamed or deleted.\n' +
-                  'To continue selling, create a new option/variant and keep the old one for history.\n' +
-                  'To stop selling an option, leave it for past orders and stop using it for new sales.',
+                policy: tCatalog('variantGuard.policy'),
                 footer:
-                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
-                  'To keep data integrity, delete/rename is blocked for those variants.',
+                  (tied.length > 8 ? tCatalog('variantGuard.footerMore', { count: tied.length - 8 }) : '') +
+                  tCatalog('variantGuard.footerBlocked'),
                 action: null,
               });
               return;
@@ -767,8 +757,8 @@ export default function ProductCatalog({
             );
           })
           .catch((err) => {
-            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
-            setVariantGuardModal({ title: 'Cannot validate deletion', message: msg });
+            const msg = err instanceof Error ? err.message : tCatalog('variantGuard.validateUsageFailed');
+            setVariantGuardModal({ title: tCatalog('variantGuard.cannotValidateDeletion'), message: msg });
           });
         return;
       }
@@ -844,21 +834,17 @@ export default function ProductCatalog({
             const tied = (res?.variantOptionUsage || []).filter((u) => (u.orderItemCount || 0) > 0);
             if (tied.length > 0) {
               setVariantGuardModal({
-                title: 'Cannot rename: used in orders',
-                intro: 'This rename would affect variant options referenced by existing order items:',
+                title: tCatalog('variantGuard.cannotRenameTitle'),
+                intro: tCatalog('variantGuard.cannotRenameIntro'),
                 items: tied.slice(0, 8).map((u) => ({
                   variantName: u.variantName,
                   orderItemCount: u.orderItemCount,
                   orderIds: u.orderIds ?? [],
                 })),
-                policy:
-                  'Policy (order integrity):\n' +
-                  'Variants used in past orders cannot be renamed or deleted.\n' +
-                  'To continue selling, create a new option/variant and keep the old one for history.\n' +
-                  'To stop selling an option, leave it for past orders and stop using it for new sales.',
+                policy: tCatalog('variantGuard.policy'),
                 footer:
-                  (tied.length > 8 ? `...and ${tied.length - 8} more.\n\n` : '') +
-                  'This variant is used in past orders. Create a new variant to continue selling.',
+                  (tied.length > 8 ? tCatalog('variantGuard.footerMoreCreateNew', { count: tied.length - 8 }) : '') +
+                  tCatalog('variantGuard.footerCreateNew'),
                 action: { kind: 'create_option', variantId, initialName: nextName },
               });
               // revert draft back to committed
@@ -896,8 +882,8 @@ export default function ProductCatalog({
             );
           })
           .catch((err) => {
-            const msg = err instanceof Error ? err.message : 'Failed to validate variant usage';
-            setVariantGuardModal({ title: 'Cannot validate rename', message: msg });
+            const msg = err instanceof Error ? err.message : tCatalog('variantGuard.validateUsageFailed');
+            setVariantGuardModal({ title: tCatalog('variantGuard.cannotValidateRename'), message: msg });
             setVariantDrafts((prevDrafts) =>
               prevDrafts.map((v) =>
                 v.id === variantId
@@ -1173,7 +1159,7 @@ export default function ProductCatalog({
     
     // Validate total image count first
     if (formData.images.length + files.length > maxImages) {
-      alert(`Maximum ${maxImages} images allowed. You currently have ${formData.images.length} images. Please remove some images first.`);
+      alert(tCatalog('alerts.maxImages', { max: maxImages, current: formData.images.length }));
       setUploadingImages(false);
       return;
     }
@@ -1183,13 +1169,13 @@ export default function ProductCatalog({
     for (const file of Array.from(files)) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert(`File "${file.name}" is not an image. Please select only image files.`);
+        alert(tCatalog('alerts.notImageFile', { name: file.name }));
         continue;
       }
       
       // Validate file size
       if (file.size > maxFileSize) {
-        alert(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        alert(tCatalog('alerts.fileTooLarge', { name: file.name }));
         continue;
       }
       
@@ -1201,7 +1187,7 @@ export default function ProductCatalog({
           throw new Error(result.error || 'Upload failed');
         }
       } catch (error) {
-        alert(`Failed to upload "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        alert(tCatalog('alerts.uploadFailed', { name: file.name, error: error instanceof Error ? error.message : tCatalog('alerts.unknownError') }));
       }
     }
 
@@ -1265,7 +1251,7 @@ export default function ProductCatalog({
 
   const handleUnpublish = async () => {
     if (!user?.id || !product?.id) {
-      alert('User not authenticated or product not found');
+      alert(tCatalog('alerts.userNotAuthenticatedOrProductNotFound'));
       return;
     }
 
@@ -1322,7 +1308,7 @@ export default function ProductCatalog({
           window.location.href = window.location.href;
         }, 1000);
     } catch (error) {
-      alert('Error unpublishing product. Please try again.');
+      alert(tCatalog('alerts.unpublishError'));
     } finally {
       setSaving(false);
     }
@@ -1330,7 +1316,7 @@ export default function ProductCatalog({
 
   const handleSubmitWithStatus = async (status: 'Draft' | 'Published') => {
     if (!user?.id) {
-      alert('User not authenticated');
+      alert(tCatalog('alerts.userNotAuthenticated'));
       return;
     }
 
@@ -1603,7 +1589,7 @@ export default function ProductCatalog({
 
         // Validate that we have at least one ID
         if (!hasId) {
-          alert('Cannot update product: Missing product ID');
+          alert(tCatalog('alerts.missingProductId'));
           setSaving(false);
           return;
         }
@@ -1629,16 +1615,16 @@ export default function ProductCatalog({
           const data = await fetchGraphQL<{ updateProduct: Product }>(UPDATE_PRODUCT_MUTATION, updateVariables);
           savedProduct = data.updateProduct;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
+          const errorMessage = error instanceof Error ? error.message : tCatalog('alerts.updateFailed');
           setVariantGuardModal({
-            title: 'Update blocked',
+            title: tCatalog('variantGuard.updateBlocked'),
             message: errorMessage,
           });
           setSaving(false);
           return;
         }
       } else if (currentMode === 'edit') {
-        alert('Cannot edit product: Missing product ID');
+        alert(tCatalog('alerts.cannotEditMissingId'));
         setSaving(false);
         return;
       }
@@ -1677,7 +1663,7 @@ export default function ProductCatalog({
         }
       }
     } catch (error) {
-      alert('Error saving product. Please try again.');
+      alert(tCatalog('alerts.saveError'));
     } finally {
       setSaving(false);
     }
@@ -1709,13 +1695,13 @@ export default function ProductCatalog({
   // Validation function to check if all required fields are filled
   const validateRequiredFields = () => {
     const requiredFields = [
-      { field: 'sku', value: formData.sku, name: 'SKU Number' },
-      { field: 'name', value: formData.name, name: 'Product Name' },
-      { field: 'description', value: formData.description, name: 'Product Description' },
-      { field: 'productType', value: formData.productType, name: 'Product Type' },
-      { field: 'brand', value: formData.brand, name: 'Brand' },
-      { field: 'supplier', value: formData.supplier, name: 'Supplier' },
-      { field: 'images', value: formData.images, name: 'Product Images' }
+      { field: 'sku', value: formData.sku, nameKey: 'sku' },
+      { field: 'name', value: formData.name, nameKey: 'name' },
+      { field: 'description', value: formData.description, nameKey: 'description' },
+      { field: 'productType', value: formData.productType, nameKey: 'productType' },
+      { field: 'brand', value: formData.brand, nameKey: 'brand' },
+      { field: 'supplier', value: formData.supplier, nameKey: 'supplier' },
+      { field: 'images', value: formData.images, nameKey: 'images' }
     ];
 
     // Check if combinations are properly configured
@@ -1736,17 +1722,17 @@ export default function ProductCatalog({
 
     // Add variant validation to missing fields
     if (!variantValidation) {
-      missingFields.push({ field: 'variants', value: '', name: 'Product Variants' });
+      missingFields.push({ field: 'variants', value: '', nameKey: 'variants' });
     }
 
     // Add stock validation to missing fields
     if (!stockValidation) {
-      missingFields.push({ field: 'stock', value: '', name: 'Product Stock' });
+      missingFields.push({ field: 'stock', value: '', nameKey: 'stock' });
     }
 
     return {
       isValid: missingFields.length === 0,
-      missingFields: missingFields.map(f => f.name)
+      missingFields: missingFields.map(f => translateFieldName(f.nameKey))
     };
   };
 
@@ -1760,7 +1746,7 @@ export default function ProductCatalog({
           <button
             onClick={() => {
               if (currentMode === 'edit' && hasUnsavedChanges) {
-                if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                if (confirm(tCatalog('header.confirmLeave'))) {
                   router.push('/products');
                 }
               } else {
@@ -1770,17 +1756,17 @@ export default function ProductCatalog({
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {tCatalog('header.back')}
           </button>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
-              {currentMode === 'add' && 'Add New Product'}
-              {currentMode === 'view' && 'Product Details'}
-              {currentMode === 'edit' && 'Edit Product'}
+              {currentMode === 'add' && tCatalog('header.addNewProduct')}
+              {currentMode === 'view' && tCatalog('header.productDetails')}
+              {currentMode === 'edit' && tCatalog('header.editProduct')}
             </h1>
             {currentMode === 'view' && currentProductStatus === 'Published' && (
               <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
-                Published
+                {translateStatus('Published')}
               </span>
             )}
             {product?.offerBadge && (
@@ -1788,10 +1774,10 @@ export default function ProductCatalog({
                 {product.offerBadge === 'All Offers' ? (
                   <>
                     <span className="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700">
-                      Discount
+                      {tShared('offerBadges.Discount')}
                     </span>
                     <span className="px-3 py-1 text-sm font-semibold rounded-full bg-purple-100 text-purple-700">
-                      Promotion
+                      {tShared('offerBadges.Promotion')}
                     </span>
                   </>
                 ) : (
@@ -1800,13 +1786,13 @@ export default function ProductCatalog({
                     product.offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
                     'bg-blue-100 text-blue-700'
                   }`}>
-                    {product.offerBadge}
+                    {tShared.has(`offerBadges.${product.offerBadge}`) ? tShared(`offerBadges.${product.offerBadge}`) : product.offerBadge}
                   </span>
                 )}
               </>
             )}
             {currentMode === 'edit' && hasUnsavedChanges && (
-              <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
+              <span className="text-sm text-orange-600 font-medium">• {tCatalog('header.unsavedChanges')}</span>
             )}
           </div>
           {currentMode === 'view' && currentProductStatus === 'Published' && (
@@ -1814,7 +1800,7 @@ export default function ProductCatalog({
               <div className="flex gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
                 <Info className="w-4 h-4 text-orange-600 mt-0.5" />
                 <span className="text-sm text-orange-700 font-medium">
-                  To edit, you need to unpublish this product first.
+                  {tCatalog('header.unpublishHint')}
                 </span>
               </div>
             </div>
@@ -1832,12 +1818,12 @@ export default function ProductCatalog({
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Delisting...
+                    {tCatalog('header.delisting')}
                   </>
                 ) : (
                   <>
                     <X className="w-4 h-4" />
-                    Unpublish
+                    {tCatalog('header.unpublish')}
                   </>
                 )}
               </button>
@@ -1852,7 +1838,7 @@ export default function ProductCatalog({
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
               >
                 <X className="w-4 h-4" />
-                Cancel
+                {tCatalog('header.cancel')}
               </button>
               <button
                 type="button"
@@ -1863,12 +1849,12 @@ export default function ProductCatalog({
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Draft
+                    {tCatalog('header.saveDraft')}
                   </>
                 )}
               </button>
@@ -1877,17 +1863,17 @@ export default function ProductCatalog({
                 form="product-form"
                 disabled={saving || !validation.isValid}
                 className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
+                title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    Save and Publish
+                    {tCatalog('header.saveAndPublish')}
                   </>
                 )}
               </button>
@@ -1902,7 +1888,7 @@ export default function ProductCatalog({
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
               >
                 <X className="w-4 h-4" />
-                Cancel
+                {tCatalog('header.cancel')}
               </button>
               <button
                 type="button"
@@ -1913,12 +1899,12 @@ export default function ProductCatalog({
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Draft
+                    {tCatalog('header.saveDraft')}
                   </>
                 )}
               </button>
@@ -1927,17 +1913,17 @@ export default function ProductCatalog({
                 form="product-form"
                 disabled={saving || !validation.isValid}
                 className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
+                title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Save and Publish
+                    {tCatalog('header.saveAndPublish')}
                   </>
                 )}
               </button>
@@ -1950,17 +1936,17 @@ export default function ProductCatalog({
       <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
         {currentMode === 'add' && (
           <p className="text-sm text-gray-600">
-            Create a new product by filling out the form below. All fields marked with descriptions are required for proper product cataloging.
+            {tCatalog('modeDescriptions.add')}
           </p>
         )}
         {currentMode === 'view' && (
           <p className="text-sm text-gray-600">
-            View detailed information about this product. You can see all product specifications, images, and current status.
+            {tCatalog('modeDescriptions.view')}
           </p>
         )}
         {currentMode === 'edit' && (
           <p className="text-sm text-gray-600">
-            Modify existing product information. Update any fields as needed and save your changes to the product catalog.
+            {tCatalog('modeDescriptions.edit')}
           </p>
         )}
       </div>
@@ -1972,18 +1958,18 @@ export default function ProductCatalog({
             // Calculate completion progress - use formData for all modes
             const dataSource = currentMode === 'add' ? formData : product;
             const requiredFields = [
-              { name: 'SKU Number', value: String(dataSource?.sku || '').trim() },
-              { name: 'Product Name', value: String(dataSource?.name || '').trim() },
-              { name: 'Description', value: String(dataSource?.description || '').trim() },
-              { name: 'Category', value: String(dataSource?.productType || '').trim() },
-              { name: 'Brand', value: String(dataSource?.brand || '').trim() },
-              { name: 'Supplier', value: String(dataSource?.supplier || '').trim() },
-              { name: 'Product Images', value: dataSource?.images && dataSource?.images.length > 0 },
-              { name: 'Product Variants', value: combinations.length > 0 && combinations.every(combo => 
+              { nameKey: 'sku', value: String(dataSource?.sku || '').trim() },
+              { nameKey: 'name', value: String(dataSource?.name || '').trim() },
+              { nameKey: 'description', value: String(dataSource?.description || '').trim() },
+              { nameKey: 'category', value: String(dataSource?.productType || '').trim() },
+              { nameKey: 'brand', value: String(dataSource?.brand || '').trim() },
+              { nameKey: 'supplier', value: String(dataSource?.supplier || '').trim() },
+              { nameKey: 'images', value: dataSource?.images && dataSource?.images.length > 0 },
+              { nameKey: 'variants', value: combinations.length > 0 && combinations.every(combo => 
                 combo.purchasePrice && String(combo.purchasePrice).trim() !== '' &&
                 combo.sellingPrice && String(combo.sellingPrice).trim() !== ''
               ) },
-              { name: 'Product Stock', value: combinations.length > 0 }
+              { nameKey: 'stock', value: combinations.length > 0 }
             ];
             
             const completedFields = requiredFields.filter(field => 
@@ -1998,7 +1984,7 @@ export default function ProductCatalog({
             return (
               <>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800">Product Catalog Completion</h3>
+                  <h3 className="text-sm font-semibold text-gray-800">{tCatalog('completion.title')}</h3>
                   <span className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
                     {completionPercentage}%
                   </span>
@@ -2012,10 +1998,10 @@ export default function ProductCatalog({
                   ></div>
                 </div>
                 <div className="text-xs text-gray-600">
-                  {completedFields.length} of {totalFields} fields completed
+                  {tCatalog('completion.fieldsCompleted', { completed: completedFields.length, total: totalFields })}
                   {missingFields.length > 0 && (
                     <span className="ml-2 text-amber-700">
-                      • Missing: {missingFields.map(field => field.name).join(', ')}
+                      • {tCatalog('completion.missing', { fields: missingFields.map(field => translateFieldName(field.nameKey)).join(', ') })}
                     </span>
                   )}
                 </div>
@@ -2033,28 +2019,28 @@ export default function ProductCatalog({
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-gray-500" />
-              General Information
+              {tCatalog('generalInfo.title')}
             </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Product ID
+                    {tCatalog('generalInfo.productId')}
                   </label>
                   <input
                     type="text"
                     value={formData.productId || ''}
                     disabled={true}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="Auto-generated Product ID"
+                    placeholder={tCatalog('generalInfo.productIdPlaceholder')}
                   />
                   {currentMode === 'add' && (
-                    <p className="text-xs text-gray-500 mt-1">Product ID is automatically generated in LKP format</p>
+                    <p className="text-xs text-gray-500 mt-1">{tCatalog('generalInfo.productIdHint')}</p>
                   )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    SKU Number
+                    {tCatalog('generalInfo.sku')}
                   </label>
                   <input
                     type="text"
@@ -2062,12 +2048,12 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('sku', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="Enter SKU"
+                    placeholder={tCatalog('generalInfo.skuPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Brand
+                    {tCatalog('generalInfo.brand')}
                   </label>
                   <input
                     type="text"
@@ -2075,12 +2061,12 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('brand', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="Enter brand"
+                    placeholder={tCatalog('generalInfo.brandPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Type
+                    {tCatalog('generalInfo.type')}
                   </label>
                   <div className="relative" ref={generalCategoryRef}>
                     <button
@@ -2104,10 +2090,10 @@ export default function ProductCatalog({
                                 </span>
                               );
                             })()}
-                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
+                            <span className="text-black">{translateCategory(formData.productType)}</span>
                           </>
                         ) : (
-                          <span className="text-gray-500">Select category</span>
+                          <span className="text-gray-500">{tCatalog('generalInfo.selectCategory')}</span>
                         )}
                       </span>
                       <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -2127,7 +2113,7 @@ export default function ProductCatalog({
                               <span style={{ color: category.color }}>
                                 <IconComponent className="w-4 h-4" />
                               </span>
-                              <span className="text-black">{category.label}</span>
+                              <span className="text-black">{translateCategory(category.value)}</span>
                             </button>
                           );
                         })}
@@ -2140,7 +2126,7 @@ export default function ProductCatalog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Product Name
+                    {tCatalog('generalInfo.productName')}
                   </label>
                   <input
                     type="text"
@@ -2148,12 +2134,12 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="Enter product name"
+                    placeholder={tCatalog('generalInfo.productNamePlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Supplier
+                    {tCatalog('generalInfo.supplier')}
                   </label>
                   <input
                     type="text"
@@ -2161,14 +2147,14 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('supplier', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="Enter supplier"
+                    placeholder={tCatalog('generalInfo.supplierPlaceholder')}
                   />
                 </div>
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Product Description
+                  {tCatalog('generalInfo.productDescription')}
                 </label>
                 <textarea
                   value={formData.description}
@@ -2176,7 +2162,7 @@ export default function ProductCatalog({
                   disabled={isViewMode}
                   rows={3}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Enter product description"
+                  placeholder={tCatalog('generalInfo.productDescriptionPlaceholder')}
                 />
               </div>
 
@@ -2200,7 +2186,7 @@ export default function ProductCatalog({
                         </svg>
                       )}
                     </button>
-                    <span>Halal Certified</span>
+                    <span>{tCatalog('generalInfo.halalCertified')}</span>
                   </label>
                   <label className="flex items-center gap-2 text-xs text-gray-700">
                     <button
@@ -2219,7 +2205,7 @@ export default function ProductCatalog({
                         </svg>
                       )}
                     </button>
-                    <span>BPOM Approved</span>
+                    <span>{tCatalog('generalInfo.bpomApproved')}</span>
                   </label>
                   <label className="flex items-center gap-2 text-xs text-gray-700">
                     <button
@@ -2238,10 +2224,10 @@ export default function ProductCatalog({
                         </svg>
                       )}
                     </button>
-                    <span>Original Product</span>
+                    <span>{tCatalog('generalInfo.originalProduct')}</span>
                   </label>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">Return Policy (days)</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">{tCatalog('generalInfo.returnPolicyDays')}</label>
                     <input
                       type="number"
                       min="0"
@@ -2249,7 +2235,7 @@ export default function ProductCatalog({
                       onChange={(e) => handleInputChange('returnPolicyDays', parseInt(e.target.value) || 0)}
                       disabled={isViewMode}
                       className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                      placeholder="7"
+                      placeholder={tCatalog('generalInfo.returnPolicyPlaceholder')}
                     />
                   </div>
                 </div>
@@ -2266,27 +2252,33 @@ export default function ProductCatalog({
                     </div>
                     <div className="flex-1">
                       <h4 className="text-sm font-semibold text-green-900 mb-1">
-                        Active Promotion: Buy X Get Y
+                        {tCatalog('generalInfo.promotionTitle')}
                       </h4>
                       <p className="text-xs text-green-800 mb-2">
                         {product.promotionDetails.description}
                       </p>
                       <div className="flex items-center gap-4 text-xs">
                         <div className="flex items-center gap-1">
-                          <span className="font-medium text-green-900">Buy:</span>
+                          <span className="font-medium text-green-900">{tCatalog('generalInfo.promotionBuy')}</span>
                           <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {product.promotionDetails.minQuantity} items
+                            {tCatalog('generalInfo.promotionBuyItems', { count: product.promotionDetails.minQuantity })}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="font-medium text-green-900">Get Free:</span>
+                          <span className="font-medium text-green-900">{tCatalog('generalInfo.promotionGetFree')}</span>
                           <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {product.promotionDetails.freeQuantity} item{product.promotionDetails.freeQuantity > 1 ? 's' : ''}
+                            {product.promotionDetails.freeQuantity > 1
+                              ? tCatalog('generalInfo.promotionFreeItems', { count: product.promotionDetails.freeQuantity })
+                              : tCatalog('generalInfo.promotionFreeItem', { count: product.promotionDetails.freeQuantity })}
                           </span>
                         </div>
                       </div>
                       <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
-                        <Info className="w-4 h-4 text-green-500" /> <span className="italic">Customers must purchase at least {product.promotionDetails.minQuantity} items to receive {product.promotionDetails.freeQuantity} free item{product.promotionDetails.freeQuantity > 1 ? 's' : ''}.</span>
+                        <Info className="w-4 h-4 text-green-500" /> <span className="italic">
+                          {product.promotionDetails.freeQuantity > 1
+                            ? tCatalog('generalInfo.promotionHintPlural', { minQuantity: product.promotionDetails.minQuantity, freeQuantity: product.promotionDetails.freeQuantity })
+                            : tCatalog('generalInfo.promotionHint', { minQuantity: product.promotionDetails.minQuantity, freeQuantity: product.promotionDetails.freeQuantity })}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -2302,7 +2294,7 @@ export default function ProductCatalog({
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Upload className="w-5 h-5 text-gray-500" />
-                  Upload Images
+                  {tCatalog('images.title')}
                 </h2>
                 {!isViewMode && formData.images.length > 0 && (
                   <button
@@ -2310,7 +2302,7 @@ export default function ProductCatalog({
                     onClick={clearAllImages}
                     className="text-xs text-red-500 hover:text-red-700 font-medium"
                   >
-                    Clear All
+                    {tCatalog('images.clearAll')}
                   </button>
                 )}
               </div>
@@ -2332,7 +2324,7 @@ export default function ProductCatalog({
                       <div className="relative w-full h-full">
                         <img 
                           src={formData.images[0]} 
-                          alt="Main product" 
+                          alt={tCatalog('images.mainProductAlt')} 
                           className="w-full h-full object-cover rounded-lg"
                         />
                         {!isViewMode && (
@@ -2349,9 +2341,9 @@ export default function ProductCatalog({
                       <div className="text-center">
                         <Upload className={`w-12 h-12 mx-auto mb-2 ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-400'}`} />
                         <p className={`font-medium ${isDragOver ? 'text-[#0a61d7]' : 'text-gray-500'}`}>
-                          {isDragOver ? 'Drop images here' : 'Drag & drop or click to upload'}
+                          {isDragOver ? tCatalog('images.dropHere') : tCatalog('images.dragOrClick')}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">Supports: JPG, PNG, GIF (Max 5MB)</p>
+                        <p className="text-xs text-gray-400 mt-1">{tCatalog('images.supportedFormats')}</p>
                       </div>
                     )}
                     
@@ -2369,7 +2361,7 @@ export default function ProductCatalog({
                 
                 {/* Thumbnail Images - Left side, horizontal */}
                 <div className="w-32 space-y-2">
-                  <div className="text-xs text-gray-500 mb-2">Additional Images</div>
+                  <div className="text-xs text-gray-500 mb-2">{tCatalog('images.additionalImages')}</div>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {formData.images.slice(1).map((image, index) => (
                       <div 
@@ -2391,7 +2383,7 @@ export default function ProductCatalog({
                           }
                         }}
                       >
-                        <img src={image} alt={`Product ${index + 2}`} className="w-full h-full object-cover" />
+                        <img src={image} alt={tCatalog('images.productAlt', { index: index + 2 })} className="w-full h-full object-cover" />
                         {!isViewMode && (
                           <>
                             <button
@@ -2432,13 +2424,13 @@ export default function ProductCatalog({
               {uploadingImages && (
                 <div className="flex items-center gap-2 text-sm text-gray-600 mt-4">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-[#0a61d7] rounded-full animate-spin"></div>
-                  <span>Uploading images...</span>
+                  <span>{tCatalog('images.uploading')}</span>
                 </div>
               )}
               {/* Image Count Info */}
               <div className="flex items-center justify-between mt-4">
                 <div className="text-xs text-gray-500">
-                  {formData.images.length}/10 images uploaded
+                  {tCatalog('images.countUploaded', { count: formData.images.length })}
                 </div>
               </div>
             </div>
@@ -2448,14 +2440,14 @@ export default function ProductCatalog({
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Tag className="w-5 h-5 text-gray-500" />
-                  Product Settings
+                  {tCatalog('settings.title')}
                 </h2>
               </div>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Product Type
+                    {tCatalog('settings.productType')}
                   </label>
                   <div className="relative" ref={catalogCategoryRef}>
                     <button
@@ -2479,10 +2471,10 @@ export default function ProductCatalog({
                                 </span>
                               );
                             })()}
-                            <span className="text-black">{getSelectedCategory(formData.productType)?.label || formData.productType}</span>
+                            <span className="text-black">{translateCategory(formData.productType)}</span>
                           </>
                         ) : (
-                          <span className="text-gray-500">Select category</span>
+                          <span className="text-gray-500">{tCatalog('generalInfo.selectCategory')}</span>
                         )}
                       </span>
                       <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -2502,7 +2494,7 @@ export default function ProductCatalog({
                               <span style={{ color: category.color }}>
                                 <IconComponent className="w-4 h-4" />
                               </span>
-                              <span className="text-black">{category.label}</span>
+                              <span className="text-black">{translateCategory(category.value)}</span>
                             </button>
                           );
                         })}
@@ -2513,7 +2505,7 @@ export default function ProductCatalog({
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Product Category (by Channel)
+                    {tCatalog('settings.productCategoryByChannel')}
                   </label>
                   <input
                     type="text"
@@ -2521,13 +2513,13 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('productCategory', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="e.g., Wholesale, Retail"
+                    placeholder={tCatalog('settings.productCategoryPlaceholder')}
                   />
                 </div>
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    Catalog Name
+                    {tCatalog('settings.catalogName')}
                   </label>
                   <input
                     type="text"
@@ -2535,12 +2527,12 @@ export default function ProductCatalog({
                     onChange={(e) => handleInputChange('catalogName', e.target.value)}
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder="e.g., Daily Essentials"
+                    placeholder={tCatalog('settings.catalogNamePlaceholder')}
                   />
                 </div>
                 
                 <div className="text-xs text-gray-500 italic pt-2 border-t border-[#e6e6e6]">
-                  All Product Types input will be added as a new filter.
+                  {tCatalog('settings.filterHint')}
                 </div>
               </div>
             </div>
@@ -2551,8 +2543,8 @@ export default function ProductCatalog({
             <div className="mb-6">
               <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2 mb-4">
                 <Package className="w-5 h-5 text-gray-500" />
-                Product Stock Summary
-                <span className="text-xs text-gray-500 font-normal">(Computed from all variants)</span>
+                {tCatalog('stockSummary.title')}
+                <span className="text-xs text-gray-500 font-normal">{tCatalog('stockSummary.computedFromVariants')}</span>
               </h2>
               
               {/* Product-Level Stock Summary (Read-Only) */}
@@ -2560,25 +2552,25 @@ export default function ProductCatalog({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Total Stock (Pieces)
+                      {tCatalog('stockSummary.totalStock')}
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
                       {combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0).toLocaleString()}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Sum of all combination stocks</p>
+                    <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.totalStockHint')}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Low Stock Threshold
+                      {tCatalog('stockSummary.lowStockThreshold')}
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
                       {combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0).toLocaleString()}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Minimum threshold across combinations</p>
+                    <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.lowStockThresholdHint')}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Overall Status
+                      {tCatalog('stockSummary.overallStatus')}
                     </label>
                     <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
                       (() => {
@@ -2597,14 +2589,14 @@ export default function ProductCatalog({
                         ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
                         : 'bg-green-50 border-green-200 text-green-800'
                     }`}>
-                      {(() => {
+                      {translateStockStatus((() => {
                         const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
                         const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
                         const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
                         return status;
-                      })()}
+                      })())}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Overall product status</p>
+                    <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.overallStatusHint')}</p>
                   </div>
                 </div>
               </div>
@@ -2618,19 +2610,19 @@ export default function ProductCatalog({
                     <div className="flex items-start gap-2">
                       <Info className="w-4 h-4 text-[#0a61d7]" />
                       <div className="text-xs text-[#0a61d7]">
-                        Product variants and the variation list are locked because this product has an active offer. To modify them, first deactivate or disconnect the offer from the product.
+                        {tCatalog('variants.offerLockedVariants')}
                       </div>
                     </div>
                   </div>
                 )}
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-gray-500" />
-                  Product Variants
+                  {tCatalog('variants.title')}
                   <span className="relative group inline-flex items-center">
                     <Info
                       tabIndex={0}
                       aria-describedby="product-variants-info-tooltip"
-                      aria-label="Product variants information"
+                      aria-label={tCatalog('variants.infoAriaLabel')}
                       className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
                     />
                     <span
@@ -2639,24 +2631,18 @@ export default function ProductCatalog({
                       className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[380px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-5 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                     >
                       <span className="block text-xs font-semibold text-gray-900 mb-1.5">
-                        Set up variants in this order
+                        {tCatalog('variants.tooltipTitle')}
                       </span>
                       <ol className="list-decimal list-inside space-y-1 text-xs text-gray-700">
-                        <li>
-                          Define all <span className="font-semibold">variant types and options</span> first (e.g. Size: S, M, L).
-                        </li>
-                        <li>
-                          Click <span className="font-semibold">Refresh</span> in Variation Lists to rebuild the table rows.
-                        </li>
-                        <li>
-                          Fill SKU, prices, MOQ, and stock for each row, then <span className="font-semibold">Save or Publish</span>.
-                        </li>
+                        <li>{tCatalog('variants.tooltipStep1')}</li>
+                        <li>{tCatalog('variants.tooltipStep2')}</li>
+                        <li>{tCatalog('variants.tooltipStep3')}</li>
                       </ol>
                       <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                        After you add, remove, or rename any variant or option, click <span className="font-semibold">Refresh</span> again before saving or publishing. Skipping this step often causes save/publish errors because the table is out of sync.
+                        {tCatalog('variants.tooltipWarning')}
                       </p>
                       <p className="mt-2 text-[11px] text-gray-500">
-                        Avoid renaming or deleting variants used in past orders. Please create new options instead to protect order history.
+                        {tCatalog('variants.tooltipFooter')}
                       </p>
                     </span>
                   </span>
@@ -2671,7 +2657,7 @@ export default function ProductCatalog({
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-48">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Variant Type
+                          {tCatalog('variants.variantType')}
                         </label>
                         <input
                           type="text"
@@ -2691,7 +2677,7 @@ export default function ProductCatalog({
                           }}
                           disabled={isViewMode || isOfferConnected}
                           className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black font-semibold"
-                          placeholder="e.g., Color, Size, Flavor"
+                          placeholder={tCatalog('variants.variantTypePlaceholder')}
                         />
                       </div>
                     </div>
@@ -2709,7 +2695,7 @@ export default function ProductCatalog({
                               });
                             }}
                             className="text-gray-600 hover:text-black p-1"
-                            title="Move up"
+                            title={tCatalog('variants.moveUp')}
                           >
                             <ChevronUp className="w-4 h-4" />
                   </button>
@@ -2726,7 +2712,7 @@ export default function ProductCatalog({
                               });
                             }}
                             className="text-gray-600 hover:text-black p-1"
-                            title="Move down"
+                            title={tCatalog('variants.moveDown')}
                           >
                             <ChevronDown className="w-4 h-4" />
                           </button>
@@ -2736,7 +2722,7 @@ export default function ProductCatalog({
                           type="button"
                             onClick={() => removeVariant(variant.id)}
                           className="text-red-500 hover:text-red-700 p-1"
-                            title="Remove variant"
+                            title={tCatalog('variants.removeVariant')}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -2747,7 +2733,7 @@ export default function ProductCatalog({
                     
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-2">
-                      Options
+                      {tCatalog('variants.options')}
                         </label>
                     <div className="flex flex-wrap gap-2">
                       {variant.options.map((option, optionIndex) => (
@@ -2774,7 +2760,7 @@ export default function ProductCatalog({
                             }}
                           disabled={isViewMode || isOfferConnected}
                             className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                            placeholder="e.g., White"
+                            placeholder={tCatalog('variants.optionPlaceholder')}
                             style={{ minWidth: '120px' }}
                           />
                           {!isViewMode && !isOfferConnected && (variant.options.length > 1 || optionIndex > 0) && (
@@ -2795,7 +2781,7 @@ export default function ProductCatalog({
                           className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-[#0a61d7] hover:text-[#0851b8] transition-colors border border-dashed border-[#0a61d7] rounded-lg"
                   >
                     <Plus className="w-4 h-4" />
-                          Add Option
+                          {tCatalog('variants.addOption')}
                   </button>
                 )}
               </div>
@@ -2810,7 +2796,7 @@ export default function ProductCatalog({
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium border-2 border-dashed border-gray-300 text-gray-700 rounded-lg hover:border-[#0a61d7] hover:text-[#0a61d7] transition-colors"
                       >
                   <Plus className="w-4 h-4" />
-                  Add Variant Type
+                  {tCatalog('variants.addVariantType')}
                       </button>
                     )}
                   </div>
@@ -2822,7 +2808,7 @@ export default function ProductCatalog({
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-[#0a61d7]" />
                     <div className="text-xs text-[#0a61d7]">
-                      Prices are locked because this product has an active offer. To modify prices, first deactivate or disconnect the offer from the product.
+                      {tCatalog('variants.offerLockedPrices')}
                     </div>
                   </div>
                 </div>
@@ -2831,12 +2817,12 @@ export default function ProductCatalog({
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5 text-gray-500" />
-                    Variation Lists
+                    {tCatalog('variants.variationLists')}
                     <span className="relative group inline-flex items-center">
                       <Info
                         tabIndex={0}
                         aria-describedby="variation-lists-info-tooltip"
-                        aria-label="Variation lists information"
+                        aria-label={tCatalog('variants.variationListsAriaLabel')}
                         className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
                       />
                       <span
@@ -2845,16 +2831,16 @@ export default function ProductCatalog({
                         className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[380px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 leading-5 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                       >
                         <span className="block text-xs font-semibold text-gray-900 mb-1.5">
-                          Before you save or publish
+                          {tCatalog('variants.variationListsTooltipTitle')}
                         </span>
                         <p className="text-xs text-gray-700">
-                          This table must match your Product Variants above. Whenever you change variant types or options, click <span className="font-semibold">Refresh</span> first so every combination is recorded correctly.
+                          {tCatalog('variants.variationListsTooltipBody1')}
                         </p>
                         <p className="mt-2 text-xs text-gray-700">
-                          Then complete <span className="font-semibold">SKU, selling price, purchase price, MOQ, and stock</span> for each row. Do not save or publish while rows are missing or outdated as that can block product creation.
+                          {tCatalog('variants.variationListsTooltipBody2')}
                         </p>
                         <p className="mt-2 text-[11px] text-gray-500">
-                          For variants already used in orders, add new options instead of renaming or deleting existing ones.
+                          {tCatalog('variants.variationListsTooltipFooter')}
                         </p>
                       </span>
                     </span>
@@ -2865,10 +2851,10 @@ export default function ProductCatalog({
                       disabled={isOfferConnected}
                       onClick={() => setVariationRefreshTick((v) => v + 1)}
                       className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Refresh variation table"
+                      title={tCatalog('variants.refreshTableTitle')}
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Refresh
+                      {tCatalog('variants.refresh')}
                     </button>
                   )}
                 </div>
@@ -2877,23 +2863,23 @@ export default function ProductCatalog({
               {/* Apply To All Section */}
               {!isViewMode && combinations.length > 0 && (
                 <div className="bg-orange-50 rounded-lg p-4 mb-4">
-                  <h3 className="text-sm font-semibold text-orange-900 mb-3">Quick Action</h3>
+                  <h3 className="text-sm font-semibold text-orange-900 mb-3">{tCatalog('variants.quickAction')}</h3>
                   <div className="flex gap-3 items-end">
                           <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        SKU
+                        {tCatalog('variants.sku')}
                             </label>
                             <input
                               type="text"
                         id="apply-sku"
                          disabled={isOfferConnected}
                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder="SKU-001"
+                        placeholder={tCatalog('variants.skuPlaceholder')}
                       />
                           </div>
                           <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Selling Price
+                        {tCatalog('variants.sellingPrice')}
                             </label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
@@ -2919,7 +2905,7 @@ export default function ProductCatalog({
                         </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Purchase Price
+                        {tCatalog('variants.purchasePrice')}
                       </label>
                               <div className="relative">
                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
@@ -2945,40 +2931,40 @@ export default function ProductCatalog({
                               </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        MOQ
+                        {tCatalog('variants.moq')}
                               </label>
                       <input
                         type="number"
                         id="apply-moq"
                          disabled={isOfferConnected}
                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder="0"
+                        placeholder={tCatalog('variants.numberPlaceholder')}
                         min="0"
                       />
                             </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Stock Qty
+                        {tCatalog('variants.stockQty')}
                       </label>
                                 <input
                                   type="number"
                         id="apply-stock"
                          disabled={isOfferConnected}
                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder="0"
+                        placeholder={tCatalog('variants.numberPlaceholder')}
                         min="0"
                       />
                           </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Low Threshold
+                        {tCatalog('variants.lowThreshold')}
                       </label>
                       <input
                         type="number"
                         id="apply-threshold"
                          disabled={isOfferConnected}
                          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder="0"
+                        placeholder={tCatalog('variants.numberPlaceholder')}
                         min="0"
                       />
                         </div>
@@ -3005,7 +2991,7 @@ export default function ProductCatalog({
                        disabled={isOfferConnected}
                        className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap disabled:bg-orange-300 disabled:cursor-not-allowed"
                     >
-                      Apply To All
+                      {tCatalog('variants.applyToAll')}
                     </button>
                       </div>
                     </div>
@@ -3016,33 +3002,33 @@ export default function ProductCatalog({
                       <tr>
                         {variants.map((variant, index) => (
                           <th key={variant.id} className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                            {variant.variantType || `Var ${index + 1}`}
+                            {variant.variantType || tCatalog('variants.varFallback', { index: index + 1 })}
                           </th>
                         ))}
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          SKU
+                          {tCatalog('variants.sku')}
                         </th>
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          Selling Price
+                          {tCatalog('variants.sellingPrice')}
                         </th>
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          Purchase Price
+                          {tCatalog('variants.purchasePrice')}
                         </th>
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          MOQ
+                          {tCatalog('variants.moq')}
                         </th>
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          Stock Qty
+                          {tCatalog('variants.stockQty')}
                         </th>
                         <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          Low Threshold
+                          {tCatalog('variants.lowThreshold')}
                         </th>
                         <th className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          Status
+                          {tCatalog('variants.status')}
                         </th>
                         {!isViewMode && (
                           <th className="text-xs font-semibold text-gray-700 p-3 text-center border-b border-gray-300">
-                            Actions
+                            {tCatalog('variants.actions')}
                           </th>
                         )}
                       </tr>
@@ -3056,7 +3042,7 @@ export default function ProductCatalog({
                                className="p-3 border-r border-b border-gray-300"
                              >
                                <span className="text-xs text-black">
-                                 {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || 'None'}
+                                 {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || tCatalog('variants.none')}
                                </span>
                              </td>
                            ))}
@@ -3067,7 +3053,7 @@ export default function ProductCatalog({
                               onChange={(e) => updateCombination(combination.id, 'sku', e.target.value)}
                                   disabled={isViewMode || isOfferConnected}
                                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="SKU-001"
+                              placeholder={tCatalog('variants.skuPlaceholder')}
                             />
                           </td>
                           <td className="p-3 border-r border-b border-gray-300 align-top">
@@ -3140,7 +3126,7 @@ export default function ProductCatalog({
                               }}
                               disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="0"
+                              placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
@@ -3151,7 +3137,7 @@ export default function ProductCatalog({
                               onChange={(e) => updateCombination(combination.id, 'stockQuantity', parseInt(e.target.value) || 0)}
                               disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="0"
+                              placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
@@ -3162,7 +3148,7 @@ export default function ProductCatalog({
                               onChange={(e) => updateCombination(combination.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
                               disabled={isViewMode || isOfferConnected}
                               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder="0"
+                              placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
@@ -3174,7 +3160,7 @@ export default function ProductCatalog({
                                 ? 'text-yellow-600'
                                 : 'text-green-600'
                             }`}>
-                              {combination.stockStatus}
+                              {translateStockStatus(combination.stockStatus)}
                             </span>
                           </td>
                           {!isViewMode && (
@@ -3191,7 +3177,7 @@ export default function ProductCatalog({
                                   }}
                                   disabled={index === 0}
                                   className="text-blue-500 hover:text-blue-700 p-1 disabled:text-gray-300"
-                                  title="Move up"
+                                  title={tCatalog('variants.moveUp')}
                                 >
                                   <ChevronUp className="w-4 h-4" />
                                 </button>
@@ -3206,7 +3192,7 @@ export default function ProductCatalog({
                                   }}
                                   disabled={index === combinations.length - 1}
                                   className="text-blue-500 hover:text-blue-700 p-1 disabled:text-gray-300"
-                                  title="Move down"
+                                  title={tCatalog('variants.moveDown')}
                                 >
                                   <ChevronDown className="w-4 h-4" />
                                 </button>
@@ -3232,8 +3218,8 @@ export default function ProductCatalog({
               <CheckCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
-              <p className="text-xs text-white/90">Product has been updated successfully.</p>
+              <h3 className="text-md font-semibold">{tCatalog('successModal.title')}</h3>
+              <p className="text-xs text-white/90">{tCatalog('successModal.description')}</p>
             </div>
           </div>
         </div>
@@ -3258,7 +3244,7 @@ export default function ProductCatalog({
                       </div>
                       {Array.isArray(it.orderIds) && it.orderIds.length > 0 && (
                         <div className="mt-1 text-xs text-gray-600">
-                          Orders:{' '}
+                          {tCatalog('variantGuard.orders')}{' '}
                           {it.orderIds!.map((oid, idx) => (
                             <React.Fragment key={oid}>
                               <a
@@ -3285,7 +3271,7 @@ export default function ProductCatalog({
               )}
               {variantGuardModal.policy && (
                 <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-xs font-semibold text-gray-900">What to do instead</p>
+                  <p className="text-xs font-semibold text-gray-900">{tCatalog('variantGuard.whatToDoInstead')}</p>
                   <p className="mt-1 text-xs text-gray-700 whitespace-pre-line">{variantGuardModal.policy}</p>
                 </div>
               )}
@@ -3299,7 +3285,7 @@ export default function ProductCatalog({
                     }}
                     className="px-4 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/30"
                   >
-                    Create new option
+                    {tCatalog('variantGuard.createNewOption')}
                   </button>
                 )}
                 <button
@@ -3307,7 +3293,7 @@ export default function ProductCatalog({
                   onClick={() => setVariantGuardModal(null)}
                   className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#0a61d7] text-white hover:bg-[#0851b8] focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/40"
                 >
-                  OK
+                  {tCatalog('variantGuard.ok')}
                 </button>
               </div>
             </div>

@@ -8,6 +8,7 @@ import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-securit
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
@@ -22,6 +23,7 @@ interface BuyerModalProps {
 export default function BuyerModal({ open, onClose, onSave, initialData, mode }: BuyerModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tBuyersModal, tShared, translateStatus } = useClientsTranslations();
   
   // Get currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -405,7 +407,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         }, 100);
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save buyer';
+      const errorMessage = err instanceof Error ? err.message : tBuyersModal('saveFailed');
       handleError(errorMessage);
     } finally {
       setSaving(false);
@@ -416,12 +418,12 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   // Enhanced file handling
   const handleFileUpload = useCallback(async (file: File) => {
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      handleError('File size must be less than 5MB');
+      handleError(tBuyersModal('fileTooLarge'));
       return;
     }
     
     if (!file.type.startsWith('image/')) {
-      handleError('Please select an image file');
+      handleError(tBuyersModal('invalidImage'));
       return;
     }
     
@@ -435,7 +437,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         throw new Error(result.error || 'Upload failed');
       }
     } catch (error) {
-      handleError(error instanceof Error ? error.message : 'Failed to upload image');
+      handleError(error instanceof Error ? error.message : tBuyersModal('uploadFailed'));
     }
   }, [handleError]);
 
@@ -513,7 +515,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           type="button"
           className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           onClick={onClose}
-          aria-label="Close modal"
+          aria-label={tShared('closeModal')}
         >
           <X className="w-5 h-5" />
         </button>
@@ -525,10 +527,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           </div>
           <div>
             <h2 id="buyer-modal-title" className="text-xl font-bold text-black">
-              {mode === 'edit' ? 'Edit Buyer' : 'Add Buyer'}
+              {mode === 'edit' ? tBuyersModal('editTitle') : tBuyersModal('addTitle')}
             </h2>
             <p className="text-gray-500 text-sm">
-              {mode === 'edit' ? 'Update buyer information and settings' : 'Create a new buyer profile'}
+              {mode === 'edit' ? tBuyersModal('editSubtitle') : tBuyersModal('addSubtitle')}
             </p>
           </div>
         </div>
@@ -569,7 +571,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 className="ml-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] flex items-center gap-1 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="w-4 h-4" /> Upload Photo
+                <Upload className="w-4 h-4" /> {tBuyersModal('uploadPhoto')}
               </button>
               <input
                 ref={fileInputRef}
@@ -586,7 +588,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           
           {/* ID Field */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tShared('columns.id')}</label>
             <input 
               type="text" 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" 
@@ -595,14 +597,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               disabled 
               aria-describedby="id-description"
             />
-            <p id="id-description" className="text-xs text-gray-500 mt-1">Auto-generated unique identifier</p>
+            <p id="id-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('autoIdHint')}</p>
           </div>
           
           {/* Store Name and Owner */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Store Name
+                {tBuyersModal('storeName')}
               </label>
               <input 
                 type="text" 
@@ -613,7 +615,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Owner Name
+                {tBuyersModal('ownerName')}
               </label>
               <input 
                 type="text" 
@@ -628,7 +630,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Phone
+                {tBuyersModal('phone')}
               </label>
               <input 
                 type="tel" 
@@ -639,7 +641,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Email
+                {tBuyersModal('email')}
               </label>
               <input 
                 type="email" 
@@ -654,7 +656,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Business Type
+                {tBuyersModal('businessType')}
               </label>
               <input 
                 type="text" 
@@ -664,7 +666,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
                 <button
                   type="button"
@@ -672,7 +674,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                   className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-black text-left flex items-center justify-between"
                 >
                   <span className={form.status ? 'text-black' : 'text-gray-500'}>
-                    {form.status || 'Select status'}
+                    {form.status ? translateStatus(form.status) : tBuyersModal('selectStatus')}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
@@ -690,7 +692,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                           form.status === status ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
                         }`}
                       >
-                        {status}
+                        {translateStatus(status)}
                       </button>
                     ))}
                   </div>
@@ -702,7 +704,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           {/* Address */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Address
+              {tBuyersModal('address')}
             </label>
             <textarea 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -714,17 +716,17 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           
           {/* Order & Product Details Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
-            <label className="block text-sm font-bold text-black mb-2">Order & Product Details</label>
+            <label className="block text-sm font-bold text-black mb-2">{tBuyersModal('orderSection')}</label>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">No.</th>
-                    <th className="py-2 px-3 font-medium uppercase">Product</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Orders (Boxes)</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Spend</th>
-                    <th className="py-2 px-3 font-medium uppercase">Last Order Date</th>
-                    <th className="py-2 px-3 font-medium uppercase">Outstanding</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colNo')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colProduct')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalSpend')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colOutstanding')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -786,7 +788,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                           className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                           onClick={() => deleteOrderRow(idx)} 
                           disabled={orderRows.length === 1}
-                          aria-label={`Delete order row ${idx + 1}`}
+                          aria-label={tBuyersModal('deleteOrderRow', { index: idx + 1 })}
                         >
                           <Trash className="w-4 h-4" />
                         </button>
@@ -801,7 +803,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] transition-colors" 
               onClick={addOrderRow}
             >
-              + Add Row
+              {tBuyersModal('addRow')}
             </button>
           </div>
           
@@ -809,8 +811,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Created At 
-                <span className="text-xs text-gray-400">(auto-generated)</span>
+                {tBuyersModal('createdAt')} 
+                <span className="text-xs text-gray-400">{tBuyersModal('autoGenerated')}</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
               <input 
@@ -821,16 +823,16 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 disabled 
                 aria-describedby="createdAt-description"
               />
-              <p id="createdAt-description" className="text-xs text-gray-500 mt-1">Automatically set to current date</p>
+              <p id="createdAt-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('createdAtHint')}</p>
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('preferredDeliveryDays')}</label>
               <input 
                 type="text" 
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                 value={form.preferredDays || ''} 
                 onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} 
-                placeholder="e.g. Mon, Wed, Fri" 
+                placeholder={tBuyersModal('preferredDaysPlaceholder')} 
               />
             </div>
           </div>
@@ -839,8 +841,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Last Order Date 
-                <span className="text-xs text-gray-400">(auto from orders)</span>
+                {tBuyersModal('lastOrderDate')} 
+                <span className="text-xs text-gray-400">{tBuyersModal('autoFromOrders')}</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
               <input 
@@ -851,10 +853,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 disabled 
                 aria-describedby="lastShipment-description"
               />
-              <p id="lastShipment-description" className="text-xs text-gray-500 mt-1">Automatically calculated from order dates</p>
+              <p id="lastShipment-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('lastOrderDateHint')}</p>
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Shipment Success Rate (%)</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('shipmentSuccessRate')}</label>
               <input 
                 type="number" 
                 min="0" 
@@ -862,7 +864,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                 value={form.shipmentSuccess || ''} 
                 onChange={e => setForm(f => ({ ...f, shipmentSuccess: e.target.value }))} 
-                placeholder="e.g. 98" 
+                placeholder={tBuyersModal('shipmentSuccessPlaceholder')} 
               />
             </div>
           </div>
@@ -870,14 +872,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           {/* Notes */}
           <div className="mb-4">
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span>
+              {tBuyersModal('notesTags')} <span className="text-xs text-gray-400">{tBuyersModal('commaSeparated')}</span>
             </label>
             <input 
               type="text" 
               className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
               value={form.notes || ''} 
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} 
-              placeholder="e.g. Good payer, Often requests promo items" 
+              placeholder={tBuyersModal('notesPlaceholder')} 
             />
           </div>
         </form>
@@ -893,7 +895,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             onClick={onClose} 
             disabled={saving}
           >
-            Cancel
+            {tShared('cancel')}
           </button>
           <button 
             type="button" 
@@ -904,10 +906,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
+                {tBuyersModal('saving')}
               </>
             ) : (
-              'Save'
+              tBuyersModal('save')
             )}
           </button>
         </div>
@@ -923,9 +925,9 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               <CheckCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <h3 className="text-md font-semibold">{tBuyersModal('saveSuccessTitle')}</h3>
               <p className="text-xs text-white/90">
-                {mode === 'edit' ? 'Buyer has been updated successfully.' : 'Buyer has been created successfully.'}
+                {mode === 'edit' ? tBuyersModal('saveSuccessEdit') : tBuyersModal('saveSuccessCreate')}
               </p>
             </div>
           </div>

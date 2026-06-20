@@ -1,9 +1,12 @@
+'use client';
+
 import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { OrderDetail, SupplyDetail } from '@/types/client';
 import { getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 type BuyerImportRow = {
   [key: string]: string | OrderDetail[] | undefined;
@@ -107,36 +110,36 @@ function standardizeCurrencyFormat(value: string | undefined, targetCurrency: st
 
 // Add mapping state and helpers
 const buyerFields = [
-  { key: 'ID', label: 'ID (Optional)' },
-  { key: 'Store Name', label: 'Store Name (Optional)' },
-  { key: 'Owner', label: 'Owner (Optional)' },
-  { key: 'Phone', label: 'Phone (Optional)' },
-  { key: 'Email', label: 'Email (Optional)' },
-  { key: 'Address', label: 'Address (Optional)' },
-  { key: 'Business Type', label: 'Business Type (Optional)' },
-  { key: 'Status', label: 'Status (Optional)' },
-  { key: 'Created At', label: 'Created At (Optional)' },
-  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days (Optional)' },
-  { key: 'Last Shipment', label: 'Last Shipment (Optional)' },
-  { key: 'Shipment Success', label: 'Shipment Success (Optional)' },
-  { key: 'Notes', label: 'Notes (Optional)' },
-  { key: 'Order Details', label: 'Order Details (Optional)' },
+  { key: 'ID', labelKey: 'id' },
+  { key: 'Store Name', labelKey: 'storeName' },
+  { key: 'Owner', labelKey: 'owner' },
+  { key: 'Phone', labelKey: 'phone' },
+  { key: 'Email', labelKey: 'email' },
+  { key: 'Address', labelKey: 'address' },
+  { key: 'Business Type', labelKey: 'businessType' },
+  { key: 'Status', labelKey: 'status' },
+  { key: 'Created At', labelKey: 'createdAt' },
+  { key: 'Preferred Delivery Days', labelKey: 'preferredDeliveryDays' },
+  { key: 'Last Shipment', labelKey: 'lastShipment' },
+  { key: 'Shipment Success', labelKey: 'shipmentSuccess' },
+  { key: 'Notes', labelKey: 'notes' },
+  { key: 'Order Details', labelKey: 'orderDetails' },
 ];
 const supplierFields = [
-  { key: 'ID', label: 'ID (Optional)' },
-  { key: 'Supplier Name', label: 'Supplier Name (Optional)' },
-  { key: 'Contact', label: 'Contact Person (Optional)' },
-  { key: 'Phone', label: 'Phone (Optional)' },
-  { key: 'Email', label: 'Email (Optional)' },
-  { key: 'Business Type', label: 'Business Type (Optional)' },
-  { key: 'Address', label: 'Address (Optional)' },
-  { key: 'Status', label: 'Status (Optional)' },
-  { key: 'Created At', label: 'Created At (Optional)' },
-  { key: 'Preferred Delivery Days', label: 'Preferred Delivery Days (Optional)' },
-  { key: 'Last Delivery', label: 'Last Delivery (Optional)' },
-  { key: 'Delivery Success', label: 'Delivery Success (Optional)' },
-  { key: 'Notes', label: 'Notes (Optional)' },
-  { key: 'Supplies', label: 'Supplies (Optional)' },
+  { key: 'ID', labelKey: 'id' },
+  { key: 'Supplier Name', labelKey: 'supplierName' },
+  { key: 'Contact', labelKey: 'contact' },
+  { key: 'Phone', labelKey: 'phone' },
+  { key: 'Email', labelKey: 'email' },
+  { key: 'Business Type', labelKey: 'businessType' },
+  { key: 'Address', labelKey: 'address' },
+  { key: 'Status', labelKey: 'status' },
+  { key: 'Created At', labelKey: 'createdAt' },
+  { key: 'Preferred Delivery Days', labelKey: 'preferredDeliveryDays' },
+  { key: 'Last Delivery', labelKey: 'lastDelivery' },
+  { key: 'Delivery Success', labelKey: 'deliverySuccess' },
+  { key: 'Notes', labelKey: 'notes' },
+  { key: 'Supplies', labelKey: 'supplies' },
 ];
 
 // Synonyms for automapping
@@ -183,7 +186,8 @@ function generateSupplierId() {
 export default function ImportData({ open, onClose, onImport, type = 'Buyers' }: ImportDataProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
-  
+  const { tImport } = useClientsTranslations();
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<ImportRow[]>([]);
@@ -194,6 +198,10 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
 
   const fields = type === 'Buyers' ? buyerFields : supplierFields;
   const synonyms = type === 'Buyers' ? buyerSynonyms : supplierSynonyms;
+  const getFieldLabel = (labelKey: string) =>
+    type === 'Buyers'
+      ? tImport(`buyerFields.${labelKey}`)
+      : tImport(`supplierFields.${labelKey}`);
 
   // Automap columns to fields using synonyms
   function getAutomap(fileHeaders: string[]) {
@@ -215,7 +223,7 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
       if (!evt.target || !evt.target.result) {
-        setError('File read error.');
+        setError(tImport('fileReadError'));
         return;
       }
       let workbook: XLSX.WorkBook;
@@ -229,7 +237,7 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
       if (!json.length) {
-        setError('File is empty or invalid.');
+        setError(tImport('fileEmpty'));
         return;
       }
       const fileHeadersRow = (json[0] as string[]).map(h => h.trim());
@@ -294,14 +302,14 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
       <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
         <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}><X className="w-5 h-5 text-black" /></button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#0a61d7]" /> Import {type} Data
+          <FileText className="w-5 h-5 text-[#0a61d7]" /> {type === 'Buyers' ? tImport('titleBuyers') : tImport('titleSuppliers')}
         </h2>
         {step === 0 && (
           <div className="flex flex-col items-center justify-center gap-4 py-8">
             <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
             <button type="button" className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition" onClick={() => inputRef.current && inputRef.current.click()}>
               <Upload className="w-8 h-8 text-[#0a61d7]" />
-              <span className="text-[#0a61d7] font-semibold">Click to upload .xlsx or .csv file</span>
+              <span className="text-[#0a61d7] font-semibold">{tImport('upload')}</span>
               {filename && <span className="text-xs text-gray-500">{filename}</span>}
             </button>
             {error && <div className="flex items-center gap-2 text-red-500 text-sm"><AlertTriangle className="w-4 h-4" /> {error}</div>}
@@ -309,32 +317,31 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
         )}
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
-            <div className="mb-2 font-semibold text-black">Map your columns to the fields (all fields are optional):</div>
+            <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 text-sm">
-                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will remain blank. 
-                Import whatever data you have available!
+                💡 <strong>{tImport('flexibleImport')}</strong> {tImport('flexibleImportHint')}
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">Field</th>
-                    <th className="py-2 px-3 font-medium uppercase">Map to Column</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('field')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('mapToColumn')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fields.map(f => (
                     <tr key={f.key} className="whitespace-nowrap">
-                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
+                      <td className="py-1 px-3 font-semibold text-black">{getFieldLabel(f.labelKey)}</td>
                       <td className="py-1 px-3">
                         <select
                           className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
                           value={mapping[f.key] || ''}
                           onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
                         >
-                          <option value="">-- Not Mapped --</option>
+                          <option value="">{tImport('notMapped')}</option>
                           {fileHeaders.map(h => (
                             <option key={h} value={h}>{h}</option>
                           ))}
@@ -346,21 +353,21 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
               </table>
             </div>
             <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); }}>Back</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)}>Preview</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); }}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)}>{tImport('preview')}</button>
             </div>
           </div>
         )}
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 mb-2 text-black">
-              <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} {type.toLowerCase()} to import
+              <Eye className="w-4 h-4 text-[#0a61d7]" /> {type === 'Buyers' ? tImport('previewBuyers', { count: rows.length }) : tImport('previewSuppliers', { count: rows.length })}
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    {fields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{f.label}</th>)}
+                    {fields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{getFieldLabel(f.labelKey)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -380,8 +387,8 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
               </table>
             </div>
             <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => setStep(1)}>Back</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleImport}><CheckCircle2 className="w-4 h-4" /> Import</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => setStep(1)}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleImport}><CheckCircle2 className="w-4 h-4" /> {tImport('importButton')}</button>
             </div>
           </div>
         )}

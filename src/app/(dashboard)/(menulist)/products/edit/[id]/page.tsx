@@ -5,9 +5,11 @@ import { useUserStore } from "@/store/userStore";
 import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 import { Product } from "@/types/product";
 import { fetchGraphQL } from "@/lib/graphqlClient";
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 export default function EditProductPage() {
   const params = useParams();
+  const { tDetailsPage } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -16,7 +18,7 @@ export default function EditProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       if (!params?.id) {
-        setError('Invalid product ID');
+        setError(tDetailsPage('invalidId'));
         setLoading(false);
         return;
       }
@@ -89,10 +91,10 @@ export default function EditProductPage() {
         if (data.product) {
           setProduct(data.product);
         } else {
-          setError('Product not found');
+          setError(tDetailsPage('notFound'));
         }
       } catch (error) {
-        setError('Failed to load product');
+        setError(tDetailsPage('loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -106,7 +108,7 @@ export default function EditProductPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading product...</p>
+          <p className="text-gray-600">{tDetailsPage('loading')}</p>
         </div>
       </div>
     );
@@ -116,12 +118,12 @@ export default function EditProductPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Product not found'}</p>
+          <p className="text-red-600 mb-4">{error || tDetailsPage('notFound')}</p>
           <button 
             onClick={() => window.history.back()}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Go Back
+            {tDetailsPage('goBack')}
           </button>
         </div>
       </div>

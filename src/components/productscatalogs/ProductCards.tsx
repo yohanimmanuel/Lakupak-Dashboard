@@ -1,14 +1,17 @@
+'use client';
 import React from "react";
 import { Package, CheckCircle, AlertTriangle, XCircle, X, Gift } from "lucide-react";
 import { Product } from "@/types/product";
 import { cumulativeCountGrowth, formatLegacyTrend } from "@/utils/monthOverMonthGrowth";
 import { StatCardTrendRow } from "@/components/stats/StatCardTrendRow";
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 interface ProductCardsProps {
   products: Product[];
 }
 
 export default function ProductCards({ products = [] }: ProductCardsProps) {
+  const { tCards } = useProductsTranslations();
   const [dismissedLowStock, setDismissedLowStock] = React.useState(false);
   const [dismissedOutOfStock, setDismissedOutOfStock] = React.useState(false);
 
@@ -48,21 +51,21 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
 
   const stats = [
     {
-      label: 'Total Products',
+      label: tCards('totalProducts'),
       value: totalProducts,
       icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
       color: 'bg-[#f7faff]',
       trend: formatLegacyTrend(totalProductsGrowth),
     },
     {
-      label: 'Published Products',
+      label: tCards('publishedProducts'),
       value: activeProducts,
       icon: <CheckCircle className="w-6 h-6 text-green-500" />,
       color: 'bg-[#e6f7ec]',
       trend: unavailableTrend,
     },
     {
-      label: 'Products with Offers',
+      label: tCards('productsWithOffers'),
       value: productsWithOffers,
       icon: <Gift className="w-6 h-6 text-purple-500" />,
       color: 'bg-[#f3e8ff]',
@@ -98,13 +101,15 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
              <div className="flex items-center gap-3">
                <AlertTriangle className="w-5 h-5 text-orange-600" />
                <span className="text-sm text-orange-700 font-medium">
-                 You have {lowStockAlerts} product{lowStockAlerts > 1 ? 's' : ''} on low stock
+                 {lowStockAlerts > 1
+                   ? tCards('lowStockAlertPlural', { count: lowStockAlerts })
+                   : tCards('lowStockAlert', { count: lowStockAlerts })}
                </span>
              </div>
              <button
                onClick={() => setDismissedLowStock(true)}
                className="p-1 hover:bg-orange-100 rounded-full transition-colors"
-               title="Dismiss notification"
+               title={tCards('dismissNotification')}
              >
                <X className="w-4 h-4 text-orange-600" />
              </button>
@@ -118,13 +123,15 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
              <div className="flex items-center gap-3">
                <XCircle className="w-5 h-5 text-red-600" />
                <span className="text-sm text-red-700 font-medium">
-                 You have {outOfStock} product{outOfStock > 1 ? 's' : ''} that {outOfStock > 1 ? 'are' : 'is'} out of stock
+                 {outOfStock > 1
+                   ? tCards('outOfStockAlertPlural', { count: outOfStock })
+                   : tCards('outOfStockAlert', { count: outOfStock })}
              </span>
              </div>
              <button
                onClick={() => setDismissedOutOfStock(true)}
                className="p-1 hover:bg-red-100 rounded-full transition-colors"
-               title="Dismiss notification"
+               title={tCards('dismissNotification')}
              >
                <X className="w-4 h-4 text-red-600" />
              </button>

@@ -13,10 +13,12 @@ import CreateOfferTypeModal from '@/components/offersincentivesdisc/CreateOfferT
 import CreateDateRangeModal from '@/components/offersincentivesdisc/CreateDateRangeModal';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 export default function CreateOfferPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tCreatePage, translateWizardTab, translateWizardTabDesc, translateOfferStatus } = useOffersTranslations();
   const [activeTab, setActiveTab] = useState<'analytics' | 'type' | 'products' | 'range'>('type');
   const [isCreating, setIsCreating] = useState(false);
   const [offerStatus, setOfferStatus] = useState<'active' | 'inactive'>('active');
@@ -82,35 +84,15 @@ export default function CreateOfferPage() {
   const isProductsConfigured = Object.keys(productOfferBadges || {}).length > 0;
 
   const tabs = [
-    { 
-      id: 'type', 
-      label: 'Offer Type', 
-      icon: <Target className="w-5 h-5" />,
-      description: 'Discount types and rules'
-    },
-    { 
-      id: 'range', 
-      label: 'Date Range', 
-      icon: <Calendar className="w-5 h-5" />,
-      description: 'Time periods and scheduling'
-    },
-    { 
-      id: 'products', 
-      label: 'Products', 
-      icon: <Package className="w-5 h-5" />,
-      description: 'Product selection and targeting'
-    },
-    { 
-      id: 'analytics', 
-      label: 'Analytics', 
-      icon: <BarChart3 className="w-5 h-5" />,
-      description: 'Performance metrics analysis'
-    },
+    { id: 'type', icon: <Target className="w-5 h-5" /> },
+    { id: 'range', icon: <Calendar className="w-5 h-5" /> },
+    { id: 'products', icon: <Package className="w-5 h-5" /> },
+    { id: 'analytics', icon: <BarChart3 className="w-5 h-5" /> },
   ];
 
   const handleSaveOffer = async () => {
     if (!isReadyToCreate) {
-      alert('Please complete all required fields before creating the offer.');
+      alert(tCreatePage('incompleteFields'));
       return;
     }
 
@@ -214,7 +196,7 @@ export default function CreateOfferPage() {
       reset();
       router.push('/offers');
     } catch (error) {
-      alert('Failed to create offer. Please try again.');
+      alert(tCreatePage('createFailed'));
     } finally {
       setIsCreating(false);
     }
@@ -371,30 +353,30 @@ export default function CreateOfferPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Offers
+            {tCreatePage('backToOffers')}
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Create New Offer</h1>
-            <p className="text-gray-500 text-sm">Advanced offer management and analytics</p>
+            <h1 className="text-2xl font-bold text-black">{tCreatePage('title')}</h1>
+            <p className="text-gray-500 text-sm">{tCreatePage('subtitle')}</p>
             
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isOfferTypeConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Offer Type</span>
+                <span className="text-xs text-gray-600">{tCreatePage('stepOfferType')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isDateRangeConfiguredComputed ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Date Range</span>
+                <span className="text-xs text-gray-600">{tCreatePage('stepDateRange')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isProductsConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Products</span>
+                <span className="text-xs text-gray-600">{tCreatePage('stepProducts')}</span>
               </div>
               {!isReadyToCreate && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs">Complete all steps to create offer</span>
+                  <span className="text-xs">{tCreatePage('completeSteps')}</span>
                 </div>
               )}
             </div>
@@ -412,19 +394,19 @@ export default function CreateOfferPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Preview
+              {tCreatePage('preview')}
             </button>
           )}
           
           {/* Status Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Status:</label>
+            <label className="text-sm font-medium text-gray-700">{tCreatePage('statusLabel')}</label>
             <div className="relative">
               <button
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
               >
-                {offerStatus.charAt(0).toUpperCase() + offerStatus.slice(1)}
+                {translateOfferStatus(offerStatus)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showStatusDropdown && (
@@ -440,7 +422,7 @@ export default function CreateOfferPage() {
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    Active
+                    {translateOfferStatus('active')}
                   </button>
                   <button
                     onClick={() => {
@@ -453,7 +435,7 @@ export default function CreateOfferPage() {
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    Inactive
+                    {translateOfferStatus('inactive')}
                   </button>
                 </div>
               )}
@@ -472,12 +454,12 @@ export default function CreateOfferPage() {
             {isCreating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {offerStatus === 'inactive' ? 'Saving...' : 'Creating...'}
+                {offerStatus === 'inactive' ? tCreatePage('saving') : tCreatePage('creating')}
               </>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                {offerStatus === 'inactive' ? 'Save as Inactive' : 'Create Offer'}
+                {offerStatus === 'inactive' ? tCreatePage('saveAsInactive') : tCreatePage('createOffer')}
               </>
             )}
           </button>
@@ -499,11 +481,11 @@ export default function CreateOfferPage() {
             >
               {tab.icon}
               <div className="text-left">
-                <div>{tab.label}</div>
+                <div>{translateWizardTab(tab.id)}</div>
                 <div className={`text-xs ${
                   activeTab === tab.id ? 'text-white/80' : 'text-gray-400'
                 }`}>
-                  {tab.description}
+                  {translateWizardTabDesc(tab.id)}
                 </div>
               </div>
             </button>
@@ -539,8 +521,8 @@ export default function CreateOfferPage() {
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-black">Offer Preview</h3>
-                <p className="text-sm text-gray-500">How customers will see this offer</p>
+                <h3 className="text-lg font-semibold text-black">{tCreatePage('previewTitle')}</h3>
+                <p className="text-sm text-gray-500">{tCreatePage('previewSubtitle')}</p>
               </div>
               <button
                 onClick={() => setShowPreview(false)}
@@ -554,8 +536,8 @@ export default function CreateOfferPage() {
             <div className="p-4 space-y-4">
               {/* Offer Details */}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="text-lg font-bold text-gray-900 mb-2">{name || 'Offer Name'}</h4>
-                <p className="text-sm text-gray-600 mb-3">{description || 'Offer description will appear here'}</p>
+                <h4 className="text-lg font-bold text-gray-900 mb-2">{name || tCreatePage('offerNamePlaceholder')}</h4>
+                <p className="text-sm text-gray-600 mb-3">{description || tCreatePage('offerDescriptionPlaceholder')}</p>
                 
                 {/* Discount Types Preview */}
                 <div className="space-y-2">
@@ -563,12 +545,12 @@ export default function CreateOfferPage() {
                     <div key={index} className="flex items-center gap-2 bg-white/80 rounded-md p-2">
                       {dt.discountType === 'percentage' && (
                         <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                          {dt.discountValue}% OFF
+                          {tCreatePage('percentOff', { value: dt.discountValue })}
                         </span>
                       )}
                       {dt.discountType === 'fixed' && (
                         <span className="px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                          {formatCurrency(dt.discountValue)} OFF
+                          {tCreatePage('amountOff', { value: formatCurrency(dt.discountValue) })}
                         </span>
                       )}
                       {dt.discountType === 'buy_x_get_y' && (
@@ -576,7 +558,7 @@ export default function CreateOfferPage() {
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                           </svg>
-                          Buy {dt.minQuantity} Get {Math.abs(dt.discountValue)} Free
+                          {tCreatePage('buyXGetY', { buy: dt.minQuantity ?? 0, free: Math.abs(dt.discountValue) })}
                         </span>
                       )}
                       {dt.name && <span className="text-xs text-gray-600">{dt.name}</span>}
@@ -588,9 +570,9 @@ export default function CreateOfferPage() {
               {/* Applied Products */}
               {Object.keys(productOfferBadges || {}).length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-lg border border-[#e6e6e6]">
-                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Applied to:</h5>
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">{tCreatePage('appliedTo')}</h5>
                   <div className="text-sm text-gray-600">
-                    {Object.keys(productOfferBadges || {}).length} product(s) selected
+                    {tCreatePage('productsSelected', { count: Object.keys(productOfferBadges || {}).length })}
                   </div>
                 </div>
               )}
@@ -598,7 +580,7 @@ export default function CreateOfferPage() {
               {/* Offer Validity */}
               {selectedDateRange && (
                 <div className="bg-gray-50 p-4 rounded-lg border border-[#e6e6e6]">
-                  <h5 className="text-sm font-semibold text-gray-900 mb-2">Valid Period:</h5>
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">{tCreatePage('validPeriod')}</h5>
                   <div className="text-sm text-gray-600 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>{selectedDateRange.name}</span>
@@ -609,7 +591,7 @@ export default function CreateOfferPage() {
               {/* Terms & Conditions */}
               <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
                 <p className="text-xs text-amber-800">
-                  <strong>Note:</strong> This is a preview. The actual offer will be live once you create it.
+                  <strong>{tCreatePage('previewNote')}</strong> {tCreatePage('previewNoteText')}
                 </p>
               </div>
             </div>
@@ -620,7 +602,7 @@ export default function CreateOfferPage() {
                 onClick={() => setShowPreview(false)}
                 className="w-full px-4 py-2 bg-[#0a61d7] text-white font-semibold rounded-lg hover:bg-[#084ba6] transition"
               >
-                Close Preview
+                {tCreatePage('closePreview')}
               </button>
             </div>
           </div>

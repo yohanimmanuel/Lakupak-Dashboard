@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -25,6 +26,7 @@ interface SupplierModalProps {
 export default function SupplierModal({ open, onClose, onSave, initialData, mode }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tSuppliersModal, tShared, translateStatus } = useClientsTranslations();
   
   // Get currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -442,13 +444,13 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         }, 100);
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save supplier';
+      const errorMessage = err instanceof Error ? err.message : tSuppliersModal('saveFailed');
       handleError(errorMessage);
     } finally {
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, supplyRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess, isSubmitting]);
+  }, [form, id, supplyRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess, isSubmitting, tSuppliersModal, computedLastDelivery]);
 
   return (
     <>
@@ -459,7 +461,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           type="button"
           className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           onClick={onClose}
-          aria-label="Close modal"
+          aria-label={tShared('closeModal')}
         >
           <X className="w-5 h-5" />
         </button>
@@ -471,44 +473,44 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
           </div>
           <div>
             <h2 className="text-xl font-bold text-black">
-              {mode === 'edit' ? 'Edit Supplier' : 'Add Supplier'}
+              {mode === 'edit' ? tSuppliersModal('editTitle') : tSuppliersModal('addTitle')}
             </h2>
             <p className="text-gray-500 text-sm">
-              {mode === 'edit' ? 'Update supplier information and settings' : 'Create a new supplier profile'}
+              {mode === 'edit' ? tSuppliersModal('editSubtitle') : tSuppliersModal('addSubtitle')}
             </p>
           </div>
         </div>
         <div className="border-b border-gray-200 -mx-6"></div>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
           <div className="mt-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">ID</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tShared('columns.id')}</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id || ''} onChange={e => setId(e.target.value)} required disabled />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Supplier Name</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('supplierName')}</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.supplierName || ''} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} required />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('contactPerson')}</label>
             <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.contact || ''} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('phone')}</label>
               <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('email')}</label>
               <input type="email" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
             </div>
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Business Type</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType || ''} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} placeholder="e.g. Manufacturer, Importer, Distributor, Trader...." />
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('businessType')}</label>
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType || ''} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} placeholder={tSuppliersModal('businessTypePlaceholder')} />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
                 <button
                   type="button"
@@ -516,7 +518,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                   className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-black text-left flex items-center justify-between"
                 >
                   <span className={form.status ? 'text-black' : 'text-gray-500'}>
-                    {form.status || 'Select status'}
+                    {form.status ? translateStatus(form.status) : tSuppliersModal('selectStatus')}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
@@ -534,7 +536,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                           form.status === status ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
                         }`}
                       >
-                        {status}
+                        {translateStatus(status)}
                       </button>
                     ))}
                   </div>
@@ -543,22 +545,22 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('address')}</label>
             <textarea className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.address || ''} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required />
           </div>
           {/* Supplies & Product Data Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
-            <label className="block text-sm font-bold text-black mb-2">Supplies & Product Data</label>
+            <label className="block text-sm font-bold text-black mb-2">{tSuppliersModal('suppliesSection')}</label>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">No.</th>
-                    <th className="py-2 px-3 font-medium uppercase">SKU</th>
-                    <th className="py-2 px-3 font-medium uppercase">Product</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Supplied (Boxes)</th>
-                    <th className="py-2 px-3 font-medium uppercase">Total Value</th>
-                    <th className="py-2 px-3 font-medium uppercase">Last Delivery</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colNo')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colSku')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colTotalSupplied')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colTotalValue')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colLastDelivery')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -584,39 +586,39 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 </tbody>
               </table>
             </div>
-            <button type="button" className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6]" onClick={addSupplyRow}>+ Add Row</button>
+            <button type="button" className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6]" onClick={addSupplyRow}>{tSuppliersModal('addRow')}</button>
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Created At 
-                <span className="text-xs text-gray-400">(auto-generated)</span>
+                {tSuppliersModal('createdAt')} 
+                <span className="text-xs text-gray-400">{tSuppliersModal('autoGenerated')}</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
               <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt || ''} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Preferred Delivery Days</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays || ''} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder="e.g. Tue, Thu" />
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('preferredDeliveryDays')}</label>
+              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays || ''} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder={tSuppliersModal('preferredDaysPlaceholder')} />
             </div>
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Last Delivery Date 
-                <span className="text-xs text-gray-400">(auto from supplies)</span>
+                {tSuppliersModal('lastDeliveryDate')} 
+                <span className="text-xs text-gray-400">{tSuppliersModal('autoFromSupplies')}</span>
                 <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
               </label>
               <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={computedLastDelivery || ''} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Delivery Success Rate (%)</label>
-              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess || ''} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder="e.g. 97" />
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('deliverySuccessRate')}</label>
+              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess || ''} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder={tSuppliersModal('deliverySuccessPlaceholder')} />
             </div>
           </div>
           <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">Notes/Tags <span className="text-xs text-gray-400">(comma separated)</span></label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Reliable partner, Quick response" />
+            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('notesTags')} <span className="text-xs text-gray-400">{tSuppliersModal('commaSeparated')}</span></label>
+            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={tSuppliersModal('notesPlaceholder')} />
           </div>
           
           {/* Success Message */}
@@ -646,7 +648,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 onClick={onClose} 
                 disabled={saving || isSubmitting}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button 
                 type="button" 
@@ -657,10 +659,10 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
+                    {tSuppliersModal('saving')}
                   </>
                 ) : (
-                  'Save'
+                  tSuppliersModal('save')
                 )}
             </button>
         </div>
@@ -676,9 +678,9 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
               <CheckCircle className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-md font-semibold">Changes Saved Successfully!</h3>
+              <h3 className="text-md font-semibold">{tSuppliersModal('saveSuccessTitle')}</h3>
               <p className="text-xs text-white/90">
-                {mode === 'edit' ? 'Supplier has been updated successfully.' : 'Supplier has been created successfully.'}
+                {mode === 'edit' ? tSuppliersModal('saveSuccessEdit') : tSuppliersModal('saveSuccessCreate')}
               </p>
             </div>
           </div>

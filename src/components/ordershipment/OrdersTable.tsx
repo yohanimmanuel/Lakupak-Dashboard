@@ -8,6 +8,7 @@ import { formatDateLong } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 const statusTabs = [
   { label: "All" },
@@ -45,6 +46,15 @@ export default function OrdersTable({
   onExportXLSXAction?: (wb: XLSX.WorkBook, filename: string) => void; 
   orderToTableRowAction: (order: Order) => OrderTableRow 
 }) {
+  const {
+    tShared,
+    tTable,
+    translateStatusTab,
+    translateOrderStatus,
+    translatePaymentStatus,
+    translatePaymentTab,
+    translateDeliveryMethod,
+  } = useOrdersTranslations();
   const user = useUserStore(state => state.user);
   
   // Get user currency for display - safe to use on both server and client
@@ -311,7 +321,7 @@ export default function OrdersTable({
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
@@ -320,14 +330,14 @@ export default function OrdersTable({
       
       {/* Search and Filters */}
       <div className="flex gap-2 w-full md:w-auto items-center justify-start mb-4">
-        <div className="relative w-full md:w-150">
+        <div className="relative w-full md:w-64 shrink-0">
           <input
             type="text"
-            placeholder="Search orders..."
+            placeholder={tTable('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
-            aria-label="Search orders by order ID, buyer name, or tracking number"
+            aria-label={tTable('searchAriaLabel')}
             maxLength={100}
           />
           <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
@@ -336,7 +346,7 @@ export default function OrdersTable({
         {/* Payment Status Filter */}
         <div className="relative">
           <button
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
             onClick={() => {
               setShowPaymentDropdown(v => !v);
               setShowFilterDropdown(false);
@@ -344,7 +354,7 @@ export default function OrdersTable({
             }}
           >
             <Filter className="w-4 h-4" />
-            {selectedPaymentTab}
+            {translatePaymentTab(selectedPaymentTab)}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showPaymentDropdown && (
@@ -355,7 +365,7 @@ export default function OrdersTable({
                   onClick={() => { setSelectedPaymentTab(opt.label); setShowPaymentDropdown(false); }}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedPaymentTab === opt.label ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
                 >
-                  {opt.label}
+                  {translatePaymentTab(opt.label)}
                 </button>
               ))}
             </div>
@@ -365,7 +375,7 @@ export default function OrdersTable({
         {/* Delivery Method Filter */}
         <div className="relative">
           <button
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
             onClick={() => {
               setShowDeliveryDropdown(v => !v);
               setShowFilterDropdown(false);
@@ -373,7 +383,7 @@ export default function OrdersTable({
             }}
           >
             <Filter className="w-4 h-4" />
-            {selectedDeliveryMethod}
+            {translateDeliveryMethod(selectedDeliveryMethod)}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showDeliveryDropdown && (
@@ -384,7 +394,7 @@ export default function OrdersTable({
                   onClick={() => { setSelectedDeliveryMethod(opt.label); setShowDeliveryDropdown(false); }}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedDeliveryMethod === opt.label ? 'font-bold text-[#0a61d7]' : 'text-gray-700'}`}
                 >
-                  {opt.label}
+                  {translateDeliveryMethod(opt.label)}
                 </button>
               ))}
             </div>
@@ -396,14 +406,14 @@ export default function OrdersTable({
       {selectedOrders.length > 0 && (
         <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2 flex items-center justify-between">
           <div className="text-white text-sm font-semibold">
-            {selectedOrders.length} selected
+            {tTable('bulkActions.selected', { count: selectedOrders.length })}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleBulkArchive}
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
             >
-              <Archive className="w-4 h-4" /> Archive Orders
+              <Archive className="w-4 h-4" /> {tTable('bulkActions.archiveOrders')}
             </button>
             {/* Show delete button when cancelled orders are selected (even with mixed statuses) */}
             {selectedOrders.some(orderId => {
@@ -414,7 +424,7 @@ export default function OrdersTable({
                 onClick={() => setShowDeleteModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
               >
-                <Trash className="w-4 h-4" /> Delete Cancelled
+                <Trash className="w-4 h-4" /> {tTable('bulkActions.deleteCancelled')}
               </button>
             )}
           </div>
@@ -425,7 +435,7 @@ export default function OrdersTable({
         {filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No orders recorded</p>
+            <p className="text-sm">{tTable('empty')}</p>
           </div>
         ) : (
           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
@@ -447,16 +457,16 @@ export default function OrdersTable({
                     )}
                   </button>
                 </th>
-                               <th className="py-3 px-4 font-medium uppercase">Order</th>
-                 <th className="py-3 px-4 font-medium uppercase">Date</th>
-                 <th className="py-3 px-4 font-medium uppercase">Buyer</th>
-                 <th className="py-3 px-4 font-medium uppercase">Status</th>
-                 <th className="py-3 px-4 font-medium uppercase">Total</th>
-                 <th className="py-3 px-4 font-medium uppercase">Items</th>
-                 <th className="py-3 px-4 font-medium uppercase">Delivery</th>
-                 <th className="py-3 px-4 font-medium uppercase">Tracking</th>
-                 <th className="py-3 px-4 font-medium uppercase">Payment</th>
-                 <th className="py-3 px-4 font-medium uppercase text-center">Actions</th>
+                               <th className="py-3 px-4 font-medium uppercase">{tTable('columns.order')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.date')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.buyer')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.status')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.total')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.items')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.delivery')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.tracking')}</th>
+                 <th className="py-3 px-4 font-medium uppercase">{tTable('columns.payment')}</th>
+                 <th className="py-3 px-4 font-medium uppercase text-center">{tShared('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -491,16 +501,16 @@ export default function OrdersTable({
                  <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{order.buyerName}</td>
                  <td className="py-3 px-4">
                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(order.orderStatus)}`}>
-                     {order.orderStatus}
+                     {translateOrderStatus(order.orderStatus)}
                    </span>
                  </td>
                  <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
-                 <td className="py-3 px-4 text-black">{order.deliveryMethod}</td>
-                 <td className="py-3 px-4 text-black">{order.trackingNumber || 'N/A'}</td>
+                 <td className="py-3 px-4 text-black">{translateDeliveryMethod(order.deliveryMethod)}</td>
+                 <td className="py-3 px-4 text-black">{order.trackingNumber || tShared('notAvailable')}</td>
                  <td className="py-3 px-4">
                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${getPaymentStatusColor(order.paymentStatus)}`}>
-                     {order.paymentStatus}
+                     {translatePaymentStatus(order.paymentStatus)}
                    </span>
                  </td>
                  <td className="py-3 px-4 text-center">
@@ -508,8 +518,8 @@ export default function OrdersTable({
                     <button
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                       onClick={() => handleOrderClick(order)}
-                      aria-label={`Edit order ${order.orderId}`}
-                      title={`Edit order ${order.orderId}`}
+                      aria-label={tTable('editOrder', { orderId: order.orderId })}
+                      title={tTable('editOrder', { orderId: order.orderId })}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -520,8 +530,8 @@ export default function OrdersTable({
                           e.stopPropagation();
                           handleDelete(order);
                         }}
-                        aria-label={`Delete order ${order.orderId}`}
-                        title={`Delete order ${order.orderId}`}
+                        aria-label={tTable('deleteOrder', { orderId: order.orderId })}
+                        title={tTable('deleteOrder', { orderId: order.orderId })}
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
@@ -540,7 +550,7 @@ export default function OrdersTable({
         {filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No orders recorded</p>
+            <p className="text-sm">{tTable('empty')}</p>
           </div>
         ) : (
           <>
@@ -561,7 +571,7 @@ export default function OrdersTable({
                 )}
               </button>
               <span className="text-sm font-medium text-gray-700">
-                Select All ({filteredOrders.length} orders)
+                {tTable('selection.selectAllCount', { count: filteredOrders.length })}
               </span>
             </div>
             
@@ -597,15 +607,15 @@ export default function OrdersTable({
                 </button>
               </div>
               
-              <div className="text-xs text-gray-500">Order: <span className="text-black font-medium">{order.orderId}</span></div>
+              <div className="text-xs text-gray-500">{tTable('mobileLabels.order')} <span className="text-black font-medium">{order.orderId}</span></div>
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#0a61d7]">{order.buyerName}</span>
                 <div className="flex items-center gap-2">
                   <button
                     className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                     onClick={() => handleOrderClick(order)}
-                    aria-label={`Edit order ${order.orderId}`}
-                    title={`Edit order ${order.orderId}`}
+                    aria-label={tTable('editOrder', { orderId: order.orderId })}
+                    title={tTable('editOrder', { orderId: order.orderId })}
                   >
                     <Edit className="w-4 h-4 text-gray-500" />
                   </button>
@@ -616,21 +626,21 @@ export default function OrdersTable({
                         e.stopPropagation();
                         handleDelete(order);
                       }}
-                      aria-label={`Delete order ${order.orderId}`}
-                      title={`Delete order ${order.orderId}`}
+                      aria-label={tTable('deleteOrder', { orderId: order.orderId })}
+                      title={tTable('deleteOrder', { orderId: order.orderId })}
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   )}
                 </div>
               </div>
-                             <div className="text-xs text-gray-500">Date: <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
-               <div className="text-xs text-gray-500">Status: <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{order.orderStatus}</span></div>
-                               <div className="text-xs text-gray-500">Total: <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</span></div>
-               <div className="text-xs text-gray-500">Items: <span className="text-black font-medium">{order.items}</span></div>
-               <div className="text-xs text-gray-500">Delivery: <span className="text-black font-medium">{order.deliveryMethod}</span></div>
-               <div className="text-xs text-gray-500">Tracking: <span className="text-black font-medium">{order.trackingNumber || 'N/A'}</span></div>
-               <div className="text-xs text-gray-500">Payment: <span className={`inline-block px-2 py-1 rounded-full font-bold ${getPaymentStatusColor(order.paymentStatus)}`}>{order.paymentStatus}</span></div>
+                             <div className="text-xs text-gray-500">{tTable('mobileLabels.date')} <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
+               <div className="text-xs text-gray-500">{tTable('mobileLabels.status')} <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{translateOrderStatus(order.orderStatus)}</span></div>
+                               <div className="text-xs text-gray-500">{tTable('mobileLabels.total')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</span></div>
+               <div className="text-xs text-gray-500">{tTable('mobileLabels.items')} <span className="text-black font-medium">{order.items}</span></div>
+               <div className="text-xs text-gray-500">{tTable('mobileLabels.delivery')} <span className="text-black font-medium">{translateDeliveryMethod(order.deliveryMethod)}</span></div>
+               <div className="text-xs text-gray-500">{tTable('mobileLabels.tracking')} <span className="text-black font-medium">{order.trackingNumber || tShared('notAvailable')}</span></div>
+               <div className="text-xs text-gray-500">{tTable('mobileLabels.payment')} <span className={`inline-block px-2 py-1 rounded-full font-bold ${getPaymentStatusColor(order.paymentStatus)}`}>{translatePaymentStatus(order.paymentStatus)}</span></div>
             </div>
           ))}
         </div>
@@ -642,7 +652,7 @@ export default function OrdersTable({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
         {/* Left: Showing X to Y of Z */}
         <div className="text-sm text-gray-500">
-          Showing {fromRow} to {toRow} of {totalRows}
+          {tTable('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
         </div>
         {/* Right: Pagination Controls */}
         <div className="flex items-center gap-3">
@@ -650,7 +660,7 @@ export default function OrdersTable({
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            aria-label="Previous page"
+            aria-label={tShared('previousPage')}
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
@@ -669,7 +679,7 @@ export default function OrdersTable({
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            aria-label="Next page"
+            aria-label={tShared('nextPage')}
           >
             <ChevronRight className="w-4 h-4 text-gray-500" />
           </button>
@@ -690,16 +700,20 @@ export default function OrdersTable({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
               <h2 className="text-lg font-bold mb-2 text-red-500">
-                {isSingleDelete ? 'Delete Cancelled Order' : `Delete Cancelled Order${cancelledCount === 1 ? '' : 's'}`}
+                {isSingleDelete
+                  ? tTable('deleteModal.titleSingle')
+                  : tTable('deleteModal.titleBulk')}
               </h2>
               <p className="mb-4 text-gray-500">
-                {isSingleDelete 
-                  ? 'Are you sure you want to permanently delete this cancelled order? This action cannot be undone.'
-                  : `Are you sure you want to permanently delete ${cancelledCount} cancelled order${cancelledCount === 1 ? '' : 's'}? This action cannot be undone.`
-                }
+                {isSingleDelete
+                  ? tTable('deleteModal.confirmSingle')
+                  : tTable('deleteModal.confirmBulk', { count: cancelledCount })}
               </p>
             <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-              <strong>Warning:</strong> This will permanently remove {isSingleDelete ? 'this order' : `the order${cancelledCount === 1 ? '' : 's'}`} from the system.
+              <strong>{tTable('deleteModal.warningLabel')}</strong>{' '}
+              {isSingleDelete
+                ? tTable('deleteModal.warningSingle')
+                : tTable('deleteModal.warningBulk', { count: cancelledCount })}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -709,13 +723,13 @@ export default function OrdersTable({
                   setOrderToDelete(null);
                 }}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
                 onClick={handleBulkDelete}
               >
-                Delete
+                {tTable('deleteModal.deleteButton')}
               </button>
             </div>
           </div>

@@ -1,0 +1,378 @@
+{
+  "list": {
+    "title": "Manajemen Pesanan",
+    "subtitle": "Lacak dan kelola semua pesanan marketplace B2B Anda",
+    "refresh": "Segarkan",
+    "archivedOrders": "Pesanan Diarsipkan",
+    "exportData": "Ekspor Data",
+    "loadingOverlay": "Memuat data pesanan...",
+    "refreshingOverlay": "Menyegarkan data pesanan",
+    "loadedOverlay": "Menampilkan data pesanan ({count})",
+    "errorOverlay": "Gagal memuat pesanan",
+    "errorTitle": "Gagal memuat pesanan",
+    "retry": "Coba lagi",
+    "pleaseWait": "Mohon tunggu...",
+    "ordersLoaded": "{count} pesanan dimuat",
+    "ordersLoadedPlural": "{count} pesanan dimuat",
+    "archivedTitle": "Pesanan Diarsipkan",
+    "close": "Tutup",
+    "noArchived": "Tidak ada pesanan diarsipkan",
+    "itemsCount": "{count} item",
+    "view": "Lihat",
+    "unarchive": "Batalkan arsip"
+  },
+  "cards": {
+    "totalOrders": "Total Pesanan",
+    "orderVolume": "Volume Pesanan",
+    "completionRate": "Tingkat Penyelesaian Pesanan",
+    "averageOrderVolume": "Rata-rata Volume Pesanan"
+  },
+  "gps": {
+    "title": "Pelacakan Pengiriman Langsung",
+    "fullscreenTitle": "Pelacakan pengiriman langsung",
+    "viewFullscreen": "Lihat layar penuh",
+    "viewFullscreenAria": "Buka peta layar penuh",
+    "loadingMap": "Memuat peta...",
+    "geocoding": "Mengeokode alamat pengiriman",
+    "noOrdersOnMap": "Tidak ada pesanan di peta",
+    "noStatusOrders": "Tidak ada pesanan {status}",
+    "mapHint": "Pesanan dengan alamat pengiriman akan muncul di sini",
+    "statusFilters": {
+      "all": "Semua Status",
+      "Pending": "Menunggu",
+      "Confirmed": "Dikonfirmasi",
+      "Packed": "Dikemas",
+      "Shipped": "Dikirim",
+      "Delivered": "Terkirim",
+      "Received": "Diterima",
+      "Failed": "Gagal",
+      "Cancelled": "Dibatalkan",
+      "Returned": "Dikembalikan"
+    }
+  },
+  "tour": {
+    "ariaLabel": "Tur pesanan",
+    "title": "Baru di sini?",
+    "description": "Ikuti tur singkat halaman Pesanan ini — filter, peta, dan tabel.",
+    "dismiss": "Tutup",
+    "startTour": "Tur bagian ini"
+  },
+  "detailsPage": {
+    "loading": "Memuat detail pesanan...",
+    "notFoundTitle": "Pesanan Tidak Ditemukan",
+    "notFoundDescription": "Pesanan yang Anda cari tidak ada.",
+    "backToOrders": "Kembali ke Pesanan"
+  },
+  "table": {
+    "searchPlaceholder": "Cari pesanan...",
+    "searchAriaLabel": "Cari pesanan berdasarkan ID pesanan, nama pembeli, atau nomor pelacakan",
+    "empty": "Belum ada pesanan",
+    "editOrder": "Edit pesanan {orderId}",
+    "deleteOrder": "Hapus pesanan {orderId}",
+    "columns": {
+      "order": "Pesanan",
+      "date": "Tanggal",
+      "buyer": "Pembeli",
+      "status": "Status",
+      "total": "Total",
+      "items": "Item",
+      "delivery": "Pengiriman",
+      "tracking": "Pelacakan",
+      "payment": "Pembayaran"
+    },
+    "mobileLabels": {
+      "order": "Pesanan:",
+      "date": "Tanggal:",
+      "status": "Status:",
+      "total": "Total:",
+      "items": "Item:",
+      "delivery": "Pengiriman:",
+      "tracking": "Pelacakan:",
+      "payment": "Pembayaran:"
+    },
+    "selection": {
+      "selectAllCount": "Pilih Semua ({count} pesanan)"
+    },
+    "bulkActions": {
+      "selected": "{count} dipilih",
+      "archiveOrders": "Arsipkan Pesanan",
+      "deleteCancelled": "Hapus Dibatalkan"
+    },
+    "pagination": {
+      "showing": "Menampilkan {from} sampai {to} dari {total}"
+    },
+    "deleteModal": {
+      "titleSingle": "Hapus Pesanan Dibatalkan",
+      "titleBulk": "Hapus Pesanan Dibatalkan",
+      "confirmSingle": "Apakah Anda yakin ingin menghapus permanen pesanan dibatalkan ini? Tindakan ini tidak dapat dibatalkan.",
+      "confirmBulk": "Apakah Anda yakin ingin menghapus permanen {count} pesanan dibatalkan? Tindakan ini tidak dapat dibatalkan.",
+      "warningLabel": "Peringatan:",
+      "warningSingle": "Ini akan menghapus pesanan ini secara permanen dari sistem.",
+      "warningBulk": "Ini akan menghapus pesanan secara permanen dari sistem.",
+      "deleteButton": "Hapus"
+    }
+  },
+  "shared": {
+    "actions": "Aksi",
+    "cancel": "Batal",
+    "notAvailable": "T/A",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "statusTabs": {
+      "All": "Semua",
+      "Pending": "Menunggu",
+      "Confirmed": "Dikonfirmasi",
+      "Packed": "Dikemas",
+      "Shipped": "Dikirim",
+      "Delivered": "Terkirim",
+      "Failed": "Gagal",
+      "Cancelled": "Dibatalkan",
+      "Returned": "Dikembalikan"
+    },
+    "paymentTabs": {
+      "All": "Semua",
+      "Unpaid": "Belum lunas",
+      "Paid": "Lunas"
+    },
+    "deliveryMethods": {
+      "All Methods": "Semua Metode",
+      "Self Pickup": "Ambil Sendiri",
+      "Seller/Distributor Delivery": "Pengiriman Penjual/Distributor",
+      "Buyer-arranged Courier": "Kurir Atur Pembeli"
+    },
+    "orderStatus": {
+      "Pending": "Menunggu",
+      "Confirmed": "Dikonfirmasi",
+      "Packed": "Dikemas",
+      "Shipped": "Dikirim",
+      "Delivered": "Terkirim",
+      "Received": "Diterima",
+      "Failed": "Gagal",
+      "Cancelled": "Dibatalkan",
+      "Returned": "Dikembalikan"
+    },
+    "paymentStatus": {
+      "Paid": "Lunas",
+      "Unpaid": "Belum lunas"
+    },
+    "returnReasons": {
+      "wrong_item": "Barang yang diterima salah",
+      "defective": "Rusak atau cacat",
+      "not_as_described": "Tidak sesuai deskripsi",
+      "changed_mind": "Berubah pikiran",
+      "late_delivery": "Pengiriman terlambat",
+      "other": "Lainnya"
+    },
+    "returnRequestStatus": {
+      "Pending": "Menunggu",
+      "Accepted": "Diterima",
+      "Rejected": "Ditolak"
+    },
+    "fields": {
+      "contactPerson": "Kontak person",
+      "contactPhone": "Telepon kontak",
+      "deliveryAddress": "Alamat pengiriman",
+      "deliveryMethod": "Metode pengiriman",
+      "estimatedDelivery": "Estimasi pengiriman"
+    },
+    "offerBadges": {
+      "Discount": "Diskon",
+      "Promotion": "Promosi",
+      "percentOff": "{percent}% OFF",
+      "buyGet": "Beli {min} Gratis {free}",
+      "off": "OFF"
+    },
+    "paymentMethods": {
+      "payment": "Pembayaran",
+      "method": "Metode",
+      "cod": "COD",
+      "bank": "BANK",
+      "cashOnDelivery": "Bayar di Tempat",
+      "transfer": "Transfer"
+    },
+    "defaultPackageType": "Paket",
+    "pieces": "pieces",
+    "uncategorized": "Tanpa kategori"
+  },
+  "details": {
+    "completion": {
+      "title": "Kelengkapan informasi pesanan",
+      "fieldsCompleted": "{completed} dari {total} field terisi",
+      "missing": "Kurang: {fields}"
+    },
+    "backButton": "Kembali ke Daftar Pesanan",
+    "statusTooltip": "Perbarui status pesanan atau pengiriman di sini",
+    "editButton": "Edit",
+    "editButtonTitle": "Edit detail pengiriman dan kontak pesanan",
+    "customerInfo": {
+      "title": "Informasi Pelanggan",
+      "viewBuyerProfile": "Lihat profil pembeli",
+      "storeName": "Nama Toko:",
+      "phone": "Telepon:",
+      "email": "Email:",
+      "orderDate": "Tanggal Pesanan:",
+      "noEmail": "Tidak ada email pelanggan"
+    },
+    "totalOrder": {
+      "title": "Total Pesanan",
+      "paymentProof": "Bukti pembayaran",
+      "paymentAuth": {
+        "proofUnpaid": "Pembeli mengirim bukti pembayaran. Verifikasi transfer dan tandai Lunas setelah diterima.",
+        "paid": "Pembayaran berhasil diproses. Transaksi ini telah diotorisasi untuk referensi di masa depan.",
+        "unpaid": "Menunggu pembayaran dari pembeli."
+      },
+      "orderDetailsTitle": "Detail Pesanan",
+      "totalOrderPrice": "Total harga pesanan:",
+      "shippingCost": "Biaya pengiriman:",
+      "agreedSeparately": "Disepakati terpisah",
+      "currency": "Mata uang:",
+      "paymentTerms": "Syarat Pembayaran:",
+      "deliveryMethod": "Metode Pengiriman:"
+    },
+    "schedule": {
+      "pickupTitle": "Penjemputan Terjadwal",
+      "courierTitle": "Penjemputan Kurir Terjadwal",
+      "deliveryTitle": "Pengiriman Terjadwal",
+      "pickupPrefix": "Penjemputan dijadwalkan pada",
+      "courierPrefix": "Penjemputan kurir dijadwalkan pada",
+      "deliveryPrefix": "Pengiriman dijadwalkan pada"
+    },
+    "deliveryService": {
+      "title": "Layanan Pengiriman",
+      "noneAssigned": "Belum ada layanan pengiriman",
+      "estimatedDelivery": "Estimasi pengiriman:",
+      "notSet": "Belum diatur",
+      "daysRange": "({min}–{max} hari)",
+      "preferredTime": "Waktu Preferensi:",
+      "noPreferredTime": "Tidak ada waktu pengiriman preferensi",
+      "tracking": "Pelacakan:",
+      "viewFleetDetails": "Lihat detail armada",
+      "noTrackingNumber": "Tidak ada nomor pelacakan"
+    },
+    "updatesStatus": {
+      "title": "Pembaruan dan Status",
+      "deliveryLocation": "Lokasi Pengiriman",
+      "viewMapFullscreen": "Lihat peta layar penuh",
+      "viewMapFullscreenAria": "Lihat peta pengiriman layar penuh",
+      "loadingMap": "Memuat peta...",
+      "geocoding": "Mengeokode alamat",
+      "mapUnavailable": "Peta tidak tersedia",
+      "unableToLocate": "Tidak dapat menemukan alamat",
+      "notePrefix": "Catatan:"
+    },
+    "deliveryFailure": {
+      "title": "Alasan kegagalan pengiriman",
+      "reason": "Alasan:",
+      "defaultReason": "Pengiriman gagal",
+      "evidenceAlt": "Bukti kegagalan {index}"
+    },
+    "cancellation": {
+      "title": "Alasan pembatalan",
+      "reason": "Alasan:",
+      "date": "Tanggal:",
+      "noneRecorded": "Tidak ada alasan pembatalan tercatat."
+    },
+    "return": {
+      "title": "Informasi pengembalian",
+      "reasonLabel": "Alasan {index}: {reason}",
+      "evidenceAlt": "Bukti pengembalian {index}",
+      "accept": "Terima pengembalian",
+      "reject": "Tolak pengembalian",
+      "processing": "Memproses..."
+    },
+    "pod": {
+      "title": "Bukti Pengiriman (POD)",
+      "view": "Lihat Bukti Pengiriman",
+      "alt": "Bukti Pengiriman",
+      "missingInline": "Belum ada bukti pengiriman. Unggah melalui <edit>Edit</edit> untuk mencatat distributor (Terkirim, Diterima, atau Dikembalikan).",
+      "missingBlock": "Belum ada bukti pengiriman. Unggah melalui <edit>Edit</edit> untuk mencatat distributor — disarankan untuk pesanan berstatus <delivered>Terkirim</delivered>, <received>Diterima</received>, atau <returned>Dikembalikan</returned>."
+    },
+    "orderItems": {
+      "title": "Item Pesanan",
+      "seeMore": "Lihat Lainnya ({count} item lagi)",
+      "qty": "Jml: {qty} {packageType}",
+      "freePieces": "(+ {count} pieces gratis)",
+      "viewProductTitle": "Klik untuk melihat detail produk",
+      "allItemsTitle": "Semua Item Pesanan",
+      "category": "Kategori: {category}",
+      "piecesPerPackage": "{pieces} pieces per {packageType}",
+      "perPackage": "per paket"
+    },
+    "orderSummary": {
+      "title": "Ringkasan Pesanan",
+      "totalQuantity": "Total Kuantitas Dipesan",
+      "totalFreeQuantity": "Total Kuantitas Gratis",
+      "table": {
+        "description": "Deskripsi",
+        "packageType": "Tipe Pk",
+        "piecesPerPackage": "Pcs/Pk",
+        "qty": "Jml",
+        "pricePerPackage": "Harga/Pk",
+        "totalAmount": "Total Jumlah"
+      },
+      "totalPrice": "Total harga",
+      "previous": "Sebelumnya",
+      "next": "Berikutnya",
+      "pageOf": "Halaman {current} dari {total}"
+    },
+    "editModal": {
+      "title": "Edit Pesanan",
+      "closeAria": "Tutup edit pesanan",
+      "notice": "*Harap lengkapi detail pesanan ini. Pembaruan di sini akan dibagikan kepada pembeli agar mereka mendapat informasi pengiriman dan kontak terbaru.",
+      "labels": {
+        "contactPerson": "Kontak Person",
+        "contactPhone": "Telepon Kontak",
+        "deliveryAddress": "Alamat Pengiriman",
+        "preferredDeliveryTime": "Waktu Pengiriman Preferensi",
+        "estimatedDeliveryDate": "Estimasi tanggal pengiriman",
+        "estimatedDeliveryDuration": "Estimasi durasi pengiriman (hari)",
+        "deliveryMethod": "Metode Pengiriman",
+        "assignedLogistics": "Logistik yang Ditugaskan",
+        "trackingNumber": "Nomor Pelacakan",
+        "deliveryNote": "Catatan Pengiriman",
+        "pod": "Bukti Pengiriman (POD)"
+      },
+      "placeholders": {
+        "contactPerson": "mis. Pemilik toko atau nama PIC",
+        "contactPhone": "mis. 0812-3456-7890",
+        "deliveryAddress": "Jalan, Kota, Provinsi, Kode Pos",
+        "preferredDeliveryTime": "mis. 09:00 - 12:00",
+        "minDays": "Min",
+        "maxDays": "Maks",
+        "assignedLogistics": "mis. JNE / Armada Internal / Nama vendor",
+        "trackingNumber": "mis. 1Z999AA10123456784",
+        "deliveryNote": "Catatan untuk driver atau gudang (mis. rapuh, akses gerbang)"
+      },
+      "durationTo": "sampai",
+      "durationDays": "hari",
+      "podUploadAria": "Unggah bukti pengiriman dengan klik atau seret file",
+      "podSelected": "POD dipilih: {fileName}",
+      "podExisting": "POD yang ada dipilih",
+      "podDragDrop": "Seret & lepas",
+      "podDragDropSuffix": "file di sini, atau",
+      "podBrowse": "telusuri",
+      "podAcceptedFormats": "Diterima: JPG, PNG, PDF.",
+      "cancel": "Batal",
+      "saveChanges": "Simpan Perubahan",
+      "errors": {
+        "minGreaterThanMax": "Hari min tidak boleh lebih besar dari hari maks. Perbaiki nilainya.",
+        "invalidDuration": "Masukkan angka non-negatif yang valid untuk hari min dan maks."
+      }
+    },
+    "paymentProofModal": {
+      "title": "Bukti pembayaran",
+      "submitted": "Dikirim {date}",
+      "proofAlt": "Bukti pembayaran {index}",
+      "download": "Unduh",
+      "downloadPdf": "Unduh PDF"
+    },
+    "mapFullscreenTitle": "Lokasi pengiriman · {orderId}",
+    "alerts": {
+      "podUploadFailed": "Gagal mengunggah POD: {error}",
+      "acceptReturnFailed": "Gagal menerima pengembalian: {detail}",
+      "acceptReturnRetry": "Gagal menerima pengembalian. Silakan coba lagi.",
+      "rejectReturnFailed": "Gagal menolak pengembalian: {detail}",
+      "rejectReturnRetry": "Gagal menolak pengembalian. Silakan coba lagi."
+    }
+  }
+}

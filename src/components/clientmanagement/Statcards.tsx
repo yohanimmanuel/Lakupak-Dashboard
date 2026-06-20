@@ -6,6 +6,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 import { cumulativeCountGrowth } from '@/utils/monthOverMonthGrowth';
 import { AnalyticsMetricCard } from '@/components/analyticsperformance/FinancialAnalytics';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
 /**
  * Statcards Component - Single Source of Truth Currency
@@ -56,7 +57,11 @@ type StatCardConfig = {
 export default function Statcards({ type, data }: StatcardsProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
-  
+  const { tShared, tCommon } = useClientsTranslations();
+  const naLabel = tCommon('notAvailable');
+  const comparisonLabel = tCommon('vsLastMonth');
+  const perMonth = tShared('stats.perMonth');
+
   const stats = useMemo((): StatCardConfig[] => {
     try {
       if (type === 'buyer') {
@@ -118,29 +123,29 @@ export default function Statcards({ type, data }: StatcardsProps) {
         
         return [
           {
-            label: 'Total Buyers',
+            label: tShared('stats.totalBuyers'),
             value: totalBuyers.toLocaleString(),
             change: totalBuyersGrowth,
             icon: <Users className="w-6 h-6 text-[#0a61d7]" />,
             color: 'bg-[#f7faff]',
           },
           {
-            label: 'Active Buyers',
+            label: tShared('stats.activeBuyers'),
             value: activeBuyers.toLocaleString(),
             change: null,
             icon: <UserCheck className="w-6 h-6 text-green-500" />,
             color: 'bg-[#e6f7ec]',
           },
           {
-            label: 'Monthly Buyer Spend',
+            label: tShared('stats.monthlyBuyerSpend'),
             value: formatCurrency(cleanDecimals(avgMonthlySpend), userCurrency),
             change: null,
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
             color: 'bg-[#f7faff]',
           },
           {
-            label: 'Avg. Order Frequency',
-            value: `${avgOrderFreq}/mo`,
+            label: tShared('stats.avgOrderFrequency'),
+            value: `${avgOrderFreq}${perMonth}`,
             change: null,
             icon: <Repeat className="w-6 h-6 text-gray-500" />,
             color: 'bg-[#e6e6e6]',
@@ -234,28 +239,28 @@ export default function Statcards({ type, data }: StatcardsProps) {
       
       return [
         {
-          label: 'Total Suppliers',
+          label: tShared('stats.totalSuppliers'),
           value: totalSuppliers.toLocaleString(),
           change: totalSuppliersGrowth,
           icon: <Truck className="w-6 h-6 text-[#0a61d7]" />,
           color: 'bg-[#f7faff]',
         },
         {
-          label: 'Active Suppliers',
+          label: tShared('stats.activeSuppliers'),
           value: activeSuppliers.toLocaleString(),
           change: null,
           icon: <CheckCircle className="w-6 h-6 text-green-500" />,
           color: 'bg-[#e6f7ec]',
         },
         {
-          label: 'Monthly Purchase Value',
+          label: tShared('stats.monthlyPurchaseValue'),
           value: formatCurrency(cleanDecimals(avgMonthlyValue), userCurrency),
           change: null,
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
           color: 'bg-[#f7faff]',
         },
         {
-          label: 'On-time Delivery Rate',
+          label: tShared('stats.onTimeDeliveryRate'),
           value: `${onTimeRate}%`,
           change: null,
           icon: <Clock className="w-6 h-6 text-gray-500" />,
@@ -271,29 +276,29 @@ export default function Statcards({ type, data }: StatcardsProps) {
       if (type === 'buyer') {
         return [
           {
-            label: 'Total Buyers',
+            label: tShared('stats.totalBuyers'),
             value: data.length.toLocaleString(),
             change: totalGrowth,
             icon: <Users className="w-6 h-6 text-[#0a61d7]" />,
             color: 'bg-[#f7faff]',
           },
           {
-            label: 'Active Buyers',
+            label: tShared('stats.activeBuyers'),
             value: data.filter(b => b.status === 'Active').length.toLocaleString(),
             change: null,
             icon: <UserCheck className="w-6 h-6 text-green-500" />,
             color: 'bg-[#e6f7ec]',
           },
           {
-            label: 'Monthly Buyer Spend',
-            value: 'N/A',
+            label: tShared('stats.monthlyBuyerSpend'),
+            value: naLabel,
             change: null,
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
             color: 'bg-[#f7faff]',
           },
           {
-            label: 'Avg. Order Frequency',
-            value: 'N/A',
+            label: tShared('stats.avgOrderFrequency'),
+            value: naLabel,
             change: null,
             icon: <Repeat className="w-6 h-6 text-gray-500" />,
             color: 'bg-[#e6e6e6]',
@@ -303,36 +308,36 @@ export default function Statcards({ type, data }: StatcardsProps) {
 
       return [
         {
-          label: 'Total Suppliers',
+          label: tShared('stats.totalSuppliers'),
           value: data.length.toLocaleString(),
           change: totalGrowth,
           icon: <Truck className="w-6 h-6 text-[#0a61d7]" />,
           color: 'bg-[#f7faff]',
         },
         {
-          label: 'Active Suppliers',
+          label: tShared('stats.activeSuppliers'),
           value: data.filter(s => s.status === 'Active').length.toLocaleString(),
           change: null,
           icon: <CheckCircle className="w-6 h-6 text-green-500" />,
           color: 'bg-[#e6f7ec]',
         },
         {
-          label: 'Monthly Purchase Value',
-          value: 'N/A',
+          label: tShared('stats.monthlyPurchaseValue'),
+          value: naLabel,
           change: null,
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
           color: 'bg-[#f7faff]',
         },
         {
-          label: 'On-time Delivery Rate',
-          value: 'N/A',
+          label: tShared('stats.onTimeDeliveryRate'),
+          value: naLabel,
           change: null,
           icon: <Clock className="w-6 h-6 text-gray-500" />,
           color: 'bg-[#e6e6e6]',
         },
       ];
     }
-  }, [type, data, userCurrency]);
+  }, [type, data, userCurrency, tShared, naLabel, perMonth]);
 
   return (
     <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -344,6 +349,8 @@ export default function Statcards({ type, data }: StatcardsProps) {
           change={stat.change}
           icon={stat.icon}
           color={stat.color}
+          comparisonLabel={comparisonLabel}
+          naLabel={naLabel}
         />
       ))}
     </div>

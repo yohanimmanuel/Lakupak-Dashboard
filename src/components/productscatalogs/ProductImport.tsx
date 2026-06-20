@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ProductImportRow } from '@/types/product';
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 type ProductImportProps = {
   open: boolean;
@@ -11,19 +12,18 @@ type ProductImportProps = {
 };
 
 const productFields = [
-  { key: 'Product ID', label: 'Product ID (Auto-generated LKP format)' },
-  { key: 'SKU', label: 'SKU (Optional)' },
-  { key: 'Product Name', label: 'Product Name (Optional)' },
-  { key: 'Description', label: 'Description (Optional)' },
-  { key: 'Product Type', label: 'Product Type (Optional)' },
-  { key: 'Brand', label: 'Brand (Optional)' },
-  { key: 'Supplier', label: 'Supplier (Optional)' },
-  // Stock fields removed - now handled at variant level
-  { key: 'Purchase Price', label: 'Purchase Price (Optional)' },
-  { key: 'Selling Price', label: 'Selling Price (Optional)' },
-  { key: 'Status', label: 'Status (Always Draft)' },
-  { key: 'Product Category', label: 'Product Category (Optional)' },
-  { key: 'Catalog Name', label: 'Catalog Name (Optional)' },
+  { key: 'Product ID', slug: 'productId' },
+  { key: 'SKU', slug: 'sku' },
+  { key: 'Product Name', slug: 'productName' },
+  { key: 'Description', slug: 'description' },
+  { key: 'Product Type', slug: 'productType' },
+  { key: 'Brand', slug: 'brand' },
+  { key: 'Supplier', slug: 'supplier' },
+  { key: 'Purchase Price', slug: 'purchasePrice' },
+  { key: 'Selling Price', slug: 'sellingPrice' },
+  { key: 'Status', slug: 'status' },
+  { key: 'Product Category', slug: 'productCategory' },
+  { key: 'Catalog Name', slug: 'catalogName' },
 ];
 
 // Synonyms for automapping
@@ -50,6 +50,7 @@ function generateProductId() {
 }
 
 export default function ProductImport({ open, onCloseAction, onImportAction }: ProductImportProps) {
+  const { tImport } = useProductsTranslations();
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -57,6 +58,8 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
   const [filename, setFilename] = useState<string>('');
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<{ [key: string]: string }>({});
+
+  const getFieldLabel = (slug: string) => tImport(`productFields.${slug}` as Parameters<typeof tImport>[0]);
 
   const headers = productFields.map(f => f.key);
 
@@ -80,7 +83,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
       if (!evt.target || !evt.target.result) {
-        setError('File read error.');
+        setError(tImport('fileReadError'));
         return;
       }
       let workbook: XLSX.WorkBook;
@@ -94,7 +97,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
       if (!json.length) {
-        setError('File is empty or invalid.');
+        setError(tImport('fileEmpty'));
         return;
       }
       const fileHeadersRow = json[0].map(h => h.trim());
@@ -167,7 +170,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
           <X className="w-5 h-5 text-black" />
         </button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#0a61d7]" /> Import Products Data
+          <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('title')}
         </h2>
         
         {step === 0 && (
@@ -179,7 +182,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
               onClick={() => inputRef.current && inputRef.current.click()}
             >
               <Upload className="w-8 h-8 text-[#0a61d7]" />
-              <span className="text-[#0a61d7] font-semibold">Click to upload .xlsx or .csv file</span>
+              <span className="text-[#0a61d7] font-semibold">{tImport('upload')}</span>
               {filename && <span className="text-xs text-gray-500">{filename}</span>}
             </button>
             {error && <div className="flex items-center gap-2 text-red-500 text-sm">
@@ -190,32 +193,31 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         
         {step === 1 && (
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
-            <div className="mb-2 font-semibold text-black">Map your columns to the fields (all fields are optional):</div>
+            <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 text-sm">
-                💡 <strong>Flexible Import:</strong> You can map any columns you have. Unmapped fields will remain blank. 
-                Import whatever data you have available! Product IDs are auto-generated and Status is always set to Draft.
+                💡 <strong>{tImport('flexibleImport')}</strong> {tImport('flexibleImportHint')}
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-[#e6e6e6] bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">Field</th>
-                    <th className="py-2 px-3 font-medium uppercase">Map to Column</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('field')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('mapToColumn')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productFields.map(f => (
                     <tr key={f.key} className="whitespace-nowrap">
-                      <td className="py-1 px-3 font-semibold text-black">{f.label}</td>
+                      <td className="py-1 px-3 font-semibold text-black">{getFieldLabel(f.slug)}</td>
                       <td className="py-1 px-3">
                         <select
                           className="w-full border border-gray-200 rounded px-2 py-1 text-black text-xs"
                           value={mapping[f.key] || ''}
                           onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value }))}
                         >
-                          <option value="">-- Not Mapped --</option>
+                          <option value="">{tImport('notMapped')}</option>
                           {fileHeaders.map(h => (
                             <option key={h} value={h}>{h}</option>
                           ))}
@@ -238,7 +240,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                   setMapping({}); 
                 }}
               >
-                Back
+                {tImport('back')}
               </button>
               <button 
                 type="button" 
@@ -246,7 +248,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 onClick={() => setStep(2)} 
                 disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}
               >
-                Preview
+                {tImport('preview')}
               </button>
             </div>
           </div>
@@ -255,13 +257,13 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 mb-2 text-black">
-              <Eye className="w-4 h-4 text-[#0a61d7]" /> Preview {rows.length} products to import
+              <Eye className="w-4 h-4 text-[#0a61d7]" /> {tImport('previewProducts', { count: rows.length })}
             </div>
             <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    {productFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{f.label}</th>)}
+                    {productFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{getFieldLabel(f.slug)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -286,14 +288,14 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" 
                 onClick={() => setStep(1)}
               >
-                Back
+                {tImport('back')}
               </button>
               <button 
                 type="button" 
                 className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" 
                 onClick={handleImport}
               >
-                <CheckCircle2 className="w-4 h-4" /> Import
+                <CheckCircle2 className="w-4 h-4" /> {tImport('importButton')}
               </button>
             </div>
           </div>

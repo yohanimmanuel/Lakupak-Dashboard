@@ -1,19 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  Users, 
-  X, 
+import {
+  Users,
+  X,
   ArrowRight,
   UserPlus,
-  Handshake,
-  Building2
+  Building2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+
+const TIP_CONFIG = [
+  { id: 'add-new-buyers', icon: UserPlus, actionLink: '/clients/buyers' },
+  { id: 'manage-suppliers', icon: Building2, actionLink: '/clients/suppliers' },
+] as const;
+
+type TipId = (typeof TIP_CONFIG)[number]['id'];
 
 interface ClientTip {
-  id: string;
+  id: TipId;
   icon: LucideIcon;
   title: string;
   description: string;
@@ -23,64 +30,50 @@ interface ClientTip {
   fullDetails?: string[];
 }
 
+const TOOL_CONFIG = [
+  { id: 'buyers' as const, icon: Users, link: '/clients/buyers' },
+  { id: 'suppliers' as const, icon: Building2, link: '/clients/suppliers' },
+];
+
 export default function ClientsPage() {
+  const { tHub } = useClientsTranslations();
   const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
   const [selectedTip, setSelectedTip] = useState<ClientTip | null>(null);
 
-  const highPriorityTips: ClientTip[] = [
-    {
-      id: 'add-new-buyers',
-      icon: UserPlus,
-      title: 'Add New Buyers',
-      description: 'Expand your customer network by adding new buyers to your client list. Building a strong buyer base helps increase sales and revenue growth.',
-      actionLabel: 'Add buyers',
-      actionLink: '/clients/buyers',
-      mainPurpose: 'Expand your customer base and increase sales opportunities by systematically adding new buyers to your network. Buyers who bought products from you are considered as your clients and recorded automatically from the marketplace to the dashboard.',
-      fullDetails: [
-        'Access the Buyers section to view your current client list and add new contacts',
-        'Automatically record complete buyer information including store name, contact details, and business address',
-        'Categorize buyers by business type to better understand your customer segments',
-        'Set buyer status to track active, inactive, or potential clients',
-        'Import multiple buyers at once using bulk import functionality'
-      ],
-    },
-    {
-      id: 'manage-suppliers',
-      icon: Building2,
-      title: 'Manage Suppliers',
-      description: 'Keep your supplier information up to date to ensure smooth procurement. Track supply details and maintain accurate product sourcing.',
-      actionLabel: 'Manage suppliers',
-      actionLink: '/clients/suppliers',
-      mainPurpose: 'Maintain accurate supplier relationships and ensure reliable product sourcing for your business operations. Suppliers provide your products and services to your customers. You may also add new suppliers to your network to keep your supply record up to date without managing different suppliers through different software applications.',
-      fullDetails: [
-        'Store supplier contact information, business details, and addresses up to date',
-        'Track supply details including products they provide and pricing agreements',
-        'Monitor supplier performance metrics such as delivery times and reliability',
-        'Record logistics preferences and shipping arrangements for each supplier',
-        'Maintain notes about supplier terms, conditions, and special agreements',
-        'Update supplier status to reflect active partnerships or changes',
-        'Use supplier data to optimize procurement decisions and inventory planning'
-      ],
-    }
-  ];
+  const highPriorityTips: ClientTip[] = useMemo(
+    () =>
+      TIP_CONFIG.map(({ id, icon, actionLink }) => {
+        const details: string[] = [];
+        for (let i = 0; i < 10; i++) {
+          const key = `tipsList.${id}.details.${i}` as const;
+          if (!tHub.has(key)) break;
+          details.push(tHub(key));
+        }
+        return {
+          id,
+          icon,
+          actionLink,
+          title: tHub(`tipsList.${id}.title`),
+          description: tHub(`tipsList.${id}.description`),
+          actionLabel: tHub(`tipsList.${id}.actionLabel`),
+          mainPurpose: tHub(`tipsList.${id}.mainPurpose`),
+          fullDetails: details.length > 0 ? details : undefined,
+        };
+      }),
+    [tHub],
+  );
 
-  const clientTools = [
-    {
-      id: 'buyers',
-      name: 'Buyers',
-      description: 'Manage your buyer network and track customer relationships.',
-      icon: Users,
-      link: '/clients/buyers',
-    },
-    {
-      id: 'suppliers',
-      name: 'Suppliers',
-      description: 'Manage your supplier network and procurement relationships.',
-      icon: Building2,
-      link: '/clients/suppliers',
-    },
-  ];
-
+  const clientTools = useMemo(
+    () =>
+      TOOL_CONFIG.map(({ id, icon, link }) => ({
+        id,
+        icon,
+        link,
+        name: tHub(`toolsList.${id}.name`),
+        description: tHub(`toolsList.${id}.description`),
+      })),
+    [tHub],
+  );
 
   const handleDismissTip = (tipId: string) => {
     setDismissedTips((prev) => new Set(prev).add(tipId));
@@ -90,19 +83,15 @@ export default function ClientsPage() {
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-black mb-2">Clients</h1>
-        <p className="text-sm text-gray-600">
-          Manage your buyer and supplier relationships to build a strong network and drive business growth.
-        </p>
+        <h1 className="text-2xl font-bold text-black mb-2">{tHub('title')}</h1>
+        <p className="text-sm text-gray-600">{tHub('subtitle')}</p>
       </div>
 
-      {/* Tips Section */}
       {visibleTips.length > 0 && (
         <section className="mb-8">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-black">Tips</h2>
+            <h2 className="text-lg font-semibold text-black">{tHub('tips')}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleTips.map((tip) => {
@@ -115,7 +104,7 @@ export default function ClientsPage() {
                   <button
                     onClick={() => handleDismissTip(tip.id)}
                     className="absolute top-3 right-3 p-1 hover:bg-blue-100 rounded-full transition-colors"
-                    aria-label="Dismiss tip"
+                    aria-label={tHub('dismissTip')}
                   >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
@@ -130,9 +119,7 @@ export default function ClientsPage() {
                       >
                         {tip.title}
                       </button>
-                      <p className="text-xs text-gray-600 mb-3">
-                        {tip.description}
-                      </p>
+                      <p className="text-xs text-gray-600 mb-3">{tip.description}</p>
                       <Link
                         href={tip.actionLink}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
@@ -149,9 +136,8 @@ export default function ClientsPage() {
         </section>
       )}
 
-      {/* Tools Section */}
       <section>
-        <h2 className="text-lg font-semibold text-black mb-4">Tools</h2>
+        <h2 className="text-lg font-semibold text-black mb-4">{tHub('tools')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {clientTools.map((tool) => {
             const IconComponent = tool.icon;
@@ -165,12 +151,8 @@ export default function ClientsPage() {
                   <div className="w-12 h-12 rounded-lg bg-[#f7faff] flex items-center justify-center text-[#0a61d7] mb-4 group-hover:bg-[#0a61d7] group-hover:text-white transition-colors">
                     <IconComponent className="w-6 h-6" />
                   </div>
-                  <h3 className="text-base font-semibold text-black mb-2">
-                    {tool.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {tool.description}
-                  </p>
+                  <h3 className="text-base font-semibold text-black mb-2">{tool.name}</h3>
+                  <p className="text-sm text-gray-600">{tool.description}</p>
                 </div>
               </Link>
             );
@@ -178,9 +160,8 @@ export default function ClientsPage() {
         </div>
       </section>
 
-      {/* Tip Detail Modal */}
       {selectedTip && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -189,7 +170,6 @@ export default function ClientsPage() {
           }}
         >
           <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
             <div className="bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
@@ -198,51 +178,41 @@ export default function ClientsPage() {
                     return <IconComponent className="w-5 h-5" />;
                   })()}
                 </div>
-                <h2 className="text-xl font-bold text-black">
-                  {selectedTip.title}
-                </h2>
+                <h2 className="text-xl font-bold text-black">{selectedTip.title}</h2>
               </div>
               <button
                 onClick={() => setSelectedTip(null)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Close modal"
+                aria-label={tHub('closeModal')}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-6">
-                {/* Main Purpose */}
                 {selectedTip.mainPurpose && (
                   <div>
-                    <h3 className="text-base font-semibold text-black mb-2">Main Purpose</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      {selectedTip.mainPurpose}
-                    </p>
+                    <h3 className="text-base font-semibold text-black mb-2">{tHub('mainPurpose')}</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{selectedTip.mainPurpose}</p>
                   </div>
                 )}
 
-                 {/* Full Details */}
-                 {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
-                   <div>
-                     <h3 className="text-base font-semibold text-black mb-3">Details</h3>
-                     <ul className="space-y-2">
-                       {selectedTip.fullDetails.map((detail, index) => (
-                         <li key={index} className="flex items-start gap-3">
-                           <span className="text-[#0a61d7] flex-shrink-0 mt-0.5">•</span>
-                           <span className="text-sm text-gray-600 leading-relaxed flex-1">
-                             {detail}
-                           </span>
-                         </li>
-                       ))}
-                     </ul>
-                   </div>
-                 )}
+                {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-semibold text-black mb-3">{tHub('details')}</h3>
+                    <ul className="space-y-2">
+                      {selectedTip.fullDetails.map((detail, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <span className="text-[#0a61d7] flex-shrink-0 mt-0.5">•</span>
+                          <span className="text-sm text-gray-600 leading-relaxed flex-1">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                 {/* Action Button */}
-                 <div className="pt-4 -mx-6 px-6 border-t border-[#e6e6e6]">
+                <div className="pt-4 -mx-6 px-6 border-t border-[#e6e6e6]">
                   <Link
                     href={selectedTip.actionLink}
                     onClick={() => setSelectedTip(null)}
@@ -260,4 +230,3 @@ export default function ClientsPage() {
     </div>
   );
 }
-

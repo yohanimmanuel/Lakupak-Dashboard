@@ -9,6 +9,7 @@ import { AnalyticsMetricCard } from '@/components/analyticsperformance/Financial
 import { OperationalMetricCard } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
 import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 interface OrdersCardsProps {
   orders: Order[];
@@ -19,6 +20,7 @@ function isCompletedOrder(status: string): boolean {
 }
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
+  const { tCards } = useOrdersTranslations();
   const user = useUserStore((state) => state.user);
 
   const validOrders = Array.isArray(orders) ? orders : [];
@@ -37,28 +39,28 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
       <AnalyticsMetricCard
-        title="Total Orders"
+        title={tCards('totalOrders')}
         value={totalOrders.toLocaleString()}
         change={growth.ordersGrowth}
         icon={<Package className="w-6 h-6 text-emerald-600" />}
         color="bg-white"
       />
       <AnalyticsMetricCard
-        title="Order Volume"
+        title={tCards('orderVolume')}
         value={formatCurrency(orderVolume, displayCurrency)}
         change={growth.orderVolumeGrowth}
         icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
         color="bg-[#f7faff]"
       />
       <OperationalMetricCard
-        title="Order Completion Rate"
+        title={tCards('completionRate')}
         value={`${completionRate.toFixed(1)}%`}
         change={growth.completionGrowth}
         icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
         color="bg-white"
       />
       <AnalyticsMetricCard
-        title="Average Order Volume"
+        title={tCards('averageOrderVolume')}
         value={formatCurrency(averageOrderVolume, displayCurrency)}
         change={growth.averageOrderVolumeGrowth}
         icon={<DollarSign className="w-6 h-6 text-emerald-600" />}

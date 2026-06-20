@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { Product } from '@/types/product';
 import { SelectedProduct, useOfferCreationStore } from '@/store/offerCreationStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 interface DiscountType {
   id: string;
@@ -87,6 +88,16 @@ export default function ProductIntegration({
   onRemoveProduct, 
   onUpdateProductDiscount 
 }: ProductIntegrationProps) {
+  const {
+    tProducts,
+    tShared,
+    tTable,
+    translateFilter,
+    translateDiscountType,
+    translateOfferBadge,
+    translateRecordStatus,
+    translateStockStatus,
+  } = useOffersTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,19 +139,12 @@ export default function ProductIntegration({
   const [selectedOfferTypes, setSelectedOfferTypes] = useState<string[]>([]);
   const [selectedDateRanges, setSelectedDateRanges] = useState<string[]>([]);
 
-  // Map real discount types from store to display-friendly items
-  const getTypeLabel = (t: 'percentage' | 'fixed' | 'buy_x_get_y') => {
-    switch (t) {
-      case 'percentage':
-        return 'Percentage Discount';
-      case 'fixed':
-        return 'Fixed Amount Discount';
-      case 'buy_x_get_y':
-        return 'Buy X Get Y';
-      default:
-        return 'Discount';
-    }
-  };
+  const getFilterLabel = (filter: string) =>
+    filter === 'All Types' || filter === 'All Categories' || filter === 'All Brands'
+      ? translateFilter(filter)
+      : filter;
+
+  const getTypeLabel = (t: 'percentage' | 'fixed' | 'buy_x_get_y') => translateDiscountType(t);
 
   const offerTypes = (discountTypes || []).map((dt) => ({
     id: dt.id,
@@ -839,7 +843,7 @@ export default function ProductIntegration({
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading products...</p>
+            <p className="text-gray-600">{tProducts('loading')}</p>
           </div>
         </div>
       </div>
@@ -852,10 +856,10 @@ export default function ProductIntegration({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">
-            {isNewOffer ? 'Select Products for Offer' : 'Your Products'}
+            {isNewOffer ? tProducts('titleNew') : tProducts('titleEdit')}
           </h2>
           <p className="text-gray-500 text-sm">
-            {isNewOffer ? 'Choose which products to include in your new offer' : 'Select products for this offer (one offer per product)'}
+            {isNewOffer ? tProducts('subtitleNew') : tProducts('subtitleEdit')}
           </p>
         </div>
         {selectedProducts.length > 0 && (
@@ -864,7 +868,7 @@ export default function ProductIntegration({
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
           >
             <Plus className="w-4 h-4" />
-            Apply Offer ({selectedProducts.length})
+            {tProducts('applyOffer', { count: selectedProducts.length })}
           </button>
         )}
       </div>
@@ -874,10 +878,10 @@ export default function ProductIntegration({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {/* Search */}
           <div className="flex gap-2 w-full md:w-auto items-center">
-            <div className="relative w-full md:w-150">
+            <div className="relative w-full md:w-64 shrink-0">
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder={tProducts('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
@@ -895,7 +899,7 @@ export default function ProductIntegration({
                   setShowBrandDropdown(false); // Close other dropdowns when opening type dropdown
                 }}
               >
-                {selectedType}
+                {getFilterLabel(selectedType)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showTypeDropdown && (
@@ -913,7 +917,7 @@ export default function ProductIntegration({
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {type}
+                      {getFilterLabel(type)}
                     </button>
                   ))}
                 </div>
@@ -930,7 +934,7 @@ export default function ProductIntegration({
                   setShowBrandDropdown(false); // Close other dropdowns when opening category dropdown
                 }}
               >
-                {selectedCategory}
+                {getFilterLabel(selectedCategory)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showCategoryDropdown && (
@@ -948,7 +952,7 @@ export default function ProductIntegration({
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {category}
+                      {getFilterLabel(category)}
                     </button>
                   ))}
                 </div>
@@ -965,7 +969,7 @@ export default function ProductIntegration({
                   setShowCategoryDropdown(false); // Close other dropdowns when opening brand dropdown
                 }}
               >
-                {selectedBrand}
+                {getFilterLabel(selectedBrand)}
                 <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
               </button>
               {showBrandDropdown && (
@@ -983,7 +987,7 @@ export default function ProductIntegration({
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      {brand}
+                      {getFilterLabel(brand)}
                     </button>
                   ))}
                 </div>
@@ -1028,7 +1032,10 @@ export default function ProductIntegration({
               )}
             </button>
             <span className="text-sm text-gray-700">
-              Select All Available ({selectedProducts.length}/{pagedProducts.filter(p => canSelectProduct(p.productId)).length})
+              {tProducts('selectAllAvailable', {
+                selected: selectedProducts.length,
+                total: pagedProducts.filter(p => canSelectProduct(p.productId)).length,
+              })}
             </span>
           </div>
         )}
@@ -1038,8 +1045,10 @@ export default function ProductIntegration({
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-sm text-blue-700">
-                {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
-                {selectedProducts.some(productId => currentOfferProductIds.has(productId)) && ' (some have offers)'}
+                {selectedProducts.length === 1
+                  ? tProducts('productsSelected', { count: selectedProducts.length })
+                  : tProducts('productsSelectedPlural', { count: selectedProducts.length })}
+                {selectedProducts.some(productId => currentOfferProductIds.has(productId)) && tProducts('someHaveOffers')}
               </span>
               <div className="flex items-center gap-3">
                 {selectedProducts.some(productId => currentOfferProductIds.has(productId)) && (
@@ -1047,14 +1056,14 @@ export default function ProductIntegration({
                     onClick={() => setShowRemoveConfirm(true)}
                     className="text-xs text-red-600 hover:text-red-800 font-medium"
                   >
-                    Remove Offer
+                    {tProducts('removeOffer')}
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedProducts([])}
                   className="text-xs text-blue-600 hover:text-blue-800"
                 >
-                  Clear Selection
+                  {tProducts('clearSelection')}
                 </button>
               </div>
             </div>
@@ -1066,11 +1075,11 @@ export default function ProductIntegration({
       {pagedProducts.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
           <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{tProducts('emptyTitle')}</h3>
           <p className="text-gray-500 mb-4">
             {searchTerm || selectedType !== 'All Types' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands'
-              ? 'No products match your current filters. Try adjusting your search criteria.'
-              : 'You don\'t have any products yet. Create your first product to get started.'
+              ? tProducts('emptyFiltered')
+              : tProducts('emptyNoProducts')
             }
           </p>
           {searchTerm || selectedType !== 'All Types' || selectedCategory !== 'All Categories' || selectedBrand !== 'All Brands' ? (
@@ -1083,14 +1092,14 @@ export default function ProductIntegration({
               }}
               className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
             >
-              Clear Filters
+              {tProducts('clearFilters')}
             </button>
           ) : (
             <button
               onClick={() => window.location.href = '/products/add'}
               className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
             >
-              Add Product
+              {tProducts('addProduct')}
             </button>
           )}
         </div>
@@ -1139,7 +1148,7 @@ export default function ProductIntegration({
                       {shouldShowAsDisabled(product.productId) && (
                         <div className="mt-1">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Has Offer
+                          {tProducts('hasOffer')}
                           </span>
                         </div>
                       )}
@@ -1147,43 +1156,43 @@ export default function ProductIntegration({
                   </div>
                     {(product.isInCurrentOffer || (product.hasOffer && product.offerBadge)) && product.offerBadge && (
                       <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                        {product.offerBadge}
+                        {translateOfferBadge(product.offerBadge)}
                       </div>
                     )}
                 </div>
 
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Type:</span>
+                    <span className="text-gray-500">{tProducts('typeLabel')}</span>
                     <span className="text-black">{product.productType}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Category:</span>
+                    <span className="text-gray-500">{tProducts('categoryLabel')}</span>
                     <span className="text-black">{product.productCategory}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Price:</span>
+                    <span className="text-gray-500">{tProducts('priceLabel')}</span>
                     <span className="text-black font-medium">
                       {getPriceDisplay(product)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">Stock:</span>
+                    <span className="text-gray-500">{tProducts('stockLabel')}</span>
                     <span className={`${getStockStatus(product).color}`}>
                       {(() => {
                         const variantOptionsStock = product.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
                         return variantOptionsStock;
-                      })()} units
+                      })()} {tProducts('units')}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
-                    {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
+                    {translateRecordStatus(product.status)}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatus(product).bg} ${getStockStatus(product).color}`}>
-                    {getStockStatus(product).label}
+                    {translateStockStatus(getStockStatus(product).label)}
                   </span>
                 </div>
               </div>
@@ -1210,13 +1219,13 @@ export default function ProductIntegration({
                       )}
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Product</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Type</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Category</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Brand</th>
-                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">Price</th>
-                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">Stock</th>
-                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.product')}</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.type')}</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.category')}</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.brand')}</th>
+                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.price')}</th>
+                  <th className="text-right py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.stock')}</th>
+                  <th className="text-left py-3 px-4 font-medium text-xs uppercase text-gray-500">{tProducts('columns.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1263,7 +1272,7 @@ export default function ProductIntegration({
                       {shouldShowAsDisabled(product.productId) && (
                         <div className="mt-1">
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Has Offer
+                          {tProducts('hasOffer')}
                           </span>
                         </div>
                       )}
@@ -1285,12 +1294,12 @@ export default function ProductIntegration({
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(product.status)}`}>
-                          {product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()}
+                          {translateRecordStatus(product.status)}
                         </span>
                         {(product.isInCurrentOffer || (product.hasOffer && product.offerBadge)) && product.offerBadge ? (
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full border border-blue-200">{product.offerBadge}</span>
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full border border-blue-200">{translateOfferBadge(product.offerBadge)}</span>
                         ) : (
-                          <span className="text-gray-400 text-xs">No offer</span>
+                          <span className="text-gray-400 text-xs">{tProducts('noOffer')}</span>
                         )}
                       </div>
                     </td>
@@ -1306,7 +1315,7 @@ export default function ProductIntegration({
       {totalRows > 0 && (
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-gray-500">
-            Showing {fromRow} to {toRow} of {totalRows} results
+            {tProducts('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1381,12 +1390,12 @@ export default function ProductIntegration({
                     return (
                       <>
                         <h3 className="text-lg font-semibold text-black">
-                          {allInCurrentOffer ? 'Remove Offer from Products' : 'Apply Offer to Products'}
+                          {allInCurrentOffer ? tProducts('modalRemoveTitle') : tProducts('modalApplyTitle')}
                         </h3>
                   <p className="text-gray-500 text-sm">
                           {allInCurrentOffer 
-                            ? `Remove offer from ${selectedProducts.length} selected product${selectedProducts.length !== 1 ? 's' : ''}`
-                            : `Configure offer settings for ${selectedProducts.length} selected product${selectedProducts.length !== 1 ? 's' : ''}`
+                            ? tProducts('modalRemoveSubtitle', { count: selectedProducts.length })
+                            : tProducts('modalApplySubtitle', { count: selectedProducts.length })
                           }
                   </p>
                       </>
@@ -1406,7 +1415,7 @@ export default function ProductIntegration({
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               {/* Selected Products Summary */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-900 mb-2">Selected Products</h4>
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">{tProducts('selectedProducts')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {selectedProducts.slice(0, 4).map((productId) => {
                     const product = displayProducts.find(p => p.productId === productId);
@@ -1421,7 +1430,7 @@ export default function ProductIntegration({
                     <div className="flex items-center gap-2 text-xs">
                       <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
                       <span className="text-blue-600 font-medium">
-                        and {selectedProducts.length - 4} more products...
+                        {tProducts('andMoreProducts', { count: selectedProducts.length - 4 })}
                       </span>
                     </div>
                   )}
@@ -1430,18 +1439,18 @@ export default function ProductIntegration({
 
               {/* Offer Information */}
               <div className="space-y-4">
-                <h4 className="text-md font-semibold text-black">Offer Information</h4>
+                <h4 className="text-md font-semibold text-black">{tProducts('offerInformation')}</h4>
                 
                 {/* Offer Types Section */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-medium text-gray-700">Offer Types</h5>
+                    <h5 className="text-sm font-medium text-gray-700">{tProducts('offerTypesSection')}</h5>
                     {offerTypes && offerTypes.length > 0 && (
                       <button
                         onClick={selectAllOfferTypes}
                         className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
                       >
-                        {selectedOfferTypes.length === offerTypes.length ? 'Deselect All' : 'Select All'}
+                        {selectedOfferTypes.length === offerTypes.length ? tProducts('deselectAll') : tProducts('selectAll')}
                       </button>
                     )}
                   </div>
@@ -1466,11 +1475,11 @@ export default function ProductIntegration({
                               </button>
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Offer Name:</span>
+                                  <span className="text-xs text-gray-600">{tProducts('offerNameLabel')}</span>
                                   <span className="text-xs font-medium text-black">{offerType.name}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Type:</span>
+                                  <span className="text-xs text-gray-600">{tProducts('typeLabelModal')}</span>
                                   <span className="text-xs font-medium text-black">{getTypeLabel(offerType.type as 'percentage' | 'fixed' | 'buy_x_get_y')}</span>
                                 </div>
                               </div>
@@ -1478,13 +1487,15 @@ export default function ProductIntegration({
                           </div>
                         ))
                       ) : (
-                        <div className="text-xs text-gray-500">No offer types configured.</div>
+                        <div className="text-xs text-gray-500">{tProducts('noOfferTypes')}</div>
                       )}
                     </div>
                   </div>
                   {selectedOfferTypes.length > 0 && (
                     <div className="text-xs text-[#0a61d7] font-medium">
-                      {selectedOfferTypes.length} offer type{selectedOfferTypes.length !== 1 ? 's' : ''} selected
+                      {selectedOfferTypes.length === 1
+                        ? tProducts('offerTypesSelected', { count: selectedOfferTypes.length })
+                        : tProducts('offerTypesSelectedPlural', { count: selectedOfferTypes.length })}
                     </div>
                   )}
                 </div>
@@ -1492,13 +1503,13 @@ export default function ProductIntegration({
                 {/* Date Ranges Section */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-medium text-gray-700">Active Periods</h5>
+                    <h5 className="text-sm font-medium text-gray-700">{tProducts('activePeriods')}</h5>
                     {dateRanges && dateRanges.length > 0 && (
                       <button
                         onClick={selectAllDateRanges}
                         className="text-xs text-[#0a61d7] hover:text-[#084ba6] font-medium"
                       >
-                        {selectedDateRanges.length === dateRanges.length ? 'Deselect All' : 'Select All'}
+                        {selectedDateRanges.length === dateRanges.length ? tProducts('deselectAll') : tProducts('selectAll')}
                       </button>
                     )}
                   </div>
@@ -1524,11 +1535,11 @@ export default function ProductIntegration({
                               </button>
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Active Period:</span>
+                                  <span className="text-xs text-gray-600">{tProducts('activePeriodLabel')}</span>
                                   <span className="text-xs font-medium text-black">{range.name}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Duration:</span>
+                                  <span className="text-xs text-gray-600">{tProducts('durationLabel')}</span>
                                   <span className="text-xs font-medium text-black">
                                     {new Date(range.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(range.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                   </span>
@@ -1538,13 +1549,15 @@ export default function ProductIntegration({
                           </div>
                         ))
                       ) : (
-                        <div className="text-xs text-gray-500">No date ranges configured.</div>
+                        <div className="text-xs text-gray-500">{tProducts('noDateRanges')}</div>
                       )}
                     </div>
                   </div>
                   {selectedDateRanges.length > 0 && (
                     <div className="text-xs text-[#0a61d7] font-medium">
-                      {selectedDateRanges.length} date range{selectedDateRanges.length !== 1 ? 's' : ''} selected
+                      {selectedDateRanges.length === 1
+                        ? tProducts('dateRangesSelected', { count: selectedDateRanges.length })
+                        : tProducts('dateRangesSelectedPlural', { count: selectedDateRanges.length })}
                     </div>
                   )}
                 </div>
@@ -1556,7 +1569,7 @@ export default function ProductIntegration({
               {/* Validation Message - Date ranges are now optional */}
               {selectedOfferTypes.length === 0 && (
                 <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  ⚠️ Please select at least one offer type
+                  ⚠️ {tProducts('selectOfferTypeWarning')}
                 </div>
               )}
               
@@ -1570,7 +1583,7 @@ export default function ProductIntegration({
                   }}
                   className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
                 >
-                  Cancel
+                  {tShared('cancel')}
                 </button>
                 {(() => {
                   // Check if all selected products are already in the current offer
@@ -1595,7 +1608,7 @@ export default function ProductIntegration({
                         className="flex items-center gap-2 px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                       >
                         <X className="w-4 h-4" />
-                        Remove Offer
+                        {tProducts('removeOffer')}
                       </button>
                     );
                   }
@@ -1607,7 +1620,7 @@ export default function ProductIntegration({
                   onClick={() => {
                     // Validate selections - date ranges are now optional
                     if (selectedOfferTypes.length === 0) {
-                      alert('Please select at least one offer type');
+                      alert(tProducts('selectOfferTypeAlert'));
                       return;
                     }
                     // Date ranges are optional - no validation needed
@@ -1702,7 +1715,7 @@ export default function ProductIntegration({
                     : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
                 }`}
               >
-                Apply Offer
+                {tProducts('applyOfferButton')}
               </button>
                   );
                 })()}
@@ -1717,7 +1730,7 @@ export default function ProductIntegration({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-black">Remove Offer</h3>
+              <h3 className="text-lg font-semibold text-black">{tProducts('removeConfirmTitle')}</h3>
             </div>
             <div className="p-4 space-y-2">
               {(() => {
@@ -1730,9 +1743,9 @@ export default function ProductIntegration({
                 return (
                   <>
               <p className="text-sm text-gray-700">
-                      Are you sure you want to remove offers from {count} selected product{count !== 1 ? 's' : ''}?
+                      {tProducts('removeConfirmBody', { count })}
               </p>
-                    <p className="text-xs text-gray-500">This action will remove the offer from the selected products in this offer.</p>
+                    <p className="text-xs text-gray-500">{tProducts('removeConfirmHint')}</p>
                   </>
                 );
               })()}
@@ -1742,7 +1755,7 @@ export default function ProductIntegration({
                 onClick={() => setShowRemoveConfirm(false)}
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 onClick={() => {
@@ -1823,7 +1836,7 @@ export default function ProductIntegration({
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
               >
-                Remove
+                {tTable('remove')}
               </button>
             </div>
           </div>

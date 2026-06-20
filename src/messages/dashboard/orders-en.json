@@ -1,0 +1,378 @@
+{
+  "list": {
+    "title": "Orders Management",
+    "subtitle": "Track and manage all your B2B marketplace orders",
+    "refresh": "Refresh",
+    "archivedOrders": "Archived Orders",
+    "exportData": "Export Data",
+    "loadingOverlay": "Loading order data...",
+    "refreshingOverlay": "Refreshing order data",
+    "loadedOverlay": "Showing order data ({count})",
+    "errorOverlay": "Error loading orders",
+    "errorTitle": "Error loading orders",
+    "retry": "Retry",
+    "pleaseWait": "Please wait...",
+    "ordersLoaded": "{count} order loaded",
+    "ordersLoadedPlural": "{count} orders loaded",
+    "archivedTitle": "Archived Orders",
+    "close": "Close",
+    "noArchived": "No archived orders",
+    "itemsCount": "{count} items",
+    "view": "View",
+    "unarchive": "Unarchive"
+  },
+  "cards": {
+    "totalOrders": "Total Orders",
+    "orderVolume": "Order Volume",
+    "completionRate": "Order Completion Rate",
+    "averageOrderVolume": "Average Order Volume"
+  },
+  "gps": {
+    "title": "Live Delivery Tracking",
+    "fullscreenTitle": "Live delivery tracking",
+    "viewFullscreen": "View full screen",
+    "viewFullscreenAria": "Open full screen map view",
+    "loadingMap": "Loading map...",
+    "geocoding": "Geocoding delivery addresses",
+    "noOrdersOnMap": "No orders on map",
+    "noStatusOrders": "No {status} orders",
+    "mapHint": "Orders with delivery addresses will appear here",
+    "statusFilters": {
+      "all": "All Statuses",
+      "Pending": "Pending",
+      "Confirmed": "Confirmed",
+      "Packed": "Packed",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Received": "Received",
+      "Failed": "Failed",
+      "Cancelled": "Cancelled",
+      "Returned": "Returned"
+    }
+  },
+  "tour": {
+    "ariaLabel": "Orders tour",
+    "title": "New here?",
+    "description": "Take a short tour of this Orders page — filters, map, and table.",
+    "dismiss": "Dismiss",
+    "startTour": "Tour this section"
+  },
+  "detailsPage": {
+    "loading": "Loading order details...",
+    "notFoundTitle": "Order Not Found",
+    "notFoundDescription": "The order you're looking for doesn't exist.",
+    "backToOrders": "Back to Orders"
+  },
+  "table": {
+    "searchPlaceholder": "Search orders...",
+    "searchAriaLabel": "Search orders by order ID, buyer name, or tracking number",
+    "empty": "No orders recorded",
+    "editOrder": "Edit order {orderId}",
+    "deleteOrder": "Delete order {orderId}",
+    "columns": {
+      "order": "Order",
+      "date": "Date",
+      "buyer": "Buyer",
+      "status": "Status",
+      "total": "Total",
+      "items": "Items",
+      "delivery": "Delivery",
+      "tracking": "Tracking",
+      "payment": "Payment"
+    },
+    "mobileLabels": {
+      "order": "Order:",
+      "date": "Date:",
+      "status": "Status:",
+      "total": "Total:",
+      "items": "Items:",
+      "delivery": "Delivery:",
+      "tracking": "Tracking:",
+      "payment": "Payment:"
+    },
+    "selection": {
+      "selectAllCount": "Select All ({count} orders)"
+    },
+    "bulkActions": {
+      "selected": "{count} selected",
+      "archiveOrders": "Archive Orders",
+      "deleteCancelled": "Delete Cancelled"
+    },
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    },
+    "deleteModal": {
+      "titleSingle": "Delete Cancelled Order",
+      "titleBulk": "Delete Cancelled Orders",
+      "confirmSingle": "Are you sure you want to permanently delete this cancelled order? This action cannot be undone.",
+      "confirmBulk": "Are you sure you want to permanently delete {count} cancelled orders? This action cannot be undone.",
+      "warningLabel": "Warning:",
+      "warningSingle": "This will permanently remove this order from the system.",
+      "warningBulk": "This will permanently remove the orders from the system.",
+      "deleteButton": "Delete"
+    }
+  },
+  "shared": {
+    "actions": "Actions",
+    "cancel": "Cancel",
+    "notAvailable": "N/A",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "statusTabs": {
+      "All": "All",
+      "Pending": "Pending",
+      "Confirmed": "Confirmed",
+      "Packed": "Packed",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Failed": "Failed",
+      "Cancelled": "Cancelled",
+      "Returned": "Returned"
+    },
+    "paymentTabs": {
+      "All": "All",
+      "Unpaid": "Unpaid",
+      "Paid": "Paid"
+    },
+    "deliveryMethods": {
+      "All Methods": "All Methods",
+      "Self Pickup": "Self Pickup",
+      "Seller/Distributor Delivery": "Seller/Distributor Delivery",
+      "Buyer-arranged Courier": "Buyer-arranged Courier"
+    },
+    "orderStatus": {
+      "Pending": "Pending",
+      "Confirmed": "Confirmed",
+      "Packed": "Packed",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Received": "Received",
+      "Failed": "Failed",
+      "Cancelled": "Cancelled",
+      "Returned": "Returned"
+    },
+    "paymentStatus": {
+      "Paid": "Paid",
+      "Unpaid": "Unpaid"
+    },
+    "returnReasons": {
+      "wrong_item": "Wrong item received",
+      "defective": "Defective or damaged",
+      "not_as_described": "Not as described",
+      "changed_mind": "Changed my mind",
+      "late_delivery": "Late delivery",
+      "other": "Other"
+    },
+    "returnRequestStatus": {
+      "Pending": "Pending",
+      "Accepted": "Accepted",
+      "Rejected": "Rejected"
+    },
+    "fields": {
+      "contactPerson": "Contact person",
+      "contactPhone": "Contact phone",
+      "deliveryAddress": "Delivery address",
+      "deliveryMethod": "Delivery method",
+      "estimatedDelivery": "Estimated delivery"
+    },
+    "offerBadges": {
+      "Discount": "Discount",
+      "Promotion": "Promotion",
+      "percentOff": "{percent}% OFF",
+      "buyGet": "Buy {min} Get {free}",
+      "off": "OFF"
+    },
+    "paymentMethods": {
+      "payment": "Payment",
+      "method": "Method",
+      "cod": "COD",
+      "bank": "BANK",
+      "cashOnDelivery": "Cash on Delivery",
+      "transfer": "Transfer"
+    },
+    "defaultPackageType": "Package",
+    "pieces": "pieces",
+    "uncategorized": "Uncategorized"
+  },
+  "details": {
+    "completion": {
+      "title": "Order information completion",
+      "fieldsCompleted": "{completed} of {total} fields completed",
+      "missing": "Missing: {fields}"
+    },
+    "backButton": "Back to Order Lists",
+    "statusTooltip": "Update your order or shipment status here",
+    "editButton": "Edit",
+    "editButtonTitle": "Edit order delivery and contact details",
+    "customerInfo": {
+      "title": "Customer Information",
+      "viewBuyerProfile": "View buyer profile",
+      "storeName": "Store Name:",
+      "phone": "Phone:",
+      "email": "Email:",
+      "orderDate": "Order Date:",
+      "noEmail": "No customer email"
+    },
+    "totalOrder": {
+      "title": "Total Order",
+      "paymentProof": "Payment proof",
+      "paymentAuth": {
+        "proofUnpaid": "Buyer submitted payment proof. Verify the transfer and mark as Paid when received.",
+        "paid": "Payment processed successfully. This transaction has been authorized for future reference.",
+        "unpaid": "Awaiting payment from the buyer."
+      },
+      "orderDetailsTitle": "Order Details",
+      "totalOrderPrice": "Total Order price:",
+      "shippingCost": "Shipping cost:",
+      "agreedSeparately": "Agreed separately",
+      "currency": "Currency:",
+      "paymentTerms": "Payment Terms:",
+      "deliveryMethod": "Delivery Method:"
+    },
+    "schedule": {
+      "pickupTitle": "Scheduled Pickup",
+      "courierTitle": "Scheduled Courier Pickup",
+      "deliveryTitle": "Scheduled Delivery",
+      "pickupPrefix": "Pickup has been scheduled for",
+      "courierPrefix": "Courier pickup has been scheduled for",
+      "deliveryPrefix": "Delivery has been scheduled for"
+    },
+    "deliveryService": {
+      "title": "Delivery Service",
+      "noneAssigned": "No delivery service assigned",
+      "estimatedDelivery": "Estimated delivery:",
+      "notSet": "Not set",
+      "daysRange": "({min}–{max} days)",
+      "preferredTime": "Preferred Time:",
+      "noPreferredTime": "No preferred delivery time",
+      "tracking": "Tracking:",
+      "viewFleetDetails": "View fleet details",
+      "noTrackingNumber": "No tracking number"
+    },
+    "updatesStatus": {
+      "title": "Updates and Status",
+      "deliveryLocation": "Delivery Location",
+      "viewMapFullscreen": "View map full screen",
+      "viewMapFullscreenAria": "View delivery map full screen",
+      "loadingMap": "Loading map...",
+      "geocoding": "Geocoding address",
+      "mapUnavailable": "Map unavailable",
+      "unableToLocate": "Unable to locate address",
+      "notePrefix": "Note:"
+    },
+    "deliveryFailure": {
+      "title": "Delivery failure reason",
+      "reason": "Reason:",
+      "defaultReason": "Delivery failed",
+      "evidenceAlt": "Failure evidence {index}"
+    },
+    "cancellation": {
+      "title": "Reason for cancellation",
+      "reason": "Reason:",
+      "date": "Date:",
+      "noneRecorded": "No cancellation reason recorded."
+    },
+    "return": {
+      "title": "Return information",
+      "reasonLabel": "Reason {index}: {reason}",
+      "evidenceAlt": "Return evidence {index}",
+      "accept": "Accept return",
+      "reject": "Reject return",
+      "processing": "Processing..."
+    },
+    "pod": {
+      "title": "Proof of Delivery (POD)",
+      "view": "View Proof of Delivery",
+      "alt": "Proof of Delivery",
+      "missingInline": "No proof of delivery on file. Upload via <edit>Edit</edit> to keep distributor records (Delivered, Received, or Returned).",
+      "missingBlock": "No proof of delivery on file. Upload via <edit>Edit</edit> to keep distributor records — recommended for orders marked <delivered>Delivered</delivered>, <received>Received</received>, or <returned>Returned</returned>."
+    },
+    "orderItems": {
+      "title": "Order Items",
+      "seeMore": "See More ({count} more items)",
+      "qty": "Qty: {qty} {packageType}",
+      "freePieces": "(+ {count} free pieces)",
+      "viewProductTitle": "Click to view product details",
+      "allItemsTitle": "All Order Items",
+      "category": "Category: {category}",
+      "piecesPerPackage": "{pieces} pieces per {packageType}",
+      "perPackage": "per package"
+    },
+    "orderSummary": {
+      "title": "Order Summary",
+      "totalQuantity": "Total Quantity Ordered",
+      "totalFreeQuantity": "Total Free Quantity",
+      "table": {
+        "description": "Description",
+        "packageType": "Pckg Type",
+        "piecesPerPackage": "Pcs/Pckg",
+        "qty": "Qty",
+        "pricePerPackage": "Price/Pckg",
+        "totalAmount": "Total Amount"
+      },
+      "totalPrice": "Total price",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {current} of {total}"
+    },
+    "editModal": {
+      "title": "Edit Order",
+      "closeAria": "Close edit order",
+      "notice": "*Please complete these order details. Updates here will be shared with buyers so they receive the latest delivery and contact information.",
+      "labels": {
+        "contactPerson": "Contact Person",
+        "contactPhone": "Contact Phone",
+        "deliveryAddress": "Delivery Address",
+        "preferredDeliveryTime": "Preferred Delivery Time",
+        "estimatedDeliveryDate": "Estimated delivery date",
+        "estimatedDeliveryDuration": "Estimated delivery duration (days)",
+        "deliveryMethod": "Delivery Method",
+        "assignedLogistics": "Assigned Logistics",
+        "trackingNumber": "Tracking Number",
+        "deliveryNote": "Delivery Note",
+        "pod": "Proof of Delivery (POD)"
+      },
+      "placeholders": {
+        "contactPerson": "e.g. Store owner or PIC name",
+        "contactPhone": "e.g. 0812-3456-7890",
+        "deliveryAddress": "Street, City, Province, Postal Code",
+        "preferredDeliveryTime": "e.g. 09:00 - 12:00",
+        "minDays": "Min",
+        "maxDays": "Max",
+        "assignedLogistics": "e.g. JNE / Internal Fleet / Vendor name",
+        "trackingNumber": "e.g. 1Z999AA10123456784",
+        "deliveryNote": "Notes for driver or warehouse (e.g. fragile, gate access)"
+      },
+      "durationTo": "to",
+      "durationDays": "days",
+      "podUploadAria": "Upload proof of delivery by clicking or dragging a file",
+      "podSelected": "POD selected: {fileName}",
+      "podExisting": "Existing POD selected",
+      "podDragDrop": "Drag & drop",
+      "podDragDropSuffix": "a file here, or",
+      "podBrowse": "browse",
+      "podAcceptedFormats": "Accepted: JPG, PNG, PDF.",
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes",
+      "errors": {
+        "minGreaterThanMax": "Min days cannot be greater than max days. Please correct the values.",
+        "invalidDuration": "Please enter valid non-negative numbers for min and max days."
+      }
+    },
+    "paymentProofModal": {
+      "title": "Payment proof",
+      "submitted": "Submitted {date}",
+      "proofAlt": "Payment proof {index}",
+      "download": "Download",
+      "downloadPdf": "Download PDF"
+    },
+    "mapFullscreenTitle": "Delivery location · {orderId}",
+    "alerts": {
+      "podUploadFailed": "Failed to upload POD: {error}",
+      "acceptReturnFailed": "Failed to accept return: {detail}",
+      "acceptReturnRetry": "Failed to accept return. Please try again.",
+      "rejectReturnFailed": "Failed to reject return: {detail}",
+      "rejectReturnRetry": "Failed to reject return. Please try again."
+    }
+  }
+}

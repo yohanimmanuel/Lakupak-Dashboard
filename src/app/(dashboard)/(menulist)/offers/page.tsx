@@ -9,10 +9,12 @@ import { Offer } from '@/types/offer';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 export default function OffersPage() {
   const router = useRouter();
   const { user } = useUserStore();
+  const { tList, tShared, translatePageTab } = useOffersTranslations();
   const [activeTab, setActiveTab] = useState<'all' | 'discounts' | 'promotions'>('all');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,9 +207,9 @@ export default function OffersPage() {
   };
 
   const tabs = [
-    { id: 'all', label: 'All Offers', count: offers.length },
-    { id: 'discounts', label: 'Discounts', count: offers.filter(offer => offer.type.includes('discount') || hasDiscountType(offer)).length },
-    { id: 'promotions', label: 'Promotions', count: offers.filter(offer => offer.type.includes('promotion') || hasPromotionType(offer)).length },
+    { id: 'all' as const, count: offers.length },
+    { id: 'discounts' as const, count: offers.filter(offer => offer.type.includes('discount') || hasDiscountType(offer)).length },
+    { id: 'promotions' as const, count: offers.filter(offer => offer.type.includes('promotion') || hasPromotionType(offer)).length },
   ];
 
   const handleSelectOffer = (offer: Offer) => {
@@ -221,7 +223,7 @@ export default function OffersPage() {
   const handleExportData = async () => {
     try {
       if (offers.length === 0) {
-        alert('No offers to export');
+        alert(tList('noOffersToExport'));
         return;
       }
 
@@ -232,18 +234,18 @@ export default function OffersPage() {
       const exportData = offers.map(offer => {
         const discountTypesSummary = offer.discountTypes
           ?.map(dt => `${dt.discountType}(${dt.discountValue}${dt.discountType === 'percentage' ? '%' : ''})`)
-          .join('; ') || 'N/A';
+          .join('; ') || tShared('notAvailable');
 
         return {
-          'Offer ID': offer.offerId || offer.id,
-          'Name': offer.name || 'N/A',
-          'Type': Array.isArray(offer.type) ? offer.type.join(', ') : offer.type || 'N/A',
-          'Status': offer.status || 'N/A',
-          'Products Count': offer.products?.length || 0,
-          'Total Usage': offer.totalUsage || 0,
-          'Total Discount Given': offer.totalDiscountGiven || 0,
-          'Discount Types': discountTypesSummary,
-          'Created At': offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : 'N/A'
+          [tShared('exportColumns.offerId')]: offer.offerId || offer.id,
+          [tShared('exportColumns.name')]: offer.name || tShared('notAvailable'),
+          [tShared('exportColumns.type')]: Array.isArray(offer.type) ? offer.type.join(', ') : offer.type || tShared('notAvailable'),
+          [tShared('exportColumns.status')]: offer.status || tShared('notAvailable'),
+          [tShared('exportColumns.productsCount')]: offer.products?.length || 0,
+          [tShared('exportColumns.totalUsage')]: offer.totalUsage || 0,
+          [tShared('exportColumns.totalDiscountGiven')]: offer.totalDiscountGiven || 0,
+          [tShared('exportColumns.discountTypes')]: discountTypesSummary,
+          [tShared('exportColumns.createdAt')]: offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : tShared('notAvailable'),
         };
       });
 
@@ -266,12 +268,12 @@ export default function OffersPage() {
 
       // Create workbook
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Offers');
+      XLSX.utils.book_append_sheet(workbook, worksheet, tShared('exportColumns.sheetName'));
 
       // Generate Excel file and download
       XLSX.writeFile(workbook, `offers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
-      alert('Failed to export data. Please try again.');
+      alert(tList('exportFailed'));
     }
   };
 
@@ -280,7 +282,7 @@ export default function OffersPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading offers...</p>
+          <p className="text-gray-600">{tList('loading')}</p>
         </div>
       </div>
     );
@@ -292,8 +294,8 @@ export default function OffersPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div data-tour="offers-page-header">
-            <h1 className="text-2xl font-bold text-black">Offers & Incentives</h1>
-            <p className="text-gray-500 text-sm">Manage discounts and promotions for your products</p>
+            <h1 className="text-2xl font-bold text-black">{tList('title')}</h1>
+            <p className="text-gray-500 text-sm">{tList('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3" data-tour="offers-actions">
@@ -302,14 +304,14 @@ export default function OffersPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
           >
             <Download className="w-4 h-4" />
-            Export Data
+            {tList('exportData')}
           </button>
           <button 
             onClick={handleCreateOffer}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
           >
             <Plus className="w-4 h-4" />
-            Create Offer
+            {tList('createOffer')}
           </button>
         </div>
       </div>
@@ -332,7 +334,7 @@ export default function OffersPage() {
                   : 'text-gray-600 hover:text-black hover:bg-gray-100'
               }`}
             >
-              {tab.label}
+              {translatePageTab(tab.id)}
               <span className={`px-2 py-1 rounded-full text-xs ${
                 activeTab === tab.id
                   ? 'bg-white/20 text-white'

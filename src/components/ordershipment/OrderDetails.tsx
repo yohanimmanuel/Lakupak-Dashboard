@@ -19,19 +19,7 @@ import MapComponent from './MapComponent';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, geocodeViaProxy, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
-
-const RETURN_REASON_LABELS: Record<string, string> = {
-  wrong_item: 'Wrong item received',
-  defective: 'Defective or damaged',
-  not_as_described: 'Not as described',
-  changed_mind: 'Changed my mind',
-  late_delivery: 'Late delivery',
-  other: 'Other',
-};
-
-function getReturnReasonLabel(code: string): string {
-  return RETURN_REASON_LABELS[code] || code;
-}
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 /** Statuses where POD is shown and can be edited — distributor delivery records after handoff */
 const POD_TRACKING_STATUSES = ['Delivered', 'Received', 'Returned'] as const;
@@ -44,6 +32,16 @@ interface OrderDetailsProps {
 export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const user = useUserStore(state => state.user);
   const { token: mapboxToken } = useMapboxToken();
+  const {
+    tDetails,
+    tShared,
+    tCommon,
+    translateOrderStatus,
+    translatePaymentStatus,
+    translateDeliveryMethod,
+    translateReturnReason,
+    translateFieldName,
+  } = useOrdersTranslations();
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
@@ -103,7 +101,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         throw new Error(result.error || 'Upload failed');
       }
     } catch (error) {
-      alert(`Failed to upload POD: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(tDetails('alerts.podUploadFailed', {
+        error: error instanceof Error ? error.message : tCommon('notAvailable'),
+      }));
     }
   };
   
@@ -227,21 +227,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
   const paymentMethodLabel = (() => {
     const raw = (order.paymentTerms || '').trim();
-    if (!raw) return 'Payment';
-    if (raw.toLowerCase().includes('cash')) return 'COD';
-    if (raw.toLowerCase().includes('cod')) return 'COD';
-    if (raw.toLowerCase().includes('bank')) return 'BANK';
-    if (raw.toLowerCase().includes('transfer')) return 'BANK';
+    if (!raw) return tShared('paymentMethods.payment');
+    if (raw.toLowerCase().includes('cash')) return tShared('paymentMethods.cod');
+    if (raw.toLowerCase().includes('cod')) return tShared('paymentMethods.cod');
+    if (raw.toLowerCase().includes('bank')) return tShared('paymentMethods.bank');
+    if (raw.toLowerCase().includes('transfer')) return tShared('paymentMethods.bank');
     return raw;
   })();
 
   const paymentMethodSubtitle = (() => {
     const raw = (order.paymentTerms || '').trim();
-    if (!raw) return 'Method';
-    if (raw.toLowerCase().includes('cash')) return 'Cash on Delivery';
-    if (raw.toLowerCase().includes('cod')) return 'Cash on Delivery';
-    if (raw.toLowerCase().includes('bank')) return 'Transfer';
-    if (raw.toLowerCase().includes('transfer')) return 'Transfer';
+    if (!raw) return tShared('paymentMethods.method');
+    if (raw.toLowerCase().includes('cash')) return tShared('paymentMethods.cashOnDelivery');
+    if (raw.toLowerCase().includes('cod')) return tShared('paymentMethods.cashOnDelivery');
+    if (raw.toLowerCase().includes('bank')) return tShared('paymentMethods.transfer');
+    if (raw.toLowerCase().includes('transfer')) return tShared('paymentMethods.transfer');
     return raw;
   })();
 
@@ -341,11 +341,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
   const requiredOrderFields = [
-    { name: 'Contact person', value: String(order.contactPerson || '').trim() },
-    { name: 'Contact phone', value: String(order.contactPhone || '').trim() },
-    { name: 'Delivery address', value: String(order.deliveryAddress || '').trim() },
-    { name: 'Delivery method', value: String(order.deliveryMethod || '').trim() },
-    { name: 'Estimated delivery', value: Boolean(orderWithDuration.estimatedDeliveryDate) || (typeof orderWithDuration.estimatedDeliveryMinDays === 'number' && typeof orderWithDuration.estimatedDeliveryMaxDays === 'number') },
+    { name: 'contactPerson', value: String(order.contactPerson || '').trim() },
+    { name: 'contactPhone', value: String(order.contactPhone || '').trim() },
+    { name: 'deliveryAddress', value: String(order.deliveryAddress || '').trim() },
+    { name: 'deliveryMethod', value: String(order.deliveryMethod || '').trim() },
+    { name: 'estimatedDelivery', value: Boolean(orderWithDuration.estimatedDeliveryDate) || (typeof orderWithDuration.estimatedDeliveryMinDays === 'number' && typeof orderWithDuration.estimatedDeliveryMaxDays === 'number') },
   ];
   const completedOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? f.value : f.value !== '');
   const orderCompletionPercentage = Math.round((completedOrderFields.length / requiredOrderFields.length) * 100);
@@ -357,7 +357,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         {/* Order completion progress */}
         <div className="mx-0 mt-0 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-800">Order information completion</h3>
+            <h3 className="text-sm font-semibold text-gray-800">{tDetails('completion.title')}</h3>
             <span className={`text-sm font-bold ${orderCompletionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
               {orderCompletionPercentage}%
             </span>
@@ -369,10 +369,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             />
           </div>
           <div className="text-xs text-gray-600">
-            {completedOrderFields.length} of {requiredOrderFields.length} fields completed
+            {tDetails('completion.fieldsCompleted', {
+              completed: completedOrderFields.length,
+              total: requiredOrderFields.length,
+            })}
             {missingOrderFields.length > 0 && (
               <span className="ml-2 text-amber-700">
-                • Missing: {missingOrderFields.map(f => f.name).join(', ')}
+                • {tDetails('completion.missing', {
+                  fields: missingOrderFields.map((f) => translateFieldName(f.name)).join(', '),
+                })}
               </span>
             )}
           </div>
@@ -385,7 +390,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />   
-            <span className="text-xl font-semibold">Back to Order Lists</span>
+            <span className="text-xl font-semibold">{tDetails('backButton')}</span>
           </button>
           
           {/* Status Buttons - Top Right */}
@@ -402,10 +407,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               >
                 {badge.type === 'Promotion' && <Gift className="w-3 h-3" />}
                 {badge.type === 'Discount' && badge.details?.percentage 
-                  ? `${badge.details.percentage}% OFF`
+                  ? tShared('offerBadges.percentOff', { percent: String(badge.details.percentage) })
                   : badge.type === 'Promotion' && badge.details?.minQuantity && badge.details?.freeQuantity
-                    ? `Buy ${badge.details.minQuantity} Get ${badge.details.freeQuantity}`
-                    : badge.type}
+                    ? tShared('offerBadges.buyGet', {
+                        min: String(badge.details.minQuantity),
+                        free: String(badge.details.freeQuantity),
+                      })
+                    : badge.type === 'Discount'
+                      ? tShared('offerBadges.Discount')
+                      : tShared('offerBadges.Promotion')}
               </div>
             ))}
             {/* Order Status Dropdown */}
@@ -416,15 +426,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   setShowPaymentDropdown(false);
                   setShowStatusDropdown((v) => !v);
                 }}
-                title="Update your order or shipment status here"
+                title={tDetails('statusTooltip')}
               >
-                {orderStatus}
+                {translateOrderStatus(orderStatus)}
                 <ChevronDown className="w-4 h-4 ml-3 text-gray-500" />
               </button>
               
               {/* Hover tooltip */}
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                Update your order or shipment status here
+                {tDetails('statusTooltip')}
                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
               </div>
               
@@ -473,7 +483,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         orderStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                       }`}
                     >
-                      {status}
+                      {translateOrderStatus(status)}
                     </button>
                   ))}
                 </div>
@@ -490,7 +500,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 }}
                 className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)}`}
               >
-                {paymentStatus}
+                {translatePaymentStatus(paymentStatus)}
                 <ChevronDown className="w-4 h-4" />
               </button>
 
@@ -524,7 +534,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         paymentStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                       }`}
                     >
-                      {status}
+                      {translatePaymentStatus(status)}
                     </button>
                   ))}
                 </div>
@@ -536,9 +546,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <button
               onClick={() => setShowEditModal(true)}
               className="flex items-center gap-2 py-2 px-4 rounded-lg text-sm text-black font-medium border border-gray-300 hover:bg-gray-50"
-              title="Edit order delivery and contact details"
+              title={tDetails('editButtonTitle')}
             >
-              <Pencil className="w-4 h-4" /> Edit
+              <Pencil className="w-4 h-4" /> {tDetails('editButton')}
             </button>
 
           </div>
@@ -547,7 +557,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         {/* Row 1: Full Width Customer Information */}
         <div className="w-full mb-4">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Customer Information</h2>
+            <h2 className="text-md font-semibold text-black mb-4">{tDetails('customerInfo.title')}</h2>
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden border-4 border-gray-300 bg-[#0a61d7] flex items-center justify-center text-white text-xl font-bold">
                 {buyerAvatar ? (
@@ -563,9 +573,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <Link
                       href={buyerHref}
                       className="text-[#0a61d7] text-xs font-semibold hover:text-blue-800 flex items-center gap-1"
-                      title="View buyer profile"
+                      title={tDetails('customerInfo.viewBuyerProfile')}
                     >
-                      View buyer profile
+                      {tDetails('customerInfo.viewBuyerProfile')}
                       <ArrowRight className="w-4 h-4" aria-hidden />
                     </Link>
                   )}
@@ -573,21 +583,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-xs">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-gray-600">Store Name:</span>
+                      <span className="text-gray-600">{tDetails('customerInfo.storeName')}</span>
                       <span className="text-black font-medium">{storeNameDisplay}</span>
                     </div>
                     <div className='flex items-center justify-between gap-2'>
-                      <span className="text-gray-600">Phone:</span>
+                      <span className="text-gray-600">{tDetails('customerInfo.phone')}</span>
                       <span className="text-black font-medium">{contactPhoneDisplay}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className='flex items-center justify-between gap-2'>
-                      <span className="text-gray-600">Email:</span>
-                      <span className="text-black font-medium">{customerEmailDisplay || 'No customer email'}</span>
+                      <span className="text-gray-600">{tDetails('customerInfo.email')}</span>
+                      <span className="text-black font-medium">{customerEmailDisplay || tDetails('customerInfo.noEmail')}</span>
                     </div>
                     <div className='flex items-center justify-between gap-2'>
-                      <span className="text-gray-600">Order Date:</span>
+                      <span className="text-gray-600">{tDetails('customerInfo.orderDate')}</span>
                       <span className="text-black font-medium">{(orderDateDisplay instanceof Date ? orderDateDisplay : new Date(orderDateDisplay)).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -604,7 +614,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             {/* Total Order Header */}
             <div>
-              <div className="text-md font-semibold text-black mb-2">Total Order</div>
+              <div className="text-md font-semibold text-black mb-2">{tDetails('totalOrder.title')}</div>
               <div className="text-2xl font-bold text-[#0a61d7] mb-3">{formatCurrency(calculateTotalAmount(), user?.currency)}</div>
             </div>
 
@@ -622,50 +632,50 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       onClick={() => setShowPaymentProofModal(true)}
                       className="px-2.5 py-1 rounded text-xs font-semibold text-[#0a61d7] border border-[#0a61d7] bg-white hover:bg-blue-50 whitespace-nowrap"
                     >
-                      Payment proof
+                      {tDetails('totalOrder.paymentProof')}
                     </button>
                   )}
                   <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
-                    {order.paymentStatus.toUpperCase()}
+                    {translatePaymentStatus(order.paymentStatus).toUpperCase()}
                   </span>
                 </div>
               </div>
               <div className="text-xs text-gray-500">
                 {showPaymentProof && order.paymentStatus === 'Unpaid'
-                  ? 'Buyer submitted payment proof. Verify the transfer and mark as Paid when received.'
+                  ? tDetails('totalOrder.paymentAuth.proofUnpaid')
                   : order.paymentStatus === 'Paid'
-                    ? 'Payment processed successfully. This transaction has been authorized for future reference.'
-                    : 'Awaiting payment from the buyer.'}
+                    ? tDetails('totalOrder.paymentAuth.paid')
+                    : tDetails('totalOrder.paymentAuth.unpaid')}
               </div>
             </div>
 
             {/* Order Details List */}
             <div>
-              <div className="text-sm font-semibold text-gray-500 mb-3">Order Details</div>
+              <div className="text-sm font-semibold text-gray-500 mb-3">{tDetails('totalOrder.orderDetailsTitle')}</div>
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total Order price:</span>
+                  <span className="text-gray-600">{tDetails('totalOrder.totalOrderPrice')}</span>
                   <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
                 </div>
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex flex-col">
-                    <span className="text-gray-600">Shipping cost:</span>
+                    <span className="text-gray-600">{tDetails('totalOrder.shippingCost')}</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="font-medium text-black">Agreed separately</span>
+                    <span className="font-medium text-black">{tDetails('totalOrder.agreedSeparately')}</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Currency:</span>
+                  <span className="text-gray-600">{tDetails('totalOrder.currency')}</span>
                   <span className="font-medium text-black">{user?.currency || getDefaultCurrency()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Payment Terms:</span>
+                  <span className="text-gray-600">{tDetails('totalOrder.paymentTerms')}</span>
                   <span className="text-black font-medium">{order.paymentTerms}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Delivery Method:</span>
-                  <span className="text-black font-medium">{order.deliveryMethod}</span>
+                  <span className="text-gray-600">{tDetails('totalOrder.deliveryMethod')}</span>
+                  <span className="text-black font-medium">{translateDeliveryMethod(order.deliveryMethod)}</span>
                 </div>
               </div>
             </div>
@@ -674,17 +684,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                 <div className="text-sm font-semibold text-yellow-700 mb-1">
                   {isPickupMethod
-                    ? 'Scheduled Pickup'
+                    ? tDetails('schedule.pickupTitle')
                     : isBuyerCourier
-                    ? 'Scheduled Courier Pickup'
-                    : 'Scheduled Delivery'}
+                    ? tDetails('schedule.courierTitle')
+                    : tDetails('schedule.deliveryTitle')}
                 </div>
                 <div className="text-xs text-yellow-600">
                   {isPickupMethod
-                    ? 'Pickup has been scheduled for'
+                    ? tDetails('schedule.pickupPrefix')
                     : isBuyerCourier
-                    ? 'Courier pickup has been scheduled for'
-                    : 'Delivery has been scheduled for'}{' '}
+                    ? tDetails('schedule.courierPrefix')
+                    : tDetails('schedule.deliveryPrefix')}{' '}
                   <span className="font-semibold">{formattedSchedule}</span>
                 </div>
               </div>
@@ -692,38 +702,41 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
             {/* Service Provider Card */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
-              <div className="text-sm font-semibold text-blue-800 mb-1">Delivery Service</div>
-              <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || 'No delivery service assigned'}</div>
+              <div className="text-sm font-semibold text-blue-800 mb-1">{tDetails('deliveryService.title')}</div>
+              <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || tDetails('deliveryService.noneAssigned')}</div>
               <div className="text-xs space-y-2">
                 <div>
-                  <span className="text-blue-700">Estimated delivery:</span>
+                  <span className="text-blue-700">{tDetails('deliveryService.estimatedDelivery')}</span>
                   <span className="ml-2 font-medium text-blue-900">
                     {orderWithDuration.estimatedDeliveryDate
                       ? new Date(orderWithDuration.estimatedDeliveryDate as string | Date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'Not set'}
+                      : tDetails('deliveryService.notSet')}
                     {orderWithDuration.estimatedDeliveryMinDays != null && orderWithDuration.estimatedDeliveryMaxDays != null && (
                       <span className="ml-1 text-blue-600">
-                        ({orderWithDuration.estimatedDeliveryMinDays}–{orderWithDuration.estimatedDeliveryMaxDays} days)
+                        {tDetails('deliveryService.daysRange', {
+                          min: orderWithDuration.estimatedDeliveryMinDays,
+                          max: orderWithDuration.estimatedDeliveryMaxDays,
+                        })}
                       </span>
                     )}
                   </span>
                 </div>
                 <div>
-                  <span className="text-blue-700">Preferred Time:</span>
-                  <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || 'No preferred delivery time'}</span>
+                  <span className="text-blue-700">{tDetails('deliveryService.preferredTime')}</span>
+                  <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || tDetails('deliveryService.noPreferredTime')}</span>
                 </div>
                 <div>
-                  <span className="text-blue-700">Tracking:</span>
+                  <span className="text-blue-700">{tDetails('deliveryService.tracking')}</span>
                   {order.fleetId != null && order.trackingNumber ? (
                     <Link
                       href={`/logistics/details?id=${order.fleetId}`}
                       className="ml-2 font-semibold text-[#0a61d7] hover:text-[#084ba6] underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
-                      title="View fleet details"
+                      title={tDetails('deliveryService.viewFleetDetails')}
                     >
                       {order.trackingNumber.replace(/^#/, '')}
                     </Link>
                   ) : (
-                    <span className="ml-2 font-semibold text-blue-900">{(order.trackingNumber || '').replace(/^#/, '') || 'No tracking number'}</span>
+                    <span className="ml-2 font-semibold text-blue-900">{(order.trackingNumber || '').replace(/^#/, '') || tDetails('deliveryService.noTrackingNumber')}</span>
                   )}
                 </div>
               </div>
@@ -732,19 +745,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
           {/* Delivery Service Section */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Updates and Status</h2>
+            <h2 className="text-md font-semibold text-black mb-4">{tDetails('updatesStatus.title')}</h2>
             
             {/* GPS Map */}
             <div className="mb-4">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-black">Delivery Location</h3>
+                <h3 className="text-sm font-semibold text-black">{tDetails('updatesStatus.deliveryLocation')}</h3>
                 {geocodeResult?.coordinates && !isGeocoding && (
                   <button
                     type="button"
                     onClick={() => setShowMapFullscreen(true)}
                     className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                    title="View map full screen"
-                    aria-label="View delivery map full screen"
+                    title={tDetails('updatesStatus.viewMapFullscreen')}
+                    aria-label={tDetails('updatesStatus.viewMapFullscreenAria')}
                   >
                     <Maximize2 className="h-5 w-5" />
                   </button>
@@ -754,8 +767,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
                   <div className="text-center">
                     <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
-                    <p className="text-gray-500 text-sm">Loading map...</p>
-                    <p className="text-xs text-gray-400">Geocoding address</p>
+                    <p className="text-gray-500 text-sm">{tDetails('updatesStatus.loadingMap')}</p>
+                    <p className="text-xs text-gray-400">{tDetails('updatesStatus.geocoding')}</p>
                   </div>
                 </div>
               ) : geocodeResult?.coordinates ? (
@@ -764,7 +777,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   markers={[{
                     id: order.id,
                     coordinates: geocodeResult.coordinates,
-                    label: `${order.orderId} - ${order.orderStatus}`,
+                    label: `${order.orderId} - ${translateOrderStatus(order.orderStatus)}`,
                     color: getOrderStatusMarkerColor(order.orderStatus),
                   }]}
                   center={geocodeResult.coordinates}
@@ -776,8 +789,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
               <div className="text-center">
                 <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Map unavailable</p>
-                    <p className="text-xs text-gray-400">Unable to locate address</p>
+                    <p className="text-gray-500 text-sm">{tDetails('updatesStatus.mapUnavailable')}</p>
+                    <p className="text-xs text-gray-400">{tDetails('updatesStatus.unableToLocate')}</p>
               </div>
                 </div>
               )}
@@ -787,14 +800,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="mb-4 border-b border-[#e6e6e6] pb-4 mb-4">
               <span className="font-semibold text-sm text-black">{storeNameDisplay}</span>
               <p className="text-xs font-medium text-gray-600 mt-1">{deliveryAddressDisplay}</p>
-              <p className="text-xs font-medium text-gray-600 mt-1 italic">Note: {order.deliveryNote}</p>
+              <p className="text-xs font-medium text-gray-600 mt-1 italic">{tDetails('updatesStatus.notePrefix')} {order.deliveryNote}</p>
             </div>
 
             {/* Proof of Delivery / Cancellation / Return */}
             {(() => {
               if (orderStatus === 'Failed') {
                 const raw = order.cancellationReason || '';
-                const cleaned = raw.replace(/^\[Delivery failed\]\s*/i, '') || 'Delivery failed';
+                const cleaned = raw.replace(/^\[Delivery failed\]\s*/i, '') || tDetails('deliveryFailure.defaultReason');
                 const failedReasons = (
                   order as OrderWithSnapshots & { orderFailedReasons?: Array<{ imageUrls?: string[] }> }
                 ).orderFailedReasons;
@@ -802,10 +815,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 const failedImageUrls = (latestFailed?.imageUrls ?? []).filter((u) => typeof u === 'string' && u);
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
-                    <div className="text-sm font-semibold text-black mb-2">Delivery failure reason</div>
+                    <div className="text-sm font-semibold text-black mb-2">{tDetails('deliveryFailure.title')}</div>
                     <div className="text-xs text-gray-700 space-y-1">
                       <p>
-                        <span className="font-medium text-gray-900">Reason:</span> {cleaned}
+                        <span className="font-medium text-gray-900">{tDetails('deliveryFailure.reason')}</span> {cleaned}
                       </p>
                     </div>
                     {failedImageUrls.length > 0 && (
@@ -820,7 +833,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           >
                             <img
                               src={url}
-                              alt={`Failure evidence ${imgIdx + 1}`}
+                              alt={tDetails('deliveryFailure.evidenceAlt', { index: imgIdx + 1 })}
                               className="w-full h-full object-cover"
                             />
                           </a>
@@ -834,21 +847,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               if (orderStatus === 'Cancelled') {
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
-                    <div className="text-sm font-semibold text-black mb-2">Reason for cancellation</div>
+                    <div className="text-sm font-semibold text-black mb-2">{tDetails('cancellation.title')}</div>
                     {order.cancellationReason ? (
                       <div className="text-xs text-gray-700 space-y-1">
                         <p>
-                          <span className="font-medium text-gray-900">Reason:</span> {order.cancellationReason}
+                          <span className="font-medium text-gray-900">{tDetails('cancellation.reason')}</span> {order.cancellationReason}
                         </p>
                         {order.cancelledAt && (
                           <p>
-                            <span className="font-medium text-gray-900">Date:</span>{' '}
+                            <span className="font-medium text-gray-900">{tDetails('cancellation.date')}</span>{' '}
                             {new Date(order.cancelledAt).toLocaleString()}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-600">No cancellation reason recorded.</p>
+                      <p className="text-xs text-gray-600">{tDetails('cancellation.noneRecorded')}</p>
                     )}
                   </div>
                 );
@@ -857,14 +870,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               if (order.returnRequests && order.returnRequests.length > 0) {
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
-                    <div className="text-sm font-semibold text-black mb-2">Return information</div>
+                    <div className="text-sm font-semibold text-black mb-2">{tDetails('return.title')}</div>
                     <div className="text-xs text-gray-700 space-y-3">
                       {order.returnRequests.map((rr, index) => (
                         <div key={rr.id ?? index} className="border border-gray-200 rounded-lg p-2 mb-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-gray-900">
-                              Reason {index + 1}: {getReturnReasonLabel(rr.reason)}
-                              {rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''}
+                              {tDetails('return.reasonLabel', {
+                                index: index + 1,
+                                reason: translateReturnReason(rr.reason) + (rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''),
+                              })}
                             </span>
                             <span
                               className={`px-2 py-1 rounded-full text-[10px] font-semibold ${
@@ -875,7 +890,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                   : 'bg-yellow-100 text-yellow-700'
                               }`}
                             >
-                              {rr.status}
+                              {tShared.has(`returnRequestStatus.${rr.status}`)
+                                ? tShared(`returnRequestStatus.${rr.status}`)
+                                : rr.status}
                             </span>
                           </div>
                           <p className="text-gray-500 mb-1">
@@ -893,7 +910,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 >
                                   <img
                                     src={url}
-                                    alt={`Return evidence ${imgIdx + 1}`}
+                                    alt={tDetails('return.evidenceAlt', { index: imgIdx + 1 })}
                                     className="w-full h-full object-cover"
                                   />
                                 </a>
@@ -921,7 +938,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 });
                                 if (!res.ok) {
                                   const text = await res.text().catch(() => '');
-                                  alert(`Failed to accept return: ${text || res.status}`);
+                                  alert(tDetails('alerts.acceptReturnFailed', { detail: text || String(res.status) }));
                                   return;
                                 }
                                 const updated = await res.json().catch(() => null);
@@ -932,7 +949,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 }
                                 window.location.reload();
                               } catch (err) {
-                                alert('Failed to accept return. Please try again.');
+                                alert(tDetails('alerts.acceptReturnRetry'));
                               } finally {
                                 setIsProcessingReturn(false);
                               }
@@ -944,7 +961,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 : 'bg-green-600 hover:bg-green-700'
                             }`}
                           >
-                            {isProcessingReturn ? 'Processing...' : 'Accept return'}
+                            {isProcessingReturn ? tDetails('return.processing') : tDetails('return.accept')}
                           </button>
                           <button
                             onClick={async () => {
@@ -962,7 +979,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 });
                                 if (!res.ok) {
                                   const text = await res.text().catch(() => '');
-                                  alert(`Failed to reject return: ${text || res.status}`);
+                                  alert(tDetails('alerts.rejectReturnFailed', { detail: text || String(res.status) }));
                                   return;
                                 }
                                 const updated = await res.json().catch(() => null);
@@ -971,7 +988,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 }
                                 window.location.reload();
                               } catch (err) {
-                                alert('Failed to reject return. Please try again.');
+                                alert(tDetails('alerts.rejectReturnRetry'));
                               } finally {
                                 setIsProcessingReturn(false);
                               }
@@ -983,20 +1000,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                           >
-                            {isProcessingReturn ? 'Processing...' : 'Reject return'}
+                            {isProcessingReturn ? tDetails('return.processing') : tDetails('return.reject')}
                           </button>
                         </div>
                       )}
                     {order.pod && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
+                        <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
                         {String(order.pod).startsWith('data:') ? (
                           <button
                             type="button"
                             className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                             onClick={() => setShowPodPreview(true)}
                           >
-                            View Proof of Delivery
+                            {tDetails('pod.view')}
                           </button>
                         ) : (
                           <a
@@ -1005,7 +1022,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                             rel="noreferrer"
                             className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                           >
-                            View Proof of Delivery
+                            {tDetails('pod.view')}
                           </a>
                         )}
                       </div>
@@ -1013,8 +1030,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     {!order.pod &&
                       (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
                         <div className="mt-4 pt-4 border-t border-dashed border-gray-200 text-xs text-gray-600">
-                          No proof of delivery on file. Upload via <span className="font-semibold">Edit</span>{' '}
-                          to keep distributor records (Delivered, Received, or Returned).
+                          {tDetails.rich('pod.missingInline', {
+                            edit: (chunks) => <span className="font-semibold">{chunks}</span>,
+                          })}
                         </div>
                       )}
                     </div>
@@ -1025,14 +1043,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               if (order.pod && !(order.returnRequests && order.returnRequests.length > 0)) {
                 return (
                   <div className="mb-4">
-                    <div className="text-sm font-semibold text-black mb-2">Proof of Delivery (POD)</div>
+                    <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
                     {String(order.pod).startsWith('data:') ? (
                       <button
                         type="button"
                         className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                         onClick={() => setShowPodPreview(true)}
                       >
-                        View Proof of Delivery
+                        {tDetails('pod.view')}
                       </button>
                     ) : (
                       <a
@@ -1041,7 +1059,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         rel="noreferrer"
                         className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
                       >
-                        View Proof of Delivery
+                        {tDetails('pod.view')}
                       </a>
                     )}
                   </div>
@@ -1054,11 +1072,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               ) {
                 return (
                   <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#e6e6e6] text-xs text-gray-600">
-                    No proof of delivery on file. Upload via <span className="font-semibold">Edit</span> to
-                    keep distributor records — recommended for orders marked{' '}
-                    <span className="font-semibold text-green-600">Delivered</span>,{' '}
-                    <span className="font-semibold text-emerald-700">Received</span>, or{' '}
-                    <span className="font-semibold text-amber-700">Returned</span>.
+                    {tDetails.rich('pod.missingBlock', {
+                      edit: (chunks) => <span className="font-semibold">{chunks}</span>,
+                      delivered: (chunks) => <span className="font-semibold text-green-600">{chunks}</span>,
+                      received: (chunks) => <span className="font-semibold text-emerald-700">{chunks}</span>,
+                      returned: (chunks) => <span className="font-semibold text-amber-700">{chunks}</span>,
+                    })}
                   </div>
                 );
               }
@@ -1073,7 +1092,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           
           {/* Order Items Section (3 columns) */}
           <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Order Items</h2>
+            <h2 className="text-md font-semibold text-black mb-4">{tDetails('orderItems.title')}</h2>
             <div className="space-y-2">
               {order.orderItems.slice(0, 4).map((item, index) => (
                 <div key={index} className="flex items-center gap-3 p-3">
@@ -1114,7 +1133,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <Link
                           href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
                           className="text-[#0a61d7] hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
-                          title="Click to view product details"
+                          title={tDetails('orderItems.viewProductTitle')}
                         >
                           <span className="flex flex-col">
                             <span>{item.productName}</span>
@@ -1130,7 +1149,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     
                     {/* Quantity with promotion details under SKU */}
                     <p className="text-xs text-gray-600">
-                      Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                      {tDetails('orderItems.qty', {
+                        qty: item.packageQuantity || 1,
+                        packageType: item.packageType || tShared('defaultPackageType'),
+                      })}
                       {item.offerApplied && item.promotionDetailsSnapshot && (() => {
                         // Only show promotion details if available
                         try {
@@ -1145,7 +1167,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                               moq
                             );
                             return promotionGift ? (
-                              <span className="font-bold text-purple-600"> (+ {promotionGift.freeQty} free pieces)</span>
+                              <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
                             ) : '';
                           }
                         } catch {
@@ -1164,10 +1186,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
                           <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
                           {item.discountPercentage 
-                            ? `${item.discountPercentage}% OFF`
+                            ? tShared('offerBadges.percentOff', { percent: String(item.discountPercentage) })
                             : item.discountAmount 
-                            ? `${formatCurrency(item.discountAmount, user?.currency)} OFF`
-                            : 'OFF'
+                            ? `${formatCurrency(item.discountAmount, user?.currency)} ${tShared('offerBadges.off')}`
+                            : tShared('offerBadges.off')
                           }
                         </span>
                       </div>
@@ -1189,7 +1211,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     onClick={() => setShowAllItems(true)}
                     className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                   >
-                    See More ({order.orderItems.length - 4} more items)
+                    {tDetails('orderItems.seeMore', { count: order.orderItems.length - 4 })}
                   </button>
                 </div>
               )}
@@ -1198,13 +1220,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
           {/* Order Summary Section (4 columns) */}
           <div className="lg:col-span-4 bg-white rounded-lg border border-[#e6e6e6] p-4">
-            <h2 className="text-md font-semibold text-black mb-4">Order Summary</h2>
+            <h2 className="text-md font-semibold text-black mb-4">{tDetails('orderSummary.title')}</h2>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Total Quantity Card */}
               <div className="bg-green-100 rounded-lg p-3 border border-[#e6e6e6]">
-                <div className="text-sm text-gray-600 font-medium mb-1">Total Quantity Ordered</div>
+                <div className="text-sm text-gray-600 font-medium mb-1">{tDetails('orderSummary.totalQuantity')}</div>
                 <div className="text-lg font-bold text-black">
                   {order.orderItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
                 </div>
@@ -1212,7 +1234,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               
               {/* Total Free Quantity Card */}
               <div className="bg-gray-50 rounded-lg p-3 border border-[#e6e6e6]">
-                <div className="text-sm text-gray-600 font-medium mb-1">Total Free Quantity</div>
+                <div className="text-sm text-gray-600 font-medium mb-1">{tDetails('orderSummary.totalFreeQuantity')}</div>
                 <div className="text-lg font-bold text-purple-600">
                   {order.orderItems.reduce((total, item) => {
                     if (item.offerApplied && item.promotionDetailsSnapshot) {
@@ -1233,7 +1255,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       }
                     }
                     return total;
-                  }, 0)} pieces
+                  }, 0)} {tShared('pieces')}
                 </div>
               </div>
             </div>
@@ -1243,12 +1265,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-[#e6e6e6] text-gray-500">
-                    <th className="text-left py-2 font-medium uppercase">Description</th>
-                    <th className="text-left py-2 font-medium uppercase">Pckg Type</th>
-                    <th className="text-left py-2 font-medium uppercase">Pcs/Pckg</th>
-                    <th className="text-left py-2 font-medium uppercase">Qty</th>
-                    <th className="text-left py-2 font-medium uppercase">Price/Pckg</th>
-                    <th className="text-right py-2 font-medium uppercase">Total Amount</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.description')}</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.packageType')}</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.piecesPerPackage')}</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.qty')}</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.pricePerPackage')}</th>
+                    <th className="text-right py-2 font-medium uppercase">{tDetails('orderSummary.table.totalAmount')}</th>
                     </tr>
                 </thead>
                 <tbody className="text-black">
@@ -1258,7 +1280,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <Link
                           href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
                           className="font-semibold text-[#0a61d7] hover:text-blue-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
-                          title="Click to view product details"
+                          title={tDetails('orderItems.viewProductTitle')}
                         >
                           <span className="flex flex-col">
                             <span>{item.productName}</span>
@@ -1268,7 +1290,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           </span>
                         </Link>
                       </td>
-                      <td className="py-2">{item.packageType || 'Package'}</td>
+                      <td className="py-2">{item.packageType || tShared('defaultPackageType')}</td>
                       <td className="py-2">{item.piecesPerPackage || 1}</td>
                       <td className="py-2">
                         {item.packageQuantity || 1}
@@ -1286,7 +1308,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 moq
                               );
                               return promotionGift ? (
-                                <span className="font-bold text-purple-600"> (+ {promotionGift.freeQty} free pieces)</span>
+                                <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
                               ) : '';
                             }
                           } catch {
@@ -1302,7 +1324,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300">
-                    <td colSpan={5} className="py-3 text-lg font-semibold text-gray-900">Total price</td>
+                    <td colSpan={5} className="py-3 text-lg font-semibold text-gray-900">{tDetails('orderSummary.totalPrice')}</td>
                     <td className="py-3 text-right font-bold text-lg text-gray-900">
                       {formatCurrency(calculateSubtotal(), user?.currency)}
                     </td>
@@ -1319,17 +1341,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     disabled={earningsPage === 1}
                     className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Previous
+                    {tDetails('orderSummary.previous')}
                   </button>
                   <span className="text-sm text-gray-600">
-                    Page {earningsPage} of {totalEarningsPages}
+                    {tDetails('orderSummary.pageOf', { current: earningsPage, total: totalEarningsPages })}
                   </span>
                   <button
                     onClick={() => setEarningsPage(prev => Math.min(totalEarningsPages, prev + 1))}
                     disabled={earningsPage === totalEarningsPages}
                     className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Next
+                    {tDetails('orderSummary.next')}
                   </button>
                 </div>
               )}
@@ -1343,7 +1365,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
-              <h2 className="text-xl font-semibold text-gray-900">All Order Items</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{tDetails('orderItems.allItemsTitle')}</h2>
               <button
                 onClick={() => setShowAllItems(false)}
                 className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors"
@@ -1368,7 +1390,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <Link
                           href={`/products/catalog/${item.productId}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
-                          title="Click to view product details"
+                          title={tDetails('orderItems.viewProductTitle')}
                         >
                           <span className="flex flex-col">
                             <span>{item.productName}</span>
@@ -1382,7 +1404,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       
                       {/* Quantity with promotion details under SKU */}
                       <p className="text-sm text-gray-600">
-                        Qty: {item.packageQuantity || 1} {item.packageType || 'Package'}
+                        {tDetails('orderItems.qty', {
+                        qty: item.packageQuantity || 1,
+                        packageType: item.packageType || tShared('defaultPackageType'),
+                      })}
                         {item.offerApplied && item.promotionDetailsSnapshot && (() => {
                           // Only show promotion details if available
                           try {
@@ -1396,7 +1421,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 item.piecesPerPackage || 1,
                                 moq
                               );
-                              return promotionGift ? ` (+ ${promotionGift.freeQty} free pieces)` : '';
+                              return promotionGift ? tDetails('orderItems.freePieces', { count: promotionGift.freeQty }) : '';
                             }
                           } catch {
                             // Invalid JSON, skip
@@ -1405,7 +1430,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         })()}
                       </p>
                       
-                      <p className="text-sm text-gray-600">Category: {item.productTypeSnapshot || 'Uncategorized'}</p>
+                      <p className="text-sm text-gray-600">{tDetails('orderItems.category', {
+                        category: item.productTypeSnapshot || tShared('uncategorized'),
+                      })}</p>
                     </div>
                     
                     {/* Package Information */}
@@ -1416,19 +1443,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
                             <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
                             {item.discountPercentage 
-                              ? `${item.discountPercentage}% OFF`
+                              ? tShared('offerBadges.percentOff', { percent: String(item.discountPercentage) })
                               : item.discountAmount 
-                              ? `${formatCurrency(item.discountAmount, user?.currency)} OFF`
-                              : 'OFF'
+                              ? `${formatCurrency(item.discountAmount, user?.currency)} ${tShared('offerBadges.off')}`
+                              : tShared('offerBadges.off')
                             }
                           </span>
                         </div>
                       )}
                       <p className="text-sm text-gray-500">
-                        {item.piecesPerPackage || 1} pieces per {item.packageType || 'package'}
+                        {tDetails('orderItems.piecesPerPackage', {
+                          pieces: item.piecesPerPackage || 1,
+                          packageType: item.packageType || tShared('defaultPackageType'),
+                        })}
                       </p>
                       <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(item.pricePerPackage || 0, user?.currency)} per package
+                        {formatCurrency(item.pricePerPackage || 0, user?.currency)} {tDetails('orderItems.perPackage')}
                       </p>
                       <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
                     </div>
@@ -1445,58 +1475,58 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
-              <h2 className="text-xl font-semibold text-gray-900">Edit Order</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{tDetails('editModal.title')}</h2>
               <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors"
-                aria-label="Close edit order"
+                aria-label={tDetails('editModal.closeAria')}
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             <div className="p-4 overflow-y-auto max-h-[70vh]">
               <p className="p-4 bg-orange-50 rounded-lg border border-orange-200 text-xs text-orange-600 mb-3 italic">
-                *Please complete these order details. Updates here will be shared with buyers so they receive the latest delivery and contact information.
+                {tDetails('editModal.notice')}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500">Contact Person</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.contactPerson')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="e.g. Store owner or PIC name"
+                    placeholder={tDetails('editModal.placeholders.contactPerson')}
                     value={formFields.contactPerson}
                     onChange={(e) => setFormFields({ ...formFields, contactPerson: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Contact Phone</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.contactPhone')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="e.g. 0812-3456-7890"
+                    placeholder={tDetails('editModal.placeholders.contactPhone')}
                     value={formFields.contactPhone}
                     onChange={(e) => setFormFields({ ...formFields, contactPhone: e.target.value })}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs text-gray-500">Delivery Address</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryAddress')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="Street, City, Province, Postal Code"
+                    placeholder={tDetails('editModal.placeholders.deliveryAddress')}
                     value={formFields.deliveryAddress}
                     onChange={(e) => setFormFields({ ...formFields, deliveryAddress: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Preferred Delivery Time</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.preferredDeliveryTime')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="e.g. 09:00 - 12:00"
+                    placeholder={tDetails('editModal.placeholders.preferredDeliveryTime')}
                     value={formFields.preferredDeliveryTime}
                     onChange={(e) => setFormFields({ ...formFields, preferredDeliveryTime: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Estimated delivery date</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.estimatedDeliveryDate')}</label>
                   <input
                     type="date"
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
@@ -1505,13 +1535,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Estimated delivery duration (days)</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.estimatedDeliveryDuration')}</label>
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <input
                       type="number"
                       min={0}
                       max={365}
-                      placeholder="Min"
+                      placeholder={tDetails('editModal.placeholders.minDays')}
                       className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
                       value={formFields.estimatedDeliveryMinDays}
                       onChange={(e) => {
@@ -1519,12 +1549,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         setDurationError(null);
                       }}
                     />
-                    <span className="text-xs text-gray-500">to</span>
+                    <span className="text-xs text-gray-500">{tDetails('editModal.durationTo')}</span>
                     <input
                       type="number"
                       min={0}
                       max={365}
-                      placeholder="Max"
+                      placeholder={tDetails('editModal.placeholders.maxDays')}
                       className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
                       value={formFields.estimatedDeliveryMaxDays}
                       onChange={(e) => {
@@ -1532,20 +1562,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         setDurationError(null);
                       }}
                     />
-                    <span className="text-xs text-gray-500">days</span>
+                    <span className="text-xs text-gray-500">{tDetails('editModal.durationDays')}</span>
                   </div>
                   {durationError && (
                     <p className="mt-1 text-xs text-red-600" role="alert">{durationError}</p>
                   )}
                 </div>
                 <div className="relative" ref={deliveryMethodDropdownRef}>
-                  <label className="text-xs text-gray-500">Delivery Method</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryMethod')}</label>
                   <button
                     type="button"
                     className="w-full mt-1 flex items-center justify-between gap-2 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-left"
                     onClick={() => setShowDeliveryMethodDropdown((v) => !v)}
                   >
-                    <span>{formFields.deliveryMethod}</span>
+                    <span>{translateDeliveryMethod(formFields.deliveryMethod)}</span>
                     <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
                   </button>
                   {showDeliveryMethodDropdown && (
@@ -1564,43 +1594,43 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                               : 'text-black hover:bg-gray-100'
                           }`}
                         >
-                          {method}
+                          {translateDeliveryMethod(method)}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Assigned Logistics</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.assignedLogistics')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="e.g. JNE / Internal Fleet / Vendor name"
+                    placeholder={tDetails('editModal.placeholders.assignedLogistics')}
                     value={formFields.assignedLogistics}
                     onChange={(e) => setFormFields({ ...formFields, assignedLogistics: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Tracking Number</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.trackingNumber')}</label>
                   <input
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder="e.g. 1Z999AA10123456784"
+                    placeholder={tDetails('editModal.placeholders.trackingNumber')}
                     value={formFields.trackingNumber}
                     onChange={(e) => setFormFields({ ...formFields, trackingNumber: e.target.value })}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs text-gray-500">Delivery Note</label>
+                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryNote')}</label>
                   <textarea
                     className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
                     rows={3}
-                    placeholder="Notes for driver or warehouse (e.g. fragile, gate access)"
+                    placeholder={tDetails('editModal.placeholders.deliveryNote')}
                     value={formFields.deliveryNote}
                     onChange={(e) => setFormFields({ ...formFields, deliveryNote: e.target.value })}
                   />
                 </div>
                 {(POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
                   <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500">Proof of Delivery (POD)</label>
+                    <label className="text-xs text-gray-500">{tDetails('editModal.labels.pod')}</label>
                     <div
                       className="mt-1 p-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-center cursor-pointer select-none"
                       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1612,7 +1642,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       }}
                       onClick={() => document.getElementById('pod-file-input')?.click()}
                       role="button"
-                      aria-label="Upload proof of delivery by clicking or dragging a file"
+                      aria-label={tDetails('editModal.podUploadAria')}
                     >
                       <input
                         id="pod-file-input"
@@ -1626,16 +1656,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       />
                       <div className="text-xs text-gray-600">
                         {podFileName ? (
-                          <span className="font-medium">POD selected: {podFileName}</span>
+                          <span className="font-medium">{tDetails('editModal.podSelected', { fileName: podFileName })}</span>
                         ) : formFields.pod ? (
-                          <span className="font-medium">Existing POD selected</span>
+                          <span className="font-medium">{tDetails('editModal.podExisting')}</span>
                         ) : (
                           <>
-                            <span className="font-medium text-gray-700">Drag & drop</span> a file here, or <span className="text-[#0a61d7] font-semibold">browse</span>
+                            <span className="font-medium text-gray-700">{tDetails('editModal.podDragDrop')}</span> {tDetails('editModal.podDragDropSuffix')} <span className="text-[#0a61d7] font-semibold">{tDetails('editModal.podBrowse')}</span>
                           </>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-500 mt-1">Accepted: JPG, PNG, PDF.</p>
+                      <p className="text-[10px] text-gray-500 mt-1">{tDetails('editModal.podAcceptedFormats')}</p>
                     </div>
                   </div>
                 )}
@@ -1649,7 +1679,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50"
               >
-                Cancel
+                {tDetails('editModal.cancel')}
               </button>
               <button
                 onClick={async () => {
@@ -1660,13 +1690,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   const maxNum = maxRaw != null && maxRaw !== '' ? Number(maxRaw) : null;
 
                   if (minNum != null && maxNum != null && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum > maxNum) {
-                    setDurationError('Min days cannot be greater than max days. Please correct the values.');
+                    setDurationError(tDetails('editModal.errors.minGreaterThanMax'));
                     return;
                   }
                   const minInvalid = minRaw != null && minRaw !== '' && (minNum == null || Number.isNaN(minNum) || minNum < 0);
                   const maxInvalid = maxRaw != null && maxRaw !== '' && (maxNum == null || Number.isNaN(maxNum) || maxNum < 0);
                   if (minInvalid || maxInvalid) {
-                    setDurationError('Please enter valid non-negative numbers for min and max days.');
+                    setDurationError(tDetails('editModal.errors.invalidDuration'));
                     return;
                   }
 
@@ -1704,7 +1734,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6]"
               >
-                Save Changes
+                {tDetails('editModal.saveChanges')}
               </button>
             </div>
           </div>
@@ -1717,10 +1747,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="bg-white rounded-lg border border-[#e6e6e6] max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-3 border-b">
               <div>
-                <div className="text-lg font-semibold text-black">Payment proof</div>
+                <div className="text-lg font-semibold text-black">{tDetails('paymentProofModal.title')}</div>
                 {order.paymentProofSubmittedAt && (
                   <div className="text-xs text-gray-500 mt-0.5">
-                    Submitted {new Date(order.paymentProofSubmittedAt).toLocaleString()}
+                    {tDetails('paymentProofModal.submitted', {
+                      date: new Date(order.paymentProofSubmittedAt).toLocaleString(),
+                    })}
                   </div>
                 )}
               </div>
@@ -1760,7 +1792,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <div className="w-full flex justify-center items-center rounded-lg border border-gray-200 bg-gray-50 p-4 min-h-[200px]">
                         <img
                           src={url}
-                          alt={`Payment proof ${idx + 1}`}
+                          alt={tDetails('paymentProofModal.proofAlt', { index: idx + 1 })}
                           className="max-h-[min(60vh,520px)] max-w-full w-auto object-contain rounded"
                         />
                       </div>
@@ -1771,7 +1803,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6] transition-colors"
                     >
                       <Download className="w-4 h-4" />
-                      Download{isPdf ? ' PDF' : ''}
+                      {isPdf ? tDetails('paymentProofModal.downloadPdf') : tDetails('paymentProofModal.download')}
                     </a>
                   </div>
                 );
@@ -1786,13 +1818,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] max-w-3xl w-full overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b">
-              <div className="text-lg font-semibold text-black">Proof of Delivery</div>
+              <div className="text-lg font-semibold text-black">{tDetails('pod.title')}</div>
               <button className="p-2 text-gray-700 hover:bg-gray-100 rounded" onClick={() => setShowPodPreview(false)}>
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 flex items-center justify-center">
-              <img src={order.pod as string} alt="Proof of Delivery" className="max-h-[80vh] rounded border" />
+              <img src={order.pod as string} alt={tDetails('pod.alt')} className="max-h-[80vh] rounded border" />
             </div>
           </div>
         </div>
@@ -1801,7 +1833,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       <MapFullscreenModal
         open={showMapFullscreen}
         onClose={() => setShowMapFullscreen(false)}
-        title={`Delivery location · ${order.orderId}`}
+        title={tDetails('mapFullscreenTitle', { orderId: order.orderId })}
       >
         {geocodeResult?.coordinates ? (
           <MapComponent
@@ -1811,7 +1843,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               {
                 id: order.id,
                 coordinates: geocodeResult.coordinates,
-                label: `${order.orderId} - ${order.orderStatus}`,
+                label: `${order.orderId} - ${translateOrderStatus(order.orderStatus)}`,
                 color: getOrderStatusMarkerColor(order.orderStatus),
               },
             ]}

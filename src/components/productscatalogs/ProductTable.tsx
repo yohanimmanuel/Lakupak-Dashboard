@@ -11,6 +11,7 @@ import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currency
 import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { getProductTotalStock } from '../../utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 const statusTabs = [
   { label: "All" },
@@ -51,8 +52,40 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   profileToTableRowAction: (product: Product) => ProductTableRow;
   onRefreshProductsAction?: (forceRefresh?: boolean) => Promise<void>;
 }) {
+  const {
+    tShared,
+    tTable,
+    translateStatusTab,
+    translateStatus,
+    translateStockFilter,
+    translateOfferFilter,
+    translateFilter,
+    translateStockStatus,
+  } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  const getPromotionLabel = (minQuantity: number, freeQuantity: number) =>
+    tTable('offers.buyXGetY', { min: minQuantity, free: freeQuantity });
+
+  const getBulkSelectionMessage = (
+    buttons: { canPublish: boolean; canUnpublish: boolean; canRemove: boolean },
+    isDesktop = false,
+  ) => {
+    if (buttons.canPublish && buttons.canUnpublish) {
+      return tTable('selection.mixedStatuses');
+    }
+    if (buttons.canPublish) {
+      return tTable('selection.publishHint');
+    }
+    if (buttons.canUnpublish) {
+      return isDesktop ? tTable('selection.unpublishHintDesktop') : tTable('selection.unpublishHint');
+    }
+    return isDesktop ? tTable('selection.removeHintDesktop') : tTable('selection.removeHint');
+  };
+
+  const getCategoryFilterLabel = (category: string) =>
+    category === 'All Types' || category === 'All Categories' ? translateFilter(category) : category;
 
   // Helper function to calculate original price range from variantOptions
   const getOriginalPriceRange = (originalProduct: Product | undefined): string | null => {
@@ -100,17 +133,37 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       const formatted = Number.isInteger(numericValue)
         ? numericValue.toString()
         : numericValue.toFixed(2).replace(/\.?0+$/, '');
-      return `${formatted}% OFF`;
+      return tTable('offers.percentOff', { value: formatted });
     }
 
     if (originalProduct.discountType === 'fixed') {
       if (numericValue === undefined || Number.isNaN(numericValue) || numericValue <= 0) {
         return null;
       }
-      return `${formatCurrency(numericValue, userCurrency)} OFF`;
+      return tTable('offers.fixedOff', { value: formatCurrency(numericValue, userCurrency) });
     }
 
     return null;
+  };
+
+  const getCalculatedDiscountLabel = (originalProduct: Product | undefined, sellingPrice: string): string => {
+    const fromHelper = getDiscountBadgeLabel(originalProduct);
+    if (fromHelper) return fromHelper;
+
+    if (originalProduct?.discountType === 'fixed' && originalProduct.discountValue) {
+      return tTable('offers.fixedOff', { value: formatCurrency(originalProduct.discountValue, userCurrency) });
+    }
+
+    if (originalProduct?.variantOptions?.[0]?.originalSellingPrice) {
+      const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
+      const currentPrice = parsePrice(String(sellingPrice), userCurrency);
+      if (originalPrice > currentPrice && originalPrice > 0) {
+        const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+        return tTable('offers.percentOff', { value: discountPercent.toString() });
+      }
+    }
+
+    return tTable('offers.discount');
   };
 
   const tableRows = products.map(profileToTableRowAction);
@@ -568,7 +621,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
@@ -578,10 +631,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         {/* Search Bar - Left Side */}
-        <div className="relative w-full md:w-120">
+        <div className="relative w-full md:w-110 shrink-0">
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder={tTable('searchPlaceholder')}
+            aria-label={tTable('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
@@ -590,12 +644,12 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         </div>
 
         {/* Filter Buttons and View Toggle - Right Side */}
-        <div className="flex gap-2 w-full md:w-auto items-center justify-end">
+        <div className="flex flex-wrap gap-2 w-full md:flex-1 md:min-w-0 md:flex-nowrap items-center justify-end">
 
           {/* Stock Filter Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
               onClick={() => {
                 setShowStockDropdown(v => !v);
                 setShowCategoryDropdown(false);
@@ -605,7 +659,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Filter className="w-4 h-4" />
-              {stockFilters.find(f => f.value === selectedStockFilter)?.label}
+              {translateStockFilter(selectedStockFilter)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showStockDropdown && (
@@ -623,7 +677,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {filter.label}
+                    {translateStockFilter(filter.value)}
                   </button>
                 ))}
               </div>
@@ -633,7 +687,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           {/* Type Filter Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
               onClick={() => {
                 setShowCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -643,7 +697,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedCategory}
+              {getCategoryFilterLabel(selectedCategory)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
@@ -661,7 +715,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {category}
+                    {getCategoryFilterLabel(category)}
                   </button>
                 ))}
               </div>
@@ -671,7 +725,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           {/* Product Category Filter Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
               onClick={() => {
                 setShowProdCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -681,7 +735,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedProdCategory}
+              {getCategoryFilterLabel(selectedProdCategory)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showProdCategoryDropdown && (
@@ -699,7 +753,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {cat}
+                    {getCategoryFilterLabel(cat)}
                   </button>
                 ))}
               </div>
@@ -709,7 +763,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           {/* Offer Filter Dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
               onClick={() => {
                 setShowOfferDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -719,7 +773,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               }}
             >
               <Gift className="w-4 h-4" />
-              {offerFilters.find(f => f.value === selectedOfferFilter)?.label}
+              {translateOfferFilter(selectedOfferFilter)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showOfferDropdown && (
@@ -737,7 +791,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {filter.label}
+                    {translateOfferFilter(filter.value)}
                   </button>
                 ))}
               </div>
@@ -753,7 +807,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   ? 'bg-white text-[#0a61d7] shadow-sm' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              title="Grid View"
+              title={tTable('gridView')}
             >
               <Grid3X3 className="w-4 h-4" />
             </button>
@@ -764,7 +818,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   ? 'bg-white text-[#0a61d7] shadow-sm' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              title="List View"
+              title={tTable('listView')}
             >
               <List className="w-4 h-4" />
             </button>
@@ -816,7 +870,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-amber-700 text-sm">
-              ⚠️ <strong>Data Completion:</strong> {missingDataCount} product{missingDataCount !== 1 ? 's' : ''} in this view have missing data (required fields or images) that could be completed.
+              ⚠️ <strong>{tShared('missing.dataCompletion')}</strong>{' '}
+              {missingDataCount === 1
+                ? tShared('missing.productsIncomplete', { count: missingDataCount })
+                : tShared('missing.productsIncompletePlural', { count: missingDataCount })}
             </p>
           </div>
         ) : null;
@@ -833,7 +890,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     {selectedProducts.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedProducts.length === 1 ? 'product' : 'products'} selected
+                  {selectedProducts.length === 1
+                    ? tTable('selection.oneProductSelected')
+                    : tTable('selection.multipleProductsSelected')}
                 </span>
               </div>
             </div>
@@ -851,15 +910,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   buttons.canUnpublish = hasPublished;
                   buttons.canRemove = true;
                 }
-                if (buttons.canPublish && buttons.canUnpublish) {
-                  return "Mixed product statuses selected. Only removal is allowed for safety.";
-                } else if (buttons.canPublish) {
-                  return "Your product will be published in our B2B Marketplace Mobile app. 😉";
-                                  } else if (buttons.canUnpublish) {
-                    return "Select products to unpublish from the marketplace.";
-                  } else {
-                  return "Select products to be removed.";
-                }
+                return getBulkSelectionMessage(buttons);
               })()}
             </div>
             <div className="flex gap-2">
@@ -898,7 +949,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
                     >
                       <Zap className="w-4 h-4 text-white" />
-                      Publish
+                      {tTable('bulkActions.publish')}
                     </button>
                   );
                 } else if (buttons.canUnpublish && !buttons.canPublish) {
@@ -910,7 +961,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                     >
                       <EyeOff className="w-4 h-4 text-white" />
-                      Unpublish
+                      {tTable('bulkActions.unpublish')}
                     </button>
                   );
                 }
@@ -923,7 +974,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <Trash className="w-4 h-4 text-white" />
-                    Remove
+                    {tTable('bulkActions.remove')}
                   </button>
                 );
                 
@@ -940,7 +991,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   {selectedProducts.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedProducts.length === 1 ? 'product' : 'products'} selected
+                  {selectedProducts.length === 1
+                    ? tTable('selection.oneProductSelected')
+                    : tTable('selection.multipleProductsSelected')}
                 </span>
               </div>
             </div>
@@ -959,15 +1012,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     buttons.canUnpublish = hasPublished;
                     buttons.canRemove = true;
                   }
-                  if (buttons.canPublish && buttons.canUnpublish) {
-                    return "Mixed product statuses selected. Only removal is allowed for safety.";
-                  } else if (buttons.canPublish) {
-                    return "Your product will be published in our B2B Marketplace Mobile app. 😉";
-                  } else if (buttons.canUnpublish) {
-                    return "Select products to unpublish (change to Draft status).";
-                  } else {
-                    return "Select products to remove from the system.";
-                  }
+                  return getBulkSelectionMessage(buttons, true);
                 })()}
               </span>
               <div className="flex gap-2">
@@ -1006,7 +1051,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
                       >
                         <Zap className="w-4 h-4 text-white" />
-                        Publish
+                        {tTable('bulkActions.publish')}
                       </button>
                     );
                   } else if (buttons.canUnpublish && !buttons.canPublish) {
@@ -1018,7 +1063,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold text-sm rounded-lg hover:bg-orange-700 transition-colors"
                       >
                         <EyeOff className="w-4 h-4 text-white" />
-                        Unpublish
+                        {tTable('bulkActions.unpublish')}
                       </button>
                     );
                   }
@@ -1031,7 +1076,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
                     >
                       <Trash className="w-4 h-4 text-white" />
-                      Remove
+                      {tTable('bulkActions.remove')}
                     </button>
                   );
                   
@@ -1049,7 +1094,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No products recorded</p>
+            <p className="text-sm">{tTable('noProducts')}</p>
           </div>
         ) : (
           <table className="w-full">
@@ -1071,16 +1116,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      )}
                    </button>
                  </th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">ID/SKU</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Product Name</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Category</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Brand</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Stock</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Selling Price</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">Last Updated</th>
-                 <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.idSku')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.productName')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.type')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.category')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.brand')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.stock')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.sellingPrice')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.status')}</th>
+                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.lastUpdated')}</th>
+                 <th className="text-center py-3 px-4 font-medium text-xs uppercase">{tShared('actions')}</th>
               </tr>
             </thead>
             <tbody className="text-xs whitespace-nowrap">
@@ -1150,7 +1195,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                       {String(product.sku).trim() ? (
                         product.sku
                       ) : (
-                        <span className="text-red-600 font-bold">Missing SKU</span>
+                        <span className="text-red-600 font-bold">{tShared('missing.sku')}</span>
                       )}
                     </div>
                     <div className="text-gray-500 text-xs truncate">{product.productId}</div>
@@ -1160,14 +1205,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.name).trim() ? (
                      product.name
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.productName')}</span>
                    )}
                  </td>
                  <td className="truncate py-3 px-4 text-xs text-gray-700">
                   {String(product.productType).trim() ? (
                      product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Type</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
                  </td>
                  <td className="truncate py-3 px-4 text-xs text-gray-700">
@@ -1177,7 +1222,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     return String(category || '').trim() ? (
                       category
                     ) : (
-                      <span className="text-red-600 font-bold">Missing Category</span>
+                      <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
                     );
                   })()}
                  </td>
@@ -1185,7 +1230,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.brand).trim() ? (
                      product.brand
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Brand</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.brand')}</span>
                    )}
                  </td>
                  <td className="py-3 px-4 text-xs">
@@ -1204,14 +1249,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                        if (totalStock === 0) {
                          return (
                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                             Out of Stock
+                             {translateStockStatus('out')}
                            </span>
                          );
                        }
                        if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) {
                          return (
                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                             Low Stock
+                             {translateStockStatus('low')}
                            </span>
                          );
                        }
@@ -1227,25 +1272,25 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                           <div className="flex items-center gap-1">
                             {/* Show fixed discount amount if available, otherwise calculate percentage */}
                             <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                              {getDiscountBadgeLabel(originalProduct) ?? 'Discount'}
+                              {getDiscountBadgeLabel(originalProduct) ?? tTable('offers.discount')}
                             </span>
                             {/* Show promotion details if available */}
                             {originalProduct.promotionDetails && (
                               <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-200">
                                 <Gift className="w-4 h-4" />
-                                Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                                {getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)}
                               </span>
                             )}
                           </div>
                         ) : originalProduct.offerBadge === 'Discount' ? (
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold w-fit bg-red-50 text-red-600 border border-red-200">
-                            {getDiscountBadgeLabel(originalProduct) ?? 'Discount'}
+                            {getDiscountBadgeLabel(originalProduct) ?? tTable('offers.discount')}
                           </span>
                         ) : originalProduct.offerBadge === 'Promotion' ? (
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold w-fit bg-purple-50 text-purple-600 border border-purple-200">
                             {originalProduct.promotionDetails 
-                              ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
-                              : 'Promotion'
+                              ? getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)
+                              : tTable('offers.promotion')
                             }
                           </span>
                         ) : (
@@ -1302,7 +1347,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             product.sellingPrice
                           )
                         ) : (
-                          <span className="text-red-600 font-bold">Missing Selling Price</span>
+                          <span className="text-red-600 font-bold">{tShared('missing.sellingPrice')}</span>
                         )}
                       </span>
                     </div>
@@ -1310,16 +1355,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 </td>
                 <td className="py-3 px-4 text-xs">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
-                    {product.status}
+                    {translateStatus(String(product.status))}
                   </span>
                 </td>
-                                    <td className="py-3 px-4 text-xs text-gray-700">{product.lastUpdated || 'N/A'}</td>
+                                    <td className="py-3 px-4 text-xs text-gray-700">{product.lastUpdated || tShared('notAvailable')}</td>
                 <td className="py-3 px-4 text-xs text-center">
                   <div className="flex items-center justify-center gap-2">
                     <button
                       onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                      title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
+                      title={product.status === 'Published' ? tTable('viewProduct') : tTable('editProduct')}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -1329,7 +1374,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                         handleDelete(product);
                       }}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
-                      title="Delete Product"
+                      title={tTable('deleteProduct')}
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
@@ -1350,7 +1395,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
            {filteredProducts.length === 0 ? (
              <div className="text-center py-12 text-gray-500">
                <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-               <p className="text-sm">No products recorded</p>
+               <p className="text-sm">{tTable('noProducts')}</p>
              </div>
            ) : (
              <>
@@ -1371,7 +1416,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    )}
                  </button>
                  <span className="text-sm font-medium text-gray-700">
-                   Select All ({filteredProducts.length} products)
+                   {tTable('selection.selectAllCount', { count: filteredProducts.length })}
                  </span>
                </div>
                
@@ -1444,7 +1489,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
                    <img 
                      src={originalProduct.images[0]} 
-                     alt={product.name || 'Product Image'}
+                     alt={product.name || tTable('productImageAlt')}
                      className="w-full h-full object-cover rounded-lg"
                      onError={(e) => {
                        // Fallback to placeholder if image fails to load
@@ -1459,7 +1504,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    className="text-gray-400 text-sm items-center justify-center w-full h-full"
                    style={{ display: originalProduct && originalProduct.images && originalProduct.images.length > 0 ? 'none' : 'flex' }}
                  >
-                   Product Image
+                   {tTable('productImage')}
                  </div>
                  {/* Offer Badge on Image */}
                  {originalProduct?.offerBadge && (
@@ -1468,25 +1513,25 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                        <div className="flex items-center gap-1">
                          {/* Prefer explicit percentage; otherwise show fixed amount or calculated percent */}
                          <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                           {getDiscountBadgeLabel(originalProduct) ?? 'Discount'}
+                           {getDiscountBadgeLabel(originalProduct) ?? tTable('offers.discount')}
                          </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                              <Gift className="w-4 h-4" />
-                             Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                             {getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)}
                            </span>
                          )}
                        </div>
                      ) : originalProduct.offerBadge === 'Discount' ? (
                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                         {getDiscountBadgeLabel(originalProduct) ?? 'Discount'}
+                         {getDiscountBadgeLabel(originalProduct) ?? tTable('offers.discount')}
                        </span>
                      ) : originalProduct.offerBadge === 'Promotion' ? (
                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                          {originalProduct.promotionDetails 
-                           ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
-                           : 'Promotion'
+                           ? getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)
+                           : tTable('offers.promotion')
                          }
                        </span>
                      ) : (
@@ -1504,14 +1549,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.name).trim() ? (
                      product.name
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.productName')}</span>
                    )}
                  </h3>
                  <p className="text-xs text-gray-500">
                    {String(product.productType).trim() ? (
                     product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Type</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
                  </p>
                  <p className="text-xs text-gray-500">
@@ -1521,7 +1566,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      return String(category || '').trim() ? (
                        category
                      ) : (
-                       <span className="text-red-600 font-bold">Missing Category</span>
+                       <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
                      );
                    })()}
                  </p>
@@ -1529,16 +1574,17 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.brand).trim() ? (
                      product.brand
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Brand</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.brand')}</span>
                    )}
                  </p>
                  
                  {/* Stock Status */}
                  <div className="flex items-center gap-2">
                    <span className="text-sm font-medium text-gray-900">
-                     Stock: {(() => {
+                     {tTable('stockLabel')}{' '}
+                     {(() => {
                        const productStock = getProductTotalStock(product.variantOptions || []);
-                       return `${productStock.totalStock} pieces`;
+                       return tTable('piecesCount', { count: productStock.totalStock });
                      })()}
                    </span>
                    {(() => {
@@ -1549,14 +1595,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      if (totalStock === 0) {
                        return (
                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                           Out of Stock
+                           {translateStockStatus('out')}
                          </span>
                        );
                      }
                      if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) {
                        return (
                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                           Low Stock
+                           {translateStockStatus('low')}
                          </span>
                        );
                      }
@@ -1612,7 +1658,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          product.sellingPrice
                        )
                      ) : (
-                       <span className="text-red-600 font-bold">Missing Selling Price</span>
+                       <span className="text-red-600 font-bold">{tShared('missing.sellingPrice')}</span>
                      )}
                    </div>
                  </div>
@@ -1620,7 +1666,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Package Information */}
                  <div className="text-xs text-gray-500 mt-1">
                    <div className="flex items-center gap-1">
-                     <span>Per {product.packageType}:</span>
+                     <span>{tTable('perPackage', { packageType: product.packageType || 'Piece' })}</span>
                      <span className="font-medium text-gray-700">
                        {product.sellingPrice.includes('–') || product.sellingPrice.includes('-') ? (
                          // Price range - display as is
@@ -1632,14 +1678,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      </span>
                    </div>
                    <div className="text-xs text-gray-400">
-                     {product.piecesPerPackage} pieces
+                     {tTable('piecesPerPackage', { count: product.piecesPerPackage ?? 1 })}
                    </div>
                  </div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">
                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
-                     {product.status}
+                     {translateStatus(String(product.status))}
                    </span>
                    
                    {/* Action Buttons */}
@@ -1647,7 +1693,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      <button
                        onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
-                       title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
+                       title={product.status === 'Published' ? tTable('viewProduct') : tTable('editProduct')}
                      >
                        <Edit className="w-4 h-4 text-gray-500" />
                      </button>
@@ -1657,7 +1703,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          handleDelete(product);
                        }}
                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors focus:outline-none"
-                       title="Delete Product"
+                       title={tTable('deleteProduct')}
                      >
                        <Trash2 className="w-4 h-4 text-red-600" />
                      </button>
@@ -1678,7 +1724,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
          {filteredProducts.length === 0 ? (
            <div className="text-center py-12 text-gray-500">
              <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-             <p className="text-sm">No products recorded</p>
+             <p className="text-sm">{tTable('noProducts')}</p>
            </div>
          ) : (
            <>
@@ -1699,7 +1745,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  )}
                </button>
                <span className="text-sm font-medium text-gray-700">
-                 Select All ({filteredProducts.length} products)
+                 {tTable('selection.selectAllCount', { count: filteredProducts.length })}
                </span>
              </div>
              
@@ -1769,7 +1815,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {originalProduct && originalProduct.images && originalProduct.images.length > 0 ? (
                    <img 
                      src={originalProduct.images[0]} 
-                     alt={product.name || 'Product Image'}
+                     alt={product.name || tTable('productImageAlt')}
                      className="w-full h-full object-cover rounded-lg"
                      onError={(e) => {
                        // Fallback to placeholder if image fails to load
@@ -1784,7 +1830,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    className="text-gray-400 text-xs items-center justify-center w-full h-full"
                    style={{ display: originalProduct && originalProduct.images && originalProduct.images.length > 0 ? 'none' : 'flex' }}
                  >
-                   Product Image
+                   {tTable('productImage')}
                  </div>
                  {/* Offer Badge on Image */}
                  {originalProduct?.offerBadge && (
@@ -1793,54 +1839,24 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                        <div className="flex flex-wrap gap-1">
                          {/* Show fixed discount amount if available, otherwise calculate percentage */}
                          <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                           {(() => {
-                             // Show fixed discount amount if available
-                             if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
-                               return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
-                             }
-                             // Fallback to percentage calculation
-                             if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                               const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                               const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
-                               if (originalPrice > currentPrice && originalPrice > 0) {
-                                 const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                                 return `${discountPercent}% OFF`;
-                               }
-                             }
-                             return 'Discount';
-                           })()}
+                           {getCalculatedDiscountLabel(originalProduct, String(product.sellingPrice))}
                          </span>
                          {/* Show promotion details if available */}
                          {originalProduct.promotionDetails && (
                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
-                             <Gift className="w-4 h-4" /> Buy {originalProduct.promotionDetails.minQuantity} Get {originalProduct.promotionDetails.freeQuantity}
+                             <Gift className="w-4 h-4" /> {getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)}
                            </span>
                          )}
                        </div>
                      ) : originalProduct.offerBadge === 'Discount' ? (
                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-red-50 text-red-600 border border-red-200">
-                         {(() => {
-                           // Show fixed discount amount if available
-                           if (originalProduct.discountType === 'fixed' && originalProduct.discountValue) {
-                             return `${formatCurrency(originalProduct.discountValue, userCurrency)} OFF`;
-                           }
-                           // Fallback to percentage calculation
-                           if (originalProduct.variantOptions?.[0]?.originalSellingPrice) {
-                             const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-                             const currentPrice = parsePrice(String(product.sellingPrice), userCurrency);
-                             if (originalPrice > currentPrice && originalPrice > 0) {
-                               const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-                               return `${discountPercent}% OFF`;
-                             }
-                           }
-                           return 'Discount';
-                         })()}
+                         {getCalculatedDiscountLabel(originalProduct, String(product.sellingPrice))}
                        </span>
                      ) : originalProduct.offerBadge === 'Promotion' ? (
                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold shadow-md bg-purple-50 text-purple-600 border border-purple-200">
                          {originalProduct.promotionDetails 
-                           ? `Buy ${originalProduct.promotionDetails.minQuantity} Get ${originalProduct.promotionDetails.freeQuantity}`
-                           : 'Promotion'
+                           ? getPromotionLabel(originalProduct.promotionDetails.minQuantity, originalProduct.promotionDetails.freeQuantity)
+                           : tTable('offers.promotion')
                          }
                        </span>
                      ) : (
@@ -1858,14 +1874,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.name).trim() ? (
                      product.name
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Product Name</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.productName')}</span>
                    )}
                  </h3>
                  <p className="text-xs text-gray-500">
                   {String(product.productType).trim() ? (
                     product.productType
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Type</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
                  </p>
                  <p className="text-xs text-gray-500">
@@ -1875,7 +1891,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      return String(category || '').trim() ? (
                        category
                      ) : (
-                       <span className="text-red-600 font-bold">Missing Category</span>
+                       <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
                      );
                    })()}
                  </p>
@@ -1883,7 +1899,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {String(product.brand).trim() ? (
                      product.brand
                    ) : (
-                     <span className="text-red-600 font-bold">Missing Brand</span>
+                     <span className="text-red-600 font-bold">{tShared('missing.brand')}</span>
                    )}
                  </p>
                  
@@ -1903,14 +1919,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      if (totalStock === 0) {
                        return (
                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
-                           Out of Stock
+                           {translateStockStatus('out')}
                          </span>
                        );
                      }
                      if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) {
                        return (
                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">
-                           Low Stock
+                           {translateStockStatus('low')}
                          </span>
                        );
                      }
@@ -1965,7 +1981,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          product.sellingPrice
                        )
                      ) : (
-                       <span className="text-red-600 font-bold">Missing Selling Price</span>
+                       <span className="text-red-600 font-bold">{tShared('missing.sellingPrice')}</span>
                      )}
                    </div>
                  </div>
@@ -1973,7 +1989,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  {/* Package Information */}
                  <div className="text-xs text-gray-500 mt-1">
                    <div className="flex items-center gap-1">
-                     <span>Per {product.packageType}:</span>
+                     <span>{tTable('perPackage', { packageType: product.packageType || 'Piece' })}</span>
                      <span className="font-medium text-gray-700">
                        {product.sellingPrice.includes('–') || product.sellingPrice.includes('-') ? (
                          // Price range - display as is
@@ -1985,14 +2001,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      </span>
                    </div>
                    <div className="text-xs text-gray-400">
-                     {product.piecesPerPackage} pieces
+                     {tTable('piecesPerPackage', { count: product.piecesPerPackage ?? 1 })}
                    </div>
                  </div>
                  
                  {/* Status Badge */}
                  <div className="flex items-center justify-between">
                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(product.status)}`}>
-                     {product.status}
+                     {translateStatus(String(product.status))}
                    </span>
                    
                    {/* Action Buttons */}
@@ -2000,7 +2016,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      <button
                        onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
-                       title={product.status === 'Published' ? 'View Product' : 'Edit Product'}
+                       title={product.status === 'Published' ? tTable('viewProduct') : tTable('editProduct')}
                      >
                        <Edit className="w-4 h-4 text-gray-500" />
                      </button>
@@ -2010,7 +2026,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          handleDelete(product);
                        }}
                        className="p-1.5 rounded-lg hover:bg-red-100 transition-colors focus:outline-none"
-                       title="Delete Product"
+                       title={tTable('deleteProduct')}
                      >
                        <Trash2 className="w-4 h-4 text-red-600" />
                      </button>
@@ -2028,12 +2044,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-500">
-          Showing {fromRow} to {toRow} of {totalRows} results
+          {tShared('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
+            aria-label={tShared('previousPage')}
             className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -2076,6 +2093,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           <button
             onClick={() => setPage(Math.min(totalPages, page + 1))}
             disabled={page === totalPages}
+            aria-label={tShared('nextPage')}
             className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-4 h-4" />
@@ -2088,23 +2106,22 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Products' : 'Delete Product'}
+              {isBulkDelete ? tShared('deleteModal.titleBulkProducts') : tShared('deleteModal.titleSingle')}
             </h2>
             <p className="mb-4 text-gray-500">
-              {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}? This action cannot be undone.`
-                : `Are you sure you want to delete this product? This action cannot be undone.`
-              }
+              {isBulkDelete
+                ? tShared('deleteModal.confirmBulkProductsCount', { count: selectedProducts.length })
+                : tShared('deleteModal.confirmSingleProduct')}
             </p>
             <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-              <strong>Note:</strong> Deleting {isBulkDelete ? 'products' : 'this product'} will remove {isBulkDelete ? 'them' : 'it'} from publication in the marketplace.
+              {isBulkDelete ? tShared('deleteModal.noteBulkProducts') : tShared('deleteModal.noteSingleProduct')}
             </p>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
                 onClick={handleDeleteCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className={`px-4 py-2 rounded-lg text-white hover:opacity-90 ${
@@ -2112,7 +2129,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 }`}
                 onClick={handleDeleteConfirm}
               >
-                {isBulkDelete ? 'Delete' : 'Delete'}
+                {tShared('deleteModal.deleteButton')}
               </button>
             </div>
           </div>
@@ -2124,17 +2141,16 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-orange-500">
-              {isBulkUnpublish ? 'Unpublish Products' : 'Unpublish Product'}
+              {isBulkUnpublish ? tShared('unpublishModal.titleBulkProducts') : tShared('unpublishModal.titleSingle')}
             </h2>
             <p className="mb-4 text-gray-500">
-              {isBulkUnpublish 
-                ? `Are you sure you want to unpublish ${selectedProducts.length} product${selectedProducts.length === 1 ? '' : 's'}? This will change their status to Draft.`
-                : `Are you sure you want to unpublish this product? This will change its status to Draft.`
-              }
+              {isBulkUnpublish
+                ? tShared('unpublishModal.confirmBulkProductsCount', { count: selectedProducts.length })
+                : tShared('unpublishModal.confirmSingleProduct')}
             </p>
             {isBulkUnpublish && (
               <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                <strong>Note:</strong> Unpublishing products will remove them from the marketplace but keep them in your catalog as Draft.
+                {tShared('unpublishModal.noteBulkProducts')}
               </p>
             )}
             <div className="flex justify-end gap-2">
@@ -2142,13 +2158,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
                 onClick={handleUnpublishCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700"
                 onClick={handleUnpublishProducts}
               >
-                {isBulkUnpublish ? 'Unpublish' : 'Unpublish'}
+                {tTable('bulkActions.unpublish')}
               </button>
             </div>
           </div>

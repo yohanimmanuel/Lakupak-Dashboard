@@ -3,8 +3,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
+
+const NAV_LABEL_KEYS: Record<string, string> = {
+  Home: 'home',
+  Clients: 'clients',
+  Buyers: 'buyers',
+  Suppliers: 'suppliers',
+  Products: 'products',
+  Orders: 'orders',
+  Offers: 'offers',
+  Marketing: 'marketing',
+  Team: 'team',
+  Campaigns: 'campaigns',
+  Analytics: 'analytics',
+  Financial: 'financial',
+  Sales: 'sales',
+  Operational: 'operational',
+  Marketplace: 'marketplace',
+  Logistics: 'logistics',
+  Settings: 'settings',
+};
 
 /** Stable anchors for dashboard product tours (`driver.js`). */
 const DATA_TOUR_BY_LABEL: Record<string, string> = {
@@ -70,6 +91,12 @@ const Menu = () => {
   const pathname = usePathname();
   const currentPath = pathname ?? '';
   const { isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu } = useMenuContext();
+  const tNav = useTranslations('dashboard.nav');
+  const tPromo = useTranslations('dashboard.promo');
+  const navLabel = (label: string) => {
+    const key = NAV_LABEL_KEYS[label];
+    return key ? tNav(key) : label;
+  };
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -178,12 +205,12 @@ const Menu = () => {
                 href={item.href}
                 data-tour={DATA_TOUR_BY_LABEL[item.label]}
                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium flex-1 text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
-                title={!shouldShowExpanded ? item.label : undefined}
+                title={!shouldShowExpanded ? navLabel(item.label) : undefined}
               >
                 {renderIcon(item.icon, shouldHighlightParent)}
                 {shouldShowExpanded && (
                   <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
-                    {item.label}
+                    {navLabel(item.label)}
                   </span>
                 )}
               </Link>
@@ -192,12 +219,12 @@ const Menu = () => {
                 data-tour={DATA_TOUR_BY_LABEL[item.label]}
                 onClick={() => shouldShowExpanded && handleToggle(item.label)}
                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
-                title={!shouldShowExpanded ? item.label : undefined}
+                title={!shouldShowExpanded ? navLabel(item.label) : undefined}
               >
                 {renderIcon(item.icon, shouldHighlightParent)}
                 {shouldShowExpanded && (
                   <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
-                    {item.label}
+                    {navLabel(item.label)}
                   </span>
                 )}
               </button>
@@ -210,7 +237,7 @@ const Menu = () => {
                   handleToggle(item.label);
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors"
-                aria-label="Toggle submenu"
+                aria-label={tNav('toggleSubmenu')}
               >
                 {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
               </button>
@@ -219,7 +246,7 @@ const Menu = () => {
           {/* Tooltip for collapsed state */}
           {!shouldShowExpanded && (
             <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-100 whitespace-nowrap z-50 shadow-lg">
-              {item.label}
+              {navLabel(item.label)}
               <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-0 h-0 border-r-4 border-r-gray-900 border-t-2 border-t-transparent border-b-2 border-b-transparent"></div>
             </div>
           )}
@@ -241,7 +268,7 @@ const Menu = () => {
                   >
                     {renderLineBlock(Boolean(isSubActive), true)}
                     {renderIcon(sub.icon, Boolean(isSubActive))}
-                    <span className="font-medium">{sub.label}</span>
+                    <span className="font-medium">{navLabel(sub.label)}</span>
                   </Link>
                 );
               })}
@@ -262,7 +289,7 @@ const Menu = () => {
                     {!isSubActive && !isAnySubActive && renderLineBlock(false, true)}
                     {renderIcon(sub.icon, Boolean(isSubActive))}
                     <span className={`whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(Boolean(isSubActive))}`}>
-                      {sub.label}
+                      {navLabel(sub.label)}
                     </span>
                   </Link>
                 );
@@ -284,7 +311,7 @@ const Menu = () => {
         {renderIcon(item.icon, isActive)}
         {shouldShowExpanded && (
           <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(isActive)}`}>
-            {item.label}
+            {navLabel(item.label)}
           </span>
         )}
       </Link>
@@ -308,7 +335,7 @@ const Menu = () => {
             <button
               onClick={toggleMobileMenu}
               className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Close menu"
+              aria-label={tNav('closeMenu')}
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
@@ -324,7 +351,7 @@ const Menu = () => {
             <button
               onClick={toggleMobileMenu}
               className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Close menu"
+              aria-label={tNav('closeMenu')}
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
@@ -348,13 +375,13 @@ const Menu = () => {
             <button
               className="absolute top-2 right-2 text-white hover:text-gray-300 p-1 rounded"
               onClick={() => setShowPromo(false)}
-              aria-label="Close promo"
+              aria-label={tPromo('close')}
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="text-white text-md font-semibold mb-1 w-38">Loving Laku Free?</div>
-            <div className="text-gray-200 text-xs mb-4">Go <span className="text-teal-300">Premium</span> to access priority support, real-time tracking, and full analytics.</div>
-            <button className="w-full bg-white text-[#0a61d7] font-bold p-2 rounded-lg shadow hover:bg-gray-200 transition text-sm">Go Premium Today</button>
+            <div className="text-white text-md font-semibold mb-1 w-38">{tPromo('title')}</div>
+            <div className="text-gray-200 text-xs mb-4">{tPromo('body')}</div>
+            <button className="w-full bg-white text-[#0a61d7] font-bold p-2 rounded-lg shadow hover:bg-gray-200 transition text-sm">{tPromo('cta')}</button>
           </div>
         </div>
       )}
@@ -366,7 +393,7 @@ const Menu = () => {
             onClick={() => { if (!shouldShowExpanded) toggleMenu(); }}
           >
             <span className="text-2xl">🤗</span>
-            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">Upgrade to <span className="text-teal-300">Premium</span> for more features!</span>
+            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">{tPromo('collapsedHint')}</span>
           </div>
         </div>
       )}

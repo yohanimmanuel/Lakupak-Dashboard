@@ -5,9 +5,11 @@ import { useUserStore } from "@/store/userStore";
 import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 import { Product } from "@/types/product";
 import { fetchGraphQL } from "@/lib/graphqlClient";
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 export default function ViewProductPage() {
   const params = useParams();
+  const { tDetailsPage } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
@@ -85,7 +87,7 @@ export default function ViewProductPage() {
           return;
         }
       } catch (error) {
-        setError('Failed to load product');
+        setError(tDetailsPage('loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -99,7 +101,7 @@ export default function ViewProductPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading product...</p>
+          <p className="text-gray-600">{tDetailsPage('loading')}</p>
         </div>
       </div>
     );
@@ -109,12 +111,12 @@ export default function ViewProductPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Product not found'}</p>
+          <p className="text-red-600 mb-4">{error || tDetailsPage('notFound')}</p>
           <button 
             onClick={() => window.history.back()}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Go Back
+            {tDetailsPage('goBack')}
           </button>
         </div>
       </div>

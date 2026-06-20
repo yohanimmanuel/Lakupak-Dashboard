@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { Offer, OfferTableRow, OfferDiscountType } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 // Status tabs for filtering offers by status
 const statusTabs = [
@@ -37,6 +38,15 @@ export default function OfferTable({
   activeTab?: 'all' | 'discounts' | 'promotions';
   onSelectOfferAction?: (offer: Offer) => void;
 }) {
+  const {
+    tTable,
+    tShared,
+    translateStatusTab,
+    translateDateFilter,
+    translateOfferStatus,
+    translateUsageStatus,
+    translateOfferType,
+  } = useOffersTranslations();
   const user = useUserStore(state => state.user);
   const router = useRouter();
   
@@ -126,7 +136,7 @@ export default function OfferTable({
     const primaryDiscount = offer.discountTypes?.find(dt => dt.isActive) || offer.discountTypes?.[0];
     const discountDisplay = primaryDiscount?.discountType === 'percentage' 
       ? `${primaryDiscount.discountValue}%` 
-      : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : 'N/A';
+      : primaryDiscount ? formatCurrency(primaryDiscount.discountValue, userCurrency) : tShared('notAvailable');
     
     // Calculate usage status (binary: used or not used)
     const usageStatus = (offer.totalUsage || 0) > 0 ? 'Used' : 'Not Used';
@@ -134,8 +144,8 @@ export default function OfferTable({
     // Create color-coded usage display for each discount type
     const usageDisplay = createUsageDisplay(offer);
 
-    // Use date range dates if available, otherwise show "Unlimited"
-    let dateRangeDisplay = 'Unlimited';
+    // Use date range dates if available, otherwise show unlimited
+    let dateRangeDisplay = tTable('unlimited');
     
     if (offer.dateRanges && offer.dateRanges.length > 0) {
       // Find the earliest start date and latest end date from active date ranges
@@ -154,7 +164,7 @@ export default function OfferTable({
       id: offer.id,
       offerId: offer.offerId,
       name: offer.name,
-      type: offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown',
+      type: offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : tTable('unknown'),
       discount: discountDisplay,
       status: offer.status.charAt(0).toUpperCase() + offer.status.slice(1),
       startDate: dateRangeDisplay,
@@ -163,7 +173,7 @@ export default function OfferTable({
       totalDiscount: usageStatus, // Usage status: "Used" if offer has been used, "Not Used" otherwise
       actions: 'actions'
     };
-  }, [userCurrency]);
+  }, [userCurrency, tShared, tTable]);
 
   // Convert offers to table rows - memoized to avoid recalculation
   const tableRows = useMemo(() => {
@@ -228,7 +238,7 @@ export default function OfferTable({
     if (!offer.discountTypes || offer.discountTypes.length === 0) {
       return (
         <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
-          Limit Reached
+          {tTable('limitReached')}
         </span>
       );
     }
@@ -241,7 +251,7 @@ export default function OfferTable({
     if (allLimitsReached) {
       return (
         <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
-          Limit Reached
+          {tTable('limitReached')}
         </span>
       );
     }
@@ -249,7 +259,7 @@ export default function OfferTable({
     // No usage limits - distributors manage offers manually
     return (
       <span className="text-gray-600 p-1 bg-gray-100 rounded-lg font-medium">
-        Active
+        {translateOfferStatus('active')}
       </span>
     );
 
@@ -266,7 +276,7 @@ export default function OfferTable({
     if (hasDiscount) {
       badges.push(
         <span key="discount" className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mr-1">
-          Discount
+          {translateOfferType('discount')}
         </span>
       );
     }
@@ -274,7 +284,7 @@ export default function OfferTable({
     if (hasPromotion) {
       badges.push(
         <span key="promotion" className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-          Promotion
+          {translateOfferType('promotion')}
         </span>
       );
     }
@@ -287,7 +297,7 @@ export default function OfferTable({
             ? 'bg-blue-100 text-blue-800' 
             : 'bg-purple-100 text-purple-800'
         }`}>
-          {offer.type.length > 0 ? offer.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Unknown'}
+          {offer.type.length > 0 ? offer.type.map(t => translateOfferType(t)).join(', ') : tTable('unknown')}
         </span>
       );
     }
@@ -354,7 +364,7 @@ export default function OfferTable({
         const failedDeletes = results.filter(result => !result.deleteOffer?.success);
         
         if (failedDeletes.length > 0) {
-          alert(`Failed to delete ${failedDeletes.length} offers. Please try again.`);
+          alert(tTable('deleteFailedBulk', { count: failedDeletes.length }));
           return;
         }
         
@@ -379,7 +389,7 @@ export default function OfferTable({
         }
         setOfferToDelete(null);
         } catch (error) {
-          alert('Failed to delete offer. Please try again.');
+          alert(tTable('deleteFailedSingle'));
           return;
         }
       }
@@ -387,7 +397,7 @@ export default function OfferTable({
       setShowDeleteModal(false);
       setIsBulkDelete(false);
     } catch (error) {
-      alert('Failed to delete offers. Please try again.');
+      alert(tTable('deleteFailedGeneric'));
     }
   };
 
@@ -494,15 +504,15 @@ export default function OfferTable({
       // Show appropriate message
       if (failedOffers.length > 0) {
         const message = successfulOffers.length > 0
-          ? `Successfully activated ${successfulOffers.length} offer(s). Failed to activate ${failedOffers.length} offer(s). Please try again.`
-          : `Failed to activate ${failedOffers.length} offer(s). Please try again.`;
+          ? tTable('activatePartialSuccess', { success: successfulOffers.length, failed: failedOffers.length })
+          : tTable('activateFailed', { count: failedOffers.length });
         alert(message);
       } else if (successfulOffers.length > 0) {
         // All succeeded - no need to show message for better UX
       }
     } catch (error) {
       console.error('Bulk activation error:', error);
-      alert('Failed to activate offers. Please try again.');
+      alert(tTable('activateFailedGeneric'));
     } finally {
       setIsActivating(false);
     }
@@ -562,15 +572,15 @@ export default function OfferTable({
       // Show appropriate message
       if (failedOffers.length > 0) {
         const message = successfulOffers.length > 0
-          ? `Successfully deactivated ${successfulOffers.length} offer(s). Failed to deactivate ${failedOffers.length} offer(s). Please try again.`
-          : `Failed to deactivate ${failedOffers.length} offer(s). Please try again.`;
+          ? tTable('deactivatePartialSuccess', { success: successfulOffers.length, failed: failedOffers.length })
+          : tTable('deactivateFailed', { count: failedOffers.length });
         alert(message);
       } else if (successfulOffers.length > 0) {
         // All succeeded - no need to show message for better UX
       }
     } catch (error) {
       console.error('Bulk deactivation error:', error);
-      alert('Failed to deactivate offers. Please try again.');
+      alert(tTable('deactivateFailedGeneric'));
     } finally {
       setIsDeactivating(false);
     }
@@ -646,7 +656,7 @@ export default function OfferTable({
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
@@ -654,10 +664,11 @@ export default function OfferTable({
 
         {/* Search and Filters */}
         <div className="flex gap-2 w-full md:w-auto items-center justify-end">
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-64 shrink-0">
             <input
               type="text"
-              placeholder="Search offers..."
+              placeholder={tTable('searchPlaceholder')}
+              aria-label={tTable('searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
@@ -672,7 +683,7 @@ export default function OfferTable({
                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
              >
                <Filter className="w-4 h-4" />
-               {filter}
+               {translateDateFilter(filter)}
                <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
              </button>
              {showFilterDropdown && (
@@ -690,7 +701,7 @@ export default function OfferTable({
                          : 'text-gray-700 hover:bg-gray-100'
                      }`}
                    >
-                     {filterOption.label}
+                     {translateDateFilter(filterOption.label)}
                    </button>
                  ))}
                </div>
@@ -710,12 +721,12 @@ export default function OfferTable({
                   {selectedOffers.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedOffers.length === 1 ? 'offer' : 'offers'} selected
+                  {selectedOffers.length} {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')} {tTable('selected')}
                 </span>
               </div>
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
-              Select offers to be removed from the system.
+              {tTable('bulkActionHint')}
             </div>
             <div className="flex gap-2">
               <button
@@ -726,9 +737,9 @@ export default function OfferTable({
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700'
                 }`}
-                title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
+                title={hasSelectedOffersWithExpiredRanges ? tTable('cannotActivateExpired') : tTable('activateSelected')}
               >
-                {isActivating ? 'Activating...' : 'Activate'}
+                {isActivating ? tTable('activating') : tTable('activate')}
               </button>
               <button
                 onClick={handleBulkDeactivate}
@@ -738,17 +749,17 @@ export default function OfferTable({
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-yellow-600 text-white hover:bg-yellow-700'
                 }`}
-                title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
+                title={hasSelectedOffersWithExpiredRanges ? tTable('cannotDeactivateExpired') : tTable('deactivateSelected')}
               >
-                {isDeactivating ? 'Deactivating...' : 'Deactivate'}
+                {isDeactivating ? tTable('deactivating') : tTable('deactivate')}
               </button>
               <button
                 onClick={handleBulkRemove}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                title="Remove selected offers"
+                title={tTable('removeSelected')}
               >
                 <Trash className="w-4 h-4 text-white" />
-                Remove
+                {tTable('remove')}
               </button>
             </div>
           </div>
@@ -761,13 +772,13 @@ export default function OfferTable({
                   {selectedOffers.length}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedOffers.length === 1 ? 'offer' : 'offers'} selected
+                  {selectedOffers.length} {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')} {tTable('selected')}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
-                Select offers to remove from the system.
+                {tTable('bulkActionHint')}
               </span>
               <div className="flex gap-2">
                 <button
@@ -778,9 +789,9 @@ export default function OfferTable({
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
-                  title={hasSelectedOffersWithExpiredRanges ? 'Cannot activate: Some selected offers have expired date ranges' : 'Activate selected offers'}
+                  title={hasSelectedOffersWithExpiredRanges ? tTable('cannotActivateExpired') : tTable('activateSelected')}
                 >
-                  {isActivating ? 'Activating...' : 'Activate'}
+                  {isActivating ? tTable('activating') : tTable('activate')}
                 </button>
                 <button
                   onClick={handleBulkDeactivate}
@@ -790,17 +801,17 @@ export default function OfferTable({
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                       : 'bg-yellow-600 text-white hover:bg-yellow-700'
                   }`}
-                  title={hasSelectedOffersWithExpiredRanges ? 'Cannot deactivate: Some selected offers have expired date ranges' : 'Deactivate selected offers'}
+                  title={hasSelectedOffersWithExpiredRanges ? tTable('cannotDeactivateExpired') : tTable('deactivateSelected')}
                 >
-                  {isDeactivating ? 'Deactivating...' : 'Deactivate'}
+                  {isDeactivating ? tTable('deactivating') : tTable('deactivate')}
                 </button>
                 <button
                   onClick={handleBulkRemove}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-                  title="Remove selected offers"
+                  title={tTable('removeSelected')}
                 >
                   <Trash className="w-4 h-4 text-white" />
-                  Remove
+                  {tTable('remove')}
                 </button>
               </div>
             </div>
@@ -813,7 +824,7 @@ export default function OfferTable({
         {filteredRows.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Tag className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">No offers recorded</p>
+            <p className="text-sm">{tTable('empty')}</p>
           </div>
         ) : (
           <table className="w-full">
@@ -835,13 +846,13 @@ export default function OfferTable({
                     )}
                   </button>
                 </th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Name</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Type</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Discount</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Status</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Duration</th>
-                <th className="text-left py-3 px-4 font-medium text-xs uppercase">Usage Status</th>
-                <th className="text-center py-3 px-4 font-medium text-xs uppercase">Actions</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.name')}</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.type')}</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.discount')}</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.status')}</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.duration')}</th>
+                <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.usageStatus')}</th>
+                <th className="text-center py-3 px-4 font-medium text-xs uppercase">{tShared('actions')}</th>
               </tr>
             </thead>
             <tbody className="text-xs whitespace-nowrap">
@@ -886,7 +897,7 @@ export default function OfferTable({
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-purple-100 text-purple-800'
                       }`}>
-                        {row.type}
+                        {translateOfferType(row.type.toLowerCase())}
                       </span>
                     );
                   })()}
@@ -900,13 +911,13 @@ export default function OfferTable({
                       ? 'bg-blue-100 text-blue-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {row.status}
+                    {translateOfferStatus(row.status.toLowerCase())}
                   </span>
                 </td>
                 <td className="py-4 px-4 text-xs text-gray-700 truncate">
                   {row.startDate}
                 </td>
-                <td className="py-4 px-4 text-xs text-gray-900">{row.totalDiscount}</td>
+                <td className="py-4 px-4 text-xs text-gray-900">{translateUsageStatus(row.totalDiscount)}</td>
                 <td className="py-4 px-4 text-xs text-gray-700">
                   <div className="flex items-center gap-2 justify-center">
                     <button
@@ -915,7 +926,7 @@ export default function OfferTable({
                         handleView(row);
                       }}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                      title="Edit Offer"
+                      title={tTable('editOffer')}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -925,7 +936,7 @@ export default function OfferTable({
                         handleDelete(row);
                       }}
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
-                      title="Delete Offer"
+                      title={tTable('deleteOffer')}
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
@@ -941,7 +952,7 @@ export default function OfferTable({
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-500">
-          Showing {fromRow} to {toRow} of {totalRows} results
+          {tTable('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1001,12 +1012,12 @@ export default function OfferTable({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Offers' : 'Delete Offer'}
+              {isBulkDelete ? tTable('deleteOffersTitle') : tTable('deleteOfferTitle')}
             </h2>
             <p className="mb-4 text-gray-500">
               {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedOffers.length} offer${selectedOffers.length === 1 ? '' : 's'}? This action cannot be undone.`
-                : `Are you sure you want to delete ${offerToDelete?.name || 'this offer'}? This action cannot be undone.`
+                ? tTable('deleteBulkConfirm', { count: selectedOffers.length })
+                : tTable('deleteSingleConfirm', { name: offerToDelete?.name || tTable('thisOffer') })
               }
             </p>
             <div className="flex justify-end gap-2">
@@ -1014,13 +1025,13 @@ export default function OfferTable({
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                 onClick={handleDeleteCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={handleDeleteConfirm}
               >
-                Delete
+                {tTable('delete')}
               </button>
             </div>
           </div>

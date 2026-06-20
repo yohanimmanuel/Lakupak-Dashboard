@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Plus, Edit, Trash2 } from 'lucide-react';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import CreateDateRangeModal from './CreateDateRangeModal';
 import { getTodayBoundaries, getEndOfDay, parseDateInTimezone } from '@/lib/dateUtils';
 
@@ -50,6 +51,7 @@ export default function RangeManagement({
   selectedDateRange,
   onSelectDateRange
 }: RangeManagementProps) {
+  const { tRange, tShared, translateOfferStatus } = useOffersTranslations();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRange, setEditingRange] = useState<DateRange | null>(null);
@@ -149,8 +151,8 @@ export default function RangeManagement({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">{isNewOffer ? 'Date Range' : 'Range Management'}</h2>
-          <p className="text-gray-500 text-sm">{isNewOffer ? 'Set the active period for your new offer (optional)' : 'Manage date ranges for offers'}</p>
+          <h2 className="text-xl font-bold text-black">{isNewOffer ? tRange('titleNew') : tRange('titleEdit')}</h2>
+          <p className="text-gray-500 text-sm">{isNewOffer ? tRange('subtitleNew') : tRange('subtitleEdit')}</p>
         </div>
         <div className="flex items-center gap-2">
           {isNewOffer && dateRanges.length === 0 && (
@@ -172,7 +174,7 @@ export default function RangeManagement({
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition text-sm"
             >
-              Skip
+              {tRange('skip')}
             </button>
           )}
         </div>
@@ -184,10 +186,9 @@ export default function RangeManagement({
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Calendar className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Date Range Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{tRange('emptyTitle')}</h3>
           <p className="text-gray-500 text-sm mb-4">
-            Offers may or may not have date restrictions and will remain active or inactive based on its status. 
-            You can optionally create date ranges to limit when the offer is available.
+            {tRange('emptyDescription')}
           </p>
           <div className="flex items-center justify-center gap-3">
             {isNewOffer && (
@@ -209,7 +210,7 @@ export default function RangeManagement({
                 }} 
                 className="flex items-center gap-2 px-6 py-3 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Skip
+                {tRange('skip')}
               </button>
             )}
             <button 
@@ -217,7 +218,7 @@ export default function RangeManagement({
               className="flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Date Range (Optional)
+              {tRange('addDateRange')}
             </button>
           </div>
         </div>
@@ -225,8 +226,8 @@ export default function RangeManagement({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-black">Date Range</h3>
-              <p className="text-xs text-gray-500 mt-1">Only 1 date range per offer</p>
+              <h3 className="text-lg font-semibold text-black">{tRange('sectionTitle')}</h3>
+              <p className="text-xs text-gray-500 mt-1">{tRange('oneRangeHint')}</p>
             </div>
             {isNewOffer && (
               <button
@@ -244,7 +245,7 @@ export default function RangeManagement({
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition text-sm"
               >
-                Skip
+                {tRange('skip')}
               </button>
             )}
           </div>
@@ -274,14 +275,14 @@ export default function RangeManagement({
                         <h4 className="text-md font-semibold text-black">{range.name}</h4>
                         {isExpired && (
                           <span className="px-2 py-0.5 text-xs font-medium bg-orange-500 text-white rounded">
-                            Expired
+                            {tRange('expired')}
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-gray-600 mb-2">{range.description}</p>
                       {isExpired && (
                         <p className="text-xs text-orange-700 mb-2 italic">
-                          This date range has expired. Update the dates to reactivate.
+                          {tRange('expiredHint')}
                         </p>
                       )}
                     </div>
@@ -292,19 +293,25 @@ export default function RangeManagement({
                           ? 'bg-green-500 border-green-500' 
                           : 'bg-white border-gray-300'
                       }`}
-                      title={range.isActive && !isExpired ? 'Active' : isExpired ? 'Expired' : 'Inactive'}
+                      title={
+                        range.isActive && !isExpired
+                          ? translateOfferStatus('active')
+                          : isExpired
+                          ? translateOfferStatus('expired')
+                          : translateOfferStatus('inactive')
+                      }
                     />
                   </div>
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">Start Date:</span>
+                      <span className="text-gray-600">{tRange('startDate')}</span>
                       <span className="font-medium text-black text-xs">
                         {new Date(range.startDate).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">End Date:</span>
+                      <span className="text-gray-600">{tRange('endDate')}</span>
                       <span className="font-medium text-black text-xs">
                         {new Date(range.endDate).toLocaleDateString()}
                       </span>
@@ -313,20 +320,20 @@ export default function RangeManagement({
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div className="text-xs text-gray-500">
-                      Created: {new Date(range.createdAt).toLocaleDateString()}
+                      {tRange('created')} {new Date(range.createdAt).toLocaleDateString()}
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(range)}
                         className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs"
-                        title="Edit Range"
+                        title={tRange('editRange')}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(range.id)}
                         className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs"
-                        title="Delete Range"
+                        title={tRange('deleteRange')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -398,23 +405,23 @@ export default function RangeManagement({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-black mb-4">
-              Delete Date Range
+              {tRange('deleteTitle')}
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete &quot;{itemToDelete?.name}&quot;? This action cannot be undone.
+              {tRange('deleteConfirm', { name: itemToDelete?.name ?? '' })}
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleDeleteCancel}
                 className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
-                Delete
+                {tShared('delete')}
               </button>
             </div>
           </div>

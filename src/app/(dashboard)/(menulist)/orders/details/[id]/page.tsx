@@ -5,7 +5,10 @@ import OrderDetails from '@/components/ordershipment/OrderDetails';
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 
+import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
+
 export default function OrderDetailsPage() {
+  const { tDetailsPage } = useOrdersTranslations();
   const user = useUserStore(state => state.user);
   const params = useParams();
   const router = useRouter();
@@ -67,7 +70,7 @@ export default function OrderDetailsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
             <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading order details...</p>
+              <p className="text-gray-600">{tDetailsPage('loading')}</p>
         </div>
       </div>
     );
@@ -78,13 +81,13 @@ export default function OrderDetailsPage() {
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="w-full mx-auto">
           <div className="text-center py-12">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Order Not Found</h2>
-            <p className="text-gray-600 mb-4">The order you're looking for doesn't exist.</p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">{tDetailsPage('notFoundTitle')}</h2>
+            <p className="text-gray-600 mb-4">{tDetailsPage('notFoundDescription')}</p>
             <button
               onClick={handleBack}
               className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
-              Back to Orders
+              {tDetailsPage('backToOrders')}
             </button>
           </div>
         </div>

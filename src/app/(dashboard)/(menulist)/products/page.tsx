@@ -14,6 +14,7 @@ import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
 import { fetchGraphQL } from "@/lib/graphqlClient";
 import { useProductUpdateSocket } from '@/hooks/useProductUpdateSocket';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -28,6 +29,7 @@ function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
 
 export default function ProductsPage() {
   const router = useRouter();
+  const { tList } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || 'IDR';
   const [products, setProducts] = useState<Product[]>([]);
@@ -118,7 +120,7 @@ export default function ProductsPage() {
     if (products.length > 0) {
       setIsSlidingOut(false);
       setIsSlidingIn(true);
-      setOverlayMessage('Refreshing product data');
+      setOverlayMessage(tList('refreshingOverlay'));
     }
     
     try {
@@ -140,10 +142,10 @@ export default function ProductsPage() {
 
       const productsData = data.products.nodes;
         setProducts(productsData);
-        setOverlayMessage(`Showing product data (${productsData.length} products loaded)`);
+        setOverlayMessage(tList('loadedOverlay', { count: productsData.length }));
     } catch (error) {
       setProducts([]);
-      setOverlayMessage('Error loading products');
+      setOverlayMessage(tList('errorOverlay'));
     } finally {
       setLoading(false);
       
@@ -170,7 +172,7 @@ export default function ProductsPage() {
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
     setIsSlidingIn(true);
-    setOverlayMessage('Loading product data...');
+    setOverlayMessage(tList('loadingOverlay'));
     
     fetchProducts();
     
@@ -392,7 +394,7 @@ export default function ProductsPage() {
       setIsImportModalOpen(false);
       
       // Show success overlay
-      setOverlayMessage(`Successfully imported ${data.length} products`);
+      setOverlayMessage(tList('importSuccess', { count: data.length }));
       setIsSlidingIn(true);
       setShowOverlay(true);
       
@@ -412,7 +414,7 @@ export default function ProductsPage() {
        
     } catch (error) {
       // Show error overlay
-      setOverlayMessage('Failed to import products');
+      setOverlayMessage(tList('importFailed'));
       setIsSlidingIn(true);
       setShowOverlay(true);
       
@@ -495,7 +497,7 @@ export default function ProductsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading products...</p>
+          <p className="text-gray-600">{tList('loading')}</p>
         </div>
       </div>
     );
@@ -506,8 +508,8 @@ export default function ProductsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div data-tour="products-page-header">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Products</h1>
-          <p className="text-sm text-gray-500 mb-4">Manage your product catalog and inventory</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tList('title')}</h1>
+          <p className="text-sm text-gray-500 mb-4">{tList('subtitle')}</p>
         </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-3" data-tour="products-actions">
@@ -517,7 +519,7 @@ export default function ProductsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <RefreshCcw className="w-4 h-4" />
-            Refresh
+            {tList('refresh')}
           </button>
 
           {/* Import Button */}
@@ -535,7 +537,7 @@ export default function ProductsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
-            Export Data
+            {tList('exportData')}
           </button>
 
           {/* Add Product Button */}
@@ -543,7 +545,7 @@ export default function ProductsPage() {
             onClick={() => router.push('/products/add')}
             className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
           >
-            + Add Product
+            {tList('addProduct')}
           </button>
         </div>
       </div>
@@ -571,7 +573,7 @@ export default function ProductsPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               <p className="text-xs text-gray-500">
-                {loading ? 'Please wait...' : `${products.length} product${products.length !== 1 ? 's' : ''} loaded`}
+                {loading ? tList('pleaseWait') : products.length === 1 ? tList('productsLoaded', { count: products.length }) : tList('productsLoadedPlural', { count: products.length })}
               </p>
             </div>
           </div>

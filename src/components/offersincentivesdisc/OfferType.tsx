@@ -6,6 +6,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { useOfferCreationStore } from '@/store/offerCreationStore';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import CreateOfferTypeModal from './CreateOfferTypeModal';
 
 interface DiscountTypeData {
@@ -66,6 +67,7 @@ export default function OfferType({
   onUpdateDiscountType,
   onRemoveDiscountType
 }: OfferTypeProps) {
+  const { tType, tShared } = useOffersTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -88,20 +90,28 @@ export default function OfferType({
   
   // Convert discount types to display format - memoized to avoid recalculation
   const offerTypes: OfferType[] = useMemo(() => {
-    return displayDiscountTypes.map((dt: DiscountTypeData, index: number) => {
-    return {
-      id: dt.id,
-      name: dt.name || `${dt.discountType === 'percentage' ? 'Percentage' : dt.discountType === 'fixed' ? 'Fixed Amount' : 'Buy X Get Y'} Discount`,
-      description: dt.description || `${dt.discountType === 'percentage' ? `${dt.discountValue}% off` : dt.discountType === 'fixed' ? `${formatCurrency(dt.discountValue, userCurrency)} off` : `Buy ${dt.discountValue} get 1 free`}`,
-      discountType: dt.discountType,
-      discountValue: dt.discountValue,
-      minOrderValue: dt.minOrderValue,
-      minQuantity: dt.minQuantity,
-      isActive: dt.isActive,
-      createdAt: new Date().toISOString(),
-    };
-  });
-  }, [displayDiscountTypes, userCurrency]);
+    return displayDiscountTypes.map((dt: DiscountTypeData) => {
+      const defaultName = tType(`defaultNames.${dt.discountType}`);
+      const defaultDescription =
+        dt.discountType === 'percentage'
+          ? tType('defaultDescriptions.percentage', { value: dt.discountValue })
+          : dt.discountType === 'fixed'
+          ? tType('defaultDescriptions.fixed', { value: formatCurrency(dt.discountValue, userCurrency) })
+          : tType('defaultDescriptions.buy_x_get_y', { value: dt.discountValue });
+
+      return {
+        id: dt.id,
+        name: dt.name || defaultName,
+        description: dt.description || defaultDescription,
+        discountType: dt.discountType,
+        discountValue: dt.discountValue,
+        minOrderValue: dt.minOrderValue,
+        minQuantity: dt.minQuantity,
+        isActive: dt.isActive,
+        createdAt: new Date().toISOString(),
+      };
+    });
+  }, [displayDiscountTypes, userCurrency, tType]);
 
   // No API calls needed - data comes from store
 
@@ -204,8 +214,8 @@ export default function OfferType({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">Offer Types</h2>
-          <p className="text-gray-500 text-sm">Configure different types of discounts and promotions</p>
+          <h2 className="text-xl font-bold text-black">{tType('title')}</h2>
+          <p className="text-gray-500 text-sm">{tType('subtitle')}</p>
         </div>
         {offerTypes.length > 0 && offerTypes.length < 3 && (
         <button
@@ -213,7 +223,7 @@ export default function OfferType({
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
         >
           <Plus className="w-4 h-4" />
-          Create Type
+          {tType('createType')}
         </button>
         )}
       </div>
@@ -226,16 +236,16 @@ export default function OfferType({
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Target className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Offer Type Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{tType('emptyTitle')}</h3>
           <p className="text-gray-500 text-sm mb-6">
-            Create an offer type to define the discount or promotion rules for your offer.
+            {tType('emptyDescription')}
           </p>
           <button
             onClick={() => onOpenCreateModal ? onOpenCreateModal() : setShowCreateModal(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Create Type
+            {tType('createType')}
           </button>
         </div>
       ) : (
@@ -259,27 +269,27 @@ export default function OfferType({
                       ? 'bg-green-500 border-green-500' 
                       : 'bg-white border-gray-300'
                   }`}
-                  title={type.isActive ? 'Active' : 'Inactive'}
+                  title={type.isActive ? tType('active') : tType('inactive')}
                 />
               </div>
             </div>
 
             <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600">Discount Value:</span>
+                <span className="text-xs text-gray-600">{tType('discountValue')}</span>
                 <span className="font-medium text-black text-xs">
                   {type.discountType === 'percentage' 
                     ? `${type.discountValue}%` 
                     : type.discountType === 'fixed'
                     ? formatCurrency(type.discountValue, userCurrency)
-                    : `Get ${type.discountValue} free`
+                    : tType('getFree', { count: type.discountValue })
                   }
                 </span>
               </div>
 
               {type.minOrderValue && type.discountType !== 'buy_x_get_y' && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Min. Order:</span>
+                  <span className="text-xs text-gray-600">{tType('minOrder')}</span>
                   <span className="font-medium text-black text-xs">
                     {renderCurrency(type.minOrderValue)}
                   </span>
@@ -288,8 +298,8 @@ export default function OfferType({
 
               {type.minQuantity && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">Min. Quantity:</span>
-                  <span className="font-medium text-black text-xs">{type.minQuantity} items</span>
+                  <span className="text-xs text-gray-600">{tType('minQuantity')}</span>
+                  <span className="font-medium text-black text-xs">{type.minQuantity} {tType('items')}</span>
                 </div>
               )}
 
@@ -300,20 +310,20 @@ export default function OfferType({
 
             <div className="flex items-center justify-between pt-4 border-t border-[#e6e6e6]">
               <div className="text-xs text-gray-500">
-                Created: {new Date(type.createdAt).toLocaleDateString()}
+                {tType('created')} {new Date(type.createdAt).toLocaleDateString()}
               </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleEdit(type)}
                   className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs"
-                  title="Edit Type"
+                  title={tType('editType')}
                 >
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(type.id)}
                   className="p-2 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors text-xs"
-                  title="Delete Type"
+                  title={tType('deleteType')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -402,22 +412,22 @@ export default function OfferType({
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-black mb-4">Delete Discount Type</h3>
+            <h3 className="text-lg font-semibold text-black mb-4">{tType('deleteTitle')}</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete &quot;{typeToDelete?.name}&quot;? This action cannot be undone.
+              {tType('deleteConfirm', { name: typeToDelete?.name ?? '' })}
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleDeleteCancel}
                 className="px-4 py-2 text-gray-600 hover:text-black border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
-                Delete
+                {tShared('delete')}
               </button>
             </div>
           </div>

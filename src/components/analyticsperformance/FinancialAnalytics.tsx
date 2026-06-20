@@ -1510,13 +1510,21 @@ const FinancialAnalytics: React.FC = () => {
 
 // ===== REUSABLE COMPONENTS FOR ANALYTICS PAGES =====
 
-function MetricChangeFooter({ change }: { change: number | null }) {
+function MetricChangeFooter({
+  change,
+  comparisonLabel = 'vs last month',
+  naLabel = 'N/A',
+}: {
+  change: number | null;
+  comparisonLabel?: string;
+  naLabel?: string;
+}) {
   if (change === null || change === undefined) {
     return (
       <>
         <ArrowRight className="w-5 h-5 text-gray-400" />
-        <span className="text-gray-400 text-xs font-semibold">N/A</span>
-        <span className="text-gray-400 text-xs">vs last month</span>
+        <span className="text-gray-400 text-xs font-semibold">{naLabel}</span>
+        <span className="text-gray-400 text-xs">{comparisonLabel}</span>
       </>
     );
   }
@@ -1526,7 +1534,7 @@ function MetricChangeFooter({ change }: { change: number | null }) {
       <>
         <ArrowRight className="w-5 h-5 text-gray-400" />
         <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-        <span className="text-gray-400 text-xs">vs last month</span>
+        <span className="text-gray-400 text-xs">{comparisonLabel}</span>
       </>
     );
   }
@@ -1545,7 +1553,7 @@ function MetricChangeFooter({ change }: { change: number | null }) {
       >
         {Math.abs(change).toFixed(1)}%
       </span>
-      <span className="text-gray-400 text-xs">vs last month</span>
+      <span className="text-gray-400 text-xs">{comparisonLabel}</span>
     </>
   );
 }
@@ -1557,7 +1565,17 @@ export const AnalyticsMetricCard: React.FC<{
   change: number | null;
   icon: React.ReactNode;
   color: string;
-}> = ({ title, value, change, icon, color }) => (
+  comparisonLabel?: string;
+  naLabel?: string;
+}> = ({
+  title,
+  value,
+  change,
+  icon,
+  color,
+  comparisonLabel = 'vs last month',
+  naLabel = 'N/A',
+}) => (
   <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
     <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
       <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
@@ -1569,7 +1587,7 @@ export const AnalyticsMetricCard: React.FC<{
       </div>
     </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      <MetricChangeFooter change={change} />
+      <MetricChangeFooter change={change} comparisonLabel={comparisonLabel} naLabel={naLabel} />
     </div>
   </div>
 );

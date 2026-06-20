@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Save } from 'lucide-react';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
 interface DateRangeData {
   name: string;
@@ -43,6 +44,7 @@ export default function CreateDateRangeModal({
   editingRange,
   onSave,
 }: CreateDateRangeModalProps) {
+  const { tDateRangeModal, tShared } = useOffersTranslations();
   const [saving, setSaving] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [formData, setFormData] = useState<DateRangeData>(() => getInitialDateRangeData(editingRange));
@@ -81,9 +83,9 @@ export default function CreateDateRangeModal({
     const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
-    if (diffDays < 0) return 'Invalid range';
-    if (diffDays === 1) return '1 day';
-    return `${diffDays} days`;
+    if (diffDays < 0) return tDateRangeModal('invalidRangeShort');
+    if (diffDays === 1) return tDateRangeModal('oneDay');
+    return tDateRangeModal('daysCount', { count: diffDays });
   };
 
   const isDateRangeValid = () => {
@@ -104,10 +106,10 @@ export default function CreateDateRangeModal({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-black">
-                {editingRange ? 'Edit Date Range' : 'Create Date Range'}
+                {editingRange ? tDateRangeModal('editTitle') : tDateRangeModal('createTitle')}
               </h3>
               <p className="text-gray-500 text-sm">
-                {editingRange ? 'Update your date range settings' : 'Set when your offer will be active'}
+                {editingRange ? tDateRangeModal('editSubtitle') : tDateRangeModal('createSubtitle')}
               </p>
             </div>
           </div>
@@ -123,29 +125,29 @@ export default function CreateDateRangeModal({
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Basic Information */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Basic Information</h4>
+            <h4 className="text-md font-semibold text-black">{tDateRangeModal('basicInfo')}</h4>
             
             <div>
               <label className="block text-xs font-medium text-black mb-1">
-                Range Name *
+                {tDateRangeModal('rangeName')}
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="e.g., Summer Sale 2024"
+                placeholder={tDateRangeModal('rangeNamePlaceholder')}
                 className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-black mb-1">
-                Description
+                {tDateRangeModal('description')}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Brief description of this date range..."
+                placeholder={tDateRangeModal('descriptionPlaceholder')}
                 rows={3}
                 className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg text-black resize-none"
               />
@@ -154,12 +156,12 @@ export default function CreateDateRangeModal({
 
           {/* Date Selection */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Date Period *</h4>
+            <h4 className="text-md font-semibold text-black">{tDateRangeModal('datePeriod')}</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  Start Date *
+                  {tDateRangeModal('startDate')}
                 </label>
                 <input
                   type="date"
@@ -171,7 +173,7 @@ export default function CreateDateRangeModal({
 
               <div>
                 <label className="block text-xs font-medium text-black mb-1">
-                  End Date *
+                  {tDateRangeModal('endDate')}
                 </label>
                 <input
                   type="date"
@@ -196,15 +198,19 @@ export default function CreateDateRangeModal({
                   <span className={`text-sm font-medium ${
                     isDateRangeValid() ? 'text-green-700' : 'text-red-700'
                   }`}>
-                    {isDateRangeValid() ? 'Range Duration' : 'Invalid Date Range'}
+                    {isDateRangeValid() ? tDateRangeModal('rangeDuration') : tDateRangeModal('invalidRange')}
                   </span>
                 </div>
                 <p className={`text-xs mt-1 ${
                   isDateRangeValid() ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {isDateRangeValid() 
-                    ? `${getDateRangeDuration()} from ${new Date(formData.startDate).toLocaleDateString()} to ${new Date(formData.endDate).toLocaleDateString()}`
-                    : 'End date must be after start date'
+                    ? tDateRangeModal('durationFromTo', {
+                        duration: getDateRangeDuration(),
+                        start: new Date(formData.startDate).toLocaleDateString(),
+                        end: new Date(formData.endDate).toLocaleDateString(),
+                      })
+                    : tDateRangeModal('invalidRangeHint')
                   }
                 </p>
               </div>
@@ -213,24 +219,24 @@ export default function CreateDateRangeModal({
 
           {/* Quick Date Presets */}
           <div className="space-y-2">
-            <h4 className="text-md font-semibold text-black">Quick Presets</h4>
+            <h4 className="text-md font-semibold text-black">{tDateRangeModal('quickPresets')}</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {[
-                { label: '1 Week', days: 7 },
-                { label: '2 Weeks', days: 14 },
-                { label: '1 Month', days: 30 },
-                { label: '3 Months', days: 90 }
-              ].map((preset) => {
-                const isSelected = selectedPreset === preset.label;
+              {([
+                { key: 'preset1Week', days: 7 },
+                { key: 'preset2Weeks', days: 14 },
+                { key: 'preset1Month', days: 30 },
+                { key: 'preset3Months', days: 90 },
+              ] as const).map((preset) => {
+                const isSelected = selectedPreset === preset.key;
                 return (
                   <button
-                    key={preset.label}
+                    key={preset.key}
                     onClick={() => {
                       const start = new Date(formData.startDate);
                       const end = new Date(start);
                       end.setDate(start.getDate() + preset.days);
                       handleInputChange('endDate', end.toISOString().split('T')[0]);
-                      setSelectedPreset(preset.label);
+                      setSelectedPreset(preset.key);
                     }}
                     className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                       isSelected
@@ -238,7 +244,7 @@ export default function CreateDateRangeModal({
                         : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-black'
                     }`}
                   >
-                    {preset.label}
+                    {tDateRangeModal(preset.key)}
                   </button>
                 );
               })}
@@ -252,7 +258,7 @@ export default function CreateDateRangeModal({
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
           >
-            Cancel
+            {tShared('cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -262,11 +268,11 @@ export default function CreateDateRangeModal({
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {editingRange ? 'Updating...' : 'Creating...'}
+                {editingRange ? tDateRangeModal('updating') : tDateRangeModal('creating')}
               </>
             ) : (
               <>
-                {editingRange ? 'Update Range' : 'Create Range'}
+                {editingRange ? tDateRangeModal('updateRange') : tDateRangeModal('createRange')}
               </>
             )}
           </button>

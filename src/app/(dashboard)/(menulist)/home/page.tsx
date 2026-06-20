@@ -50,6 +50,7 @@ import {
   MapCoordinates,
   getOrderStatusMarkerColor,
 } from '@/utils/mapboxUtils';
+import { useHomeTranslations } from './useHomeTranslations';
 
 type WidgetId =
   | 'analytics'
@@ -63,8 +64,6 @@ type WidgetId =
 
 interface WidgetDefinition {
   id: WidgetId;
-  name: string;
-  description: string;
   defaultActive: boolean;
   icon: LucideIcon;
 }
@@ -72,57 +71,41 @@ interface WidgetDefinition {
 const WIDGET_LIBRARY: WidgetDefinition[] = [
   {
     id: 'analytics',
-    name: 'Analytics Overview',
-    description: 'Monitor revenue growth and sales momentum at a glance.',
     defaultActive: true,
     icon: Activity,
   },
   {
     id: 'orders',
-    name: 'Orders Pipeline',
-    description: 'Track latest orders, statuses, and order value trends.',
     defaultActive: true,
     icon: ShoppingCart,
   },
   {
     id: 'products',
-    name: 'Product Performance',
-    description: 'See which catalog items generate the most revenue.',
     defaultActive: true,
     icon: Package,
   },
   {
     id: 'inventory',
-    name: 'Inventory Alerts',
-    description: 'Highlight stock risks and replenishment priorities.',
     defaultActive: true,
     icon: Layers,
   },
   {
     id: 'buyers',
-    name: 'Buyer Engagement',
-    description: 'Understand buyer activity, retention, and top spenders.',
     defaultActive: true,
     icon: Users,
   },
   {
     id: 'suppliers',
-    name: 'Supplier Network',
-    description: 'Stay aligned with supplier capacity and reliability.',
     defaultActive: true,
     icon: Building2,
   },
   {
     id: 'logistics',
-    name: 'Logistics Tracking',
-    description: 'Visualize shipment routes and delivery milestones.',
     defaultActive: false,
     icon: Globe2,
   },
   {
     id: 'marketing',
-    name: 'Marketing Performance',
-    description: 'Teams, campaigns, and channel performance at a glance.',
     defaultActive: false,
     icon: Megaphone,
   },
@@ -941,6 +924,16 @@ const resolveProductStock = (product: Product) => {
 };
 
 export default function HomePage() {
+  const {
+    t,
+    tCommon,
+    formatOrderDate,
+    widgetName,
+    widgetDescription,
+    widgetText,
+    translateOrderStatus,
+    translateRecordStatus,
+  } = useHomeTranslations();
   const { user } = useUserStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -1139,28 +1132,28 @@ export default function HomePage() {
         }
 
         if (!response.ok) {
-          throw new Error('Unable to load dashboard data');
+          throw new Error(t('loadErrorFallback'));
         }
 
         const responseText = await response.text();
         if (!responseText || responseText.trim().length === 0) {
-          throw new Error('Empty response from server');
+          throw new Error(t('loadErrorFallback'));
         }
 
         let payload;
         try {
           payload = JSON.parse(responseText);
         } catch (parseError) {
-          throw new Error('Invalid response format from server');
+          throw new Error(t('loadErrorFallback'));
         }
 
         if (payload.errors && payload.errors.length > 0) {
-          throw new Error(payload.errors[0]?.message || 'Failed to load dashboard data');
+          throw new Error(payload.errors[0]?.message || t('loadErrorFallback'));
         }
 
         const snapshot = payload.data?.dashboardSnapshot;
         if (!snapshot) {
-          throw new Error('Dashboard data unavailable');
+          throw new Error(t('loadErrorFallback'));
         }
 
         // Extract aggregates from server response (calculated from ALL orders, not just paginated subset)
@@ -1262,7 +1255,7 @@ export default function HomePage() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : 'Failed to load dashboard data',
+              : t('loadErrorFallback'),
           );
           setOrders([]);
           setProducts([]);
@@ -1710,7 +1703,7 @@ const supplierInsights = useMemo(() => {
     return [
       {
         id: 'orderVolume',
-        title: 'Order Volume',
+        title: t('stats.orderVolume'),
         value: formatCurrency(totalRevenue, userCurrency),
         change: orderGrowth.orderVolumeGrowth,
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
@@ -1718,7 +1711,7 @@ const supplierInsights = useMemo(() => {
       },
       {
         id: 'totalOrders',
-        title: 'Total Orders',
+        title: t('stats.totalOrders'),
         value: totalOrderCount.toLocaleString(),
         change: orderGrowth.ordersGrowth,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
@@ -1726,7 +1719,7 @@ const supplierInsights = useMemo(() => {
       },
       {
         id: 'piecesSold',
-        title: 'Pieces Sold',
+        title: t('stats.piecesSold'),
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
         change: orderGrowth.piecesGrowth,
         icon: <Package className="w-6 h-6 text-purple-600" />,
@@ -1734,7 +1727,7 @@ const supplierInsights = useMemo(() => {
       },
       {
         id: 'averageOrderVolume',
-        title: 'Average Order Volume',
+        title: t('stats.averageOrderVolume'),
         value: formatCurrency(averageOrderVolume, userCurrency),
         change: orderGrowth.averageOrderVolumeGrowth,
         icon: <DollarSign className="w-6 h-6 text-emerald-600" />,
@@ -1750,6 +1743,7 @@ const supplierInsights = useMemo(() => {
     userCurrency,
     orders.length,
     orderGrowth,
+    t,
   ]);
 
   const handleDragStart = (
@@ -1907,13 +1901,13 @@ const supplierInsights = useMemo(() => {
     switch (id) {
       case 'analytics':
         return {
-          subtitle: 'Revenue performance over time',
+          subtitle: widgetText('analytics', 'subtitle'),
           action: (
             <Link
               href="/analytics"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              Open analytics hub
+              {widgetText('analytics', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -1921,10 +1915,10 @@ const supplierInsights = useMemo(() => {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span className="font-semibold uppercase tracking-wide text-gray-600">
-                  This year
+                  {widgetText('analytics', 'thisYear')}
                 </span>
                 <span>
-                  Total order volume:{' '}
+                  {widgetText('analytics', 'totalOrderVolume')}{' '}
                   <span className="font-semibold text-black">
                     {formatCurrency(totalRevenue, userCurrency)}
                   </span>
@@ -1940,13 +1934,13 @@ const supplierInsights = useMemo(() => {
         };
       case 'orders':
         return {
-          subtitle: 'Showing 4 latest customer activity and order status',
+          subtitle: widgetText('orders', 'subtitle'),
           action: (
             <Link
               href="/orders"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              View all orders
+              {widgetText('orders', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -1954,20 +1948,16 @@ const supplierInsights = useMemo(() => {
             <div className="flex h-90 flex-col items-center justify-center rounded-lg">
               <ShoppingCart className="mb-3 h-10 w-10 text-gray-300" />
               <p className="text-sm font-semibold text-gray-600">
-                No orders recorded yet
+                {widgetText('orders', 'emptyTitle')}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                Create your first order to start tracking activity here.
+                {widgetText('orders', 'emptyHint')}
               </p>
             </div>
           ) : (
             <ul className="space-y-3">
               {recentOrders.map((order) => {
-                const orderDate = new Intl.DateTimeFormat('en-US', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                }).format(order.orderDate);
+                const orderDate = formatOrderDate(order.orderDate);
                 const statusClass = statusStyles[order.orderStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200';
                 return (
                   <li
@@ -1986,7 +1976,7 @@ const supplierInsights = useMemo(() => {
                       <span
                         className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}
                       >
-                        {order.orderStatus}
+                        {translateOrderStatus(order.orderStatus)}
                       </span>
                     </div>
                     <div className="flex items-end justify-between">
@@ -1997,7 +1987,7 @@ const supplierInsights = useMemo(() => {
                         href={`/orders/details/${order.orderId}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
                       >
-                        Details
+                        {tCommon('details')}
                         <ArrowRight className="w-4 h-4" />
                       </Link>
                     </div>
@@ -2009,13 +1999,13 @@ const supplierInsights = useMemo(() => {
         };
       case 'products':
         return {
-          subtitle: 'Products ranked by order volume',
+          subtitle: widgetText('products', 'subtitle'),
           action: (
             <Link
               href="/products"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              Manage catalog
+              {widgetText('products', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2025,10 +2015,10 @@ const supplierInsights = useMemo(() => {
                 <div className="flex h-60 flex-col items-center justify-center rounded-lg">
                   <Package className="mb-3 h-10 w-10 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
-                    No product performance yet
+                    {widgetText('products', 'emptyTitle')}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Add products and record orders to see insights here.
+                    {widgetText('products', 'emptyHint')}
                   </p>
                 </div>
               ) : (
@@ -2072,19 +2062,19 @@ const supplierInsights = useMemo(() => {
                           </div>
                           <div className="ml-auto flex items-center gap-6 text-sm">
                             <div className="text-right">
-                              <p className="text-xs text-gray-500">Order Volume</p>
+                              <p className="text-xs text-gray-500">{widgetText('products', 'orderVolume')}</p>
                               <p className="text-sm font-semibold text-black">
                                 {formatCurrency(product.orderVolume, userCurrency)}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-gray-500">Pieces</p>
+                              <p className="text-xs text-gray-500">{tCommon('pieces')}</p>
                               <p className="text-sm font-semibold text-black">
                                 {product.unitsSold.toLocaleString()}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-gray-500">Margin</p>
+                              <p className="text-xs text-gray-500">{widgetText('products', 'margin')}</p>
                               <p
                                 className={`text-sm font-semibold ${
                                   product.margin >= 0 ? 'text-emerald-600' : 'text-rose-600'
@@ -2111,13 +2101,13 @@ const supplierInsights = useMemo(() => {
         };
       case 'buyers':
         return {
-          subtitle: 'Monitor buyer growth and engagement',
+          subtitle: widgetText('buyers', 'subtitle'),
           action: (
             <Link
               href="/clients/buyers"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              Manage buyers
+              {widgetText('buyers', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2125,33 +2115,35 @@ const supplierInsights = useMemo(() => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Total buyers</p>
+                  <p className="text-xs text-gray-500">{widgetText('buyers', 'totalBuyers')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {buyerInsights.totalBuyers.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Active:{' '}
+                    {tCommon('active')}:{' '}
                     <span className="font-semibold text-black">
                       {buyerInsights.activeBuyers.toLocaleString()}
                     </span>
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Avg. order value</p>
+                  <p className="text-xs text-gray-500">{widgetText('buyers', 'avgOrderValue')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {formatCurrency(safeSalesMetrics.avgOrderValue, userCurrency)}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across {safeSalesMetrics.totalOrders.toLocaleString()} orders
+                    {t('widgets.buyers.acrossOrders', {
+                      count: safeSalesMetrics.totalOrders.toLocaleString(),
+                    })}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Pieces sold</p>
+                  <p className="text-xs text-gray-500">{widgetText('buyers', 'piecesSold')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {safeSalesMetrics.totalPiecesSold.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Units {safeSalesMetrics.totalUnitsSold.toLocaleString()}
+                    {tCommon('units')} {safeSalesMetrics.totalUnitsSold.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -2159,16 +2151,16 @@ const supplierInsights = useMemo(() => {
                 <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Users className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
-                    No buyer activity yet
+                    {widgetText('buyers', 'emptyTitle')}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Invite buyers or record orders to populate this list.
+                    {widgetText('buyers', 'emptyHint')}
                   </p>
                 </div>
               ) : (
                 <div>
                   <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Top buyers by revenue
+                    {widgetText('buyers', 'topBuyers')}
                   </h3>
                   <ul className="space-y-3">
                     {buyerInsights.topBuyers.map((buyer, index) => (
@@ -2185,25 +2177,25 @@ const supplierInsights = useMemo(() => {
                               {buyer.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {buyer.status}
+                              {translateRecordStatus(buyer.status)}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-6 text-sm">
                           <div className="text-right">
-                            <p className="text-xs text-gray-500">Orders</p>
+                            <p className="text-xs text-gray-500">{tCommon('orders')}</p>
                             <p className="font-semibold text-black">
                               {buyer.orders.toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-gray-500">Revenue</p>
+                            <p className="text-xs text-gray-500">{tCommon('revenue')}</p>
                             <p className="font-semibold text-black">
                               {formatCurrency(buyer.revenue, userCurrency)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-gray-500">Pieces</p>
+                            <p className="text-xs text-gray-500">{tCommon('pieces')}</p>
                             <p className="font-semibold text-black">
                               {buyer.pieces.toLocaleString()}
                             </p>
@@ -2219,13 +2211,13 @@ const supplierInsights = useMemo(() => {
         };
       case 'suppliers':
         return {
-          subtitle: 'Supplier reliability and fulfillment performance',
+          subtitle: widgetText('suppliers', 'subtitle'),
           action: (
             <Link
               href="/clients/suppliers"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              Manage suppliers
+              {widgetText('suppliers', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2233,28 +2225,28 @@ const supplierInsights = useMemo(() => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Total suppliers</p>
+                  <p className="text-xs text-gray-500">{widgetText('suppliers', 'totalSuppliers')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {supplierInsights.totalSuppliers.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Active:{' '}
+                    {tCommon('active')}:{' '}
                     <span className="font-semibold text-black">
                       {supplierInsights.activeSuppliers.toLocaleString()}
                     </span>
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">On-time delivery</p>
+                  <p className="text-xs text-gray-500">{widgetText('suppliers', 'onTimeDelivery')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {supplierInsights.onTimeRate}%
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-600">
-                    Goal ≥ 90%
+                    {widgetText('suppliers', 'goal')}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Top supplier value</p>
+                  <p className="text-xs text-gray-500">{widgetText('suppliers', 'topSupplierValue')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
                     {formatCurrency(
                       supplierInsights.topSuppliers[0]?.value ?? 0,
@@ -2270,16 +2262,16 @@ const supplierInsights = useMemo(() => {
                 <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Building2 className="mb-3 h-8 w-8 text-gray-300" />
                   <p className="text-sm font-semibold text-gray-600">
-                    Supplier data not yet available
+                    {widgetText('suppliers', 'emptyTitle')}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Add suppliers or sync purchase orders to populate this view.
+                    {widgetText('suppliers', 'emptyHint')}
                   </p>
                 </div>
               ) : (
                 <div>
                   <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Priority suppliers
+                    {widgetText('suppliers', 'prioritySuppliers')}
                   </h3>
                   <ul className="space-y-3">
                         {supplierInsights.topSuppliers.map((supplier, index) => (
@@ -2296,12 +2288,12 @@ const supplierInsights = useMemo(() => {
                               {supplier.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {supplier.status}
+                              {translateRecordStatus(supplier.status)}
                             </p>
                           </div>
                         </div>
                         <div className="text-right text-sm">
-                          <p className="text-xs text-gray-500">Fulfillment value</p>
+                          <p className="text-xs text-gray-500">{widgetText('suppliers', 'fulfillmentValue')}</p>
                           <p className="font-semibold text-black">
                             {formatCurrency(supplier.value, userCurrency)}
                           </p>
@@ -2316,13 +2308,13 @@ const supplierInsights = useMemo(() => {
         };
       case 'logistics':
         return {
-          subtitle: 'Logistics tracking and delivery milestones',
+          subtitle: widgetText('logistics', 'subtitle'),
           action: (
             <Link
               href="/orders"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              View logistics
+              {widgetText('logistics', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2330,25 +2322,25 @@ const supplierInsights = useMemo(() => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Total shipments</p>
+                  <p className="text-xs text-gray-500">{widgetText('logistics', 'totalShipments')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {orders.filter(order => order.deliveryMethod === 'Seller/Distributor Delivery').length.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Seller / Distributor Delivery
+                    {widgetText('logistics', 'sellerDelivery')}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Delivered</p>
+                  <p className="text-xs text-gray-500">{widgetText('logistics', 'delivered')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {logisticsMetrics.deliveredCount.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-600">
-                    Shipments
+                    {widgetText('logistics', 'shipments')}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">On-time delivery</p>
+                  <p className="text-xs text-gray-500">{widgetText('logistics', 'onTimeDelivery')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {logisticsMetrics.deliveredWithEstimatedCount === 0
                       ? '—'
@@ -2356,37 +2348,44 @@ const supplierInsights = useMemo(() => {
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
                     {logisticsMetrics.deliveredWithEstimatedCount === 0
-                      ? 'Set estimated dates to measure'
-                      : `${logisticsMetrics.onTimeCount} of ${logisticsMetrics.deliveredWithEstimatedCount} delivered on or before estimated`}
+                      ? widgetText('logistics', 'setEstimatedDates')
+                      : t('widgets.logistics.onTimeSummary', {
+                          onTime: logisticsMetrics.onTimeCount,
+                          total: logisticsMetrics.deliveredWithEstimatedCount,
+                        })}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Avg. delivery time</p>
+                  <p className="text-xs text-gray-500">{widgetText('logistics', 'avgDeliveryTime')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {logisticsMetrics.deliveredCount === 0
                       ? '—'
                       : logisticsMetrics.avgDeliveryDays < 1
-                        ? '< 1 day'
-                        : `${Math.round(logisticsMetrics.avgDeliveryDays * 10) / 10} days`}
+                        ? widgetText('logistics', 'lessThanOneDay')
+                        : t('widgets.logistics.days', {
+                            count: Math.round(logisticsMetrics.avgDeliveryDays * 10) / 10,
+                          })}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across all shipments
+                    {widgetText('logistics', 'acrossShipments')}
                   </p>
                 </div>
               </div>
               <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-black">Active shipments map</p>
+                  <p className="text-sm font-semibold text-black">{widgetText('logistics', 'activeShipmentsMap')}</p>
                   <span className="text-xs text-gray-500">
-                    {logisticsMapMarkers.length.toLocaleString()} location
-                    {logisticsMapMarkers.length === 1 ? '' : 's'}
+                    {logisticsMapMarkers.length.toLocaleString()}{' '}
+                    {logisticsMapMarkers.length === 1
+                      ? widgetText('logistics', 'location')
+                      : widgetText('logistics', 'locations')}
                   </span>
                 </div>
                 {isLogisticsGeocoding && logisticsMapMarkers.length === 0 ? (
                   <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
                     <Loader2 className="mb-3 h-8 w-8 text-gray-400 animate-spin" />
-                    <p className="text-sm font-semibold text-gray-600">Loading shipment locations</p>
-                    <p className="text-xs text-gray-500">Geocoding delivery addresses</p>
+                    <p className="text-sm font-semibold text-gray-600">{widgetText('logistics', 'loadingLocations')}</p>
+                    <p className="text-xs text-gray-500">{widgetText('logistics', 'geocoding')}</p>
                   </div>
                 ) : logisticsMapMarkers.length > 0 ? (
                   <MapComponent
@@ -2400,8 +2399,8 @@ const supplierInsights = useMemo(() => {
                 ) : (
                   <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
                     <MapPin className="mb-3 h-10 w-10 text-gray-400" />
-                    <p className="text-sm font-semibold text-gray-600">No active shipments to display</p>
-                    <p className="text-xs text-gray-500">Orders with delivery addresses will appear here</p>
+                    <p className="text-sm font-semibold text-gray-600">{widgetText('logistics', 'noActiveShipments')}</p>
+                    <p className="text-xs text-gray-500">{widgetText('logistics', 'noActiveShipmentsHint')}</p>
                   </div>
                 )}
               </div>
@@ -2438,13 +2437,13 @@ const supplierInsights = useMemo(() => {
         const lowStockPreview = lowStockItems.slice(0, 3);
  
         return {
-          subtitle: 'Inventory management and stock alerts',
+          subtitle: widgetText('inventory', 'subtitle'),
           action: (
             <Link
               href="/products"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              Manage products
+              {widgetText('inventory', 'manageProducts')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2452,43 +2451,46 @@ const supplierInsights = useMemo(() => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Total products</p>
+                  <p className="text-xs text-gray-500">{widgetText('inventory', 'totalProducts')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {totalProducts.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Active: {activeProductCount.toLocaleString()} | Pieces: {totalPieces.toLocaleString()}
+                    {t('widgets.inventory.activePieces', {
+                      active: activeProductCount.toLocaleString(),
+                      pieces: totalPieces.toLocaleString(),
+                    })}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Low stock</p>
+                  <p className="text-xs text-gray-500">{widgetText('inventory', 'lowStock')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {lowStockItems.length.toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-red-600">
-                    Critical: {criticalLowStockItems.length.toLocaleString()}
+                    {widgetText('inventory', 'critical')}: {criticalLowStockItems.length.toLocaleString()}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">Avg. stock level</p>
+                  <p className="text-xs text-gray-500">{widgetText('inventory', 'avgStockLevel')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
                     {Math.round(averageStock).toLocaleString()}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    Across all products
+                    {widgetText('inventory', 'acrossAllProducts')}
                   </p>
                 </div>
               </div>
               {lowStockPreview.length === 0 ? (
                 <div className="flex h-40 flex-col items-center justify-center rounded-lg">
                   <Layers className="mb-3 h-8 w-8 text-gray-300" />
-                  <p className="text-sm font-semibold text-gray-500">No low-stock products.</p>
-                  <p className="mt-1 text-xs text-gray-400">Low stocks will appear here if there are any.</p>
+                  <p className="text-sm font-semibold text-gray-500">{widgetText('inventory', 'noLowStockTitle')}</p>
+                  <p className="mt-1 text-xs text-gray-400">{widgetText('inventory', 'noLowStockHint')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Top low stock products
+                    {widgetText('inventory', 'topLowStock')}
                   </h3>
                   <ul className="space-y-2">
                     {lowStockPreview.map(({ product: lowStockProduct, totalStock, lowStockThreshold }) => (
@@ -2504,21 +2506,21 @@ const supplierInsights = useMemo(() => {
                             href={`/products/catalog/${lowStockProduct.productId}`}
                             className="text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
                           >
-                            View product
+                            {widgetText('inventory', 'viewProduct')}
                           </Link>
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                           <span>
-                            Stock:{' '}
+                            {widgetText('inventory', 'stock')}:{' '}
                             <span className="font-semibold text-black">{totalStock.toLocaleString()}</span>
                           </span>
                           <span>
-                            Threshold:{' '}
+                            {widgetText('inventory', 'threshold')}:{' '}
                             <span className="font-semibold text-black">{(lowStockThreshold || 0).toLocaleString()}</span>
                           </span>
                           <span>
-                            Status:{' '}
-                            <span className="font-semibold text-red-600">Low stock</span>
+                            {widgetText('inventory', 'statusLabel')}:{' '}
+                            <span className="font-semibold text-red-600">{widgetText('inventory', 'lowStockLabel')}</span>
                           </span>
                         </div>
                       </li>
@@ -2526,7 +2528,9 @@ const supplierInsights = useMemo(() => {
                   </ul>
                   {lowStockItems.length > lowStockPreview.length ? (
                     <p className="text-xs text-gray-500">
-                      {lowStockItems.length - lowStockPreview.length} more product(s) are below threshold.
+                      {t('widgets.inventory.moreBelowThreshold', {
+                        count: lowStockItems.length - lowStockPreview.length,
+                      })}
                     </p>
                   ) : null}
                 </div>
@@ -2540,13 +2544,13 @@ const supplierInsights = useMemo(() => {
         const hasTeams = summary.teams.length > 0 || summary.totalAgents > 0;
         const hasCampaigns = campaignMetrics.totalCampaigns > 0;
         return {
-          subtitle: 'Teams, campaigns, and channel performance',
+          subtitle: widgetText('marketing', 'subtitle'),
           action: (
             <Link
               href="/marketing"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              View marketing
+              {widgetText('marketing', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
@@ -2557,7 +2561,7 @@ const supplierInsights = useMemo(() => {
                 {/* Left: Teams & People */}
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-black">Teams & people</h3>
+                    <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'teamsAndPeople')}</h3>
                     <Users className="h-4 w-4 text-gray-400" />
                   </div>
                   {hasTeams ? (
@@ -2565,21 +2569,21 @@ const supplierInsights = useMemo(() => {
                       <div className="grid grid-cols-3 gap-2">
                         <div className="rounded bg-gray-50 p-2 text-center">
                           <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
-                          <p className="text-[10px] uppercase text-gray-500">Teams</p>
+                          <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'teams')}</p>
                         </div>
                         <div className="rounded bg-gray-50 p-2 text-center">
                           <p className="text-lg font-semibold text-black">{summary.totalAgents}</p>
-                          <p className="text-[10px] uppercase text-gray-500">Agents</p>
+                          <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'agents')}</p>
                         </div>
                         <div className="rounded bg-emerald-50 p-2 text-center">
                           <p className="text-lg font-semibold text-emerald-700">{summary.activeAgents}</p>
-                          <p className="text-[10px] uppercase text-emerald-600">Active</p>
+                          <p className="text-[10px] uppercase text-emerald-600">{tCommon('active')}</p>
                         </div>
                       </div>
                       {summary.teams.length > 0 && (
                         <div className="mt-3 border-t border-gray-100 pt-3">
                           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                            By team
+                            {widgetText('marketing', 'byTeam')}
                           </p>
                           <ul className="space-y-1.5">
                             {summary.teams.slice(0, 4).map((team) => (
@@ -2589,13 +2593,18 @@ const supplierInsights = useMemo(() => {
                               >
                                 <span className="truncate text-gray-800">{team.name}</span>
                                 <span className="ml-2 shrink-0 rounded bg-[#f0f7ff] px-2 py-0.5 text-xs font-medium text-[#0a61d7]">
-                                  {team.memberCount} {team.memberCount === 1 ? 'member' : 'members'}
+                                  {team.memberCount}{' '}
+                                  {team.memberCount === 1
+                                    ? widgetText('marketing', 'member')
+                                    : widgetText('marketing', 'members')}
                                 </span>
                               </li>
                             ))}
                             {summary.teams.length > 4 && (
                               <li className="text-xs text-gray-500">
-                                +{summary.teams.length - 4} more team{summary.teams.length - 4 !== 1 ? 's' : ''}
+                                {summary.teams.length - 4 === 1
+                                  ? t('widgets.marketing.moreTeams', { count: summary.teams.length - 4 })
+                                  : t('widgets.marketing.moreTeamsPlural', { count: summary.teams.length - 4 })}
                               </li>
                             )}
                           </ul>
@@ -2605,8 +2614,8 @@ const supplierInsights = useMemo(() => {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                       <Users className="mb-2 h-8 w-8 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">No teams yet</p>
-                      <p className="mt-1 text-xs text-gray-500">Add teams and agents in Marketing → Team</p>
+                      <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noTeamsTitle')}</p>
+                      <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noTeamsHint')}</p>
                     </div>
                   )}
                 </div>
@@ -2614,7 +2623,7 @@ const supplierInsights = useMemo(() => {
                 {/* Right: Campaigns */}
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-black">Campaigns</h3>
+                    <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'campaigns')}</h3>
                     <Megaphone className="h-4 w-4 text-gray-400" />
                   </div>
                   {hasCampaigns ? (
@@ -2622,50 +2631,50 @@ const supplierInsights = useMemo(() => {
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         <div className="rounded bg-emerald-50 p-2 text-center">
                           <p className="text-lg font-semibold text-emerald-700">{campaignMetrics.totalCampaigns}</p>
-                          <p className="text-[10px] uppercase text-emerald-600">Total</p>
+                          <p className="text-[10px] uppercase text-emerald-600">{tCommon('total')}</p>
                         </div>
                         <div className="rounded bg-amber-50 p-2 text-center">
                           <p className="text-lg font-semibold text-amber-700">{campaignMetrics.plannedCount}</p>
-                          <p className="text-[10px] uppercase text-amber-600">Draft</p>
+                          <p className="text-[10px] uppercase text-amber-600">{tCommon('draft')}</p>
                         </div>
                         <div className="rounded bg-blue-50 p-2 text-center">
                           <p className="text-lg font-semibold text-[#0a61d7]">{campaignMetrics.sentCount}</p>
-                          <p className="text-[10px] uppercase text-[#0a61d7]">Sent</p>
+                          <p className="text-[10px] uppercase text-[#0a61d7]">{tCommon('sent')}</p>
                         </div>
                       </div>
                       {campaignMetrics.sentCount > 0 && (
                         <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Revenue</span>
+                            <span className="text-gray-500">{tCommon('revenue')}</span>
                             <span className="font-semibold text-black">
                               {formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency)}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Recipients reached</span>
+                            <span className="text-gray-500">{widgetText('marketing', 'recipientsReached')}</span>
                             <span className="font-medium text-black">
                               {campaignMetrics.totalRecipientsReached.toLocaleString()}
                             </span>
                           </div>
                           {campaignMetrics.lastSentDate && (
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Last sent</span>
+                              <span className="text-gray-500">{widgetText('marketing', 'lastSent')}</span>
                               <span className="font-medium text-black">
-                                {campaignMetrics.lastSentDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {formatOrderDate(campaignMetrics.lastSentDate)}
                               </span>
                             </div>
                           )}
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Orders</span>
+                            <span className="text-gray-500">{tCommon('orders')}</span>
                             <span className="font-medium text-black">{campaignMetrics.totalOrdersFromCampaigns}</span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Channel</span>
+                            <span className="text-gray-500">{widgetText('marketing', 'channel')}</span>
                             <span className="font-medium text-black">{campaignMetrics.topChannel}</span>
                           </div>
                           {campaignMetrics.totalRecipientsReached > 0 && (
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Conversion</span>
+                              <span className="text-gray-500">{widgetText('marketing', 'conversion')}</span>
                               <span className="font-medium text-black">{campaignMetrics.conversionRatePercent}%</span>
                             </div>
                           )}
@@ -2675,8 +2684,8 @@ const supplierInsights = useMemo(() => {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                       <Megaphone className="mb-2 h-8 w-8 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">No campaigns yet</p>
-                      <p className="mt-1 text-xs text-gray-500">Create and send campaigns in Marketing → Campaigns</p>
+                      <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noCampaignsTitle')}</p>
+                      <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noCampaignsHint')}</p>
                     </div>
                   )}
                 </div>
@@ -2685,11 +2694,11 @@ const supplierInsights = useMemo(() => {
               {/* One-line summary when both have data */}
               {hasTeams && hasCampaigns && (
                 <div className="rounded-lg border border-[#e6e6e6] bg-[#f8fafc] px-4 py-2 text-center text-xs text-gray-600">
-                  <strong className="text-gray-800">{summary.activeAgents}</strong> active agents
-                  {' · '}
-                  <strong className="text-gray-800">{campaignMetrics.sentCount}</strong> campaigns sent
-                  {' · '}
-                  <strong className="text-gray-800">{formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency)}</strong> from campaigns
+                  {t('widgets.marketing.summary', {
+                    agents: summary.activeAgents,
+                    campaigns: campaignMetrics.sentCount,
+                    revenue: formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency),
+                  })}
                 </div>
               )}
             </div>
@@ -2702,10 +2711,10 @@ const supplierInsights = useMemo(() => {
             <div className="flex h-48 flex-col items-center justify-center rounded-lg">
               <Settings2 className="mb-3 h-10 w-10 text-gray-300" />
               <p className="text-sm font-semibold text-gray-600">
-                Widget not found
+                {t('widgetNotFound')}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                This widget is not defined in the library.
+                {t('widgetNotFoundHint')}
               </p>
             </div>
           ),
@@ -2724,10 +2733,10 @@ const supplierInsights = useMemo(() => {
           <div className="col-span-1 sm:col-span-2 flex min-h-[320px] flex-col items-center justify-center rounded-lg bg-white text-center">
             <Settings2 className="mb-3 h-8 w-8 text-[#0a61d7]" />
             <p className="text-sm font-semibold text-black">
-              No widgets selected
+              {t('noWidgetsSelected')}
             </p>
             <p className="text-xs text-gray-500">
-              Use &quot;Drag widgets to rearrange&quot; to add modules to this dashboard.
+              {t('noWidgetsSelectedHint')}
             </p>
           </div>
         )
@@ -2759,7 +2768,7 @@ const supplierInsights = useMemo(() => {
                     <button
                       type="button"
                       className="mt-0.5 text-gray-400 hover:text-[#0a61d7] focus:outline-none"
-                      aria-label="Drag to reorder widget"
+                      aria-label={tCommon('dragToReorder')}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
@@ -2769,7 +2778,7 @@ const supplierInsights = useMemo(() => {
                       </div>
                       <div>
                         <h2 className="text-sm font-semibold text-black">
-                          {meta.name}
+                          {widgetName(id)}
                         </h2>
                         {subtitle ? (
                           <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
@@ -2790,7 +2799,7 @@ const supplierInsights = useMemo(() => {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <p className="text-gray-600">{tCommon('loadingDashboard')}</p>
         </div>
       </div>
     );
@@ -2802,7 +2811,7 @@ const supplierInsights = useMemo(() => {
         <div className="mx-auto max-w-3xl">
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-6">
             <h2 className="text-lg font-semibold text-rose-700">
-              We could not load your dashboard
+              {t('loadErrorTitle')}
             </h2>
             <p className="mt-2 text-sm text-rose-600">{error}</p>
             <button
@@ -2819,7 +2828,7 @@ const supplierInsights = useMemo(() => {
                 setMarketingSummary(null);
               }}
             >
-              Retry
+              {tCommon('retry')}
             </button>
           </div>
         </div>
@@ -2836,16 +2845,16 @@ const supplierInsights = useMemo(() => {
         >
           <div className="flex items-start justify-between p-4 -mb-2">
             <div>
-              <h3 className="text-md font-semibold text-black">Widget Library</h3>
+              <h3 className="text-md font-semibold text-black">{t('widgetLibrary')}</h3>
               <p className="text-xs text-gray-500">
-                Drag widgets above to rearrange or add new modules.
+                {t('widgetLibraryHint')}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsWidgetManagerOpen(false)}
               className="rounded-full border border-gray-200 p-1 text-gray-500 transition hover:border-gray-300 hover:text-black"
-              aria-label="Close widget library"
+              aria-label={tCommon('closeWidgetLibrary')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -2871,16 +2880,16 @@ const supplierInsights = useMemo(() => {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-black">
-                          {widget.name}
+                          {widgetName(widget.id)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {widget.description}
+                          {widgetDescription(widget.id)}
                         </p>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-between">
                       <span className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Drag to {isActive ? 'reorder' : 'add'}
+                        {isActive ? t('dragToReorder') : t('dragToAdd')}
                       </span>
                       <button
                         type="button"
@@ -2891,7 +2900,7 @@ const supplierInsights = useMemo(() => {
                             : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
                         }`}
                       >
-                        {isActive ? 'Remove' : 'Add'}
+                        {isActive ? tCommon('remove') : tCommon('add')}
                       </button>
                     </div>
                   </div>
@@ -2906,9 +2915,9 @@ const supplierInsights = useMemo(() => {
         <div className="mx-auto flex flex-col gap-3">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-black">Dashboard Overview</h1>
+              <h1 className="text-2xl font-bold text-black">{t('title')}</h1>
               <p className="text-sm text-gray-600">
-                Customize the widgets you need most for faster decision making.
+                {t('subtitle')}
               </p>
             </div>
             <button
@@ -2917,7 +2926,7 @@ const supplierInsights = useMemo(() => {
               className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-black transition hover:border-[#0a61d7]"
             >
               <Settings2 className="h-4 w-4 text-[#0a61d7]" />
-              Drag widgets to rearrange
+              {t('dragWidgets')}
             </button>
           </header>
 
@@ -2931,6 +2940,8 @@ const supplierInsights = useMemo(() => {
                   change={card.change}
                   icon={card.icon}
                   color={card.color}
+                  comparisonLabel={tCommon('vsLastMonth')}
+                  naLabel={tCommon('notAvailable')}
                 />
               ))}
             </section>
